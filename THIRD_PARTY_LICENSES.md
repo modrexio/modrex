@@ -7,7 +7,7 @@ Regenerate with `pnpm generate-licenses`.
 
 ## JavaScript / TypeScript Dependencies
 
-### @floating-ui/core 1.7.5
+### @floating-ui/core 1.8.0
 
 **License:** MIT
 
@@ -36,7 +36,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ---
 
-### @floating-ui/dom 1.7.6
+### @floating-ui/dom 1.8.0
 
 **License:** MIT
 
@@ -65,7 +65,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ---
 
-### @floating-ui/react-dom 2.1.8
+### @floating-ui/react-dom 2.1.9
 
 **License:** MIT
 
@@ -94,7 +94,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ---
 
-### @floating-ui/utils 0.2.11
+### @floating-ui/utils 0.2.12
 
 **License:** MIT
 
@@ -153,7 +153,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/primitive 1.1.4
+### @radix-ui/primitive 1.1.5
 
 **License:** MIT
 
@@ -183,7 +183,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-arrow 1.1.9
+### @radix-ui/react-arrow 1.1.11
 
 **License:** MIT
 
@@ -213,7 +213,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-collection 1.1.9
+### @radix-ui/react-collection 1.1.12
 
 **License:** MIT
 
@@ -273,7 +273,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-context 1.1.4
+### @radix-ui/react-context 1.2.0
 
 **License:** MIT
 
@@ -303,7 +303,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-dialog 1.1.16
+### @radix-ui/react-dialog 1.1.19
 
 **License:** MIT
 
@@ -363,7 +363,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-dismissable-layer 1.1.12
+### @radix-ui/react-dismissable-layer 1.1.15
 
 **License:** MIT
 
@@ -423,7 +423,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-focus-scope 1.1.9
+### @radix-ui/react-focus-scope 1.1.12
 
 **License:** MIT
 
@@ -483,7 +483,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-popper 1.3.0
+### @radix-ui/react-popper 1.3.3
 
 **License:** MIT
 
@@ -513,7 +513,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-portal 1.1.11
+### @radix-ui/react-portal 1.1.13
 
 **License:** MIT
 
@@ -543,7 +543,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-presence 1.1.6
+### @radix-ui/react-presence 1.1.7
 
 **License:** MIT
 
@@ -573,7 +573,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-primitive 2.1.5
+### @radix-ui/react-primitive 2.1.7
 
 **License:** MIT
 
@@ -603,7 +603,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-roving-focus 1.1.12
+### @radix-ui/react-roving-focus 1.1.15
 
 **License:** MIT
 
@@ -633,7 +633,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-select 2.3.0
+### @radix-ui/react-select 2.3.3
 
 **License:** MIT
 
@@ -663,7 +663,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-slot 1.2.5
+### @radix-ui/react-slot 1.3.0
 
 **License:** MIT
 
@@ -693,7 +693,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-tabs 1.1.14
+### @radix-ui/react-tabs 1.1.17
 
 **License:** MIT
 
@@ -723,7 +723,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-tooltip 1.2.9
+### @radix-ui/react-tooltip 1.2.12
 
 **License:** MIT
 
@@ -843,7 +843,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-use-escape-keydown 1.1.2
+### @radix-ui/react-use-is-hydrated 0.1.1
 
 **License:** MIT
 
@@ -993,7 +993,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-visually-hidden 1.2.5
+### @radix-ui/react-visually-hidden 1.2.7
 
 **License:** MIT
 
@@ -1083,7 +1083,7 @@ MIT License
 
 ---
 
-### @types/estree 1.0.8
+### @types/estree 1.0.9
 
 **License:** MIT
 
@@ -1233,7 +1233,7 @@ MIT License
 
 ---
 
-### @types/react 19.2.14
+### @types/react 19.2.17
 
 **License:** MIT
 
@@ -3985,7 +3985,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ---
 
-### react 19.2.6
+### react 19.2.7
 
 **License:** MIT
 
@@ -4015,7 +4015,7 @@ SOFTWARE.
 
 ---
 
-### react-dom 19.2.6
+### react-dom 19.2.7
 
 **License:** MIT
 
@@ -5063,7 +5063,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ---
 
-### @tauri-apps/api 2.11.0
+### @tauri-apps/api 2.11.1
 
 **License:** Apache-2.0 OR MIT
 
@@ -5101,7 +5101,7 @@ PERFORMANCE OF THIS SOFTWARE.
 
 ---
 
-### lucide-react 1.16.0
+### lucide-react 1.24.0
 
 **License:** ISC
 
@@ -5410,7 +5410,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ---
 
-### simple-icons 16.23.0
+### simple-icons 16.25.0
 
 **License:** CC0-1.0
 
