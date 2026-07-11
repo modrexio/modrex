@@ -12,10 +12,10 @@ jobs:
     build-windows:
         runs-on: windows-latest
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v7
 
-            - uses: pnpm/action-setup@v4
-            - uses: actions/setup-node@v4
+            - uses: pnpm/action-setup@v6
+            - uses: actions/setup-node@v6
               with:
                   node-version: 22
                   cache: pnpm
@@ -35,7 +35,7 @@ jobs:
                   MODREX_GA_MEASUREMENT_ID: ${{ secrets.MODREX_GA_MEASUREMENT_ID }}
                   MODREX_GA_API_SECRET: ${{ secrets.MODREX_GA_API_SECRET }}
 
-            - uses: actions/upload-artifact@v4
+            - uses: actions/upload-artifact@v7
               with:
                   name: windows-nsis
                   path: |
@@ -45,7 +45,7 @@ jobs:
     build-linux:
         runs-on: ubuntu-24.04
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v7
 
             - name: Install system dependencies
               run: |
@@ -57,8 +57,8 @@ jobs:
                     patchelf \
                     rpm
 
-            - uses: pnpm/action-setup@v4
-            - uses: actions/setup-node@v4
+            - uses: pnpm/action-setup@v6
+            - uses: actions/setup-node@v6
               with:
                   node-version: 22
                   cache: pnpm
@@ -78,17 +78,17 @@ jobs:
                   MODREX_GA_MEASUREMENT_ID: ${{ secrets.MODREX_GA_MEASUREMENT_ID }}
                   MODREX_GA_API_SECRET: ${{ secrets.MODREX_GA_API_SECRET }}
 
-            - uses: actions/upload-artifact@v4
+            - uses: actions/upload-artifact@v7
               with:
                   name: linux-deb
                   path: src-tauri/target/release/bundle/deb/*.deb
 
-            - uses: actions/upload-artifact@v4
+            - uses: actions/upload-artifact@v7
               with:
                   name: linux-rpm
                   path: src-tauri/target/release/bundle/rpm/*.rpm
 
-            - uses: actions/upload-artifact@v4
+            - uses: actions/upload-artifact@v7
               with:
                   name: linux-appimage
                   path: |
@@ -99,9 +99,9 @@ jobs:
         needs: [build-windows, build-linux]
         runs-on: ubuntu-latest
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v7
 
-            - uses: actions/download-artifact@v4
+            - uses: actions/download-artifact@v8
 
             - name: Extract version
               id: ver
@@ -223,7 +223,7 @@ jobs:
                   } > latest-linux.yml
 
             - name: Publish release
-              uses: softprops/action-gh-release@v2
+              uses: softprops/action-gh-release@v3
               with:
                   name: ${{ github.ref_name }}
                   draft: true
