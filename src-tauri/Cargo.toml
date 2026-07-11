@@ -44,7 +44,7 @@ tar = "0.4"
 flate2 = "1"
 xz2 = { version = "0.1", features = ["static"] }
 unrar = "0.5"
-sysinfo = { version = "0.37", default-features = false, features = ["system"] }
+sysinfo = { version = "0.39", default-features = false, features = ["system"] }
 scraper = "0.27"
 discord-rich-presence = "1"
 
