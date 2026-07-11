@@ -7,7 +7,7 @@ Regenerate with `pnpm generate-licenses`.
 
 ## JavaScript / TypeScript Dependencies
 
-### @floating-ui/core 1.7.5
+### @floating-ui/core 1.8.0
 
 **License:** MIT
 
@@ -36,7 +36,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ---
 
-### @floating-ui/dom 1.7.6
+### @floating-ui/dom 1.8.0
 
 **License:** MIT
 
@@ -65,7 +65,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ---
 
-### @floating-ui/react-dom 2.1.8
+### @floating-ui/react-dom 2.1.9
 
 **License:** MIT
 
@@ -94,7 +94,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ---
 
-### @floating-ui/utils 0.2.11
+### @floating-ui/utils 0.2.12
 
 **License:** MIT
 
@@ -153,7 +153,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/primitive 1.1.4
+### @radix-ui/primitive 1.1.5
 
 **License:** MIT
 
@@ -183,7 +183,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-arrow 1.1.9
+### @radix-ui/react-arrow 1.1.11
 
 **License:** MIT
 
@@ -213,7 +213,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-collection 1.1.9
+### @radix-ui/react-collection 1.1.12
 
 **License:** MIT
 
@@ -273,7 +273,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-context 1.1.4
+### @radix-ui/react-context 1.2.0
 
 **License:** MIT
 
@@ -303,7 +303,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-dialog 1.1.16
+### @radix-ui/react-dialog 1.1.19
 
 **License:** MIT
 
@@ -363,7 +363,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-dismissable-layer 1.1.12
+### @radix-ui/react-dismissable-layer 1.1.15
 
 **License:** MIT
 
@@ -423,7 +423,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-focus-scope 1.1.9
+### @radix-ui/react-focus-scope 1.1.12
 
 **License:** MIT
 
@@ -483,7 +483,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-popper 1.3.0
+### @radix-ui/react-popper 1.3.3
 
 **License:** MIT
 
@@ -513,7 +513,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-portal 1.1.11
+### @radix-ui/react-portal 1.1.13
 
 **License:** MIT
 
@@ -543,7 +543,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-presence 1.1.6
+### @radix-ui/react-presence 1.1.7
 
 **License:** MIT
 
@@ -573,7 +573,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-primitive 2.1.5
+### @radix-ui/react-primitive 2.1.7
 
 **License:** MIT
 
@@ -603,7 +603,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-roving-focus 1.1.12
+### @radix-ui/react-roving-focus 1.1.15
 
 **License:** MIT
 
@@ -633,7 +633,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-select 2.3.0
+### @radix-ui/react-select 2.3.3
 
 **License:** MIT
 
@@ -663,7 +663,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-slot 1.2.5
+### @radix-ui/react-slot 1.3.0
 
 **License:** MIT
 
@@ -693,7 +693,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-tabs 1.1.14
+### @radix-ui/react-tabs 1.1.17
 
 **License:** MIT
 
@@ -723,7 +723,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-tooltip 1.2.9
+### @radix-ui/react-tooltip 1.2.12
 
 **License:** MIT
 
@@ -843,7 +843,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-use-escape-keydown 1.1.2
+### @radix-ui/react-use-is-hydrated 0.1.1
 
 **License:** MIT
 
@@ -993,7 +993,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-visually-hidden 1.2.5
+### @radix-ui/react-visually-hidden 1.2.7
 
 **License:** MIT
 
@@ -1083,7 +1083,7 @@ MIT License
 
 ---
 
-### @types/estree 1.0.8
+### @types/estree 1.0.9
 
 **License:** MIT
 
@@ -1233,7 +1233,7 @@ MIT License
 
 ---
 
-### @types/react 19.2.14
+### @types/react 19.2.17
 
 **License:** MIT
 
@@ -3985,7 +3985,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ---
 
-### react 19.2.6
+### react 19.2.7
 
 **License:** MIT
 
@@ -4015,7 +4015,7 @@ SOFTWARE.
 
 ---
 
-### react-dom 19.2.6
+### react-dom 19.2.7
 
 **License:** MIT
 
@@ -5063,7 +5063,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ---
 
-### @tauri-apps/api 2.11.0
+### @tauri-apps/api 2.11.1
 
 **License:** Apache-2.0 OR MIT
 
@@ -5101,7 +5101,7 @@ PERFORMANCE OF THIS SOFTWARE.
 
 ---
 
-### lucide-react 1.16.0
+### lucide-react 1.24.0
 
 **License:** ISC
 
@@ -5410,7 +5410,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ---
 
-### simple-icons 16.23.0
+### simple-icons 16.25.0
 
 **License:** CC0-1.0
 
@@ -6793,7 +6793,7 @@ CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 ## ISC License
 
-Used by: scraper 0.26.0
+Used by: scraper 0.27.0
 
 ```
 Copyright © 2016, June McEnroe <june@causal.agency>
@@ -7236,7 +7236,7 @@ THE SOFTWARE.
 
 ## MIT License
 
-Used by: bitflags 1.3.2, bitflags 2.11.1, getopts 0.2.24, glob 0.3.3, log 0.4.29, num-traits 0.2.19, regex-automata 0.4.14, regex-syntax 0.8.10, regex 1.12.3
+Used by: bitflags 1.3.2, bitflags 2.11.1, getopts 0.2.24, glob 0.3.3, log 0.4.33, num-traits 0.2.19, regex-automata 0.4.14, regex-syntax 0.8.10, regex 1.12.3
 
 ```
 Copyright (c) 2014 The Rust Project Developers
@@ -7271,7 +7271,7 @@ DEALINGS IN THE SOFTWARE.
 
 ## MIT License
 
-Used by: uuid 1.23.1
+Used by: uuid 1.23.4
 
 ```
 Copyright (c) 2014 The Rust Project Developers
@@ -8087,7 +8087,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ## MIT License
 
-Used by: hyper-rustls 0.27.9, rustls-native-certs 0.8.3, rustls 0.23.40
+Used by: hyper-rustls 0.27.9, rustls-native-certs 0.8.3, rustls 0.23.41
 
 ```
 Copyright (c) 2016 Joseph Birr-Pixton <jpixton@gmail.com>
@@ -8326,7 +8326,7 @@ DEALINGS IN THE SOFTWARE.
 
 ## MIT License
 
-Used by: reqwest 0.13.3
+Used by: reqwest 0.13.4
 
 ```
 Copyright (c) 2016-2026 Sean McArthur
@@ -8349,6 +8349,44 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
+
+```
+
+---
+
+## MIT License
+
+Used by: sha2 0.11.0
+
+```
+Copyright (c) 2016-2026 The RustCrypto Project Developers
+Copyright (c) 2016 Artyom Pavlov
+Copyright (c) 2009-2013 Mozilla Foundation
+Copyright (c) 2006-2009 Graydon Hoare
+
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
 
 ```
 
@@ -8794,6 +8832,42 @@ DEALINGS IN THE SOFTWARE.
 
 ## MIT License
 
+Used by: digest 0.11.3
+
+```
+Copyright (c) 2017-2025 RustCrypto Developers
+Copyright (c) 2017 Artyom Pavlov
+
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+
+```
+
+---
+
+## MIT License
+
 Used by: aes 0.8.4
 
 ```
@@ -9064,6 +9138,41 @@ Used by: getrandom 0.2.17
 ```
 Copyright (c) 2018-2024 The rust-random Project Developers
 Copyright (c) 2014 The Rust Project Developers
+
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+
+```
+
+---
+
+## MIT License
+
+Used by: block-buffer 0.12.1
+
+```
+Copyright (c) 2018-2025 The RustCrypto Project Developers
 
 Permission is hereby granted, free of charge, to any
 person obtaining a copy of this software and associated
@@ -9482,10 +9591,45 @@ DEALINGS IN THE SOFTWARE.
 
 ## MIT License
 
-Used by: cpufeatures 0.2.17
+Used by: cpufeatures 0.2.17, cpufeatures 0.3.0
 
 ```
 Copyright (c) 2020-2025 The RustCrypto Project Developers
+
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+
+```
+
+---
+
+## MIT License
+
+Used by: const-oid 0.10.2
+
+```
+Copyright (c) 2020-2026 The RustCrypto Project Developers
 
 Permission is hereby granted, free of charge, to any
 person obtaining a copy of this software and associated
@@ -9581,11 +9725,81 @@ DEALINGS IN THE SOFTWARE.
 
 ## MIT License
 
+Used by: crypto-common 0.2.2
+
+```
+Copyright (c) 2021-2026 RustCrypto Developers
+
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+
+```
+
+---
+
+## MIT License
+
 Used by: inout 0.1.4
 
 ```
 Copyright (c) 2022 The RustCrypto Project Developers
 Copyright (c) 2022 Artyom Pavlov
+
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+
+```
+
+---
+
+## MIT License
+
+Used by: hybrid-array 0.4.13
+
+```
+Copyright (c) 2022-2026 The RustCrypto Project Developers
 
 Permission is hereby granted, free of charge, to any
 person obtaining a copy of this software and associated
@@ -11067,7 +11281,7 @@ SOFTWARE.
 
 ## MIT License
 
-Used by: modrex 0.12.2, brotli-decompressor 5.0.0, cargo_toml 0.22.3, chrono 0.4.44, dlopen2 0.8.2, dlopen2_derive 0.4.3, dpi 0.1.2, minisign-verify 0.2.5, siphasher 1.0.3, tauri-build 2.6.2, tauri-codegen 2.6.2, tauri-macros 2.6.2, tauri-plugin-dialog 2.7.1, tauri-plugin-fs 2.5.1, tauri-plugin-log 2.8.0, tauri-plugin-updater 2.10.1, tauri-plugin 2.6.2, tauri-runtime-wry 2.11.2, tauri-runtime 2.11.2, tauri-utils 2.9.2, tauri 2.11.2, unic-char-property 0.9.0, unic-char-range 0.9.0, unic-common 0.9.0, unic-ucd-ident 0.9.0, unic-ucd-version 0.9.0, unrar_sys 0.5.8, webview2-com-macros 0.8.1, webview2-com-sys 0.38.2, webview2-com 0.38.2, windows-collections 0.2.0, windows-core 0.61.2, windows-core 0.62.2, windows-future 0.2.1, windows-implement 0.60.2, windows-interface 0.59.3, windows-link 0.1.3, windows-link 0.2.1, windows-numerics 0.2.0, windows-registry 0.6.1, windows-result 0.3.4, windows-result 0.4.1, windows-strings 0.4.2, windows-strings 0.5.1, windows-sys 0.52.0, windows-sys 0.59.0, windows-sys 0.60.2, windows-sys 0.61.2, windows-targets 0.52.6, windows-targets 0.53.5, windows-threading 0.1.0, windows-version 0.1.7, windows 0.61.3, windows_x86_64_gnu 0.52.6, windows_x86_64_gnu 0.53.1, windows_x86_64_msvc 0.52.6, windows_x86_64_msvc 0.53.1
+Used by: modrex 0.12.2, brotli-decompressor 5.0.0, cargo_toml 0.22.3, chrono 0.4.45, dlopen2 0.8.2, dlopen2_derive 0.4.3, dpi 0.1.2, minisign-verify 0.2.5, siphasher 1.0.3, tauri-build 2.6.3, tauri-codegen 2.6.2, tauri-macros 2.6.2, tauri-plugin-dialog 2.7.1, tauri-plugin-fs 2.5.1, tauri-plugin-log 2.8.0, tauri-plugin-updater 2.10.1, tauri-plugin 2.6.2, tauri-runtime-wry 2.11.2, tauri-runtime 2.11.2, tauri-utils 2.9.3, tauri 2.11.2, unic-char-property 0.9.0, unic-char-range 0.9.0, unic-common 0.9.0, unic-ucd-ident 0.9.0, unic-ucd-version 0.9.0, unrar_sys 0.5.8, webview2-com-macros 0.8.1, webview2-com-sys 0.38.2, webview2-com 0.38.2, windows-collections 0.2.0, windows-collections 0.3.2, windows-core 0.61.2, windows-core 0.62.2, windows-future 0.2.1, windows-future 0.3.2, windows-implement 0.60.2, windows-interface 0.59.3, windows-link 0.1.3, windows-link 0.2.1, windows-numerics 0.2.0, windows-numerics 0.3.1, windows-registry 0.6.1, windows-result 0.3.4, windows-result 0.4.1, windows-strings 0.4.2, windows-strings 0.5.1, windows-sys 0.52.0, windows-sys 0.59.0, windows-sys 0.60.2, windows-sys 0.61.2, windows-targets 0.52.6, windows-targets 0.53.5, windows-threading 0.1.0, windows-threading 0.2.1, windows-version 0.1.7, windows 0.61.3, windows 0.62.2, windows_x86_64_gnu 0.52.6, windows_x86_64_gnu 0.53.1, windows_x86_64_msvc 0.52.6, windows_x86_64_msvc 0.53.1
 
 ```
 MIT License
@@ -11737,7 +11951,7 @@ SOFTWARE.
 
 ## MIT License
 
-Used by: sysinfo 0.37.2
+Used by: sysinfo 0.39.6
 
 ```
 The MIT License (MIT)
@@ -12559,7 +12773,7 @@ Exhibit B - "Incompatible With Secondary Licenses" Notice
 
 ## Mozilla Public License 2.0
 
-Used by: cssparser-macros 0.6.1, cssparser 0.36.0
+Used by: cssparser-macros 0.6.1, cssparser-macros 0.7.0, cssparser 0.36.0, cssparser 0.37.0
 
 ```
 Mozilla Public License Version 2.0
@@ -12942,7 +13156,7 @@ Exhibit B - "Incompatible With Secondary Licenses" Notice
 
 ## Mozilla Public License 2.0
 
-Used by: option-ext 0.2.0, selectors 0.36.1
+Used by: option-ext 0.2.0, selectors 0.36.1, selectors 0.38.0
 
 ```
 Mozilla Public License Version 2.0

@@ -22,6 +22,8 @@ jobs:
         runs-on: ubuntu-latest
         permissions:
             contents: read
+        outputs:
+            licenses-changed: ${{ steps.licenses.outputs.changed }}
         steps:
             - uses: actions/checkout@v7
               with:
@@ -48,7 +50,17 @@ jobs:
 
             - run: pnpm generate-licenses
 
+            - name: Check generated licenses
+              id: licenses
+              run: |
+                  if git diff --quiet -- THIRD_PARTY_LICENSES.md; then
+                    echo "changed=false" >> "$GITHUB_OUTPUT"
+                  else
+                    echo "changed=true" >> "$GITHUB_OUTPUT"
+                  fi
+
             - uses: actions/upload-artifact@v7
+              if: steps.licenses.outputs.changed == 'true'
               with:
                   name: third-party-licenses
                   path: THIRD_PARTY_LICENSES.md
@@ -57,6 +69,7 @@ jobs:
 
     commit:
         needs: generate
+        if: needs.generate.outputs.licenses-changed == 'true'
         runs-on: ubuntu-latest
         permissions:
             contents: read
@@ -85,12 +98,9 @@ jobs:
                   HEAD_REF: ${{ github.event.pull_request.head.ref }}
               run: |
                   cp .generated/THIRD_PARTY_LICENSES.md THIRD_PARTY_LICENSES.md
-                  if git diff --quiet -- THIRD_PARTY_LICENSES.md; then
-                    exit 0
-                  fi
 
                   git config user.name "github-actions[bot]"
                   git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
                   git add THIRD_PARTY_LICENSES.md
-                  git commit -m "chore(deps): regenerate third-party licenses"
+                  git commit -m "chore(deps): regenerate third-party licenses" -m "[dependabot skip]"
                   git push origin "HEAD:$HEAD_REF"
