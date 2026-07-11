@@ -6793,7 +6793,7 @@ CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 ## ISC License
 
-Used by: scraper 0.26.0
+Used by: scraper 0.27.0
 
 ```
 Copyright © 2016, June McEnroe <june@causal.agency>
@@ -12630,7 +12630,7 @@ Exhibit B - "Incompatible With Secondary Licenses" Notice
 
 ## Mozilla Public License 2.0
 
-Used by: cssparser-macros 0.6.1, cssparser 0.36.0
+Used by: cssparser-macros 0.6.1, cssparser-macros 0.7.0, cssparser 0.36.0, cssparser 0.37.0
 
 ```
 Mozilla Public License Version 2.0
@@ -13013,7 +13013,7 @@ Exhibit B - "Incompatible With Secondary Licenses" Notice
 
 ## Mozilla Public License 2.0
 
-Used by: option-ext 0.2.0, selectors 0.36.1
+Used by: option-ext 0.2.0, selectors 0.36.1, selectors 0.38.0
 
 ```
 Mozilla Public License Version 2.0
