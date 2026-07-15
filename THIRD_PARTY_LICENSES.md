@@ -7581,7 +7581,7 @@ THE SOFTWARE.
 
 ## MIT License
 
-Used by: serde_with 3.20.0, serde_with_macros 3.20.0
+Used by: serde_with 3.21.0, serde_with_macros 3.21.0
 
 ```
 Copyright (c) 2015
