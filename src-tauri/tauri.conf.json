@@ -21,7 +21,7 @@
                 "backgroundColor": "#131313",
                 "decorations": false,
                 "visible": false,
-                "dragDropEnabled": false
+                "dragDropEnabled": true
             },
             {
                 "label": "splash",

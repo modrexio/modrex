@@ -90,6 +90,7 @@ pub fn run() {
             commands::mods::get_installed,
             commands::mods::install_mod,
             commands::mods::install_file,
+            commands::mods::install_dropped_file,
             commands::mods::install_from_zip_entry,
             commands::mods::install_cb_flat_archive,
             commands::mods::install_host_pack,

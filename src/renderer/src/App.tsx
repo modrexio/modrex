@@ -26,6 +26,8 @@ import { ResizeHandles } from './components/ResizeHandles'
 import { SupportPromptBanner } from './components/SupportPromptBanner'
 import { api, type StartupPhase } from './api'
 import { TelemetryConsentDialog } from './components/TelemetryConsentDialog'
+import { FileDropOverlay, FileDropStatus } from './components/FileDropOverlay'
+import { useFileDropInstall } from './hooks/useFileDropInstall'
 import { useModIdentificationTracking } from './lib/analytics/useModIdentificationTracking'
 import { getSettingsCache, setSettingsCache } from './settingsCache'
 import { Dialog } from './components/Dialog'
@@ -420,9 +422,29 @@ export default function App() {
             ? prevView
             : (view as 'browse' | 'installed' | 'news' | 'settings')
 
+    const {
+        dragging: fileDragging,
+        installing: fileInstalling,
+        progress: dropProgress,
+        result: dropResult,
+        dismissResult,
+    } = useFileDropInstall({
+        gamePath,
+        activeGame,
+        enabled: view !== 'welcome',
+        onRefreshInstalled: refreshInstalled,
+    })
+
     return (
         <TooltipProvider delayDuration={400}>
             <div className="flex flex-col h-screen bg-surface text-text">
+                <FileDropOverlay
+                    active={fileDragging || fileInstalling}
+                    installing={fileInstalling}
+                    progress={dropProgress}
+                    gameName={GAMES[activeGame].name}
+                />
+                {dropResult && <FileDropStatus result={dropResult} onDismiss={dismissResult} />}
                 {navigator.userAgent.includes('Linux') && <ResizeHandles />}
                 <>
                     <TopBar

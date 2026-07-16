@@ -449,5 +449,16 @@
         "settingsDescription": "Share anonymous usage data to help improve Modrex.",
         "discordPresenceTitle": "Discord Rich Presence",
         "discordPresenceDescription": "Show Modrex activity on your Discord profile with a link to the app."
+    },
+    "drop": {
+        "overlayTitle": "Drop to install",
+        "overlaySubtitle": "Release to install into {game}",
+        "installing": "Installing…",
+        "installingCount": "Installing {current} of {total}…",
+        "installed": "Installed {count} mods",
+        "installedSingle": "Installed 1 mod",
+        "needsPicker": "Some archives must be installed from their mod page for now",
+        "failed": "Could not install: {names}",
+        "noGame": "Set your game folder before dropping mods"
     }
 }

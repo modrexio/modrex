@@ -1,6 +1,7 @@
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import { getCurrentWindow } from '@tauri-apps/api/window'
+import { getCurrentWebview } from '@tauri-apps/api/webview'
 
 // The library declares this union without exporting it.
 export type ResizeDirection = Parameters<
@@ -213,6 +214,14 @@ export const api = {
     },
     installMod(modId: number, gamePath: string, gameId?: string): Promise<void> {
         return trackInstall(invoke('install_mod', { modId, gamePath, gameId }))
+    },
+    installDroppedFile(
+        path: string,
+        gamePath: string,
+        folderId?: string,
+        gameId?: string
+    ): Promise<void> {
+        return trackInstall(invoke('install_dropped_file', { path, gamePath, folderId, gameId }))
     },
     installModFile(
         modId: number,
@@ -498,6 +507,27 @@ export const api = {
     },
     onSupportPromptEligible(callback: () => void): () => void {
         return onEvent<void>('support-prompt:eligible', () => callback())
+    },
+    // Native OS file-drop paths (dragDropEnabled: true). 'enter'/'over' fire while files
+    // hover the window; 'drop' delivers the final absolute paths; 'leave' on cancel.
+    onFileDrop(
+        callback: (info: { type: 'enter' | 'over' | 'drop' | 'leave'; paths: string[] }) => void
+    ): () => void {
+        let unlistenFn: (() => void) | null = null
+        let cancelled = false
+        getCurrentWebview()
+            .onDragDropEvent((event) => {
+                const p = event.payload
+                callback({ type: p.type, paths: 'paths' in p ? p.paths : [] })
+            })
+            .then((fn) => {
+                if (cancelled) fn()
+                else unlistenFn = fn
+            })
+        return () => {
+            cancelled = true
+            unlistenFn?.()
+        }
     },
 
     // ── Thumbnails ─────────────────────────────────────────────────────────────

@@ -695,6 +695,165 @@ pub async fn install_file(
     result
 }
 
+/// Installs a mod from a local file the user dropped onto the window (Explorer drag-drop).
+/// The file carries no modworkshop identity, so it is installed as an unidentified entry
+/// (negative id, "unknown" version) exactly like an ambiently-discovered pak — `get_installed`'s
+/// SHA256 upgrade resolves its real identity on the next refresh. The dropped file is copied into
+/// temp first so resolution/cleanup never touches the user's original.
+#[tauri::command]
+pub async fn install_dropped_file(
+    app: AppHandle,
+    path: String,
+    game_path: String,
+    folder_id: Option<String>,
+    game_id: Option<String>,
+) -> Result<(), String> {
+    let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
+    let src = PathBuf::from(&path);
+    let file_stem = src
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .map(|s| s.to_string())
+        .filter(|s| !s.is_empty())
+        .ok_or_else(|| "invalid file name".to_string())?;
+
+    let temp = std::env::temp_dir().join(match src.extension().and_then(|s| s.to_str()) {
+        Some(ext) => format!("modrex-drop-{}.{}", Uuid::new_v4(), ext),
+        None => format!("modrex-drop-{}", Uuid::new_v4()),
+    });
+    tokio::fs::copy(&src, &temp)
+        .await
+        .map_err(|e| format!("could not read dropped file: {e}"))?;
+
+    let (tmp, zip_orig, location_tag) = match resolve_archive_download(temp.clone(), cfg) {
+        Err(e) if e.starts_with("UE4SS_LOADER:") => {
+            let zip_path = PathBuf::from(&e["UE4SS_LOADER:".len()..]);
+            let settings = read_settings(&app);
+            let launcher = game_settings(&settings, cfg.game_id).and_then(|gs| gs.launcher.clone());
+            let result = crate::commands::ue4ss::install_loader(
+                cfg.game_id,
+                &game_path,
+                launcher.as_deref(),
+                &zip_path,
+            );
+            let _ = std::fs::remove_file(&zip_path);
+            return result;
+        }
+        // Part 2b routes these to the archive picker / sentinel modals; until then a dropped
+        // multi-pak or specially-packaged archive is reported plainly rather than mis-installed.
+        Err(e)
+            if e.starts_with("ZIP_MULTI_PAK:")
+                || e.starts_with("HOST_MOD_PACK:")
+                || e.starts_with("CB_FLAT_ARCHIVE:")
+                || e.starts_with("UNRECOGNIZED_ARCHIVE") =>
+        {
+            let _ = tokio::fs::remove_file(&temp).await;
+            return Err("DROP_NEEDS_PICKER".to_string());
+        }
+        result => match result {
+            Ok(v) => v,
+            Err(e) => {
+                let _ = tokio::fs::remove_file(&temp).await;
+                log::warn!("install_dropped_file {path}: {e}");
+                return Err(e);
+            }
+        },
+    };
+    let target = cfg.target_for(location_tag.as_deref());
+
+    let result = async {
+        let sha256 = match &target.unit {
+            engine::ModUnit::File { .. } => compute_sha256(&tmp).await?,
+            engine::ModUnit::Directory { entry_markers, .. } => {
+                let hash_path = if entry_markers.is_empty() {
+                    hashable_file_for_mod_dir(&tmp)
+                        .ok_or_else(|| "mod directory is empty".to_string())?
+                } else {
+                    entry_markers
+                        .iter()
+                        .map(|m| tmp.join(m))
+                        .find(|p| p.exists())
+                        .unwrap_or_else(|| tmp.join(entry_markers[0]))
+                };
+                compute_sha256(&hash_path).await?
+            }
+        };
+        // Discovery-matching identity: filename drives the uid/id the untracked-scan would assign,
+        // so a later manual refresh reconciles this entry instead of duplicating it.
+        let filename = match &target.unit {
+            engine::ModUnit::File { .. } => pak_filename(&file_stem),
+            engine::ModUnit::Directory { .. } if cfg.game_id == "cb" => {
+                naming::mod_folder_name(&file_stem)
+            }
+            engine::ModUnit::Directory { .. } => tmp
+                .file_name()
+                .and_then(|s| s.to_str())
+                .unwrap_or(&file_stem)
+                .to_string(),
+        };
+        let uid = strip_priority_prefix(&filename).to_string();
+        let id = hash_filename(&filename);
+        let sp = get_state_path(&game_path, cfg);
+
+        install_mod_from_path(
+            &game_path,
+            &sp,
+            InstalledMod {
+                uid,
+                id,
+                name: file_stem.clone(),
+                version: "unknown".to_string(),
+                filename,
+                enabled: true,
+                installed_at: Utc::now().to_rfc3339(),
+                sha256: Some(sha256),
+                ..InstalledMod::default()
+            },
+            &tmp,
+            folder_id,
+            cfg,
+            target,
+        )?;
+        Ok::<(), String>(())
+    }
+    .await;
+
+    match &target.unit {
+        engine::ModUnit::File { .. } => {
+            let _ = tokio::fs::remove_file(&tmp).await;
+            for ext in naming::PAK_SIDECAR_EXTENSIONS {
+                let _ = tokio::fs::remove_file(tmp.with_extension(ext)).await;
+            }
+        }
+        engine::ModUnit::Directory { .. } if cfg.game_id == "cb" => {
+            let _ = tokio::fs::remove_dir_all(&tmp).await;
+        }
+        engine::ModUnit::Directory { .. } => {
+            if let Some(parent) = tmp.parent() {
+                let _ = tokio::fs::remove_dir_all(parent).await;
+            }
+        }
+    }
+    if let Some(orig) = zip_orig {
+        let _ = tokio::fs::remove_file(&orig).await;
+    }
+    let _ = tokio::fs::remove_file(&temp).await;
+
+    match &result {
+        Ok(_) => crate::commands::analytics::track(
+            &app,
+            "mod_installed",
+            serde_json::json!({
+                "game": game_id.as_deref().unwrap_or("pd3"),
+                "mod_id": -1,
+                "format": "local",
+            }),
+        ),
+        Err(e) => log::warn!("install_dropped_file {path}: {e}"),
+    }
+    result
+}
+
 #[tauri::command]
 pub async fn install_from_zip_entry(
     app: AppHandle,
