@@ -12,6 +12,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - Browse now lets you filter mods by tag, choosing tags to include or exclude.
 - New Storage section in Settings to clear cached data and reset app settings to defaults.
 - New buttons in Settings to open the game folder, each of its mod folders, and Modrex's data and install folders.
+- Mods can now be installed by dragging files from the file explorer into the window.
 
 ### Changed
 
