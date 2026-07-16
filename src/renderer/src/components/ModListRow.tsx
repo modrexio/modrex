@@ -20,10 +20,6 @@ interface Props {
     onEnable: () => void
     onDisable: () => void
     onReinstall?: () => void
-    onDragStart?: (e: React.DragEvent) => void
-    onDragOver?: (e: React.DragEvent) => void
-    onDrop?: () => void
-    onDragEnd?: () => void
     optionsButton?: ReactNode
 }
 
@@ -39,10 +35,6 @@ export function ModListRow({
     onEnable,
     onDisable,
     onReinstall,
-    onDragStart,
-    onDragOver,
-    onDrop,
-    onDragEnd,
     optionsButton,
 }: Props) {
     const thumbSrc = useThumbnail(mod.thumbnail?.file)
@@ -57,14 +49,7 @@ export function ModListRow({
             : null
 
     return (
-        <div
-            draggable
-            onDragStart={onDragStart}
-            onDragOver={onDragOver}
-            onDrop={onDrop}
-            onDragEnd={onDragEnd}
-            className="group relative rounded-lg border bg-surface-raised border-border hover:border-accent/25 transition-colors overflow-hidden"
-        >
+        <div className="group relative rounded-lg border bg-surface-raised border-border hover:border-accent/25 transition-colors overflow-hidden">
             <div
                 className={`flex items-stretch transition-opacity ${isDragging || loading ? 'opacity-40' : 'opacity-100'}`}
             >

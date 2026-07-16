@@ -181,25 +181,8 @@ export function InstalledPage({
 
     const folderActions = useFolderActions(gamePath, onRefreshInstalled, activeGame)
 
-    const {
-        dragItem,
-        dropTarget,
-        scrollContainerRef,
-        handleContainerDragOver,
-        handleDragEnd,
-        onModDragStart,
-        onModDragOver,
-        onFolderHeaderDragOver,
-        onChildModDragOver,
-        onEmptyFolderDragOver,
-        handleGapDragOver,
-        onModDropDirect,
-        onModDrop,
-        onDropIntoFolder,
-        onFolderDragStart,
-        onChildDrop,
-        onNestFolderInto,
-    } = useDragDrop({ installed, folders, gamePath, modData, onRefreshInstalled, activeGame })
+    const { dragItem, dropTarget, scrollContainerRef, onModPointerDown, onFolderPointerDown } =
+        useDragDrop({ installed, folders, gamePath, modData, onRefreshInstalled, activeGame })
 
     const isFiltering = filterQuery.trim().length > 0
     const { mods: displayMods, visibleFolderIds } = isFiltering
@@ -242,16 +225,8 @@ export function InstalledPage({
             return (
                 <div
                     key={repUid}
-                    onDragOver={
-                        isFolderDropZone ? (e) => onChildModDragOver(e, repUid, null) : undefined
-                    }
-                    onDrop={
-                        isFolderDropZone
-                            ? () =>
-                                  dragItem?.kind === 'folder' &&
-                                  onChildDrop(dragItem.id, repUid, 'mod', null)
-                            : undefined
-                    }
+                    data-drop-child={isFolderDropZone ? repUid : undefined}
+                    data-parent-id={isFolderDropZone ? '' : undefined}
                 >
                     {isDropBefore && <div className="h-0.5 rounded-full bg-accent mx-2 mb-1" />}
                     <InstalledModItem mods={mods} />
@@ -293,19 +268,8 @@ export function InstalledPage({
         folderActions,
         dragItem,
         dropTarget,
-        onFolderDragStart,
-        handleDragEnd,
-        onFolderHeaderDragOver,
-        onDropIntoFolder,
-        onNestFolderInto,
-        onChildDrop,
-        onChildModDragOver,
-        onEmptyFolderDragOver,
-        handleGapDragOver,
-        onModDropDirect,
-        onModDragStart,
-        onModDragOver,
-        onModDrop,
+        onModPointerDown,
+        onFolderPointerDown,
     }
 
     return (
@@ -487,7 +451,6 @@ export function InstalledPage({
                 )}
                 <div
                     ref={scrollContainerRef}
-                    onDragOver={handleContainerDragOver}
                     className="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-3"
                 >
                     {!installedReady ? (
@@ -565,13 +528,8 @@ export function InstalledPage({
                                             <div
                                                 key={`rg-${leaderId}`}
                                                 className="relative grid grid-cols-2 gap-4 xl:grid-cols-3 2xl:grid-cols-4"
-                                                onDragOver={(e) =>
-                                                    onChildModDragOver(e, leaderId, null)
-                                                }
-                                                onDrop={() =>
-                                                    dragItem?.kind === 'folder' &&
-                                                    onChildDrop(dragItem.id, leaderId, 'mod', null)
-                                                }
+                                                data-drop-child={leaderId}
+                                                data-parent-id=""
                                             >
                                                 {isGroupDropBefore && (
                                                     <div className="absolute -top-1 left-0 right-0 h-0.5 rounded-full bg-accent pointer-events-none" />

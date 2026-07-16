@@ -52,14 +52,7 @@ export function FolderSection({ folder }: Props) {
         dragItem,
         dropTarget,
         folderActions,
-        onFolderDragStart,
-        handleDragEnd,
-        onFolderHeaderDragOver,
-        onDropIntoFolder,
-        onNestFolderInto,
-        onChildDrop,
-        onChildModDragOver,
-        onEmptyFolderDragOver,
+        onFolderPointerDown,
     } = useInstalledContext()
 
     const {
@@ -99,21 +92,10 @@ export function FolderSection({ folder }: Props) {
         >
             {isDropBeforeThis && <div className="h-0.5 rounded-full bg-accent mx-2 mb-1" />}
             <div
-                draggable={!isRenaming}
-                onDragStart={(e) => onFolderDragStart(e, folder.id)}
-                onDragEnd={handleDragEnd}
-                onDragOver={(e) => onFolderHeaderDragOver(e, folder)}
-                onDrop={() => {
-                    if (dragItem?.kind === 'mod') {
-                        onDropIntoFolder(folder.id)
-                        return
-                    }
-                    if (dragItem?.kind !== 'folder') return
-                    if (isDropInto) {
-                        onNestFolderInto(dragItem.id, folder.id)
-                        return
-                    }
-                    onChildDrop(dragItem.id, folder.id, 'folder', folder.parentId)
+                data-drop-folder-header={folder.id}
+                data-parent-id={folder.parentId ?? ''}
+                onPointerDown={(e) => {
+                    if (!isRenaming) onFolderPointerDown(e, folder.id)
                 }}
                 className={`group flex items-center gap-1.5 px-2 py-2 rounded-lg border transition-colors ${
                     !isRenaming ? 'cursor-grab active:cursor-grabbing' : ''
@@ -245,13 +227,10 @@ export function FolderSection({ folder }: Props) {
 
                     {isEmpty && creatingFolderParentId !== folder.id ? (
                         <div
+                            data-drop-empty-folder={folder.id}
                             className={`h-10 rounded-lg border border-dashed transition-colors flex items-center justify-center text-xs text-text-subtle ${
                                 isDropInto ? 'border-accent bg-accent/5' : 'border-border'
                             }`}
-                            onDragOver={(e) => onEmptyFolderDragOver(e, folder.id)}
-                            onDrop={() => {
-                                if (dragItem?.kind === 'mod') onDropIntoFolder(folder.id)
-                            }}
                         >
                             {t('installed.folder.dropHere')}
                         </div>
@@ -272,11 +251,8 @@ export function FolderSection({ folder }: Props) {
                             return (
                                 <div
                                     key={repUid}
-                                    onDragOver={(e) => onChildModDragOver(e, repUid, folder.id)}
-                                    onDrop={() =>
-                                        dragItem?.kind === 'folder' &&
-                                        onChildDrop(dragItem.id, repUid, 'mod', folder.id)
-                                    }
+                                    data-drop-child={repUid}
+                                    data-parent-id={folder.id}
                                 >
                                     {isChildDropBefore && (
                                         <div className="h-0.5 rounded-full bg-accent mx-2 mb-1" />
