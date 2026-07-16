@@ -739,16 +739,31 @@ pub async fn install_dropped_file(
             let _ = std::fs::remove_file(&zip_path);
             return result;
         }
-        // Part 2b routes these to the archive picker / sentinel modals; until then a dropped
-        // multi-pak or specially-packaged archive is reported plainly rather than mis-installed.
+        // The picker / host-pack / CB-flat modals install directly from the temp copy (which they
+        // delete afterwards), so forward the sentinel enriched with a synthetic identity, mirroring
+        // install_file. get_installed reconciles the resulting entries by SHA256 on the next refresh.
+        // UNRECOGNIZED_ARCHIVE is intentionally not forwarded — its modal fetches a modworkshop mod
+        // page a local file has no id for — so it falls through to the plain-error arm below.
         Err(e)
             if e.starts_with("ZIP_MULTI_PAK:")
                 || e.starts_with("HOST_MOD_PACK:")
-                || e.starts_with("CB_FLAT_ARCHIVE:")
-                || e.starts_with("UNRECOGNIZED_ARCHIVE") =>
+                || e.starts_with("CB_FLAT_ARCHIVE:") =>
         {
-            let _ = tokio::fs::remove_file(&temp).await;
-            return Err("DROP_NEEDS_PICKER".to_string());
+            let prefix = e
+                .split_once(':')
+                .map(|(p, _)| format!("{p}:"))
+                .unwrap_or_default();
+            if let Ok(mut v) = serde_json::from_str::<serde_json::Value>(&e[prefix.len()..]) {
+                let syn = hash_filename(&file_stem);
+                v["modId"] = serde_json::json!(syn);
+                v["modName"] = serde_json::json!(&file_stem);
+                v["fileId"] = serde_json::json!(syn);
+                v["fileType"] =
+                    serde_json::json!(src.extension().and_then(|s| s.to_str()).unwrap_or("zip"));
+                v["modVersion"] = serde_json::json!("unknown");
+                return Err(format!("{}{}", prefix, v));
+            }
+            return Err(e);
         }
         result => match result {
             Ok(v) => v,
