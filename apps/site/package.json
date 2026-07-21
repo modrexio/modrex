@@ -17,7 +17,7 @@
     },
     "devDependencies": {
         "@astrojs/check": "0.9.9",
-        "@astrojs/mdx": "6.0.2",
+        "@astrojs/mdx": "7.0.3",
         "@eslint/js": "10.0.1",
         "@tailwindcss/vite": "4.3.0",
         "astro": "6.4.5",
