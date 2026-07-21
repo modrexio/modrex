@@ -49,7 +49,7 @@ sysinfo = { version = "0.39", default-features = false, features = ["system"] }
 scraper = "0.27"
 discord-rich-presence = "1"
 tauri-plugin-deep-link = "2"
-rand = "0.9"
+rand = "0.10"
 base64 = "0.22"
 specta = { version = "=2.0.0-rc.25", features = ["derive", "function", "serde_json"] }
 specta-typescript = "=0.0.12"
