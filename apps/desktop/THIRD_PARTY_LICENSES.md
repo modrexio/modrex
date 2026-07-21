@@ -153,7 +153,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/primitive 1.1.5
+### @radix-ui/primitive 1.1.6
 
 **License:** MIT
 
@@ -183,7 +183,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-arrow 1.1.11
+### @radix-ui/react-arrow 1.1.12
 
 **License:** MIT
 
@@ -303,7 +303,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-dialog 1.1.19
+### @radix-ui/react-dialog 1.1.20
 
 **License:** MIT
 
@@ -363,7 +363,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-dismissable-layer 1.1.15
+### @radix-ui/react-dismissable-layer 1.1.16
 
 **License:** MIT
 
@@ -423,7 +423,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-focus-scope 1.1.12
+### @radix-ui/react-focus-scope 1.1.13
 
 **License:** MIT
 
@@ -483,7 +483,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-popover 1.1.19
+### @radix-ui/react-popover 1.1.20
 
 **License:** MIT
 
@@ -513,7 +513,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-popper 1.3.3
+### @radix-ui/react-popper 1.3.4
 
 **License:** MIT
 
@@ -543,7 +543,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-portal 1.1.13
+### @radix-ui/react-portal 1.1.14
 
 **License:** MIT
 
@@ -573,7 +573,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-presence 1.1.7
+### @radix-ui/react-presence 1.1.8
 
 **License:** MIT
 
@@ -633,7 +633,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-roving-focus 1.1.15
+### @radix-ui/react-roving-focus 1.1.16
 
 **License:** MIT
 
@@ -663,7 +663,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-select 2.3.3
+### @radix-ui/react-select 2.3.4
 
 **License:** MIT
 
@@ -723,7 +723,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-tabs 1.1.17
+### @radix-ui/react-tabs 1.1.18
 
 **License:** MIT
 
@@ -753,7 +753,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-tooltip 1.2.12
+### @radix-ui/react-tooltip 1.2.13
 
 **License:** MIT
 
@@ -813,7 +813,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-use-controllable-state 1.2.3
+### @radix-ui/react-use-controllable-state 1.2.4
 
 **License:** MIT
 
@@ -1023,7 +1023,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-visually-hidden 1.2.7
+### @radix-ui/react-visually-hidden 1.2.8
 
 **License:** MIT
 
@@ -4015,7 +4015,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ---
 
-### react 19.2.7
+### react 19.2.8
 
 **License:** MIT
 
@@ -4045,7 +4045,7 @@ SOFTWARE.
 
 ---
 
-### react-dom 19.2.7
+### react-dom 19.2.8
 
 **License:** MIT
 
@@ -5100,7 +5100,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ---
 
-### @tauri-apps/plugin-log 2.8.0
+### @tauri-apps/plugin-log 2.9.0
 
 **License:** MIT OR Apache-2.0
 
@@ -5131,7 +5131,7 @@ PERFORMANCE OF THIS SOFTWARE.
 
 ---
 
-### lucide-react 1.24.0
+### lucide-react 1.25.0
 
 **License:** ISC
 
@@ -5440,7 +5440,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ---
 
-### simple-icons 16.25.0
+### simple-icons 16.27.0
 
 **License:** CC0-1.0
 
