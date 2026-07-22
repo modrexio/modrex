@@ -19,16 +19,16 @@
         "@astrojs/check": "0.9.9",
         "@astrojs/mdx": "7.0.3",
         "@eslint/js": "10.0.1",
-        "@tailwindcss/vite": "4.3.0",
+        "@tailwindcss/vite": "4.3.3",
         "astro": "7.1.3",
-        "eslint": "10.4.1",
+        "eslint": "10.7.0",
         "eslint-plugin-astro": "1.7.0",
-        "marked": "18.0.5",
-        "prettier": "3.8.3",
+        "marked": "18.0.7",
+        "prettier": "3.9.6",
         "prettier-plugin-astro": "0.14.1",
-        "tailwindcss": "4.3.0",
+        "tailwindcss": "4.3.3",
         "typescript": "6.0.3",
-        "typescript-eslint": "8.60.1",
+        "typescript-eslint": "8.65.0",
         "vite": "7.3.5",
         "vitest": "4.1.10",
         "zod": "4.4.3"
@@ -37,6 +37,6 @@
         "@modrex/games": "workspace:*",
         "@astrojs/sitemap": "3.7.3",
         "@astrojs/starlight": "0.41.3",
-        "lucide": "1.17.0"
+        "lucide": "1.25.0"
     }
 }
