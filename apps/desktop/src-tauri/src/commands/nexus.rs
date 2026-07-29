@@ -324,6 +324,98 @@ pub async fn nexus_search_mods(
     crate::commands::domain::parse_nexus_page(mods, page as i64, PAGE_SIZE as i64)
 }
 
+// fileHash is the archive-level lookup: the MD5 of the whole published archive as
+// uploaded, not the extracted-content SHA256 Modrex already tracks. modFile.version
+// is a real, populated version here (unlike SEARCH_QUERY's mods, which carries none —
+// see the empty-version note in domain.rs), so a hit from this path may set version.
+const FILE_HASHES_QUERY: &str = r#"
+query ModrexFileHashes($md5s: [String]!) {
+    fileHashes(md5s: $md5s) {
+        md5 fileName fileSize gameId modFileId
+        modFile { modId fileId name version }
+    }
+}
+"#;
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct NexusHashMatch {
+    pub mod_id: u32,
+    pub file_id: u32,
+    pub name: String,
+    pub version: String,
+    pub file_name: String,
+    pub file_size: i64,
+}
+
+// BigInt scalars (fileSize here) are not guaranteed to arrive as a JSON number —
+// some GraphQL servers serialize them as a string to avoid JS float-precision loss
+// on large values, matching the quoted-string convention the input filter already
+// uses for the same field (see the modFileContents fileSize filter note).
+fn parse_big_int(value: &Value) -> Option<i64> {
+    value.as_i64().or_else(|| value.as_str()?.parse().ok())
+}
+
+fn parse_hash_matches(value: &Value, want_game_id: u32) -> Result<Vec<NexusHashMatch>, String> {
+    if let Some(errors) = value.get("errors") {
+        return Err(format!("nexus graphql error: {errors}"));
+    }
+
+    let hashes = value
+        .get("data")
+        .and_then(|d| d.get("fileHashes"))
+        .and_then(|h| h.as_array())
+        .ok_or_else(|| "nexus: malformed graphql response".to_string())?;
+
+    // A hash Nexus has seen but never associated with a mod file carries no
+    // modFile; that is a real "not identifiable this way" outcome, not a
+    // parse failure, so it is dropped rather than erroring the whole lookup.
+    Ok(hashes
+        .iter()
+        .filter(|h| h.get("gameId").and_then(Value::as_u64) == Some(want_game_id as u64))
+        .filter_map(|h| {
+            let mod_file = h.get("modFile")?;
+            Some(NexusHashMatch {
+                mod_id: mod_file.get("modId")?.as_u64()? as u32,
+                file_id: mod_file.get("fileId")?.as_u64()? as u32,
+                name: mod_file.get("name")?.as_str()?.to_string(),
+                version: mod_file.get("version")?.as_str()?.to_string(),
+                file_name: h.get("fileName")?.as_str()?.to_string(),
+                file_size: parse_big_int(h.get("fileSize")?)?,
+            })
+        })
+        .collect())
+}
+
+// Per-archive identification: given the whole downloaded archive's MD5, find the
+// Nexus mod(s) it belongs to. Only ever the current game's matches are returned —
+// discarding a cross-game gameId is the same isolation mod_index.rs enforces via
+// games.name, and it matters here because Nexus's md5 index is global.
+pub(crate) async fn nexus_lookup_by_md5(
+    app: AppHandle,
+    game_id: String,
+    md5s: Vec<String>,
+) -> Result<Vec<NexusHashMatch>, String> {
+    let want = nexus_numeric_game_id(&game_id)?;
+    let headers = nexus_headers(&app).await?;
+
+    let body = serde_json::json!({
+        "query": FILE_HASHES_QUERY,
+        "variables": { "md5s": md5s },
+    });
+
+    let value = send_with_retry("fileHashes", || {
+        let mut req = http_client().post(GRAPHQL_BASE).json(&body);
+        for (k, v) in &headers {
+            req = req.header(*k, v);
+        }
+        req
+    })
+    .await?;
+
+    parse_hash_matches(&value, want)
+}
+
 #[cfg(test)]
 #[path = "nexus_tests.rs"]
 mod tests;
