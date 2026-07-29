@@ -9,6 +9,11 @@ pub struct SourceGame {
     /// What this source calls the game: modworkshop's numeric game id, Nexus's
     /// domain slug. Stored as a string because the two are not the same kind of id.
     pub native_id: &'static str,
+    /// Nexus's GraphQL content API (modFileContents) filters on a numeric game id,
+    /// while its REST API and nxm:// links name the game by the domain slug in
+    /// native_id. Only Nexus has two names for one game, so this is None for every
+    /// other source.
+    pub numeric_id: Option<u32>,
 }
 
 pub struct SourceSpec {
@@ -23,22 +28,27 @@ pub static SOURCE_REGISTRY: &[SourceSpec] = &[
             SourceGame {
                 game_id: "pd3",
                 native_id: "853",
+                numeric_id: None,
             },
             SourceGame {
                 game_id: "pd2",
                 native_id: "1",
+                numeric_id: None,
             },
             SourceGame {
                 game_id: "pdth",
                 native_id: "2",
+                numeric_id: None,
             },
             SourceGame {
                 game_id: "cb",
                 native_id: "857",
+                numeric_id: None,
             },
             SourceGame {
                 game_id: "raid",
                 native_id: "543",
+                numeric_id: None,
             },
         ],
     },
@@ -48,18 +58,22 @@ pub static SOURCE_REGISTRY: &[SourceSpec] = &[
             SourceGame {
                 game_id: "pd3",
                 native_id: "payday3",
+                numeric_id: Some(5717),
             },
             SourceGame {
                 game_id: "pd2",
                 native_id: "payday2",
+                numeric_id: Some(648),
             },
             SourceGame {
                 game_id: "pdth",
                 native_id: "paydaytheheist",
+                numeric_id: Some(4339),
             },
             SourceGame {
                 game_id: "cb",
                 native_id: "crimebossrockaycity",
+                numeric_id: Some(6528),
             },
         ],
     },
@@ -267,5 +281,38 @@ mod tests {
         assert_eq!(native_id("nexus", "no-such-game"), None);
         // Nexus has no RAID presence, so that must not resolve.
         assert_eq!(native_id("nexus", "raid"), None);
+    }
+
+    #[test]
+    fn every_nexus_game_has_a_numeric_id() {
+        let nexus = source_spec("nexus").expect("nexus registered");
+        for game in nexus.games {
+            assert!(
+                game.numeric_id.is_some(),
+                "nexus:{} has no numeric_id, so modFileContents lookups can't filter on it",
+                game.game_id
+            );
+        }
+    }
+
+    #[test]
+    fn every_modworkshop_game_has_no_numeric_id() {
+        let modworkshop = source_spec("modworkshop").expect("modworkshop registered");
+        for game in modworkshop.games {
+            assert!(
+                game.numeric_id.is_none(),
+                "modworkshop:{} has a numeric_id, but only nexus has two names for one game",
+                game.game_id
+            );
+        }
+    }
+
+    #[test]
+    fn nexus_numeric_ids_are_unique() {
+        let nexus = source_spec("nexus").expect("nexus registered");
+        let mut ids: Vec<u32> = nexus.games.iter().filter_map(|g| g.numeric_id).collect();
+        ids.sort_unstable();
+        ids.dedup();
+        assert_eq!(ids.len(), nexus.games.len());
     }
 }

@@ -51,6 +51,15 @@ pub(crate) fn game_id_for_domain(domain: &str) -> Result<&'static str, String> {
         .ok_or_else(|| format!("nexus: no game id mapping for domain '{domain}'"))
 }
 
+// The GraphQL content API filters on Nexus's numeric game id, a different id than
+// the domain slug nexus_domain returns. Both name the same game.
+pub(crate) fn nexus_numeric_game_id(game_id: &str) -> Result<u32, String> {
+    sources::source_spec("nexus")
+        .and_then(|s| s.games.iter().find(|g| g.game_id == game_id))
+        .and_then(|g| g.numeric_id)
+        .ok_or_else(|| format!("nexus: no numeric game id for '{game_id}'"))
+}
+
 async fn nexus_headers(app: &AppHandle) -> Result<Vec<(&'static str, String)>, String> {
     let token = nexus_oauth::access_token(app).await?;
     Ok(vec![
