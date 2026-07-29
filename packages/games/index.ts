@@ -12,6 +12,10 @@ export interface GameSpec {
     name: string
     shortName: string
     workshopId: number
+    // Nexus's domain slug for this game, e.g. "payday3". Absent for games with no
+    // Nexus presence (RAID). Cross-checked against the Rust SOURCE_REGISTRY by
+    // check-sources.mjs, same as workshopId.
+    nexusDomain?: string
     storageKey: string
     hasNews: boolean
     requiredLaunchFlag?: string
@@ -24,6 +28,7 @@ const GAME_SPECS = {
         name: 'PAYDAY 3',
         shortName: 'PD3',
         workshopId: 853,
+        nexusDomain: 'payday3',
         storageKey: 'pd3',
         hasNews: true,
         requiredLaunchFlag: '-fileopenlog',
@@ -37,6 +42,7 @@ const GAME_SPECS = {
         name: 'PAYDAY 2',
         shortName: 'PD2',
         workshopId: 1,
+        nexusDomain: 'payday2',
         storageKey: 'pd2',
         hasNews: true,
         launchers: ['Steam', 'Epic Games'],
@@ -49,6 +55,7 @@ const GAME_SPECS = {
         name: 'PAYDAY: The Heist',
         shortName: 'PDTH',
         workshopId: 2,
+        nexusDomain: 'paydaytheheist',
         storageKey: 'pdth',
         hasNews: true,
         launchers: ['Steam'],
@@ -61,6 +68,7 @@ const GAME_SPECS = {
         name: 'Crime Boss: Rockay City',
         shortName: 'CBRC',
         workshopId: 857,
+        nexusDomain: 'crimebossrockaycity',
         storageKey: 'cb',
         hasNews: false,
         launchers: ['Steam', 'Epic Games'],

@@ -1,13 +1,20 @@
 ---
 import type { ModIndexStats } from '../lib/mod-index'
+import type { NexusModCounts } from '../lib/nexus-mod-count'
 
 interface Props {
     indexStats: ModIndexStats | null
+    nexusModCounts: NexusModCounts | null
 }
 
-const { indexStats } = Astro.props
+const { indexStats, nexusModCounts } = Astro.props
 const supportedMods = indexStats
     ? new Intl.NumberFormat('en-US').format(indexStats.supportedMods)
+    : null
+// A separate claim from supportedMods, deliberately not summed into it: this counts
+// mods that EXIST on Nexus, not mods Modrex can recognize by hash on your disk.
+const nexusModsAvailable = nexusModCounts
+    ? new Intl.NumberFormat('en-US').format(nexusModCounts.total)
     : null
 
 const features: [string, string, string][] = [
@@ -58,6 +65,14 @@ const features: [string, string, string][] = [
                 <strong data-mod-index-count aria-live="polite">{supportedMods ?? '...'}</strong>
                 <span>known mods Modrex can match automatically</span>
                 <small>Helps Modrex detect mods already in your game folder.</small>
+                {
+                    nexusModsAvailable && (
+                        <small>
+                            Plus <strong class="nexus-count">{nexusModsAvailable}</strong> mods
+                            available on Nexus Mods.
+                        </small>
+                    )
+                }
             </div>
             {
                 features.map(([icon, title, body], index) => (
@@ -173,7 +188,7 @@ const features: [string, string, string][] = [
         font-weight: 700;
     }
 
-    .index-count strong {
+    .index-count > strong {
         font-family: var(--font-display);
         font-size: clamp(52px, 7vw, 76px);
         line-height: 1;
@@ -196,6 +211,11 @@ const features: [string, string, string][] = [
         font-size: 14px;
         font-weight: 400;
         line-height: 1.55;
+    }
+
+    .index-count .nexus-count {
+        color: var(--color-accent-bright);
+        font-weight: 700;
     }
 
     @media (max-width: 860px) {

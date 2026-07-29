@@ -10,6 +10,8 @@ import { getLatestRelease, getRecentReleases } from '../lib/github'
 import type { Release } from '../lib/github'
 import { getModIndexStats } from '../lib/mod-index'
 import type { ModIndexStats } from '../lib/mod-index'
+import { getNexusModCounts } from '../lib/nexus-mod-count'
+import type { NexusModCounts } from '../lib/nexus-mod-count'
 
 // Both fetches degrade gracefully (generic download links, no changelog section),
 // but log loudly: without GITHUB_TOKEN set, shared CI build IPs hit GitHub's
@@ -33,6 +35,13 @@ try {
     indexStats = await getModIndexStats()
 } catch (error) {
     console.error('Failed to load mod index stats', error)
+}
+
+let nexusModCounts: NexusModCounts | null = null
+try {
+    nexusModCounts = await getNexusModCounts()
+} catch (error) {
+    console.error('Failed to load Nexus mod counts', error)
 }
 
 const jsonLd = {
@@ -66,7 +75,7 @@ const jsonLd = {
     <script type="application/ld+json" is:inline set:html={JSON.stringify(jsonLd)} slot="head" />
     <Nav release={release} />
     <Hero release={release} />
-    <Features indexStats={indexStats} />
+    <Features indexStats={indexStats} nexusModCounts={nexusModCounts} />
     <DownloadSection release={release} />
     <Changelog releases={recentReleases} />
     <SiteFooter />
