@@ -88,3 +88,31 @@ pub fn make_uid(file_id: Option<i64>, filename: &str) -> String {
         None => strip_priority_prefix(filename).to_string(),
     }
 }
+
+/// Recovers a File-unit mod's published filename from its on-disk name, for querying
+/// Nexus's content index. Modrex rewrites the name on disk (a numeric priority prefix,
+/// and a disabled_suffix appended when the mod is off); querying either as-is returns
+/// zero matches because Nexus indexed the archive's original filename.
+pub fn recover_published_filename(on_disk_name: &str, disabled_suffix: &str) -> String {
+    let without_prefix = strip_priority_prefix(on_disk_name);
+    without_prefix
+        .strip_suffix(disabled_suffix)
+        .unwrap_or(without_prefix)
+        .to_string()
+}
+
+/// Derives the folder-name segment to query Nexus's content index with, for a
+/// Directory-unit mod. Nexus paths appear both as <Name>/main.xml and
+/// assets/mod_overrides/<Name>/main.xml, so a leading assets/mod_overrides/ is
+/// stripped when present. Returns None when nothing usable remains — an archive that
+/// ships a bare root-level marker file has no wrapper folder in Nexus's own index and
+/// cannot be matched this way, no matter what folder Modrex synthesized to hold it.
+pub fn derive_content_segment(folder_ref: &str) -> Option<&str> {
+    const OVERRIDE_PREFIX: &str = "assets/mod_overrides/";
+    let stripped = folder_ref.strip_prefix(OVERRIDE_PREFIX).unwrap_or(folder_ref);
+    if stripped.is_empty() {
+        None
+    } else {
+        Some(stripped)
+    }
+}

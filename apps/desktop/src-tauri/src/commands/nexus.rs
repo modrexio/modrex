@@ -481,6 +481,106 @@ pub async fn identify_dropped_archive(
     Ok(resolve_archive_identity(matches, local_size))
 }
 
+// modFileContents carries no hash, unlike fileHash(es) above — this is the closest
+// legal equivalent to a SHA256 lookup Nexus permits, matching on the file(s) Modrex
+// already has extracted on disk instead of an archive it may no longer hold. Which
+// variant applies is a ModUnit decision, made by the caller in mods/, not here: this
+// module only knows how to ask Nexus each shape of question, not which one a given
+// game's mods need.
+const CONTENT_QUERY: &str = r#"
+query ModrexFileContents($filter: ModFileContentSearchFilter, $count: Int) {
+    modFileContents(filter: $filter, count: $count) {
+        totalCount
+        nodes { modId }
+    }
+}
+"#;
+
+const CONTENT_PAGE_SIZE: u32 = 50;
+
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) enum NexusContentQuery {
+    /// File-unit games (PD3, Crime Boss): the .pak's published name and exact byte size.
+    FileNameAndSize { file_name: String, file_size: i64 },
+    /// Directory-unit games (PD2, PDTH, RAID): the mod's folder name as a path segment.
+    FolderSegment { segment: String },
+}
+
+fn content_filter_json(want_game_id: u32, query: &NexusContentQuery) -> Value {
+    let mut filter = serde_json::json!({
+        "gameId": [{ "value": want_game_id, "op": "EQUALS" }],
+    });
+    match query {
+        NexusContentQuery::FileNameAndSize {
+            file_name,
+            file_size,
+        } => {
+            filter["fileNameWildcard"] =
+                serde_json::json!([{ "value": file_name, "op": "EQUALS" }]);
+            // fileSize is a quoted String in the filter input despite the output field
+            // being a BigInt — the opposite convention from gameId above.
+            filter["fileSize"] =
+                serde_json::json!([{ "value": file_size.to_string(), "op": "EQUALS" }]);
+        }
+        NexusContentQuery::FolderSegment { segment } => {
+            filter["filePathPartsExact"] = serde_json::json!([{ "value": segment, "op": "EQUALS" }]);
+        }
+    }
+    filter
+}
+
+fn parse_content_mod_ids(value: &Value) -> Result<Vec<u32>, String> {
+    if let Some(errors) = value.get("errors") {
+        return Err(format!("nexus graphql error: {errors}"));
+    }
+
+    let nodes = value
+        .get("data")
+        .and_then(|d| d.get("modFileContents"))
+        .and_then(|c| c.get("nodes"))
+        .and_then(|n| n.as_array())
+        .ok_or_else(|| "nexus: malformed graphql response".to_string())?;
+
+    let mut ids: Vec<u32> = nodes
+        .iter()
+        .filter_map(|n| n.get("modId").and_then(Value::as_u64))
+        .map(|id| id as u32)
+        .collect();
+    ids.sort_unstable();
+    ids.dedup();
+    Ok(ids)
+}
+
+/// Distinct Nexus mod ids whose published content matches `query`. Zero is a normal,
+/// expected outcome (roughly a quarter of mods are never indexed) — never treat an
+/// empty result as an error. More than one means the match was not unique; the caller
+/// must not guess which mod it is.
+pub(crate) async fn nexus_lookup_content_mod_ids(
+    app: AppHandle,
+    game_id: String,
+    query: NexusContentQuery,
+) -> Result<Vec<u32>, String> {
+    let want = nexus_numeric_game_id(&game_id)?;
+    let headers = nexus_headers(&app).await?;
+    let filter = content_filter_json(want, &query);
+
+    let body = serde_json::json!({
+        "query": CONTENT_QUERY,
+        "variables": { "filter": filter, "count": CONTENT_PAGE_SIZE },
+    });
+
+    let value = send_with_retry("modFileContents", || {
+        let mut req = http_client().post(GRAPHQL_BASE).json(&body);
+        for (k, v) in &headers {
+            req = req.header(*k, v);
+        }
+        req
+    })
+    .await?;
+
+    parse_content_mod_ids(&value)
+}
+
 #[cfg(test)]
 #[path = "nexus_tests.rs"]
 mod tests;

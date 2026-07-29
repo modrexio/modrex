@@ -343,6 +343,58 @@ fn apply_prefix_already_prefixed() {
     assert_eq!(apply_priority_prefix("012_foo.pak", 3), "003_foo.pak");
 }
 
+// ── recover_published_filename ────────────────────────────────────────────
+
+#[test]
+fn recover_published_filename_strips_priority_prefix() {
+    assert_eq!(
+        recover_published_filename("003_Foo.pak", ".disabled"),
+        "Foo.pak"
+    );
+}
+
+#[test]
+fn recover_published_filename_strips_disabled_suffix() {
+    assert_eq!(
+        recover_published_filename("Foo.pak.disabled", ".disabled"),
+        "Foo.pak"
+    );
+}
+
+#[test]
+fn recover_published_filename_strips_both() {
+    assert_eq!(
+        recover_published_filename("003_Foo.pak.disabled", ".disabled"),
+        "Foo.pak"
+    );
+}
+
+#[test]
+fn recover_published_filename_leaves_a_plain_name_alone() {
+    assert_eq!(recover_published_filename("Foo.pak", ".disabled"), "Foo.pak");
+}
+
+// ── derive_content_segment ────────────────────────────────────────────────
+
+#[test]
+fn derive_content_segment_passes_through_a_bare_folder_name() {
+    assert_eq!(derive_content_segment("Welrod"), Some("Welrod"));
+}
+
+#[test]
+fn derive_content_segment_strips_mod_overrides_prefix() {
+    assert_eq!(
+        derive_content_segment("assets/mod_overrides/Welrod"),
+        Some("Welrod")
+    );
+}
+
+#[test]
+fn derive_content_segment_is_none_for_no_usable_segment() {
+    assert_eq!(derive_content_segment(""), None);
+    assert_eq!(derive_content_segment("assets/mod_overrides/"), None);
+}
+
 #[test]
 fn apply_prefix_zero() {
     assert_eq!(apply_priority_prefix("foo.pak", 0), "000_foo.pak");

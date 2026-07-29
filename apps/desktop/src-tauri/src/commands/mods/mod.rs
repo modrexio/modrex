@@ -5,6 +5,7 @@ mod host_mods;
 mod identify;
 mod install;
 mod naming;
+mod nexus_content;
 mod paths;
 mod pdmod;
 mod reorder;
@@ -42,7 +43,10 @@ pub(crate) use self::install::{
     disable_mod_op, enable_mod_op, install_host_pack_op, move_crimeboss_mod_target_op,
     uninstall_mod_op,
 };
-pub(crate) use self::naming::{hash_filename, pak_filename, strip_priority_prefix};
+pub(crate) use self::naming::{
+    derive_content_segment, hash_filename, pak_filename, recover_published_filename,
+    strip_priority_prefix,
+};
 pub(crate) use self::paths::{active_mod_path, disabled_base, disabled_mod_path};
 pub(crate) use self::reorder::{
     move_mod_to_folder_op, reorder_children_op, reorder_mods_in_folder_op,

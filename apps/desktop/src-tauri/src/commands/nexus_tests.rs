@@ -166,6 +166,57 @@ fn resolve_archive_identity_stays_ambiguous_when_size_matches_none() {
 }
 
 #[test]
+fn content_filter_json_sends_game_id_unquoted_and_file_size_quoted() {
+    let filter = content_filter_json(
+        648,
+        &NexusContentQuery::FileNameAndSize {
+            file_name: "Foo.pak".to_string(),
+            file_size: 1234,
+        },
+    );
+    assert_eq!(filter["gameId"][0]["value"], serde_json::json!(648));
+    assert_eq!(filter["fileNameWildcard"][0]["value"], "Foo.pak");
+    assert_eq!(filter["fileSize"][0]["value"], "1234");
+}
+
+#[test]
+fn content_filter_json_folder_segment_uses_file_path_parts_exact() {
+    let filter = content_filter_json(
+        648,
+        &NexusContentQuery::FolderSegment {
+            segment: "Welrod".to_string(),
+        },
+    );
+    assert_eq!(filter["filePathPartsExact"][0]["value"], "Welrod");
+    assert!(filter.get("fileNameWildcard").is_none());
+}
+
+#[test]
+fn parse_content_mod_ids_returns_distinct_sorted_ids() {
+    let value = serde_json::json!({
+        "data": { "modFileContents": { "totalCount": 3, "nodes": [
+            { "modId": 101 }, { "modId": 202 }, { "modId": 101 }
+        ] } }
+    });
+    assert_eq!(parse_content_mod_ids(&value).unwrap(), vec![101, 202]);
+}
+
+#[test]
+fn parse_content_mod_ids_empty_is_not_an_error() {
+    let value = serde_json::json!({
+        "data": { "modFileContents": { "totalCount": 0, "nodes": [] } }
+    });
+    assert_eq!(parse_content_mod_ids(&value).unwrap(), Vec::<u32>::new());
+}
+
+#[test]
+fn parse_content_mod_ids_surfaces_graphql_errors() {
+    let value = serde_json::json!({ "errors": [{ "message": "boom" }] });
+    let err = parse_content_mod_ids(&value).unwrap_err();
+    assert!(err.contains("boom"));
+}
+
+#[test]
 fn parse_hash_matches_drops_hashes_with_no_associated_mod_file() {
     let value = serde_json::json!({
         "data": {
