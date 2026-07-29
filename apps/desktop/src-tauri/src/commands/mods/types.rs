@@ -94,6 +94,12 @@ pub struct InstalledMod {
     pub location: Option<String>,
     #[serde(default, skip_serializing_if = "UpdateStatus::is_known")]
     pub update_status: UpdateStatus,
+    // Nexus content-index lookup (nexus_content.rs) found nothing, or an ambiguous
+    // result, for this mod. Persisted so a permanent miss (roughly a quarter of mods
+    // are never indexed) is asked at most once rather than re-queried every attempt.
+    // None means never attempted; Some(false) never occurs and is not written.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub nexus_content_missed: Option<bool>,
 }
 
 impl Default for InstalledMod {
@@ -120,6 +126,7 @@ impl Default for InstalledMod {
             archive_broken: None,
             location: None,
             update_status: UpdateStatus::Known,
+            nexus_content_missed: None,
         }
     }
 }

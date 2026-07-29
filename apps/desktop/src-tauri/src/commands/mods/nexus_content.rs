@@ -5,9 +5,13 @@
 // half of Modrex's games. The actual network call lives in commands::nexus; this module
 // only decides what to ask.
 
-use super::engine::ModUnit;
+use super::engine::{ModUnit, ScanTarget};
 use super::naming::{derive_content_segment, recover_published_filename};
-use crate::commands::nexus::NexusContentQuery;
+use super::paths::{active_mod_path, disabled_mod_path};
+use super::state::get_folder_path;
+use super::types::{InstalledMod, ModFolder};
+use crate::commands::nexus::{self, NexusContentQuery};
+use tauri::AppHandle;
 
 /// Builds the Nexus content query for an installed mod, or None when nothing usable
 /// can be derived (a Directory-unit mod with no folder segment, or a File-unit mod
@@ -30,6 +34,90 @@ pub(crate) fn nexus_content_query_for(
         ModUnit::Directory { .. } => {
             let segment = derive_content_segment(on_disk_filename)?.to_string();
             Some(NexusContentQuery::FolderSegment { segment })
+        }
+    }
+}
+
+/// What attempting Nexus content identification for one installed mod produced.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub enum NexusContentIdentifyOutcome {
+    /// Already identified, already carrying a permanent miss, or nothing queryable
+    /// could be derived (no folder segment, or the file could not be found on disk) —
+    /// nothing was attempted, so nothing was recorded.
+    Skipped,
+    NotFound,
+    Ambiguous,
+    Identified,
+}
+
+/// Attempts to identify one already-installed, unidentified mod against Nexus's
+/// content index (the Tier 3 match). Callers must gate this behind an explicit user
+/// action — never call it from the get_installed hot path — and must persist m
+/// afterward regardless of outcome, since a miss is recorded on m itself via
+/// nexus_content_missed so it is asked at most once.
+pub(crate) async fn identify_via_nexus_content_op(
+    app: &AppHandle,
+    game_id: &str,
+    game_path: &str,
+    folders: &[ModFolder],
+    target: &ScanTarget,
+    m: &mut InstalledMod,
+) -> Result<NexusContentIdentifyOutcome, String> {
+    if m.remote_id.is_some() || m.nexus_content_missed == Some(true) {
+        return Ok(NexusContentIdentifyOutcome::Skipped);
+    }
+
+    let rel = get_folder_path(folders, m.folder_id.as_deref());
+    let active = active_mod_path(game_path, &m.filename, rel.as_deref(), target);
+    let disabled = disabled_mod_path(game_path, &m.filename, rel.as_deref(), target);
+    let path = if active.exists() {
+        active
+    } else if disabled.exists() {
+        disabled
+    } else {
+        return Ok(NexusContentIdentifyOutcome::Skipped);
+    };
+
+    let file_size = match &target.unit {
+        ModUnit::File { .. } => Some(
+            tokio::fs::metadata(&path)
+                .await
+                .map_err(|e| e.to_string())?
+                .len() as i64,
+        ),
+        ModUnit::Directory { .. } => None,
+    };
+
+    let Some(query) = nexus_content_query_for(&target.unit, &m.filename, file_size) else {
+        return Ok(NexusContentIdentifyOutcome::Skipped);
+    };
+
+    let ids =
+        nexus::nexus_lookup_content_mod_ids(app.clone(), game_id.to_string(), query).await?;
+
+    match ids.as_slice() {
+        [] => {
+            m.nexus_content_missed = Some(true);
+            Ok(NexusContentIdentifyOutcome::NotFound)
+        }
+        [mod_id] => {
+            let mod_id = *mod_id;
+            let detail_value = nexus::nexus_get_mod(app.clone(), game_id.to_string(), mod_id).await?;
+            let detail = crate::commands::domain::parse_nexus_detail(detail_value)?;
+            m.source = "nexus".to_string();
+            m.remote_id = Some(mod_id.to_string());
+            m.id = crate::commands::sources::source_native_local_id("nexus", &mod_id.to_string());
+            m.name = detail.name;
+            m.version = detail.version;
+            m.author = Some(detail.user.name);
+            m.thumbnail_url = detail.thumbnail.map(|t| t.file);
+            m.nexus_content_missed = None;
+            Ok(NexusContentIdentifyOutcome::Identified)
+        }
+        _ => {
+            m.nexus_content_missed = Some(true);
+            Ok(NexusContentIdentifyOutcome::Ambiguous)
         }
     }
 }

@@ -551,7 +551,7 @@ fn parse_content_mod_ids(value: &Value) -> Result<Vec<u32>, String> {
     Ok(ids)
 }
 
-/// Distinct Nexus mod ids whose published content matches `query`. Zero is a normal,
+/// Distinct Nexus mod ids whose published content matches query. Zero is a normal,
 /// expected outcome (roughly a quarter of mods are never indexed) — never treat an
 /// empty result as an error. More than one means the match was not unique; the caller
 /// must not guess which mod it is.

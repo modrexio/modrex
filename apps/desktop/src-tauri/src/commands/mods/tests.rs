@@ -672,6 +672,47 @@ fn read_state_missing_location_is_none() {
     assert_eq!(state.mods[0].location, None);
 }
 
+// ── InstalledMod.nexus_content_missed field ───────────────────────────────
+
+#[test]
+fn read_state_without_nexus_content_missed_still_deserializes() {
+    let json = r#"{
+        "folders": [],
+        "mods": [{
+            "uid": "42",
+            "id": 100,
+            "name": "Test Mod",
+            "version": "1.0",
+            "filename": "001_Test_Mod.pak",
+            "enabled": true,
+            "installedAt": "2024-01-01T00:00:00Z"
+        }]
+    }"#;
+    let mut f = NamedTempFile::new().unwrap();
+    write!(f, "{}", json).unwrap();
+    let state = read_state(f.path());
+    assert_eq!(state.mods[0].nexus_content_missed, None);
+}
+
+#[test]
+fn nexus_content_missed_survives_a_save_and_read_round_trip() {
+    let temp = TempDir::new().unwrap();
+    let state_path = temp.path().join(".modrex.json");
+    let mods = vec![InstalledMod {
+        uid: "1".to_string(),
+        id: -1,
+        name: "Unidentified".to_string(),
+        filename: "Unidentified".to_string(),
+        installed_at: "2024-01-01T00:00:00Z".to_string(),
+        nexus_content_missed: Some(true),
+        ..InstalledMod::default()
+    }];
+    save_state(&state_path, &ModsState { mods, folders: vec![] });
+
+    let state = read_state(&state_path);
+    assert_eq!(state.mods[0].nexus_content_missed, Some(true));
+}
+
 #[test]
 fn uninstall_mod_keeps_empty_folder() {
     let temp = TempDir::new().unwrap();

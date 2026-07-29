@@ -43,10 +43,7 @@ pub(crate) use self::install::{
     disable_mod_op, enable_mod_op, install_host_pack_op, move_crimeboss_mod_target_op,
     uninstall_mod_op,
 };
-pub(crate) use self::naming::{
-    derive_content_segment, hash_filename, pak_filename, recover_published_filename,
-    strip_priority_prefix,
-};
+pub(crate) use self::naming::{hash_filename, pak_filename, strip_priority_prefix};
 pub(crate) use self::paths::{active_mod_path, disabled_base, disabled_mod_path};
 pub(crate) use self::reorder::{
     move_mod_to_folder_op, reorder_children_op, reorder_mods_in_folder_op,
@@ -66,7 +63,10 @@ pub(crate) use self::crimeboss_settings::{
 #[cfg(test)]
 pub(crate) use self::engine::{disabled_dir, mods_dir};
 #[cfg(test)]
-pub(crate) use self::naming::{apply_priority_prefix, make_uid, mod_folder_name};
+pub(crate) use self::naming::{
+    apply_priority_prefix, derive_content_segment, make_uid, mod_folder_name,
+    recover_published_filename,
+};
 #[cfg(test)]
 pub(crate) use self::ue4ss_modstxt::{
     entry_name, read_enabled_from_mods_txt, set_enabled_in_mods_txt,
@@ -1588,6 +1588,45 @@ pub async fn disable_mod(
         serde_json::json!({ "game": game_id.as_str() }),
     );
     Ok(())
+}
+
+/// User-initiated Tier 3 identification (see nexus_content.rs): looks up one already-
+/// installed, unidentified mod against Nexus's content index. Never called from
+/// get_installed — the renderer calls this per-mod from an explicit "Identify" action,
+/// same shape as the ModWorkshop identification pipeline being automatic (SHA256) while
+/// this one, lacking a hash to key on, cannot safely be.
+#[tauri::command]
+#[specta::specta]
+pub async fn identify_mod_via_nexus_content(
+    app: AppHandle,
+    game_path: String,
+    uid: String,
+    game_id: String,
+) -> Result<nexus_content::NexusContentIdentifyOutcome, String> {
+    let _state_guard = lock_game_state(&app, game_id.as_str()).await;
+    let cfg = engine_for_game(game_id.as_str())?;
+    let state_path = get_state_path(&game_path, cfg);
+    let mut state = read_state(&state_path);
+
+    let Some(m) = state.mods.iter_mut().find(|m| m.uid == uid) else {
+        return Err(format!("identify_mod_via_nexus_content: no mod with uid '{uid}'"));
+    };
+    let target = cfg.target_for(m.location.as_deref());
+
+    let outcome = nexus_content::identify_via_nexus_content_op(
+        &app,
+        game_id.as_str(),
+        &game_path,
+        &state.folders,
+        target,
+        m,
+    )
+    .await?;
+
+    if outcome != nexus_content::NexusContentIdentifyOutcome::Skipped {
+        save_state(&state_path, &state);
+    }
+    Ok(outcome)
 }
 
 #[tauri::command]

@@ -2,13 +2,19 @@ import { listen } from '@tauri-apps/api/event'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { getCurrentWebview } from '@tauri-apps/api/webview'
 import { commands, type InstallOutcome } from '../../shared/bindings'
-import type { LoaderInfo, SourceInfo, NexusArchiveIdentity } from '../../shared/bindings'
+import type {
+    LoaderInfo,
+    SourceInfo,
+    NexusArchiveIdentity,
+    NexusContentIdentifyOutcome,
+} from '../../shared/bindings'
 export type {
     InstallOutcome,
     LoaderInfo,
     SourceInfo,
     NexusArchiveIdentity,
     NexusHashMatch,
+    NexusContentIdentifyOutcome,
 } from '../../shared/bindings'
 
 // The library declares this union without exporting it.
@@ -431,6 +437,16 @@ export const api = {
     },
     async disableMod(uid: string, gamePath: string, gameId: string): Promise<void> {
         await commands.disableMod(gamePath, uid, gameId)
+    },
+    // Tier 3 identification, gated behind an explicit user action - never call this
+    // from a background/automatic refresh. A miss is expected for roughly a quarter
+    // of mods and is not an error.
+    identifyModViaNexusContent(
+        uid: string,
+        gamePath: string,
+        gameId: string
+    ): Promise<NexusContentIdentifyOutcome> {
+        return commands.identifyModViaNexusContent(gamePath, uid, gameId)
     },
     async moveCrimeBossModTarget(uid: string, gamePath: string): Promise<void> {
         await commands.moveCrimebossModTarget(gamePath, uid)
