@@ -8738,7 +8738,7 @@ THE SOFTWARE.
 
 ## MIT License
 
-Used by: sha2 0.11.0
+Used by: md-5 0.11.0, sha2 0.11.0
 
 ```
 Copyright (c) 2016-2026 The RustCrypto Project Developers

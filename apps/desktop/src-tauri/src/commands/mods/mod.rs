@@ -24,7 +24,7 @@ pub use self::state::{get_folder_path, read_state, reconcile_state};
 pub use self::types::{
     InstalledMod, InstalledResponse, ModFolder, ModsState, TopLevelItem, UpdateStatus,
 };
-pub use self::zip::compute_sha256;
+pub use self::zip::{compute_md5, compute_sha256};
 
 // Mod-identification helpers (get_installed pipeline) — see identify.rs
 #[cfg(test)]

@@ -40,6 +40,16 @@ fn is_zip_rejects_empty_file() {
     assert_eq!(detect_archive(f.path()), None);
 }
 
+// ── compute_md5 ─────────────────────────────────────────────────────────────
+
+#[tokio::test]
+async fn compute_md5_matches_known_digest() {
+    let mut f = NamedTempFile::new().unwrap();
+    f.write_all(b"hello world").unwrap();
+    let digest = compute_md5(f.path()).await.unwrap();
+    assert_eq!(digest, "5eb63bbbe01eeed093cb22bb8f5acdc3");
+}
+
 // ── list_pak_entries (zip path) ───────────────────────────────────────────────
 
 #[test]

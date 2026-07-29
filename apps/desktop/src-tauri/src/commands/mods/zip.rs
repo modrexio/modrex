@@ -3,6 +3,7 @@ use super::host_mods::detect_host_pack;
 use super::paths::{active_mod_path, disabled_mod_path};
 use super::state::get_folder_path;
 use super::types::{InstalledMod, ModFolder};
+use md5::Md5;
 use sha2::{Digest, Sha256};
 use std::collections::HashSet;
 use std::fs::File;
@@ -258,6 +259,28 @@ pub async fn compute_sha256(path: &Path) -> Result<String, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let mut file = File::open(&path).map_err(|e| e.to_string())?;
         let mut hasher = Sha256::new();
+        let mut buf = vec![0u8; 64 * 1024];
+        loop {
+            let n = file.read(&mut buf).map_err(|e| e.to_string())?;
+            if n == 0 {
+                break;
+            }
+            hasher.update(&buf[..n]);
+        }
+        Ok(hex::encode(hasher.finalize()))
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+// Nexus's fileHash lookup keys on the MD5 of the whole published archive, not the
+// extracted content SHA256 above - the two hashes serve different lookups and are
+// never interchangeable.
+pub async fn compute_md5(path: &Path) -> Result<String, String> {
+    let path = path.to_path_buf();
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut file = File::open(&path).map_err(|e| e.to_string())?;
+        let mut hasher = Md5::new();
         let mut buf = vec![0u8; 64 * 1024];
         loop {
             let n = file.read(&mut buf).map_err(|e| e.to_string())?;
