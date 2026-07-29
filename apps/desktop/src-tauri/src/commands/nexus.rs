@@ -416,6 +416,71 @@ pub(crate) async fn nexus_lookup_by_md5(
     parse_hash_matches(&value, want)
 }
 
+/// What identifying a dropped archive against Nexus produced. Returned in the Ok
+/// channel, mirroring InstallOutcome (mods/mod.rs), so the renderer handles every
+/// case explicitly instead of guessing from an empty list.
+#[derive(Debug, Clone, serde::Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub enum NexusArchiveIdentity {
+    NotFound,
+    Identified(NexusHashMatch),
+    /// The same archive bytes are published under more than one Nexus mod (a real,
+    /// observed shape — cross-posted content) and fileSize could not tell them apart
+    /// because they are, by definition, the same size. The caller must ask the user.
+    Ambiguous(Vec<NexusHashMatch>),
+}
+
+// Never picks a match on its own beyond what the data actually disambiguates: exactly
+// one candidate is the only case that resolves silently. fileSize matching the local
+// archive is a genuine discriminator when fileHashes ever returns candidates of
+// different sizes; when every candidate is the same size (typical, since they are
+// duplicates of the same bytes) this correctly falls through to Ambiguous.
+fn resolve_archive_identity(matches: Vec<NexusHashMatch>, local_size: i64) -> NexusArchiveIdentity {
+    match matches.len() {
+        0 => NexusArchiveIdentity::NotFound,
+        1 => NexusArchiveIdentity::Identified(
+            matches
+                .into_iter()
+                .next()
+                .expect("len checked above"),
+        ),
+        _ => {
+            let mut by_size: Vec<NexusHashMatch> = matches
+                .iter()
+                .filter(|m| m.file_size == local_size)
+                .cloned()
+                .collect();
+            if by_size.len() == 1 {
+                NexusArchiveIdentity::Identified(by_size.remove(0))
+            } else {
+                NexusArchiveIdentity::Ambiguous(matches)
+            }
+        }
+    }
+}
+
+/// Identifies a dropped archive against Nexus before it is installed as an
+/// unidentified entry. The renderer calls this ahead of install_dropped_file; a
+/// NotFound or Ambiguous result still falls through to the existing unidentified
+/// install path, this only ever adds an identity, never blocks one.
+#[tauri::command]
+#[specta::specta]
+pub async fn identify_dropped_archive(
+    app: AppHandle,
+    game_id: String,
+    path: String,
+) -> Result<NexusArchiveIdentity, String> {
+    let file = std::path::PathBuf::from(&path);
+    let local_size = tokio::fs::metadata(&file)
+        .await
+        .map_err(|e| e.to_string())?
+        .len() as i64;
+    let md5 = crate::commands::mods::compute_md5(&file).await?;
+
+    let matches = nexus_lookup_by_md5(app, game_id, vec![md5]).await?;
+    Ok(resolve_archive_identity(matches, local_size))
+}
+
 #[cfg(test)]
 #[path = "nexus_tests.rs"]
 mod tests;

@@ -106,6 +106,65 @@ fn parse_hash_matches_surfaces_graphql_errors() {
     assert!(err.contains("boom"));
 }
 
+fn sample_match(mod_id: u32, file_size: i64) -> NexusHashMatch {
+    NexusHashMatch {
+        mod_id,
+        file_id: mod_id + 1000,
+        name: format!("mod-{mod_id}"),
+        version: "1.0".to_string(),
+        file_name: "Foo.pak".to_string(),
+        file_size,
+    }
+}
+
+#[test]
+fn resolve_archive_identity_finds_nothing() {
+    let result = resolve_archive_identity(vec![], 100);
+    assert!(matches!(result, NexusArchiveIdentity::NotFound));
+}
+
+#[test]
+fn resolve_archive_identity_identifies_a_single_match() {
+    let result = resolve_archive_identity(vec![sample_match(101, 468)], 468);
+    match result {
+        NexusArchiveIdentity::Identified(m) => assert_eq!(m.mod_id, 101),
+        other => panic!("expected Identified, got {other:?}"),
+    }
+}
+
+#[test]
+fn resolve_archive_identity_disambiguates_by_local_file_size() {
+    let matches = vec![sample_match(101, 468), sample_match(202, 900)];
+    let result = resolve_archive_identity(matches, 468);
+    match result {
+        NexusArchiveIdentity::Identified(m) => assert_eq!(m.mod_id, 101),
+        other => panic!("expected Identified, got {other:?}"),
+    }
+}
+
+#[test]
+fn resolve_archive_identity_stays_ambiguous_when_sizes_all_match_the_same_bytes() {
+    // The realistic case: the same archive cross-posted to two different mods has
+    // identical fileSize on both, so size cannot discriminate and a chooser is
+    // the only correct outcome.
+    let matches = vec![sample_match(101, 468), sample_match(202, 468)];
+    let result = resolve_archive_identity(matches, 468);
+    match result {
+        NexusArchiveIdentity::Ambiguous(m) => assert_eq!(m.len(), 2),
+        other => panic!("expected Ambiguous, got {other:?}"),
+    }
+}
+
+#[test]
+fn resolve_archive_identity_stays_ambiguous_when_size_matches_none() {
+    let matches = vec![sample_match(101, 468), sample_match(202, 900)];
+    let result = resolve_archive_identity(matches, 111);
+    match result {
+        NexusArchiveIdentity::Ambiguous(m) => assert_eq!(m.len(), 2),
+        other => panic!("expected Ambiguous, got {other:?}"),
+    }
+}
+
 #[test]
 fn parse_hash_matches_drops_hashes_with_no_associated_mod_file() {
     let value = serde_json::json!({

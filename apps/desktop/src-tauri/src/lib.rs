@@ -36,6 +36,7 @@ fn ipc_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::nexus::nexus_search_mods,
             commands::nexus::nexus_get_mod_detail,
             commands::nexus::nexus_list_mod_files,
+            commands::nexus::identify_dropped_archive,
             commands::nexus_oauth::nexus_oauth_start,
             commands::nexus_oauth::nexus_oauth_signed_in,
             commands::nexus_oauth::nexus_oauth_sign_out,

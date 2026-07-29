@@ -2,8 +2,14 @@ import { listen } from '@tauri-apps/api/event'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { getCurrentWebview } from '@tauri-apps/api/webview'
 import { commands, type InstallOutcome } from '../../shared/bindings'
-import type { LoaderInfo, SourceInfo } from '../../shared/bindings'
-export type { InstallOutcome, LoaderInfo, SourceInfo } from '../../shared/bindings'
+import type { LoaderInfo, SourceInfo, NexusArchiveIdentity } from '../../shared/bindings'
+export type {
+    InstallOutcome,
+    LoaderInfo,
+    SourceInfo,
+    NexusArchiveIdentity,
+    NexusHashMatch,
+} from '../../shared/bindings'
 
 // The library declares this union without exporting it.
 export type ResizeDirection = Parameters<
@@ -234,6 +240,12 @@ export const api = {
     // account, only a per-file link to the Nexus site's Mod Manager Download button.
     nexusListModFiles(gameId: string, modId: number): Promise<Paginated<ModFile>> {
         return commands.nexusListModFiles(gameId, modId)
+    },
+    // Archive-level MD5 lookup for a dropped file, ahead of installDroppedFile. A
+    // notFound or ambiguous result is not an error - the caller falls through to
+    // the existing unidentified install path either way.
+    identifyDroppedArchive(gameId: string, path: string): Promise<NexusArchiveIdentity> {
+        return commands.identifyDroppedArchive(gameId, path)
     },
 
     // ── Analytics ────────────────────────────────────────────────────────────────
