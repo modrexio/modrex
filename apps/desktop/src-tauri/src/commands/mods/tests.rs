@@ -126,6 +126,95 @@ fn recover_dropped_mod_stem_reads_the_zip_entry_for_crime_boss_despite_being_dir
     assert_eq!(stem, "SomeMod-WindowsNoEditor");
 }
 
+// ── apply_nexus_archive_identity ────────────────────────────────────────────
+
+fn sample_nexus_match() -> crate::commands::nexus::NexusHashMatch {
+    crate::commands::nexus::NexusHashMatch {
+        mod_id: 52,
+        file_id: 222,
+        name: "wire name Modrex never uses here".to_string(),
+        version: "wire version Modrex never uses here".to_string(),
+        file_name: "abkarino_RinoHud_P.pak".to_string(),
+        file_size: 1363148,
+    }
+}
+
+fn sample_nexus_detail() -> crate::commands::domain::ModDetail {
+    crate::commands::domain::ModDetail {
+        id: 52,
+        name: "RinoHud".to_string(),
+        desc: String::new(),
+        short_desc: String::new(),
+        version: "1.8".to_string(),
+        downloads: 0,
+        likes: 0,
+        views: 0,
+        published_at: String::new(),
+        bumped_at: String::new(),
+        category_id: 0,
+        has_download: true,
+        disable_mod_managers: None,
+        thumbnail: Some(crate::commands::domain::ModThumbnail {
+            file: "https://example.com/thumb.png".to_string(),
+            has_thumb: None,
+        }),
+        download: None,
+        user: crate::commands::domain::ModUser {
+            id: None,
+            name: "abkarino".to_string(),
+            donation_url: None,
+            avatar: None,
+            avatar_has_thumb: None,
+        },
+        changelog: None,
+        instructions: None,
+        license: None,
+        repo_url: None,
+        donation: None,
+        banner: None,
+        images: vec![],
+        dependencies: vec![],
+        instructs_template: None,
+        tags: vec![],
+        members: vec![],
+    }
+}
+
+#[test]
+fn apply_nexus_archive_identity_overwrites_the_generic_identity() {
+    let mut entry = InstalledMod {
+        uid: "RinoHud".to_string(),
+        id: -12345,
+        name: "abkarino_RinoHud_P 52 1.8 2026-07-02T19-49Z 9QzrVe4KC".to_string(),
+        version: String::new(),
+        update_status: UpdateStatus::Unknown,
+        filename: "003_abkarino_RinoHud_P.pak".to_string(),
+        enabled: true,
+        installed_at: "2024-01-01T00:00:00Z".to_string(),
+        sha256: Some("deadbeef".to_string()),
+        ..InstalledMod::default()
+    };
+
+    apply_nexus_archive_identity(&mut entry, &sample_nexus_match(), &sample_nexus_detail());
+
+    assert_eq!(entry.uid, "nexus:52:222");
+    assert_eq!(entry.name, "RinoHud");
+    assert_eq!(entry.version, "1.8");
+    assert_eq!(entry.update_status, UpdateStatus::Known);
+    assert_eq!(entry.source, "nexus");
+    assert_eq!(entry.remote_id.as_deref(), Some("52"));
+    assert_eq!(entry.file_remote_id.as_deref(), Some("222"));
+    assert_eq!(entry.author.as_deref(), Some("abkarino"));
+    assert_eq!(
+        entry.thumbnail_url.as_deref(),
+        Some("https://example.com/thumb.png")
+    );
+    assert_eq!(entry.file_id, Some(222));
+    // filename and sha256 are install-path decisions, not identity - untouched.
+    assert_eq!(entry.filename, "003_abkarino_RinoHud_P.pak");
+    assert_eq!(entry.sha256.as_deref(), Some("deadbeef"));
+}
+
 // ── list_pak_entries (zip path) ───────────────────────────────────────────────
 
 #[test]

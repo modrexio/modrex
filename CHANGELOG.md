@@ -7,6 +7,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 ### Added
 
 - Added Nexus Mods as a second mod source for PAYDAY 3, PAYDAY 2, PAYDAY: The Heist, and Crime Boss: Rockay City. Browse and install through OAuth sign-in and website mod-manager downloads, choosing between ModWorkshop and Nexus Mods from the top of the Browse page.
+- Unrecognized Nexus mods can now be identified by matching them against Nexus's own listings: dragged-in archives at drop time, and already-installed mods automatically or on demand from a mod's options menu.
 - New About tab in Settings with project info and quick links to the GitHub repository, GitHub Sponsors, Discord, and modrex.net.
 - A one-time banner asking for a GitHub star, shown once ever after the 10th successful mod install (and at least a week of use). Dismissing it is permanent.
 - Added support for RAID: World War II: browse, install, and manage its mods (SuperBLT and legacy RaidBLT script mods plus asset override packs, all installed into the game's `mods` folder as the current loader expects), with one-click install and dependency detection for the RAID-SuperBLT mod loader.
@@ -55,6 +56,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - Fixed the Launch and Launch Modded buttons showing in Settings when it was opened without a game selected.
 - Fixed several dialogs missing a close button in the top corner, so every dialog can now be closed with an X.
 - Fixed the Linux app not having a proper icon in the taskbar, application menu, and window switcher.
+- Fixed dragged-in downloaded archives being named after the download's filename instead of the mod's real name.
 
 ### Security
 

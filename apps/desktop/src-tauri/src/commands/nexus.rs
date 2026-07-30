@@ -456,10 +456,29 @@ fn resolve_archive_identity(matches: Vec<NexusHashMatch>, local_size: i64) -> Ne
     }
 }
 
-/// Identifies a dropped archive against Nexus before it is installed as an
-/// unidentified entry. The renderer calls this ahead of install_dropped_file; a
-/// NotFound or Ambiguous result still falls through to the existing unidentified
-/// install path, this only ever adds an identity, never blocks one.
+/// Identifies a whole archive file against Nexus's fileHash index by MD5. Shared by
+/// the renderer-facing identify_dropped_archive command and install_dropped_file's own
+/// best-effort identification at install time (mods/mod.rs), so both go through the
+/// same disambiguation rule instead of duplicating it.
+pub(crate) async fn identify_archive_by_md5(
+    app: AppHandle,
+    game_id: String,
+    file: &std::path::Path,
+) -> Result<NexusArchiveIdentity, String> {
+    let local_size = tokio::fs::metadata(file)
+        .await
+        .map_err(|e| e.to_string())?
+        .len() as i64;
+    let md5 = crate::commands::mods::compute_md5(file).await?;
+
+    let matches = nexus_lookup_by_md5(app, game_id, vec![md5]).await?;
+    Ok(resolve_archive_identity(matches, local_size))
+}
+
+/// Renderer-facing wrapper for a dropped file the user is about to install manually
+/// (e.g. from a picker UI) rather than through install_dropped_file's own automatic
+/// attempt. A NotFound or Ambiguous result is not an error — the caller falls through
+/// to the existing unidentified install path either way.
 #[tauri::command]
 #[specta::specta]
 pub async fn identify_dropped_archive(
@@ -467,15 +486,7 @@ pub async fn identify_dropped_archive(
     game_id: String,
     path: String,
 ) -> Result<NexusArchiveIdentity, String> {
-    let file = std::path::PathBuf::from(&path);
-    let local_size = tokio::fs::metadata(&file)
-        .await
-        .map_err(|e| e.to_string())?
-        .len() as i64;
-    let md5 = crate::commands::mods::compute_md5(&file).await?;
-
-    let matches = nexus_lookup_by_md5(app, game_id, vec![md5]).await?;
-    Ok(resolve_archive_identity(matches, local_size))
+    identify_archive_by_md5(app, game_id, std::path::Path::new(&path)).await
 }
 
 // modFileContents carries no hash, unlike fileHash(es) above — this is the closest
