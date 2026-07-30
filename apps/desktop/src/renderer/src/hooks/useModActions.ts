@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { GameId, InstalledMod } from '../../../shared/types'
 import type { ZipMultiPakPayload } from '../components/ZipPickerModal'
 import { installZipPickerEntries } from '../components/ZipPickerModal'
@@ -6,7 +6,10 @@ import type { HostPackPayload } from '../components/HostPackModal'
 import type { CbFlatArchivePayload } from '../components/CrimeBossFlatArchiveModal'
 import { handleInstallOutcome } from '../installSentinels'
 import { entryFilename, stripPriorityPrefix } from './installedUtils'
+import { t } from '../i18n'
 import { api } from '../api'
+
+export type IdentifyNexusResult = { kind: 'done' | 'error'; message: string }
 
 export interface ModActions {
     loadingMod: string | null
@@ -25,11 +28,14 @@ export interface ModActions {
     movingCrimeBossTarget: InstalledMod | null
     crimeBossMoveBusy: boolean
     crimeBossMoveError: string | null
+    identifyNexusResult: IdentifyNexusResult | null
+    dismissIdentifyNexusResult: () => void
     handleRefresh: () => Promise<void>
     handleUninstall: (mods: InstalledMod[]) => Promise<void>
     handleEnable: (mods: InstalledMod[]) => Promise<void>
     handleDisable: (mods: InstalledMod[]) => Promise<void>
     handleReinstall: (mods: InstalledMod[]) => Promise<void>
+    handleIdentifyViaNexus: (mod: InstalledMod) => Promise<void>
     requestMoveCrimeBossTarget: (mod: InstalledMod) => void
     confirmMoveCrimeBossTarget: () => Promise<void>
     cancelMoveCrimeBossTarget: () => void
@@ -54,6 +60,25 @@ export function useModActions(
     const [movingCrimeBossTarget, setMovingCrimeBossTarget] = useState<InstalledMod | null>(null)
     const [crimeBossMoveBusy, setCrimeBossMoveBusy] = useState(false)
     const [crimeBossMoveError, setCrimeBossMoveError] = useState<string | null>(null)
+    const [identifyNexusResult, setIdentifyNexusResult] = useState<IdentifyNexusResult | null>(null)
+    const identifyNexusResultTimer = useRef<number | null>(null)
+
+    function showIdentifyNexusResult(r: IdentifyNexusResult) {
+        if (identifyNexusResultTimer.current) window.clearTimeout(identifyNexusResultTimer.current)
+        setIdentifyNexusResult(r)
+        identifyNexusResultTimer.current = window.setTimeout(
+            () => setIdentifyNexusResult(null),
+            6000
+        )
+    }
+
+    useEffect(
+        () => () => {
+            if (identifyNexusResultTimer.current)
+                window.clearTimeout(identifyNexusResultTimer.current)
+        },
+        []
+    )
 
     async function handleRefresh() {
         setRefreshing(true)
@@ -92,6 +117,50 @@ export function useModActions(
         try {
             for (const m of mods) await api.disableMod(m.uid, gamePath, activeGame)
             await onRefreshInstalled()
+        } finally {
+            setLoadingMod(null)
+        }
+    }
+
+    // Tier 3 identification (see nexus_content.rs): a miss or an ambiguous result is
+    // expected for roughly a quarter of mods, so both surface as an info toast, not an
+    // error — only a genuine request failure does.
+    async function handleIdentifyViaNexus(mod: InstalledMod) {
+        if (!gamePath) return
+        setLoadingMod(mod.uid)
+        try {
+            const outcome = await api.identifyModViaNexusContent(mod.uid, gamePath, activeGame)
+            await onRefreshInstalled()
+            if (outcome === 'notFound') {
+                showIdentifyNexusResult({
+                    kind: 'done',
+                    message: t('installed.identifyNexus.notFound'),
+                })
+            } else if (outcome === 'skipped') {
+                // Reached when a permanent miss was already recorded on an earlier attempt
+                // (identify_via_nexus_content_op never re-queries once nexus_content_missed is
+                // set) - still worth a toast, since a click that visibly does nothing reads as
+                // broken rather than as "nothing new to check".
+                showIdentifyNexusResult({
+                    kind: 'done',
+                    message: t('installed.identifyNexus.alreadyChecked'),
+                })
+            } else if (outcome === 'ambiguous') {
+                showIdentifyNexusResult({
+                    kind: 'done',
+                    message: t('installed.identifyNexus.ambiguous'),
+                })
+            } else if (outcome === 'identified') {
+                showIdentifyNexusResult({
+                    kind: 'done',
+                    message: t('installed.identifyNexus.identified', { name: mod.name }),
+                })
+            }
+        } catch (e) {
+            showIdentifyNexusResult({
+                kind: 'error',
+                message: t('installed.identifyNexus.error', { error: String(e) }),
+            })
         } finally {
             setLoadingMod(null)
         }
@@ -217,11 +286,14 @@ export function useModActions(
         movingCrimeBossTarget,
         crimeBossMoveBusy,
         crimeBossMoveError,
+        identifyNexusResult,
+        dismissIdentifyNexusResult: () => setIdentifyNexusResult(null),
         handleRefresh,
         handleUninstall,
         handleEnable,
         handleDisable,
         handleReinstall,
+        handleIdentifyViaNexus,
         requestMoveCrimeBossTarget,
         confirmMoveCrimeBossTarget,
         cancelMoveCrimeBossTarget,

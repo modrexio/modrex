@@ -165,7 +165,16 @@
         },
         "modMenu": {
             "open": "Options",
-            "manageFiles": "Manage files"
+            "manageFiles": "Manage files",
+            "identify": "Identify"
+        },
+        "identifyNexus": {
+            "identifying": "Identifying…",
+            "identified": "Identified as \"{name}\"",
+            "notFound": "No match found on Nexus",
+            "ambiguous": "Multiple possible matches found on Nexus",
+            "alreadyChecked": "Already checked against Nexus — no match was found",
+            "error": "Identification failed: {error}"
         },
         "nexusBadge": "Nexus",
         "crimeBossMove": {

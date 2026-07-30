@@ -51,8 +51,8 @@ pub(crate) use self::reorder::{
 pub(crate) use self::state::save_state;
 pub(crate) use self::zip::{
     extract_archive_flat, extract_dir_entry, extract_entry, extract_entry_into_crimeboss_skeleton,
-    extract_entry_with_sidecars, mark_archive_files, resolve_archive_download, InstallPrompt,
-    ModContext, ResolveError,
+    extract_entry_with_sidecars, list_pak_entries, mark_archive_files, resolve_archive_download,
+    InstallPrompt, ModContext, ResolveError,
 };
 
 // Re-exports needed only in test builds (suppressed in release to avoid unused-import warnings)
@@ -74,7 +74,7 @@ pub(crate) use self::ue4ss_modstxt::{
 #[cfg(test)]
 pub(crate) use self::zip::{
     classify_archive_dirs, detect_archive, has_ue4ss_loader_signature, is_unplaceable_pack, is_zip,
-    list_pak_entries, safe_dest, ArchiveFormat,
+    safe_dest, ArchiveFormat,
 };
 
 use crate::commands::api::{api_get, http_client, user_agent};
@@ -941,6 +941,44 @@ pub(crate) async fn install_nexus_download(
     result
 }
 
+/// Recovers a dropped mod's real name, for both display and the on-disk filename. The
+/// dropped archive's own OS filename is often a download manager's naming scheme (Nexus's
+/// website downloads are "{Name} {id} {version} {timestamp} {hash}.zip"), not the mod's
+/// real name — `fallback` (the dropped file's own stem) is only correct when nothing
+/// better is available, which is exactly the case for a bare loose .pak dropped with no
+/// zip wrapper around it.
+///
+/// Directory-unit's `tmp` already carries the real folder name (resolve_archive_download's
+/// two-level temp makes `tmp.file_name()` the mod's own directory name), but File-unit's
+/// `tmp` is a random-uuid path and Crime Boss's is an opaque skeleton root with no readable
+/// name of its own (see extract_entry_into_crimeboss_skeleton) — both need the real name
+/// pulled back out of the original archive's single pak entry instead.
+fn recover_dropped_mod_stem(
+    unit: &engine::ModUnit,
+    is_crimeboss: bool,
+    tmp: &std::path::Path,
+    zip_orig: Option<&std::path::Path>,
+    fallback: &str,
+) -> String {
+    if matches!(unit, engine::ModUnit::Directory { .. }) && !is_crimeboss {
+        return tmp
+            .file_name()
+            .and_then(|s| s.to_str())
+            .map(String::from)
+            .unwrap_or_else(|| fallback.to_string());
+    }
+    zip_orig
+        .and_then(|orig| list_pak_entries(orig).ok())
+        .and_then(|entries| match entries.as_slice() {
+            [entry] => std::path::Path::new(entry)
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .map(String::from),
+            _ => None,
+        })
+        .unwrap_or_else(|| fallback.to_string())
+}
+
 /// Installs a mod from a local file the user dropped onto the window (Explorer drag-drop).
 /// The file carries no modworkshop identity, so it is installed as an unidentified entry
 /// (negative id, "unknown" version) exactly like an ambiently-discovered pak; get_installed's
@@ -1014,6 +1052,13 @@ pub async fn install_dropped_file(
     };
     let _state_guard = lock_game_state(&app, game_id.as_str()).await;
     let target = cfg.target_for(location_tag.as_deref());
+    let display_stem = recover_dropped_mod_stem(
+        &target.unit,
+        cfg.game_id == "cb",
+        &tmp,
+        zip_orig.as_deref(),
+        &file_stem,
+    );
 
     let result = async {
         let sha256 = match &target.unit {
@@ -1035,15 +1080,11 @@ pub async fn install_dropped_file(
         // Discovery-matching identity: filename drives the uid/id the untracked-scan would assign,
         // so a later manual refresh reconciles this entry instead of duplicating it.
         let filename = match &target.unit {
-            engine::ModUnit::File { .. } => pak_filename(&file_stem),
+            engine::ModUnit::File { .. } => pak_filename(&display_stem),
             engine::ModUnit::Directory { .. } if cfg.game_id == "cb" => {
-                naming::mod_folder_name(&file_stem)
+                naming::mod_folder_name(&display_stem)
             }
-            engine::ModUnit::Directory { .. } => tmp
-                .file_name()
-                .and_then(|s| s.to_str())
-                .unwrap_or(&file_stem)
-                .to_string(),
+            engine::ModUnit::Directory { .. } => display_stem.clone(),
         };
         let uid = strip_priority_prefix(&filename).to_string();
         let id = hash_filename(&filename);
@@ -1055,7 +1096,7 @@ pub async fn install_dropped_file(
             InstalledMod {
                 uid,
                 id,
-                name: file_stem.clone(),
+                name: display_stem.clone(),
                 version: String::new(),
                 update_status: UpdateStatus::Unknown,
                 filename,
@@ -1609,7 +1650,9 @@ pub async fn identify_mod_via_nexus_content(
     let mut state = read_state(&state_path);
 
     let Some(m) = state.mods.iter_mut().find(|m| m.uid == uid) else {
-        return Err(format!("identify_mod_via_nexus_content: no mod with uid '{uid}'"));
+        return Err(format!(
+            "identify_mod_via_nexus_content: no mod with uid '{uid}'"
+        ));
     };
     let target = cfg.target_for(m.location.as_deref());
 

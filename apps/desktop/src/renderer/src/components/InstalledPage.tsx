@@ -31,6 +31,7 @@ import { useModData } from '../hooks/useModData'
 import { useDragDrop } from '../hooks/useDragDrop'
 import { useFolderActions } from '../hooks/useFolderActions'
 import { useModActions } from '../hooks/useModActions'
+import { useAutoIdentifyNexusMods } from '../hooks/useAutoIdentifyNexusMods'
 import {
     computeChildren,
     groupChildren,
@@ -158,11 +159,14 @@ export function InstalledPage({
         movingCrimeBossTarget,
         crimeBossMoveBusy,
         crimeBossMoveError,
+        identifyNexusResult,
+        dismissIdentifyNexusResult,
         handleRefresh,
         handleUninstall,
         handleEnable,
         handleDisable,
         handleReinstall,
+        handleIdentifyViaNexus,
         requestMoveCrimeBossTarget,
         confirmMoveCrimeBossTarget,
         cancelMoveCrimeBossTarget,
@@ -173,6 +177,8 @@ export function InstalledPage({
     useEffect(() => {
         if (zipPickerData || hostPackData || cbFlatArchiveData) setShowHealth(false)
     }, [zipPickerData, hostPackData, cbFlatArchiveData])
+
+    useAutoIdentifyNexusMods({ installed, gamePath, activeGame, onRefreshInstalled })
 
     const folderActions = useFolderActions(gamePath, onRefreshInstalled, activeGame)
 
@@ -265,6 +271,7 @@ export function InstalledPage({
         handleEnable,
         handleDisable,
         handleReinstall,
+        handleIdentifyViaNexus,
         requestMoveCrimeBossTarget,
         folderActions,
         dragItem,
@@ -444,6 +451,23 @@ export function InstalledPage({
                         </span>
                         <button
                             onClick={clearReinstallError}
+                            className="shrink-0 hover:opacity-70 transition-opacity"
+                        >
+                            <X className="w-3.5 h-3.5" />
+                        </button>
+                    </div>
+                )}
+                {identifyNexusResult && (
+                    <div
+                        className={`px-6 py-2 shrink-0 flex items-center justify-between gap-3 border-b text-xs ${
+                            identifyNexusResult.kind === 'error'
+                                ? 'bg-danger/10 border-danger/30 text-danger'
+                                : 'bg-success/10 border-success/30 text-success-text'
+                        }`}
+                    >
+                        <span className="truncate">{identifyNexusResult.message}</span>
+                        <button
+                            onClick={dismissIdentifyNexusResult}
                             className="shrink-0 hover:opacity-70 transition-opacity"
                         >
                             <X className="w-3.5 h-3.5" />

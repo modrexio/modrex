@@ -438,12 +438,9 @@ pub enum NexusArchiveIdentity {
 fn resolve_archive_identity(matches: Vec<NexusHashMatch>, local_size: i64) -> NexusArchiveIdentity {
     match matches.len() {
         0 => NexusArchiveIdentity::NotFound,
-        1 => NexusArchiveIdentity::Identified(
-            matches
-                .into_iter()
-                .next()
-                .expect("len checked above"),
-        ),
+        1 => {
+            NexusArchiveIdentity::Identified(matches.into_iter().next().expect("len checked above"))
+        }
         _ => {
             let mut by_size: Vec<NexusHashMatch> = matches
                 .iter()
@@ -491,7 +488,7 @@ const CONTENT_QUERY: &str = r#"
 query ModrexFileContents($filter: ModFileContentSearchFilter, $count: Int) {
     modFileContents(filter: $filter, count: $count) {
         totalCount
-        nodes { modId }
+        nodes { modId fileSize }
     }
 }
 "#;
@@ -500,36 +497,58 @@ const CONTENT_PAGE_SIZE: u32 = 50;
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum NexusContentQuery {
-    /// File-unit games (PD3, Crime Boss): the .pak's published name and exact byte size.
+    /// File-unit games (PD3, Crime Boss): the .pak's published name. fileSize is not
+    /// sent as a filter (see content_filter_json) — it is only used client-side, and
+    /// only when the name alone is ambiguous.
     FileNameAndSize { file_name: String, file_size: i64 },
     /// Directory-unit games (PD2, PDTH, RAID): the mod's folder name as a path segment.
     FolderSegment { segment: String },
 }
 
+// fileSize is deliberately never sent as a Nexus-side filter for FileNameAndSize: a
+// mod's currently-published file is often a newer upload than what's installed
+// locally, so an exact byte-size match against the live index silently rejects a
+// fileName match that is otherwise unique (confirmed live: a real installed archive's
+// byte size no longer matched Nexus's current index for that same mod, even though
+// its fileName alone resolved to exactly one mod). fileSize is still requested in the
+// response and used to disambiguate client-side, only when fileName alone returns
+// more than one candidate — see parse_content_mod_ids.
 fn content_filter_json(want_game_id: u32, query: &NexusContentQuery) -> Value {
     let mut filter = serde_json::json!({
         "gameId": [{ "value": want_game_id, "op": "EQUALS" }],
     });
     match query {
-        NexusContentQuery::FileNameAndSize {
-            file_name,
-            file_size,
-        } => {
+        NexusContentQuery::FileNameAndSize { file_name, .. } => {
             filter["fileNameWildcard"] =
                 serde_json::json!([{ "value": file_name, "op": "EQUALS" }]);
-            // fileSize is a quoted String in the filter input despite the output field
-            // being a BigInt — the opposite convention from gameId above.
-            filter["fileSize"] =
-                serde_json::json!([{ "value": file_size.to_string(), "op": "EQUALS" }]);
         }
         NexusContentQuery::FolderSegment { segment } => {
-            filter["filePathPartsExact"] = serde_json::json!([{ "value": segment, "op": "EQUALS" }]);
+            filter["filePathPartsExact"] =
+                serde_json::json!([{ "value": segment, "op": "EQUALS" }]);
         }
     }
     filter
 }
 
-fn parse_content_mod_ids(value: &Value) -> Result<Vec<u32>, String> {
+fn content_node_ids(nodes: &[Value]) -> Vec<u32> {
+    let mut ids: Vec<u32> = nodes
+        .iter()
+        .filter_map(|n| n.get("modId").and_then(Value::as_u64))
+        .map(|id| id as u32)
+        .collect();
+    ids.sort_unstable();
+    ids.dedup();
+    ids
+}
+
+/// `disambiguate_by_size` is the local file's byte size for a FileNameAndSize query,
+/// None for FolderSegment (which has no analogous per-node signal to fall back on).
+/// Only consulted when fileName alone returns more than one distinct mod — see
+/// content_filter_json for why fileSize is never sent as a request filter.
+fn parse_content_mod_ids(
+    value: &Value,
+    disambiguate_by_size: Option<i64>,
+) -> Result<Vec<u32>, String> {
     if let Some(errors) = value.get("errors") {
         return Err(format!("nexus graphql error: {errors}"));
     }
@@ -541,14 +560,25 @@ fn parse_content_mod_ids(value: &Value) -> Result<Vec<u32>, String> {
         .and_then(|n| n.as_array())
         .ok_or_else(|| "nexus: malformed graphql response".to_string())?;
 
-    let mut ids: Vec<u32> = nodes
+    let ids = content_node_ids(nodes);
+    let (Some(target_size), true) = (disambiguate_by_size, ids.len() > 1) else {
+        return Ok(ids);
+    };
+
+    let size_matched_nodes: Vec<Value> = nodes
         .iter()
-        .filter_map(|n| n.get("modId").and_then(Value::as_u64))
-        .map(|id| id as u32)
+        .filter(|n| {
+            n.get("fileSize")
+                .and_then(parse_big_int)
+                .is_some_and(|s| s == target_size)
+        })
+        .cloned()
         .collect();
-    ids.sort_unstable();
-    ids.dedup();
-    Ok(ids)
+    let by_size = content_node_ids(&size_matched_nodes);
+    // A miss here just means the fileSize signal did not narrow it down further
+    // (e.g. none of the candidates' currently-indexed size matches) — fall back to
+    // the full name-matched set rather than manufacturing a false empty result.
+    Ok(if by_size.len() == 1 { by_size } else { ids })
 }
 
 /// Distinct Nexus mod ids whose published content matches query. Zero is a normal,
@@ -563,6 +593,10 @@ pub(crate) async fn nexus_lookup_content_mod_ids(
     let want = nexus_numeric_game_id(&game_id)?;
     let headers = nexus_headers(&app).await?;
     let filter = content_filter_json(want, &query);
+    let disambiguate_by_size = match &query {
+        NexusContentQuery::FileNameAndSize { file_size, .. } => Some(*file_size),
+        NexusContentQuery::FolderSegment { .. } => None,
+    };
 
     let body = serde_json::json!({
         "query": CONTENT_QUERY,
@@ -578,7 +612,7 @@ pub(crate) async fn nexus_lookup_content_mod_ids(
     })
     .await?;
 
-    parse_content_mod_ids(&value)
+    parse_content_mod_ids(&value, disambiguate_by_size)
 }
 
 #[cfg(test)]

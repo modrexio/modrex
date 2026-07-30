@@ -165,7 +165,16 @@
         },
         "modMenu": {
             "open": "Параметры",
-            "manageFiles": "Управление файлами"
+            "manageFiles": "Управление файлами",
+            "identify": "Определить"
+        },
+        "identifyNexus": {
+            "identifying": "Определение…",
+            "identified": "Определено как «{name}»",
+            "notFound": "Совпадений на Nexus не найдено",
+            "ambiguous": "На Nexus найдено несколько возможных совпадений",
+            "alreadyChecked": "Уже проверено на Nexus — совпадений не найдено",
+            "error": "Не удалось определить: {error}"
         },
         "nexusBadge": "Nexus",
         "crimeBossMove": {

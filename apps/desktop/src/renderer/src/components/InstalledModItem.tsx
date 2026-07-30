@@ -9,6 +9,7 @@ import { SkeletonListRow } from './SkeletonListRow'
 import { syntheticMod, detailNavArgs, isIdentified } from '../hooks/installedUtils'
 import { useInstalledContext } from './InstalledContext'
 import { ManageFilesModal } from './ManageFilesModal'
+import { hasSource } from '../sources'
 
 export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
     const {
@@ -26,6 +27,7 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
         handleEnable,
         handleDisable,
         handleReinstall,
+        handleIdentifyViaNexus,
         requestMoveCrimeBossTarget,
         onModPointerDown,
         manageFilesKey,
@@ -76,6 +78,13 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
         (combined.location === undefined || combined.location === 'paks') &&
         !combined.missing
 
+    // No point offering this for a mod Modrex can't hash (file missing) or one that
+    // already has a real identity — see identify_via_nexus_content_op's own Skipped
+    // outcome, which this mirrors so the menu doesn't offer an action that can't do
+    // anything. RAID has no Nexus presence at all.
+    const canIdentifyViaNexus =
+        !isIdentified(ins) && !combined.missing && hasSource(activeGame, 'nexus')
+
     function renderMenuButton(dropdownSide: 'right' | 'left') {
         return (
             <div ref={menuRef} className="relative">
@@ -102,6 +111,22 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
                         >
                             {t('installed.modMenu.manageFiles')}
                         </button>
+                        {canIdentifyViaNexus && (
+                            <>
+                                <div className="h-px bg-border" />
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation()
+                                        setMenuOpen(false)
+                                        void handleIdentifyViaNexus(ins)
+                                    }}
+                                    disabled={isBusy}
+                                    className="w-full text-left px-3 py-2 text-xs text-text hover:bg-surface-hover transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                >
+                                    {t('installed.modMenu.identify')}
+                                </button>
+                            </>
+                        )}
                         {canMoveCrimeBossTarget && (
                             <>
                                 <div className="h-px bg-border" />
@@ -209,6 +234,22 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
                         >
                             {t('installed.modMenu.manageFiles')}
                         </button>
+                        {canIdentifyViaNexus && (
+                            <>
+                                <div className="h-px bg-border" />
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation()
+                                        setMenuOpen(false)
+                                        void handleIdentifyViaNexus(ins)
+                                    }}
+                                    disabled={isBusy}
+                                    className="w-full text-left px-3 py-2 text-xs text-text hover:bg-surface-hover transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                >
+                                    {t('installed.modMenu.identify')}
+                                </button>
+                            </>
+                        )}
                         {canMoveCrimeBossTarget && (
                             <>
                                 <div className="h-px bg-border" />

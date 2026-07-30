@@ -93,8 +93,7 @@ pub(crate) async fn identify_via_nexus_content_op(
         return Ok(NexusContentIdentifyOutcome::Skipped);
     };
 
-    let ids =
-        nexus::nexus_lookup_content_mod_ids(app.clone(), game_id.to_string(), query).await?;
+    let ids = nexus::nexus_lookup_content_mod_ids(app.clone(), game_id.to_string(), query).await?;
 
     match ids.as_slice() {
         [] => {
@@ -103,7 +102,8 @@ pub(crate) async fn identify_via_nexus_content_op(
         }
         [mod_id] => {
             let mod_id = *mod_id;
-            let detail_value = nexus::nexus_get_mod(app.clone(), game_id.to_string(), mod_id).await?;
+            let detail_value =
+                nexus::nexus_get_mod(app.clone(), game_id.to_string(), mod_id).await?;
             let detail = crate::commands::domain::parse_nexus_detail(detail_value)?;
             m.source = "nexus".to_string();
             m.remote_id = Some(mod_id.to_string());
@@ -174,8 +174,7 @@ mod tests {
 
     #[test]
     fn directory_unit_strips_the_mod_overrides_wrapper() {
-        let query =
-            nexus_content_query_for(&directory_unit(), "assets/mod_overrides/Welrod", None);
+        let query = nexus_content_query_for(&directory_unit(), "assets/mod_overrides/Welrod", None);
         assert_eq!(
             query,
             Some(NexusContentQuery::FolderSegment {

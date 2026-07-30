@@ -166,7 +166,10 @@ fn resolve_archive_identity_stays_ambiguous_when_size_matches_none() {
 }
 
 #[test]
-fn content_filter_json_sends_game_id_unquoted_and_file_size_quoted() {
+fn content_filter_json_sends_game_id_unquoted_and_never_filters_on_file_size() {
+    // fileSize must never be sent as a Nexus-side filter for FileNameAndSize - see
+    // content_filter_json's own doc comment for why (a real installed file's byte size
+    // can legitimately differ from Nexus's currently-indexed version of the same mod).
     let filter = content_filter_json(
         648,
         &NexusContentQuery::FileNameAndSize {
@@ -176,7 +179,7 @@ fn content_filter_json_sends_game_id_unquoted_and_file_size_quoted() {
     );
     assert_eq!(filter["gameId"][0]["value"], serde_json::json!(648));
     assert_eq!(filter["fileNameWildcard"][0]["value"], "Foo.pak");
-    assert_eq!(filter["fileSize"][0]["value"], "1234");
+    assert!(filter.get("fileSize").is_none());
 }
 
 #[test]
@@ -198,7 +201,7 @@ fn parse_content_mod_ids_returns_distinct_sorted_ids() {
             { "modId": 101 }, { "modId": 202 }, { "modId": 101 }
         ] } }
     });
-    assert_eq!(parse_content_mod_ids(&value).unwrap(), vec![101, 202]);
+    assert_eq!(parse_content_mod_ids(&value, None).unwrap(), vec![101, 202]);
 }
 
 #[test]
@@ -206,14 +209,61 @@ fn parse_content_mod_ids_empty_is_not_an_error() {
     let value = serde_json::json!({
         "data": { "modFileContents": { "totalCount": 0, "nodes": [] } }
     });
-    assert_eq!(parse_content_mod_ids(&value).unwrap(), Vec::<u32>::new());
+    assert_eq!(
+        parse_content_mod_ids(&value, None).unwrap(),
+        Vec::<u32>::new()
+    );
 }
 
 #[test]
 fn parse_content_mod_ids_surfaces_graphql_errors() {
     let value = serde_json::json!({ "errors": [{ "message": "boom" }] });
-    let err = parse_content_mod_ids(&value).unwrap_err();
+    let err = parse_content_mod_ids(&value, None).unwrap_err();
     assert!(err.contains("boom"));
+}
+
+#[test]
+fn parse_content_mod_ids_a_unique_name_match_needs_no_size_disambiguation() {
+    // The real bug this guards against: fileName alone resolved to exactly one mod,
+    // but that mod's currently-indexed fileSize no longer matches the local file (a
+    // newer upload since the user's copy was downloaded). Must still return the id.
+    let value = serde_json::json!({
+        "data": { "modFileContents": { "totalCount": 1, "nodes": [
+            { "modId": 52, "fileSize": "1363148" }
+        ] } }
+    });
+    assert_eq!(
+        parse_content_mod_ids(&value, Some(1340430)).unwrap(),
+        vec![52]
+    );
+}
+
+#[test]
+fn parse_content_mod_ids_disambiguates_multiple_name_matches_by_size() {
+    let value = serde_json::json!({
+        "data": { "modFileContents": { "totalCount": 2, "nodes": [
+            { "modId": 101, "fileSize": "468" },
+            { "modId": 202, "fileSize": "900" }
+        ] } }
+    });
+    assert_eq!(parse_content_mod_ids(&value, Some(468)).unwrap(), vec![101]);
+}
+
+#[test]
+fn parse_content_mod_ids_stays_ambiguous_when_size_matches_none_or_several() {
+    let value = serde_json::json!({
+        "data": { "modFileContents": { "totalCount": 2, "nodes": [
+            { "modId": 101, "fileSize": "468" },
+            { "modId": 202, "fileSize": "900" }
+        ] } }
+    });
+    // No candidate has this size: falls back to the full name-matched set.
+    assert_eq!(
+        parse_content_mod_ids(&value, Some(111)).unwrap(),
+        vec![101, 202]
+    );
+    // No target size at all (FolderSegment queries): same fallback.
+    assert_eq!(parse_content_mod_ids(&value, None).unwrap(), vec![101, 202]);
 }
 
 #[test]

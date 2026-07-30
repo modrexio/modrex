@@ -109,7 +109,9 @@ pub fn recover_published_filename(on_disk_name: &str, disabled_suffix: &str) -> 
 /// cannot be matched this way, no matter what folder Modrex synthesized to hold it.
 pub fn derive_content_segment(folder_ref: &str) -> Option<&str> {
     const OVERRIDE_PREFIX: &str = "assets/mod_overrides/";
-    let stripped = folder_ref.strip_prefix(OVERRIDE_PREFIX).unwrap_or(folder_ref);
+    let stripped = folder_ref
+        .strip_prefix(OVERRIDE_PREFIX)
+        .unwrap_or(folder_ref);
     if stripped.is_empty() {
         None
     } else {

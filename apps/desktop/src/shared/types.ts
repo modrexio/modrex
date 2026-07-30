@@ -186,6 +186,9 @@ export interface InstalledMod {
     // Whether version is comparable. Replaces the old habit of encoding this in the
     // version string itself as "unknown" / "outdated".
     updateStatus?: 'known' | 'unknown' | 'outdated'
+    // Nexus content-index lookup already found nothing (or an ambiguous result) for
+    // this mod — a permanent miss until Nexus indexes it, so it's never re-queried.
+    nexusContentMissed?: boolean
 }
 
 export interface ModsState {

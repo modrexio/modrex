@@ -50,6 +50,82 @@ async fn compute_md5_matches_known_digest() {
     assert_eq!(digest, "5eb63bbbe01eeed093cb22bb8f5acdc3");
 }
 
+// ── recover_dropped_mod_stem ───────────────────────────────────────────────
+
+#[test]
+fn recover_dropped_mod_stem_pulls_the_real_pak_name_out_of_a_zip_wrapper() {
+    // Mirrors a real Nexus website download: the outer zip is named after Nexus's own
+    // download-manager scheme, but the single pak entry inside carries the real name.
+    let zip = make_zip(&[("abkarino_RinoHud_P.pak", b"pak bytes")]);
+    let cfg = engine_for_game("pd3").unwrap();
+    let stem = recover_dropped_mod_stem(
+        &cfg.primary().unit,
+        false,
+        Path::new("irrelevant-for-this-branch"),
+        Some(zip.path()),
+        "abkarino_RinoHud_P 52 1.8 2026-07-02T19-49Z 9QzrVe4KC",
+    );
+    assert_eq!(stem, "abkarino_RinoHud_P");
+}
+
+#[test]
+fn recover_dropped_mod_stem_uses_the_directory_unit_tmp_name() {
+    let cfg = engine_for_game("pd2").unwrap();
+    let stem = recover_dropped_mod_stem(
+        &cfg.primary().unit,
+        false,
+        Path::new("/tmp/modrex-mod-abc123/Welrod"),
+        None,
+        "fallback should not be used",
+    );
+    assert_eq!(stem, "Welrod");
+}
+
+#[test]
+fn recover_dropped_mod_stem_falls_back_for_a_bare_loose_pak() {
+    // No zip wrapper: the dropped file's own OS filename already is the real pak name.
+    let cfg = engine_for_game("pd3").unwrap();
+    let stem = recover_dropped_mod_stem(
+        &cfg.primary().unit,
+        false,
+        Path::new("irrelevant-for-this-branch"),
+        None,
+        "Foo",
+    );
+    assert_eq!(stem, "Foo");
+}
+
+#[test]
+fn recover_dropped_mod_stem_falls_back_when_the_archive_has_more_than_one_pak() {
+    let zip = make_zip(&[("A.pak", b"a"), ("B.pak", b"b")]);
+    let cfg = engine_for_game("pd3").unwrap();
+    let stem = recover_dropped_mod_stem(
+        &cfg.primary().unit,
+        false,
+        Path::new("irrelevant-for-this-branch"),
+        Some(zip.path()),
+        "fallback",
+    );
+    assert_eq!(stem, "fallback");
+}
+
+#[test]
+fn recover_dropped_mod_stem_reads_the_zip_entry_for_crime_boss_despite_being_directory_unit() {
+    // Crime Boss is Directory-unit but its tmp is an opaque synthesized skeleton root with
+    // no usable name of its own - it must take the same zip-entry path as File-unit games,
+    // not the plain Directory-unit tmp.file_name() shortcut.
+    let zip = make_zip(&[("SomeMod-WindowsNoEditor.pak", b"pak bytes")]);
+    let cfg = engine_for_game("cb").unwrap();
+    let stem = recover_dropped_mod_stem(
+        &cfg.primary().unit,
+        true,
+        Path::new("/tmp/modrex-cb-mod-abc123"),
+        Some(zip.path()),
+        "fallback should not be used",
+    );
+    assert_eq!(stem, "SomeMod-WindowsNoEditor");
+}
+
 // ── list_pak_entries (zip path) ───────────────────────────────────────────────
 
 #[test]
@@ -371,7 +447,10 @@ fn recover_published_filename_strips_both() {
 
 #[test]
 fn recover_published_filename_leaves_a_plain_name_alone() {
-    assert_eq!(recover_published_filename("Foo.pak", ".disabled"), "Foo.pak");
+    assert_eq!(
+        recover_published_filename("Foo.pak", ".disabled"),
+        "Foo.pak"
+    );
 }
 
 // ── derive_content_segment ────────────────────────────────────────────────
@@ -707,7 +786,13 @@ fn nexus_content_missed_survives_a_save_and_read_round_trip() {
         nexus_content_missed: Some(true),
         ..InstalledMod::default()
     }];
-    save_state(&state_path, &ModsState { mods, folders: vec![] });
+    save_state(
+        &state_path,
+        &ModsState {
+            mods,
+            folders: vec![],
+        },
+    );
 
     let state = read_state(&state_path);
     assert_eq!(state.mods[0].nexus_content_missed, Some(true));
