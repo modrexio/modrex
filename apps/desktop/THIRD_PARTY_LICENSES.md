@@ -123,7 +123,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ---
 
-### @radix-ui/number 1.1.2
+### @radix-ui/number 1.1.3
 
 **License:** MIT
 
@@ -153,7 +153,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/primitive 1.1.6
+### @radix-ui/primitive 1.1.7
 
 **License:** MIT
 
@@ -183,7 +183,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-arrow 1.1.12
+### @radix-ui/react-arrow 1.1.15
 
 **License:** MIT
 
@@ -213,7 +213,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-collection 1.1.12
+### @radix-ui/react-collection 1.1.15
 
 **License:** MIT
 
@@ -243,7 +243,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-compose-refs 1.1.3
+### @radix-ui/react-compose-refs 1.1.5
 
 **License:** MIT
 
@@ -273,7 +273,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-context 1.2.0
+### @radix-ui/react-context 1.2.2
 
 **License:** MIT
 
@@ -303,7 +303,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-dialog 1.1.20
+### @radix-ui/react-dialog 1.1.23
 
 **License:** MIT
 
@@ -333,7 +333,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-direction 1.1.2
+### @radix-ui/react-direction 1.1.4
 
 **License:** MIT
 
@@ -363,7 +363,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-dismissable-layer 1.1.16
+### @radix-ui/react-dismissable-layer 1.1.19
 
 **License:** MIT
 
@@ -393,7 +393,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-focus-guards 1.1.4
+### @radix-ui/react-focus-guards 1.1.6
 
 **License:** MIT
 
@@ -423,7 +423,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-focus-scope 1.1.13
+### @radix-ui/react-focus-scope 1.1.16
 
 **License:** MIT
 
@@ -453,7 +453,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-id 1.1.2
+### @radix-ui/react-id 1.1.4
 
 **License:** MIT
 
@@ -483,7 +483,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-popover 1.1.20
+### @radix-ui/react-popover 1.1.23
 
 **License:** MIT
 
@@ -513,7 +513,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-popper 1.3.4
+### @radix-ui/react-popper 1.3.7
 
 **License:** MIT
 
@@ -543,7 +543,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-portal 1.1.14
+### @radix-ui/react-portal 1.1.17
 
 **License:** MIT
 
@@ -573,7 +573,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-presence 1.1.8
+### @radix-ui/react-presence 1.1.10
 
 **License:** MIT
 
@@ -603,7 +603,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-primitive 2.1.7
+### @radix-ui/react-primitive 2.1.10
 
 **License:** MIT
 
@@ -633,7 +633,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-roving-focus 1.1.16
+### @radix-ui/react-roving-focus 1.1.19
 
 **License:** MIT
 
@@ -663,7 +663,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-select 2.3.4
+### @radix-ui/react-select 2.3.7
 
 **License:** MIT
 
@@ -693,7 +693,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-slot 1.3.0
+### @radix-ui/react-slot 1.3.3
 
 **License:** MIT
 
@@ -723,7 +723,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-tabs 1.1.18
+### @radix-ui/react-tabs 1.1.21
 
 **License:** MIT
 
@@ -753,7 +753,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-tooltip 1.2.13
+### @radix-ui/react-tooltip 1.2.16
 
 **License:** MIT
 
@@ -783,7 +783,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-use-callback-ref 1.1.2
+### @radix-ui/react-use-callback-ref 1.1.4
 
 **License:** MIT
 
@@ -813,7 +813,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-use-controllable-state 1.2.4
+### @radix-ui/react-use-controllable-state 1.2.6
 
 **License:** MIT
 
@@ -843,7 +843,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-use-effect-event 0.0.3
+### @radix-ui/react-use-effect-event 0.0.5
 
 **License:** MIT
 
@@ -873,7 +873,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-use-is-hydrated 0.1.1
+### @radix-ui/react-use-is-hydrated 0.1.3
 
 **License:** MIT
 
@@ -903,7 +903,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-use-layout-effect 1.1.2
+### @radix-ui/react-use-layout-effect 1.1.4
 
 **License:** MIT
 
@@ -933,7 +933,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-use-previous 1.1.2
+### @radix-ui/react-use-previous 1.1.4
 
 **License:** MIT
 
@@ -963,7 +963,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-use-rect 1.1.2
+### @radix-ui/react-use-rect 1.1.4
 
 **License:** MIT
 
@@ -993,7 +993,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-use-size 1.1.2
+### @radix-ui/react-use-size 1.1.4
 
 **License:** MIT
 
@@ -1023,7 +1023,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-visually-hidden 1.2.8
+### @radix-ui/react-visually-hidden 1.2.11
 
 **License:** MIT
 
@@ -1053,7 +1053,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/rect 1.1.2
+### @radix-ui/rect 1.1.3
 
 **License:** MIT
 
@@ -5161,7 +5161,7 @@ PERFORMANCE OF THIS SOFTWARE.
 
 ---
 
-### lucide-react 1.25.0
+### lucide-react 1.27.0
 
 **License:** ISC
 
@@ -5470,7 +5470,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ---
 
-### simple-icons 16.27.0
+### simple-icons 16.27.1
 
 **License:** CC0-1.0
 
