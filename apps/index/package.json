@@ -24,6 +24,6 @@
         "adm-zip": "^0.6.0",
         "better-sqlite3": "^13.0.2",
         "tsx": "^4.22.1",
-        "typescript": "^6.0.3"
+        "typescript": "^7.0.2"
     }
 }
