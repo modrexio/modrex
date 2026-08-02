@@ -17,12 +17,12 @@
         "format:check": "prettier --check ."
     },
     "devDependencies": {
-        "@astrojs/check": "0.9.9",
-        "@astrojs/mdx": "7.0.3",
+        "@astrojs/check": "0.9.10",
+        "@astrojs/mdx": "7.0.5",
         "@eslint/js": "10.0.1",
         "@tailwindcss/vite": "4.3.3",
-        "astro": "7.1.3",
-        "eslint": "10.7.0",
+        "astro": "7.1.6",
+        "eslint": "10.8.0",
         "eslint-plugin-astro": "3.0.1",
         "marked": "18.0.7",
         "prettier": "3.9.6",
@@ -37,7 +37,7 @@
     "dependencies": {
         "@modrex/games": "workspace:*",
         "@astrojs/sitemap": "3.7.3",
-        "@astrojs/starlight": "0.41.3",
-        "lucide": "1.25.0"
+        "@astrojs/starlight": "0.41.5",
+        "lucide": "1.27.0"
     }
 }
