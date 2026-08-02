@@ -5161,7 +5161,7 @@ PERFORMANCE OF THIS SOFTWARE.
 
 ---
 
-### lucide-react 1.27.0
+### lucide-react 1.28.0
 
 **License:** ISC
 
