@@ -38,6 +38,6 @@
         "@modrex/games": "workspace:*",
         "@astrojs/sitemap": "3.7.3",
         "@astrojs/starlight": "0.41.5",
-        "lucide": "1.27.0"
+        "lucide": "1.28.0"
     }
 }
