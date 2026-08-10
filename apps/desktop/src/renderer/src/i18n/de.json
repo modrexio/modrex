@@ -1,0 +1,524 @@
+{
+    "common": {
+        "beta": "Beta",
+        "install": "Installieren",
+        "nonPakWarning": "Nicht unterstütztes Format",
+        "openLink": "Link öffnen",
+        "installing": "Installation",
+        "downloading": "Herunterladen…",
+        "installed": "Installiert",
+        "remove": "Deinstallieren",
+        "fileMissing": "Fehlende Datei",
+        "zipArchiveBroken": "Fehlerhaftes Archiv",
+        "modManagerDisabled": "Der Autor erlaubt keine Mod Manager",
+        "depNeedsManualInstall": "Der Download dieser Abhängigkeit hat eine Auswahl, Öffne die Seiter der Abhängigkeit und lade es herunter.",
+        "fix": "Reparieren",
+        "reinstall": "Neu-installieren",
+        "loading": "Laden…",
+        "cancel": "Abbrechen",
+        "close": "Schließen",
+        "dontShowAgain": "Nicht nochmal anzeigen",
+        "by": "erstellt von {name}",
+        "noImage": "Keine Bilder vorhanden",
+        "dismiss": "Ignorieren",
+        "downloadAnyway": "Trotzdem herunterladen",
+        "nonPakConfirmBody": "Diese Datei nutzt ein nicht unterstützes Format. Modrex kann es höchst wahrscheinlich nicht korrekt installieren."
+    },
+    "app": {
+        "modsHidden": "Mods sind versteckt — Das Spiel wurde unmodifiziert gestartet und läuft vielleicht noch.",
+        "restoreMods": "Mods wiederherstellen",
+        "updateAction": "Aktualisieren",
+        "updateInstall": "Neustart & Installation",
+        "updateDownload": "Update herunterladen",
+        "updateNotesTitle": "Was wurde verändert in v{version}",
+        "updateViewOnGithub": "Auf GitHub ansehen",
+        "updateLater": "Update ignorieren"
+    },
+    "errorBoundary": {
+        "close": "Schließen",
+        "message": "Etwas lief schief."
+    },
+    "topBar": {
+        "title": "Modrex",
+        "stopGame": "Spiel schließen / stoppen",
+        "launchWithoutMods": "Spiel ohne Mods starten",
+        "launchModded": "Spiel mit Mods starten",
+        "launching": "Start im Gange...",
+        "minimize": "Minimieren",
+        "maximize": "Maximieren",
+        "restore": "Wiederherstellen",
+        "close": "Schließen",
+        "missingLaunchOption": {
+            "title": "Fehlende Startargumente",
+            "bodyPre": "wird empfohlen damit die meisten Mods korrekt laufen. Füge es hinzu",
+            "location": "Einstellungen → Startargumente",
+            "launchAnyway": "Spiel trotzdem starten"
+        }
+    },
+    "sidebar": {
+        "browse": "Mods durchsuchen",
+        "installed": "Installiert",
+        "news": "Nachrichten",
+        "settings": "Einstellungen",
+        "back": "Zurück",
+        "collapse": "Menü einklappen",
+        "expandTitle": "Seitenleiste aufklappen",
+        "collapseTitle": "Seitenleiste einklappen",
+        "changeGame": "Spiel wechseln",
+        "docs": "Dokumentation",
+        "docsTitle": "Öffne die Dokumentation",
+        "discord": "Discord",
+        "discordTitle": "Trete dem Discord bei"
+    },
+    "gamePicker": {
+        "title": "Spiele",
+        "installedOnly": "Nur installierte",
+        "searchLabel": "Durchsuche Spiele",
+        "searchPlaceholder": "Durchsuche alle Spiele…",
+        "noMatches": "Keine Spiele entdeckt"
+    },
+    "browse": {
+        "title": "Mods durchsuchen",
+        "gameNotFound": "Spiel nicht gefunden - Installation wurde deaktiviert",
+        "goToSettings": "In den Einstellungen konfigurieren",
+        "searchPlaceholder": "Durchsuche Mods...",
+        "allCategories": "Alle Kategorien",
+        "tags": "Tags",
+        "tagsCount": "Tags ({count})",
+        "tagFilterSearch": "Tags filtern…",
+        "tagFilterClear": "Leeren",
+        "tagFilterEmpty": "Keine Tags gefunden",
+        "noMods": "Keine Mods gefunden",
+        "loadFailed": "Mods konnten nicht geladen werden",
+        "rateLimited": "ModWorkshop hat ein Anfragen-Limit. Versuche es gleich nochmal.",
+        "modCount": "{total} Mods",
+        "sort": {
+            "lastUpdated": "Zuletzt aktualisiert",
+            "mostDownloaded": "Am meisten heruntergeladen",
+            "mostLiked": "Am meisten geliked",
+            "newest": "Am neusten",
+            "name": "Name"
+        }
+    },
+    "nexus": {
+        "searchPlaceholder": "Mods durchsuchen…",
+        "noMods": "Keine Mods gefunden",
+        "loadFailed": "Mods konnten nicht geladen werden",
+        "modCount": "{total} Mods",
+        "signInRequired": "Melde dich bei Nexus Mods an, um Mods von Nexus zu durchsuchen.",
+        "sessionExpiredHint": "Deine Nexus Mods-Anmeldung ist abgelaufen. Melde dich erneut an, um weiter zu stöbern.",
+        "goToSettings": "In den Einstellungen konfigurieren",
+        "sort": {
+            "lastUpdated": "Zuletzt aktualisiert",
+            "mostDownloaded": "Am meisten heruntergeladen",
+            "mostEndorsed": "Am besten bewertet",
+            "relevance": "Relevanz"
+        }
+    },
+    "nexusSession": {
+        "expired": "Deine Nexus Mods-Anmeldung ist abgelaufen. Das Durchsuchen, Installieren und Suchen nach Updates für Nexus-Mods ist pausiert, bis du dich wieder anmeldest.",
+        "signIn": "Erneut anmelden",
+        "awaiting": "Warte auf Browser…",
+        "failed": "Nexus Mods-Anmeldung fehlgeschlagen: {error}"
+    },
+    "installed": {
+        "comingSoon": "Mod-Verwaltung für dieses Spiel folgt in Kürze.",
+        "title": "Installierte Mods",
+        "openFolder": "Mod-Ordner öffnen",
+        "refresh": "Installierte Mods aktualisieren",
+        "modCount": "{count} Mods",
+        "modCountSingle": "{count} Mod",
+        "modCountFiltered": "{count} von {total} Mods",
+        "empty": "Noch keine Mods installiert",
+        "identifyingNew": "Identifiziere {count} neue Mods…",
+        "filterPlaceholder": "Mods durchsuchen…",
+        "filterEmpty": "Keine Mods stimmen mit „{query}“ überein",
+        "reinstallFailed": "Erneute Installation fehlgeschlagen: {error}",
+        "updatesAvailable": "{count} Mods können aktualisiert werden",
+        "updatesAvailableSingle": "{count} Mod kann aktualisiert werden",
+        "reviewUpdates": "Updates überprüfen",
+        "gridView": "Kachelansicht",
+        "listView": "Listenansicht",
+        "newFolder": "Neuer Ordner",
+        "folder": {
+            "modCount": "{count} Mods",
+            "modCountSingle": "{count} Mod",
+            "enable": "Alle Mods im Ordner aktivieren",
+            "disable": "Alle Mods im Ordner deaktivieren",
+            "rename": "Ordner umbenennen",
+            "renamePlaceholder": "Ordnername",
+            "newSubfolder": "Neuer Unterordner",
+            "delete": "Ordner löschen",
+            "deleteConfirm": "Ordner löschen und dessen Inhalt in den übergeordneten Ordner verschieben?",
+            "dropHere": "Mods hier ablegen"
+        },
+        "fileCount": "{count} Dateien",
+        "manageFiles": {
+            "searchPlaceholder": "Dateien durchsuchen…",
+            "enableAll": "Alle aktivieren",
+            "disableAll": "Alle deaktivieren",
+            "noMatches": "Keine Dateien stimmen mit „{query}“ überein",
+            "fileUnavailable": "Diese Datei ist auf ModWorkshop nicht mehr verfügbar.",
+            "staleDuplicateBadge": "Veraltet",
+            "staleDuplicateHint": "Dies ist ein Überbleibsel aus der Zeit vor der Neuverpackung des Downloads – kann sicher entfernt werden."
+        },
+        "updatesModal": {
+            "title": "Verfügbare Updates ({count})",
+            "update": "Aktualisieren",
+            "updating": "Aktualisiere…",
+            "updatingProgress": "Aktualisiere {done} / {total}",
+            "updateSelected": "Ausgewählte aktualisieren ({count})",
+            "error": "Aktualisierung fehlgeschlagen. Überprüfe deine Verbindung und versuche es erneut."
+        },
+        "modMenu": {
+            "open": "Optionen",
+            "manageFiles": "Dateien verwalten",
+            "identify": "Identifizieren"
+        },
+        "identifyNexus": {
+            "identifying": "Identifiziere…",
+            "identified": "Als „{name}“ identifiziert",
+            "notFound": "Keine Übereinstimmung auf Nexus gefunden",
+            "ambiguous": "Mehrere mögliche Übereinstimmungen auf Nexus gefunden",
+            "alreadyChecked": "Bereits mit Nexus abgeglichen – keine Übereinstimmung gefunden",
+            "error": "Identifikation fehlgeschlagen: {error}"
+        },
+        "nexusBadge": "Nexus",
+        "crimeBossMove": {
+            "modkitBadge": "ModKit",
+            "legacyBadge": "Legacy",
+            "toLegacy": "Zu Legacy verschieben",
+            "toModKit": "Zu ModKit verschieben",
+            "confirmTitleToLegacy": "Zu ~mods verschieben?",
+            "confirmBodyToLegacy": "„{name}“ wird nicht mehr mit Inhalten anderer Mods zusammengefügt. Tu dies nur, wenn das alte pak-Format benötigt wird.",
+            "confirmTitleToModkit": "Zu Mods/ verschieben?",
+            "confirmBodyToModkit": "Verschiebt „{name}“ nach Mods/, wo es sich mit Inhalten anderer Mods zusammenfügen kann.",
+            "confirm": "Verschieben",
+            "moving": "Verschiebe…",
+            "error": "Verschieben fehlgeschlagen: {error}"
+        },
+        "health": {
+            "title": "Integritätsprüfung",
+            "cancel": "Scan abbrechen",
+            "missingFilesCount": "Fehlende Dateien ({count})",
+            "brokenArchivesCount": "Fehlerhafte Archive ({count})",
+            "outdatedCount": "Veraltet ({count})",
+            "unidentifiedCount": "Nicht identifiziert ({count})",
+            "unidentifiedHint": "Auf ModWorkshop nicht erkannt – wird möglicherweise nach einem Mod-Index-Update identifiziert.",
+            "updatesCount": "Updates ({count})",
+            "dependenciesCount": "Abhängigkeiten ({count})",
+            "noMissingFiles": "Keine fehlenden Dateien.",
+            "noBrokenArchives": "Keine fehlerhaften Archive.",
+            "noOutdated": "Keine veralteten Mods.",
+            "noUnidentified": "Jede installierte Mod wird erkannt.",
+            "noUpdates": "Alles ist auf dem neuesten Stand.",
+            "noMissingDeps": "Die Abhängigkeiten jeder installierten Mod sind erfüllt.",
+            "missingFileHint": "Datei auf der Festplatte nicht gefunden",
+            "brokenArchiveHint": "Archiv konnte nicht verifiziert werden",
+            "outdatedHint": "Empfohlene Neuinstallation",
+            "unidentifiedRowHint": "Nicht auf ModWorkshop gefunden",
+            "missingDepsHint": "Fehlend: {deps}",
+            "installDep": "Installieren",
+            "installAllDeps": "Alle Abhängigkeiten installieren",
+            "installDepFailed": "Einige Abhängigkeiten konnten nicht automatisch installiert werden.",
+            "reinstallAll": "Alle neu installieren"
+        }
+    },
+    "news": {
+        "title": "Neuigkeiten",
+        "subtitlePrefix": "Offizielle Schlagzeilen, Zusammenfassungen und Bilder von",
+        "readArticle": "Artikel lesen",
+        "refresh": "Aktualisieren",
+        "empty": "Keine Neuigkeiten verfügbar",
+        "loadFailed": "Neuigkeiten konnten nicht geladen werden",
+        "source": "paydaythegame.com"
+    },
+    "detail": {
+        "spoiler": "Spoiler!",
+        "back": "Zurück",
+        "viewOnSite": "ModWorkshop",
+        "viewOnNexus": "Nexus",
+        "donate": "Spenden",
+        "creditsLevelCollaborator": "Mitarbeitender",
+        "creditsLevelMaintainer": "Betreuer",
+        "creditsLevelContributor": "Mitwirkender",
+        "tabs": {
+            "description": "Beschreibung",
+            "images": "Bilder",
+            "imagesCount": "Bilder ({count})",
+            "downloads": "Downloads",
+            "downloadsCount": "Downloads ({count})",
+            "changelog": "Änderungsprotokoll",
+            "license": "Lizenz",
+            "deps": "Abhängigkeiten & Anweisungen"
+        },
+        "stats": {
+            "downloads": "Downloads",
+            "likes": "Likes",
+            "views": "Aufrufe"
+        },
+        "info": {
+            "version": "Version",
+            "published": "Veröffentlicht",
+            "updated": "Aktualisiert",
+            "repository": "Repository",
+            "link": "Link",
+            "tags": "Tags",
+            "members": "Mitglieder",
+            "owner": "Besitzer"
+        },
+        "description": {
+            "noDescription": "Keine Beschreibung angegeben."
+        },
+        "images": {
+            "none": "Keine Bilder für diese Mod hochgeladen."
+        },
+        "downloads": {
+            "none": "Keine Dateien verfügbar.",
+            "onNexus": "Dateien für diese Mod befinden sich auf Nexus Mods.",
+            "external": "Herunterladen",
+            "count": "{count} DL",
+            "viaNexus": "Über Nexus herunterladen",
+            "awaitingNexus": "Warte auf Browser…",
+            "categoryMain": "Hauptdateien",
+            "categoryUpdate": "Updates",
+            "categoryOptional": "Optionale Dateien",
+            "categoryOldVersion": "Alte Versionen",
+            "categoryMiscellaneous": "Verschiedenes"
+        },
+        "deps": {
+            "instructions": "Installationsanweisungen",
+            "dependencies": "Abhängigkeiten",
+            "statusInstalled": "Installiert",
+            "statusMissing": "Fehlend",
+            "statusNotInstalled": "Nicht installiert",
+            "badgeRequired": "Erforderlich",
+            "badgeOptional": "Optional",
+            "openOnSite": "Auf modworkshop.net öffnen"
+        }
+    },
+    "embed": {
+        "videoThumbnail": "Vorschaubild des Videos",
+        "play": "Video abspielen",
+        "openInBrowser": "Im Browser öffnen"
+    },
+    "fileSelect": {
+        "title": "Dateien installieren",
+        "subtitle": "{modName} — wähle aus, welche Dateien installiert werden sollen.",
+        "installSelected": "Ausgewählte installieren ({count})"
+    },
+    "zipPicker": {
+        "title": "Aus Archiv installieren",
+        "subtitle": "{modName} — wähle aus, welche Dateien installiert werden sollen.",
+        "installSelected": "Ausgewählte installieren ({count})",
+        "selectAll": "Alle auswählen ({count})",
+        "deselectAll": "Alle abwählen",
+        "targetMods": "Mods",
+        "targetOverrides": "Asset-Überschreibungen"
+    },
+    "hostPack": {
+        "title": "Add-on installieren",
+        "intoHost": "Dies ist ein Add-on für {hostName}. {count} darin installieren?",
+        "requiresHost": "Dieses Add-on wird in {hostName} installiert, welches noch nicht installiert ist. Installiere es zuerst und installiere dann dieses Add-on.",
+        "installHost": "{hostName} installieren",
+        "install": "Installieren ({count})",
+        "installing": "Installiere…"
+    },
+    "unrecognized": {
+        "title": "Diese Mod konnte nicht platziert werden",
+        "body": "Modrex konnte nicht ermitteln, wohin diese Mod installiert wird – sie gehört wahrscheinlich in eine andere Mod. Folge den Anweisungen des Autors:",
+        "noInstructions": "Der Autor hat keine Installationsanweisungen hinterlegt. Überprüfe die Mod-Seite auf ModWorkshop."
+    },
+    "cbFlatArchive": {
+        "title": "Als Mod-Ordner installieren?",
+        "body": "Dieses Archiv hat keinen eigenen umschließenden Ordner, daher kann Modrex keinen Mod-Namen automatisch erkennen. Den gesamten Inhalt als „{name}“ unter CrimeBoss/Mods installieren?",
+        "install": "Installieren",
+        "installing": "Installiere…"
+    },
+    "depsWarning": {
+        "title": "Fehlende erforderliche Abhängigkeiten",
+        "body": "Diese Mod erfordert die Installation der folgenden Mods:",
+        "gotIt": "Verstanden",
+        "installAll": "Alle installieren",
+        "installFailed": "Installation fehlgeschlagen",
+        "bltDiesel3Note": "Das offizielle SuperBLT unterstützt Diesel 3.0 noch nicht.",
+        "bltDiesel3GitHub": "Von GitHub holen"
+    },
+    "crimeBossInstallChoice": {
+        "title": "Wo soll „{name}“ installiert werden?",
+        "body": "Mods/ wird mit Inhalten anderer Mods zusammengefügt. ~mods ist das ältere Format ohne Zusammenführung.",
+        "auto": "Mods/ (ModKit)",
+        "legacy": "~mods (Legacy-Pak)",
+        "installing": "Installiere…",
+        "error": "Installation fehlgeschlagen: {error}"
+    },
+    "settings": {
+        "title": "Einstellungen",
+        "language": {
+            "title": "Sprache",
+            "description": "Die in der gesamten App verwendete Sprache."
+        },
+        "gamePath": {
+            "title": "Spielpfad",
+            "description": "Pfad zu deiner {game}-Installation. Wird automatisch von deinen installierten Launchern erkannt, falls nicht manuell festgelegt.",
+            "notFound": "Nicht gefunden",
+            "detecting": "Erkenne…",
+            "reset": "Zurücksetzen",
+            "browse": "Durchsuchen",
+            "pickTitle": "{game}-Installationsordner auswählen",
+            "picking": "Wähle aus…",
+            "autoDetected": "Automatisch erkannt",
+            "notDetected": "{game}-Installation konnte nicht erkannt werden – lege den Pfad manuell fest.",
+            "invalid": "Der ausgewählte Ordner ist keine gültige {game}-Installation."
+        },
+        "launcher": {
+            "title": "Launcher",
+            "description": "Wie {game} gestartet wird. Wird automatisch von deinen installierten Stores erkannt.",
+            "detecting": "Erkenne…",
+            "steam": "Steam",
+            "epic": "Epic Games",
+            "xbox": "Xbox",
+            "manual": "Manuell (Ausführbare Datei direkt starten)",
+            "switchFailed": "Diese Spielkopie befindet sich nicht mehr am Fundort – wähle den Ordner manuell aus.",
+            "multipleCopies": "{count} Kopien gefunden – der ausgewählte Launcher entscheidet, welche davon von Modrex modifiziert und gestartet wird."
+        },
+        "launchOptions": {
+            "title": "Startargumente",
+            "descriptionPre": "Zusätzliche Argumente, die beim Start an PAYDAY 3 übergeben werden.",
+            "descriptionPost": "wird empfohlen, damit die meisten Mods korrekt geladen werden.",
+            "xboxNotePre": "Startargumente werden im Microsoft Store nicht unterstützt. Um Mod-Protokollierung zu aktivieren, füge",
+            "xboxNotePost": "in der Xbox-App unter PAYDAY 3 > Verwalten > Startargumente hinzu."
+        },
+        "crashReporter": {
+            "title": "Bereinigung des Absturzberichterstatters",
+            "description": "Umgehe ein leeres Absturzbericht-Fenster bei Spielen mit fehlerhaftem Berichterstatter, indem dessen Dateien vor dem Start entfernt werden. Dies ist standardmäßig deaktiviert und wird möglicherweise nicht für jedes Spiel benötigt."
+        },
+        "updates": {
+            "title": "Updates",
+            "check": "Nach Updates suchen",
+            "checking": "Suche…",
+            "upToDate": "Du bist auf dem neuesten Stand"
+        },
+        "logs": {
+            "title": "Protokolle",
+            "description": "Öffne im Fehlerfall die Protokolldatei und füge sie deinem Bug-Report bei.",
+            "open": "Protokolldatei öffnen"
+        },
+        "nexusAccount": {
+            "title": "Nexus Mods-Konto",
+            "description": "Melde dich in deinem Browser mit deinem Nexus Mods-Konto an. Token werden lokal gespeichert und verlassen dieses Gerät niemals.",
+            "signIn": "Mit Nexus Mods anmelden",
+            "signOut": "Abmelden",
+            "signedIn": "Bei Nexus Mods angemeldet.",
+            "failed": "Anmeldung fehlgeschlagen: {error}",
+            "sessionExpired": "Deine Anmeldung ist abgelaufen und wurde gelöscht. Dies passiert, wenn die Sitzung widerrufen wird, sich das Passwort ändert oder Modrex lange genug ungenutzt bleibt.",
+            "signOutConfirmTitle": "Von Nexus Mods abmelden?",
+            "signOutConfirmBody": "Du musst dich im Browser erneut anmelden, um Nexus-Mods zu durchsuchen und zu installieren.",
+            "signOutConfirm": "Abmelden",
+            "insecureStorage": "Deine Nexus Mods-Anmeldung wird weniger sicher gespeichert, da kein Betriebssystem-Anmeldedatenstore verfügbar ist. Installiere und aktiviere unter Linux einen Secret-Service-Anbieter wie gnome-keyring oder KWallet und starte Modrex neu, um dies zu beheben."
+        },
+        "folders": {
+            "title": "Ordner",
+            "description": "Öffne diese Speicherorte in deinem Dateimanager.",
+            "gameFolder": "Spielordner öffnen",
+            "dataFolder": "Datenordner öffnen",
+            "appFolder": "App-Ordner öffnen",
+            "open": "{name} öffnen",
+            "mods": "Mods",
+            "modkitMods": "ModKit-Mods",
+            "legacyPaks": "Legacy-Paks",
+            "overrides": "Asset-Überschreibungen",
+            "ue4ssMods": "UE4SS-Mods"
+        },
+        "storage": {
+            "title": "Speicher",
+            "dangerZone": "Gefahrenzone",
+            "dangerZoneDescription": "Diese Aktionen löschen lokal gespeicherte Daten. Caches geben Speicherplatz frei und werden bei der Nutzung der App automatisch neu aufgebaut; das Zurücksetzen stellt die Standardeinstellungen wieder her. Keine davon löscht deine installierten Mods oder Spieldateien.",
+            "clearing": "Leere…",
+            "clearImages": "Bilder löschen",
+            "clearModInfo": "Mod-Info löschen",
+            "clearDatabase": "Datenbank löschen",
+            "clearNews": "Nachrichten löschen",
+            "clearAll": "Alle Caches leeren",
+            "clearAllLabel": "Alle Caches",
+            "clearAllDescription": "Löscht zwischengespeicherte Bilder, Mod-Infos, die Identifikationsdatenbank und Nachrichten gemeinsam.",
+            "clearConfirmTitle": "{name} löschen?",
+            "clearConfirmBody": "Dadurch werden die zwischengespeicherten Daten jetzt gelöscht. Modrex baut sie bei der Nutzung der App automatisch neu auf.",
+            "clearAllConfirmTitle": "Alle Caches leeren?",
+            "clearAllConfirmBody": "Dadurch werden alle zwischengespeicherten Bilder, Mod-Infos, die Identifikationsdatenbank und Nachrichten gelöscht. Modrex baut sie bei der Nutzung der App automatisch neu auf.",
+            "freed": "{size} freigegeben",
+            "cachedImages": "Zwischengespeicherte Bilder",
+            "cachedImagesDescription": "Mod-Vorschaubilder und Banner von ModWorkshop.",
+            "cachedModInfo": "Zwischengespeicherte Mod-Infos",
+            "cachedModInfoDescription": "Gespeicherte Mod-Namen, -Versionen und -Details.",
+            "modIndex": "Mod-Identifikationsdatenbank",
+            "modIndexDescription": "Der Hash-Index, der verwendet wird, um deine installierten Mods zu erkennen.",
+            "news": "Zwischengespeicherte Nachrichten",
+            "newsDescription": "Gespeicherte Kopien der In-App-Nachrichtenseiten.",
+            "reset": "Einstellungen zurücksetzen",
+            "resetDescription": "Alle App-Einstellungen auf die Standardwerte zurücksetzen.",
+            "resetConfirmTitle": "Einstellungen zurücksetzen?",
+            "resetConfirmBody": "Dies löscht deine gespeicherten Spielpfade, Launcher-Auswahlen, Einstellungen und die Analytik-Auswahl und versetzt Modrex in den Erststart-Zustand zurück. Deine installierten Mods und Spieldateien sind davon nicht betroffen.",
+            "resetConfirm": "Einstellungen zurücksetzen",
+            "resetting": "Setze zurück…"
+        },
+        "crimeBossInstallMode": {
+            "title": "Neue Mod-Installationen",
+            "description": "Standardmäßiger Speicherort für neue Crime Boss-Mods. Du kannst eine bereits installierte Mod später auch aus der Liste der installierten Mods verschieben.",
+            "auto": "Automatisch",
+            "ask": "Immer fragen"
+        },
+        "about": {
+            "tagline": "Kostenloser und Open-Source-Mod-Manager.",
+            "supportTitle": "Unterstütze das Projekt",
+            "supportBody": "Modrex ist kostenlos und in der Freizeit entwickelt. Wenn es dir Zeit spart, hilft ein GitHub-Stern oder Sponsoring dabei, es am Laufen zu halten.",
+            "star": "Stern auf GitHub geben",
+            "sponsor": "Sponsoren",
+            "communityTitle": "Community",
+            "discord": "Tritt dem Discord bei",
+            "website": "modrex.net",
+            "disclaimer": "Modrex ist ein Community-Projekt und steht in keiner Verbindung zu den Entwicklern oder Publishern der unterstützten Spiele."
+        },
+        "nav": {
+            "game": "Spiel",
+            "application": "Anwendung",
+            "advanced": "Erweitert",
+            "about": "Über"
+        }
+    },
+    "supportPrompt": {
+        "body": "Gefällt dir Modrex? Ein Stern auf GitHub hilft anderen Spielern, es zu finden.",
+        "star": "Stern auf GitHub geben",
+        "dismiss": "Nein danke"
+    },
+    "telemetry": {
+        "title": "Hilf mit, Modrex zu verbessern",
+        "intro": "Modrex kann anonyme Nutzungsdaten senden, damit wir sehen können, welche Mods abstürzen, welche Spiele Aufmerksamkeit erfordern und was als Nächstes entwickelt werden soll. Dies ist optional und kann jederzeit in den Einstellungen geändert werden.",
+        "collectTitle": "Was wir erfassen werden",
+        "collect1": "Anonyme Nutzung – verwendete Funktionen, installierte Mods und wie gut Mods identifiziert werden",
+        "collect2": "Deine App-Version und dein Betriebssystem",
+        "dontCollectTitle": "Was wir niemals erfassen werden",
+        "dontCollect1": "Keine Namen, E-Mails, Konten oder andere identifizierende Daten",
+        "dontCollect2": "Keine Dateipfade, Mod-Suchtexte oder andere persönliche Daten",
+        "enable": "Aktivieren",
+        "decline": "Nein danke",
+        "detailsToggle": "Welche Daten werden erfasst?",
+        "privacyPrefix": "Nutzungsdaten werden von Google Analytics verarbeitet. Siehe",
+        "privacyLink": "Googles Datenschutzerklärung",
+        "settingsTitle": "Nutzungsanalyse",
+        "settingsDescription": "Anonyme Nutzungsdaten teilen, um Modrex zu verbessern.",
+        "discordPresenceTitle": "Discord Rich Presence",
+        "discordPresenceDescription": "Modrex-Aktivität in deinem Discord-Profil mit einem Link zur App anzeigen."
+    },
+    "drop": {
+        "overlayTitle": "Zum Installieren ablegen",
+        "overlaySubtitle": "Loslassen, um in {game} zu installieren",
+        "installing": "Installiere…",
+        "installingCount": "Installiere {current} von {total}…",
+        "installed": "{count} Mods installiert",
+        "installedSingle": "1 Mod installiert",
+        "needsPicker": "Einige Archive müssen vorerst über ihre Mod-Seite installiert werden",
+        "failed": "Konnte nicht installiert werden: {names}",
+        "noGame": "Lege deinen Spielordner fest, bevor du Mods ablegst"
+    }
+}
