@@ -7,9 +7,11 @@ import { formatMissingReport, inspectLocales, runCheckI18n } from './check-i18n.
 import {
     buildTranslationTable,
     expectedReadme,
+    readTranslationContributors,
     replaceTranslationTable,
     runReadmeCommand,
 } from './update-i18n-readme.mjs'
+import { collectTranslationContributors, localeJsonChanged } from './update-i18n-contributors.mjs'
 
 function withLocales(files, callback) {
     const directory = mkdtempSync(join(tmpdir(), 'modrex-i18n-'))
@@ -124,16 +126,36 @@ test('missing command rejects an unknown locale clearly', () => {
     )
 })
 
-test('translation table contains deterministic coverage without contributor attribution', () => {
+test('translation table renders compact deterministic coverage and contributors', () => {
     const inspection = {
         sourceLocale: 'en',
-        totalCount: 2,
-        locales: [{ id: 'de', translatedCount: 1, totalCount: 2 }],
+        totalCount: 3,
+        locales: [
+            { id: 'de', translatedCount: 2, totalCount: 3 },
+            { id: 'ru', translatedCount: 3, totalCount: 3 },
+        ],
     }
-    const table = buildTranslationTable(inspection)
-    assert.match(table, /^\| Language \| Key coverage \|/)
-    assert.match(table, /Deutsch \(de\) \| 50% \(1\/2\) \|/)
-    assert.doesNotMatch(table, /contributor|Gordon|github\.com/i)
+    const contributors = {
+        de: ['TarekLP', 'AnotherTranslator'],
+        ru: ['ShulhaOleh'],
+    }
+    const table = buildTranslationTable(inspection, contributors)
+    assert.equal(
+        table,
+        [
+            '| Language | Coverage | Contributors |',
+            '| --- | ---: | --- |',
+            '| English (en) | 100% | - |',
+            '| Deutsch (de) | 66.7% | [AnotherTranslator](https://github.com/AnotherTranslator), [TarekLP](https://github.com/TarekLP) |',
+            '| Русский (ru) | 100% | [ShulhaOleh](https://github.com/ShulhaOleh) |',
+        ].join('\n')
+    )
+    assert.doesNotMatch(table, /\(\d+\/\d+\)/)
+    assert.equal(buildTranslationTable(inspection, contributors), table)
+    assert.throws(
+        () => buildTranslationTable(inspection, { fr: ['Translator'] }),
+        /unknown locale 'fr'/
+    )
 
     const readme = [
         '# Project',
@@ -143,8 +165,85 @@ test('translation table contains deterministic coverage without contributor attr
     ].join('\n')
     assert.match(
         replaceTranslationTable(readme, table),
-        /<!-- prettier-ignore -->\n\| Language \| Key coverage \|/
+        /<!-- prettier-ignore -->\n\| Language \| Coverage \| Contributors \|/
     )
+})
+
+test('translation contributors come from linked GitHub commit authors', async () => {
+    const fullPage = Array.from({ length: 100 }, (_, index) => ({
+        sha: `de-${index}`,
+        parents: [{ sha: `parent-${index}` }],
+        author: { login: index % 2 === 0 ? 'ZuluTranslator' : 'AlphaTranslator' },
+    }))
+    const requests = []
+    const contributors = await collectTranslationContributors(
+        ['de', 'ru'],
+        (localeId, page) => {
+            requests.push(`${localeId}:${page}`)
+            if (localeId === 'de' && page === 1) return fullPage
+            if (localeId === 'de') {
+                return [
+                    {
+                        sha: 'translation',
+                        parents: [{ sha: 'parent' }],
+                        author: { login: 'TarekLP' },
+                    },
+                    {
+                        sha: 'formatting',
+                        parents: [{ sha: 'parent' }],
+                        author: { login: 'ShulhaOleh' },
+                    },
+                    {
+                        sha: 'merge',
+                        parents: [{ sha: 'one' }, { sha: 'two' }],
+                        author: { login: 'Merger' },
+                    },
+                    { sha: 'unlinked', parents: [{ sha: 'parent' }], author: null },
+                ]
+            }
+            return [
+                { sha: 'russian', parents: [{ sha: 'parent' }], author: { login: 'ShulhaOleh' } },
+            ]
+        },
+        (_localeId, commit) => commit.sha !== 'formatting'
+    )
+
+    assert.deepEqual(contributors, {
+        de: ['AlphaTranslator', 'TarekLP', 'ZuluTranslator'],
+        ru: ['ShulhaOleh'],
+    })
+    assert.deepEqual(requests, ['de:1', 'de:2', 'ru:1'])
+})
+
+test('semantic locale comparison ignores formatting and key order', () => {
+    const before = '{\n  "common": { "open": "Open", "close": "Close" }\n}\n'
+    const reformatted = '{"common":{"close":"Close","open":"Open"}}'
+    const translated = '{"common":{"close":"Schließen","open":"Open"}}'
+
+    assert.equal(localeJsonChanged(before, reformatted, 'de'), false)
+    assert.equal(localeJsonChanged(before, translated, 'de'), true)
+    assert.equal(localeJsonChanged(undefined, translated, 'de'), true)
+})
+
+test('translation contributor metadata rejects duplicates and invalid GitHub usernames', () => {
+    const directory = mkdtempSync(join(tmpdir(), 'modrex-i18n-contributors-'))
+    const contributorsPath = join(directory, 'contributors.json')
+
+    try {
+        writeFileSync(contributorsPath, JSON.stringify({ de: ['TarekLP', 'TarekLP'] }))
+        assert.throws(
+            () => readTranslationContributors(contributorsPath),
+            /contributors for 'de' contain duplicates/
+        )
+
+        writeFileSync(contributorsPath, JSON.stringify({ de: ['not a username'] }))
+        assert.throws(
+            () => readTranslationContributors(contributorsPath),
+            /Invalid GitHub username for translation locale 'de'/
+        )
+    } finally {
+        rmSync(directory, { recursive: true, force: true })
+    }
 })
 
 test('--stdout prints the prospective README without modifying it', () => {

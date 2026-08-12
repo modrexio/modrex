@@ -99,16 +99,16 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions, commands and comm
 ## Translations
 
 Coverage is the share of English source keys currently present in each locale. It does not
-measure linguistic quality.
+measure linguistic quality. Contributors are explicitly maintained and are not ranked.
 
 <!-- TRANSLATION_STATUS_START -->
 
 <!-- prettier-ignore -->
-| Language | Key coverage |
-| --- | ---: |
-| English (en, source) | 100% (422/422) |
-| Deutsch (de) | 98.1% (414/422) |
-| Русский (ru) | 100% (422/422) |
+| Language | Coverage | Contributors |
+| --- | ---: | --- |
+| English (en) | 100% | - |
+| Deutsch (de) | 98.1% | [TarekLP](https://github.com/TarekLP) |
+| Русский (ru) | 100% | [ShulhaOleh](https://github.com/ShulhaOleh) |
 
 <!-- TRANSLATION_STATUS_END -->
 

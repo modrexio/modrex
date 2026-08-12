@@ -5,8 +5,10 @@ import { formatPercentage, inspectLocales, localeNativeName } from './check-i18n
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
 const README_PATH = resolve(SCRIPT_DIR, '../../..', 'README.md')
+const CONTRIBUTORS_PATH = resolve(SCRIPT_DIR, '..', 'translation-contributors.json')
 const START_MARKER = '<!-- TRANSLATION_STATUS_START -->'
 const END_MARKER = '<!-- TRANSLATION_STATUS_END -->'
+const GITHUB_USERNAME = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$/
 
 function escapeTableText(value) {
     return value
@@ -16,19 +18,67 @@ function escapeTableText(value) {
         .replaceAll('|', '\\|')
 }
 
-export function buildTranslationTable(inspection) {
+export function readTranslationContributors(path = CONTRIBUTORS_PATH) {
+    let contributors
+    try {
+        contributors = JSON.parse(readFileSync(path, 'utf8'))
+    } catch (error) {
+        throw new Error(`Failed to read translation contributors at ${path}`, { cause: error })
+    }
+
+    if (typeof contributors !== 'object' || contributors === null || Array.isArray(contributors)) {
+        throw new Error('Translation contributors must be a JSON object')
+    }
+
+    for (const [localeId, usernames] of Object.entries(contributors)) {
+        if (!Array.isArray(usernames) || usernames.length === 0) {
+            throw new Error(`Translation contributors for '${localeId}' must be a non-empty array`)
+        }
+        if (new Set(usernames).size !== usernames.length) {
+            throw new Error(`Translation contributors for '${localeId}' contain duplicates`)
+        }
+        for (const username of usernames) {
+            if (typeof username !== 'string' || !GITHUB_USERNAME.test(username)) {
+                throw new Error(`Invalid GitHub username for translation locale '${localeId}'`)
+            }
+        }
+    }
+
+    return contributors
+}
+
+function contributorLinks(usernames) {
+    if (!usernames) return '-'
+    return [...usernames]
+        .sort()
+        .map((username) => `[${username}](https://github.com/${username})`)
+        .join(', ')
+}
+
+export function buildTranslationTable(inspection, contributors) {
+    const localeIds = new Set([
+        inspection.sourceLocale,
+        ...inspection.locales.map((locale) => locale.id),
+    ])
+    for (const localeId of Object.keys(contributors)) {
+        if (!localeIds.has(localeId)) {
+            throw new Error(`Translation contributors reference unknown locale '${localeId}'`)
+        }
+    }
+
     const sourceName = escapeTableText(localeNativeName(inspection.sourceLocale))
+    const sourceCoverage = formatPercentage(inspection.totalCount, inspection.totalCount)
     const lines = [
-        '| Language | Key coverage |',
-        '| --- | ---: |',
-        `| ${sourceName} (${inspection.sourceLocale}, source) | 100% (${inspection.totalCount}/${inspection.totalCount}) |`,
+        '| Language | Coverage | Contributors |',
+        '| --- | ---: | --- |',
+        `| ${sourceName} (${inspection.sourceLocale}) | ${sourceCoverage} | ${contributorLinks(contributors[inspection.sourceLocale])} |`,
     ]
 
     for (const locale of inspection.locales) {
         const name = escapeTableText(localeNativeName(locale.id))
         const coverage = formatPercentage(locale.translatedCount, locale.totalCount)
         lines.push(
-            `| ${name} (${locale.id}) | ${coverage} (${locale.translatedCount}/${locale.totalCount}) |`
+            `| ${name} (${locale.id}) | ${coverage} | ${contributorLinks(contributors[locale.id])} |`
         )
     }
 
@@ -54,7 +104,8 @@ export function expectedReadme(readme) {
             `Cannot update README with invalid locales:\n${inspection.errors.join('\n')}`
         )
     }
-    return replaceTranslationTable(readme, buildTranslationTable(inspection))
+    const contributors = readTranslationContributors()
+    return replaceTranslationTable(readme, buildTranslationTable(inspection, contributors))
 }
 
 export function runReadmeCommand(
