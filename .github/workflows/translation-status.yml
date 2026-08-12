@@ -5,6 +5,9 @@ on:
         branches: [main]
         paths:
             - 'apps/desktop/src/renderer/src/i18n/*.json'
+            - 'apps/desktop/translation-contributors.generated.json'
+    schedule:
+        - cron: '17 4 * * 1'
     workflow_dispatch:
 
 permissions:
@@ -37,7 +40,7 @@ jobs:
 
             - name: Commit updated table
               run: |
-                  git add README.md apps/desktop/translation-contributors.json
+                  git add README.md apps/desktop/translation-contributors.generated.json
                   if git diff --cached --quiet; then
                     echo "Translation table is already current."
                     exit 0

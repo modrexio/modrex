@@ -114,9 +114,9 @@ translation for specific named locales.
 
 After locale changes reach `main`, GitHub Actions updates the README coverage table from the
 locale files. Locale discovery and coverage do not use a language registry. The small
-`apps/desktop/translation-contributors.json` file is generated from GitHub's commit history for
-each locale file. Translators do not edit it. Formatting-only commits do not count, and commits
-without a reliably linked GitHub account are omitted instead of guessing an identity.
+`apps/desktop/translation-contributors.generated.json` file is regenerated from GitHub's commit
+history for each locale file. Translators do not edit it. Formatting-only commits do not count,
+and commits without a reliably linked GitHub account are omitted instead of guessing an identity.
 
 To add or improve a language:
 

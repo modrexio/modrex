@@ -7,7 +7,7 @@ import { inspectLocales } from './check-i18n.mjs'
 
 const PER_PAGE = 100
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
-const CONTRIBUTORS_PATH = resolve(SCRIPT_DIR, '..', 'translation-contributors.json')
+const CONTRIBUTORS_PATH = resolve(SCRIPT_DIR, '..', 'translation-contributors.generated.json')
 const LOCALE_PATH = 'apps/desktop/src/renderer/src/i18n'
 
 function readLocaleAtRevision(revision, localeId) {
@@ -64,8 +64,8 @@ export async function collectTranslationContributors(
                     throw new Error(`GitHub returned an invalid commit for locale '${localeId}'`)
                 }
                 if (commit.parents.length > 1) continue
-                const username = commit?.author?.login
-                if (typeof username !== 'string') continue
+                if (commit.author?.type !== 'User') continue
+                const username = commit.author.login
                 if (await changesLocaleJson(localeId, commit)) usernames.add(username)
             }
 

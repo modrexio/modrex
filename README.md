@@ -99,7 +99,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions, commands and comm
 ## Translations
 
 Coverage is the share of English source keys currently present in each locale. It does not
-measure linguistic quality. Contributors are explicitly maintained and are not ranked.
+measure linguistic quality. Contributors are derived from locale history and are not ranked.
 
 <!-- TRANSLATION_STATUS_START -->
 

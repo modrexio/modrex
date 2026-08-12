@@ -173,7 +173,10 @@ test('translation contributors come from linked GitHub commit authors', async ()
     const fullPage = Array.from({ length: 100 }, (_, index) => ({
         sha: `de-${index}`,
         parents: [{ sha: `parent-${index}` }],
-        author: { login: index % 2 === 0 ? 'ZuluTranslator' : 'AlphaTranslator' },
+        author: {
+            login: index % 2 === 0 ? 'ZuluTranslator' : 'AlphaTranslator',
+            type: 'User',
+        },
     }))
     const requests = []
     const contributors = await collectTranslationContributors(
@@ -186,23 +189,32 @@ test('translation contributors come from linked GitHub commit authors', async ()
                     {
                         sha: 'translation',
                         parents: [{ sha: 'parent' }],
-                        author: { login: 'TarekLP' },
+                        author: { login: 'TarekLP', type: 'User' },
                     },
                     {
                         sha: 'formatting',
                         parents: [{ sha: 'parent' }],
-                        author: { login: 'ShulhaOleh' },
+                        author: { login: 'ShulhaOleh', type: 'User' },
                     },
                     {
                         sha: 'merge',
                         parents: [{ sha: 'one' }, { sha: 'two' }],
-                        author: { login: 'Merger' },
+                        author: { login: 'Merger', type: 'User' },
+                    },
+                    {
+                        sha: 'bot',
+                        parents: [{ sha: 'parent' }],
+                        author: { login: 'translation-bot', type: 'Bot' },
                     },
                     { sha: 'unlinked', parents: [{ sha: 'parent' }], author: null },
                 ]
             }
             return [
-                { sha: 'russian', parents: [{ sha: 'parent' }], author: { login: 'ShulhaOleh' } },
+                {
+                    sha: 'russian',
+                    parents: [{ sha: 'parent' }],
+                    author: { login: 'ShulhaOleh', type: 'User' },
+                },
             ]
         },
         (_localeId, commit) => commit.sha !== 'formatting'
@@ -223,6 +235,24 @@ test('semantic locale comparison ignores formatting and key order', () => {
     assert.equal(localeJsonChanged(before, reformatted, 'de'), false)
     assert.equal(localeJsonChanged(before, translated, 'de'), true)
     assert.equal(localeJsonChanged(undefined, translated, 'de'), true)
+})
+
+test('semantic locale comparison counts additions, value changes, and deletions', () => {
+    assert.equal(localeJsonChanged('{"common":{}}', '{"common":{"open":"Öffnen"}}', 'de'), true)
+    assert.equal(
+        localeJsonChanged('{"common":{"open":"Open"}}', '{"common":{"open":"Öffnen"}}', 'de'),
+        true
+    )
+    assert.equal(localeJsonChanged('{"common":{"open":"Öffnen"}}', '{"common":{}}', 'de'), true)
+})
+
+test('temporary contributor API failures abort attribution generation', async () => {
+    await assert.rejects(
+        collectTranslationContributors(['de'], () => {
+            throw new Error('GitHub unavailable')
+        }),
+        /GitHub unavailable/
+    )
 })
 
 test('translation contributor metadata rejects duplicates and invalid GitHub usernames', () => {

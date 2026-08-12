@@ -5,7 +5,7 @@ import { formatPercentage, inspectLocales, localeNativeName } from './check-i18n
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
 const README_PATH = resolve(SCRIPT_DIR, '../../..', 'README.md')
-const CONTRIBUTORS_PATH = resolve(SCRIPT_DIR, '..', 'translation-contributors.json')
+const CONTRIBUTORS_PATH = resolve(SCRIPT_DIR, '..', 'translation-contributors.generated.json')
 const START_MARKER = '<!-- TRANSLATION_STATUS_START -->'
 const END_MARKER = '<!-- TRANSLATION_STATUS_END -->'
 const GITHUB_USERNAME = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$/
