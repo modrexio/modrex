@@ -17,7 +17,8 @@ pnpm check-csp    # Verify csp and devCsp in tauri.conf.json agree on all extern
 pnpm check-games  # Verify the Rust GAME_REGISTRY and the TypeScript GAMES record list the same game ids (CI)
 pnpm check-sources # Verify the Rust SOURCE_REGISTRY and @modrex/games agree on each game's modworkshop id (CI)
 pnpm check-updater # Verify release.yml's latest.json generation matches the updater config in tauri.conf.json (CI only)
-pnpm check-i18n   # Verify every locale JSON under i18n/ has the same keys and {var} interpolation as en.json (also runs in pre-commit and CI)
+pnpm check-i18n   # Validate each locale's translated subset and {var} interpolation against en.json, and report coverage (pre-commit + CI)
+pnpm i18n:missing de # List German's missing keys and their English source text
 pnpm checks       # Run the full CI gate locally: all check-* scripts, format:check, lint, typecheck, tests
 pnpm format       # Format all files with prettier
 pnpm format:check # Check formatting without writing
@@ -157,9 +158,11 @@ Its display name comes from `Intl.DisplayNames` (a language's name in its own la
 → "українська"), so there's no hand-maintained label either. This means adding a language is
 **exactly one new file** — see `CONTRIBUTING.md` for the contributor-facing steps.
 
-Run `pnpm check-i18n` after adding or editing a locale file — it fails on any missing key, extra
-key, or mismatched `{var}` interpolation set against `en.json`. This is the gate a translation PR
-must pass; it also runs in pre-commit and CI.
+The root `CLAUDE.md` owns the AI translation policy. Missing keys are valid and use the English
+fallback. `pnpm check-i18n` rejects unknown keys, empty or non-string values, incomplete
+singular/plural pairs, and mismatched `{var}` interpolation, then reports each locale's key
+coverage. `pnpm i18n:missing <locale>` lists untranslated keys with their English source text.
+The README coverage table is regenerated after locale changes reach `main`.
 
 ## Testing
 

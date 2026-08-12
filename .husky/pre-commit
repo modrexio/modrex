@@ -2,7 +2,7 @@ pnpm format:check || (echo "" && echo "Format errors found. Run: pnpm format" &&
 pnpm lint || (echo "" && echo "Lint errors found. Run: pnpm lint:fix" && exit 1)
 pnpm check-commands || (echo "" && echo "Command registration mismatch, see errors above." && exit 1)
 pnpm check-csp || (echo "" && echo "CSP mismatch between csp and devCsp, see errors above." && exit 1)
-pnpm check-i18n || (echo "" && echo "i18n locale files incomplete or unregistered, see errors above." && exit 1)
+pnpm check-i18n || (echo "" && echo "Invalid locale data, see errors above." && exit 1)
 pnpm site:check-legal-dates || (echo "" && echo "Legal page edited without bumping its date, see errors above." && exit 1)
 
 if git diff --cached --name-only | grep -qE '(apps/desktop/package\.json|apps/desktop/src-tauri/Cargo\.toml|apps/desktop/src-tauri/Cargo\.lock|pnpm-lock\.yaml)'; then

@@ -32,6 +32,19 @@ pnpm version patch|minor|major
 
 Project-specific commands can also be run from the application directory.
 
+## Translation ownership
+
+English is the source language for product work. When a task needs localized strings, edit only
+`apps/desktop/src/renderer/src/i18n/en.json` unless the user explicitly requests a translation
+task for specific named locales. Never create, update, synchronize, backfill, or otherwise alter
+a non-English locale as part of a feature, fix, refactor, or documentation task. Missing
+translations are expected to fall back to English and are completed separately by language
+contributors.
+
+Translation-only contributions should stay focused when practical. Human contributors may
+include relevant translations with product changes; this does not change the AI restriction
+above.
+
 ## Permanent compatibility contracts
 
 - Bare vX.Y.Z tags and GitHub Releases belong to the desktop application.

@@ -98,24 +98,64 @@ Neither side of a cross-language pair can see the other, so `pnpm check-games` a
 `pnpm check-sources` diff them in CI. See `CLAUDE.md` for how they fit together before
 starting.
 
-## Adding a language
+## Translations
 
-The desktop app's interface strings live in `apps/desktop/src/renderer/src/i18n/en.json`.
-Translating them into another language is **one new file — nothing else to register or wire up**:
+English is the source language for product development:
 
-1. Copy `en.json` to a new file in the same folder, named after the language's code, e.g.
-   `uk.json`, `de.json`, `pt-BR.json`.
-2. Translate the values only — never change the keys, and never remove or reorder them.
-3. Leave every `{name}`, `{count}`, etc. token exactly as written; just place it wherever it reads
+- Feature and bug-fix contributions add or change source strings in
+  `apps/desktop/src/renderer/src/i18n/en.json`. Do not mechanically copy those changes into
+  non-English files as untranslated placeholders.
+- Keep translation-only pull requests focused when practical. Developers may include relevant
+  human-written translations with a product change.
+- Missing translated keys are valid and fall back to English in the app.
+
+AI agents must not create or update non-English translations unless the user explicitly requests
+translation for specific named locales.
+
+After locale changes reach `main`, GitHub Actions updates the README coverage table from the
+locale files. There is no language registry or metadata file to maintain.
+
+To add or improve a language:
+
+1. Use a canonical BCP 47 language tag for the filename, such as `uk.json`, `de.json`, or
+   `pt-BR.json`.
+2. Copy the relevant structure from `en.json` and translate values only. Keep keys in the same
+   relative order, but omit any keys you have not translated instead of copying English text as
+   a placeholder.
+3. Leave every `{name}`, `{count}`, etc. token exactly as written; place it wherever it reads
    naturally in the sentence.
-4. There's no plural-forms system — a few strings come in manual pairs for singular/plural
-   (`modCount` / `modCountSingle`, `updatesAvailable` / `updatesAvailableSingle`, `installed` /
-   `installedSingle`). Translate both halves of each pair.
-5. Run `pnpm check-i18n` (from `apps/desktop/`, or `pnpm --dir apps/desktop check-i18n` from the
-   repo root). It fails on any key your file is missing, any extra key it shouldn't have, or a
-   `{var}` token that doesn't match `en.json` — fix everything it reports before opening the PR.
-   This also runs automatically in pre-commit and CI.
+4. Translate both halves of the manual singular/plural pairs (`modCount` / `modCountSingle`,
+   `updatesAvailable` / `updatesAvailableSingle`, `installed` / `installedSingle`) when you include
+   either key.
+5. Optionally run `pnpm check-i18n`. It rejects unknown keys, empty or non-string values,
+   incomplete singular/plural pairs, and mismatched `{var}` tokens, and reports current key
+   coverage.
 
-When opening the pull request, use the "New language" template
-(`?template=new_language.md` on the compare/PR-create URL, or pick it from the template
-dropdown GitHub shows above the PR description box).
+To find work for a locale, run:
+
+```sh
+pnpm i18n:missing de
+```
+
+The report lists every missing key with its English source text. Both translation commands use
+only Node built-ins, so local validation does not require `pnpm install`. With Node but without
+pnpm, use:
+
+```sh
+node apps/desktop/scripts/check-i18n.mjs
+node apps/desktop/scripts/check-i18n.mjs --missing de
+```
+
+Local tooling is optional. A translator can edit the locale JSON, commit it, push it, and open a
+pull request; CI performs validation without requiring the translator to install dependencies or
+launch the desktop app.
+
+Maintainers can preview or verify the generated README without modifying it:
+
+```sh
+node apps/desktop/scripts/update-i18n-readme.mjs --stdout
+node apps/desktop/scripts/update-i18n-readme.mjs --check
+```
+
+Use the "New language" pull request template (`?template=new_language.md`) for both new and
+existing translations.

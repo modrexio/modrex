@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { LOCALE_IDS, isLocaleId, localeNativeName, localeLabel } from './locales'
+import { LOCALE_IDS, isLocaleId, localeNativeName, localeLabel, matchLocale } from './locales'
 
 describe('LOCALE_IDS', () => {
     it('discovers every locale file with en first', () => {
@@ -16,6 +16,30 @@ describe('isLocaleId', () => {
     it('rejects an unregistered locale and null', () => {
         expect(isLocaleId('xx')).toBe(false)
         expect(isLocaleId(null)).toBe(false)
+    })
+})
+
+describe('matchLocale', () => {
+    it('prefers an exact regional locale', () => {
+        expect(matchLocale('pt-BR', ['en', 'pt', 'pt-BR'])).toBe('pt-BR')
+    })
+
+    it('falls back from a regional locale to its base language', () => {
+        expect(matchLocale('pt-PT', ['en', 'pt'])).toBe('pt')
+    })
+
+    it('falls back through script and extension subtags', () => {
+        expect(matchLocale('sr-Latn-RS', ['en', 'sr-Latn'])).toBe('sr-Latn')
+        expect(matchLocale('de-DE-u-co-phonebk', ['en', 'de-DE'])).toBe('de-DE')
+    })
+
+    it('does not substitute a different regional variant', () => {
+        expect(matchLocale('pt-PT', ['en', 'pt-BR'])).toBeNull()
+    })
+
+    it('canonicalizes browser language tags and rejects malformed tags', () => {
+        expect(matchLocale('EN-us', ['en'])).toBe('en')
+        expect(matchLocale('not_a_locale', ['en'])).toBeNull()
     })
 })
 

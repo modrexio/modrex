@@ -31,6 +31,30 @@ export function isLocaleId(value: string | null): value is LocaleId {
     return value !== null && LOCALE_IDS.includes(value)
 }
 
+export function matchLocale(value: string, available: readonly LocaleId[]): LocaleId | null {
+    let candidate: string
+    try {
+        candidate = Intl.getCanonicalLocales(value)[0]
+    } catch {
+        return null
+    }
+
+    while (candidate) {
+        if (available.includes(candidate)) return candidate
+
+        const separator = candidate.lastIndexOf('-')
+        if (separator === -1) return null
+        candidate = candidate.slice(0, separator)
+
+        const trailingSubtag = candidate.slice(candidate.lastIndexOf('-') + 1)
+        if (trailingSubtag.length === 1) {
+            candidate = candidate.slice(0, candidate.lastIndexOf('-'))
+        }
+    }
+
+    return null
+}
+
 export function localeNativeName(id: LocaleId): string {
     let name: string
     try {

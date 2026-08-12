@@ -67,7 +67,7 @@ Or grab a specific package:
 
 - Every supported game behind a searchable picker, with your install detected automatically (Steam, Epic Games Store, Xbox App)
 - Launch modded or vanilla, per game
-- Interface in English and Russian
+- Interface in multiple community-maintained languages
 - Discord Rich Presence shows the active game on your profile
 - Automatic update checks with one-click in-app updates
 
@@ -95,6 +95,24 @@ If something goes wrong, attach your log file to a [bug report](https://github.c
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions, commands and commit style.
+
+## Translations
+
+Coverage is the share of English source keys currently present in each locale. It does not
+measure linguistic quality.
+
+<!-- TRANSLATION_STATUS_START -->
+
+<!-- prettier-ignore -->
+| Language | Key coverage |
+| --- | ---: |
+| English (en, source) | 100% (422/422) |
+| Deutsch (de) | 98.1% (414/422) |
+| Русский (ru) | 100% (422/422) |
+
+<!-- TRANSLATION_STATUS_END -->
+
+To improve or add a language, follow the [translation contribution guide](CONTRIBUTING.md#translations).
 
 ## License
 

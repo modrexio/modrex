@@ -6,6 +6,11 @@ Then read `AI_DANGER_PATTERNS.md` — it defines the five patterns that are dang
 
 AI-assisted work is allowed, but raw AI-shaped code is not.
 
+Translation is separate work. When a task needs localized strings, edit only
+`apps/desktop/src/renderer/src/i18n/en.json` unless the user explicitly requests translation
+for named locales. Never create, update, synchronize, or backfill a non-English locale during
+another task. See `CLAUDE.md` for the canonical translation ownership policy.
+
 ## Top priority
 
 Before finishing any code change, check the five dangerous AI patterns:
