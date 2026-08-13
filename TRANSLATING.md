@@ -11,7 +11,6 @@ their key coverage.
 2. Edit translated values. Do not rename the English keys.
 3. Leave keys you have not translated out of the file. Partial translations are welcome, and
    missing text falls back to English in the app.
-4. Commit the locale file, push it to your fork, and open a pull request. CI validates it for you.
 
 These optional local commands make the work easier:
 
@@ -39,6 +38,15 @@ Rust, Tauri, or a running copy of Modrex to edit a locale and submit a pull requ
 
 The filename is the only registration step. Modrex discovers locale files automatically and
 uses the platform's native language name.
+
+## Submit the pull request
+
+1. Commit the locale file to a branch in your fork, using a local clone or the GitHub web editor.
+2. Open a normal pull request against `main`.
+3. In the standard pull request template, select **Translation** and enter the language and locale
+   code.
+4. Select the validation option that matches what you ran. **CI only** is fully supported and CI
+   validates the locale for you.
 
 ## Translation rules
 
