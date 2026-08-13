@@ -13,19 +13,20 @@ their key coverage.
    missing text falls back to English in the app.
 4. Commit the locale file, push it to your fork, and open a pull request. CI validates it for you.
 
-If Node.js is already installed, these optional commands make the work easier:
+These optional local commands make the work easier:
 
-| Command                                                 | Description                                                 |
-| ------------------------------------------------------- | ----------------------------------------------------------- |
-| `node apps/desktop/scripts/check-i18n.mjs --status`     | List every available language and its key coverage.         |
-| `node apps/desktop/scripts/check-i18n.mjs --missing de` | List every missing German key with its English source text. |
-| `node apps/desktop/scripts/check-i18n.mjs --locale de`  | Validate `de.json` and explain any problem.                 |
-| `node apps/desktop/scripts/check-i18n.mjs`              | Validate every locale, as CI does.                          |
+| Direct Node command                                     | pnpm alias             | Description                                                 |
+| ------------------------------------------------------- | ---------------------- | ----------------------------------------------------------- |
+| `node apps/desktop/scripts/check-i18n.mjs --status`     | `pnpm i18n:status`     | List every available language and its key coverage.         |
+| `node apps/desktop/scripts/check-i18n.mjs --missing de` | `pnpm i18n:missing de` | List every missing German key with its English source text. |
+| `node apps/desktop/scripts/check-i18n.mjs --locale de`  | `pnpm i18n:check de`   | Validate `de.json` and explain any problem.                 |
+| `node apps/desktop/scripts/check-i18n.mjs`              | `pnpm check-i18n`      | Validate every locale, as CI does.                          |
 
 Replace `de` with the locale code from the filename you are working on.
 
-Node.js is optional. You do not need pnpm, `pnpm install`, Rust, Tauri, or a running copy of
-Modrex to edit a locale and submit a pull request.
+The direct commands require only Node.js and use no installed packages. The aliases are available
+if you already use pnpm. Local tooling is optional: you do not need Node.js, pnpm, `pnpm install`,
+Rust, Tauri, or a running copy of Modrex to edit a locale and submit a pull request.
 
 ## Add a language
 
