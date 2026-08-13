@@ -94,12 +94,16 @@ If something goes wrong, attach your log file to a [bug report](https://github.c
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions, commands and commit style.
+Choose the guide that matches what you want to contribute:
+
+- [Translate Modrex or add a language](TRANSLATING.md)
+- [Contribute code or documentation](CONTRIBUTING.md)
+- [Report a bug](https://github.com/modrexio/modrex/issues/new?template=bug_report.yml) or
+  [request a feature](https://github.com/modrexio/modrex/issues/new?template=feature_request.yml)
 
 ## Translations
 
-Coverage is the share of English source keys currently present in each locale. It does not
-measure linguistic quality. Contributors are derived from locale history and are not ranked.
+Coverage is the share of English source keys currently present in each locale. It does not measure linguistic quality. Contributors are derived from locale history and are not ranked.
 
 <!-- TRANSLATION_STATUS_START -->
 
@@ -112,7 +116,8 @@ measure linguistic quality. Contributors are derived from locale history and are
 
 <!-- TRANSLATION_STATUS_END -->
 
-To improve or add a language, follow the [translation contribution guide](CONTRIBUTING.md#translations).
+To improve an existing language or add a new one, follow the
+[translation guide](TRANSLATING.md).
 
 ## License
 

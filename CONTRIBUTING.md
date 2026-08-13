@@ -2,6 +2,9 @@
 
 Thanks for taking the time to contribute! Every bug report, suggestion, and pull request helps make Modrex better for the whole community.
 
+If you want to improve an existing translation or add a language, use the dedicated
+[translation guide](TRANSLATING.md). It does not require the development setup below.
+
 ## Development setup
 
 | Command                  | Description                                     |
@@ -112,53 +115,16 @@ English is the source language for product development:
 AI agents must not create or update non-English translations unless the user explicitly requests
 translation for specific named locales.
 
-After locale changes reach `main`, GitHub Actions updates the README coverage table from the
-locale files. Locale discovery and coverage do not use a language registry. The small
-`apps/desktop/translation-contributors.generated.json` file is regenerated from GitHub's commit
-history for each locale file. Translators do not edit it. Formatting-only commits do not count,
-and commits without a reliably linked GitHub account are omitted instead of guessing an identity.
-
-To add or improve a language:
-
-1. Use a canonical BCP 47 language tag for the filename, such as `uk.json`, `de.json`, or
-   `pt-BR.json`.
-2. Copy the relevant structure from `en.json` and translate values only. Keep keys in the same
-   relative order, but omit any keys you have not translated instead of copying English text as
-   a placeholder.
-3. Leave every `{name}`, `{count}`, etc. token exactly as written; place it wherever it reads
-   naturally in the sentence.
-4. Translate both halves of the manual singular/plural pairs (`modCount` / `modCountSingle`,
-   `updatesAvailable` / `updatesAvailableSingle`, `installed` / `installedSingle`) when you include
-   either key.
-5. Optionally run `pnpm check-i18n`. It rejects unknown keys, empty or non-string values,
-   incomplete singular/plural pairs, and mismatched `{var}` tokens, and reports current key
-   coverage.
-
-To find work for a locale, run:
-
-```sh
-pnpm i18n:missing de
-```
-
-The report lists every missing key with its English source text. Both translation commands use
-only Node built-ins, so local validation does not require `pnpm install`. With Node but without
-pnpm, use:
-
-```sh
-node apps/desktop/scripts/check-i18n.mjs
-node apps/desktop/scripts/check-i18n.mjs --missing de
-```
-
-Local tooling is optional. A translator can edit the locale JSON, commit it, push it, and open a
-pull request; CI performs validation without requiring the translator to install dependencies or
-launch the desktop app.
+The translator-focused workflow, optional dependency-free commands, locale rules, and
+new-language steps are in [TRANSLATING.md](TRANSLATING.md). Local tooling is optional; CI can
+perform validation without pnpm, application dependencies, Rust, Tauri, or launching Modrex.
 
 Maintainers can preview or verify the generated README without modifying it:
 
-```sh
-node apps/desktop/scripts/update-i18n-readme.mjs --stdout
-node apps/desktop/scripts/update-i18n-readme.mjs --check
-```
+| Command                                                     | Description                                                   |
+| ----------------------------------------------------------- | ------------------------------------------------------------- |
+| `node apps/desktop/scripts/update-i18n-readme.mjs --stdout` | Print the generated README without modifying `README.md`.     |
+| `node apps/desktop/scripts/update-i18n-readme.mjs --check`  | Exit non-zero when the checked-in translation table is stale. |
 
-Use the "New language" pull request template (`?template=new_language.md`) for both new and
-existing translations.
+After locale changes reach `main`, GitHub Actions regenerates contributor attribution and the
+README table. Locale files remain the source for language discovery and coverage.

@@ -80,6 +80,7 @@ export default defineConfig({
                     items: [
                         { label: 'Documentation', link: '/docs/' },
                         { slug: 'docs/getting-started' },
+                        { slug: 'docs/contributing' },
                     ],
                 },
                 {

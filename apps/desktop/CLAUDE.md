@@ -18,7 +18,9 @@ pnpm check-games  # Verify the Rust GAME_REGISTRY and the TypeScript GAMES recor
 pnpm check-sources # Verify the Rust SOURCE_REGISTRY and @modrex/games agree on each game's modworkshop id (CI)
 pnpm check-updater # Verify release.yml's latest.json generation matches the updater config in tauri.conf.json (CI only)
 pnpm check-i18n   # Validate each locale's translated subset and {var} interpolation against en.json, and report coverage (pre-commit + CI)
+pnpm i18n:status  # List available languages and key coverage
 pnpm i18n:missing de # List German's missing keys and their English source text
+pnpm i18n:check de # Validate one locale with actionable translator-facing errors
 pnpm checks       # Run the full CI gate locally: all check-* scripts, format:check, lint, typecheck, tests
 pnpm format       # Format all files with prettier
 pnpm format:check # Check formatting without writing

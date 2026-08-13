@@ -1,5 +1,8 @@
 ## Translation
 
+See the [translation guide](https://github.com/modrexio/modrex/blob/main/TRANSLATING.md) for the
+locale workflow and optional commands.
+
 **Language:** <!-- e.g. Ukrainian -->
 **Locale code:** <!-- e.g. uk, de, pt-BR -->
 
@@ -8,12 +11,12 @@
 ## Checklist
 
 - [ ] Kept this translation-focused PR limited to relevant changes where practical
-- [ ] Used a canonical BCP 47 locale code for every filename
-- [ ] Translated values only; keys are untouched and stay in the same relative order as `en.json`
+- [ ] Used a correctly formatted locale code for every filename (for example, `uk`, `pt-BR`, or `zh-Hant`)
+- [ ] Translated values only; English keys are untouched
 - [ ] Omitted untranslated keys instead of copying English values as placeholders
 - [ ] Every `{var}` token (e.g. `{name}`, `{count}`) is preserved exactly, just repositioned to read naturally
 - [ ] Both halves of every included singular/plural pair are translated (`modCount`/`modCountSingle`, `updatesAvailable`/`updatesAvailableSingle`, `installed`/`installedSingle`)
-- [ ] `pnpm check-i18n` passes locally, or CI will perform validation
+- [ ] `node apps/desktop/scripts/check-i18n.mjs --locale <code>` passes locally, or CI will validate it
 - [ ] If I launched the app, I checked for obvious layout overflow
 
 <!-- A screenshot of a page or two in the new language is appreciated but not required. -->

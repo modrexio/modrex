@@ -87,6 +87,21 @@ test('inspectLocales rejects invalid values, changed placeholders, and incomplet
     )
 })
 
+test('inspectLocales rejects non-canonical locale filenames', () => {
+    withLocales(
+        {
+            'en.json': { common: { install: 'Install' } },
+            'pt-br.json': { common: { install: 'Instalar' } },
+        },
+        (directory) => {
+            assert.throws(
+                () => inspectLocales(directory),
+                /must use canonical casing 'pt-BR\.json'/
+            )
+        }
+    )
+})
+
 test('missing report lists nested keys, English text, placeholders, and coverage', () => {
     withLocales(
         {
@@ -105,23 +120,99 @@ test('missing report lists nested keys, English text, placeholders, and coverage
     )
 })
 
-test('missing command rejects an unknown locale clearly', () => {
+test('translator commands reject an unknown locale clearly', () => {
     withLocales(
         {
             'en.json': { common: { install: 'Install' } },
             'de.json': {},
         },
         (directory) => {
+            for (const command of ['--missing', '--locale']) {
+                const stdout = captureStream()
+                const stderr = captureStream()
+                const status = runCheckI18n([command, 'xx'], {
+                    i18nDir: directory,
+                    stdout: stdout.stream,
+                    stderr: stderr.stream,
+                })
+                assert.equal(status, 1)
+                assert.equal(stdout.value(), '')
+                assert.match(
+                    stderr.value(),
+                    /Unknown translation locale 'xx'.*Available locales: de/
+                )
+            }
+        }
+    )
+})
+
+test('status command lists every locale with human-readable coverage', () => {
+    withLocales(
+        {
+            'en.json': { common: { install: 'Install', open: 'Open' } },
+            'de.json': { common: { install: 'Installieren' } },
+            'ru.json': { common: { install: 'Установить', open: 'Открыть' } },
+        },
+        (directory) => {
             const stdout = captureStream()
-            const stderr = captureStream()
-            const status = runCheckI18n(['--missing', 'xx'], {
+            const status = runCheckI18n(['--status'], {
                 i18nDir: directory,
                 stdout: stdout.stream,
+            })
+            assert.equal(status, 0)
+            assert.match(stdout.value(), /English \(en\)\s+100%/)
+            assert.match(stdout.value(), /Deutsch \(de\)\s+50%/)
+            assert.match(stdout.value(), /Русский \(ru\)\s+100%/)
+        }
+    )
+})
+
+test('locale command reports actionable placeholder and plural-pair errors', () => {
+    withLocales(
+        {
+            'en.json': {
+                launch: { game: 'Launch {game}' },
+                mods: { count: '{count} mods', countSingle: '{count} mod' },
+            },
+            'de.json': {
+                launch: { game: 'Spiel starten' },
+                mods: { count: '{count} Mods' },
+            },
+        },
+        (directory) => {
+            const stderr = captureStream()
+            const status = runCheckI18n(['--locale', 'de'], {
+                i18nDir: directory,
                 stderr: stderr.stream,
             })
             assert.equal(status, 1)
-            assert.equal(stdout.value(), '')
-            assert.match(stderr.value(), /Unknown translation locale 'xx'.*Available locales: de/)
+            assert.match(stderr.value(), /^de\.json\n2 validation problems/)
+            assert.match(stderr.value(), /launch\.game:\n  placeholder mismatch/)
+            assert.match(stderr.value(), /English: "Launch \{game\}"/)
+            assert.match(stderr.value(), /Deutsch: "Spiel starten"/)
+            assert.match(stderr.value(), /Missing placeholder: \{game\}/)
+            assert.match(stderr.value(), /mods\.count \/ mods\.countSingle:/)
+            assert.match(stderr.value(), /Translate both keys together\./)
+        }
+    )
+})
+
+test('locale command accepts a valid partial translation', () => {
+    withLocales(
+        {
+            'en.json': { common: { install: 'Install', open: 'Open' } },
+            'de.json': { common: { install: 'Installieren' } },
+        },
+        (directory) => {
+            const stdout = captureStream()
+            const status = runCheckI18n(['--locale', 'de'], {
+                i18nDir: directory,
+                stdout: stdout.stream,
+            })
+            assert.equal(status, 0)
+            assert.match(stdout.value(), /^de\.json\nValid/)
+            assert.match(stdout.value(), /Coverage: 1\/2 translated \(50%\)/)
+            assert.match(stdout.value(), /Missing: 1 key/)
         }
     )
 })
