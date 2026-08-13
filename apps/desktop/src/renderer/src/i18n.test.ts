@@ -40,6 +40,27 @@ describe('t', () => {
         const { t } = await loadModule()
         expect(t('nonexistent.key' as never)).toBe('nonexistent.key')
     })
+
+    it('falls back to current English for a marked locale value', async () => {
+        vi.doMock('./locales', async (importOriginal) => {
+            const actual = await importOriginal<typeof import('./locales')>()
+            return {
+                ...actual,
+                RAW_BUNDLES: {
+                    ...actual.RAW_BUNDLES,
+                    xx: { common: { install: '! Outdated English' } },
+                },
+                LOCALE_IDS: [...actual.LOCALE_IDS, 'xx'],
+                isLocaleId: (value: string | null) => value === 'xx' || actual.isLocaleId(value),
+            }
+        })
+        const { setLocale, t } = await loadModule()
+
+        setLocale('xx')
+
+        expect(t('common.install')).toBe('Install')
+        vi.doUnmock('./locales')
+    })
 })
 
 describe('locale store', () => {

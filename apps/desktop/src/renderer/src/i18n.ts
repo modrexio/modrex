@@ -23,6 +23,7 @@ type LocaleBundle = DeepPartial<typeof en>
 const BUNDLES = RAW_BUNDLES as Record<LocaleId, LocaleBundle>
 
 const LOCALE_STORAGE_KEY = 'modrex:locale'
+const UNTRANSLATED_PREFIX = '! '
 
 function detectLocale(): LocaleId {
     if (typeof localStorage === 'undefined') return 'en'
@@ -76,7 +77,12 @@ function get(key: StringKey): string {
         }
         cur = (cur as Record<string, unknown>)[part]
     }
-    if (typeof cur === 'string') return cur
+    if (
+        typeof cur === 'string' &&
+        (activeLocale === 'en' || !cur.startsWith(UNTRANSLATED_PREFIX))
+    ) {
+        return cur
+    }
 
     let fallback: unknown = en
     for (const part of parts) {

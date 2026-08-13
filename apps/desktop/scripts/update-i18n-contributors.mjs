@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { isDeepStrictEqual } from 'node:util'
-import { inspectLocales } from './check-i18n.mjs'
+import { inspectLocales, isUntranslatedValue } from './check-i18n.mjs'
 
 const PER_PAGE = 100
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
@@ -24,11 +24,23 @@ function readLocaleAtRevision(revision, localeId) {
     return execFileSync('git', ['show', `${revision}:${path}`], { encoding: 'utf8' })
 }
 
+function translatedLocaleContent(value) {
+    if (typeof value === 'string') return isUntranslatedValue(value) ? undefined : value
+    if (Array.isArray(value) || value === null || typeof value !== 'object') return value
+
+    const entries = Object.entries(value)
+        .map(([key, child]) => [key, translatedLocaleContent(child)])
+        .filter(([, child]) => child !== undefined)
+    return entries.length === 0 ? undefined : Object.fromEntries(entries)
+}
+
 export function localeJsonChanged(previous, current, localeId) {
     try {
-        const currentBundle = JSON.parse(current)
-        if (previous === undefined) return true
-        return !isDeepStrictEqual(JSON.parse(previous), currentBundle)
+        const previousBundle = previous === undefined ? {} : JSON.parse(previous)
+        return !isDeepStrictEqual(
+            translatedLocaleContent(previousBundle),
+            translatedLocaleContent(JSON.parse(current))
+        )
     } catch (error) {
         throw new Error(`Could not compare historical JSON for locale '${localeId}'`, {
             cause: error,

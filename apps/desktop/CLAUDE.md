@@ -18,9 +18,14 @@ pnpm check-games  # Verify the Rust GAME_REGISTRY and the TypeScript GAMES recor
 pnpm check-sources # Verify the Rust SOURCE_REGISTRY and @modrex/games agree on each game's modworkshop id (CI)
 pnpm check-updater # Verify release.yml's latest.json generation matches the updater config in tauri.conf.json (CI only)
 pnpm check-i18n   # Validate each locale's translated subset and {var} interpolation against en.json, and report coverage (pre-commit + CI)
+pnpm i18n:help    # List translator-facing commands
 pnpm i18n:status  # List available languages and key coverage
 pnpm i18n:missing de # List German's missing keys and their English source text
+pnpm i18n:check   # Validate every locale
 pnpm i18n:check de # Validate one locale with actionable translator-facing errors
+pnpm i18n:fill de # Fill missing keys with marked English fallbacks for IDE editing
+pnpm i18n:translate de # Interactively continue an existing locale
+pnpm i18n:create uk # Create an IDE-ready locale with marked English text
 pnpm checks       # Run the full CI gate locally: all check-* scripts, format:check, lint, typecheck, tests
 pnpm format       # Format all files with prettier
 pnpm format:check # Check formatting without writing
@@ -164,7 +169,12 @@ The root `CLAUDE.md` owns the AI translation policy. Missing keys are valid and 
 fallback. `pnpm check-i18n` rejects unknown keys, empty or non-string values, incomplete
 singular/plural pairs, and mismatched `{var}` interpolation, then reports each locale's key
 coverage. `pnpm i18n:missing <locale>` lists untranslated keys with their English source text.
-The README coverage table is regenerated after locale changes reach `main`.
+`pnpm i18n:fill <locale>` writes missing keys as `! `-prefixed English fallbacks into the locale
+file for IDE editing; marked values remain untranslated and fall back to English at runtime.
+`pnpm i18n:translate <locale>` continues an existing locale interactively.
+`pnpm i18n:create <locale>` creates a new IDE-ready locale containing marked English text, while
+`pnpm i18n:fill <locale>` adds or refreshes marked text only in an existing locale. The README
+coverage table is regenerated after locale changes reach `main`.
 
 ## Testing
 

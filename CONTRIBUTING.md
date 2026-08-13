@@ -106,8 +106,10 @@ starting.
 English is the source language for product development:
 
 - Feature and bug-fix contributions add or change source strings in
-  `apps/desktop/src/renderer/src/i18n/en.json`. Do not mechanically copy those changes into
-  non-English files as untranslated placeholders.
+  `apps/desktop/src/renderer/src/i18n/en.json`. Do not add unmarked English copies to non-English
+  files. Translators can use `pnpm i18n:create <locale>` for a new language or
+  `pnpm i18n:fill <locale>` for an existing language when they want marked source text for IDE
+  editing.
 - Keep translation-only pull requests focused when practical. Developers may include relevant
   human-written translations with a product change.
 - Missing translated keys are valid and fall back to English in the app.
@@ -115,9 +117,9 @@ English is the source language for product development:
 AI agents must not create or update non-English translations unless the user explicitly requests
 translation for specific named locales.
 
-The translator-focused workflow, optional dependency-free commands, locale rules, and
-new-language steps are in [TRANSLATING.md](TRANSLATING.md). Local tooling is optional; CI can
-perform validation without pnpm, application dependencies, Rust, Tauri, or launching Modrex.
+The translator-focused workflow, optional commands, locale rules, and new-language steps are in
+[TRANSLATING.md](TRANSLATING.md). Local tooling is optional; CI can perform validation without
+pnpm, application dependencies, Rust, Tauri, or launching Modrex.
 
 Maintainers can preview or verify the generated README without modifying it:
 
