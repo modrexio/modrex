@@ -7,7 +7,7 @@ import {
     useNexusAuthEpoch,
 } from '../nexusModCache'
 import { getLocalImage } from '../thumbnailCache'
-import { isIdentified } from './installedUtils'
+import { hasCatalogLink } from './installedUtils'
 
 function isModworkshopSourced(m: InstalledMod): boolean {
     return !m.source || m.source === 'modworkshop'
@@ -119,7 +119,7 @@ export function useModData(
         }
 
         const stale = installed.filter((m) => {
-            if (!isModworkshopSourced(m) || !isIdentified(m)) return false
+            if (!isModworkshopSourced(m) || !hasCatalogLink(m)) return false
             const t = fetchedAt.current.get(m.id)
             return t === undefined || now - t >= INSTALLED_META_TTL_MS
         })

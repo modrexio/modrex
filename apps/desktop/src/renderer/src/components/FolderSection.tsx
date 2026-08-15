@@ -9,7 +9,7 @@ import {
     computeChildren,
     groupChildren,
     getAllModsInFolder,
-    isIdentified,
+    identityKey,
 } from '../hooks/installedUtils'
 import { useInstalledContext } from './InstalledContext'
 
@@ -92,9 +92,7 @@ export function FolderSection({ folder }: Props) {
     )
     const isEmpty = children.length === 0
     const folderMods = getAllModsInFolder(renderMods, folders, folder.id)
-    const normalizedCount = new Set(
-        folderMods.map((m) => (isIdentified(m) ? `id:${m.id}` : `uid:${m.uid}`))
-    ).size
+    const normalizedCount = new Set(folderMods.map(identityKey)).size
     const anyEnabled = folderMods.some((m) => m.enabled)
     const isFolderLoading = loadingFolderId === folder.id
 

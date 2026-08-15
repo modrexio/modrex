@@ -7,7 +7,7 @@ import type { InstalledMod, ModSummary } from '../../../shared/types'
 import { t } from '../i18n'
 import { Tooltip } from './Tooltip'
 import { useThumbnail } from '../hooks/useThumbnail'
-import { isIdentified } from '../hooks/installedUtils'
+import { hasCatalogLink } from '../hooks/installedUtils'
 import NexusIcon from '../../../../assets/icons/nexusmods.svg?react'
 
 interface Props {
@@ -107,7 +107,7 @@ export function ModListRow({
                             <span className="text-xs text-warning bg-warning/10 border border-warning/30 px-2 py-0.5 rounded">
                                 {t('common.fileMissing')}
                             </span>
-                            {isIdentified(installed) &&
+                            {hasCatalogLink(installed) &&
                                 (!installed.source || installed.source === 'modworkshop') && (
                                     <Tooltip content={t('common.reinstall')}>
                                         <button

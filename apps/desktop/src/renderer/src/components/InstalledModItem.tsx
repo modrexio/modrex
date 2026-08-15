@@ -6,7 +6,7 @@ import { ModCard } from './ModCard'
 import { ModListRow } from './ModListRow'
 import { SkeletonCard } from './SkeletonCard'
 import { SkeletonListRow } from './SkeletonListRow'
-import { syntheticMod, detailNavArgs, isIdentified } from '../hooks/installedUtils'
+import { syntheticMod, detailNavArgs, hasCatalogLink, identityKey } from '../hooks/installedUtils'
 import { useInstalledContext } from './InstalledContext'
 import { ManageFilesModal } from './ManageFilesModal'
 import { hasSource } from '../sources'
@@ -52,7 +52,7 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
     const id = ins.id
     const repUid = ins.uid
     // Stable across file deletions, unlike repUid, whose file can be the one deleted.
-    const groupKey = isIdentified(ins) ? `id:${id}` : `uid:${repUid}`
+    const groupKey = identityKey(ins)
     const showManageFiles = manageFilesKey === groupKey
     const apiMod = modData.get(id)
     const isBusy = mods.some((m) => loadingMod === m.uid)
@@ -83,7 +83,7 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
     // outcome, which this mirrors so the menu doesn't offer an action that can't do
     // anything. RAID has no Nexus presence at all.
     const canIdentifyViaNexus =
-        !isIdentified(ins) && !combined.missing && hasSource(activeGame, 'nexus')
+        !hasCatalogLink(ins) && !combined.missing && hasSource(activeGame, 'nexus')
 
     function renderMenuButton(dropdownSide: 'right' | 'left') {
         return (
@@ -154,7 +154,7 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
     // always falls straight to syntheticMod instead of blocking on a skeleton, matching
     // handleOpen's same source split above.
     const isModworkshopSourced = !ins.source || ins.source === 'modworkshop'
-    if (!apiMod && !failedIds.has(id) && isModworkshopSourced && isIdentified(ins)) {
+    if (!apiMod && !failedIds.has(id) && isModworkshopSourced && hasCatalogLink(ins)) {
         return viewMode === 'list' ? <SkeletonListRow /> : <SkeletonCard />
     }
 

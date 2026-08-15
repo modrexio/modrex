@@ -15,10 +15,38 @@ import {
     resolveStaleDuplicates,
     groupInstalledByIdentity,
     computeHealthSummary,
+    hasCatalogLink,
+    isIdentified,
+    withDeclaredMetadata,
     detailNavArgs,
     type ChildEntry,
     type ChildGroup,
 } from './installedUtils'
+
+function catalogIdentity(remoteId: string, source = 'modworkshop'): Partial<InstalledMod> {
+    return {
+        remoteId,
+        source,
+        identity: {
+            namespace: source,
+            key: remoteId,
+            confidence: 'exact',
+            evidence: 'installProvenance',
+        },
+    }
+}
+
+function localIdentity(namespace: string, key: string): Partial<InstalledMod> {
+    return {
+        identity: { namespace, key, confidence: 'strong', evidence: 'updaterNamespace' },
+    }
+}
+
+function candidateIdentity(key: string): Partial<InstalledMod> {
+    return {
+        identity: { namespace: 'local', key, confidence: 'candidate', evidence: 'nameAuthor' },
+    }
+}
 
 function makeMod(
     uid: string,
@@ -37,10 +65,9 @@ function makeMod(
         folderId: null,
         priority: 0,
         // A positive id in these fixtures has always meant "modworkshop-identified".
-        // Identification is now signaled by remoteId, not id's sign (an opaque local
-        // key for every source, including modworkshop), so mirror the convention
-        // here so existing call sites don't all need an explicit remoteId override.
-        ...(id >= 0 ? { remoteId: String(id) } : {}),
+        // That is now two facts: a catalog reference (remoteId) and the identity resolved
+        // from it, which is how a real catalog install looks after get_installed runs.
+        ...(id >= 0 ? catalogIdentity(String(id)) : {}),
         ...overrides,
     }
 }
@@ -342,7 +369,7 @@ describe('groupInstalledByIdentity', () => {
         const mods = [makeMod('a', 5, 'Mod'), makeMod('b', 5, 'Mod'), makeMod('c', 5, 'Mod')]
         const groups = groupInstalledByIdentity(mods)
         expect(groups).toHaveLength(1)
-        expect(groups[0]).toEqual({ key: 'id:5', id: 5, mods })
+        expect(groups[0]).toEqual({ key: 'identity:modworkshop:5', id: 5, mods })
     })
 
     it('keeps negative-id mods in separate groups keyed by uid', () => {
@@ -355,6 +382,86 @@ describe('groupInstalledByIdentity', () => {
     it('keeps distinct positive ids in separate groups', () => {
         const mods = [makeMod('a', 1, 'A'), makeMod('b', 2, 'B')]
         expect(groupInstalledByIdentity(mods)).toHaveLength(2)
+    })
+
+    it('groups a locally identified mod by its project identity', () => {
+        const identity = localIdentity('pd2mods.z77.fr', 'Keepers')
+        const mods = [
+            makeMod('Keepers', -1, 'Keepers', identity),
+            makeMod('Keepers copy', -2, 'Keepers', identity),
+        ]
+        const groups = groupInstalledByIdentity(mods)
+        expect(groups).toHaveLength(1)
+        expect(groups[0].key).toBe('identity:pd2mods.z77.fr:Keepers')
+    })
+
+    it('keeps unidentified mods separate rather than lumping them together', () => {
+        const mods = [makeMod('a', -1, 'A'), makeMod('b', -2, 'B')]
+        expect(groupInstalledByIdentity(mods)).toHaveLength(2)
+    })
+})
+
+describe('isIdentified / hasCatalogLink', () => {
+    // The architectural invariant: knowing what a mod is and having somewhere to fetch it
+    // from are separate questions, and a mod can answer either one without the other.
+    it('identifies a mod from its own metadata with no catalog reference at all', () => {
+        const m = makeMod('Celer', -64991831, 'Celer', localIdentity('pd2mods.z77.fr', 'Celer'))
+        expect(m.remoteId).toBeUndefined()
+        expect(isIdentified(m)).toBe(true)
+        expect(hasCatalogLink(m)).toBe(false)
+    })
+
+    it('reports a catalog link only when there really is one', () => {
+        const m = makeMod('x', 25629, 'VanillaHUD Plus')
+        expect(isIdentified(m)).toBe(true)
+        expect(hasCatalogLink(m)).toBe(true)
+    })
+
+    it('treats a candidate guess as not identified', () => {
+        const m = makeMod('x', -1, 'X', candidateIdentity('X@a'))
+        expect(isIdentified(m)).toBe(false)
+    })
+
+    it('groups by the namespace and key together, never by key alone', () => {
+        const updater = makeMod('a', -1, 'Celer', localIdentity('pd2mods.z77.fr', 'Celer'))
+        const legacy = makeMod('b', -2, 'Celer', localIdentity('paydaymods', 'Celer'))
+        expect(groupInstalledByIdentity([updater, legacy])).toHaveLength(2)
+    })
+
+    it('does not call a mod identified just because state carries a remote id', () => {
+        // A pre-identity state file, before get_installed has resolved anything.
+        const m = makeMod('x', -1, 'X', { remoteId: '999' })
+        expect(hasCatalogLink(m)).toBe(true)
+        expect(isIdentified(m)).toBe(false)
+    })
+})
+
+describe('withDeclaredMetadata', () => {
+    const declared = { name: 'Celer', author: 'TdlQ', version: '55' }
+
+    it('shows what a mod with no catalog entry says about itself', () => {
+        // The folder is the only name such a mod had before, and for a GitHub source archive
+        // that is the repository plus branch, not a title anyone chose.
+        const m = makeMod('x', -1, 'PD2-Celer-main', {
+            ...localIdentity('pd2mods.z77.fr', 'Celer'),
+            version: '',
+            declared,
+        })
+        const shown = withDeclaredMetadata(m)
+        expect(shown.name).toBe('Celer')
+        expect(shown.author).toBe('TdlQ')
+        expect(shown.version).toBe('55')
+        expect(syntheticMod(shown).user.name).toBe('TdlQ')
+    })
+
+    it('leaves a catalog-backed mod on its catalog presentation', () => {
+        const m = makeMod('x', 25629, 'VanillaHUD Plus', { declared })
+        expect(withDeclaredMetadata(m)).toBe(m)
+    })
+
+    it('keeps the tracked values when the mod declares nothing', () => {
+        const m = makeMod('x', -1, 'Some Folder', { version: '' })
+        expect(withDeclaredMetadata(m)).toBe(m)
     })
 })
 
@@ -371,29 +478,53 @@ describe('computeHealthSummary', () => {
         expect(computeHealthSummary(mods).archiveBroken).toHaveLength(1)
     })
 
-    it('flags negative-id groups as unidentified', () => {
-        const mods = [makeMod('a', -1, 'A'), makeMod('b', 2, 'B')]
+    it('flags a mod with no resolved identity as unidentified', () => {
+        const mods = [makeMod('a', -1, 'A'), makeMod('b', 2, 'B', catalogIdentity('2'))]
         const summary = computeHealthSummary(mods)
         expect(summary.unidentified).toHaveLength(1)
         expect(summary.unidentified[0].id).toBe(-1)
     })
 
-    it('does not flag negative-id groups carrying a source remoteId as unidentified', () => {
+    it('does not flag a locally identified mod that has no catalog entry', () => {
+        // The conceptual fix: this mod is published only on its author's own updater, so no
+        // catalog will ever match it, and Modrex still knows exactly what it is.
         const mods = [
-            makeMod('nexus:123:456', -123, 'Nexus Mod', { source: 'nexus', remoteId: '123' }),
+            makeMod('Celer', -64991831, 'Celer', localIdentity('pd2mods.z77.fr', 'Celer')),
+        ]
+        expect(computeHealthSummary(mods).unidentified).toEqual([])
+    })
+
+    it('still flags a candidate-only guess as unidentified', () => {
+        const mods = [makeMod('x', -2, 'X', candidateIdentity('X@someone'))]
+        expect(computeHealthSummary(mods).unidentified).toHaveLength(1)
+    })
+
+    it('does not flag a Nexus-installed mod as unidentified', () => {
+        const mods = [
+            makeMod('nexus:123:456', -123, 'Nexus Mod', {
+                source: 'nexus',
+                remoteId: '123',
+                ...catalogIdentity('123', 'nexus'),
+            }),
         ]
         expect(computeHealthSummary(mods).unidentified).toEqual([])
     })
 
     it('flags positive-id groups as outdated when any file is marked outdated', () => {
-        const mods = [makeMod('a', 1, 'A', { updateStatus: 'outdated' })]
+        const mods = [makeMod('a', 1, 'A', { updateStatus: 'outdated', remoteId: '1' })]
         const summary = computeHealthSummary(mods)
         expect(summary.outdated).toHaveLength(1)
         expect(summary.outdated[0].id).toBe(1)
     })
 
-    it('does not flag negative-id mods as outdated', () => {
-        const mods = [makeMod('a', -1, 'A', { updateStatus: 'outdated' })]
+    it('does not flag a mod without a catalog entry as outdated', () => {
+        // Outdated means "the catalog has something newer", which is unanswerable without one.
+        const mods = [
+            makeMod('a', -1, 'A', {
+                updateStatus: 'outdated',
+                ...localIdentity('pd2mods.z77.fr', 'Celer'),
+            }),
+        ]
         expect(computeHealthSummary(mods).outdated).toEqual([])
     })
 

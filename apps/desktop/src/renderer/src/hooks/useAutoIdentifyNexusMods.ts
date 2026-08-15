@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import type { GameId, InstalledMod } from '../../../shared/types'
-import { isIdentified } from './installedUtils'
+import { hasCatalogLink } from './installedUtils'
 import { hasSource } from '../sources'
 import { waitForForegroundClear } from '../requestPriority'
 import { useNexusAuthEpoch } from '../nexusModCache'
@@ -44,7 +44,7 @@ export function useAutoIdentifyNexusMods({
         if (!gamePath || running.current || !hasSource(activeGame, 'nexus')) return
         const candidates = installed.filter(
             (m) =>
-                !isIdentified(m) &&
+                !hasCatalogLink(m) &&
                 m.nexusContentMissed !== true &&
                 !m.missing &&
                 !attempted.current.has(m.uid)

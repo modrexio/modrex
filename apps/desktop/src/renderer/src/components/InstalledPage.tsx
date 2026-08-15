@@ -39,7 +39,8 @@ import {
     foldersEmptiedByNormalize,
     filterInstalled,
     modworkshopRemoteIds,
-    isIdentified,
+    identityKey,
+    withDeclaredMetadata,
 } from '../hooks/installedUtils'
 import { checkMissingDependencies, type HealthItem } from '../hooks/healthCheck'
 import { api } from '../api'
@@ -65,13 +66,15 @@ interface Props {
 export function InstalledPage({
     activeGame,
     gamePath,
-    installed,
+    installed: tracked,
     folders,
     installedReady,
     isActive,
     onRefreshInstalled,
     onOpenDetail,
 }: Props) {
+    // Applied once here so search, grouping and every row agree on what a mod is called.
+    const installed = useMemo(() => tracked.map(withDeclaredMetadata), [tracked])
     const [viewMode, setViewMode] = useState<ViewMode>(getSavedViewMode)
     const [scanPhase, setScanPhase] = useState<{ phase: string; total: number } | null>(null)
     const { modData, failedIds, updatable } = useModData(
@@ -190,12 +193,8 @@ export function InstalledPage({
         ? filterInstalled(installed, folders, filterQuery.trim())
         : { mods: installed, visibleFolderIds: undefined }
 
-    const totalUniqueMods = new Set(
-        installed.map((m) => (isIdentified(m) ? `id:${m.id}` : `uid:${m.uid}`))
-    ).size
-    const filteredUniqueMods = new Set(
-        displayMods.map((m) => (isIdentified(m) ? `id:${m.id}` : `uid:${m.uid}`))
-    ).size
+    const totalUniqueMods = new Set(installed.map(identityKey)).size
+    const filteredUniqueMods = new Set(displayMods.map(identityKey)).size
 
     function setView(mode: ViewMode) {
         setViewMode(mode)

@@ -14,7 +14,7 @@ import {
     stripPriorityPrefix,
     findSuspectDuplicateGroups,
     resolveStaleDuplicates,
-    isIdentified,
+    hasCatalogLink,
 } from '../hooks/installedUtils'
 import { getCachedModFiles } from '../modCache'
 import { getArchiveEntries, mergeArchiveEntries, setArchiveEntries } from '../archiveEntriesCache'
@@ -103,7 +103,7 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
     // Seed the cache from what's installed right now, so deletions show up as
     // installable rows even for mods installed before the cache existed.
     useEffect(() => {
-        if (!isIdentified(mods[0])) return
+        if (!hasCatalogLink(mods[0])) return
         const byId = new Map(installed.map((m) => [m.uid, m]))
         const byFileId = new Map<number, string[]>()
         for (const m of mods) {
@@ -294,7 +294,7 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
     // Each ghost lands in the folder where its archive-directory siblings live.
     // Bare-file installs (uid === fileId) contribute no ghosts: their only
     // entry is the installed file itself, under an app-constructed disk name.
-    const fileIds = isIdentified(mods[0])
+    const fileIds = hasCatalogLink(mods[0])
         ? [
               ...new Set(
                   mods

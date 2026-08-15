@@ -10,6 +10,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 ### Changed
 
+- Modrex now recognizes a mod from what its own files say, not only from whether ModWorkshop lists it. Mods published on an author's own site, a GitHub repository, or a service that has since shut down are recognized, listed under the name and version they declare rather than their folder name, and no longer appear under Health Check's "Unidentified".
 - Mods and news articles without a picture now show a placeholder icon instead of the words "No image".
 - Mod pages now keep the banner area for mods that have no image, instead of collapsing it.
 

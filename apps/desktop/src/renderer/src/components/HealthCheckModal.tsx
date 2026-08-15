@@ -3,7 +3,7 @@ import { Button } from './ui/Button'
 import * as Tabs from '@radix-ui/react-tabs'
 import { Dialog, DialogHeader } from './Dialog'
 import { t } from '../i18n'
-import { computeHealthSummary, detailNavArgs, isIdentified } from '../hooks/installedUtils'
+import { computeHealthSummary, detailNavArgs, hasCatalogLink } from '../hooks/installedUtils'
 import type { InstalledGroup } from '../hooks/installedUtils'
 import type { HealthItem, MissingDepRef } from '../hooks/healthCheck'
 import type { InstalledMod, ModSummary } from '../../../shared/types'
@@ -326,14 +326,14 @@ export function HealthCheckModal({
                                         thumbnailFile={modData.get(item.id)?.thumbnail?.file}
                                         name={item.name}
                                         secondary={t('installed.health.missingFileHint')}
-                                        clickable={isIdentified(item.mods[0])}
+                                        clickable={hasCatalogLink(item.mods[0])}
                                         onOpen={
-                                            isIdentified(item.mods[0])
+                                            hasCatalogLink(item.mods[0])
                                                 ? () => onOpenDetail(...detailNavArgs(item.mods[0]))
                                                 : undefined
                                         }
                                         action={
-                                            isIdentified(item.mods[0]) ? (
+                                            hasCatalogLink(item.mods[0]) ? (
                                                 <button
                                                     onClick={() => onReinstall(item.mods)}
                                                     disabled={isLoading}
@@ -367,14 +367,14 @@ export function HealthCheckModal({
                                         thumbnailFile={modData.get(item.id)?.thumbnail?.file}
                                         name={item.name}
                                         secondary={t('installed.health.brokenArchiveHint')}
-                                        clickable={isIdentified(item.mods[0])}
+                                        clickable={hasCatalogLink(item.mods[0])}
                                         onOpen={
-                                            isIdentified(item.mods[0])
+                                            hasCatalogLink(item.mods[0])
                                                 ? () => onOpenDetail(...detailNavArgs(item.mods[0]))
                                                 : undefined
                                         }
                                         action={
-                                            isIdentified(item.mods[0]) ? (
+                                            hasCatalogLink(item.mods[0]) ? (
                                                 <button
                                                     onClick={() => onReinstall(item.mods)}
                                                     disabled={isLoading}
@@ -487,14 +487,14 @@ export function HealthCheckModal({
                         </>
                     )}
                 {activeTab === 'missing' &&
-                    missingItems.some((item) => isIdentified(item.mods[0])) && (
+                    missingItems.some((item) => hasCatalogLink(item.mods[0])) && (
                         <Button
                             variant="accent"
                             size="md"
                             disabled={loadingMod !== null}
                             onClick={() => {
                                 missingItems
-                                    .filter((item) => isIdentified(item.mods[0]))
+                                    .filter((item) => hasCatalogLink(item.mods[0]))
                                     .forEach((item) => onReinstall(item.mods))
                                 onClose()
                             }}
@@ -503,14 +503,14 @@ export function HealthCheckModal({
                         </Button>
                     )}
                 {activeTab === 'broken' &&
-                    brokenItems.some((item) => isIdentified(item.mods[0])) && (
+                    brokenItems.some((item) => hasCatalogLink(item.mods[0])) && (
                         <Button
                             variant="accent"
                             size="md"
                             disabled={loadingMod !== null}
                             onClick={() => {
                                 brokenItems
-                                    .filter((item) => isIdentified(item.mods[0]))
+                                    .filter((item) => hasCatalogLink(item.mods[0]))
                                     .forEach((item) => onReinstall(item.mods))
                                 onClose()
                             }}

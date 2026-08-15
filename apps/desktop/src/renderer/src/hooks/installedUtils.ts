@@ -23,13 +23,39 @@ export function displayFilename(filename: string): string {
     return stripped || filename
 }
 
-// An InstalledMod.id is always an opaque, source-scoped local key (see Rust's
-// sources::source_native_local_id), never a real, callable id for any source, not even
-// modworkshop. The in-app detail page needs the real remote id back (plus the 'nexus'
-// source flag for Nexus, since ModDetailPage's source prop treats absent as modworkshop)
-// to know what to actually fetch.
+// Do we know what this mod is? True for any mod whose identity was resolved from its own
+// files or from a catalog, so a mod published only on its author's own updater is identified
+// exactly as much as a ModWorkshop one. A Candidate is a guess and never counts.
 export function isIdentified(m: InstalledMod): boolean {
+    return m.identity?.confidence === 'exact' || m.identity?.confidence === 'strong'
+}
+
+// Do we have a catalog entry for it? This is what browsing, thumbnails, update checks,
+// reinstall and "open mod page" need, and none of them work from local identity alone.
+export function hasCatalogLink(m: InstalledMod): boolean {
     return !!m.remoteId
+}
+
+// The stable grouping key for one project: several installed files of the same mod belong
+// together. Falls back to the installed record while a mod has no resolved identity.
+export function identityKey(m: InstalledMod): string {
+    const identity = m.identity
+    if (identity && isIdentified(m)) return `identity:${identity.namespace}:${identity.key}`
+    return hasCatalogLink(m) ? `id:${m.id}` : `uid:${m.uid}`
+}
+
+// A mod with no catalog entry has nothing else describing it, so what its own files declare
+// is the best name, author and version Modrex has. Catalog-backed mods keep catalog
+// presentation, which stays current when the author republishes.
+export function withDeclaredMetadata(m: InstalledMod): InstalledMod {
+    if (!m.declared || hasCatalogLink(m)) return m
+    const { name, author, version } = m.declared
+    return {
+        ...m,
+        name: name ?? m.name,
+        author: author ?? m.author,
+        version: version ?? m.version,
+    }
 }
 
 // The real, deduplicated modworkshop ids among the installed list, for the handful of
@@ -45,6 +71,11 @@ export function modworkshopRemoteIds(mods: InstalledMod[]): number[] {
     return [...ids]
 }
 
+// An InstalledMod.id is always an opaque, source-scoped local key (see Rust's
+// sources::source_native_local_id), never a real, callable id for any source, not even
+// modworkshop. The in-app detail page needs the real remote id back (plus the 'nexus'
+// source flag for Nexus, since ModDetailPage's source prop treats absent as modworkshop)
+// to know what to actually fetch.
 export function detailNavArgs(ins: InstalledMod): [modId: number, source: 'nexus' | undefined] {
     const remoteModId = Number(ins.remoteId)
     if (Number.isFinite(remoteModId) && remoteModId > 0) {
@@ -80,7 +111,9 @@ export function syntheticMod(ins: InstalledMod): ModSummary {
         download: null,
         user: {
             id: null,
-            name: external ? (ins.author ?? '') : 'Unknown',
+            // ins.author is recorded for non-modworkshop sources, and filled in from the
+            // mod's own declaration by withDeclaredMetadata when no catalog describes it.
+            name: ins.author ?? (external ? '' : 'Unknown'),
             donation_url: null,
             avatar: null,
             avatar_has_thumb: null,
@@ -120,7 +153,9 @@ export function filterInstalled(
 export function normalizeModScopes(mods: InstalledMod[]): InstalledMod[] {
     const groups = new Map<number, InstalledMod[]>()
     for (const m of mods) {
-        if (!isIdentified(m)) continue
+        // Keyed on the installed record, so this is about catalog installs that split across
+        // folders, not about which project a mod belongs to.
+        if (!hasCatalogLink(m)) continue
         const g = groups.get(m.id)
         if (g) g.push(m)
         else groups.set(m.id, [m])
@@ -168,7 +203,7 @@ export interface InstalledGroup {
 export function groupInstalledByIdentity(mods: InstalledMod[]): InstalledGroup[] {
     const groups = new Map<string, InstalledGroup>()
     for (const m of mods) {
-        const key = isIdentified(m) ? `id:${m.id}` : `uid:${m.uid}`
+        const key = identityKey(m)
         const g = groups.get(key)
         if (g) g.mods.push(m)
         else groups.set(key, { key, id: m.id, mods: [m] })
@@ -192,13 +227,13 @@ export function computeHealthSummary(mods: InstalledMod[]): HealthSummary {
         archiveBroken: groups.filter((g) => g.mods.some((m) => m.archiveBroken)),
         outdated: groups.filter(
             (g) =>
-                g.mods.some(isIdentified) &&
+                g.mods.some(hasCatalogLink) &&
                 (g.mods.some((m) => m.updateStatus === 'outdated') ||
                     g.mods.some((m) => m.fileId != null && suspectFileIds.has(m.fileId)))
         ),
-        // remoteId is the one "identified" signal, regardless of source or of id's sign,
-        // id is always an opaque, source-scoped key (see sources::source_native_local_id
-        // on the Rust side), never a hint about which source or whether it's real.
+        // Mods whose identity could not be established from their own files or any catalog.
+        // A mod published outside every supported catalog is not one of these: Modrex knows
+        // what it is, it just cannot offer catalog features for it.
         unidentified: groups.filter((g) => g.mods.every((m) => !isIdentified(m))),
     }
 }
@@ -224,7 +259,7 @@ export function findSuspectDuplicateGroups(mods: InstalledMod[]): SuspectFileGro
         // modworkshop's own install paths (install_mod/install_file/install_from_zip_entry
         // in mod.rs). It has no meaning for a Nexus-sourced entry's uid scheme.
         const isModworkshop = !m.source || m.source === 'modworkshop'
-        if (!isModworkshop || !isIdentified(m) || m.location || m.fileId == null) continue
+        if (!isModworkshop || !hasCatalogLink(m) || m.location || m.fileId == null) continue
         const g = byFileId.get(m.fileId)
         if (g) g.push(m)
         else byFileId.set(m.fileId, [m])
