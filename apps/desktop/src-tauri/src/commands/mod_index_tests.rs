@@ -137,6 +137,44 @@ fn by_name_escapes_like_wildcards() {
     assert_eq!(query_by_name(&conn, "50% Off", "PAYDAY 2"), Some(333));
 }
 
+fn word_boundary_db() -> rusqlite::Connection {
+    let conn = rusqlite::Connection::open_in_memory().unwrap();
+    conn.execute_batch("
+        CREATE TABLE games (id INTEGER PRIMARY KEY, name TEXT);
+        CREATE TABLE sources (id INTEGER PRIMARY KEY, game_id INTEGER);
+        CREATE TABLE mods (id INTEGER PRIMARY KEY, source_id INTEGER, remote_id INTEGER, name TEXT);
+        CREATE TABLE files (id INTEGER PRIMARY KEY, mod_id INTEGER, remote_id INTEGER, sha256 TEXT, version TEXT, entry_name TEXT NOT NULL DEFAULT '');
+        INSERT INTO games VALUES (2, 'PAYDAY 2');
+        INSERT INTO sources VALUES (2, 2);
+        INSERT INTO mods VALUES (1, 2, 18504, 'Blue Bodybag Contour');
+        INSERT INTO mods VALUES (2, 2, 38390, 'Useful Bots: Future Edition');
+        INSERT INTO mods VALUES (3, 2, 39694, 'Show Ammo Pickup Amount in HUD');
+        INSERT INTO files VALUES (1, 1, 501, 'h1', '1.0', '');
+        INSERT INTO files VALUES (2, 2, 502, 'h2', '1.0', '');
+        INSERT INTO files VALUES (3, 3, 503, 'h3', '1.0', '');
+    ").unwrap();
+    conn
+}
+
+#[test]
+fn by_name_rejects_a_match_that_starts_inside_a_word() {
+    let conn = word_boundary_db();
+    // The real case: a folder named "Bag Contour" (TdlQ's mod, not on ModWorkshop) is the
+    // tail of "Blue Bodybag Contour", so LIKE alone hands it a stranger's identity.
+    assert_eq!(query_by_name(&conn, "Bag Contour", "PAYDAY 2"), None);
+}
+
+#[test]
+fn by_name_keeps_partial_matches_that_fall_on_word_boundaries() {
+    let conn = word_boundary_db();
+    // Both are real: authors publish under a longer title than the folder they ship.
+    assert_eq!(query_by_name(&conn, "Useful Bots", "PAYDAY 2"), Some(38390));
+    assert_eq!(
+        query_by_name(&conn, "Ammo Pickup Amount in HUD", "PAYDAY 2"),
+        Some(39694)
+    );
+}
+
 // ── query_mod_files ───────────────────────────────────────────────────────
 
 #[test]

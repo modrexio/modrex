@@ -273,6 +273,31 @@ pub(crate) fn query_mod_by_id(
     .ok()
 }
 
+/// Whether needle sits in haystack without either end landing inside a word. LIKE has no
+/// notion of a word, so "Bag Contour" matches the mod "Blue Bodybag Contour" and a real
+/// PAYDAY 2 mod gets handed a stranger's identity. Partial matches themselves are wanted and
+/// common ("Useful Bots" is published as "Useful Bots: Future Edition"), so the boundary is
+/// what separates a shortened title from an accidental substring.
+fn matches_at_word_boundary(needle: &str, haystack: &str) -> bool {
+    let needle = needle.to_lowercase();
+    let haystack = haystack.to_lowercase();
+    if needle.is_empty() {
+        return false;
+    }
+    let wordish = |c: char| c.is_alphanumeric();
+    let mut from = 0;
+    while let Some(rel) = haystack[from..].find(&needle) {
+        let at = from + rel;
+        let before = haystack[..at].chars().next_back();
+        let after = haystack[at + needle.len()..].chars().next();
+        if !before.is_some_and(wordish) && !after.is_some_and(wordish) {
+            return true;
+        }
+        from = at + 1;
+    }
+    false
+}
+
 pub(crate) fn query_by_name(
     conn: &rusqlite::Connection,
     name: &str,
@@ -292,7 +317,7 @@ pub(crate) fn query_by_name(
     // match instead of tripping the ambiguity guard below.
     let mut stmt = conn
         .prepare(
-            "SELECT DISTINCT m.remote_id FROM mods m
+            "SELECT DISTINCT m.remote_id, m.name FROM mods m
              JOIN files f ON f.mod_id = m.id
              JOIN sources s ON s.id = m.source_id
              JOIN games g ON g.id = s.game_id
@@ -300,12 +325,20 @@ pub(crate) fn query_by_name(
              LIMIT 2",
         )
         .ok()?;
-    let rows: Vec<i64> = stmt
-        .query_map(rusqlite::params![pattern, game_name], |row| row.get(0))
+    let rows: Vec<(i64, String)> = stmt
+        .query_map(rusqlite::params![pattern, game_name], |row| {
+            Ok((row.get(0)?, row.get(1)?))
+        })
         .ok()?
         .filter_map(|r| r.ok())
         .collect();
-    (rows.len() == 1).then(|| rows[0])
+    // The boundary check only ever removes the single surviving candidate, never picks between
+    // several: an ambiguous set stays ambiguous, so this cannot resolve a name onto a mod that
+    // the ambiguity guard was already refusing.
+    let [(remote_id, matched_name)] = rows.as_slice() else {
+        return None;
+    };
+    matches_at_word_boundary(name, matched_name).then_some(*remote_id)
 }
 
 fn query_mod_files(
