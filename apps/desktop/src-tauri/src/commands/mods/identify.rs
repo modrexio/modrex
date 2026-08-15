@@ -11,21 +11,48 @@ use std::collections::HashMap;
 use tauri::AppHandle;
 use uuid::Uuid;
 
+/// The representative file of a mod that ships no marker: the one whose path relative to the
+/// mod folder sorts first by UTF-8 bytes. The indexer chooses the same file from the archive by
+/// the same rule, and the two are tested against one set of vectors
+/// (apps/index/marker-contract.json). Any other ordering disagrees somewhere - a
+/// directory-by-directory walk on the boundary between a file and a folder sharing its stem, a
+/// locale-aware comparison on punctuation - and a mod whose two sides disagree can never be
+/// identified by hash.
 fn first_file_in_dir(dir: &std::path::Path) -> Option<std::path::PathBuf> {
-    let mut entries: Vec<_> = std::fs::read_dir(dir).ok()?.flatten().collect();
-    entries.sort_by_key(|e| e.file_name());
-    for entry in entries {
-        let ft = entry.file_type().ok()?;
-        if ft.is_file() {
-            return Some(entry.path());
+    let mut relative = Vec::new();
+    collect_relative_files(dir, "", &mut relative);
+    relative.sort();
+    relative.first().map(|path| dir.join(path))
+}
+
+fn collect_relative_files(dir: &std::path::Path, prefix: &str, out: &mut Vec<String>) {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        // A name the filesystem holds outside UTF-8 cannot equal an archive entry, which is
+        // UTF-8 by definition, so a lossy name here can only ever fail to match.
+        let name = entry.file_name().to_string_lossy().into_owned();
+        // Explorer and Finder write these into a folder on their own, and they sort early
+        // enough to win the pick, but the copy here is rewritten locally and stops matching the
+        // archive the indexer read.
+        if matches!(
+            name.to_ascii_lowercase().as_str(),
+            "thumbs.db" | "desktop.ini" | ".ds_store"
+        ) {
+            continue;
         }
-        if ft.is_dir() {
-            if let Some(p) = first_file_in_dir(&entry.path()) {
-                return Some(p);
-            }
+        let path = if prefix.is_empty() {
+            name
+        } else {
+            format!("{prefix}/{name}")
+        };
+        match entry.file_type() {
+            Ok(kind) if kind.is_dir() => collect_relative_files(&entry.path(), &path, out),
+            Ok(kind) if kind.is_file() => out.push(path),
+            _ => {}
         }
     }
-    None
 }
 
 /// Recursively finds a .pak file inside dir, preferring it over first_file_in_dir's
@@ -53,9 +80,10 @@ fn first_pak_file_in_dir(dir: &std::path::Path) -> Option<std::path::PathBuf> {
 }
 
 pub(crate) fn hashable_file_for_mod_dir(dir: &std::path::Path) -> Option<std::path::PathBuf> {
-    // Marker preference mirrors modrex-index's selectMarkerPath so both sides hash the same
+    // Marker preference mirrors the indexer's chooseMarker so both sides hash the same
     // representative file: main.xml (BeardLib), then RAID's supermod.xml (RAID-SuperBLT) and
-    // mod.xml (legacy RaidBLT).
+    // mod.xml (legacy RaidBLT). The marker-less fallback below is the other half of that
+    // contract, tested against apps/index/marker-contract.json.
     for marker in ["main.xml", "supermod.xml", "mod.xml"] {
         let p = dir.join(marker);
         if p.exists() {

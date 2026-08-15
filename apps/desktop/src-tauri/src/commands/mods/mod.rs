@@ -1994,3 +1994,7 @@ pub fn open_mod_folder(app: AppHandle, game_id: String, tag: String) -> Result<(
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+#[path = "marker_contract_tests.rs"]
+mod marker_contract_tests;

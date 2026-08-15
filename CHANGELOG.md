@@ -17,6 +17,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 ### Fixed
 
 - Fixed PAYDAY 2, PAYDAY: The Heist and RAID mods whose ModWorkshop download is hosted elsewhere, such as GitHub or an author's own site, never being recognized.
+- Fixed some asset-replacement mods, the ones installed into `assets/mod_overrides`, never being recognized.
 - Fixed a mod being matched to an unrelated ModWorkshop page whose title merely ended with the mod's folder name, such as "Bag Contour" matching "Blue Bodybag Contour".
 - Fixed a mod that was recognized only after a later index update never being offered updates again.
 - Fixed Settings opened from the game picker still showing the "Restore mods" notice and installing dragged-in mod files into the last opened game.
