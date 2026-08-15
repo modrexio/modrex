@@ -86,11 +86,22 @@ impl ScanTarget {
     }
 }
 
+/// Which marker vocabulary a game's mods describe themselves in. Identity resolution is
+/// game-neutral, so the ecosystem-specific parsing sits behind this instead of leaking into
+/// the shared model (see mods/diesel_signals.rs).
+pub enum SignalSource {
+    /// BLT mod.txt and BeardLib main.xml: PAYDAY 2, PAYDAY: The Heist, RAID.
+    Diesel,
+    /// Pak-based games, whose mods carry no self-describing metadata to read.
+    None,
+}
+
 pub struct ModEngineConfig {
     pub game_id: &'static str,
     pub index_game_name: &'static str,
     pub state_filename: &'static str,
     pub targets: &'static [ScanTarget],
+    pub signals: SignalSource,
 }
 
 impl ModEngineConfig {
@@ -111,6 +122,7 @@ pub static PD3_ENGINE: ModEngineConfig = ModEngineConfig {
     game_id: "pd3",
     index_game_name: "PAYDAY 3",
     state_filename: ".modrex.json",
+    signals: SignalSource::None,
     targets: &[
         ScanTarget {
             tag: "paks",
@@ -157,6 +169,7 @@ pub static CRIMEBOSS_ENGINE: ModEngineConfig = ModEngineConfig {
     game_id: "cb",
     index_game_name: "Crime Boss: Rockay City",
     state_filename: ".modrex.json",
+    signals: SignalSource::None,
     targets: &[
         ScanTarget {
             tag: "mods",
@@ -205,6 +218,7 @@ pub static PD2_ENGINE: ModEngineConfig = ModEngineConfig {
     game_id: "pd2",
     index_game_name: "PAYDAY 2",
     state_filename: ".modrex.json",
+    signals: SignalSource::Diesel,
     targets: &[
         ScanTarget {
             tag: "mods",
@@ -241,6 +255,7 @@ pub static PDTH_ENGINE: ModEngineConfig = ModEngineConfig {
     game_id: "pdth",
     index_game_name: "PAYDAY: The Heist",
     state_filename: ".modrex.json",
+    signals: SignalSource::Diesel,
     targets: &[
         ScanTarget {
             tag: "mods",
@@ -304,6 +319,7 @@ pub static RAID_ENGINE: ModEngineConfig = ModEngineConfig {
     game_id: "raid",
     index_game_name: "RAID: World War II",
     state_filename: ".modrex.json",
+    signals: SignalSource::Diesel,
     targets: &[ScanTarget {
         tag: "mods",
         unit: ModUnit::Directory {

@@ -1,4 +1,26 @@
+use super::identity::{IdentityEvidence, ModIdentity};
 use serde::{Deserialize, Serialize};
+
+/// What the mod says about itself in its own files. A mod with no catalog entry has nothing
+/// else describing it, and the renderer shows these values for exactly those mods
+/// (installedUtils.ts's withDeclaredMetadata); a catalog-backed mod keeps catalog values,
+/// which stay current when the author republishes.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct DeclaredMetadata {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub author: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub version: Option<String>,
+}
+
+impl DeclaredMetadata {
+    pub fn is_empty(&self) -> bool {
+        self == &DeclaredMetadata::default()
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
@@ -36,8 +58,9 @@ pub enum UpdateStatus {
     /// version holds a real, comparable value.
     #[default]
     Known,
-    /// No comparable version: an unidentified mod, or an embedded-id mod that declares
-    /// none. Never surfaces an update, since it would nag forever with nothing to compare.
+    /// No comparable version: a mod with no catalog entry to compare against, or an
+    /// embedded-id mod that declares none. Never surfaces an update, since it would nag
+    /// forever with nothing to compare.
     Unknown,
     /// Confirmed stale: a name match succeeded AFTER a SHA256 check against the index's
     /// current file had already failed, so the installed bytes are known to differ.
@@ -100,6 +123,36 @@ pub struct InstalledMod {
     // None means never attempted; Some(false) never occurs and is not written.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub nexus_content_missed: Option<bool>,
+    // Which project this install is, independent of whether any catalog lists it. `id` stays
+    // the installed record's own key (React keys, drag and drop, every command's target);
+    // this answers "what mod is this", and source/remote_id answer "and where can we get it".
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub identity: Option<ModIdentity>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub declared: Option<DeclaredMetadata>,
+}
+
+impl InstalledMod {
+    /// Records a catalog association and the evidence that established it, as one operation.
+    ///
+    /// Every path that learns which catalog entry an install corresponds to goes through
+    /// here, so the four fields it writes cannot disagree: the catalog, the id there, the
+    /// opaque local key derived from both, and how the match was found. Nothing downstream
+    /// may infer the last one, because only the establishing operation knows it.
+    pub fn attach_catalog(&mut self, source: &str, remote_id: String, evidence: IdentityEvidence) {
+        self.id = crate::commands::sources::source_native_local_id(source, &remote_id);
+        self.identity = Some(ModIdentity::new(source, remote_id.clone(), evidence));
+        self.remote_id = Some(remote_id);
+        self.source = source.to_string();
+    }
+
+    /// A default entry already carrying a catalog association, for the install and discovery
+    /// paths that build their record with struct-update syntax.
+    pub fn from_catalog(source: &str, remote_id: String, evidence: IdentityEvidence) -> Self {
+        let mut m = Self::default();
+        m.attach_catalog(source, remote_id, evidence);
+        m
+    }
 }
 
 impl Default for InstalledMod {
@@ -127,6 +180,8 @@ impl Default for InstalledMod {
             location: None,
             update_status: UpdateStatus::Known,
             nexus_content_missed: None,
+            identity: None,
+            declared: None,
         }
     }
 }

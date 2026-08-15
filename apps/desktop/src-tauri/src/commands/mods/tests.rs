@@ -1,4 +1,5 @@
 use super::*;
+use crate::commands::mods::identity::IdentityConfidence;
 use std::collections::HashSet;
 use std::fs::{self, File};
 use std::io::Write;
@@ -1454,8 +1455,13 @@ fn reconcile_state_backfills_remote_id_for_a_legacy_modworkshop_entry_without_to
     // The scenario that motivated this: an empty index (or a genuine SHA256/name miss)
     // must not retroactively "re-identify" an already-identified entry.
     let conn = setup_identify_index();
-    let changed =
-        super::identify::upgrade_negative_ids_with_conn(&conn, &mut state.mods, "PAYDAY 3");
+    let changed = super::identify::upgrade_negative_ids_with_conn(
+        &conn,
+        "",
+        engine_for_game("pd3").unwrap(),
+        &[],
+        &mut state.mods,
+    );
     assert!(!changed);
     assert_eq!(state.mods[0].version, "1.2.1");
     assert_eq!(state.mods[0].update_status, UpdateStatus::Known);
@@ -1574,7 +1580,13 @@ fn upgrade_negative_ids_never_promotes_a_source_native_entry_even_on_an_exact_sh
         sha256: Some("crosspostedsha".to_string()),
         ..InstalledMod::default()
     }];
-    let changed = super::identify::upgrade_negative_ids_with_conn(&conn, &mut mods, "PAYDAY 3");
+    let changed = super::identify::upgrade_negative_ids_with_conn(
+        &conn,
+        "",
+        engine_for_game("pd3").unwrap(),
+        &[],
+        &mut mods,
+    );
     assert!(!changed);
     assert_eq!(mods[0].id, -52);
     assert_eq!(mods[0].name, "RinoHud");
@@ -1592,7 +1604,13 @@ fn upgrade_negative_ids_still_upgrades_a_genuinely_unidentified_entry_by_sha256(
         sha256: Some("crosspostedsha".to_string()),
         ..InstalledMod::default()
     }];
-    let changed = super::identify::upgrade_negative_ids_with_conn(&conn, &mut mods, "PAYDAY 3");
+    let changed = super::identify::upgrade_negative_ids_with_conn(
+        &conn,
+        "",
+        engine_for_game("pd3").unwrap(),
+        &[],
+        &mut mods,
+    );
     assert!(changed);
     assert_eq!(mods[0].remote_id.as_deref(), Some("55809"));
     assert_eq!(
@@ -1600,6 +1618,88 @@ fn upgrade_negative_ids_still_upgrades_a_genuinely_unidentified_entry_by_sha256(
         crate::commands::sources::source_native_local_id("modworkshop", "55809")
     );
     assert_eq!(mods[0].name, "Alternative RinoHUD Icons");
+    let identity = mods[0].identity.as_ref().unwrap();
+    assert_eq!(identity.namespace, "modworkshop");
+    assert_eq!(identity.key, "55809");
+    assert_eq!(identity.evidence, IdentityEvidence::CatalogHash);
+}
+
+#[test]
+fn upgrade_negative_ids_records_a_name_match_as_a_name_match() {
+    // The same operation that establishes the reference records how it found it: a title
+    // match is not a confirmed file, and nothing downstream may read it as one. The mod
+    // already knew what it was locally, and the catalog reference now takes over the key.
+    let conn = setup_identify_index();
+    let mut mods = vec![InstalledMod {
+        uid: "alternative_rinohud_icons.pak".to_string(),
+        id: -1,
+        name: "Alternative RinoHUD Icons".to_string(),
+        filename: "alternative_rinohud_icons.pak".to_string(),
+        enabled: true,
+        sha256: Some("no-longer-the-current-file".to_string()),
+        identity: Some(super::identity::ModIdentity::new(
+            "updates.hoppip.at",
+            "rinohud-icons",
+            IdentityEvidence::UpdaterNamespace,
+        )),
+        ..InstalledMod::default()
+    }];
+
+    let changed = super::identify::upgrade_negative_ids_with_conn(
+        &conn,
+        "",
+        engine_for_game("pd3").unwrap(),
+        &[],
+        &mut mods,
+    );
+
+    assert!(changed);
+    let identity = mods[0].identity.as_ref().unwrap();
+    assert_eq!(identity.namespace, "modworkshop");
+    assert_eq!(identity.key, "55809");
+    assert_eq!(identity.evidence, IdentityEvidence::CatalogName);
+    assert_eq!(identity.confidence, IdentityConfidence::Strong);
+}
+
+#[test]
+fn an_install_records_its_own_provenance() {
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let cfg = engine_for_game("pd2").unwrap();
+    let sp = get_state_path(game, cfg);
+    let src = tmp.path().join("staged").join("Celer");
+    fs::create_dir_all(&src).unwrap();
+    fs::write(src.join("mod.txt"), b"{\"name\":\"Celer\"}").unwrap();
+
+    // The record install_mod builds once the ModWorkshop id is known.
+    let mod_data = InstalledMod {
+        uid: "700".into(),
+        name: "Celer".into(),
+        version: "55".into(),
+        filename: "Celer".into(),
+        enabled: true,
+        file_id: Some(700),
+        ..InstalledMod::from_catalog(
+            "modworkshop",
+            "25629".into(),
+            IdentityEvidence::InstallProvenance,
+        )
+    };
+
+    install_mod_from_path(game, &sp, mod_data, &src, None, cfg, cfg.primary()).unwrap();
+
+    let saved = read_state(&sp).mods.into_iter().next().unwrap();
+    assert_eq!(saved.source, "modworkshop");
+    assert_eq!(saved.remote_id.as_deref(), Some("25629"));
+    assert_eq!(
+        saved.id,
+        crate::commands::sources::source_native_local_id("modworkshop", "25629")
+    );
+    let identity = saved.identity.unwrap();
+    assert_eq!(identity.namespace, "modworkshop");
+    assert_eq!(identity.key, "25629");
+    assert_eq!(identity.evidence, IdentityEvidence::InstallProvenance);
+    assert_eq!(identity.confidence, IdentityConfidence::Exact);
 }
 
 #[test]
@@ -2400,6 +2500,42 @@ fn identify_untracked_uses_embedded_id_when_hash_misses() {
     assert_eq!(m.name, "Cool Mod (Official Name)"); // real name pulled from the index
     assert_eq!(m.file_id, None); // a drifted install pins no specific file
     assert_eq!(m.version, "2.0"); // installed version = the mod's own declaration
+    assert_eq!(
+        m.identity.as_ref().unwrap().evidence,
+        IdentityEvidence::EmbeddedCatalogId
+    );
+}
+
+#[test]
+fn identify_untracked_refuses_an_embedded_id_belonging_to_another_project() {
+    // Some mods ship another project's ModWorkshop id. The index can settle it, and a name
+    // with nothing in common means the id is not this mod's.
+    let game = TempDir::new().unwrap();
+    make_mod_dir(
+        game.path(),
+        None,
+        "KineticTrackers",
+        "main.xml",
+        r#"<mod name="KineticTrackers"><AssetUpdates id="52000" provider="modworkshop"/></mod>"#,
+    );
+    let conn = make_index();
+    conn.execute_batch(
+        "INSERT INTO mods VALUES (1, 2, 52000, 'PAYDAY 2 Savefile Import/Export Tool');
+         INSERT INTO files VALUES (1, 1, 700, 'indexsha', '2.5', 'x/main.xml');",
+    )
+    .unwrap();
+
+    let mods = run_identify(
+        game.path(),
+        vec![("KineticTrackers".to_string(), true, None)],
+        vec![Some("does-not-match".to_string())],
+        &conn,
+    );
+
+    // No name row matches either, so the install stays unidentified rather than inheriting
+    // a stranger's page.
+    assert_eq!(mods[0].remote_id, None);
+    assert_eq!(mods[0].identity, None);
 }
 
 #[test]
@@ -2437,6 +2573,10 @@ fn identify_untracked_hash_beats_embedded_id() {
     assert_eq!(m.name, "Hash Match Mod");
     assert_eq!(m.file_id, Some(555));
     assert_eq!(m.version, "9.0");
+    assert_eq!(
+        m.identity.as_ref().unwrap().evidence,
+        IdentityEvidence::CatalogHash
+    );
 }
 
 #[test]
@@ -2509,6 +2649,310 @@ fn identify_untracked_falls_back_to_name_without_embedded() {
     // the version stays empty because no comparable value was ever recovered.
     assert_eq!(m.update_status, UpdateStatus::Outdated);
     assert_eq!(m.version, "");
+    assert_eq!(
+        m.identity.as_ref().unwrap().evidence,
+        IdentityEvidence::CatalogName
+    );
+}
+
+// ── Link-hosted PAYDAY 2 mods identify by their marker hash ──────────────────
+// A ModWorkshop mod can publish its download as a link to GitHub or the author's own host
+// instead of a file ModWorkshop stores. Nothing about that reaches the disk: the folder is
+// named by whatever the archive wrapped its files in, and no BLT mod.txt carries a
+// ModWorkshop id, so the SHA256 of the marker file is the only identity such an install has.
+// Both sides must therefore hash the same file, which is what these two tests pin down.
+
+#[tokio::test]
+async fn hash_untracked_hashes_the_mod_txt_marker() {
+    let game = TempDir::new().unwrap();
+    let dir = game.path().join("mods").join("Link Hosted Mod");
+    fs::create_dir_all(&dir).unwrap();
+    fs::write(dir.join("mod.txt"), b"{\"name\":\"Link Hosted Mod\"}").unwrap();
+    // A BeardLib marker alongside it must not win: modrex-index's selectMarkerPath checks
+    // mod.txt first, so hashing main.xml here would miss every mod that ships both.
+    fs::write(dir.join("main.xml"), b"<mod/>").unwrap();
+
+    let cfg = engine_for_game("pd2").unwrap();
+    let untracked = vec![("Link Hosted Mod".to_string(), true, None)];
+    let hashes = hash_untracked(game.path().to_str().unwrap(), &untracked, cfg).await;
+
+    let expected = compute_sha256(&dir.join("mod.txt")).await.unwrap();
+    assert_eq!(hashes, vec![Some(expected)]);
+}
+
+#[tokio::test]
+async fn identify_untracked_matches_link_hosted_mod_by_marker_hash_only() {
+    let game = TempDir::new().unwrap();
+    // The folder name a GitHub source archive unwraps to. It resembles neither the mod's
+    // ModWorkshop name nor its mod.txt name, so a name match cannot rescue this install.
+    let folder = "pd2_check_for_wallbangs-main";
+    make_mod_dir(
+        game.path(),
+        None,
+        folder,
+        "mod.txt",
+        "{\"name\":\"CheckForWallbangs\"}",
+    );
+    let dir = game.path().join("mods").join(folder);
+    let sha = compute_sha256(&dir.join("mod.txt")).await.unwrap();
+
+    let conn = make_index();
+    let unindexed = run_identify(
+        game.path(),
+        vec![(folder.to_string(), true, None)],
+        vec![Some(sha.clone())],
+        &conn,
+    );
+    // The mod page exists, but with no record of its content the install stays unidentified
+    // rather than being guessed onto a similarly named mod.
+    assert_eq!(unindexed[0].remote_id, None);
+
+    conn.execute_batch("INSERT INTO mods VALUES (1, 2, 47414, 'Check For Wallbangs');")
+        .unwrap();
+    // A link-sourced row carries the negated ModWorkshop link id, since links are numbered
+    // separately from files and installedUtils groups installs by file id game-wide.
+    conn.execute(
+        "INSERT INTO files VALUES (1, 1, -1347, ?1, '1.2.2', 'pd2_check_for_wallbangs-main/mod.txt');",
+        [&sha],
+    )
+    .unwrap();
+
+    let mods = run_identify(
+        game.path(),
+        vec![(folder.to_string(), true, None)],
+        vec![Some(sha)],
+        &conn,
+    );
+
+    let m = &mods[0];
+    assert_eq!(m.remote_id.as_deref(), Some("47414"));
+    assert_eq!(m.name, "Check For Wallbangs");
+    assert_eq!(m.version, "1.2.2");
+    assert_eq!(m.update_status, UpdateStatus::Known);
+    assert_eq!(m.file_id, Some(-1347));
+}
+
+// ── A GitHub source archive names its folder after the repository ────────────
+// "PD2-DiscordRichPresence-main" is what GitHub's archive/refs/heads/main.zip unwraps to, and
+// it matches no mod page. The name the mod declares for itself does.
+
+#[tokio::test]
+async fn identify_untracked_falls_back_to_the_declared_name_when_the_folder_matches_nothing() {
+    let game = TempDir::new().unwrap();
+    let folder = "PD2-DiscordRichPresence-main";
+    make_mod_dir(
+        game.path(),
+        None,
+        folder,
+        "mod.txt",
+        "{\n\t\"name\" : \"Discord Rich Presence\",\n\t\"version\" : \"1.15\"\n}\n",
+    );
+    let conn = make_index();
+    conn.execute_batch(
+        "INSERT INTO mods VALUES (1, 2, 55704, 'Discord Rich Presence');
+         INSERT INTO files VALUES (1, 1, -2629, 'currentsha', '1.16', 'x/mod.txt');",
+    )
+    .unwrap();
+
+    let mods = run_identify(
+        game.path(),
+        vec![(folder.to_string(), true, None)],
+        // The installed copy is older than the archive the link now serves, so the hash misses.
+        vec![Some("older-version-sha".to_string())],
+        &conn,
+    );
+
+    let m = &mods[0];
+    assert_eq!(m.remote_id.as_deref(), Some("55704"));
+    // Known-stale bytes, so the update is surfaced rather than suppressed.
+    assert_eq!(m.update_status, UpdateStatus::Outdated);
+}
+
+/// The table shape apps/index/postgres/export-sqlite.ts writes into a published snapshot,
+/// so the tests below read the same file the app downloads rather than a hand-shaped one.
+const SNAPSHOT_SCHEMA: &str = "
+    CREATE TABLE games (id INTEGER PRIMARY KEY, name TEXT NOT NULL, slug TEXT NOT NULL UNIQUE);
+    CREATE TABLE sources (id INTEGER PRIMARY KEY, game_id INTEGER NOT NULL REFERENCES games(id),
+        name TEXT NOT NULL, base_url TEXT NOT NULL, game_ref TEXT NOT NULL);
+    CREATE TABLE mods (id INTEGER PRIMARY KEY, source_id INTEGER NOT NULL REFERENCES sources(id),
+        remote_id INTEGER NOT NULL, name TEXT NOT NULL, url TEXT NOT NULL,
+        UNIQUE(source_id, remote_id));
+    CREATE TABLE file_contents (sha256 TEXT PRIMARY KEY);
+    CREATE TABLE files (id INTEGER PRIMARY KEY, mod_id INTEGER NOT NULL REFERENCES mods(id),
+        sha256 TEXT NOT NULL REFERENCES file_contents(sha256), remote_id INTEGER NOT NULL,
+        version TEXT NOT NULL, indexed_at TEXT NOT NULL, entry_name TEXT NOT NULL DEFAULT '');
+    CREATE INDEX idx_files_sha256 ON files(sha256);
+    CREATE TABLE metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+    INSERT INTO games VALUES (1, 'PAYDAY 2', 'pd2');
+    INSERT INTO sources VALUES (1, 1, 'modworkshop', 'https://modworkshop.net', '1');
+";
+
+/// Writes a snapshot holding one link-sourced row, the shape process-content.ts stores after
+/// following a mod page's off-site download, then opens it exactly as mod_index::open_index
+/// does (read-only, no mutex).
+fn snapshot_with_link_row(path: &std::path::Path, sha256: &str) -> rusqlite::Connection {
+    let writer = rusqlite::Connection::open(path).unwrap();
+    writer.execute_batch(SNAPSHOT_SCHEMA).unwrap();
+    writer
+        .execute_batch(
+            "INSERT INTO mods VALUES (1, 1, 47414, 'Check For Wallbangs', 'https://modworkshop.net/mod/47414');",
+        )
+        .unwrap();
+    writer
+        .execute(
+            "INSERT INTO file_contents VALUES (?1)",
+            rusqlite::params![sha256],
+        )
+        .unwrap();
+    writer
+        .execute(
+            "INSERT INTO files VALUES (1, 1, ?1, -1347, '1.2.2', '2026-08-14T00:00:00Z',
+             'pd2_check_for_wallbangs-main/mod.txt')",
+            rusqlite::params![sha256],
+        )
+        .unwrap();
+    drop(writer);
+
+    rusqlite::Connection::open_with_flags(
+        path,
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX,
+    )
+    .unwrap()
+}
+
+/// Everything get_installed does for an ambient PAYDAY 2 install, in its own order, against a
+/// real snapshot file: scan, hash, identify. The link-sourced row is the only record of this
+/// mod that can exist, since ModWorkshop hosts no file for it.
+#[tokio::test]
+async fn link_sourced_snapshot_row_identifies_a_manual_install_end_to_end() {
+    let game = TempDir::new().unwrap();
+    let folder = "pd2_check_for_wallbangs-main";
+    let dir = game.path().join("mods").join(folder);
+    fs::create_dir_all(dir.join("lua")).unwrap();
+    fs::write(
+        dir.join("mod.txt"),
+        b"{\n\t\"name\" : \"CheckForWallbangs\"\n}\n",
+    )
+    .unwrap();
+    fs::write(dir.join("lua").join("mod.lua"), b"-- lua\n").unwrap();
+
+    let cfg = engine_for_game("pd2").unwrap();
+    let game_path = game.path().to_str().unwrap();
+
+    let untracked = find_untracked_paks(game_path, &HashSet::new(), cfg).await;
+    assert_eq!(untracked, vec![(folder.to_string(), true, None)]);
+
+    let sha256s = hash_untracked(game_path, &untracked, cfg).await;
+    let sha = sha256s[0].clone().expect("marker hashed");
+
+    let index = TempDir::new().unwrap();
+    let conn = snapshot_with_link_row(&index.path().join("pd2.db"), &sha);
+
+    let mut state = ModsState::default();
+    let folder_path_to_id = ensure_untracked_folders(&mut state, &untracked);
+    let mods = identify_untracked(
+        &mut state,
+        &untracked,
+        &sha256s,
+        &folder_path_to_id,
+        cfg,
+        game_path,
+        Some(&conn),
+    );
+
+    assert_eq!(mods.len(), 1);
+    let m = &mods[0];
+    // isIdentified() in the renderer reads exactly this, and it is what keeps the mod out of
+    // Health Check's Unidentified tab.
+    assert_eq!(m.remote_id.as_deref(), Some("47414"));
+    assert_eq!(m.name, "Check For Wallbangs");
+    assert_eq!(m.version, "1.2.2");
+    assert_eq!(m.update_status, UpdateStatus::Known);
+    assert_eq!(m.file_id, Some(-1347));
+    assert_eq!(m.sha256.as_deref(), Some(sha.as_str()));
+}
+
+/// The recovery path for everyone who already has these mods on disk: they were scanned while
+/// the index had no record, so state holds an unidentified entry. A later snapshot that does
+/// have the record must fix that entry in place, with no reinstall, rename or state wipe.
+#[tokio::test]
+async fn unidentified_entry_self_heals_when_a_later_snapshot_gains_the_mod() {
+    let game = TempDir::new().unwrap();
+    let folder = "pd2_check_for_wallbangs-main";
+    let dir = game.path().join("mods").join(folder);
+    fs::create_dir_all(&dir).unwrap();
+    fs::write(
+        dir.join("mod.txt"),
+        b"{\n\t\"name\" : \"CheckForWallbangs\"\n}\n",
+    )
+    .unwrap();
+
+    let cfg = engine_for_game("pd2").unwrap();
+    let game_path = game.path().to_str().unwrap();
+    let untracked = find_untracked_paks(game_path, &HashSet::new(), cfg).await;
+    let sha256s = hash_untracked(game_path, &untracked, cfg).await;
+    let sha = sha256s[0].clone().expect("marker hashed");
+
+    // First scan, against a snapshot that has no row for this mod.
+    let index = TempDir::new().unwrap();
+    let empty_path = index.path().join("empty.db");
+    let empty = rusqlite::Connection::open(&empty_path).unwrap();
+    empty.execute_batch(SNAPSHOT_SCHEMA).unwrap();
+    drop(empty);
+    let empty = rusqlite::Connection::open_with_flags(
+        &empty_path,
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX,
+    )
+    .unwrap();
+
+    let mut state = ModsState::default();
+    let folder_path_to_id = ensure_untracked_folders(&mut state, &untracked);
+    let mods = identify_untracked(
+        &mut state,
+        &untracked,
+        &sha256s,
+        &folder_path_to_id,
+        cfg,
+        game_path,
+        Some(&empty),
+    );
+    assert_eq!(mods[0].remote_id, None);
+    assert_eq!(mods[0].update_status, UpdateStatus::Unknown);
+
+    // Persist and re-read it, so the second pass starts from the same state file a user has.
+    let state_path = game.path().join("mods").join(".modrex.json");
+    save_state(
+        &state_path,
+        &ModsState {
+            folders: state.folders.clone(),
+            mods: mods.clone(),
+        },
+    );
+    let mut stored = read_state(&state_path);
+    let uid_before = stored.mods[0].uid.clone();
+    let filename_before = stored.mods[0].filename.clone();
+
+    // The snapshot refresh lands, carrying the row the link fallback produced.
+    let conn = snapshot_with_link_row(&index.path().join("pd2.db"), &sha);
+    let upgraded =
+        upgrade_negative_ids_with_conn(&conn, game_path, cfg, &stored.folders, &mut stored.mods);
+
+    assert!(upgraded, "the caller must be told to persist the repair");
+    let healed = &stored.mods[0];
+    assert_eq!(healed.remote_id.as_deref(), Some("47414"));
+    assert_eq!(healed.name, "Check For Wallbangs");
+    assert_eq!(healed.version, "1.2.2");
+    // Unknown would keep useModData skipping this mod for updates forever, even though the
+    // hash match just handed over a version that is exactly comparable.
+    assert_eq!(healed.update_status, UpdateStatus::Known);
+    assert_eq!(healed.file_id, Some(-1347));
+    let identity = healed.identity.as_ref().unwrap();
+    assert_eq!(identity.namespace, "modworkshop");
+    assert_eq!(identity.key, "47414");
+    assert_eq!(identity.evidence, IdentityEvidence::CatalogHash);
+    // Nothing about the install moved: same tracked file, same uid, so no reinstall happened.
+    assert_eq!(healed.uid, uid_before);
+    assert_eq!(healed.filename, filename_before);
 }
 
 // ── File-unit install/enable/disable/uninstall carry IoStore sidecars ────────

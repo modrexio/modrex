@@ -211,6 +211,38 @@ export type CbFlatPayload_Serialize = {
 };
 
 /**
+ *  What the mod says about itself in its own files. A mod with no catalog entry has nothing
+ *  else describing it, and the renderer shows these values for exactly those mods
+ *  (installedUtils.ts's withDeclaredMetadata); a catalog-backed mod keeps catalog values,
+ *  which stay current when the author republishes.
+ */
+export type DeclaredMetadata = DeclaredMetadata_Serialize | DeclaredMetadata_Deserialize;
+
+/**
+ *  What the mod says about itself in its own files. A mod with no catalog entry has nothing
+ *  else describing it, and the renderer shows these values for exactly those mods
+ *  (installedUtils.ts's withDeclaredMetadata); a catalog-backed mod keeps catalog values,
+ *  which stay current when the author republishes.
+ */
+export type DeclaredMetadata_Deserialize = {
+	name?: string | null,
+	author?: string | null,
+	version?: string | null,
+};
+
+/**
+ *  What the mod says about itself in its own files. A mod with no catalog entry has nothing
+ *  else describing it, and the renderer shows these values for exactly those mods
+ *  (installedUtils.ts's withDeclaredMetadata); a catalog-backed mod keeps catalog values,
+ *  which stay current when the author republishes.
+ */
+export type DeclaredMetadata_Serialize = {
+	name?: string | null,
+	author?: string | null,
+	version?: string | null,
+};
+
+/**
  *  One store's copy of a game. A game owned on two stores has two of these, installed
  *  side by side and modded independently, so a launcher is only ever meaningful paired
  *  with the path it was found at.
@@ -272,6 +304,50 @@ export type HostPackPayload_Serialize = {
 	fileType?: string | null,
 	modVersion?: string | null,
 };
+
+/**
+ *  How far the evidence goes. Confidence is about the *identity*, never about whether the mod
+ *  can be updated or browsed: a dead updater namespace still identifies a project exactly as
+ *  well as a live one.
+ */
+export type IdentityConfidence = "exact" | "strong" | 
+/**  A plausible guess. Never grants grouping, updates, reinstall or provider association. */
+"candidate";
+
+/**  How a mod's identity was established, recorded by whichever operation established it. */
+export type IdentityEvidence = 
+/**  Modrex performed the install and recorded the catalog id at the time. */
+"installProvenance" | 
+/**
+ *  The installed bytes matched a catalog file by content hash: SHA256 against the mod
+ *  index, MD5 against Nexus's own file-hash index.
+ */
+"catalogHash" | 
+/**  A catalog id the mod declares in its own metadata, checked against the index. */
+"embeddedCatalogId" | 
+/**
+ *  The provider's own content listing matched this install's published file name and
+ *  size, or its content folder segment. Neither a hash nor a title match.
+ */
+"catalogContentMatch" | 
+/**
+ *  A catalog id taken from the mod's own naming: a single title match in the index, or a
+ *  filename that is itself the id. Never confirmed against the installed bytes.
+ */
+"catalogName" | 
+/**
+ *  A catalog reference an older state file already carried. How it was discovered was not
+ *  recorded then and cannot be recovered, so nothing more precise may be claimed for it.
+ */
+"catalogReference" | 
+/**  A per-mod key in an updater namespace the mod points at. */
+"updaterNamespace" | 
+/**  A source repository plus the name the mod declares inside it. */
+"repository" | 
+/**  An identifier from a distribution service that no longer exists. */
+"legacyNamespace" | 
+/**  Declared name and author only. */
+"nameAuthor";
 
 export type IndexModFile = {
 	fileRemoteId: number,
@@ -358,6 +434,8 @@ export type InstalledMod_Deserialize = {
 	location?: string | null,
 	updateStatus?: UpdateStatus,
 	nexusContentMissed?: boolean | null,
+	identity?: ModIdentity | null,
+	declared?: DeclaredMetadata_Deserialize | null,
 };
 
 export type InstalledMod_Serialize = {
@@ -383,6 +461,8 @@ export type InstalledMod_Serialize = {
 	location?: string | null,
 	updateStatus?: UpdateStatus,
 	nexusContentMissed?: boolean | null,
+	identity?: ModIdentity | null,
+	declared?: DeclaredMetadata_Serialize | null,
 };
 
 export type InstalledResponse = InstalledResponse_Serialize | InstalledResponse_Deserialize;
@@ -532,6 +612,23 @@ export type ModFolder = {
 export type ModFolderInfo = {
 	tag: string,
 	labelKey: string,
+};
+
+/**
+ *  One resolved project identity: which project, in which namespace, and on what evidence.
+ * 
+ *  The namespace is its own field rather than a prefix inside key, so no consumer ever has to
+ *  split the string to learn what kind of identity it is holding. Namespaces come from
+ *  different worlds - a catalog ("modworkshop", "nexus"), a self-hosted updater
+ *  ("pd2mods.z77.fr"), a forge ("github"), a dead service ("paydaymods") - and a namespace
+ *  implies nothing about what Modrex can do with the mod.
+ */
+export type ModIdentity = {
+	namespace: string,
+	key: string,
+	evidence: IdentityEvidence,
+	/**  Derived from evidence and never read back from disk, so the two cannot disagree. */
+	confidence: IdentityConfidence,
 };
 
 export type ModImage = {
@@ -715,8 +812,9 @@ export type UpdateStatus =
 /**  version holds a real, comparable value. */
 "known" | 
 /**
- *  No comparable version: an unidentified mod, or an embedded-id mod that declares
- *  none. Never surfaces an update, since it would nag forever with nothing to compare.
+ *  No comparable version: a mod with no catalog entry to compare against, or an
+ *  embedded-id mod that declares none. Never surfaces an update, since it would nag
+ *  forever with nothing to compare.
  */
 "unknown" | 
 /**

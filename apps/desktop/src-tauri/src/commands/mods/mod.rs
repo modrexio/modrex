@@ -1,8 +1,10 @@
 mod crimeboss_settings;
+mod diesel_signals;
 mod engine;
 mod folders;
 mod host_mods;
 mod identify;
+pub mod identity;
 mod install;
 mod naming;
 mod nexus_content;
@@ -19,6 +21,7 @@ pub use self::engine::{
     backup_dir, engine_for_game, ModEngineConfig, CRIMEBOSS_ENGINE, PD2_ENGINE, PD3_ENGINE,
     PDTH_ENGINE, RAID_ENGINE,
 };
+pub use self::identity::IdentityEvidence;
 pub use self::install::install_mod_from_path;
 pub use self::paths::{find_untracked_host_packs, find_untracked_paks, get_state_path, mods_base};
 pub use self::state::{get_folder_path, read_state, reconcile_state};
@@ -29,7 +32,7 @@ pub use self::zip::{compute_md5, compute_sha256};
 
 // Mod-identification helpers for the get_installed pipeline, see identify.rs
 #[cfg(test)]
-pub(crate) use self::identify::embedded_modworkshop_id;
+pub(crate) use self::identify::{embedded_modworkshop_id, upgrade_negative_ids_with_conn};
 pub(crate) use self::identify::{
     ensure_untracked_folders, hash_untracked, hashable_file_for_mod_dir, identify_untracked,
     regroup_negative_ids_by_name_suffix, resync_crimeboss_enabled_flags, upgrade_negative_ids,
@@ -168,8 +171,7 @@ pub async fn get_installed(app: AppHandle, game_id: String) -> Result<InstalledR
     let mods_hidden = backup_dir(&game_path, cfg.primary()).exists();
 
     let mut state = reconcile_state(&game_path, &state_path, cfg);
-    let any_upgraded =
-        upgrade_negative_ids(&app, &mut state.mods, cfg.game_id, cfg.index_game_name);
+    let any_upgraded = upgrade_negative_ids(&app, &game_path, cfg, &state.folders, &mut state.mods);
     regroup_negative_ids_by_name_suffix(&mut state.mods);
 
     // The player can also toggle mods from Crime Boss's own Options > Mods screen, so pull
@@ -207,17 +209,19 @@ pub async fn get_installed(app: AppHandle, game_id: String) -> Result<InstalledR
         let entry = match hit {
             Some(h) => InstalledMod {
                 uid: format!("{}_{}", h.file_remote_id, set_name),
-                id: sources::source_native_local_id("modworkshop", &h.mod_remote_id.to_string()),
                 name: h.mod_name,
                 version: h.version,
                 filename: set_name,
                 enabled,
-                remote_id: Some(h.mod_remote_id.to_string()),
                 file_id: Some(h.file_remote_id),
                 sha256,
                 location,
                 installed_at: Utc::now().to_rfc3339(),
-                ..InstalledMod::default()
+                ..InstalledMod::from_catalog(
+                    "modworkshop",
+                    h.mod_remote_id.to_string(),
+                    IdentityEvidence::CatalogHash,
+                )
             },
             None => InstalledMod {
                 uid: set_name.clone(),
@@ -236,7 +240,15 @@ pub async fn get_installed(app: AppHandle, game_id: String) -> Result<InstalledR
     }
 
     if mods_hidden {
-        if any_upgraded || discovered_hosts || cb_resynced {
+        let index = mod_index::open_index(&app, cfg.game_id);
+        let identified = identity::ensure_identities(
+            &game_path,
+            cfg,
+            &state.folders,
+            &mut state.mods,
+            index.as_ref(),
+        );
+        if any_upgraded || discovered_hosts || cb_resynced || identified {
             save_state(&state_path, &state);
         }
         return Ok(InstalledResponse {
@@ -261,8 +273,16 @@ pub async fn get_installed(app: AppHandle, game_id: String) -> Result<InstalledR
 
     let untracked = find_untracked_paks(&game_path, &known, cfg).await;
     if untracked.is_empty() {
+        let index = mod_index::open_index(&app, cfg.game_id);
+        let identified = identity::ensure_identities(
+            &game_path,
+            cfg,
+            &state.folders,
+            &mut state.mods,
+            index.as_ref(),
+        );
         let (mods, any_checked) = mark_archive_files(&game_path, &state.folders, state.mods, cfg);
-        if any_checked || any_upgraded || discovered_hosts || cb_resynced {
+        if any_checked || any_upgraded || discovered_hosts || cb_resynced || identified {
             save_state(
                 &state_path,
                 &ModsState {
@@ -299,6 +319,8 @@ pub async fn get_installed(app: AppHandle, game_id: String) -> Result<InstalledR
     );
 
     let folders = state.folders;
+    let mut mods = mods;
+    identity::ensure_identities(&game_path, cfg, &folders, &mut mods, index.as_ref());
     let (mods, _) = mark_archive_files(&game_path, &folders, mods, cfg);
     save_state(
         &state_path,
@@ -431,7 +453,6 @@ pub async fn install_mod(
         // InstalledMod.id is an opaque, source-scoped key (see
         // sources::source_native_local_id) and is never compared against this directly.
         let remote_id_str = remote_id.to_string();
-        let local_id = sources::source_native_local_id("modworkshop", &remote_id_str);
         let sp = get_state_path(&game_path, cfg);
         let saved = read_state(&sp);
         let existing_entry = saved.mods.iter().find(|m| m.uid == uid).or_else(|| {
@@ -501,17 +522,19 @@ pub async fn install_mod(
             &sp,
             InstalledMod {
                 uid: uid.clone(),
-                id: local_id,
                 name: mod_name,
                 version: mod_version,
                 filename,
                 enabled: true,
                 installed_at: Utc::now().to_rfc3339(),
-                remote_id: Some(remote_id_str.clone()),
                 file_id: Some(file_id),
                 file_type: Some(file_type.clone()),
                 sha256: Some(sha256),
-                ..InstalledMod::default()
+                ..InstalledMod::from_catalog(
+                    "modworkshop",
+                    remote_id_str.clone(),
+                    IdentityEvidence::InstallProvenance,
+                )
             },
             &tmp,
             effective_folder_id,
@@ -651,7 +674,6 @@ pub async fn install_file(
         };
         let uid = file_id.to_string();
         let mod_id_str = mod_id.to_string();
-        let local_id = sources::source_native_local_id("modworkshop", &mod_id_str);
         let sp = get_state_path(&game_path, cfg);
         let saved = read_state(&sp);
         let existing_entry = saved.mods.iter().find(|m| m.uid == uid).or_else(|| {
@@ -710,17 +732,19 @@ pub async fn install_file(
             &sp,
             InstalledMod {
                 uid,
-                id: local_id,
                 name: mod_name,
                 version: mod_version,
                 filename,
                 enabled: true,
                 installed_at: Utc::now().to_rfc3339(),
-                remote_id: Some(mod_id_str.clone()),
                 file_id: Some(file_id),
                 file_type: Some(file_type.clone()),
                 sha256: Some(sha256),
-                ..InstalledMod::default()
+                ..InstalledMod::from_catalog(
+                    "modworkshop",
+                    mod_id_str.clone(),
+                    IdentityEvidence::InstallProvenance,
+                )
             },
             &tmp,
             effective_folder_id,
@@ -886,24 +910,22 @@ pub(crate) async fn install_nexus_download(
             &sp,
             InstalledMod {
                 uid,
-                id: crate::commands::sources::source_native_local_id(
-                    "nexus",
-                    &nexus_mod_id.to_string(),
-                ),
                 name: mod_name.clone(),
                 version: mod_version,
                 filename,
                 enabled: true,
                 installed_at: Utc::now().to_rfc3339(),
-                source: "nexus".to_string(),
-                remote_id: Some(nexus_mod_id.to_string()),
                 file_remote_id: Some(nexus_file_id.to_string()),
                 author: mod_author,
                 thumbnail_url,
                 file_id: Some(nexus_file_id as i64),
                 file_type: Some(file_type.clone()),
                 sha256: Some(sha256),
-                ..InstalledMod::default()
+                ..InstalledMod::from_catalog(
+                    "nexus",
+                    nexus_mod_id.to_string(),
+                    IdentityEvidence::InstallProvenance,
+                )
             },
             &tmp,
             folder_id,
@@ -988,12 +1010,10 @@ fn apply_nexus_archive_identity(
     detail: &crate::commands::domain::ModDetail,
 ) {
     entry.uid = format!("nexus:{}:{}", m.mod_id, m.file_id);
-    entry.id = sources::source_native_local_id("nexus", &m.mod_id.to_string());
+    entry.attach_catalog("nexus", m.mod_id.to_string(), IdentityEvidence::CatalogHash);
     entry.name = detail.name.clone();
     entry.version = detail.version.clone();
     entry.update_status = UpdateStatus::Known;
-    entry.source = "nexus".to_string();
-    entry.remote_id = Some(m.mod_id.to_string());
     entry.file_remote_id = Some(m.file_id.to_string());
     entry.author = Some(detail.user.name.clone());
     entry.thumbnail_url = detail.thumbnail.as_ref().map(|t| t.file.clone());
@@ -1364,7 +1384,6 @@ pub async fn install_from_zip_entry(
         let sp = get_state_path(&game_path, cfg);
         let saved = read_state(&sp);
         let mod_id_str = mod_id.to_string();
-        let local_id = sources::source_native_local_id("modworkshop", &mod_id_str);
 
         // Reuse existing uid by SHA256 so a reinstall moves the entry in-place rather than duplicating.
         let sha256_match = saved
@@ -1388,17 +1407,19 @@ pub async fn install_from_zip_entry(
             &sp,
             InstalledMod {
                 uid,
-                id: local_id,
                 name: mod_name,
                 version: mod_version,
                 filename: install_filename,
                 enabled: true,
                 installed_at: Utc::now().to_rfc3339(),
-                remote_id: Some(mod_id_str.clone()),
                 file_id: Some(file_id),
                 file_type: Some(file_type),
                 sha256: Some(sha256),
-                ..InstalledMod::default()
+                ..InstalledMod::from_catalog(
+                    "modworkshop",
+                    mod_id_str.clone(),
+                    IdentityEvidence::InstallProvenance,
+                )
             },
             &ext,
             effective_folder_id,
@@ -1488,17 +1509,19 @@ pub async fn install_cb_flat_archive(
             &sp,
             InstalledMod {
                 uid,
-                id: sources::source_native_local_id("modworkshop", &mod_id.to_string()),
                 name: mod_name,
                 version: mod_version,
                 filename,
                 enabled: true,
                 installed_at: Utc::now().to_rfc3339(),
-                remote_id: Some(mod_id.to_string()),
                 file_id: Some(file_id),
                 file_type: Some(file_type.clone()),
                 sha256: Some(sha256),
-                ..InstalledMod::default()
+                ..InstalledMod::from_catalog(
+                    "modworkshop",
+                    mod_id.to_string(),
+                    IdentityEvidence::InstallProvenance,
+                )
             },
             &tmp_dir,
             folder_id,
@@ -1578,14 +1601,16 @@ pub async fn install_host_pack(app: AppHandle, args: InstallHostPackArgs) -> Res
     let sp = get_state_path(&game_path, cfg);
     let install_format = file_type.clone();
     let mod_data = InstalledMod {
-        id: sources::source_native_local_id("modworkshop", &mod_id.to_string()),
         name: mod_name,
         version: mod_version,
-        remote_id: Some(mod_id.to_string()),
         file_id: Some(file_id),
         file_type: Some(file_type),
         location: Some(format!("host:{}:{}", host_mod_id, host_subpath)),
-        ..InstalledMod::default()
+        ..InstalledMod::from_catalog(
+            "modworkshop",
+            mod_id.to_string(),
+            IdentityEvidence::InstallProvenance,
+        )
     };
     install_host_pack_op(
         &game_path,

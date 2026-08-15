@@ -158,9 +158,14 @@ export type { GameId, GameSpec } from '@modrex/games'
 // Wire types owned by the Rust side and generated into bindings.ts; re-exported
 // here so renderer code keeps one import path for shared shapes.
 export type { ModFolder, TopLevelItem, IndexModFile, NewsItem, NewsResult } from './bindings'
+export type { IdentityConfidence, IdentityEvidence, ModIdentity } from './bindings'
+
+import type { IdentityConfidence, IdentityEvidence } from './bindings'
 
 export interface InstalledMod {
     uid: string // unique per installed file, stable identity across renames
+    // The installed record's own key, for React keys, drag and drop and command targets.
+    // What the mod *is* lives in `identity`; where to get it lives in source/remoteId.
     id: number
     name: string
     version: string
@@ -186,6 +191,17 @@ export interface InstalledMod {
     // Nexus content-index lookup already found nothing (or an ambiguous result) for
     // this mod, a permanent miss until Nexus indexes it, so it is never re-queried.
     nexusContentMissed?: boolean
+    // Which project this is, independent of any catalog, and how that was established.
+    // Present for mods whose own files say what they are, whether or not ModWorkshop or
+    // Nexus has ever heard of them. namespace is a field, never a prefix to parse out of key.
+    identity?: {
+        namespace: string
+        key: string
+        confidence: IdentityConfidence
+        evidence: IdentityEvidence
+    }
+    // What the mod's own files declare, used for display when no catalog describes the mod.
+    declared?: { name?: string; author?: string; version?: string }
 }
 
 export interface ModsState {

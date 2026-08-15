@@ -5,6 +5,7 @@
 // what to ask.
 
 use super::engine::{ModUnit, ScanTarget};
+use super::identity::IdentityEvidence;
 use super::naming::{derive_content_segment, recover_published_filename};
 use super::paths::{active_mod_path, disabled_mod_path};
 use super::state::get_folder_path;
@@ -103,9 +104,11 @@ pub(crate) async fn identify_via_nexus_content_op(
             let detail_value =
                 nexus::nexus_get_mod(app.clone(), game_id.to_string(), mod_id).await?;
             let detail = crate::commands::domain::parse_nexus_detail(detail_value)?;
-            m.source = "nexus".to_string();
-            m.remote_id = Some(mod_id.to_string());
-            m.id = crate::commands::sources::source_native_local_id("nexus", &mod_id.to_string());
+            m.attach_catalog(
+                "nexus",
+                mod_id.to_string(),
+                IdentityEvidence::CatalogContentMatch,
+            );
             m.name = detail.name;
             m.version = detail.version;
             m.author = Some(detail.user.name);
