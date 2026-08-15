@@ -15,6 +15,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 ### Fixed
 
+- Fixed PAYDAY 2, PAYDAY: The Heist and RAID mods whose ModWorkshop download is hosted elsewhere, such as GitHub or an author's own site, never being recognized.
 - Fixed Settings opened from the game picker still showing the "Restore mods" notice and installing dragged-in mod files into the last opened game.
 - Fixed Modrex using the wrong copy of a game installed on more than one store, which made installed mods look like they had vanished.
 - Fixed an expired Nexus Mods sign-in failing silently.

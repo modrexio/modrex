@@ -74,4 +74,14 @@ export const migrations: Migration[] = [
             'CREATE INDEX mod_listings_source_bumped_at_idx ON mod_listings(source_id, bumped_at)',
         ],
     },
+    {
+        // A recorded check means "this listing was processed and yielded these files", so a
+        // listing whose pass yielded nothing is skipped until ModWorkshop bumps its updated_at
+        // again. Mods that publish their download as an off-site link were all recorded that
+        // way before the content processor knew to follow links, so dropping the empty checks
+        // is what lets them be picked up. Checks that did yield files are left alone, and a
+        // listing that still yields nothing simply records an empty check again.
+        version: '003_recheck_empty_listings',
+        statements: [`DELETE FROM mod_checks WHERE file_ids = '[]'::jsonb`],
+    },
 ]
