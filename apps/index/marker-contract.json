@@ -1,0 +1,65 @@
+{
+    "comment": "Which file inside a mod folder both sides hash to identify it. The indexer reads archive entries, modrex-main reads the installed directory, and a disagreement makes that mod permanently unidentifiable, so the vectors live here once and both sides test against them. Paths are relative to the mod's own root; the indexer strips a single wrapper directory before comparing. Read by apps/index/test-marker-contract.ts and by modrex-main's marker_contract_tests.rs.",
+    "rule": "A marker file at the mod root wins: main.xml, then supermod.xml, then mod.xml (the indexer also recognises mod.txt and base.lua ahead of those, which the games writing them always ship). Otherwise take the path whose UTF-8 bytes sort first, skipping files the OS regenerates. Never locale-aware comparison, never directory-walk order.",
+    "cases": [
+        {
+            "name": "a dot sorts before an underscore by bytes, and after it under ICU collation",
+            "files": [
+                "anims/fps/vityaz/vityaz_reload.animation",
+                "anims/fps/vityaz/vityaz_reload_not_empty.animation",
+                "units/pd2_dlc_fawp/weapons/wpn_fps_smg_vityaz/wpn_fps_smg_vityaz.model"
+            ],
+            "expected": "anims/fps/vityaz/vityaz_reload.animation"
+        },
+        {
+            "name": "a file sorts before a directory sharing its stem",
+            "files": ["a.txt", "a/z.txt"],
+            "expected": "a.txt"
+        },
+        {
+            "name": "digits compare as characters, not as numbers",
+            "files": ["mod-2.txt", "mod-10.txt"],
+            "expected": "mod-10.txt"
+        },
+        {
+            "name": "uppercase sorts before lowercase, and no case folding is applied. Two paths differing only in case are deliberately not a vector: Windows collapses them to one installed file, so the two sides can never see the same set",
+            "files": ["bat.texture", "Zebra.texture"],
+            "expected": "Zebra.texture"
+        },
+        {
+            "name": "a nested path can win outright",
+            "files": ["b/1.txt", "a/2.txt"],
+            "expected": "a/2.txt"
+        },
+        {
+            "name": "non-ascii compares by its utf-8 bytes",
+            "files": ["z.txt", "é.txt"],
+            "expected": "z.txt"
+        },
+        {
+            "name": "a marker at the mod root beats any sort order",
+            "files": ["aaa.texture", "main.xml"],
+            "expected": "main.xml"
+        },
+        {
+            "name": "a marker below the mod root is not a marker",
+            "files": ["deep/dir/main.xml", "a.texture"],
+            "expected": "a.texture"
+        },
+        {
+            "name": "a single file is the pick whatever it is called",
+            "files": ["core/textures/lens_dirt.texture"],
+            "expected": "core/textures/lens_dirt.texture"
+        },
+        {
+            "name": "files the OS regenerates are never the pick, however early they sort",
+            "files": ["Thumbs.db", "desktop.ini", "units/gen_prop.texture"],
+            "expected": "units/gen_prop.texture"
+        },
+        {
+            "name": "a folder holding nothing but OS files has no representative file",
+            "files": ["Thumbs.db", "nested/.DS_Store"],
+            "expected": null
+        }
+    ]
+}

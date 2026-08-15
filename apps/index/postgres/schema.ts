@@ -84,4 +84,33 @@ export const migrations: Migration[] = [
         version: '003_recheck_empty_listings',
         statements: [`DELETE FROM mod_checks WHERE file_ids = '[]'::jsonb`],
     },
+    {
+        // An archive with no recognised marker has its representative file chosen by sort
+        // order, and two things about that choice changed: the order is a byte comparison
+        // rather than JavaScript localeCompare, so it matches modrex-main's picker exactly,
+        // and files the OS regenerates (Thumbs.db, desktop.ini, .DS_Store) are not eligible.
+        // Rows written under the earlier rules can name a file no installed copy will ever
+        // hash, and a recorded check keeps them that way for as long as ModWorkshop leaves the
+        // listing alone. Dropping the check re-processes exactly those listings; marker-bearing
+        // ones are untouched because their pick is unaffected.
+        //
+        // Marker games only. PAYDAY 3 and Crime Boss index every content entry in an archive
+        // rather than one representative file, so none of their rows came from this rule, and
+        // every one of them would otherwise match the name filter and be re-downloaded whole.
+        version: '004_recheck_markerless_picks',
+        statements: [
+            `DELETE FROM mod_checks
+             WHERE (source_id, remote_id) IN (
+                 SELECT mods.source_id, mods.remote_id
+                 FROM mods
+                 JOIN files ON files.mod_id = mods.id
+                 JOIN sources ON sources.id = mods.source_id
+                 JOIN games ON games.id = sources.game_id
+                 WHERE games.slug IN ('pd2', 'pdth', 'raid')
+                   AND files.entry_name <> ''
+                   AND lower(split_part(files.entry_name, '/', -1))
+                       NOT IN ('mod.txt', 'main.xml', 'supermod.xml', 'mod.xml', 'base.lua')
+             )`,
+        ],
+    },
 ]

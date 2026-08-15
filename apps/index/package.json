@@ -12,6 +12,7 @@
         "sync:postgres-listings": "tsx postgres/sync-listings.ts",
         "verify:postgres-catalog": "tsx postgres/verify-catalog.ts",
         "test:marker-archive": "tsx test-marker-archive.ts",
+        "test:marker-contract": "tsx test-marker-contract.ts",
         "test:staged-rebuild": "node test-staged-rebuild.mjs"
     },
     "dependencies": {

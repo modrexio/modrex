@@ -38,7 +38,7 @@ const allowLoopbackFetch = process.env.MODREX_INDEX_ALLOW_LOOPBACK_FETCH === '1'
 const pdmodPassword = `0$45'5))66S2ixF51a<6}L2UK`
 const pdmodHashlistPath = join(import.meta.dirname, '..', 'pdmod_hashlist.txt')
 
-function chooseMarker(paths: string[]): string | null {
+export function chooseMarker(paths: string[]): string | null {
     const files = paths.filter((path) => !path.endsWith('/'))
     if (files.length === 0) return null
 
@@ -58,19 +58,30 @@ function chooseMarker(paths: string[]): string | null {
     const raidMarker = firstMatch(['supermod.xml']) ?? firstMatch(['mod.xml'])
     if (raidMarker) return raidMarker
 
-    const sorted = [...files].sort((left, right) => left.localeCompare(right))
+    // No marker, so the pick is positional, and it has to land on the same file modrex-main
+    // picks from the installed folder or the mod can never be identified by hash. Comparing
+    // UTF-8 bytes is the one ordering both languages express identically; localeCompare orders
+    // punctuation by ICU rules that Rust has no equivalent for. See marker-contract.json.
     const roots = [...new Set(files.map((path) => path.split('/')[0]))]
-    if (roots.length === 1 && roots[0] !== '') {
-        const prefix = `${roots[0]}/`
-        return (
-            sorted
-                .filter((path) => path.startsWith(prefix))
-                .map((path) => ({ path, relative: path.slice(prefix.length) }))
-                .sort((left, right) => left.relative.localeCompare(right.relative))[0]?.path ?? null
-        )
-    }
+    const prefix = roots.length === 1 && roots[0] !== '' ? `${roots[0]}/` : ''
+    return (
+        files
+            .filter((path) => path.startsWith(prefix) && !isRegeneratedByTheOs(path))
+            .map((path) => ({ path, relative: path.slice(prefix.length) }))
+            .sort((left, right) => compareBytes(left.relative, right.relative))[0]?.path ?? null
+    )
+}
 
-    return sorted[0] ?? null
+// Explorer and Finder write these into a folder on their own, and they sort early enough to win
+// the positional pick. The copy on a user's disk is rewritten locally, so a fingerprint taken
+// from one stops matching the archive it came from.
+function isRegeneratedByTheOs(path: string): boolean {
+    const name = path.split('/').pop()?.toLowerCase()
+    return name === 'thumbs.db' || name === 'desktop.ini' || name === '.ds_store'
+}
+
+function compareBytes(left: string, right: string): number {
+    return Buffer.compare(Buffer.from(left, 'utf8'), Buffer.from(right, 'utf8'))
 }
 
 // Addresses no mod download can legitimately live behind, and that a URL on a mod page can
@@ -325,6 +336,11 @@ async function markerFromFullArchive(
         try {
             execFileSync('7z', ['x', archive, `-o${output}`, '-y'], { stdio: 'ignore' })
         } catch {
+            // An archive this runner cannot open yields nothing, which is indistinguishable
+            // from an archive holding nothing, and the listing is then recorded as checked.
+            // Naming it keeps a missing codec visible in the run log: p7zip-full reads RAR5
+            // and needs p7zip-rar for RAR4.
+            console.warn(`7z could not open ${extension} archive: ${url}`)
             return null
         }
         if (!existsSync(output)) return null
