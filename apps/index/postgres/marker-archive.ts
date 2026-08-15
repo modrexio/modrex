@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
+import { lookup } from 'node:dns/promises'
 import {
     existsSync,
     mkdirSync,
@@ -10,6 +11,7 @@ import {
     statSync,
     writeFileSync,
 } from 'node:fs'
+import { isIP } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { inflateRawSync } from 'node:zlib'
@@ -24,8 +26,15 @@ interface CentralDirectoryEntry {
 }
 
 class MissingArchiveError extends Error {}
+class BlockedUrlError extends Error {}
 
 const maxFullArchiveBytes = 50 * 1024 * 1024
+const maxRedirects = 5
+// Read once at load so only the environment can set it, and it lifts the address check for
+// loopback alone: test-marker-archive.ts serves its fixtures from 127.0.0.1, while every other
+// blocked range stays refused in the same process the tests assert against. Nothing in CI or
+// the workflow sets this.
+const allowLoopbackFetch = process.env.MODREX_INDEX_ALLOW_LOOPBACK_FETCH === '1'
 const pdmodPassword = `0$45'5))66S2ixF51a<6}L2UK`
 const pdmodHashlistPath = join(import.meta.dirname, '..', 'pdmod_hashlist.txt')
 
@@ -64,12 +73,91 @@ function chooseMarker(paths: string[]): string | null {
     return sorted[0] ?? null
 }
 
+// Addresses no mod download can legitimately live behind, and that a URL on a mod page can
+// otherwise aim this worker at: loopback, the RFC1918 and unique-local ranges, and link-local
+// including the cloud metadata address.
+// The URL parser rewrites an IPv4-mapped IPv6 literal into hex groups, so ::ffff:127.0.0.1
+// arrives as ::ffff:7f00:1 and only reads as loopback once it is back in dotted form.
+function mappedIpv4(value: string): string | null {
+    if (!value.startsWith('::ffff:')) return null
+    const rest = value.slice('::ffff:'.length)
+    if (rest.includes('.')) return rest
+    const [high, low] = rest.split(':').map((group) => parseInt(group, 16))
+    if (!Number.isInteger(high) || !Number.isInteger(low)) return null
+    return `${high >> 8}.${high & 0xff}.${low >> 8}.${low & 0xff}`
+}
+
+function isLoopbackAddress(host: string): boolean {
+    const value = host.toLowerCase().replace(/^\[|]$/g, '')
+    const mapped = mappedIpv4(value)
+    if (mapped) return isLoopbackAddress(mapped)
+    return value === 'localhost' || value === '::1' || value.startsWith('127.')
+}
+
+function isBlockedAddress(host: string): boolean {
+    const value = host.toLowerCase().replace(/^\[|]$/g, '')
+    if (value === 'localhost' || value.endsWith('.localhost')) return true
+
+    if (isIP(value) === 6) {
+        const mapped = mappedIpv4(value)
+        if (mapped) return isBlockedAddress(mapped)
+        if (value === '::1' || value === '::') return true
+        const group = parseInt(value.split(':')[0] || '0', 16)
+        // fc00::/7 unique-local and fe80::/10 link-local.
+        return (group & 0xfe00) === 0xfc00 || (group & 0xffc0) === 0xfe80
+    }
+    if (isIP(value) !== 4) return false
+
+    const [a, b] = value.split('.').map(Number)
+    return (
+        a === 127 ||
+        a === 0 ||
+        a === 10 ||
+        (a === 172 && b >= 16 && b <= 31) ||
+        (a === 192 && b === 168) ||
+        (a === 169 && b === 254)
+    )
+}
+
+// A link URL comes from a mod page, so it is attacker-chosen, and this worker runs in CI next
+// to the index database and R2 credentials. It reads the response but never stores or echoes
+// it beyond a SHA256 of ZIP-structured bytes, so the realistic risk is an outbound GET at an
+// address the runner can reach and nothing else. Both the URL and every redirect hop are
+// checked, and a name is resolved once before use. What this does not stop is a name that
+// resolves to a public address here and a private one when fetch resolves it again; pinning
+// the resolved address would need a custom dispatcher, which is only worth it if this ever
+// runs on a self-hosted runner inside a private network.
+export async function assertFetchableUrl(url: string): Promise<void> {
+    const { protocol, hostname } = new URL(url)
+    if (protocol !== 'https:' && protocol !== 'http:') {
+        throw new BlockedUrlError(`unsupported scheme ${protocol}`)
+    }
+    if (allowLoopbackFetch && isLoopbackAddress(hostname)) return
+    if (isBlockedAddress(hostname)) throw new BlockedUrlError(`blocked host ${hostname}`)
+    if (isIP(hostname.replace(/^\[|]$/g, '')) !== 0) return
+
+    const resolved = await lookup(hostname).catch(() => null)
+    if (resolved && isBlockedAddress(resolved.address)) {
+        throw new BlockedUrlError(`${hostname} resolves to ${resolved.address}`)
+    }
+}
+
+// Redirects are followed here rather than by fetch so every hop passes the check above.
 async function request(url: string, init: RequestInit): Promise<Response> {
-    return fetch(url, {
-        ...init,
-        headers: { 'User-Agent': 'modrex-index-builder', ...init.headers },
-        redirect: 'follow',
-    })
+    let target = url
+    for (let hop = 0; ; hop++) {
+        await assertFetchableUrl(target)
+        const response = await fetch(target, {
+            ...init,
+            headers: { 'User-Agent': 'modrex-index-builder', ...init.headers },
+            redirect: 'manual',
+        })
+        const location = response.headers.get('location')
+        if (response.status < 300 || response.status > 399 || !location) return response
+        if (hop === maxRedirects) throw new Error('too many redirects')
+        await response.body?.cancel()
+        target = new URL(location, target).toString()
+    }
 }
 
 async function contentLength(url: string): Promise<number | null> {
@@ -119,10 +207,78 @@ function parseCentralDirectory(buffer: Buffer): CentralDirectoryEntry[] {
     return entries
 }
 
+function inflateEntry(compressionMethod: number, compressed: Buffer): Buffer | null {
+    if (compressionMethod === 0) return compressed
+    if (compressionMethod !== 8) return null
+    try {
+        // Deflate reaches about 1000x on repetitive data, so without a ceiling a crafted
+        // entry turns a few hundred kilobytes of download into tens of gigabytes of heap and
+        // kills the job. The archive cap is the ceiling: every real marker file is far under
+        // it, and anything above it was not going to be indexed whole either.
+        return inflateRawSync(compressed, { maxOutputLength: maxFullArchiveBytes })
+    } catch {
+        return null
+    }
+}
+
+// Downloads a whole archive, giving up as soon as it passes the size cap rather than after
+// the fact, since a link points at a host ModWorkshop does not control and its length is not
+// always declared up front.
+async function downloadWithinCap(url: string): Promise<Buffer | null> {
+    const response = await request(url, { signal: AbortSignal.timeout(120_000) })
+    if (response.status === 404) return null
+    if (!response.ok) throw new Error(`download returned ${response.status}`)
+    if (!response.body) return null
+
+    const declared = Number(response.headers.get('content-length'))
+    if (Number.isSafeInteger(declared) && declared > maxFullArchiveBytes) {
+        await response.body.cancel()
+        return null
+    }
+
+    const chunks: Buffer[] = []
+    let received = 0
+    for await (const chunk of response.body) {
+        received += chunk.length
+        // Leaving the loop early cancels the body through the iterator's own cleanup.
+        if (received > maxFullArchiveBytes) return null
+        chunks.push(Buffer.from(chunk))
+    }
+    return Buffer.concat(chunks)
+}
+
+function markerFromBuffer(archive: Buffer): ContentEntry | null {
+    const eocd = findEocd(archive)
+    if (!eocd) return null
+
+    const entries = parseCentralDirectory(archive.subarray(eocd.offset, eocd.offset + eocd.size))
+    const name = chooseMarker(entries.map((entry) => entry.name))
+    const entry = name ? entries.find((candidate) => candidate.name === name) : undefined
+    if (!entry || entry.compressedSize === 0) return null
+
+    const header = archive.subarray(entry.localOffset, entry.localOffset + 30)
+    if (header.length < 30 || header.readUInt32LE(0) !== 0x04034b50) return null
+    const dataStart = entry.localOffset + 30 + header.readUInt16LE(26) + header.readUInt16LE(28)
+    const content = inflateEntry(
+        entry.compressionMethod,
+        archive.subarray(dataStart, dataStart + entry.compressedSize)
+    )
+    if (!content) return null
+
+    return { sha256: createHash('sha256').update(content).digest('hex'), entryName: entry.name }
+}
+
 async function markerFromZip(url: string, size: number | null): Promise<ContentEntry | null> {
     try {
         const archiveSize = size ?? (await contentLength(url))
-        if (!archiveSize || archiveSize < 22) return null
+        // Hosts that build the archive per request, GitHub's source-archive endpoint being the
+        // common one, declare no length and serve no byte ranges, so the ranged reads below
+        // have nothing to aim at. Reading the whole archive is the only way to its marker.
+        if (archiveSize === null) {
+            const archive = await downloadWithinCap(url)
+            return archive ? markerFromBuffer(archive) : null
+        }
+        if (archiveSize < 22) return null
 
         const tail = await rangeGet(url, Math.max(0, archiveSize - 65_557), archiveSize - 1)
         const eocd = findEocd(tail)
@@ -140,15 +296,8 @@ async function markerFromZip(url: string, size: number | null): Promise<ContentE
         const dataStart = entry.localOffset + 30 + header.readUInt16LE(26) + header.readUInt16LE(28)
         const compressed = await rangeGet(url, dataStart, dataStart + entry.compressedSize - 1)
 
-        let content: Buffer
-        if (entry.compressionMethod === 0) content = compressed
-        else if (entry.compressionMethod === 8) {
-            try {
-                content = inflateRawSync(compressed)
-            } catch {
-                return null
-            }
-        } else return null
+        const content = inflateEntry(entry.compressionMethod, compressed)
+        if (!content) return null
 
         return { sha256: createHash('sha256').update(content).digest('hex'), entryName: entry.name }
     } catch (error) {
@@ -195,13 +344,21 @@ export async function extractMarkerEntry(
     url: string,
     knownSize: number | null
 ): Promise<ContentEntry | null> {
-    const extension = new URL(url).pathname.toLowerCase()
-    if (extension.endsWith('.7z') || extension.endsWith('.rar')) {
-        const size = knownSize ?? (await contentLength(url))
-        if (size === null || size > maxFullArchiveBytes) return null
-        return markerFromFullArchive(url, extension.endsWith('.rar') ? '.rar' : '.7z')
+    try {
+        const extension = new URL(url).pathname.toLowerCase()
+        if (extension.endsWith('.7z') || extension.endsWith('.rar')) {
+            const size = knownSize ?? (await contentLength(url))
+            if (size === null || size > maxFullArchiveBytes) return null
+            return await markerFromFullArchive(url, extension.endsWith('.rar') ? '.rar' : '.7z')
+        }
+        return await markerFromZip(url, knownSize)
+    } catch (error) {
+        // A blocked URL yields nothing, the same as a dead link. Rethrowing would fail the
+        // whole run over one mod page, and the caller would keep retrying a URL that can
+        // never be fetched.
+        if (error instanceof BlockedUrlError) return null
+        throw error
     }
-    return markerFromZip(url, knownSize)
 }
 
 function mix64(a: bigint, b: bigint, c: bigint): [bigint, bigint, bigint] {

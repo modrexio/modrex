@@ -11,6 +11,7 @@
         "report:postgres-coverage": "tsx postgres/report-coverage.ts",
         "sync:postgres-listings": "tsx postgres/sync-listings.ts",
         "verify:postgres-catalog": "tsx postgres/verify-catalog.ts",
+        "test:marker-archive": "tsx test-marker-archive.ts",
         "test:staged-rebuild": "node test-staged-rebuild.mjs"
     },
     "dependencies": {

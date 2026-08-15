@@ -49,7 +49,7 @@
         "site:format:check": "pnpm --dir apps/site format:check",
         "site:checks": "pnpm site:typecheck && pnpm site:typecheck:functions && pnpm site:check-legal-dates && pnpm site:lint && pnpm site:format:check && pnpm site:test && pnpm site:build",
         "index:build": "pnpm --dir apps/index build-index",
-        "index:test": "pnpm --dir apps/index test:staged-rebuild",
+        "index:test": "pnpm --dir apps/index test:marker-archive && pnpm --dir apps/index test:staged-rebuild",
         "index:typecheck": "pnpm --dir apps/index exec tsc --noEmit",
         "audit:deps": "pnpm audit",
         "prepare": "husky"
