@@ -31,7 +31,7 @@
         "checks": "pnpm check-version && pnpm check-commands && pnpm check-csp && pnpm check-games && pnpm check-sources && pnpm check-updater && pnpm check-i18n && pnpm format:check && pnpm lint && pnpm typecheck && pnpm test",
         "preversion": "node -e \"console.error('Run pnpm version patch, minor, or major from the repository root.'); process.exit(1)\"",
         "test": "pnpm test:scripts && cargo test --manifest-path src-tauri/Cargo.toml && vitest run",
-        "test:scripts": "node scripts/i18n.test.mjs",
+        "test:scripts": "node scripts/i18n.test.mjs && node scripts/i18n-history.test.mjs",
         "test:renderer": "vitest run",
         "format": "prettier --write .",
         "format:check": "prettier --check .",
