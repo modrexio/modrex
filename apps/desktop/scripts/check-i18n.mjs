@@ -11,49 +11,24 @@ import { basename, dirname, relative, resolve } from 'node:path'
 import { createInterface } from 'node:readline/promises'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import {
-    parseSourceValue,
     parseTargetValue,
     placeholderContract,
     placeholderDifferences,
     TARGET_VALUE_KIND,
     UNTRANSLATED_PREFIX,
 } from '../src/shared/i18n-values.js'
+import {
+    buildOrderedLocale,
+    inspectSourceBundle,
+    inspectTranslationBundle,
+    planFilledLocale,
+    singularPluralPairs,
+} from './i18n-current.mjs'
+import { inspectUnicode } from './i18n-diagnostics.mjs'
 
 const SOURCE_LOCALE = 'en'
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
 export const I18N_DIR = resolve(SCRIPT_DIR, '../src/renderer/src/i18n')
-
-function isPlainObject(value) {
-    return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
-
-export function flattenBundle(value, localeId, errors, prefix = '', issues = []) {
-    const flat = Object.create(null)
-    if (!isPlainObject(value)) {
-        errors.push(`'${localeId}' must contain a JSON object`)
-        issues.push({ type: 'invalid-root' })
-        return flat
-    }
-
-    for (const [key, child] of Object.entries(value)) {
-        const path = prefix ? `${prefix}.${key}` : key
-        if (typeof child === 'string') {
-            if (child.trim().length === 0) {
-                errors.push(`'${localeId}' key '${path}' is empty`)
-                issues.push({ type: 'empty', key: path })
-            }
-            flat[path] = child
-            continue
-        }
-        if (isPlainObject(child)) {
-            Object.assign(flat, flattenBundle(child, localeId, errors, path, issues))
-            continue
-        }
-        errors.push(`'${localeId}' key '${path}' must be a string or object`)
-        issues.push({ type: 'invalid-value', key: path })
-    }
-    return flat
-}
 
 export function isUntranslatedValue(value) {
     return parseTargetValue(value).kind === TARGET_VALUE_KIND.UNTRANSLATED_SCAFFOLD
@@ -100,81 +75,6 @@ function localeEnglishName(localeId) {
     return name.charAt(0).toUpperCase() + name.slice(1)
 }
 
-function singularPluralPairs(sourceKeys) {
-    return sourceKeys
-        .filter((key) => key.endsWith('Single'))
-        .map((single) => [single.slice(0, -'Single'.length), single])
-        .filter(([plural]) => sourceKeys.includes(plural))
-}
-
-function inspectTranslationBundle(id, bundle, sourceFlat, sourceKeys, pairedKeys) {
-    const errors = []
-    const issues = []
-    const bundleFlat = flattenBundle(bundle, id, errors, '', issues)
-    const targetValues = Object.create(null)
-    for (const key of sourceKeys) targetValues[key] = parseTargetValue(bundleFlat[key])
-    for (const key of Object.keys(bundleFlat)) {
-        if (!Object.hasOwn(targetValues, key)) targetValues[key] = parseTargetValue(bundleFlat[key])
-    }
-    const translatedKeys = sourceKeys.filter(
-        (key) =>
-            targetValues[key].kind === TARGET_VALUE_KIND.ACCEPTED ||
-            targetValues[key].kind === TARGET_VALUE_KIND.PENDING
-    )
-    const translatedKeySet = new Set(translatedKeys)
-    const missingKeys = sourceKeys.filter((key) => !translatedKeySet.has(key))
-    const extraKeys = Object.keys(bundleFlat).filter((key) => !Object.hasOwn(sourceFlat, key))
-
-    if (extraKeys.length > 0) {
-        errors.push(`'${id}' has key(s) not present in en.json:\n  ${extraKeys.join('\n  ')}`)
-        for (const key of extraKeys) {
-            issues.push({ type: 'unknown-key', key, localeValue: bundleFlat[key] })
-        }
-    }
-
-    for (const [plural, single] of pairedKeys) {
-        if (translatedKeySet.has(plural) === translatedKeySet.has(single)) continue
-        errors.push(`'${id}' must translate '${plural}' and '${single}' together`)
-        issues.push({ type: 'plural-pair', plural, single })
-    }
-
-    for (const key of translatedKeys) {
-        const sourceValue = parseSourceValue(sourceFlat[key])
-        const targetValue = targetValues[key]
-        const { missing, unexpected } = placeholderDifferences(
-            sourceValue.placeholderContract,
-            targetValue.placeholderContract
-        )
-        if (missing.length === 0 && unexpected.length === 0) continue
-        const localeVars = targetValue.placeholderContract
-        const sourceVars = sourceValue.placeholderContract
-        errors.push(
-            `'${id}' key '${key}' has interpolation vars [${localeVars.join(',')}], expected [${sourceVars.join(',')}]`
-        )
-        issues.push({
-            type: 'placeholder',
-            key,
-            sourceValue: sourceFlat[key],
-            localeValue: targetValue.targetText,
-            missing,
-            unexpected,
-        })
-    }
-
-    return {
-        id,
-        errors,
-        issues,
-        strings: bundleFlat,
-        targetValues,
-        translatedKeys,
-        missingKeys,
-        extraKeys,
-        translatedCount: translatedKeys.length,
-        totalCount: sourceKeys.length,
-    }
-}
-
 export function inspectLocales(i18nDir = I18N_DIR) {
     const localeIds = readdirSync(i18nDir)
         .filter((file) => file.endsWith('.json'))
@@ -190,12 +90,12 @@ export function inspectLocales(i18nDir = I18N_DIR) {
     }
     for (const id of localeIds) validateLocaleId(id)
 
-    const errors = []
     const source = parseBundle(resolve(i18nDir, `${SOURCE_LOCALE}.json`), SOURCE_LOCALE)
-    const sourceFlat = flattenBundle(source, SOURCE_LOCALE, errors)
-    const sourceKeys = Object.keys(sourceFlat)
+    const sourceInspection = inspectSourceBundle(source, SOURCE_LOCALE)
+    const errors = [...sourceInspection.errors]
+    const sourceFlat = sourceInspection.strings
+    const sourceKeys = sourceInspection.keys
     const pairedKeys = singularPluralPairs(sourceKeys)
-    if (sourceKeys.length === 0) errors.push(`Source locale '${SOURCE_LOCALE}' has no strings`)
     const sourceErrors = [...errors]
 
     const locales = []
@@ -213,17 +113,27 @@ export function inspectLocales(i18nDir = I18N_DIR) {
                 id,
                 errors: [error.message],
                 issues,
+                warnings: [],
+                reviewNotices: [],
                 strings: Object.create(null),
+                targetValues: Object.create(null),
+                acceptedKeys: [],
+                pendingKeys: [],
+                pendingPlaceholderIncompatibleKeys: [],
                 translatedKeys: [],
                 missingKeys: sourceKeys,
                 extraKeys: [],
                 translatedCount: 0,
+                acceptedCount: 0,
+                pendingCount: 0,
+                pendingPlaceholderIncompatibleCount: 0,
+                missingCount: sourceKeys.length,
                 totalCount: sourceKeys.length,
             })
             continue
         }
 
-        const locale = inspectTranslationBundle(id, bundle, sourceFlat, sourceKeys, pairedKeys)
+        const locale = inspectTranslationBundle(id, bundle, sourceFlat, sourceKeys)
         errors.push(...locale.errors)
         locales.push(locale)
     }
@@ -232,6 +142,8 @@ export function inspectLocales(i18nDir = I18N_DIR) {
         errors,
         locales,
         sourceErrors,
+        sourceIssues: sourceInspection.issues,
+        sourceWarnings: sourceInspection.warnings,
         sourceBundle: source,
         sourceLocale: SOURCE_LOCALE,
         pairedKeys,
@@ -249,13 +161,41 @@ function validationErrors(inspection) {
 
 export function formatInspection(inspection) {
     const lines = [`check-i18n: ${inspection.totalCount} source keys`]
+    if (inspection.sourceWarnings.length > 0) {
+        lines.push(`  en: ${inspection.sourceWarnings.length} warning(s)`)
+    }
     for (const locale of inspection.locales) {
         const percentage = formatPercentage(locale.translatedCount, locale.totalCount)
-        const missing =
-            locale.missingKeys.length === 0 ? '' : `, ${locale.missingKeys.length} missing`
         lines.push(
-            `  ${locale.id}: ${locale.translatedCount}/${locale.totalCount} (${percentage})${missing}`
+            `  ${locale.id}: ${locale.translatedCount}/${locale.totalCount} (${percentage}), ${locale.acceptedCount} accepted, ${locale.pendingCount} review, ${locale.missingCount} missing`
         )
+        if (locale.pendingPlaceholderIncompatibleCount > 0) {
+            const fallbackCount = locale.pendingPlaceholderIncompatibleCount
+            lines.push(
+                `    ${fallbackCount} review-pending ${fallbackCount === 1 ? 'translation uses' : 'translations use'} English fallback`
+            )
+        }
+        if (locale.warnings.length > 0) lines.push(`    ${locale.warnings.length} warning(s)`)
+    }
+
+    const diagnostics = [
+        ...inspection.sourceWarnings.map((issue) => ({
+            issue,
+            localeName: 'English',
+        })),
+        ...inspection.locales.flatMap((locale) => [
+            ...locale.reviewNotices.map((issue) => ({
+                issue,
+                localeName: localeNativeName(locale.id),
+            })),
+            ...locale.warnings.map((issue) => ({
+                issue,
+                localeName: localeNativeName(locale.id),
+            })),
+        ]),
+    ]
+    for (const { issue, localeName } of diagnostics) {
+        lines.push('', ...formatLocaleIssue(issue, localeName))
     }
     return lines.join('\n')
 }
@@ -270,24 +210,28 @@ function translationLocale(inspection, localeId) {
 }
 
 export function formatStatus(inspection) {
-    const rows = [
-        {
-            label: `${localeNativeName(inspection.sourceLocale)} (${inspection.sourceLocale})`,
-            coverage: formatPercentage(inspection.totalCount, inspection.totalCount),
-        },
-        ...inspection.locales.map((locale) => ({
-            label: `${localeNativeName(locale.id)} (${locale.id})`,
-            coverage: formatPercentage(locale.translatedCount, locale.totalCount),
-        })),
-    ]
-    const labelWidth = Math.max(...rows.map(({ label }) => label.length))
-    return [
+    const lines = [
         'Available languages',
         '',
-        ...rows.map(
-            ({ label, coverage }) => `${label.padEnd(labelWidth)}  ${coverage.padStart(6)}`
-        ),
-    ].join('\n')
+        `${localeNativeName(inspection.sourceLocale)} (${inspection.sourceLocale})`,
+        `${inspection.totalCount} source strings`,
+    ]
+    for (const locale of inspection.locales) {
+        lines.push(
+            '',
+            `${localeNativeName(locale.id)} (${locale.id})`,
+            `${locale.translatedCount}/${locale.totalCount} translated (${formatPercentage(locale.translatedCount, locale.totalCount)})`,
+            `${locale.acceptedCount} accepted`,
+            `${locale.pendingCount} review pending`
+        )
+        if (locale.pendingPlaceholderIncompatibleCount > 0) {
+            lines.push(
+                `  ${locale.pendingPlaceholderIncompatibleCount} placeholder-incompatible; runtime uses English`
+            )
+        }
+        lines.push(`${locale.missingCount} missing`)
+    }
+    return lines.join('\n')
 }
 
 function formatPlaceholderNames(names) {
@@ -300,6 +244,8 @@ function formatLocaleIssue(issue, localeName) {
             return ['File:', '  invalid JSON', `  ${issue.detail ?? 'Could not parse the file'}`]
         case 'invalid-root':
             return ['File:', '  expected a JSON object']
+        case 'empty-source':
+            return ['File:', '  source locale has no strings']
         case 'empty':
             return [`${issue.key}:`, '  empty translation']
         case 'invalid-value':
@@ -310,11 +256,33 @@ function formatLocaleIssue(issue, localeName) {
                 '  key does not exist in en.json',
                 `  ${localeName}: ${JSON.stringify(issue.localeValue)}`,
             ]
-        case 'plural-pair':
+        case 'obsolete-target':
             return [
-                `${issue.plural} / ${issue.single}:`,
-                '  singular/plural pair incomplete',
-                '  Translate both keys together.',
+                `${issue.key}:`,
+                '  obsolete key contains target-language content',
+                `  ${localeName}: ${JSON.stringify(issue.localeValue)}`,
+                '  Remove or relocate it manually; i18n:fill will not delete target text.',
+            ]
+        case 'invalid-marker':
+            return [
+                `${issue.key}:`,
+                '  invalid workflow marker syntax',
+                `  ${localeName}: ${JSON.stringify(issue.localeValue)}`,
+                `  ${issue.detail}`,
+            ]
+        case 'empty-marker':
+            return [
+                `${issue.key}:`,
+                '  workflow marker payload must contain non-whitespace text',
+                `  ${localeName}: ${JSON.stringify(issue.localeValue)}`,
+            ]
+        case 'stale-scaffold':
+            return [
+                `${issue.key}:`,
+                '  stale untranslated scaffold',
+                `  English: ${JSON.stringify(issue.sourceValue)}`,
+                `  Scaffold: ${JSON.stringify(issue.localeValue)}`,
+                '  Run pnpm i18n:fill to refresh it.',
             ]
         case 'placeholder': {
             const lines = [
@@ -331,6 +299,32 @@ function formatLocaleIssue(issue, localeName) {
             }
             return lines
         }
+        case 'pending-placeholder': {
+            const lines = [
+                `${issue.key}:`,
+                '  review pending has incompatible placeholders; runtime uses English',
+                `  English: ${JSON.stringify(issue.sourceValue)}`,
+                `  ${localeName}: ${JSON.stringify(issue.localeValue)}`,
+            ]
+            if (issue.missing.length > 0) {
+                lines.push(`  Missing placeholder: ${formatPlaceholderNames(issue.missing)}`)
+            }
+            if (issue.unexpected.length > 0) {
+                lines.push(`  Unexpected placeholder: ${formatPlaceholderNames(issue.unexpected)}`)
+            }
+            return lines
+        }
+        case 'unicode': {
+            const codePoint = issue.codePoint ? ` ${issue.codePoint}` : ''
+            const name = issue.name ? ` (${issue.name})` : ''
+            const position = Number.isInteger(issue.position)
+                ? ` at position ${issue.position}`
+                : ''
+            return [
+                `${issue.key}:`,
+                `  ${issue.severity}${codePoint}${name}${position}: ${issue.description}`,
+            ]
+        }
         default:
             throw new Error(`Unknown locale validation issue '${issue.type}'`)
     }
@@ -343,16 +337,52 @@ export function formatLocaleReport(inspection, localeId) {
     const coverage = `Coverage: ${locale.translatedCount}/${locale.totalCount} translated (${percentage})`
     const missing = `Missing: ${locale.missingKeys.length} ${locale.missingKeys.length === 1 ? 'key' : 'keys'}`
 
+    const lines = [`${locale.id}.json`]
     if (locale.issues.length === 0) {
-        return [`${locale.id}.json`, 'Valid', coverage, missing].join('\n')
+        lines.push('Valid')
+    } else {
+        const problemLabel =
+            locale.issues.length === 1 ? 'validation problem' : 'validation problems'
+        lines.push(`${locale.issues.length} ${problemLabel}`)
     }
-
-    const problemLabel = locale.issues.length === 1 ? 'validation problem' : 'validation problems'
-    const lines = [`${locale.id}.json`, `${locale.issues.length} ${problemLabel}`]
     for (const issue of locale.issues) {
         lines.push('', ...formatLocaleIssue(issue, localeName))
     }
+    for (const notice of locale.reviewNotices) {
+        lines.push('', ...formatLocaleIssue(notice, localeName))
+    }
+    for (const warning of locale.warnings) {
+        lines.push('', ...formatLocaleIssue(warning, localeName))
+    }
+    for (const warning of inspection.sourceWarnings) {
+        lines.push('', 'English source warning', ...formatLocaleIssue(warning, 'English'))
+    }
     lines.push('', coverage, missing)
+    if (locale.pendingCount > 0) lines.push(`Review pending: ${locale.pendingCount}`)
+    if (locale.pendingPlaceholderIncompatibleCount > 0) {
+        lines.push(
+            `English fallback: ${locale.pendingPlaceholderIncompatibleCount} pending translation(s)`
+        )
+    }
+    return lines.join('\n')
+}
+
+function formatSourceReport(inspection) {
+    const lines = [`${inspection.sourceLocale}.json`]
+    if (inspection.sourceIssues.length === 0) {
+        lines.push('Valid')
+    } else {
+        const problemLabel =
+            inspection.sourceIssues.length === 1 ? 'validation problem' : 'validation problems'
+        lines.push(`${inspection.sourceIssues.length} ${problemLabel}`)
+    }
+    for (const issue of inspection.sourceIssues) {
+        lines.push('', ...formatLocaleIssue(issue, 'English'))
+    }
+    for (const warning of inspection.sourceWarnings) {
+        lines.push('', ...formatLocaleIssue(warning, 'English'))
+    }
+    lines.push('', `Source strings: ${inspection.totalCount}`)
     return lines.join('\n')
 }
 
@@ -372,27 +402,19 @@ export function formatMissingReport(inspection, localeId) {
     return lines.join('\n')
 }
 
-function buildOrderedLocale(source, translated, prefix = '') {
-    const locale = {}
-    for (const [key, value] of Object.entries(source)) {
-        const path = prefix ? `${prefix}.${key}` : key
-        if (typeof value === 'string') {
-            if (Object.hasOwn(translated, path)) locale[key] = translated[path]
-            continue
-        }
-
-        const child = buildOrderedLocale(value, translated, path)
-        if (Object.keys(child).length > 0) locale[key] = child
-    }
-    return locale
+function serializeLocale(locale) {
+    return `${JSON.stringify(locale, null, 4)}\n`
 }
 
 function writeLocaleAtomically(localePath, locale) {
+    const serialized = serializeLocale(locale)
+    if (existsSync(localePath) && readFileSync(localePath, 'utf8') === serialized) return false
+
     const temporaryPath = resolve(
         dirname(localePath),
         `.${basename(localePath)}.${randomUUID()}.tmp`
     )
-    writeFileSync(temporaryPath, `${JSON.stringify(locale, null, 4)}\n`, {
+    writeFileSync(temporaryPath, serialized, {
         encoding: 'utf8',
         flag: 'wx',
     })
@@ -410,6 +432,7 @@ function writeLocaleAtomically(localePath, locale) {
         }
         throw new Error(`Failed to replace locale file '${localePath}'`, { cause: error })
     }
+    return true
 }
 
 function formatSourceText(value) {
@@ -419,10 +442,20 @@ function formatSourceText(value) {
         .join('\n')
 }
 
-function formatPlaceholderProblems(sourceValue, localeValue) {
+function formatTranslationProblems(sourceValue, localeValue) {
+    let targetValue
+    try {
+        targetValue = parseTargetValue(localeValue)
+    } catch (error) {
+        return [`  Invalid workflow marker syntax: ${error.message}`]
+    }
+    if (targetValue.kind !== TARGET_VALUE_KIND.ACCEPTED) {
+        return ['  A translation must not begin with the reserved "! " or "? " prefix.']
+    }
+
     const { missing, unexpected } = placeholderDifferences(
         placeholderContract(sourceValue),
-        placeholderContract(localeValue)
+        targetValue.placeholderContract
     )
     const lines = []
     if (missing.length > 0) {
@@ -430,6 +463,12 @@ function formatPlaceholderProblems(sourceValue, localeValue) {
     }
     if (unexpected.length > 0) {
         lines.push(`  Unexpected placeholder: ${formatPlaceholderNames(unexpected)}`)
+    }
+    for (const finding of inspectUnicode(localeValue)) {
+        if (finding.severity !== 'error') continue
+        lines.push(
+            `  Unsafe Unicode: ${finding.codePoint ?? finding.description}${finding.name ? ` (${finding.name})` : ''}`
+        )
     }
     return lines
 }
@@ -443,7 +482,7 @@ async function promptTranslation({ ask, stdout, sourceLabel, sourceValue, transl
         const answer = await ask('> ')
         if (answer.trim().length === 0) return null
 
-        const problems = formatPlaceholderProblems(sourceValue, answer)
+        const problems = formatTranslationProblems(sourceValue, answer)
         if (problems.length === 0) return answer
 
         stdout.write(
@@ -460,6 +499,7 @@ function translationUnits(missingKeys, pairedKeys) {
     }
 
     const positions = new Map(missingKeys.map((key, index) => [key, index + 1]))
+    const missingKeySet = new Set(missingKeys)
     const handledPairs = new Set()
     const units = []
     for (const key of missingKeys) {
@@ -471,6 +511,12 @@ function translationUnits(missingKeys, pairedKeys) {
         if (handledPairs.has(pair.plural)) continue
 
         handledPairs.add(pair.plural)
+        const bothMissing = missingKeySet.has(pair.plural) && missingKeySet.has(pair.single)
+        if (!bothMissing) {
+            const counterpart = key === pair.plural ? pair.single : pair.plural
+            units.push({ type: 'single', key, position: positions.get(key), counterpart })
+            continue
+        }
         const pairPositions = [positions.get(pair.plural), positions.get(pair.single)].sort(
             (a, b) => a - b
         )
@@ -523,6 +569,12 @@ async function promptUnit(unit, context) {
     }
 
     stdout.write(`[${unit.position}/${context.totalMissing}] ${unit.key}\n\n`)
+    if (unit.counterpart) {
+        const counterpart = context.locale.targetValues[unit.counterpart]
+        stdout.write(
+            `Existing counterpart (${unit.counterpart}):\n${formatSourceText(counterpart.targetText)}\n\n`
+        )
+    }
     const translation = await promptTranslation({
         ask,
         stdout,
@@ -566,6 +618,7 @@ async function translateLocaleSession({ ask, inspection, locale, localePath, std
         ask,
         englishName,
         inspection,
+        locale,
         stdout,
         totalMissing: locale.missingKeys.length,
     }
@@ -624,12 +677,12 @@ function runScaffoldI18n(
         validateLocaleId(localeId)
     } catch (error) {
         stderr.write(`check-i18n: ${error.message}\n`)
-        return 1
+        return 2
     }
 
     if (localeId === SOURCE_LOCALE) {
-        stderr.write(`Locale '${SOURCE_LOCALE}' is the English source and cannot be filled.\n`)
-        return 1
+        stderr.write(`Locale '${SOURCE_LOCALE}' is the English source, not a target locale.\n`)
+        return 2
     }
 
     let inspection
@@ -662,44 +715,43 @@ function runScaffoldI18n(
 
     const locale = localeExists
         ? translationLocale(inspection, localeId)
-        : inspectTranslationBundle(
-              localeId,
-              {},
-              inspection.sourceStrings,
-              inspection.sourceKeys,
-              inspection.pairedKeys
-          )
-    if (locale.issues.length > 0) {
-        stderr.write(`${formatLocaleReport(inspection, locale.id)}\n`)
+        : inspectTranslationBundle(localeId, {}, inspection.sourceStrings, inspection.sourceKeys)
+    const plan = planFilledLocale(inspection, locale)
+    if (plan.errors.length > 0) {
+        const localeName = localeNativeName(locale.id)
+        const problemLabel = plan.errors.length === 1 ? 'validation problem' : 'validation problems'
+        const lines = [`${locale.id}.json`, `${plan.errors.length} ${problemLabel}`]
+        for (const issue of plan.errors) lines.push('', ...formatLocaleIssue(issue, localeName))
+        stderr.write(`${lines.join('\n')}\n`)
         return 1
     }
 
-    if (locale.missingKeys.length === 0) {
-        stdout.write(`${localeNativeName(localeId)} (${localeId}) is complete. No changes made.\n`)
-        return 0
-    }
-
-    const strings = { ...locale.strings }
-    for (const key of locale.missingKeys) {
-        strings[key] = `${UNTRANSLATED_PREFIX}${inspection.sourceStrings[key]}`
-    }
-    const ordered = buildOrderedLocale(inspection.sourceBundle, strings)
+    const ordered = plan.bundle
     const candidate = inspectTranslationBundle(
         localeId,
         ordered,
         inspection.sourceStrings,
-        inspection.sourceKeys,
-        inspection.pairedKeys
+        inspection.sourceKeys
     )
     if (candidate.errors.length > 0) {
         stderr.write(`${validationErrors(candidate)}\n`)
         return 1
     }
 
-    writeLocaleAtomically(localePath, ordered)
+    let changed
+    try {
+        changed = writeLocaleAtomically(localePath, ordered)
+    } catch (error) {
+        stderr.write(`check-i18n: ${error.message}\n`)
+        return 1
+    }
     const action = create ? 'Created' : 'Updated'
+    if (!changed) {
+        stdout.write(`${localeNativeName(localeId)} (${localeId}) is already canonical.\n`)
+        return 0
+    }
     stdout.write(
-        `${action} ${localeDisplayPath(localePath)} with ${locale.missingKeys.length} marked English fallbacks.\nReplace values starting with "${UNTRANSLATED_PREFIX}" as you translate.\nCoverage remains ${formatPercentage(candidate.translatedCount, candidate.totalCount)}.\n`
+        `${action} ${localeDisplayPath(localePath)}.\nScaffolds added: ${plan.addedScaffolds}\nScaffolds refreshed: ${plan.refreshedScaffolds}\nObsolete scaffolds removed: ${plan.removedScaffolds}\nTarget-language text preserved.\nReplace values starting with "${UNTRANSLATED_PREFIX}" as you translate.\nCoverage remains ${formatPercentage(candidate.translatedCount, candidate.totalCount)}.\n`
     )
     return 0
 }
@@ -732,6 +784,16 @@ export function runCheckI18n(
     }
 
     if (args[0] === '--locale') {
+        if (args[1] === SOURCE_LOCALE) {
+            const report = `${formatSourceReport(inspection)}\n`
+            if (inspection.sourceErrors.length > 0) {
+                stderr.write(report)
+                return 1
+            }
+            stdout.write(report)
+            return 0
+        }
+
         if (inspection.sourceErrors.length > 0) {
             stderr.write(`${validationErrors({ errors: inspection.sourceErrors })}\n`)
             return 1
@@ -748,7 +810,26 @@ export function runCheckI18n(
             return 0
         } catch (error) {
             stderr.write(`check-i18n: ${error.message}\n`)
+            return 2
+        }
+    }
+
+    if (args.length === 2 && args[0] === '--missing') {
+        if (inspection.sourceErrors.length > 0) {
+            stderr.write(`${validationErrors({ errors: inspection.sourceErrors })}\n`)
             return 1
+        }
+        try {
+            const locale = translationLocale(inspection, args[1])
+            if (locale.issues.length > 0) {
+                stderr.write(`${formatLocaleReport(inspection, locale.id)}\n`)
+                return 1
+            }
+            stdout.write(`${formatMissingReport(inspection, locale.id)}\n`)
+            return 0
+        } catch (error) {
+            stderr.write(`check-i18n: ${error.message}\n`)
+            return 2
         }
     }
 
@@ -765,16 +846,6 @@ export function runCheckI18n(
     if (args[0] === '--status') {
         stdout.write(`${formatStatus(inspection)}\n`)
         return 0
-    }
-
-    if (args.length === 2 && args[0] === '--missing') {
-        try {
-            stdout.write(`${formatMissingReport(inspection, args[1])}\n`)
-            return 0
-        } catch (error) {
-            stderr.write(`check-i18n: ${error.message}\n`)
-            return 1
-        }
     }
 
     throw new Error('Supported i18n arguments were not handled')
@@ -808,14 +879,14 @@ async function runInteractiveI18n(
         validateLocaleId(localeId)
     } catch (error) {
         stderr.write(`check-i18n: ${error.message}\n`)
-        return 1
+        return 2
     }
 
     if (localeId === SOURCE_LOCALE) {
         stderr.write(
             `Locale '${SOURCE_LOCALE}' is the English source and is not translated here.\n`
         )
-        return 1
+        return 2
     }
 
     const localePath = resolve(i18nDir, `${localeId}.json`)
