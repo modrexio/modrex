@@ -4,8 +4,8 @@
         "install": "Install",
         "nonPakWarning": "Unsupported format",
         "openLink": "Open link",
-        "installing": "Installing…",
-        "downloading": "Downloading…",
+        "installing": "Installing...",
+        "downloading": "Downloading...",
         "installed": "Installed",
         "remove": "Remove",
         "fileMissing": "File missing",
@@ -14,7 +14,7 @@
         "depNeedsManualInstall": "This dependency's download needs a choice. Open its mod page to install it.",
         "fix": "Fix",
         "reinstall": "Reinstall",
-        "loading": "Loading…",
+        "loading": "Loading...",
         "cancel": "Cancel",
         "close": "Close",
         "dontShowAgain": "Don't show again",
@@ -25,7 +25,7 @@
         "nonPakConfirmBody": "This file uses an unsupported format. Modrex may not be able to install it correctly."
     },
     "app": {
-        "modsHidden": "Mods are hidden — the game was launched in vanilla mode and may still be running.",
+        "modsHidden": "Mods are hidden; the game was launched in vanilla mode and may still be running.",
         "restoreMods": "Restore mods",
         "updateAction": "Update",
         "updateInstall": "Restart & Install",
@@ -61,7 +61,7 @@
         "missingLaunchOption": {
             "title": "Missing launch option",
             "bodyPre": "is recommended for most mods to load correctly. Add it in",
-            "location": "Settings → Launch Options",
+            "location": "Settings > Launch Options",
             "launchAnyway": "Launch anyway"
         }
     },
@@ -84,18 +84,18 @@
         "title": "Games",
         "installedOnly": "Installed only",
         "searchLabel": "Search games",
-        "searchPlaceholder": "Search games…",
+        "searchPlaceholder": "Search games...",
         "noMatches": "No games found"
     },
     "browse": {
         "title": "Browse Mods",
-        "gameNotFound": "Game not found — install disabled",
+        "gameNotFound": "Game not found: install disabled",
         "goToSettings": "Configure in Settings",
-        "searchPlaceholder": "Search mods…",
+        "searchPlaceholder": "Search mods...",
         "allCategories": "All categories",
         "tags": "Tags",
         "tagsCount": "Tags ({count})",
-        "tagFilterSearch": "Filter tags…",
+        "tagFilterSearch": "Filter tags...",
         "tagFilterClear": "Clear",
         "tagFilterEmpty": "No tags found",
         "noMods": "No mods found",
@@ -111,7 +111,7 @@
         }
     },
     "nexus": {
-        "searchPlaceholder": "Search mods…",
+        "searchPlaceholder": "Search mods...",
         "noMods": "No mods found",
         "loadFailed": "Couldn't load mods",
         "modCount": "{total} mods",
@@ -128,7 +128,7 @@
     "nexusSession": {
         "expired": "Your Nexus Mods sign-in has expired. Browsing, installing and update checks for Nexus mods are paused until you sign in again.",
         "signIn": "Sign in again",
-        "awaiting": "Waiting for browser…",
+        "awaiting": "Waiting for browser...",
         "failed": "Nexus Mods sign-in failed: {error}"
     },
     "installed": {
@@ -140,8 +140,8 @@
         "modCountSingle": "{count} mod",
         "modCountFiltered": "{count} of {total} mods",
         "empty": "No mods installed yet",
-        "identifyingNew": "Identifying {count} new mods…",
-        "filterPlaceholder": "Search mods…",
+        "identifyingNew": "Identifying {count} new mods...",
+        "filterPlaceholder": "Search mods...",
         "filterEmpty": "No mods match \"{query}\"",
         "reinstallFailed": "Reinstall failed: {error}",
         "updatesAvailable": "{count} mods can be updated",
@@ -164,18 +164,18 @@
         },
         "fileCount": "{count} files",
         "manageFiles": {
-            "searchPlaceholder": "Search files…",
+            "searchPlaceholder": "Search files...",
             "enableAll": "Enable all",
             "disableAll": "Disable all",
             "noMatches": "No files match \"{query}\"",
             "fileUnavailable": "This file is no longer available on ModWorkshop.",
             "staleDuplicateBadge": "Outdated",
-            "staleDuplicateHint": "This is a leftover from before this file's download was repackaged — safe to remove."
+            "staleDuplicateHint": "This is a leftover from before this file's download was repackaged (safe to remove)."
         },
         "updatesModal": {
             "title": "Available updates ({count})",
             "update": "Update",
-            "updating": "Updating…",
+            "updating": "Updating...",
             "updatingProgress": "Updating {done} / {total}",
             "updateSelected": "Update Selected ({count})",
             "error": "Update failed. Check your connection and try again."
@@ -186,11 +186,11 @@
             "identify": "Identify"
         },
         "identifyNexus": {
-            "identifying": "Identifying…",
+            "identifying": "Identifying...",
             "identified": "Identified as \"{name}\"",
             "notFound": "No match found on Nexus",
             "ambiguous": "Multiple possible matches found on Nexus",
-            "alreadyChecked": "Already checked against Nexus — no match was found",
+            "alreadyChecked": "Already checked against Nexus; no match was found",
             "error": "Identification failed: {error}"
         },
         "nexusBadge": "Nexus",
@@ -204,7 +204,7 @@
             "confirmTitleToModkit": "Move to Mods/?",
             "confirmBodyToModkit": "Moves \"{name}\" into Mods/, where it can merge with other mods' content.",
             "confirm": "Move",
-            "moving": "Moving…",
+            "moving": "Moving...",
             "error": "Move failed: {error}"
         },
         "health": {
@@ -289,7 +289,7 @@
             "external": "Download",
             "count": "{count} dl",
             "viaNexus": "Download via Nexus",
-            "awaitingNexus": "Waiting for browser…",
+            "awaitingNexus": "Waiting for browser...",
             "categoryMain": "Main files",
             "categoryUpdate": "Updates",
             "categoryOptional": "Optional files",
@@ -314,12 +314,12 @@
     },
     "fileSelect": {
         "title": "Install files",
-        "subtitle": "{modName} — select which files to install.",
+        "subtitle": "{modName}: select which files to install.",
         "installSelected": "Install Selected ({count})"
     },
     "zipPicker": {
         "title": "Install from archive",
-        "subtitle": "{modName} — select which files to install.",
+        "subtitle": "{modName}: select which files to install.",
         "installSelected": "Install Selected ({count})",
         "selectAll": "Select all ({count})",
         "deselectAll": "Deselect all",
@@ -332,18 +332,18 @@
         "requiresHost": "This add-on installs into {hostName}, which isn't installed yet. Install it first, then install this add-on.",
         "installHost": "Install {hostName}",
         "install": "Install ({count})",
-        "installing": "Installing…"
+        "installing": "Installing..."
     },
     "unrecognized": {
         "title": "Couldn't place this mod",
-        "body": "Modrex couldn't tell where this mod installs — it likely belongs inside another mod. Follow the author's instructions:",
+        "body": "Modrex couldn't tell where this mod installs; it likely belongs inside another mod. Follow the author's instructions:",
         "noInstructions": "The author didn't include installation instructions. Check the mod's page on ModWorkshop."
     },
     "cbFlatArchive": {
         "title": "Install as a mod folder?",
         "body": "This archive doesn't have its own enclosing folder, so Modrex can't auto-detect a mod name from it. Install all of its contents as \"{name}\" under CrimeBoss/Mods?",
         "install": "Install",
-        "installing": "Installing…"
+        "installing": "Installing..."
     },
     "depsWarning": {
         "title": "Missing required dependencies",
@@ -359,7 +359,7 @@
         "body": "Mods/ merges with other mods' content. ~mods is the older format with no merging.",
         "auto": "Mods/ (ModKit)",
         "legacy": "~mods (legacy pak)",
-        "installing": "Installing…",
+        "installing": "Installing...",
         "error": "Install failed: {error}"
     },
     "settings": {
@@ -372,25 +372,25 @@
             "title": "Game Path",
             "description": "Path to your {game} installation. Detected automatically from your installed launchers if not set manually.",
             "notFound": "Not found",
-            "detecting": "Detecting…",
+            "detecting": "Detecting...",
             "reset": "Reset",
             "browse": "Browse",
             "pickTitle": "Select {game} installation folder",
-            "picking": "Picking…",
+            "picking": "Picking...",
             "autoDetected": "Auto-detected",
-            "notDetected": "Could not detect {game} installation — set the path manually.",
+            "notDetected": "Could not detect {game} installation; set the path manually.",
             "invalid": "Selected folder is not a valid {game} installation."
         },
         "launcher": {
             "title": "Launcher",
             "description": "How to launch {game}. Detected automatically from your installed stores.",
-            "detecting": "Detecting…",
+            "detecting": "Detecting...",
             "steam": "Steam",
             "epic": "Epic Games",
             "xbox": "Xbox",
             "manual": "Manual (launch executable directly)",
-            "switchFailed": "That copy of the game is no longer where it was found — pick the folder manually.",
-            "multipleCopies": "{count} copies found — the selected launcher decides which one Modrex mods and launches."
+            "switchFailed": "That copy of the game is no longer where it was found; pick the folder manually.",
+            "multipleCopies": "{count} copies found; the selected launcher decides which one Modrex mods and launches."
         },
         "launchOptions": {
             "title": "Launch Options",
@@ -406,7 +406,7 @@
         "updates": {
             "title": "Updates",
             "check": "Check for updates",
-            "checking": "Checking…",
+            "checking": "Checking...",
             "upToDate": "You're up to date"
         },
         "logs": {
@@ -444,7 +444,7 @@
             "title": "Storage",
             "dangerZone": "Danger zone",
             "dangerZoneDescription": "These actions delete locally stored data. Caches free disk space and rebuild automatically as you use the app; resetting restores default settings. None of them remove your installed mods or game files.",
-            "clearing": "Clearing…",
+            "clearing": "Clearing...",
             "clearImages": "Clear images",
             "clearModInfo": "Clear mod info",
             "clearDatabase": "Clear database",
@@ -470,7 +470,7 @@
             "resetConfirmTitle": "Reset settings?",
             "resetConfirmBody": "This clears your saved game paths, launcher choices, preferences, and analytics choice, then returns Modrex to its first-run state. Your installed mods and game files are not affected.",
             "resetConfirm": "Reset settings",
-            "resetting": "Resetting…"
+            "resetting": "Resetting..."
         },
         "crimeBossInstallMode": {
             "title": "New Mod Installs",
@@ -505,7 +505,7 @@
         "title": "Help improve Modrex",
         "intro": "Modrex can send anonymous usage data so we can see which mods break, which games need attention, and what to build next. It's optional, and you can change this anytime in Settings.",
         "collectTitle": "What we collect",
-        "collect1": "Anonymous usage — features used, mods installed, and how well mods are identified",
+        "collect1": "Anonymous usage: features used, mods installed, and how well mods are identified",
         "collect2": "Your app version and operating system",
         "dontCollectTitle": "What we never collect",
         "dontCollect1": "No names, emails, accounts, or anything that identifies you",
@@ -523,8 +523,8 @@
     "drop": {
         "overlayTitle": "Drop to install",
         "overlaySubtitle": "Release to install into {game}",
-        "installing": "Installing…",
-        "installingCount": "Installing {current} of {total}…",
+        "installing": "Installing...",
+        "installingCount": "Installing {current} of {total}...",
         "installed": "Installed {count} mods",
         "installedSingle": "Installed 1 mod",
         "needsPicker": "Some archives must be installed from their mod page for now",
