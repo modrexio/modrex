@@ -168,6 +168,21 @@ function buildSnapshot(revision, blobPaths, contents, cache) {
     return snapshot
 }
 
+export function snapshotFromBundles(revision, bundles) {
+    const snapshot = { revision, source: new Map(), locales: new Map() }
+    const entries = bundles instanceof Map ? bundles.entries() : Object.entries(bundles)
+    for (const [localeId, bundle] of entries) {
+        const label = `${localeId}.json@${revision}`
+        const flat = flattenForHistory(bundle, label)
+        if (localeId === SOURCE_LOCALE) {
+            for (const [key, value] of Object.entries(flat)) snapshot.source.set(key, value)
+            continue
+        }
+        snapshot.locales.set(localeId, { targets: parseTargets(flat, label) })
+    }
+    return snapshot
+}
+
 function assertSnapshotIntegrity(snapshot) {
     for (const [localeId, locale] of snapshot.locales) {
         for (const [key, value] of locale.targets) {
@@ -358,8 +373,8 @@ export function stagedSnapshot(git, localeDir = I18N_LOCALE_DIR) {
 // Committed history through HEAD plus one candidate tree, evaluated as a single further
 // transition. Sync and pre-commit both need this so an uncommitted Keep is read as a Keep
 // instead of being overwritten with the marker it just removed.
-export function analyzeProspective(history, snapshot) {
-    assertSnapshotIntegrity(snapshot)
+function reduceProspective(history, snapshot, validateScaffolds) {
+    if (validateScaffolds) assertSnapshotIntegrity(snapshot)
     const transition = analyzeTransition(history.snapshot, snapshot, snapshot.revision)
     const state = cloneState(history.state)
     const prospectiveEvents = applyEvents(state, transition)
@@ -374,6 +389,16 @@ export function analyzeProspective(history, snapshot) {
         prospectiveEvents,
         prospective: true,
     }
+}
+
+export function analyzeProspective(history, snapshot) {
+    return reduceProspective(history, snapshot, true)
+}
+
+// Sync accepts stale and obsolete scaffolds as repair input. Marker syntax and Pending
+// lineage remain strict, and the completed plan is reanalyzed with full validation.
+export function analyzeRepairableProspective(history, snapshot) {
+    return reduceProspective(history, snapshot, false)
 }
 
 export function analyzeWorkingTree(options = {}) {

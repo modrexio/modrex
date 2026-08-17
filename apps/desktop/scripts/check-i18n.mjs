@@ -1,15 +1,7 @@
-import { randomUUID } from 'node:crypto'
-import {
-    existsSync,
-    readFileSync,
-    readdirSync,
-    renameSync,
-    unlinkSync,
-    writeFileSync,
-} from 'node:fs'
-import { basename, dirname, relative, resolve } from 'node:path'
+import { existsSync } from 'node:fs'
+import { relative, resolve } from 'node:path'
 import { createInterface } from 'node:readline/promises'
-import { fileURLToPath, pathToFileURL } from 'node:url'
+import { pathToFileURL } from 'node:url'
 import {
     parseTargetValue,
     placeholderContract,
@@ -17,140 +9,27 @@ import {
     TARGET_VALUE_KIND,
     UNTRANSLATED_PREFIX,
 } from '../src/shared/i18n-values.js'
-import {
-    buildOrderedLocale,
-    inspectSourceBundle,
-    inspectTranslationBundle,
-    planFilledLocale,
-    singularPluralPairs,
-} from './i18n-current.mjs'
+import { buildOrderedLocale, inspectTranslationBundle, planFilledLocale } from './i18n-current.mjs'
 import { inspectUnicode } from './i18n-diagnostics.mjs'
+import { writeLocaleAtomically } from './i18n-files.mjs'
+import {
+    I18N_DIR,
+    inspectLocales,
+    localeEnglishName,
+    localeNativeName,
+    SOURCE_LOCALE,
+    validateLocaleId,
+} from './i18n-inspection.mjs'
 
-const SOURCE_LOCALE = 'en'
-const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
-export const I18N_DIR = resolve(SCRIPT_DIR, '../src/renderer/src/i18n')
+export { I18N_DIR, inspectLocales, localeNativeName } from './i18n-inspection.mjs'
 
 export function isUntranslatedValue(value) {
     return parseTargetValue(value).kind === TARGET_VALUE_KIND.UNTRANSLATED_SCAFFOLD
 }
 
-function parseBundle(path, localeId) {
-    try {
-        return JSON.parse(readFileSync(path, 'utf8'))
-    } catch (error) {
-        throw new Error(`Failed to parse locale '${localeId}' at ${path}`, { cause: error })
-    }
-}
-
-function validateLocaleId(id) {
-    let canonical
-    try {
-        canonical = Intl.getCanonicalLocales(id)[0]
-    } catch (error) {
-        throw new Error(`Locale filename '${id}.json' is not a valid locale code`, {
-            cause: error,
-        })
-    }
-    if (canonical !== id) {
-        throw new Error(
-            `Locale filename '${id}.json' must use canonical casing '${canonical}.json'`
-        )
-    }
-}
-
 export function formatPercentage(translated, total) {
     const percentage = Math.round((translated / total) * 1000) / 10
     return Number.isInteger(percentage) ? `${percentage}%` : `${percentage.toFixed(1)}%`
-}
-
-export function localeNativeName(localeId) {
-    const name = new Intl.DisplayNames([localeId], { type: 'language' }).of(localeId)
-    if (!name) throw new Error(`Intl.DisplayNames could not name locale '${localeId}'`)
-    return name.charAt(0).toLocaleUpperCase(localeId) + name.slice(1)
-}
-
-function localeEnglishName(localeId) {
-    const name = new Intl.DisplayNames(['en'], { type: 'language' }).of(localeId)
-    if (!name) throw new Error(`Intl.DisplayNames could not name locale '${localeId}' in English`)
-    return name.charAt(0).toUpperCase() + name.slice(1)
-}
-
-export function inspectLocales(i18nDir = I18N_DIR) {
-    const localeIds = readdirSync(i18nDir)
-        .filter((file) => file.endsWith('.json'))
-        .map((file) => file.replace(/\.json$/, ''))
-        .sort((a, b) => {
-            if (a === SOURCE_LOCALE) return -1
-            if (b === SOURCE_LOCALE) return 1
-            return a < b ? -1 : a > b ? 1 : 0
-        })
-
-    if (!localeIds.includes(SOURCE_LOCALE)) {
-        throw new Error(`Source locale '${SOURCE_LOCALE}.json' is missing from ${i18nDir}`)
-    }
-    for (const id of localeIds) validateLocaleId(id)
-
-    const source = parseBundle(resolve(i18nDir, `${SOURCE_LOCALE}.json`), SOURCE_LOCALE)
-    const sourceInspection = inspectSourceBundle(source, SOURCE_LOCALE)
-    const errors = [...sourceInspection.errors]
-    const sourceFlat = sourceInspection.strings
-    const sourceKeys = sourceInspection.keys
-    const pairedKeys = singularPluralPairs(sourceKeys)
-    const sourceErrors = [...errors]
-
-    const locales = []
-    for (const id of localeIds) {
-        if (id === SOURCE_LOCALE) continue
-
-        const issues = []
-        let bundle
-        try {
-            bundle = parseBundle(resolve(i18nDir, `${id}.json`), id)
-        } catch (error) {
-            errors.push(error.message)
-            issues.push({ type: 'invalid-json', detail: error.cause?.message })
-            locales.push({
-                id,
-                errors: [error.message],
-                issues,
-                warnings: [],
-                reviewNotices: [],
-                strings: Object.create(null),
-                targetValues: Object.create(null),
-                acceptedKeys: [],
-                pendingKeys: [],
-                pendingPlaceholderIncompatibleKeys: [],
-                translatedKeys: [],
-                missingKeys: sourceKeys,
-                extraKeys: [],
-                translatedCount: 0,
-                acceptedCount: 0,
-                pendingCount: 0,
-                pendingPlaceholderIncompatibleCount: 0,
-                missingCount: sourceKeys.length,
-                totalCount: sourceKeys.length,
-            })
-            continue
-        }
-
-        const locale = inspectTranslationBundle(id, bundle, sourceFlat, sourceKeys)
-        errors.push(...locale.errors)
-        locales.push(locale)
-    }
-
-    return {
-        errors,
-        locales,
-        sourceErrors,
-        sourceIssues: sourceInspection.issues,
-        sourceWarnings: sourceInspection.warnings,
-        sourceBundle: source,
-        sourceLocale: SOURCE_LOCALE,
-        pairedKeys,
-        sourceKeys,
-        sourceStrings: sourceFlat,
-        totalCount: sourceKeys.length,
-    }
 }
 
 function validationErrors(inspection) {
@@ -402,39 +281,6 @@ export function formatMissingReport(inspection, localeId) {
     return lines.join('\n')
 }
 
-function serializeLocale(locale) {
-    return `${JSON.stringify(locale, null, 4)}\n`
-}
-
-function writeLocaleAtomically(localePath, locale) {
-    const serialized = serializeLocale(locale)
-    if (existsSync(localePath) && readFileSync(localePath, 'utf8') === serialized) return false
-
-    const temporaryPath = resolve(
-        dirname(localePath),
-        `.${basename(localePath)}.${randomUUID()}.tmp`
-    )
-    writeFileSync(temporaryPath, serialized, {
-        encoding: 'utf8',
-        flag: 'wx',
-    })
-
-    try {
-        renameSync(temporaryPath, localePath)
-    } catch (error) {
-        try {
-            unlinkSync(temporaryPath)
-        } catch (cleanupError) {
-            throw new AggregateError(
-                [error, cleanupError],
-                `Failed to replace '${localePath}' and remove temporary file '${temporaryPath}'`
-            )
-        }
-        throw new Error(`Failed to replace locale file '${localePath}'`, { cause: error })
-    }
-    return true
-}
-
 function formatSourceText(value) {
     return value
         .split('\n')
@@ -665,6 +511,7 @@ function usageText() {
         '  pnpm i18n:fill <locale>      Fill an existing locale with marked English text',
         '  pnpm i18n:translate <locale> Interactively continue an existing locale',
         '  pnpm i18n:create <locale>    Create an IDE-ready locale with marked English text',
+        '  pnpm i18n:sync               Synchronize every locale with English and Git history',
     ].join('\n')
 }
 
@@ -930,6 +777,11 @@ async function runInteractiveI18n(
 export async function runI18nCli(args, options = {}) {
     const localeCheck = args.length === 1 && !args[0].startsWith('-')
     if (localeCheck) return runCheckI18n(['--locale', args[0]], options)
+
+    if (args[0] === '--sync') {
+        const { runI18nSync } = await import('./i18n-sync.mjs')
+        return runI18nSync(args.slice(1), options)
+    }
 
     if (args.length === 2 && ['--fill', '--create'].includes(args[0])) {
         return runScaffoldI18n(args[0], args[1], options)

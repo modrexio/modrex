@@ -5,7 +5,7 @@ export const TARGET_VALUE_KIND = Object.freeze({
     UNTRANSLATED_SCAFFOLD: 'untranslated-scaffold',
 })
 
-const PENDING_PREFIX = '? '
+export const PENDING_PREFIX = '? '
 export const UNTRANSLATED_PREFIX = '! '
 
 export function placeholderContract(text) {

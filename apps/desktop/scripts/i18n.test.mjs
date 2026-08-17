@@ -636,6 +636,7 @@ test('help presents the translator-facing pnpm commands', async () => {
     assert.match(stdout.value(), /pnpm i18n:check <locale>/)
     assert.match(stdout.value(), /pnpm i18n:fill <locale>/)
     assert.match(stdout.value(), /pnpm i18n:translate <locale>/)
+    assert.match(stdout.value(), /pnpm i18n:sync/)
     assert.doesNotMatch(stdout.value(), /node apps\/desktop\/scripts/)
 })
 

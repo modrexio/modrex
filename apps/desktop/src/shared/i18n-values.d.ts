@@ -6,6 +6,7 @@ export const TARGET_VALUE_KIND: Readonly<{
 }>
 
 export const UNTRANSLATED_PREFIX: '! '
+export const PENDING_PREFIX: '? '
 
 export type SourceValue = {
     kind: 'source'
