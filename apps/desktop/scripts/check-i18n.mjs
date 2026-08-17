@@ -10,9 +10,16 @@ import {
 import { basename, dirname, relative, resolve } from 'node:path'
 import { createInterface } from 'node:readline/promises'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import {
+    parseSourceValue,
+    parseTargetValue,
+    placeholderContract,
+    placeholderDifferences,
+    TARGET_VALUE_KIND,
+    UNTRANSLATED_PREFIX,
+} from './i18n-values.mjs'
 
 const SOURCE_LOCALE = 'en'
-const UNTRANSLATED_PREFIX = '! '
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
 export const I18N_DIR = resolve(SCRIPT_DIR, '../src/renderer/src/i18n')
 
@@ -48,31 +55,8 @@ export function flattenBundle(value, localeId, errors, prefix = '', issues = [])
     return flat
 }
 
-function interpolationVars(value) {
-    return [...value.matchAll(/\{(\w+)\}/g)].map((match) => match[1]).sort()
-}
-
-function missingVars(expected, actual) {
-    const remaining = [...actual]
-    return expected.filter((name) => {
-        const index = remaining.indexOf(name)
-        if (index === -1) return true
-        remaining.splice(index, 1)
-        return false
-    })
-}
-
-function placeholderDifferences(sourceValue, localeValue) {
-    const sourceVars = interpolationVars(sourceValue)
-    const localeVars = interpolationVars(localeValue)
-    return {
-        missing: missingVars(sourceVars, localeVars),
-        unexpected: missingVars(localeVars, sourceVars),
-    }
-}
-
 export function isUntranslatedValue(value) {
-    return value.startsWith(UNTRANSLATED_PREFIX)
+    return parseTargetValue(value).kind === TARGET_VALUE_KIND.UNTRANSLATED_SCAFFOLD
 }
 
 function parseBundle(path, localeId) {
@@ -127,8 +111,15 @@ function inspectTranslationBundle(id, bundle, sourceFlat, sourceKeys, pairedKeys
     const errors = []
     const issues = []
     const bundleFlat = flattenBundle(bundle, id, errors, '', issues)
+    const targetValues = Object.create(null)
+    for (const key of sourceKeys) targetValues[key] = parseTargetValue(bundleFlat[key])
+    for (const key of Object.keys(bundleFlat)) {
+        if (!Object.hasOwn(targetValues, key)) targetValues[key] = parseTargetValue(bundleFlat[key])
+    }
     const translatedKeys = sourceKeys.filter(
-        (key) => Object.hasOwn(bundleFlat, key) && !isUntranslatedValue(bundleFlat[key])
+        (key) =>
+            targetValues[key].kind === TARGET_VALUE_KIND.ACCEPTED ||
+            targetValues[key].kind === TARGET_VALUE_KIND.PENDING
     )
     const translatedKeySet = new Set(translatedKeys)
     const missingKeys = sourceKeys.filter((key) => !translatedKeySet.has(key))
@@ -148,10 +139,15 @@ function inspectTranslationBundle(id, bundle, sourceFlat, sourceKeys, pairedKeys
     }
 
     for (const key of translatedKeys) {
-        const { missing, unexpected } = placeholderDifferences(sourceFlat[key], bundleFlat[key])
+        const sourceValue = parseSourceValue(sourceFlat[key])
+        const targetValue = targetValues[key]
+        const { missing, unexpected } = placeholderDifferences(
+            sourceValue.placeholderContract,
+            targetValue.placeholderContract
+        )
         if (missing.length === 0 && unexpected.length === 0) continue
-        const localeVars = interpolationVars(bundleFlat[key])
-        const sourceVars = interpolationVars(sourceFlat[key])
+        const localeVars = targetValue.placeholderContract
+        const sourceVars = sourceValue.placeholderContract
         errors.push(
             `'${id}' key '${key}' has interpolation vars [${localeVars.join(',')}], expected [${sourceVars.join(',')}]`
         )
@@ -159,7 +155,7 @@ function inspectTranslationBundle(id, bundle, sourceFlat, sourceKeys, pairedKeys
             type: 'placeholder',
             key,
             sourceValue: sourceFlat[key],
-            localeValue: bundleFlat[key],
+            localeValue: targetValue.targetText,
             missing,
             unexpected,
         })
@@ -170,6 +166,7 @@ function inspectTranslationBundle(id, bundle, sourceFlat, sourceKeys, pairedKeys
         errors,
         issues,
         strings: bundleFlat,
+        targetValues,
         translatedKeys,
         missingKeys,
         extraKeys,
@@ -423,7 +420,10 @@ function formatSourceText(value) {
 }
 
 function formatPlaceholderProblems(sourceValue, localeValue) {
-    const { missing, unexpected } = placeholderDifferences(sourceValue, localeValue)
+    const { missing, unexpected } = placeholderDifferences(
+        placeholderContract(sourceValue),
+        placeholderContract(localeValue)
+    )
     const lines = []
     if (missing.length > 0) {
         lines.push(`  Missing placeholder: ${formatPlaceholderNames(missing)}`)

@@ -5,6 +5,12 @@ import { join } from 'node:path'
 import test from 'node:test'
 import { formatMissingReport, inspectLocales, runCheckI18n, runI18nCli } from './check-i18n.mjs'
 import {
+    parseSourceValue,
+    parseTargetValue,
+    placeholderContract,
+    TARGET_VALUE_KIND,
+} from './i18n-values.mjs'
+import {
     buildTranslationTable,
     expectedReadme,
     readTranslationContributors,
@@ -12,6 +18,83 @@ import {
     runReadmeCommand,
 } from './update-i18n-readme.mjs'
 import { collectTranslationContributors, localeJsonChanged } from './update-i18n-contributors.mjs'
+
+test('target values parse into accepted, scaffold, and pending states', () => {
+    assert.deepEqual(parseTargetValue('Hallo'), {
+        kind: TARGET_VALUE_KIND.ACCEPTED,
+        targetText: 'Hallo',
+        placeholderContract: [],
+    })
+    assert.deepEqual(parseTargetValue('! Hello'), {
+        kind: TARGET_VALUE_KIND.UNTRANSLATED_SCAFFOLD,
+        sourceText: 'Hello',
+    })
+    assert.deepEqual(parseTargetValue('? Hallo'), {
+        kind: TARGET_VALUE_KIND.PENDING,
+        targetText: 'Hallo',
+        placeholderContract: [],
+    })
+})
+
+test('target markers require the exact prefix and ASCII space', () => {
+    for (const value of [
+        '!Hello',
+        '?Hallo',
+        '?! text',
+        '!? text',
+        ' ? text',
+        '!\tHello',
+        '?\tHallo',
+        '!\u00a0Hello',
+        '?\u00a0Hallo',
+    ]) {
+        assert.equal(parseTargetValue(value).kind, TARGET_VALUE_KIND.ACCEPTED)
+    }
+})
+
+test('target parsing preserves marker payload whitespace exactly', () => {
+    assert.equal(parseTargetValue(' Hallo ').targetText, ' Hallo ')
+    assert.equal(parseTargetValue('?  Hallo \n').targetText, ' Hallo \n')
+    assert.equal(parseTargetValue('!  Hello ').sourceText, ' Hello ')
+})
+
+test('target parsing rejects empty and nested pending payloads', () => {
+    assert.throws(() => parseTargetValue('! '), /scaffold payload must not be empty/)
+    assert.throws(() => parseTargetValue('? '), /target payload must not be empty/)
+    assert.throws(() => parseTargetValue('? ! text'), /must not begin with a workflow marker/)
+    assert.throws(() => parseTargetValue('? ? text'), /must not begin with a workflow marker/)
+})
+
+test('scaffolds retain raw English that begins with a reserved prefix', () => {
+    assert.deepEqual(parseTargetValue('! ? English question'), {
+        kind: TARGET_VALUE_KIND.UNTRANSLATED_SCAFFOLD,
+        sourceText: '? English question',
+    })
+})
+
+test('absent target values have their own state', () => {
+    assert.deepEqual(parseTargetValue(undefined), { kind: TARGET_VALUE_KIND.ABSENT })
+    assert.equal(parseTargetValue('').kind, TARGET_VALUE_KIND.ACCEPTED)
+})
+
+test('source parsing does not apply target workflow markers', () => {
+    assert.deepEqual(parseSourceValue('? English question'), {
+        kind: 'source',
+        sourceText: '? English question',
+        placeholderContract: [],
+    })
+})
+
+test('locale parsing preserves Unicode without normalization', () => {
+    const decomposed = 'Cafe\u0301'
+    assert.notEqual(decomposed, decomposed.normalize('NFC'))
+    assert.equal(parseSourceValue(decomposed).sourceText, decomposed)
+    assert.equal(parseTargetValue(`? ${decomposed}`).targetText, decomposed)
+})
+
+test('placeholder contracts retain duplicate names', () => {
+    assert.deepEqual(placeholderContract('{name} / {count} / {name}'), ['count', 'name', 'name'])
+})
 
 function withLocales(files, callback) {
     const directory = mkdtempSync(join(tmpdir(), 'modrex-i18n-'))
