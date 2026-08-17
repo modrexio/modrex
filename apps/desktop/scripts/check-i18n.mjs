@@ -17,7 +17,7 @@ import {
     placeholderDifferences,
     TARGET_VALUE_KIND,
     UNTRANSLATED_PREFIX,
-} from './i18n-values.mjs'
+} from '../src/shared/i18n-values.js'
 
 const SOURCE_LOCALE = 'en'
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))

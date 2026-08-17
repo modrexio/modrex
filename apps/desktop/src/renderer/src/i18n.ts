@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react'
+import { parseSourceValue, parseTargetValue, resolveTargetValue } from '../../shared/i18n-values.js'
 import en from './i18n/en.json'
 import { LOCALE_IDS, RAW_BUNDLES, isLocaleId, matchLocale, type LocaleId } from './locales'
 
@@ -23,7 +24,6 @@ type LocaleBundle = DeepPartial<typeof en>
 const BUNDLES = RAW_BUNDLES as Record<LocaleId, LocaleBundle>
 
 const LOCALE_STORAGE_KEY = 'modrex:locale'
-const UNTRANSLATED_PREFIX = '! '
 
 function detectLocale(): LocaleId {
     if (typeof localStorage === 'undefined') return 'en'
@@ -66,30 +66,23 @@ export function useLocale(): LocaleId {
 
 export { LOCALE_IDS }
 
+function bundleValue(bundle: unknown, parts: readonly string[]): string | undefined {
+    let value = bundle
+    for (const part of parts) {
+        if (typeof value !== 'object' || value === null) return undefined
+        value = (value as Record<string, unknown>)[part]
+    }
+    return typeof value === 'string' ? value : undefined
+}
+
 function get(key: StringKey): string {
     const parts = (key as string).split('.')
+    const sourceText = bundleValue(en, parts)
+    if (sourceText === undefined) return key
+    if (activeLocale === 'en') return sourceText
 
-    let cur: unknown = BUNDLES[activeLocale]
-    for (const part of parts) {
-        if (typeof cur !== 'object' || cur === null) {
-            cur = undefined
-            break
-        }
-        cur = (cur as Record<string, unknown>)[part]
-    }
-    if (
-        typeof cur === 'string' &&
-        (activeLocale === 'en' || !cur.startsWith(UNTRANSLATED_PREFIX))
-    ) {
-        return cur
-    }
-
-    let fallback: unknown = en
-    for (const part of parts) {
-        if (typeof fallback !== 'object' || fallback === null) return key
-        fallback = (fallback as Record<string, unknown>)[part]
-    }
-    return typeof fallback === 'string' ? fallback : key
+    const storedTarget = bundleValue(BUNDLES[activeLocale], parts)
+    return resolveTargetValue(parseSourceValue(sourceText), parseTargetValue(storedTarget))
 }
 
 export function t(key: StringKey, vars?: Record<string, string | number>): string {

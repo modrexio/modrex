@@ -76,3 +76,19 @@ export function parseTargetValue(storedValue) {
         placeholderContract: placeholderContract(storedValue),
     }
 }
+
+export function resolveTargetValue(sourceValue, targetValue) {
+    if (
+        targetValue.kind === TARGET_VALUE_KIND.ABSENT ||
+        targetValue.kind === TARGET_VALUE_KIND.UNTRANSLATED_SCAFFOLD
+    ) {
+        return sourceValue.sourceText
+    }
+
+    const { missing, unexpected } = placeholderDifferences(
+        sourceValue.placeholderContract,
+        targetValue.placeholderContract
+    )
+    if (missing.length > 0 || unexpected.length > 0) return sourceValue.sourceText
+    return targetValue.targetText
+}

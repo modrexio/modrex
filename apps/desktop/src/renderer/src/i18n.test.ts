@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { parseSourceValue, parseTargetValue, resolveTargetValue } from '../../shared/i18n-values.js'
 
 function freshStorage() {
     const store = new Map<string, string>()
@@ -15,11 +16,28 @@ async function loadModule() {
     return import('./i18n')
 }
 
+async function loadTargetBundle(bundle: Record<string, unknown>) {
+    vi.doMock('./locales', async (importOriginal) => {
+        const actual = await importOriginal<typeof import('./locales')>()
+        return {
+            ...actual,
+            RAW_BUNDLES: { ...actual.RAW_BUNDLES, xx: bundle },
+            LOCALE_IDS: [...actual.LOCALE_IDS, 'xx'],
+            isLocaleId: (value: string | null) => value === 'xx' || actual.isLocaleId(value),
+        }
+    })
+    const module = await loadModule()
+    module.setLocale('xx')
+    return module
+}
+
 describe('t', () => {
     beforeEach(() => {
         vi.stubGlobal('localStorage', freshStorage())
         vi.stubGlobal('navigator', { language: 'en-US', languages: ['en-US'] })
     })
+
+    afterEach(() => vi.doUnmock('./locales'))
 
     it('resolves a known key', async () => {
         const { t } = await loadModule()
@@ -42,24 +60,82 @@ describe('t', () => {
     })
 
     it('falls back to current English for a marked locale value', async () => {
-        vi.doMock('./locales', async (importOriginal) => {
-            const actual = await importOriginal<typeof import('./locales')>()
-            return {
-                ...actual,
-                RAW_BUNDLES: {
-                    ...actual.RAW_BUNDLES,
-                    xx: { common: { install: '! Outdated English' } },
-                },
-                LOCALE_IDS: [...actual.LOCALE_IDS, 'xx'],
-                isLocaleId: (value: string | null) => value === 'xx' || actual.isLocaleId(value),
-            }
-        })
-        const { setLocale, t } = await loadModule()
-
-        setLocale('xx')
-
+        const { t } = await loadTargetBundle({ common: { install: '! Outdated English' } })
         expect(t('common.install')).toBe('Install')
-        vi.doUnmock('./locales')
+    })
+
+    it('falls back to current English for an absent target value', async () => {
+        const { t } = await loadTargetBundle({})
+        expect(t('common.install')).toBe('Install')
+    })
+
+    it('renders a compatible pending target without its marker', async () => {
+        const { t } = await loadTargetBundle({ common: { by: '? von {name}' } })
+        expect(t('common.by' as never, { name: 'Alice' })).toBe('von Alice')
+    })
+
+    it('falls back before interpolation for an incompatible pending target', async () => {
+        const bundle = { installed: { modCount: '? {name} Mods' } }
+        const original = structuredClone(bundle)
+        const { t } = await loadTargetBundle(bundle)
+
+        expect(t('installed.modCount', { count: 2, name: 'Alice' })).toBe('2 mods')
+        expect(bundle).toEqual(original)
+    })
+
+    it('renders a compatible accepted target unchanged', async () => {
+        const { t } = await loadTargetBundle({ installed: { modCount: '{count} Mods' } })
+        expect(t('installed.modCount', { count: 2 })).toBe('2 Mods')
+    })
+
+    it('defensively falls back for an incompatible accepted target', async () => {
+        const { t } = await loadTargetBundle({ installed: { modCount: '{name} Mods' } })
+        expect(t('installed.modCount', { count: 2, name: 'Alice' })).toBe('2 mods')
+    })
+
+    it('resolves singular and plural members independently', async () => {
+        const acceptedPlural = await loadTargetBundle({
+            installed: { modCount: '{count} Mods', modCountSingle: '! Old singular' },
+        })
+        expect(acceptedPlural.t('installed.modCount', { count: 2 })).toBe('2 Mods')
+        expect(acceptedPlural.t('installed.modCountSingle', { count: 1 })).toBe('1 mod')
+
+        const acceptedSingular = await loadTargetBundle({
+            installed: { modCount: '! Old plural', modCountSingle: '{count} Mod' },
+        })
+        expect(acceptedSingular.t('installed.modCount', { count: 2 })).toBe('2 mods')
+        expect(acceptedSingular.t('installed.modCountSingle', { count: 1 })).toBe('1 Mod')
+
+        const mixedPending = await loadTargetBundle({
+            installed: { modCount: '? {count} Mods', modCountSingle: '? {name} Mod' },
+        })
+        expect(mixedPending.t('installed.modCount', { count: 2 })).toBe('2 Mods')
+        expect(mixedPending.t('installed.modCountSingle', { count: 1 })).toBe('1 mod')
+    })
+})
+
+describe('runtime value resolution', () => {
+    it('keeps workflow-looking English source text raw', () => {
+        for (const sourceText of ['? English question', '! English statement']) {
+            expect(
+                resolveTargetValue(parseSourceValue(sourceText), parseTargetValue(undefined))
+            ).toBe(sourceText)
+        }
+    })
+
+    it('compares duplicate placeholders as a multiset', () => {
+        const source = parseSourceValue('{name} {name}')
+        expect(resolveTargetValue(source, parseTargetValue('? {name}'))).toBe('{name} {name}')
+        expect(resolveTargetValue(source, parseTargetValue('? {name}, then {name}'))).toBe(
+            '{name}, then {name}'
+        )
+    })
+
+    it('allows placeholder order to differ in prose', () => {
+        const source = parseSourceValue('{first} then {second}')
+        expect(resolveTargetValue(source, parseTargetValue('? {second} before {first}'))).toBe(
+            '{second} before {first}'
+        )
     })
 })
 

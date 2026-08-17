@@ -9,7 +9,7 @@ import {
     parseTargetValue,
     placeholderContract,
     TARGET_VALUE_KIND,
-} from './i18n-values.mjs'
+} from '../src/shared/i18n-values.js'
 import {
     buildTranslationTable,
     expectedReadme,
