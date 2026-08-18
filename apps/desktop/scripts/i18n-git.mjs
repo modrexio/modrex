@@ -186,6 +186,11 @@ export function createGitAdapter({ cwd, run = createGitRunner(cwd) } = {}) {
             return { entries, conflicted: [...conflicted] }
         },
 
+        stagedChangedPaths() {
+            const result = call(['diff', '--cached', '--name-only', '-z'])
+            return splitNulTerminated(result.stdout)
+        },
+
         readBlobs(ids) {
             if (ids.length === 0) return new Map()
             const result = call(['cat-file', '--batch'], { input: `${ids.join('\n')}\n` })

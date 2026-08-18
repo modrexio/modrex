@@ -55,6 +55,8 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v7
+              with:
+                  fetch-depth: 0
 
             - name: Install system dependencies
               run: |
@@ -78,6 +80,9 @@ jobs:
             - run: pnpm check-sources
             - run: pnpm check-updater
             - run: pnpm check-i18n
+            - name: i18n read-only advisory
+              continue-on-error: true
+              run: pnpm i18n:check-readonly
             - run: pnpm typecheck
             - run: cargo clippy --all-targets -- -D warnings
               working-directory: apps/desktop/src-tauri

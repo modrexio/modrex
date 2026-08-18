@@ -175,7 +175,7 @@ function validateCurrentInput(inspection, history) {
     if (errors.length > 0) throw new I18nSyncValidationError(errors)
 }
 
-function validatePlannedBundles(plan) {
+export function validatePlannedBundles(plan) {
     const source = inspectSourceBundle(plan.sourceBundle, 'en')
     const errors = [...source.errors]
     for (const locale of plan.locales) {
