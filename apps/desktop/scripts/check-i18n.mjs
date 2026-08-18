@@ -510,6 +510,7 @@ function usageText() {
         '  pnpm i18n:missing <locale>   List missing keys with English source text',
         '  pnpm i18n:fill <locale>      Fill an existing locale with marked English text',
         '  pnpm i18n:translate <locale> Interactively continue an existing locale',
+        '  pnpm i18n:review <locale>    Review Pending target translations',
         '  pnpm i18n:create <locale>    Create an IDE-ready locale with marked English text',
         '  pnpm i18n:sync               Synchronize every locale with English and Git history',
     ].join('\n')
@@ -781,6 +782,11 @@ export async function runI18nCli(args, options = {}) {
     if (args[0] === '--sync') {
         const { runI18nSync } = await import('./i18n-sync.mjs')
         return runI18nSync(args.slice(1), options)
+    }
+
+    if (args[0] === '--review') {
+        const { runI18nReview } = await import('./i18n-review.mjs')
+        return runI18nReview(args.slice(1), options)
     }
 
     if (args.length === 2 && ['--fill', '--create'].includes(args[0])) {

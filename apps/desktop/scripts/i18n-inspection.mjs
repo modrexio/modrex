@@ -105,7 +105,7 @@ export function inspectLocales(i18nDir = I18N_DIR) {
             continue
         }
 
-        const locale = inspectTranslationBundle(id, bundle, sourceFlat, sourceKeys)
+        const locale = { ...inspectTranslationBundle(id, bundle, sourceFlat, sourceKeys), bundle }
         errors.push(...locale.errors)
         locales.push(locale)
     }

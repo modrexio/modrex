@@ -452,6 +452,7 @@ export function summarizeHistory(history) {
                 sourceText,
                 canonicalTarget,
                 checkpoint: entry?.checkpoint ?? null,
+                lineageCheckpoint: entry?.pending?.lineageCheckpoint ?? null,
                 pendingProvenance: entry?.pending?.provenance ?? null,
                 hasAcceptedLineage:
                     status === 'pending'
