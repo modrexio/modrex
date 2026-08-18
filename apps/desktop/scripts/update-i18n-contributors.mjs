@@ -3,7 +3,9 @@ import { execFileSync } from 'node:child_process'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { isDeepStrictEqual } from 'node:util'
-import { inspectLocales, isUntranslatedValue } from './check-i18n.mjs'
+import { parseTargetValue, TARGET_VALUE_KIND } from '../src/shared/i18n-values.js'
+import { inspectLocales } from './check-i18n.mjs'
+import { flattenBundle } from './i18n-current.mjs'
 
 const PER_PAGE = 100
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
@@ -24,27 +26,39 @@ function readLocaleAtRevision(revision, localeId) {
     return execFileSync('git', ['show', `${revision}:${path}`], { encoding: 'utf8' })
 }
 
-function translatedLocaleContent(value) {
-    if (typeof value === 'string') return isUntranslatedValue(value) ? undefined : value
-    if (Array.isArray(value) || value === null || typeof value !== 'object') return value
-
-    const entries = Object.entries(value)
-        .map(([key, child]) => [key, translatedLocaleContent(child)])
-        .filter(([, child]) => child !== undefined)
-    return entries.length === 0 ? undefined : Object.fromEntries(entries)
+function canonicalTargetContent(value, localeId) {
+    const errors = []
+    const flat = flattenBundle(value, localeId, errors)
+    if (errors.length > 0) {
+        throw new Error(`Invalid historical locale '${localeId}': ${errors.join('; ')}`)
+    }
+    const entries = new Map()
+    for (const [key, storedValue] of Object.entries(flat)) {
+        const parsed = parseTargetValue(storedValue)
+        if (parsed.kind !== TARGET_VALUE_KIND.UNTRANSLATED_SCAFFOLD) {
+            entries.set(key, parsed.targetText.normalize('NFC'))
+        }
+    }
+    return entries
 }
 
-export function localeJsonChanged(previous, current, localeId) {
+export function localeJsonChanged(previous, current, localeId, revision) {
     try {
         const previousBundle = previous === undefined ? {} : JSON.parse(previous)
-        return !isDeepStrictEqual(
-            translatedLocaleContent(previousBundle),
-            translatedLocaleContent(JSON.parse(current))
-        )
+        const previousContent = canonicalTargetContent(previousBundle, localeId)
+        const currentContent = canonicalTargetContent(JSON.parse(current), localeId)
+        for (const [key, value] of currentContent) {
+            if (!isDeepStrictEqual(previousContent.get(key), value)) return true
+        }
+        return false
     } catch (error) {
-        throw new Error(`Could not compare historical JSON for locale '${localeId}'`, {
-            cause: error,
-        })
+        const location = revision ? ` at revision '${revision}'` : ''
+        throw new Error(
+            `Could not compare historical JSON for locale '${localeId}'${location}: ${error.message}`,
+            {
+                cause: error,
+            }
+        )
     }
 }
 
@@ -53,7 +67,7 @@ function commitChangesLocaleJson(localeId, commit) {
     if (current === undefined) return false
     const parent = commit.parents[0]?.sha
     const previous = parent ? readLocaleAtRevision(parent, localeId) : undefined
-    return localeJsonChanged(previous, current, localeId)
+    return localeJsonChanged(previous, current, localeId, commit.sha)
 }
 
 export async function collectTranslationContributors(

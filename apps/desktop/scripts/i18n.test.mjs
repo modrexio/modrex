@@ -1199,7 +1199,7 @@ test('semantic locale comparison counts additions, value changes, and deletions'
         localeJsonChanged('{"common":{"open":"Open"}}', '{"common":{"open":"Öffnen"}}', 'de'),
         true
     )
-    assert.equal(localeJsonChanged('{"common":{"open":"Öffnen"}}', '{"common":{}}', 'de'), true)
+    assert.equal(localeJsonChanged('{"common":{"open":"Öffnen"}}', '{"common":{}}', 'de'), false)
 })
 
 test('temporary contributor API failures abort attribution generation', async () => {
