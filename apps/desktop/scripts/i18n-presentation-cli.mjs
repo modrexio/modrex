@@ -1,3 +1,4 @@
+import { placeholderContract } from '../src/shared/i18n-values.js'
 import { deriveTargetStatus, targetFallbackLabel } from './i18n-presentation.mjs'
 
 const BAR_WIDTH = 24
@@ -29,6 +30,20 @@ export function detectCliCapabilities({ stdout = process.stdout, env = process.e
 
 function identity(value) {
     return value
+}
+
+export function renderPlaceholderText(value, styles) {
+    if (!styles) return value
+    const remaining = new Map()
+    for (const name of placeholderContract(value)) {
+        remaining.set(name, (remaining.get(name) ?? 0) + 1)
+    }
+    return value.replace(/\{(\w+)\}/gu, (token, name) => {
+        const count = remaining.get(name) ?? 0
+        if (count === 0) return token
+        remaining.set(name, count - 1)
+        return styles.placeholder(token)
+    })
 }
 
 export function createSemanticStyles(color) {

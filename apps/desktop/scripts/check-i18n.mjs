@@ -13,7 +13,12 @@ import { buildOrderedLocale, inspectTranslationBundle, planFilledLocale } from '
 import { inspectUnicode } from './i18n-diagnostics.mjs'
 import { writeLocaleAtomically } from './i18n-files.mjs'
 import { buildStatusSummaries } from './i18n-presentation.mjs'
-import { detectCliCapabilities, renderStatus } from './i18n-presentation-cli.mjs'
+import {
+    createSemanticStyles,
+    detectCliCapabilities,
+    renderPlaceholderText,
+    renderStatus,
+} from './i18n-presentation-cli.mjs'
 import {
     I18N_DIR,
     inspectLocales,
@@ -57,6 +62,8 @@ export function formatInspection(inspection) {
             )
         }
         if (locale.warnings.length > 0) lines.push(`    ${locale.warnings.length} warning(s)`)
+        if (locale.missingCount > 0) lines.push(`    Next: pnpm i18n:translate ${locale.id}`)
+        if (locale.pendingCount > 0) lines.push(`    Next: pnpm i18n:review ${locale.id}`)
     }
 
     const diagnostics = [
@@ -237,7 +244,10 @@ export function formatLocaleReport(inspection, localeId) {
         lines.push('', 'English source warning', ...formatLocaleIssue(warning, 'English'))
     }
     lines.push('', coverage, missing)
-    if (locale.pendingCount > 0) lines.push(`Review pending: ${locale.pendingCount}`)
+    if (locale.missingKeys.length > 0) lines.push(`Next: pnpm i18n:translate ${locale.id}`)
+    if (locale.pendingCount > 0) {
+        lines.push(`Review pending: ${locale.pendingCount}`, `Next: pnpm i18n:review ${locale.id}`)
+    }
     if (locale.pendingPlaceholderIncompatibleCount > 0) {
         lines.push(
             `English fallback: ${locale.pendingPlaceholderIncompatibleCount} pending translation(s)`
@@ -265,7 +275,7 @@ function formatSourceReport(inspection) {
     return lines.join('\n')
 }
 
-export function formatMissingReport(inspection, localeId) {
+export function formatMissingReport(inspection, localeId, styles) {
     const locale = translationLocale(inspection, localeId)
 
     const percentage = formatPercentage(locale.translatedCount, locale.totalCount)
@@ -275,16 +285,21 @@ export function formatMissingReport(inspection, localeId) {
         `${locale.missingKeys.length} ${missingLabel}`,
     ]
 
-    for (const key of locale.missingKeys) {
-        lines.push('', key, `  English: ${JSON.stringify(inspection.sourceStrings[key])}`)
+    for (const [index, key] of locale.missingKeys.entries()) {
+        lines.push(
+            '',
+            `${index + 1}. ${key}`,
+            `  English: ${renderPlaceholderText(JSON.stringify(inspection.sourceStrings[key]), styles)}`
+        )
     }
+    if (locale.missingKeys.length > 0) lines.push('', `Next: pnpm i18n:translate ${locale.id}`)
     return lines.join('\n')
 }
 
-function formatSourceText(value) {
+function formatSourceText(value, styles) {
     return value
         .split('\n')
-        .map((line) => `  ${line}`)
+        .map((line) => `  ${renderPlaceholderText(line, styles)}`)
         .join('\n')
 }
 
@@ -319,9 +334,16 @@ function formatTranslationProblems(sourceValue, localeValue) {
     return lines
 }
 
-async function promptTranslation({ ask, stdout, sourceLabel, sourceValue, translationLabel }) {
+async function promptTranslation({
+    ask,
+    stdout,
+    sourceLabel,
+    sourceValue,
+    translationLabel,
+    styles,
+}) {
     stdout.write(
-        `${sourceLabel}:\n${formatSourceText(sourceValue)}\n\n${translationLabel} (Enter to skip):\n`
+        `${sourceLabel}:\n${formatSourceText(sourceValue, styles)}\n\n${translationLabel} (Enter to skip):\n`
     )
 
     while (true) {
@@ -372,7 +394,7 @@ function translationUnits(missingKeys, pairedKeys) {
 }
 
 async function promptPair(unit, context) {
-    const { ask, englishName, inspection, stdout } = context
+    const { ask, englishName, inspection, stdout, styles } = context
     while (true) {
         const singular = await promptTranslation({
             ask,
@@ -380,6 +402,7 @@ async function promptPair(unit, context) {
             sourceLabel: 'Singular English source',
             sourceValue: inspection.sourceStrings[unit.single],
             translationLabel: `${englishName} singular translation`,
+            styles,
         })
         stdout.write('\n')
         const plural = await promptTranslation({
@@ -388,6 +411,7 @@ async function promptPair(unit, context) {
             sourceLabel: 'Plural English source',
             sourceValue: inspection.sourceStrings[unit.plural],
             translationLabel: `${englishName} plural translation`,
+            styles,
         })
 
         if (singular === null && plural === null) return null
@@ -405,7 +429,7 @@ async function promptPair(unit, context) {
 }
 
 async function promptUnit(unit, context) {
-    const { ask, englishName, inspection, stdout } = context
+    const { ask, englishName, inspection, stdout, styles } = context
     if (unit.type === 'pair') {
         const [first, second] = unit.positions
         stdout.write(
@@ -418,7 +442,7 @@ async function promptUnit(unit, context) {
     if (unit.counterpart) {
         const counterpart = context.locale.targetValues[unit.counterpart]
         stdout.write(
-            `Existing counterpart (${unit.counterpart}):\n${formatSourceText(counterpart.targetText)}\n\n`
+            `Existing counterpart (${unit.counterpart}):\n${formatSourceText(counterpart.targetText, styles)}\n\n`
         )
     }
     const translation = await promptTranslation({
@@ -427,6 +451,7 @@ async function promptUnit(unit, context) {
         sourceLabel: 'English source',
         sourceValue: inspection.sourceStrings[unit.key],
         translationLabel: `${englishName} translation`,
+        styles,
     })
     return translation === null ? null : [[unit.key, translation]]
 }
@@ -441,30 +466,40 @@ function localeDisplayPath(localePath) {
     return relative(process.cwd(), localePath).replaceAll('\\', '/')
 }
 
-async function translateLocaleSession({ ask, inspection, locale, localePath, stdout }) {
+async function translateLocaleSession({
+    ask,
+    inspection,
+    locale,
+    localePath,
+    stdout,
+    env = process.env,
+}) {
     const localeName = localeNativeName(locale.id)
     const englishName = localeEnglishName(locale.id)
 
     if (locale.missingKeys.length === 0) {
         const percentage = formatPercentage(locale.translatedCount, locale.totalCount)
         stdout.write(
-            `${localeName} (${locale.id}): ${locale.translatedCount}/${locale.totalCount} translated, ${percentage}\n\nNo missing translations.\nLocale is valid\n`
+            `${localeName} (${locale.id})\nPath: ${localeDisplayPath(localePath)}\n\n${locale.translatedCount}/${locale.totalCount} translated, ${percentage}\n\nNo missing translations.\nLocale is valid\n`
         )
         return
     }
 
-    stdout.write(`${localeName} (${locale.id})\n`)
+    stdout.write(`${localeName} (${locale.id})\nPath: ${localeDisplayPath(localePath)}\n`)
     stdout.write(
-        `\n${locale.translatedCount}/${locale.totalCount} translated - ${locale.missingKeys.length} missing\n\nPress Ctrl+C to cancel.\n\n`
+        `\n${locale.translatedCount}/${locale.totalCount} translated - ${locale.missingKeys.length} missing\nMarker reminder: ! means translate this; no prefix means accepted translation.\n\nPress Ctrl+C to cancel.\n\n`
     )
 
     let current = locale
+    let saved = 0
+    let skipped = 0
     const units = translationUnits(locale.missingKeys, inspection.pairedKeys)
     const context = {
         ask,
         englishName,
         inspection,
         locale,
+        styles: createSemanticStyles(detectCliCapabilities({ stdout, env }).color),
         stdout,
         totalMissing: locale.missingKeys.length,
     }
@@ -472,6 +507,7 @@ async function translateLocaleSession({ ask, inspection, locale, localePath, std
     for (const unit of units) {
         const completed = await promptUnit(unit, context)
         if (completed === null) {
+            skipped += 1
             stdout.write('\n')
             continue
         }
@@ -492,10 +528,13 @@ async function translateLocaleSession({ ask, inspection, locale, localePath, std
 
         writeLocaleAtomically(localePath, ordered)
         current = candidate
+        saved += 1
         stdout.write('\nSaved\n\n')
     }
 
-    stdout.write(`\n${formatInteractiveStatus(localeName, current)}\n\n`)
+    stdout.write(
+        `\n${formatInteractiveStatus(localeName, current)}\nSaved: ${saved}\nSkipped: ${skipped}\nRemaining: ${current.missingKeys.length}\nProgress already written remains saved.\n\n`
+    )
     stdout.write('Locale is valid\n')
 }
 
@@ -503,16 +542,24 @@ function usageText() {
     return [
         'Modrex translation CLI',
         '',
-        '  pnpm i18n:help               Show this help',
+        '!  translate this',
+        '?  review this',
+        'no prefix  accepted translation',
+        '',
+        'Inspect',
+        '  pnpm i18n:help               Show this workflow guide',
         '  pnpm i18n:status             Show all languages and key coverage',
-        '  pnpm i18n:check              Validate every locale',
-        '  pnpm i18n:check <locale>     Validate one locale with actionable details',
+        '  pnpm i18n:check [locale]     Validate the source or one locale',
         '  pnpm i18n:missing <locale>   List missing keys with English source text',
+        '',
+        'Prepare',
         '  pnpm i18n:fill <locale>      Fill an existing locale with marked English text',
-        '  pnpm i18n:translate <locale> Interactively continue an existing locale',
-        '  pnpm i18n:review <locale>    Review Pending target translations',
         '  pnpm i18n:create <locale>    Create an IDE-ready locale with marked English text',
-        '  pnpm i18n:sync               Synchronize every locale with English and Git history',
+        '  pnpm i18n:sync               Reconcile locale workflow state',
+        '',
+        'Translate',
+        '  pnpm i18n:translate <locale> Continue an existing locale',
+        '  pnpm i18n:review <locale>    Review Pending target translations',
     ].join('\n')
 }
 
@@ -601,6 +648,7 @@ function runScaffoldI18n(
     stdout.write(
         `${action} ${localeDisplayPath(localePath)}.\nScaffolds added: ${plan.addedScaffolds}\nScaffolds refreshed: ${plan.refreshedScaffolds}\nObsolete scaffolds removed: ${plan.removedScaffolds}\nTarget-language text preserved.\nReplace values starting with "${UNTRANSLATED_PREFIX}" as you translate.\nCoverage remains ${formatPercentage(candidate.translatedCount, candidate.totalCount)}.\n`
     )
+    if (candidate.missingKeys.length > 0) stdout.write(`Next: pnpm i18n:translate ${localeId}\n`)
     return 0
 }
 
@@ -675,7 +723,8 @@ export function runCheckI18n(
                 stderr.write(`${formatLocaleReport(inspection, locale.id)}\n`)
                 return 1
             }
-            stdout.write(`${formatMissingReport(inspection, locale.id)}\n`)
+            const styles = createSemanticStyles(detectCliCapabilities({ stdout, env }).color)
+            stdout.write(`${formatMissingReport(inspection, locale.id, styles)}\n`)
             return 0
         } catch (error) {
             stderr.write(`check-i18n: ${error.message}\n`)
@@ -690,11 +739,6 @@ export function runCheckI18n(
 
     if (args.length === 0) {
         stdout.write(`${formatInspection(inspection)}\n`)
-        return 0
-    }
-
-    if (args[0] === '--status') {
-        stdout.write(`${formatStatus(inspection)}\n`)
         return 0
     }
 
@@ -723,6 +767,7 @@ async function runInteractiveI18n(
         stdin = process.stdin,
         stdout = process.stdout,
         stderr = process.stderr,
+        env = process.env,
     } = {}
 ) {
     try {
@@ -767,7 +812,7 @@ async function runInteractiveI18n(
 
     try {
         await runSessionWithInput(
-            { inspection, locale, localePath, stdout },
+            { inspection, locale, localePath, stdout, env },
             { ask, stdin, stdout }
         )
         return 0

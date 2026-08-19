@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs'
-import { dirname, resolve } from 'node:path'
+import { dirname, relative, resolve } from 'node:path'
 import { createInterface } from 'node:readline/promises'
 import { fileURLToPath } from 'node:url'
 import {
@@ -11,6 +11,11 @@ import {
 } from '../src/shared/i18n-values.js'
 import { inspectUnicode } from './i18n-diagnostics.mjs'
 import { writeLocaleAtomically } from './i18n-files.mjs'
+import {
+    createSemanticStyles,
+    detectCliCapabilities,
+    renderPlaceholderText,
+} from './i18n-presentation-cli.mjs'
 import {
     analyzeCommittedHistory,
     analyzeRepairableProspective,
@@ -46,10 +51,10 @@ export class I18nReviewValidationError extends Error {
     }
 }
 
-function formatSourceText(value) {
+function formatSourceText(value, styles) {
     return value
         .split('\n')
-        .map((line) => `  ${line}`)
+        .map((line) => `  ${renderPlaceholderText(line, styles)}`)
         .join('\n')
 }
 
@@ -222,7 +227,7 @@ export function prepareI18nReview(options) {
     }
 }
 
-function formatCandidate(candidate, position, total) {
+function formatCandidate(candidate, position, total, styles) {
     const status = candidate.placeholderCompatible
         ? 'compatible'
         : 'incompatible (runtime uses English)'
@@ -230,13 +235,13 @@ function formatCandidate(candidate, position, total) {
         `[${position}/${total}] ${candidate.key}`,
         '',
         'English at last accepted checkpoint:',
-        formatSourceText(candidate.lastAcceptedSourceText),
+        formatSourceText(candidate.lastAcceptedSourceText, styles),
         '',
         'Current English:',
-        formatSourceText(candidate.currentSourceText),
+        formatSourceText(candidate.currentSourceText, styles),
         '',
         'Current target:',
-        formatSourceText(candidate.currentTargetText),
+        formatSourceText(candidate.currentTargetText, styles),
         '',
         `Placeholder status: ${status}`,
     ].join('\n')
@@ -283,6 +288,7 @@ export async function reviewLocaleSession({
     ask,
     review,
     stdout = process.stdout,
+    env = process.env,
     write = writeLocaleAtomically,
 }) {
     const localeName = localeNativeName(review.locale.id)
@@ -292,40 +298,54 @@ export async function reviewLocaleSession({
     }
 
     stdout.write(
-        `${localeName} (${review.locale.id}): ${review.candidates.length} review-pending translation(s)\n\nReview actions record your decision; they do not prove linguistic correctness.\nPress Ctrl+C to cancel.\n\n`
+        `${localeName} (${review.locale.id}): ${review.candidates.length} review-pending translation(s)\nPath: ${relative(process.cwd(), review.localePath).replaceAll('\\\\', '/')}\n\nReview actions record your decision; they do not prove linguistic correctness.\nPress Ctrl+C to cancel.\n\n`
     )
     const counts = { edited: 0, kept: 0, skipped: 0 }
     let bundle = review.locale.bundle
     const englishName = localeEnglishName(review.locale.id)
+    const styles = createSemanticStyles(detectCliCapabilities({ stdout, env }).color)
 
-    for (const [index, candidate] of review.candidates.entries()) {
-        stdout.write(`${formatCandidate(candidate, index + 1, review.candidates.length)}\n\n`)
-        const action = await promptAction(candidate, ask, stdout)
-        if (action === REVIEW_ACTION.SKIP) {
-            counts.skipped += 1
-            stdout.write('\nSkipped\n\n')
-            continue
-        }
+    const writeSummary = (label) => {
+        const saved = counts.edited + counts.kept
+        const remaining = review.candidates.length - saved - counts.skipped
+        stdout.write(
+            `${label}: ${counts.edited} edited, ${counts.kept} kept.\nSaved: ${saved}\nSkipped: ${counts.skipped}\nRemaining: ${remaining}\n`
+        )
+    }
 
-        let editedTarget
-        if (action === REVIEW_ACTION.EDIT) {
-            editedTarget = await promptEditedTarget(candidate, englishName, ask, stdout)
-            if (editedTarget === null) {
+    try {
+        for (const [index, candidate] of review.candidates.entries()) {
+            stdout.write(
+                `${formatCandidate(candidate, index + 1, review.candidates.length, styles)}\n\n`
+            )
+            const action = await promptAction(candidate, ask, stdout)
+            if (action === REVIEW_ACTION.SKIP) {
                 counts.skipped += 1
                 stdout.write('\nSkipped\n\n')
                 continue
             }
-        }
 
-        const result = applyReviewAction(candidate, action, editedTarget)
-        bundle = saveReviewedValue(review, bundle, candidate, result.storedValue, write)
-        counts[action === REVIEW_ACTION.EDIT ? 'edited' : 'kept'] += 1
-        stdout.write('\nSaved\n\n')
+            let editedTarget
+            if (action === REVIEW_ACTION.EDIT) {
+                editedTarget = await promptEditedTarget(candidate, englishName, ask, stdout)
+                if (editedTarget === null) {
+                    counts.skipped += 1
+                    stdout.write('\nSkipped\n\n')
+                    continue
+                }
+            }
+
+            const result = applyReviewAction(candidate, action, editedTarget)
+            bundle = saveReviewedValue(review, bundle, candidate, result.storedValue, write)
+            counts[action === REVIEW_ACTION.EDIT ? 'edited' : 'kept'] += 1
+            stdout.write('\nSaved\n\n')
+        }
+    } catch (error) {
+        writeSummary('Review interrupted')
+        throw error
     }
 
-    stdout.write(
-        `Review complete: ${counts.edited} edited, ${counts.kept} kept, ${counts.skipped} skipped.\n`
-    )
+    writeSummary('Review complete')
     return counts
 }
 
@@ -335,6 +355,7 @@ async function runSession(review, options) {
             ask: options.ask,
             review,
             stdout: options.stdout,
+            env: options.env,
             write: options.write,
         })
     }
@@ -345,6 +366,7 @@ async function runSession(review, options) {
             ask: (question) => input.question(question),
             review,
             stdout: options.stdout,
+            env: options.env,
             write: options.write,
         })
     } finally {

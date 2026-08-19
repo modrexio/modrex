@@ -298,6 +298,11 @@ export function formatSyncSummary(result) {
             ? 'No locale files changed.'
             : `${result.written.length} locale file(s) changed.`
     )
+    lines.push(
+        'Target-language content edits: 0',
+        'No target-language text was created, rewritten, or accepted.'
+    )
+    if (result.written.length > 0) lines.push('Inspect and stage the deterministic locale changes.')
     return lines.join('\n')
 }
 
