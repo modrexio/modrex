@@ -12,6 +12,8 @@ import {
 import { buildOrderedLocale, inspectTranslationBundle, planFilledLocale } from './i18n-current.mjs'
 import { inspectUnicode } from './i18n-diagnostics.mjs'
 import { writeLocaleAtomically } from './i18n-files.mjs'
+import { buildStatusSummaries } from './i18n-presentation.mjs'
+import { detectCliCapabilities, renderStatus } from './i18n-presentation-cli.mjs'
 import {
     I18N_DIR,
     inspectLocales,
@@ -88,29 +90,27 @@ function translationLocale(inspection, localeId) {
     return locale
 }
 
-export function formatStatus(inspection) {
-    const lines = [
-        'Available languages',
-        '',
-        `${localeNativeName(inspection.sourceLocale)} (${inspection.sourceLocale})`,
-        `${inspection.totalCount} source strings`,
-    ]
-    for (const locale of inspection.locales) {
-        lines.push(
-            '',
-            `${localeNativeName(locale.id)} (${locale.id})`,
-            `${locale.translatedCount}/${locale.totalCount} translated (${formatPercentage(locale.translatedCount, locale.totalCount)})`,
-            `${locale.acceptedCount} accepted`,
-            `${locale.pendingCount} review pending`
-        )
-        if (locale.pendingPlaceholderIncompatibleCount > 0) {
-            lines.push(
-                `  ${locale.pendingPlaceholderIncompatibleCount} placeholder-incompatible; runtime uses English`
-            )
-        }
-        lines.push(`${locale.missingCount} missing`)
+export function runI18nStatus({
+    i18nDir = I18N_DIR,
+    stdout = process.stdout,
+    stderr = process.stderr,
+    env = process.env,
+} = {}) {
+    let inspection
+    try {
+        inspection = inspectLocales(i18nDir)
+        const summaries = buildStatusSummaries(inspection)
+        renderStatus({
+            summaries,
+            capabilities: detectCliCapabilities({ stdout, env }),
+            nativeName: localeNativeName,
+            stdout,
+        })
+        return 0
+    } catch (error) {
+        stderr.write(`check-i18n: ${error.message}\n`)
+        return 1
     }
-    return lines.join('\n')
 }
 
 function formatPlaceholderNames(names) {
@@ -606,7 +606,7 @@ function runScaffoldI18n(
 
 export function runCheckI18n(
     args,
-    { i18nDir = I18N_DIR, stdout = process.stdout, stderr = process.stderr } = {}
+    { i18nDir = I18N_DIR, stdout = process.stdout, stderr = process.stderr, env = process.env } = {}
 ) {
     const usage = usageText()
     if (args.length === 1 && ['--help', '-h'].includes(args[0])) {
@@ -622,6 +622,8 @@ export function runCheckI18n(
         stderr.write(`${usage}\n`)
         return 2
     }
+
+    if (args[0] === '--status') return runI18nStatus({ i18nDir, stdout, stderr, env })
 
     let inspection
     try {

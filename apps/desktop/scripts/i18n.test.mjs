@@ -208,11 +208,11 @@ test('100% translated status still exposes pending review and fallback', () => {
             })
 
             assert.equal(status, 0)
-            assert.match(stdout.value(), /2\/2 translated \(100%\)/)
-            assert.match(stdout.value(), /0 accepted/)
-            assert.match(stdout.value(), /2 review pending/)
-            assert.match(stdout.value(), /1 placeholder-incompatible; runtime uses English/)
-            assert.match(stdout.value(), /0 missing/)
+            assert.match(
+                stdout.value(),
+                /Deutsch \(de\): 100%; accepted=0 review=2 fallback=1 missing=0 total=2/
+            )
+            assert.match(stdout.value(), /1 uses English fallback/)
         }
     )
 })
@@ -533,9 +533,15 @@ test('status command lists every locale with human-readable coverage', () => {
                 stdout: stdout.stream,
             })
             assert.equal(status, 0)
-            assert.match(stdout.value(), /English \(en\)\n2 source strings/)
-            assert.match(stdout.value(), /Deutsch \(de\)\n1\/2 translated \(50%\)/)
-            assert.match(stdout.value(), /Русский \(ru\)\n2\/2 translated \(100%\)/)
+            assert.match(stdout.value(), /English \(en\): Complete; valid-source=2 total=2/)
+            assert.match(
+                stdout.value(),
+                /Deutsch \(de\): 50%; accepted=1 review=0 fallback=0 missing=1 total=2/
+            )
+            assert.match(
+                stdout.value(),
+                /Русский \(ru\): Complete; accepted=2 review=0 fallback=0 missing=0 total=2/
+            )
         }
     )
 })
