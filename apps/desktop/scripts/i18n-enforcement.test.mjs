@@ -348,13 +348,13 @@ test('repository enforcement wiring is read-only and full-history', () => {
     assert.match(workflow, /pnpm i18n:check-readonly/u)
     assert.doesNotMatch(workflow, /pnpm i18n:sync/u)
     assert.match(hook, /pnpm i18n:check-staged/u)
-    assert.match(hook, /Stage 12 will make this blocking/u)
+    assert.match(hook, /CI enforces this check/u)
     const i18nHookLine = hook.split('\n').find((line) => line.includes('pnpm i18n:check-staged'))
     assert.ok(i18nHookLine)
     assert.doesNotMatch(i18nHookLine, /exit 1/u)
     assert.doesNotMatch(hook, /pnpm i18n:sync/u)
     assert.doesNotMatch(hook, /git add .*i18n/u)
-    assert.match(workflow, /continue-on-error:\s*true/u)
+    assert.doesNotMatch(workflow, /continue-on-error/u)
 })
 
 test('workflow summary classifies base-to-prospective events independently of validity', () => {
