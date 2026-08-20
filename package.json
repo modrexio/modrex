@@ -30,6 +30,7 @@
         "i18n:review": "pnpm --dir apps/desktop i18n:review",
         "i18n:create": "pnpm --dir apps/desktop i18n:create",
         "i18n:sync": "pnpm --dir apps/desktop i18n:sync",
+        "i18n:status-svg": "pnpm --dir apps/desktop i18n:status-svg",
         "i18n:check-readonly": "pnpm --dir apps/desktop i18n:check-readonly",
         "i18n:check-staged": "pnpm --dir apps/desktop i18n:check-staged",
         "update-i18n-readme": "pnpm --dir apps/desktop update-i18n-readme",
