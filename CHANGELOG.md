@@ -7,6 +7,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 ### Added
 
 - Added German as a language option for the app's interface.
+- Added X and Bluesky links to the website and to app's Settings > About.
 
 ### Changed
 

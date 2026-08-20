@@ -72,6 +72,8 @@ export default defineConfig({
             social: [
                 { icon: 'github', label: 'GitHub', href: 'https://github.com/modrexio/modrex' },
                 { icon: 'discord', label: 'Discord', href: 'https://discord.gg/tenzpx8JRM' },
+                { icon: 'x.com', label: 'X', href: 'https://x.com/modrexio' },
+                { icon: 'blueSky', label: 'Bluesky', href: 'https://bsky.app/profile/modrex.net' },
             ],
             sidebar: [
                 {

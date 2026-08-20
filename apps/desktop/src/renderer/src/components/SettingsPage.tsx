@@ -16,7 +16,7 @@ import {
     TriangleAlert,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { siGithub, siDiscord } from 'simple-icons'
+import { siGithub, siDiscord, siX, siBluesky } from 'simple-icons'
 import { t, getLocale, setLocale } from '../i18n'
 import { LOCALE_IDS, localeLabel, type LocaleId } from '../locales'
 import { Select } from './Select'
@@ -41,6 +41,8 @@ const APP_VERSION = import.meta.env.DEV ? 'v-dev' : `v${import.meta.env.VITE_APP
 const GITHUB_URL = 'https://github.com/modrexio/modrex'
 const SPONSOR_URL = 'https://github.com/sponsors/modrexio'
 const DISCORD_URL = 'https://discord.gg/tenzpx8JRM'
+const X_URL = 'https://x.com/modrexio'
+const BLUESKY_URL = 'https://bsky.app/profile/modrex.net'
 const WEBSITE_URL = 'https://modrex.net/'
 
 // Keyed by the launcher ids the Rust registry reports. Only the key is held here: t()
@@ -752,6 +754,34 @@ export function SettingsPage({
                                                         <path d={siDiscord.path} />
                                                     </svg>
                                                     {t('settings.about.discord')}
+                                                </Button>
+                                                <Button
+                                                    variant="secondary"
+                                                    size="md"
+                                                    onClick={() => api.openExternal(X_URL)}
+                                                >
+                                                    <svg
+                                                        viewBox="0 0 24 24"
+                                                        className={iconClass}
+                                                        aria-hidden
+                                                    >
+                                                        <path d={siX.path} />
+                                                    </svg>
+                                                    {t('settings.about.x')}
+                                                </Button>
+                                                <Button
+                                                    variant="secondary"
+                                                    size="md"
+                                                    onClick={() => api.openExternal(BLUESKY_URL)}
+                                                >
+                                                    <svg
+                                                        viewBox="0 0 24 24"
+                                                        className={iconClass}
+                                                        aria-hidden
+                                                    >
+                                                        <path d={siBluesky.path} />
+                                                    </svg>
+                                                    {t('settings.about.bluesky')}
                                                 </Button>
                                                 <Button
                                                     variant="secondary"
