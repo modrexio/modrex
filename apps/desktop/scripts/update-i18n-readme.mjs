@@ -1,21 +1,41 @@
-import { readFileSync, writeFileSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { formatPercentage, inspectLocales, localeNativeName } from './check-i18n.mjs'
+import { inspectLocales, localeNativeName } from './i18n-inspection.mjs'
+import {
+    buildStatusSummaries,
+    deriveTargetStatus,
+    targetFallbackLabel,
+} from './i18n-presentation.mjs'
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
 const README_PATH = resolve(SCRIPT_DIR, '../../..', 'README.md')
 const CONTRIBUTORS_PATH = resolve(SCRIPT_DIR, '..', 'translation-contributors.generated.json')
 const START_MARKER = '<!-- TRANSLATION_STATUS_START -->'
 const END_MARKER = '<!-- TRANSLATION_STATUS_END -->'
+const TRANSLATION_GUIDE =
+    'To improve an existing language or add a new one, follow the\n[translation guide](TRANSLATING.md).'
 const GITHUB_USERNAME = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$/
 
-function escapeTableText(value) {
-    return value
+function escapeMarkdownLinkText(value) {
+    return String(value)
+        .replaceAll('\\', '\\\\')
         .replaceAll('&', '&amp;')
         .replaceAll('<', '&lt;')
         .replaceAll('>', '&gt;')
         .replaceAll('|', '\\|')
+        .replaceAll('[', '\\[')
+        .replaceAll(']', '\\]')
+        .replaceAll('(', '\\(')
+        .replaceAll(')', '\\)')
+}
+
+function escapeHtmlAttribute(value) {
+    return String(value)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
 }
 
 export function readTranslationContributors(path = CONTRIBUTORS_PATH) {
@@ -55,7 +75,7 @@ function contributorLinks(usernames) {
         .join(', ')
 }
 
-export function buildTranslationTable(inspection, contributors) {
+function buildLocaleRows(inspection, contributors) {
     const localeIds = new Set([
         inspection.sourceLocale,
         ...inspection.locales.map((locale) => locale.id),
@@ -66,23 +86,77 @@ export function buildTranslationTable(inspection, contributors) {
         }
     }
 
-    const sourceName = escapeTableText(localeNativeName(inspection.sourceLocale))
-    const sourceCoverage = formatPercentage(inspection.totalCount, inspection.totalCount)
-    const lines = [
-        '| Language | Coverage | Contributors |',
-        '| --- | ---: | --- |',
-        `| ${sourceName} (${inspection.sourceLocale}) | ${sourceCoverage} | ${contributorLinks(contributors[inspection.sourceLocale])} |`,
-    ]
-
-    for (const locale of inspection.locales) {
-        const name = escapeTableText(localeNativeName(locale.id))
-        const coverage = formatPercentage(locale.translatedCount, locale.totalCount)
-        lines.push(
-            `| ${name} (${locale.id}) | ${coverage} | ${contributorLinks(contributors[locale.id])} |`
-        )
+    return {
+        sourceLocale: inspection.sourceLocale,
+        names: Object.fromEntries([
+            [inspection.sourceLocale, localeNativeName(inspection.sourceLocale)],
+            ...inspection.locales.map((locale) => [locale.id, localeNativeName(locale.id)]),
+        ]),
+        contributors,
     }
+}
 
-    return lines.join('\n')
+function renderImage(locale, alt) {
+    return `<img src="assets/i18n/status/${locale}.svg" alt="${escapeHtmlAttribute(alt)}">`
+}
+
+function renderSourceRow(summary, metadata) {
+    const rawName = metadata.names[summary.locale]
+    const name = escapeMarkdownLinkText(rawName)
+    const alt = `English source: ${summary.total} valid strings.`
+    return `| [${name} (${summary.locale})](apps/desktop/src/renderer/src/i18n/${summary.locale}.json) | ${renderImage(summary.locale, alt)} Complete | ${contributorLinks(metadata.contributors[summary.locale])} |`
+}
+
+function renderTargetRow(summary, metadata) {
+    const status = deriveTargetStatus(summary)
+    const rawName = metadata.names[summary.locale]
+    const name = escapeMarkdownLinkText(rawName)
+    const fallback = status.usesEnglishFallback
+        ? ` ${targetFallbackLabel(status.usesEnglishFallback)}.`
+        : ''
+    const alt = `${rawName} (${summary.locale}): ${summary.accepted} accepted, ${status.pending} review, ${summary.missing} missing; ${status.label}.${fallback}`
+    const fallbackLine = status.usesEnglishFallback
+        ? `<br><sub>${targetFallbackLabel(status.usesEnglishFallback)}</sub>`
+        : ''
+    return `| [${name} (${summary.locale})](apps/desktop/src/renderer/src/i18n/${summary.locale}.json) | ${renderImage(summary.locale, alt)} ${status.label}${fallbackLine} | ${contributorLinks(metadata.contributors[summary.locale])} |`
+}
+
+function renderLegend() {
+    return [
+        '<div class="i18n-status-legend">',
+        '  <img src="assets/i18n/status/legend/accepted.svg" alt=""> Accepted ·',
+        '  <img src="assets/i18n/status/legend/review.svg" alt=""> Review needed ·',
+        '  <img src="assets/i18n/status/legend/missing.svg" alt=""> Missing — English fallback',
+        '</div>',
+        '',
+        '100% means every key has target text and may still include Review.',
+        'Complete means no known translation work remains.',
+        'Pending translations with incompatible placeholders temporarily use English.',
+        'For English, Complete means the source bundle passes validation; Review does not apply.',
+    ].join('\n')
+}
+
+export function renderTranslationStatusReadme({ summaries, names, contributors }) {
+    if (!summaries?.source || !Array.isArray(summaries.targets)) {
+        throw new Error('README renderer requires source and target summaries')
+    }
+    const metadata = { names, contributors }
+    const rows = [
+        '| Language | Translation | Contributors |',
+        '| --- | --- | --- |',
+        renderSourceRow(summaries.source, metadata),
+        ...summaries.targets
+            .slice()
+            .sort((a, b) => a.locale.localeCompare(b.locale))
+            .map((summary) => renderTargetRow(summary, metadata)),
+    ]
+    return `${rows.join('\n')}\n\n${renderLegend()}\n\n${TRANSLATION_GUIDE}`
+}
+
+export function buildTranslationTable(inspection, contributors) {
+    const metadata = buildLocaleRows(inspection, contributors)
+    const summaries = buildStatusSummaries(inspection)
+    return renderTranslationStatusReadme({ summaries, ...metadata })
 }
 
 export function replaceTranslationTable(readme, table) {
@@ -93,7 +167,7 @@ export function replaceTranslationTable(readme, table) {
     }
 
     const before = readme.slice(0, start + START_MARKER.length)
-    const after = readme.slice(end)
+    const after = readme.slice(end).replace(`\n\n${TRANSLATION_GUIDE}`, '')
     return `${before}\n\n<!-- prettier-ignore -->\n${table}\n\n${after}`
 }
 
@@ -141,8 +215,7 @@ export function runReadmeCommand(
         return 0
     }
 
-    writeFileSync(readmePath, expected)
-    stdout.write('update-i18n-readme: updated README.md\n')
+    stdout.write('update-i18n-readme: rendered expected README in memory; README.md unchanged\n')
     return 0
 }
 

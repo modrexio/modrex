@@ -11,8 +11,8 @@ import {
     TARGET_VALUE_KIND,
 } from '../src/shared/i18n-values.js'
 import {
-    buildTranslationTable,
     expectedReadme,
+    renderTranslationStatusReadme,
     readTranslationContributors,
     replaceTranslationTable,
     runReadmeCommand,
@@ -1073,35 +1073,62 @@ test('translate exits cleanly without prompting when a locale is complete', asyn
 })
 
 test('translation table renders compact deterministic coverage and contributors', () => {
-    const inspection = {
-        sourceLocale: 'en',
-        totalCount: 3,
-        locales: [
-            { id: 'de', translatedCount: 2, totalCount: 3 },
-            { id: 'ru', translatedCount: 3, totalCount: 3 },
-        ],
-    }
     const contributors = {
         de: ['TarekLP', 'AnotherTranslator'],
         ru: ['ShulhaOleh'],
     }
-    const table = buildTranslationTable(inspection, contributors)
+    const table = renderTranslationStatusReadme({
+        summaries: {
+            source: { kind: 'source', locale: 'en', total: 3 },
+            targets: [
+                {
+                    kind: 'target',
+                    locale: 'de',
+                    total: 3,
+                    accepted: 1,
+                    pendingCompatible: 1,
+                    pendingPlaceholderIncompatible: 0,
+                    missing: 1,
+                },
+                {
+                    kind: 'target',
+                    locale: 'ru',
+                    total: 3,
+                    accepted: 3,
+                    pendingCompatible: 0,
+                    pendingPlaceholderIncompatible: 0,
+                    missing: 0,
+                },
+            ],
+        },
+        names: { en: 'English', de: 'Deutsch', ru: 'Русский' },
+        contributors,
+    })
     assert.equal(
         table,
         [
-            '| Language | Coverage | Contributors |',
-            '| --- | ---: | --- |',
-            '| English (en) | 100% | - |',
-            '| Deutsch (de) | 66.7% | [AnotherTranslator](https://github.com/AnotherTranslator), [TarekLP](https://github.com/TarekLP) |',
-            '| Русский (ru) | 100% | [ShulhaOleh](https://github.com/ShulhaOleh) |',
+            '| Language | Translation | Contributors |',
+            '| --- | --- | --- |',
+            '| [English (en)](apps/desktop/src/renderer/src/i18n/en.json) | <img src="assets/i18n/status/en.svg" alt="English source: 3 valid strings."> Complete | - |',
+            '| [Deutsch (de)](apps/desktop/src/renderer/src/i18n/de.json) | <img src="assets/i18n/status/de.svg" alt="Deutsch (de): 1 accepted, 1 review, 1 missing; 66.7%."> 66.7% | [AnotherTranslator](https://github.com/AnotherTranslator), [TarekLP](https://github.com/TarekLP) |',
+            '| [Русский (ru)](apps/desktop/src/renderer/src/i18n/ru.json) | <img src="assets/i18n/status/ru.svg" alt="Русский (ru): 3 accepted, 0 review, 0 missing; Complete."> Complete | [ShulhaOleh](https://github.com/ShulhaOleh) |',
+            '',
+            '<div class="i18n-status-legend">',
+            '  <img src="assets/i18n/status/legend/accepted.svg" alt=""> Accepted ·',
+            '  <img src="assets/i18n/status/legend/review.svg" alt=""> Review needed ·',
+            '  <img src="assets/i18n/status/legend/missing.svg" alt=""> Missing — English fallback',
+            '</div>',
+            '',
+            '100% means every key has target text and may still include Review.',
+            'Complete means no known translation work remains.',
+            'Pending translations with incompatible placeholders temporarily use English.',
+            'For English, Complete means the source bundle passes validation; Review does not apply.',
+            '',
+            'To improve an existing language or add a new one, follow the',
+            '[translation guide](TRANSLATING.md).',
         ].join('\n')
     )
     assert.doesNotMatch(table, /\(\d+\/\d+\)/)
-    assert.equal(buildTranslationTable(inspection, contributors), table)
-    assert.throws(
-        () => buildTranslationTable(inspection, { fr: ['Translator'] }),
-        /unknown locale 'fr'/
-    )
 
     const readme = [
         '# Project',
@@ -1111,7 +1138,7 @@ test('translation table renders compact deterministic coverage and contributors'
     ].join('\n')
     assert.match(
         replaceTranslationTable(readme, table),
-        /<!-- prettier-ignore -->\n\| Language \| Coverage \| Contributors \|/
+        /<!-- prettier-ignore -->\n\| Language \| Translation \| Contributors \|/
     )
 })
 
