@@ -36,11 +36,11 @@ jobs:
               run: node apps/desktop/scripts/update-i18n-contributors.mjs
 
             - name: Update translation status
-              run: node apps/desktop/scripts/update-i18n-readme.mjs
+              run: node apps/desktop/scripts/i18n-presentation-lifecycle.mjs --write
 
             - name: Commit updated table
               run: |
-                  git add README.md apps/desktop/translation-contributors.generated.json
+                  git add README.md apps/desktop/translation-contributors.generated.json assets/i18n/status
                   if git diff --cached --quiet; then
                     echo "Translation table is already current."
                     exit 0

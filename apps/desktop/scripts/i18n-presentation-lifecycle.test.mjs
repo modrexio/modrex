@@ -9,7 +9,7 @@ import {
     writeFileSync,
 } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import test from 'node:test'
 import {
     applyI18nPresentationPlan,
@@ -529,4 +529,26 @@ test('current real presentation lifecycle is clean on the committed repository',
     assert.equal(plan.clean, true)
     assert.deepEqual(plan.operations, [])
     assert.deepEqual(plan.obsolete, [])
+})
+
+test('the documentation workflow materializes presentation outputs and stages only owned paths', () => {
+    const workflow = readFileSync(
+        resolve(import.meta.dirname, '../../../.github/workflows/translation-status.yml'),
+        'utf8'
+    )
+    assert.match(workflow, /i18n-presentation-lifecycle\.mjs --write/u)
+    assert.doesNotMatch(workflow, /update-i18n-readme\.mjs\s*$/mu)
+    assert.doesNotMatch(workflow, /i18n-presentation-lifecycle\.mjs --check/u)
+
+    const contributorsIndex = workflow.indexOf('update-i18n-contributors.mjs')
+    const writeIndex = workflow.indexOf('i18n-presentation-lifecycle.mjs --write')
+    assert.ok(contributorsIndex >= 0 && writeIndex > contributorsIndex)
+
+    assert.match(
+        workflow,
+        /git add README\.md apps\/desktop\/translation-contributors\.generated\.json assets\/i18n\/status/u
+    )
+    assert.doesNotMatch(workflow, /git add \.\s|git add -A/u)
+    assert.match(workflow, /git diff --cached --quiet/u)
+    assert.match(workflow, /docs: update translation status/u)
 })
