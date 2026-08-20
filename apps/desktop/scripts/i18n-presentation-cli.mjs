@@ -1,12 +1,13 @@
 import { placeholderContract } from '../src/shared/i18n-values.js'
-import { deriveTargetStatus, targetFallbackLabel } from './i18n-presentation.mjs'
+import { deriveTargetStatus } from './i18n-presentation.mjs'
 
-const BAR_WIDTH = 24
-const STATES = [
-    ['accepted', '='],
-    ['review', '?'],
-    ['missing', '!'],
-]
+const PREFERRED_BAR_WIDTH = 40
+const MINIMUM_BAR_WIDTH = 32
+const STATES = ['accepted', 'review', 'missing']
+const STATUS_COLUMN_WIDTH = 8
+const LABEL_SEPARATOR_WIDTH = 1
+const STATUS_SEPARATOR_WIDTH = 1
+const BAR_TRAILING_SPACE_WIDTH = 1
 
 export function detectCliCapabilities({ stdout = process.stdout, env = process.env } = {}) {
     const ci = env.CI !== undefined && env.CI !== '' && env.CI !== '0'
@@ -24,7 +25,7 @@ export function detectCliCapabilities({ stdout = process.stdout, env = process.e
         dumb,
         color: !noColor,
         rich: tty && !ci && !dumb,
-        bar: tty && !ci && !dumb && Number.isFinite(stdout.columns) && stdout.columns >= 60,
+        columns: Number.isFinite(stdout.columns) ? stdout.columns : 0,
     }
 }
 
@@ -80,15 +81,18 @@ export function createSemanticStyles(color) {
     )
 }
 
-export function allocateStatusBar(summary) {
+export function allocateStatusBar(summary, width = PREFERRED_BAR_WIDTH) {
+    if (!Number.isInteger(width) || width < MINIMUM_BAR_WIDTH) {
+        throw new Error(`Status bar width must be at least ${MINIMUM_BAR_WIDTH} cells`)
+    }
     const counts = [summary.accepted, summary.pending, summary.missing]
     const nonzero = counts.filter((count) => count > 0).length
     const cells = counts.map((count) => (count > 0 ? 1 : 0))
-    const remaining = BAR_WIDTH - nonzero
+    const remaining = width - nonzero
     const quotas = counts.map((count) => (remaining * count) / summary.total)
     const floors = quotas.map((quota) => Math.floor(quota))
     for (let index = 0; index < cells.length; index += 1) cells[index] += floors[index]
-    let leftover = BAR_WIDTH - cells.reduce((sum, count) => sum + count, 0)
+    let leftover = width - cells.reduce((sum, count) => sum + count, 0)
     const order = quotas
         .map((quota, index) => ({ index, remainder: quota - Math.floor(quota) }))
         .sort((left, right) => right.remainder - left.remainder || left.index - right.index)
@@ -97,37 +101,101 @@ export function allocateStatusBar(summary) {
         cells[index] += 1
         leftover -= 1
     }
-    if (cells.reduce((sum, count) => sum + count, 0) !== BAR_WIDTH) {
-        throw new Error('Status bar allocation did not produce 24 cells')
+    if (cells.reduce((sum, count) => sum + count, 0) !== width) {
+        throw new Error(`Status bar allocation did not produce ${width} cells`)
     }
     return cells
 }
 
-export function renderStatusBar(summary, styles) {
-    const cells = allocateStatusBar(summary)
-    const segments = cells.map((count, index) => {
-        const text = STATES[index][1].repeat(count)
-        if (!styles) return text
-        return styles[STATES[index][0]](text)
-    })
-    return `[${segments.join('')}]`
+const BAR_GLYPH = '━'
+
+export function renderStatusBar(summary, styles, width = PREFERRED_BAR_WIDTH) {
+    const cells = allocateStatusBar(summary, width)
+    return cells
+        .map((count, index) => {
+            if (count === 0) return ''
+            const text = BAR_GLYPH.repeat(count)
+            if (!styles) return text
+            return styles.bar(STATES[index], text)
+        })
+        .join('')
 }
 
-function targetLine(summary, styles) {
-    const status = deriveTargetStatus(summary)
-    const counts = `${status.accepted} accepted · ${status.pending} review · ${status.missing} missing`
+function compactCounts(status) {
+    const counts = []
+    if (status.accepted > 0) counts.push(`${status.accepted} accepted`)
+    if (status.pending > 0) counts.push(`${status.pending} review`)
+    if (status.missing > 0) counts.push(`${status.missing} missing`)
+    if (status.usesEnglishFallback > 0) counts.push(`fallback=${status.usesEnglishFallback}`)
+    return counts.join(', ')
+}
+
+function rowCounts(status) {
+    return status.kind === 'source' ? `${status.total} source` : compactCounts(status)
+}
+
+function rowWidthWithoutBar(status) {
+    return (
+        status.labelWidth +
+        LABEL_SEPARATOR_WIDTH +
+        STATUS_COLUMN_WIDTH +
+        STATUS_SEPARATOR_WIDTH +
+        rowCounts(status).length
+    )
+}
+
+export function resolveSharedBarWidth(rows, columns) {
+    if (rows.length === 0) return 0
+    const maxNonBarWidth = Math.max(...rows.map(rowWidthWithoutBar))
+    const available = columns - maxNonBarWidth - BAR_TRAILING_SPACE_WIDTH
+    if (available >= PREFERRED_BAR_WIDTH) return PREFERRED_BAR_WIDTH
+    if (available >= MINIMUM_BAR_WIDTH) return available
+    return 0
+}
+
+function renderRichRow(label, status, styles, width) {
+    const boldLabel = styles.heading(label.padEnd(status.labelWidth))
+    const bar = width > 0 ? `${renderStatusBar(status, styles, width)} ` : ''
+    const counts = rowCounts(status)
+    return `${boldLabel} ${bar}${status.label.padEnd(STATUS_COLUMN_WIDTH)} ${counts}`.trimEnd()
+}
+
+function renderPlainRow(label, status) {
+    const counts = compactCounts(status)
+    return `${label}: ${status.label}; ${status.kind === 'source' ? `source=${status.total}` : counts}`
+}
+
+function createBarStyles(color) {
+    if (!color) return { bar: (_state, text) => text }
+    const foregrounds = { accepted: '\u001b[32m', review: '\u001b[33m', missing: '\u001b[31m' }
     return {
-        status,
-        counts,
+        bar: (state, text) => `${foregrounds[state]}${text}\u001b[0m`,
     }
 }
 
-function targetActions(status, styles) {
-    const actions = []
-    if (status.missing > 0)
-        actions.push(styles.command(`Next: pnpm i18n:translate ${status.locale}`))
-    if (status.pending > 0) actions.push(styles.command(`Next: pnpm i18n:review ${status.locale}`))
-    return actions
+function statusRows(summaries, nativeName) {
+    const source = {
+        ...summaries.source,
+        accepted: summaries.source.total,
+        pending: 0,
+        missing: 0,
+        usesEnglishFallback: 0,
+        label: 'Complete',
+        kind: 'source',
+    }
+    const targets = summaries.targets.map((summary) => ({
+        ...deriveTargetStatus(summary),
+        kind: 'target',
+    }))
+    const labels = [source, ...targets].map(
+        (status) => `${nativeName(status.locale)} (${status.locale})`
+    )
+    const labelWidth = Math.max(...labels.map((label) => label.length))
+    return [source, ...targets].map((status, index) => ({
+        ...status,
+        labelWidth,
+        displayLabel: labels[index],
+    }))
 }
 
 export function renderStatus({
@@ -136,42 +204,18 @@ export function renderStatus({
     nativeName = (id) => id,
     stdout = process.stdout,
 } = {}) {
-    const styles = createSemanticStyles(capabilities.color)
-    const lines = []
-    const source = summaries.source
-    if (capabilities.rich) {
-        lines.push(
-            `${styles.heading(`${nativeName(source.locale)} (${source.locale}) — Complete`)}`
-        )
-        if (capabilities.bar) lines.push(styles.accepted(`[${'='.repeat(BAR_WIDTH)}]`))
-        lines.push(`Valid source: ${source.total}`)
-    } else {
-        lines.push(
-            `${nativeName(source.locale)} (${source.locale}): Complete; valid-source=${source.total} total=${source.total}`
-        )
+    const styles = {
+        ...createSemanticStyles(capabilities.color),
+        ...createBarStyles(capabilities.color),
     }
-    for (const summary of summaries.targets) {
-        const line = targetLine(summary, styles)
-        const status = line.status
-        if (capabilities.rich) {
-            lines.push(
-                '',
-                `${styles.heading(`${nativeName(summary.locale)} (${summary.locale}) — ${status.label}`)}`
-            )
-            if (capabilities.bar) lines.push(renderStatusBar(status, styles))
-            lines.push(`${line.counts}`)
-            if (status.usesEnglishFallback > 0)
-                lines.push(targetFallbackLabel(status.usesEnglishFallback))
-            lines.push(...targetActions(status, styles))
-        } else {
-            lines.push(
-                '',
-                `${nativeName(summary.locale)} (${summary.locale}): ${status.label}; accepted=${status.accepted} review=${status.pending} fallback=${status.usesEnglishFallback} missing=${status.missing} total=${status.total}`
-            )
-            if (status.usesEnglishFallback > 0)
-                lines.push(targetFallbackLabel(status.usesEnglishFallback))
-            lines.push(...targetActions(status, styles))
+    const rows = statusRows(summaries, nativeName)
+    const richEligible = capabilities.rich && capabilities.color
+    const barWidth = richEligible ? resolveSharedBarWidth(rows, capabilities.columns) : 0
+    const lines = rows.map((status) => {
+        if (richEligible) {
+            return renderRichRow(status.displayLabel, status, styles, barWidth)
         }
-    }
+        return renderPlainRow(status.displayLabel, status)
+    })
     stdout.write(`${lines.join('\n')}\n`)
 }
