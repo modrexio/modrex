@@ -21,6 +21,7 @@ an IDE, while the interactive command prompts for translations in the terminal.
 | `pnpm i18n:translate de` | Interactively continue an existing German translation.      |
 | `pnpm i18n:review de`    | Review German translations marked `? ` for review.          |
 | `pnpm i18n:create uk`    | Create an IDE-ready Ukrainian locale with marked English.   |
+| `pnpm i18n:sync`         | Reconcile locale files with the expected workflow state.    |
 
 Replace `de` or `uk` with the locale code you are working on. During an interactive session,
 press Enter to skip a string. Partial translations are saved and can be resumed later. The CLI
@@ -60,6 +61,9 @@ current string without adding an English placeholder.
 2. Edit translated values. Do not rename the English keys.
 3. Leave untranslated keys out, or keep the marked values created by `i18n:fill`. Partial
    translations are welcome, and untranslated text falls back to English in the app.
+4. Run `pnpm i18n:sync` before committing. It restores English key order and other workflow
+   details a manual edit can leave out of sync, without changing any translated text. If you
+   skip this step, the sync check described below may report your commit as out of sync.
 
 ## Add a language
 
@@ -103,6 +107,20 @@ uses the platform's native language name.
   `pnpm i18n:review de` to go through every `? ` value for a locale and confirm or update each
   one.
 - Key coverage measures whether translated keys exist, not translation quality or freshness.
+
+## Sync checks
+
+Two checks compare your locale changes against Modrex's translation history to make sure they
+match the expected workflow (for example, that key order and markers weren't disturbed by a
+manual edit):
+
+- `pnpm i18n:check-staged` runs automatically before each commit and looks only at the locale
+  files you have staged.
+- `pnpm i18n:check-readonly` runs the same check in CI against your full pull request.
+
+If either reports that a locale is out of sync, run `pnpm i18n:sync` to reconcile your locale
+files, then re-stage and commit again. This does not change your translated text, only its
+formatting and workflow markers.
 
 ## Contributor credit
 
