@@ -90,18 +90,17 @@ test('fallback wording, alt text, and zero-fallback omission share one summary',
     assert.doesNotMatch(zeroRow, /English fallback|<sub>/u)
 })
 
-test('legend is rendered in memory with future Step 7 paths and current semantics', () => {
+test('legend is rendered in memory with future Step 7 paths and compact labels', () => {
     const output = render()
     for (const state of ['accepted', 'review', 'missing']) {
         assert.match(output, new RegExp(`assets/i18n/status/legend/${state}\\.svg`, 'u'))
     }
-    assert.match(output, /100% means every key has target text and may still include Review/u)
-    assert.match(output, /Complete means no known translation work remains/u)
-    assert.match(
+    assert.match(output, /Accepted <img[^>]+review\.svg[^>]+> Review /u)
+    assert.match(output, /missing\.svg[^>]+> Missing(?:<|\s|$)/u)
+    assert.doesNotMatch(
         output,
-        /Pending translations with incompatible placeholders temporarily use English/u
+        /Review needed|100% means every key|Complete means no known|Pending translations with incompatible|For English, Complete|[·—]/u
     )
-    assert.match(output, /For English, Complete means the source bundle passes validation/u)
     assert.match(output, /translation guide/u)
 })
 

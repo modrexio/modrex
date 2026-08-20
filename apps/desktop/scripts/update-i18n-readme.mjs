@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { inspectLocales, localeNativeName } from './i18n-inspection.mjs'
@@ -122,18 +122,7 @@ function renderTargetRow(summary, metadata) {
 }
 
 function renderLegend() {
-    return [
-        '<div class="i18n-status-legend">',
-        '  <img src="assets/i18n/status/legend/accepted.svg" alt=""> Accepted ·',
-        '  <img src="assets/i18n/status/legend/review.svg" alt=""> Review needed ·',
-        '  <img src="assets/i18n/status/legend/missing.svg" alt=""> Missing — English fallback',
-        '</div>',
-        '',
-        '100% means every key has target text and may still include Review.',
-        'Complete means no known translation work remains.',
-        'Pending translations with incompatible placeholders temporarily use English.',
-        'For English, Complete means the source bundle passes validation; Review does not apply.',
-    ].join('\n')
+    return '<div class="i18n-status-legend"><img src="assets/i18n/status/legend/accepted.svg" alt=""> Accepted <img src="assets/i18n/status/legend/review.svg" alt=""> Review <img src="assets/i18n/status/legend/missing.svg" alt=""> Missing</div>'
 }
 
 export function renderTranslationStatusReadme({ summaries, names, contributors }) {
@@ -182,14 +171,22 @@ export function expectedReadme(readme) {
     return replaceTranslationTable(readme, buildTranslationTable(inspection, contributors))
 }
 
+export function materializeReadme(readmePath = README_PATH) {
+    const current = readFileSync(readmePath, 'utf8')
+    const expected = expectedReadme(current)
+    if (expected !== current) writeFileSync(readmePath, expected)
+    return expected
+}
+
 export function runReadmeCommand(
     args,
     { readmePath = README_PATH, stdout = process.stdout, stderr = process.stderr } = {}
 ) {
     const supported =
-        args.length === 0 || (args.length === 1 && ['--stdout', '--check'].includes(args[0]))
+        args.length === 0 ||
+        (args.length === 1 && ['--stdout', '--check', '--write'].includes(args[0]))
     if (!supported) {
-        stderr.write('Usage: update-i18n-readme.mjs [--stdout|--check]\n')
+        stderr.write('Usage: update-i18n-readme.mjs [--stdout|--check|--write]\n')
         return 2
     }
 
@@ -208,6 +205,16 @@ export function runReadmeCommand(
         }
         stderr.write('update-i18n-readme: README.md is out of date\n')
         return 1
+    }
+
+    if (args[0] === '--write') {
+        const expected = materializeReadme(readmePath)
+        stdout.write(
+            expected === current
+                ? 'update-i18n-readme: README.md is current\n'
+                : 'update-i18n-readme: updated README.md\n'
+        )
+        return 0
     }
 
     if (expected === current) {

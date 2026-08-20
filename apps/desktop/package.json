@@ -36,7 +36,7 @@
         "checks": "pnpm check-version && pnpm check-commands && pnpm check-csp && pnpm check-games && pnpm check-sources && pnpm check-updater && pnpm check-i18n && pnpm format:check && pnpm lint && pnpm typecheck && pnpm test",
         "preversion": "node -e \"console.error('Run pnpm version patch, minor, or major from the repository root.'); process.exit(1)\"",
         "test": "pnpm test:scripts && cargo test --manifest-path src-tauri/Cargo.toml && vitest run",
-        "test:scripts": "node scripts/i18n.test.mjs && node scripts/i18n-history.test.mjs && node scripts/i18n-sync.test.mjs && node scripts/i18n-review.test.mjs && node scripts/i18n-attribution.test.mjs && node scripts/i18n-enforcement.test.mjs && node scripts/i18n-presentation.test.mjs && node scripts/i18n-step4.test.mjs && node scripts/i18n-presentation-svg.test.mjs && node scripts/i18n-presentation-readme.test.mjs",
+        "test:scripts": "node scripts/i18n.test.mjs && node scripts/i18n-history.test.mjs && node scripts/i18n-sync.test.mjs && node scripts/i18n-review.test.mjs && node scripts/i18n-attribution.test.mjs && node scripts/i18n-enforcement.test.mjs && node scripts/i18n-presentation.test.mjs && node scripts/i18n-step4.test.mjs && node scripts/i18n-presentation-svg.test.mjs && node scripts/i18n-presentation-readme.test.mjs && node scripts/i18n-presentation-legend.test.mjs",
         "test:renderer": "vitest run",
         "format": "prettier --write .",
         "format:check": "prettier --check .",
