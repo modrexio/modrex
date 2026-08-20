@@ -142,9 +142,12 @@ export function renderTranslationStatusReadme({ summaries, names, contributors }
     return `${rows.join('\n')}\n\n${renderLegend()}\n\n${TRANSLATION_GUIDE}`
 }
 
-export function buildTranslationTable(inspection, contributors) {
+export function buildTranslationTable(
+    inspection,
+    contributors,
+    summaries = buildStatusSummaries(inspection)
+) {
     const metadata = buildLocaleRows(inspection, contributors)
-    const summaries = buildStatusSummaries(inspection)
     return renderTranslationStatusReadme({ summaries, ...metadata })
 }
 
