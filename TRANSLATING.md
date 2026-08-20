@@ -19,6 +19,7 @@ an IDE, while the interactive command prompts for translations in the terminal.
 | `pnpm i18n:missing de`   | List every missing German key with its English source text. |
 | `pnpm i18n:fill de`      | Prepare an existing German locale for editing in an IDE.    |
 | `pnpm i18n:translate de` | Interactively continue an existing German translation.      |
+| `pnpm i18n:review de`    | Review German translations marked `? ` for review.          |
 | `pnpm i18n:create uk`    | Create an IDE-ready Ukrainian locale with marked English.   |
 
 Replace `de` or `uk` with the locale code you are working on. During an interactive session,
@@ -94,6 +95,13 @@ uses the platform's native language name.
 - Values must be non-empty strings. Nested JSON objects are allowed; arrays and other values are
   not.
 - An untranslated value is either an omitted key or a value beginning with `! `.
+- A value beginning with `? ` is a translation that already exists but needs review, most often
+  because the English source text changed after the translation was made. This is different from
+  `! `: the translation is present and normally still displays, it just needs a translator to
+  confirm it still matches the English source. If the translated text no longer has the same
+  `{placeholder}`s as the English source, Modrex falls back to English until that is fixed. Run
+  `pnpm i18n:review de` to go through every `? ` value for a locale and confirm or update each
+  one.
 - Key coverage measures whether translated keys exist, not translation quality or freshness.
 
 ## Contributor credit

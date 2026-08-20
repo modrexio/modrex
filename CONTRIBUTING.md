@@ -121,12 +121,12 @@ The translator-focused workflow, optional commands, locale rules, and new-langua
 [TRANSLATING.md](TRANSLATING.md). Local tooling is optional; CI can perform validation without
 pnpm, application dependencies, Rust, Tauri, or launching Modrex.
 
-Maintainers can preview or verify the generated README without modifying it:
+Maintainers can verify or regenerate the README translation table and per-locale status SVGs:
 
-| Command                                                     | Description                                                   |
-| ----------------------------------------------------------- | ------------------------------------------------------------- |
-| `node apps/desktop/scripts/update-i18n-readme.mjs --stdout` | Print the generated README without modifying `README.md`.     |
-| `node apps/desktop/scripts/update-i18n-readme.mjs --check`  | Exit non-zero when the checked-in translation table is stale. |
+| Command                        | Description                                                                                |
+| ------------------------------ | ------------------------------------------------------------------------------------------ |
+| `pnpm i18n:presentation-check` | Exit non-zero when the README translation table or a status SVG is stale, without writing. |
+| `pnpm i18n:presentation-write` | Materialize the README translation table and status SVGs from current locale state.        |
 
 After locale changes reach `main`, GitHub Actions regenerates contributor attribution and the
 README table. Locale files remain the source for language discovery and coverage.
