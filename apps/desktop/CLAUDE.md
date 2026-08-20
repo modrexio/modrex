@@ -173,8 +173,12 @@ coverage. `pnpm i18n:missing <locale>` lists untranslated keys with their Englis
 file for IDE editing; marked values remain untranslated and fall back to English at runtime.
 `pnpm i18n:translate <locale>` continues an existing locale interactively.
 `pnpm i18n:create <locale>` creates a new IDE-ready locale containing marked English text, while
-`pnpm i18n:fill <locale>` adds or refreshes marked text only in an existing locale. The README
-coverage table is regenerated after locale changes reach `main`.
+`pnpm i18n:fill <locale>` adds or refreshes marked text only in an existing locale. `pnpm
+i18n:presentation-check` reports whether the README translation table and per-locale status SVGs
+(`assets/i18n/status/`) still match current locale state without writing anything; `pnpm
+i18n:presentation-write` materializes them. The `translation-status` workflow runs the writer
+after locale changes reach `main`, so manual edits inside the generated README block or to a
+status SVG are overwritten on the next run.
 
 ## Testing
 

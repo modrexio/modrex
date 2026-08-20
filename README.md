@@ -103,7 +103,7 @@ Choose the guide that matches what you want to contribute:
 
 ## Translations
 
-Coverage is the share of English source keys currently present in each locale. It does not measure linguistic quality. Contributors are derived from locale history and are not ranked.
+Translation is the share of English source keys for which target-language text currently exists in each locale. It does not measure linguistic quality. Contributors are derived from locale history and are not ranked.
 
 <!-- TRANSLATION_STATUS_START -->
 
