@@ -228,7 +228,10 @@ test('current summaries and contributors remain reflected in the expected block'
     for (const summary of summaries.targets) {
         const row = output.split('\n').find((line) => line.includes(`${summary.locale}.svg`))
         assert.ok(row)
-        assert.match(row, new RegExp(`> ${deriveTargetStatus(summary).label.replace('%', '\\%')}`))
+        assert.match(
+            row,
+            new RegExp(`> ${deriveTargetStatus(summary).label.replaceAll('%', '\\%')}`)
+        )
         for (const username of contributors[summary.locale] ?? []) {
             assert.match(row, new RegExp(`https://github\\.com/${username}`))
         }

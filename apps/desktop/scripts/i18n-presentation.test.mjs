@@ -667,10 +667,10 @@ test('current real status uses compact one-row semantics without recommendations
     const stderr = outputStream()
     assert.equal(runI18nStatus({ stdout: stream.stream, stderr: stderr.stream, env: {} }), 0)
     const text = stripAnsi(stream.value())
-    assert.match(text, /English \(en\).*Complete.*422 source/u)
-    assert.match(text, /Deutsch \(de\).*100%.*420 accepted, 2 review/u)
-    assert.match(text, /Русский \(ru\).*100%.*420 accepted, 2 review/u)
-    assert.match(text, /Українська \(uk\).*Complete.*422 accepted/u)
+    assert.match(text, /English \(en\).*Complete.*424 source/u)
+    assert.match(text, /Deutsch \(de\).*99\.5%.*420 accepted, 2 review, 2 missing/u)
+    assert.match(text, /Русский \(ru\).*99\.5%.*420 accepted, 2 review, 2 missing/u)
+    assert.match(text, /Українська \(uk\).*99\.5%.*422 accepted, 2 missing/u)
     assert.doesNotMatch(text, /Next:|0 missing|0 review/u)
     assert.equal(stderr.value(), '')
 })
@@ -693,15 +693,18 @@ test('current real rich rows never exceed the declared terminal width', () => {
     }
 })
 
-test('current real status selects a 32-cell bar at columns=80 and 40 cells once width allows it', () => {
-    const at80 = outputStream({ isTTY: true, columns: 80 })
-    assert.equal(runI18nStatus({ stdout: at80.stream, stderr: outputStream().stream, env: {} }), 0)
-    const linesAt80 = stripAnsi(at80.value())
+test('current real status suppresses the bar below the shared minimum width and renders it once width allows', () => {
+    const narrow = outputStream({ isTTY: true, columns: 80 })
+    assert.equal(
+        runI18nStatus({ stdout: narrow.stream, stderr: outputStream().stream, env: {} }),
+        0
+    )
+    const linesNarrow = stripAnsi(narrow.value())
         .split('\n')
         .filter((line) => line.length > 0)
-    for (const line of linesAt80) assert.equal((line.match(/━/gu) ?? []).length, 32)
+    for (const line of linesNarrow) assert.equal((line.match(/━/gu) ?? []).length, 0)
 
-    const wide = outputStream({ isTTY: true, columns: 90 })
+    const wide = outputStream({ isTTY: true, columns: 120 })
     assert.equal(runI18nStatus({ stdout: wide.stream, stderr: outputStream().stream, env: {} }), 0)
     const linesWide = stripAnsi(wide.value())
         .split('\n')

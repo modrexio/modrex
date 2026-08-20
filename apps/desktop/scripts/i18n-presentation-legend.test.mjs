@@ -60,11 +60,12 @@ test('materialized README owns the generated block and resolves every local stat
     for (const path of imagePaths) assert.ok(readFileSync(resolve(ROOT, path)))
     assert.match(generated, /\| Language \| Translation \| Contributors \|/u)
     assert.match(generated, /en\.svg[^\n]*> Complete/u)
-    assert.match(generated, /de\.svg[^\n]*> 100%/u)
+    assert.match(generated, /de\.svg[^\n]*> 99\.5%/u)
     assert.doesNotMatch(generated, /de\.svg[^\n]*Complete/u)
-    assert.match(generated, /ru\.svg[^\n]*> 100%/u)
+    assert.match(generated, /ru\.svg[^\n]*> 99\.5%/u)
     assert.doesNotMatch(generated, /ru\.svg[^\n]*Complete/u)
-    assert.match(generated, /uk\.svg[^\n]*> Complete/u)
+    assert.match(generated, /uk\.svg[^\n]*> 99\.5%/u)
+    assert.doesNotMatch(generated, /uk\.svg[^\n]*Complete/u)
     assert.match(generated, /<img src="assets\/i18n\/status\/en\.svg"/u)
     assert.doesNotMatch(generated, /\[<img|<a [^>]*><img/u)
     assert.match(generated, /accepted\.svg[^>]+> Accepted /u)
@@ -98,6 +99,6 @@ test('README materialization is idempotent and current contributors remain linke
                 new RegExp(`\\[${username}\\]\\(https://github\\.com/${username}\\)`)
             )
         }
-        assert.match(before, new RegExp(`status/${locale}\.svg`))
+        assert.match(before, new RegExp(`status/${locale}\\.svg`))
     }
 })
