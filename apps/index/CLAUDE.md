@@ -28,7 +28,7 @@ node lookup-mod.mjs <name-or-id>        # Look up a mod by name or remote_id (re
 
 > The three `*.mjs` dev utils hardcode a path to the installed app's cached DB (`C:/Users/oleh/AppData/…`). To query a freshly built `index.db` instead, edit the `APP_DB` constant at the top of each file.
 
-`7z` must be on `PATH` — used for 7z and RAR extraction and `.pdmod` decryption. Windows: install from 7-zip.org. Ubuntu CI: `sudo apt-get install p7zip-full`. **`p7zip-full` reads RAR5 but not RAR4**: the older format needs the non-free codec in `p7zip-rar`, and without it every RAR4 download fails extraction, yields no entries, and is then recorded as a checked listing with no files. `markerFromFullArchive` logs each archive it could not open, which is where that shows up.
+`7z` must be on `PATH` — used for 7z and RAR extraction and `.pdmod` decryption. Windows: install from 7-zip.org. Ubuntu CI: `apps/index/scripts/install-7zip.sh`, run by both Postgres workflows before any archive work. Ubuntu's packaged 7-Zip 23.01 (what `p7zip-full`/`p7zip-rar` resolve to on Noble) segfaults decompressing valid RAR4 archives; RAR5/ZIP/7z are unaffected. The script pins upstream 7-Zip 26.02 instead, verifying its checksum and its resolved `--help` banner before adding it ahead of the distro binary on `PATH`. A RAR4 download that still fails extraction is a checked listing with no files; `markerFromFullArchive` logs each archive it could not open. `apps/index/test-archive-canaries.ts` (`pnpm test:archive-canaries`) proves the fix against two real ModWorkshop RAR4 archives that crash the distro binary; it needs network and the pinned extractor, so it runs on demand rather than as part of `index:test`.
 
 ## Architecture
 

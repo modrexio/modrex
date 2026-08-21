@@ -38,7 +38,7 @@ jobs:
                   cache: pnpm
 
             - name: Install system dependencies
-              run: sudo apt-get install -y p7zip-full
+              run: bash apps/index/scripts/install-7zip.sh
 
             - name: Install dependencies
               run: pnpm install --frozen-lockfile
