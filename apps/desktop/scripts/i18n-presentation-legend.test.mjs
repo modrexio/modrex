@@ -64,11 +64,14 @@ test('materialized README owns the generated block and resolves every local stat
     assert.match(generated, /\| Language \| Translation \| Contributors \|/u)
     assert.match(generated, new RegExp(`${SOURCE_LOCALE}\\.svg[^\\n]*> Complete`, 'u'))
 
-    // Complete belongs to the source row alone. A translated locale always shows a
-    // percentage, because keys awaiting review leave it short of complete even at 100%.
-    for (const id of targetIds) {
-        assert.match(generated, new RegExp(`${id}\\.svg[^\\n]*> \\d{1,3}(?:\\.\\d)?%`, 'u'))
-        assert.doesNotMatch(generated, new RegExp(`${id}\\.svg[^\\n]*Complete`, 'u'))
+    // A target locale reads Complete once nothing is pending or missing and shows a percentage
+    // until then, so asserting either form outright breaks when a locale finishes.
+    for (const locale of inspectLocales().locales) {
+        const finished = locale.pendingCount === 0 && locale.missingCount === 0
+        const shown = finished ? 'Complete' : '\\d{1,3}(?:\\.\\d)?%'
+        assert.match(generated, new RegExp(`${locale.id}\\.svg[^\\n]*> ${shown}`, 'u'))
+        if (finished) continue
+        assert.doesNotMatch(generated, new RegExp(`${locale.id}\\.svg[^\\n]*Complete`, 'u'))
     }
     assert.match(generated, /<img src="assets\/i18n\/status\/en\.svg"/u)
     assert.doesNotMatch(generated, /\[<img|<a [^>]*><img/u)

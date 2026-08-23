@@ -1214,31 +1214,32 @@ test(
         const history = analyzeCommittedHistory({ cwd: REPO_ROOT })
         assert.equal(history.baseline, I18N_HISTORY_BASELINE)
 
+        // Resolving a review accepts the entry, so a requested entry is pending or accepted
+        // depending on the revision. Only the lineage a request proves holds in both states.
         const requests = explicitReviewRequests(history)
         for (const event of requests) {
             assert.equal(event.sourceChanged, false)
             assert.equal(event.canonicalChanged, false)
             const entry = entryOf(history, event.locale, event.key)
-            assert.equal(entry.state, 'pending')
-            assert.equal(entry.pendingProvenance, PENDING_PROVENANCE.EXPLICIT_REQUEST)
             assert.equal(entry.hasAcceptedLineage, true)
             assert.equal(entry.acceptedPairSeen, true)
+            if (entry.state !== 'pending') continue
+            assert.equal(entry.pendingProvenance, PENDING_PROVENANCE.EXPLICIT_REQUEST)
         }
 
-        // The event log and the entry states are separate derivations of the same requests,
-        // so a request the summary flags must appear in the log and the reverse.
+        // Containment runs one way only. A resolved request stays in the log while its entry
+        // stops being flagged, so equality between the two sets breaks on the first review.
         const summary = summarizeHistory(history)
-        const flagged = []
+        const requested = new Set(requests.map((event) => entryId(event.locale, event.key)))
         for (const [localeId, locale] of summary.locales) {
             for (const [key, entry] of locale.entries) {
                 if (entry.pendingProvenance !== PENDING_PROVENANCE.EXPLICIT_REQUEST) continue
-                flagged.push(entryId(localeId, key))
+                assert.ok(
+                    requested.has(entryId(localeId, key)),
+                    `${entryId(localeId, key)} is flagged as an explicit request with no logged request`
+                )
             }
         }
-        assert.deepEqual(
-            flagged.sort(),
-            requests.map((event) => entryId(event.locale, event.key)).sort()
-        )
     }
 )
 

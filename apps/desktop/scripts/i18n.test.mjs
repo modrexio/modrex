@@ -1134,7 +1134,7 @@ test('translation contributors come from linked GitHub commit authors', async ()
         },
     }))
     const requests = []
-    const contributors = await collectTranslationContributors(
+    const { contributors, creators } = await collectTranslationContributors(
         ['de', 'ru'],
         (localeId, page) => {
             requests.push(`${localeId}:${page}`)
@@ -1180,6 +1180,9 @@ test('translation contributors come from linked GitHub commit authors', async ()
         ru: ['ShulhaOleh'],
     })
     assert.deepEqual(requests, ['de:1', 'de:2', 'ru:1'])
+
+    // The oldest German commit has no linked account, so that locale reports no creator.
+    assert.deepEqual(creators, { ru: 'ShulhaOleh' })
 })
 
 test('semantic locale comparison ignores formatting and key order', () => {

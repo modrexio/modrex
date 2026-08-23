@@ -4,7 +4,16 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { collectTranslationContributors, localeJsonChanged } from './update-i18n-contributors.mjs'
+import {
+    applyMaintainerAttribution,
+    collectTranslationContributors,
+    localeJsonChanged,
+} from './update-i18n-contributors.mjs'
+
+async function collectContributorsOnly(...args) {
+    const { contributors } = await collectTranslationContributors(...args)
+    return contributors
+}
 
 function locale(value) {
     return value === undefined ? undefined : JSON.stringify({ key: value })
@@ -57,7 +66,7 @@ function temporaryHistory(states) {
                         parents: commit.parent ? [{ sha: commit.parent }] : [],
                         author: { type: 'User', login: commit.author },
                     }))
-                return collectTranslationContributors(
+                return collectContributorsOnly(
                     ['de'],
                     (_localeId, page) => (page === 1 ? apiCommits : []),
                     (_localeId, commit) => {
@@ -168,7 +177,7 @@ test('marker-only maintenance across locales credits no source maintainer', asyn
         ['ru-marker', [locale('X'), locale('? X')]],
         ['uk-scaffold', [locale(undefined), locale('! English')]],
     ])
-    const contributors = await collectTranslationContributors(
+    const contributors = await collectContributorsOnly(
         ['de', 'ru', 'uk'],
         (localeId, page) => {
             if (page > 1) return []
@@ -190,7 +199,7 @@ test('marker-only maintenance across locales credits no source maintainer', asyn
 })
 
 test('pending edit remains attributable even while review is unresolved', async () => {
-    const contributors = await collectTranslationContributors(
+    const contributors = await collectContributorsOnly(
         ['de'],
         () => [
             {
@@ -211,7 +220,7 @@ test('linked GitHub authors remain accumulated only for semantic target changes'
         ['translator-b', ['Y', 'Z']],
         ['reviewer-keep', ['? Z', 'Z']],
     ])
-    const contributors = await collectTranslationContributors(
+    const contributors = await collectContributorsOnly(
         ['de'],
         (_localeId, page) =>
             page === 1
@@ -247,7 +256,7 @@ test('linked marker-only identities are excluded while linked editors remain cre
             author: { type: 'User', login: 'SquashedMarkerAuthor' },
         },
     ]
-    const contributors = await collectTranslationContributors(
+    const contributors = await collectContributorsOnly(
         ['de'],
         (_localeId, page) => (page === 1 ? commits : []),
         (_localeId, commit) => commit.sha === 'linked-edit'
@@ -367,4 +376,91 @@ test('non-string historical target leaves fail closed', () => {
             /Invalid historical locale 'de'.*must be a string or object/s
         )
     }
+})
+
+test('maintainer attribution keeps a maintainer only where they created the locale', () => {
+    const credited = applyMaintainerAttribution(
+        {
+            de: ['ShulhaOleh', 'TarekLP'],
+            ru: ['ShulhaOleh'],
+            uk: ['ShevRuslan1', 'ShulhaOleh'],
+        },
+        new Set(['ShulhaOleh']),
+        { de: 'TarekLP', ru: 'ShulhaOleh', uk: 'ShevRuslan1' }
+    )
+    assert.deepEqual(credited, {
+        de: ['TarekLP'],
+        ru: ['ShulhaOleh'],
+        uk: ['ShevRuslan1'],
+    })
+})
+
+test('maintainer attribution drops a locale left with no contributors', () => {
+    const credited = applyMaintainerAttribution({ pl: ['ShulhaOleh'] }, new Set(['ShulhaOleh']), {
+        pl: 'SomeoneElse',
+    })
+    assert.deepEqual(credited, {})
+})
+
+test('maintainer attribution never filters ordinary contributors', () => {
+    const credited = applyMaintainerAttribution(
+        { uk: ['ShevRuslan1', 'TarekLP'] },
+        new Set(['ShulhaOleh']),
+        {}
+    )
+    assert.deepEqual(credited, { uk: ['ShevRuslan1', 'TarekLP'] })
+})
+
+test('a new locale excludes every maintainer that did not create it', () => {
+    const credited = applyMaintainerAttribution(
+        { fr: ['ShulhaOleh', 'SecondMaintainer', 'FrenchTranslator'] },
+        new Set(['ShulhaOleh', 'SecondMaintainer']),
+        { fr: 'FrenchTranslator' }
+    )
+    assert.deepEqual(credited, { fr: ['FrenchTranslator'] })
+})
+
+test('promoting a translator to maintainer leaves their credit intact', () => {
+    const contributors = { uk: ['ShevRuslan1'], de: ['TarekLP'] }
+    const creators = { uk: 'ShevRuslan1', de: 'TarekLP' }
+    const before = applyMaintainerAttribution(contributors, new Set(['ShulhaOleh']), creators)
+    const after = applyMaintainerAttribution(
+        contributors,
+        new Set(['ShulhaOleh', 'ShevRuslan1']),
+        creators
+    )
+    assert.deepEqual(after, before)
+    assert.deepEqual(after, { uk: ['ShevRuslan1'], de: ['TarekLP'] })
+})
+
+test('a promoted maintainer loses credit only where they did not create the locale', () => {
+    const credited = applyMaintainerAttribution(
+        { uk: ['ShevRuslan1'], fr: ['ShevRuslan1'] },
+        new Set(['ShevRuslan1']),
+        { uk: 'ShevRuslan1', fr: 'FrenchTranslator' }
+    )
+    assert.deepEqual(credited, { uk: ['ShevRuslan1'] })
+})
+
+test('the oldest commit for a locale is reported as its creator', async () => {
+    const { creators } = await collectTranslationContributors(
+        ['uk'],
+        (_localeId, page) =>
+            page === 1
+                ? [
+                      {
+                          sha: 'latest',
+                          parents: [{ sha: 'mid' }],
+                          author: { type: 'User', login: 'ShulhaOleh' },
+                      },
+                      {
+                          sha: 'first',
+                          parents: [],
+                          author: { type: 'User', login: 'ShevRuslan1' },
+                      },
+                  ]
+                : [],
+        () => true
+    )
+    assert.deepEqual(creators, { uk: 'ShevRuslan1' })
 })

@@ -714,8 +714,10 @@ test('current real rich rows never exceed the declared terminal width', () => {
     }
 })
 
+// The bar takes whatever width the counts text leaves over, and that text shrinks as locales
+// complete, so a column count near the threshold flips with ordinary translation work.
 test('current real status suppresses the bar below the shared minimum width and renders it once width allows', () => {
-    const narrow = outputStream({ isTTY: true, columns: 80 })
+    const narrow = outputStream({ isTTY: true, columns: 40 })
     assert.equal(
         runI18nStatus({ stdout: narrow.stream, stderr: outputStream().stream, env: {} }),
         0
@@ -725,7 +727,7 @@ test('current real status suppresses the bar below the shared minimum width and 
         .filter((line) => line.length > 0)
     for (const line of linesNarrow) assert.equal((line.match(/━/gu) ?? []).length, 0)
 
-    const wide = outputStream({ isTTY: true, columns: 120 })
+    const wide = outputStream({ isTTY: true, columns: 240 })
     assert.equal(runI18nStatus({ stdout: wide.stream, stderr: outputStream().stream, env: {} }), 0)
     const linesWide = stripAnsi(wide.value())
         .split('\n')
