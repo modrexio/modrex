@@ -162,11 +162,15 @@ pub(super) fn open_url(url: &str) {
     // includes query strings. rundll32's FileProtocolHandler takes the URL as
     // one argument and hands it to the shell's URL handler unmodified.
     #[cfg(target_os = "windows")]
-    let _ = std::process::Command::new("rundll32")
+    let spawned = std::process::Command::new("rundll32")
         .args(["url.dll,FileProtocolHandler", url])
         .spawn();
     #[cfg(not(target_os = "windows"))]
-    let _ = std::process::Command::new("xdg-open").arg(url).spawn();
+    let spawned = std::process::Command::new("xdg-open").arg(url).spawn();
+    // A missing xdg-open otherwise looks exactly like a dead button in the UI.
+    if let Err(e) = spawned {
+        log::warn!("could not hand a url to the system opener: {e}");
+    }
 }
 
 fn open_path_on_system(path: &str) {
