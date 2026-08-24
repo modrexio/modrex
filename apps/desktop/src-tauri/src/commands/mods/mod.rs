@@ -1949,7 +1949,10 @@ pub fn open_mods_folder(app: AppHandle, game_id: String) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     let _ = std::process::Command::new("explorer").arg(&dir).spawn();
     #[cfg(target_os = "linux")]
-    let _ = std::process::Command::new("xdg-open").arg(&dir).spawn();
+    let _ = crate::commands::launchers::outside_bundle(
+        std::process::Command::new("xdg-open").arg(&dir),
+    )
+    .spawn();
     Ok(())
 }
 
@@ -1988,7 +1991,10 @@ pub fn open_mod_folder(app: AppHandle, game_id: String, tag: String) -> Result<(
     #[cfg(target_os = "windows")]
     let _ = std::process::Command::new("explorer").arg(&dir).spawn();
     #[cfg(target_os = "linux")]
-    let _ = std::process::Command::new("xdg-open").arg(&dir).spawn();
+    let _ = crate::commands::launchers::outside_bundle(
+        std::process::Command::new("xdg-open").arg(&dir),
+    )
+    .spawn();
     Ok(())
 }
 

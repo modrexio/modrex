@@ -191,7 +191,7 @@ fn curl_fetch(url: &str) -> Result<String, String> {
         use std::os::windows::process::CommandExt;
         cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
     }
-    let output = cmd
+    let output = crate::commands::launchers::outside_bundle(&mut cmd)
         .args(["-sL", "--max-time", "15", "-A", BROWSER_UA, url])
         .output()
         .map_err(|e| format!("curl unavailable: {e}"))?;

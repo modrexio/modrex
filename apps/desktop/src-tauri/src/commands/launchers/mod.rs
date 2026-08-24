@@ -153,6 +153,19 @@ pub(super) fn run_bounded(
     }
 }
 
+/// Strips the loader overrides an AppImage run leaves in the environment. AppRun points
+/// LD_LIBRARY_PATH at the libraries inside the mounted image, and users working around
+/// graphics bugs add LD_PRELOAD on top. Anything spawned from here inherits both and loads
+/// our copies instead of its own, which is how a browser or Steam launched from Modrex
+/// fails to start at all.
+pub(crate) fn outside_bundle(cmd: &mut std::process::Command) -> &mut std::process::Command {
+    #[cfg(target_os = "linux")]
+    if std::env::var_os("APPIMAGE").is_some() || std::env::var_os("APPDIR").is_some() {
+        cmd.env_remove("LD_LIBRARY_PATH").env_remove("LD_PRELOAD");
+    }
+    cmd
+}
+
 pub(super) fn open_url(url: &str) {
     // Never route this through cmd /c start: cmd re-parses its command line,
     // so a & in a query string truncates the URL there and executes what
@@ -166,7 +179,7 @@ pub(super) fn open_url(url: &str) {
         .args(["url.dll,FileProtocolHandler", url])
         .spawn();
     #[cfg(not(target_os = "windows"))]
-    let spawned = std::process::Command::new("xdg-open").arg(url).spawn();
+    let spawned = outside_bundle(std::process::Command::new("xdg-open").arg(url)).spawn();
     // A missing xdg-open otherwise looks exactly like a dead button in the UI.
     if let Err(e) = spawned {
         log::warn!("could not hand a url to the system opener: {e}");
@@ -177,7 +190,7 @@ fn open_path_on_system(path: &str) {
     #[cfg(target_os = "windows")]
     let _ = std::process::Command::new("explorer").arg(path).spawn();
     #[cfg(not(target_os = "windows"))]
-    let _ = std::process::Command::new("xdg-open").arg(path).spawn();
+    let _ = outside_bundle(std::process::Command::new("xdg-open").arg(path)).spawn();
 }
 
 // ── Orchestration ─────────────────────────────────────────────────────────────
@@ -202,7 +215,7 @@ fn launch_with(launcher_id: &str, game: &'static GameDef, game_path: &str, opts:
         let args: Vec<&str> = opts
             .map(|o| o.split_whitespace().collect())
             .unwrap_or_default();
-        if let Err(e) = std::process::Command::new(&exe).args(&args).spawn() {
+        if let Err(e) = outside_bundle(std::process::Command::new(&exe).args(&args)).spawn() {
             log::warn!("launch_game: spawn {exe:?}: {e}");
         }
     }
