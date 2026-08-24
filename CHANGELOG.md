@@ -4,6 +4,8 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 ## Unreleased
 
+## 0.14.0
+
 ### Added
 
 - Added German as a language option for the app's interface.
