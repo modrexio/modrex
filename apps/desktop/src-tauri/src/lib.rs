@@ -183,9 +183,12 @@ pub fn run() {
             }
 
             #[cfg(desktop)]
-            {
-                app.deep_link().register("nxm")?;
-                app.deep_link().register("modrex")?;
+            for scheme in ["nxm", "modrex"] {
+                // Linux registration shells out to xdg-mime and update-desktop-database,
+                // which are not on every system. Losing deep links beats refusing to start.
+                if let Err(e) = app.deep_link().register(scheme) {
+                    log::warn!("could not register the {scheme} scheme: {e}");
+                }
             }
 
             let handle = app.handle().clone();

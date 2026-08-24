@@ -531,3 +531,39 @@ fn matches_process_rejects_unrelated() {
     let cmd = vec![String::from("/usr/bin/steam")];
     assert!(!matches_process("steam", &cmd, "PAYDAY3Client"));
 }
+
+// ── outside_bundle ────────────────────────────────────────────────────────
+
+// One test rather than several: it moves process-wide environment variables, and
+// parallel tests would see each other's writes.
+#[cfg(target_os = "linux")]
+#[test]
+fn outside_bundle_drops_loader_overrides_only_inside_a_bundle() {
+    fn removals(cmd: &std::process::Command) -> Vec<String> {
+        let mut keys: Vec<String> = cmd
+            .get_envs()
+            .filter(|(_, value)| value.is_none())
+            .map(|(key, _)| key.to_string_lossy().into_owned())
+            .collect();
+        keys.sort();
+        keys
+    }
+
+    std::env::remove_var("APPIMAGE");
+    std::env::remove_var("APPDIR");
+    let mut installed = std::process::Command::new("true");
+    outside_bundle(&mut installed);
+    assert!(removals(&installed).is_empty());
+
+    std::env::set_var("APPIMAGE", "/tmp/modrex_x86_64.AppImage");
+    let mut from_appimage = std::process::Command::new("true");
+    outside_bundle(&mut from_appimage);
+    std::env::remove_var("APPIMAGE");
+    assert_eq!(removals(&from_appimage), ["LD_LIBRARY_PATH", "LD_PRELOAD"]);
+
+    std::env::set_var("APPDIR", "/tmp/.mount_modrex");
+    let mut from_appdir = std::process::Command::new("true");
+    outside_bundle(&mut from_appdir);
+    std::env::remove_var("APPDIR");
+    assert_eq!(removals(&from_appdir), ["LD_LIBRARY_PATH", "LD_PRELOAD"]);
+}

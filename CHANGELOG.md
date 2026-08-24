@@ -29,6 +29,9 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - Fixed installed Nexus mods not recovering their details and update checks after signing in again, until the app was restarted.
 - Fixed Nexus Mods requests failing until the app was restarted when Nexus rejected a sign-in before it was due to expire.
 - Fixed oversized mod thumbnails in the Installed list view.
+- Fixed the Linux AppImage showing a black window instead of the app on systems with newer graphics drivers.
+- Fixed Modrex not starting on Linux systems that do not have xdg-utils or desktop-file-utils installed.
+- Fixed the browser, Steam and other programs opened from Modrex's Linux AppImage failing to start.
 
 ## 0.13.0
 

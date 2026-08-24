@@ -202,7 +202,8 @@ jobs:
                     libappindicator3-dev \
                     librsvg2-dev \
                     patchelf \
-                    rpm
+                    rpm \
+                    minisign
 
             - uses: pnpm/action-setup@v6
             - uses: actions/setup-node@v7
@@ -224,6 +225,69 @@ jobs:
                   TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
                   MODREX_GA_MEASUREMENT_ID: ${{ secrets.MODREX_GA_MEASUREMENT_ID }}
                   MODREX_GA_API_SECRET: ${{ secrets.MODREX_GA_API_SECRET }}
+
+            # linuxdeploy sweeps the build image's wayland libraries into the bundle as GTK
+            # dependencies, but Mesa always comes from the user's own system and cannot pair
+            # with a wayland client older than itself: against Arch's 1.26 the bundled 1.22
+            # fails EGL display creation and the window renders black. Tauri exposes no
+            # exclude list, so they come out afterwards.
+            - name: Repack AppImage without bundled wayland libraries
+              working-directory: apps/desktop/src-tauri/target/release/bundle/appimage
+              env:
+                  TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+                  TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+              run: |
+                  set -euo pipefail
+                  shopt -s nullglob
+                  APPIMAGE_FILES=(*.AppImage)
+                  if (( ${#APPIMAGE_FILES[@]} != 1 )); then
+                    echo "Expected one AppImage, found ${#APPIMAGE_FILES[@]}" >&2
+                    exit 1
+                  fi
+                  APPIMAGE=${APPIMAGE_FILES[0]}
+
+                  # Keep the runtime the bundler shipped. Left to itself appimagetool
+                  # downloads one from an unpinned continuous release, which would put a
+                  # moving binary at the head of every signed AppImage we publish.
+                  head -c "$(./"$APPIMAGE" --appimage-offset)" "$APPIMAGE" > runtime
+
+                  ./"$APPIMAGE" --appimage-extract > /dev/null
+                  rm -f squashfs-root/usr/lib/libwayland-*.so.*
+
+                  curl -fsSL -o appimagetool \
+                    https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage
+                  chmod +x appimagetool
+                  APPIMAGE_EXTRACT_AND_RUN=1 ARCH=x86_64 \
+                    ./appimagetool --runtime-file runtime squashfs-root "$APPIMAGE"
+                  rm -rf squashfs-root appimagetool runtime
+
+                  # The bundler signed the bytes this step just replaced, so without a fresh
+                  # signature every installed Linux client rejects the update.
+                  pnpm --dir "$GITHUB_WORKSPACE/apps/desktop" exec tauri signer sign "$PWD/$APPIMAGE"
+
+            - name: Verify repacked AppImage
+              working-directory: apps/desktop/src-tauri/target/release/bundle/appimage
+              run: |
+                  set -euo pipefail
+                  shopt -s nullglob
+                  APPIMAGE_FILES=(*.AppImage)
+                  APPIMAGE=${APPIMAGE_FILES[0]}
+
+                  ./"$APPIMAGE" --appimage-extract > /dev/null
+                  WAYLAND_LIBS=(squashfs-root/usr/lib/libwayland-*.so.*)
+                  rm -rf squashfs-root
+                  if (( ${#WAYLAND_LIBS[@]} != 0 )); then
+                    echo "AppImage still bundles: ${WAYLAND_LIBS[*]}" >&2
+                    exit 1
+                  fi
+
+                  # The updater accepts the release only if this passes, so it is checked
+                  # here rather than discovered by clients that can no longer update.
+                  jq -r '.plugins.updater.pubkey' \
+                    "$GITHUB_WORKSPACE/apps/desktop/src-tauri/tauri.conf.json" | base64 -d > updater.pub
+                  base64 -d < "$APPIMAGE.sig" > repacked.minisig
+                  minisign -V -m "$APPIMAGE" -p updater.pub -x repacked.minisig
+                  rm -f updater.pub repacked.minisig
 
             - uses: actions/upload-artifact@v7
               with:

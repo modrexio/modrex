@@ -40,7 +40,7 @@ async fn fetch_image(app: &AppHandle, file: &str) -> Result<Vec<u8>, String> {
         )
         .send()
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| crate::commands::api::describe_request_error(&e))?;
     if !resp.status().is_success() {
         return Err(format!("status {} for {}", resp.status(), url));
     }
