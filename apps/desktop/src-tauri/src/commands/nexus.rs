@@ -107,7 +107,7 @@ async fn send_with_retry(
             .timeout(Duration::from_secs(15))
             .send()
             .await
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| crate::commands::api::describe_request_error(&e))?;
 
         if let Some(remaining) = parse_hourly_remaining(res.headers()) {
             RATE_REMAINING.store(remaining, Ordering::Relaxed);

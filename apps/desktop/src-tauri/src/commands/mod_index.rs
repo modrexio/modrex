@@ -109,7 +109,10 @@ async fn refresh_indexes(app: &AppHandle, games: &[&str]) -> &'static str {
             return "manifest_error";
         }
         Err(error) => {
-            log::warn!("mod_index: manifest request failed: {error}");
+            log::warn!(
+                "mod_index: manifest request failed: {}",
+                crate::commands::api::describe_request_error(&error)
+            );
             return "network_error";
         }
     };
@@ -160,7 +163,7 @@ async fn refresh_game_index(
         .timeout(std::time::Duration::from_secs(300))
         .send()
         .await
-        .map_err(|error| error.to_string())?;
+        .map_err(|error| crate::commands::api::describe_request_error(&error))?;
     if !response.status().is_success() {
         return Err(format!("download returned HTTP {}", response.status()));
     }

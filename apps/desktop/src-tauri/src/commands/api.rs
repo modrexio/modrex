@@ -108,6 +108,20 @@ pub(crate) fn user_agent(app: &AppHandle) -> String {
     format!("modrex/{}", app.package_info().version)
 }
 
+/// A request failure with the causes reqwest's own Display drops. On its own that
+/// Display reads "error sending request for url (...)" whether the name lookup failed,
+/// the handshake failed, or a proxy refused, and a bug report carrying only that line
+/// cannot be diagnosed.
+pub(crate) fn describe_request_error(error: &reqwest::Error) -> String {
+    let mut description = error.to_string();
+    let mut cause = std::error::Error::source(error);
+    while let Some(error) = cause {
+        description.push_str(&format!(": {error}"));
+        cause = error.source();
+    }
+    description
+}
+
 pub(crate) async fn api_get(
     app: &AppHandle,
     path: &str,
@@ -149,7 +163,7 @@ pub(crate) async fn api_get(
             .timeout(Duration::from_secs(15))
             .send()
             .await
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| describe_request_error(&e))?;
 
         if let Some(remaining) = parse_rate_limit_remaining(res.headers()) {
             RATE_REMAINING.store(remaining, Ordering::Relaxed);

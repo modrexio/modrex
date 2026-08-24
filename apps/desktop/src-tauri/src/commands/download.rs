@@ -27,7 +27,7 @@ pub async fn download_file(
         .header("User-Agent", crate::commands::api::user_agent(app))
         .send()
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| crate::commands::api::describe_request_error(&e))?;
 
     if !res.status().is_success() {
         return Err(format!("download failed {}: {}", res.status(), url));

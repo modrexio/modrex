@@ -13,7 +13,7 @@ use std::sync::Mutex;
 use std::time::Duration;
 use tauri::{AppHandle, Emitter};
 
-use crate::commands::api::{http_client, user_agent};
+use crate::commands::api::{describe_request_error, http_client, user_agent};
 use crate::commands::launchers::shell_open_external;
 use crate::commands::secrets;
 use crate::commands::settings::{read_settings, update_settings, NexusOAuthTokens};
@@ -158,7 +158,7 @@ async fn token_request(
         .timeout(Duration::from_secs(15))
         .send()
         .await
-        .map_err(|e| TokenError::Transient(e.to_string()))?;
+        .map_err(|e| TokenError::Transient(describe_request_error(&e)))?;
 
     let status = res.status();
     if !status.is_success() {
