@@ -4,6 +4,10 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 ## Unreleased
 
+### Fixed
+
+- Fixed Nexus Mods sign-in and website mod downloads not reaching Modrex on Linux.
+
 ## 0.14.0
 
 ### Added
