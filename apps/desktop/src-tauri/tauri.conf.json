@@ -64,10 +64,12 @@
         "linux": {
             "deb": {
                 "conflicts": ["pd3-mod-manager"],
-                "replaces": ["pd3-mod-manager"]
+                "replaces": ["pd3-mod-manager"],
+                "desktopTemplate": "linux/main.desktop"
             },
             "rpm": {
-                "obsoletes": ["pd3-mod-manager"]
+                "obsoletes": ["pd3-mod-manager"],
+                "desktopTemplate": "linux/main.desktop"
             }
         },
         "windows": {
