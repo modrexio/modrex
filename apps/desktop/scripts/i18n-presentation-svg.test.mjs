@@ -177,14 +177,17 @@ test('current summaries render byte-consistent simple assets', () => {
     const summaries = buildStatusSummaries(inspectLocales())
     const directory = mkdtempSync(join(tmpdir(), 'modrex-svg-'))
     const result = generateStatusAssets({ outputDir: directory })
-    assert.deepEqual(readdirSync(directory).sort(), ['de.svg', 'en.svg', 'ru.svg', 'uk.svg'])
+    const expectedAssets = [summaries.source, ...summaries.targets]
+        .map((summary) => `${summary.locale}.svg`)
+        .sort()
+    assert.deepEqual(readdirSync(directory).sort(), expectedAssets)
     for (const summary of [summaries.source, ...summaries.targets]) {
         assert.equal(
             readFileSync(join(directory, `${summary.locale}.svg`), 'utf8'),
             renderStatusSvg(summary)
         )
     }
-    assert.equal(result.written.length, 4)
+    assert.equal(result.written.length, expectedAssets.length)
     const second = generateStatusAssets({ outputDir: directory })
     assert.deepEqual(second.written, [])
     for (const summary of [summaries.source, ...summaries.targets]) {

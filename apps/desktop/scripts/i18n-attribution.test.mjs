@@ -362,6 +362,12 @@ test('malformed historical target leaves fail closed through real Git collection
     )
 })
 
+test('a revision whose JSON never parsed counts as a change', () => {
+    const broken = '{"key": "X\n}'
+    assert.equal(localeJsonChanged(undefined, broken, 'de'), true)
+    assert.equal(localeJsonChanged(broken, locale('X'), 'de'), true)
+})
+
 test('malformed target marker syntax remains rejected', () => {
     assert.throws(
         () => localeJsonChanged(locale('X'), locale('? ? X'), 'de'),

@@ -99,7 +99,7 @@
         "tagFilterClear": "Chiaro",
         "tagFilterEmpty": "Nessuna etichetta trovata",
         "noMods": "Nessuna mod trovata",
-        "loadFailed": "Impossibile caricare le mod,
+        "loadFailed": "Impossibile caricare le mod",
         "rateLimited": "ModWorkshop sta limitando la frequenza della richieste. Riprova tra un momento.",
         "modCount": "{total} mod",
         "sort": {

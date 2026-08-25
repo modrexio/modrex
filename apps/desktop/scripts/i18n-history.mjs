@@ -258,6 +258,22 @@ export function describeHistoryAvailability(options = {}) {
     }
 }
 
+// A locale file that never parsed as JSON reached main once, and history cannot be rewritten to
+// remove it. Reading such a revision as if the broken commit had not happened keeps the analysis
+// alive; the commit that repairs the file supplies the next readable snapshot. Bundles that parse
+// but hold malformed values still fail closed in buildSnapshot.
+function revisionParses(blobPaths, contents) {
+    for (const [path, id] of blobPaths) {
+        if (!path.endsWith('.json')) continue
+        try {
+            JSON.parse(contents.get(id))
+        } catch {
+            return false
+        }
+    }
+    return true
+}
+
 function loadSnapshots(git, revisions, localeDir, cache) {
     const blobPathsByRevision = revisions.map((revision) => [
         revision,
@@ -268,9 +284,9 @@ function loadSnapshots(git, revisions, localeDir, cache) {
         for (const id of blobPaths.values()) wanted.add(id)
     }
     const contents = git.readBlobs([...wanted])
-    return blobPathsByRevision.map(([revision, blobPaths]) =>
-        buildSnapshot(revision, blobPaths, contents, cache)
-    )
+    return blobPathsByRevision
+        .filter(([, blobPaths], index) => index === 0 || revisionParses(blobPaths, contents))
+        .map(([revision, blobPaths]) => buildSnapshot(revision, blobPaths, contents, cache))
 }
 
 function assertPendingLineage(snapshot, state) {

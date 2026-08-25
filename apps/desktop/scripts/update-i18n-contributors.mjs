@@ -42,11 +42,26 @@ function canonicalTargetContent(value, localeId) {
     return entries
 }
 
-export function localeJsonChanged(previous, current, localeId, revision) {
+// A locale file that does not parse as JSON reached main once, and history cannot be rewritten to
+// remove it. Such a revision is uncomparable rather than fatal, so the caller counts it as a change.
+const UNPARSEABLE = Symbol('unparseable')
+
+function parseHistoricalJson(source) {
     try {
-        const previousBundle = previous === undefined ? {} : JSON.parse(previous)
+        return JSON.parse(source)
+    } catch {
+        return UNPARSEABLE
+    }
+}
+
+export function localeJsonChanged(previous, current, localeId, revision) {
+    const previousBundle = previous === undefined ? {} : parseHistoricalJson(previous)
+    const currentBundle = parseHistoricalJson(current)
+    if (previousBundle === UNPARSEABLE || currentBundle === UNPARSEABLE) return true
+
+    try {
         const previousContent = canonicalTargetContent(previousBundle, localeId)
-        const currentContent = canonicalTargetContent(JSON.parse(current), localeId)
+        const currentContent = canonicalTargetContent(currentBundle, localeId)
         for (const [key, value] of currentContent) {
             if (!isDeepStrictEqual(previousContent.get(key), value)) return true
         }

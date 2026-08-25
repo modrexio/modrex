@@ -4,6 +4,10 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 ## Unreleased
 
+### Added
+
+- Added Italian as a language option for the app's interface.
+
 ### Fixed
 
 - Fixed Nexus Mods sign-in and website mod downloads not reaching Modrex on Linux.
