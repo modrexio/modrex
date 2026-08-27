@@ -1,0 +1,536 @@
+{
+    "common": {
+        "beta": "! Beta",
+        "install": "! Zainstaluj",
+        "nonPakWarning": "! Nieobsługiwany format",
+        "openLink": "! Otwórz link",
+        "installing": "! Instalowanie...",
+        "downloading": "! Pobieranie...",
+        "installed": "! Zainstalowano",
+        "remove": "! Usuń",
+        "fileMissing": "! Brak pliku",
+        "zipArchiveBroken": "! Uszkodzone archiwum",
+        "modManagerDisabled": "! Autor wyłączył pobieranie menedżera modów.",
+        "depNeedsManualInstall": "! Pobranie tej zależności wymaga wyboru. Otwórz stronę moda, aby ją zainstalować.",
+        "fix": "! Naprawić",
+        "reinstall": "! Przeinstalować",
+        "loading": "! Ładowanie...",
+        "cancel": "! Anuluj",
+        "close": "! Zamknij",
+        "dontShowAgain": "! Więcej nie wyświetlać",
+        "by": "! Autor {name}",
+        "noImage": "! Brak obrazu",
+        "dismiss": "! Odrzuć",
+        "downloadAnyway": "! Pobierz mimo wszystko",
+        "nonPakConfirmBody": "! Ten plik używa nieobsługiwanego formatu. Modrex może zainstalować go niepoprawnie."
+    },
+    "app": {
+        "modsHidden": "! Mody są ukryte – gra została uruchomiona bez modów, ale być może nadal działa.",
+        "restoreMods": "! Przywróć mody",
+        "updateAction": "! Aktualizuj",
+        "updateInstall": "! Uruchom ponownie i zainstaluj",
+        "updateDownload": "! Pobierz",
+        "updateNotesTitle": "! Co nowego w wersji v{version}",
+        "updateViewOnGithub": "! Wyświetl na GitHubie",
+        "updateLater": "! Później"
+    },
+    "splash": {
+        "title": "! Uruchom Modrex",
+        "open": "! Otwórz Modrex",
+        "prepare": "! Przygotowywanie danych aplikacji",
+        "interface": "! Ładowanie interfejsu",
+        "game": "! Poszukiwanie instalacji gry",
+        "mods": "! Odczytywanie zainstalowanych modów",
+        "ready": "! Otwieranie Modrex",
+        "error": "! Uruchamianie nie powiodło się"
+    },
+    "errorBoundary": {
+        "close": "! Zamknąć",
+        "message": "! Coś poszło nie tak."
+    },
+    "topBar": {
+        "title": "! Modrex",
+        "stopGame": "! Stop game",
+        "launchWithoutMods": "! Launch without mods",
+        "launchModded": "! Launch modded",
+        "launching": "! Launching...",
+        "minimize": "! Minimize",
+        "maximize": "! Maximize",
+        "restore": "! Restore",
+        "close": "! Close",
+        "missingLaunchOption": {
+            "title": "! Missing launch option",
+            "bodyPre": "! is recommended for most mods to load correctly. Add it in",
+            "location": "! Settings > Launch Options",
+            "launchAnyway": "! Launch anyway"
+        }
+    },
+    "sidebar": {
+        "browse": "! Browse Mods",
+        "installed": "! Installed",
+        "news": "! News",
+        "settings": "! Settings",
+        "back": "! Back",
+        "collapse": "! Collapse menu",
+        "expandTitle": "! Expand sidebar",
+        "collapseTitle": "! Collapse sidebar",
+        "changeGame": "! Change game",
+        "docs": "! Documentation",
+        "docsTitle": "! Open documentation",
+        "discord": "! Discord",
+        "discordTitle": "! Join our Discord"
+    },
+    "gamePicker": {
+        "title": "! Games",
+        "installedOnly": "! Installed only",
+        "searchLabel": "! Search games",
+        "searchPlaceholder": "! Search games...",
+        "noMatches": "! No games found"
+    },
+    "browse": {
+        "title": "! Browse Mods",
+        "gameNotFound": "! Game not found: install disabled",
+        "goToSettings": "! Configure in Settings",
+        "searchPlaceholder": "! Search mods...",
+        "allCategories": "! All categories",
+        "tags": "! Tags",
+        "tagsCount": "! Tags ({count})",
+        "tagFilterSearch": "! Filter tags...",
+        "tagFilterClear": "! Clear",
+        "tagFilterEmpty": "! No tags found",
+        "noMods": "! No mods found",
+        "loadFailed": "! Couldn't load mods",
+        "rateLimited": "! ModWorkshop is rate-limiting requests right now. Try again in a moment.",
+        "modCount": "! {total} mods",
+        "sort": {
+            "lastUpdated": "! Last Updated",
+            "mostDownloaded": "! Most Downloaded",
+            "mostLiked": "! Most Liked",
+            "newest": "! Newest",
+            "name": "! Name"
+        }
+    },
+    "nexus": {
+        "searchPlaceholder": "! Search mods...",
+        "noMods": "! No mods found",
+        "loadFailed": "! Couldn't load mods",
+        "modCount": "! {total} mods",
+        "signInRequired": "! Sign in with Nexus Mods to browse mods from Nexus.",
+        "sessionExpiredHint": "! Your Nexus Mods sign-in has expired. Sign in again to keep browsing.",
+        "goToSettings": "! Configure in Settings",
+        "sort": {
+            "lastUpdated": "! Last Updated",
+            "mostDownloaded": "! Most Downloaded",
+            "mostEndorsed": "! Most Endorsed",
+            "relevance": "! Relevance"
+        }
+    },
+    "nexusSession": {
+        "expired": "! Your Nexus Mods sign-in has expired. Browsing, installing and update checks for Nexus mods are paused until you sign in again.",
+        "signIn": "! Sign in again",
+        "awaiting": "! Waiting for browser...",
+        "failed": "! Nexus Mods sign-in failed: {error}"
+    },
+    "installed": {
+        "comingSoon": "! Mod management for this game is coming soon.",
+        "title": "! Installed Mods",
+        "openFolder": "! Open mods folder",
+        "refresh": "! Refresh installed mods",
+        "modCount": "! {count} mods",
+        "modCountSingle": "! {count} mod",
+        "modCountFiltered": "! {count} of {total} mods",
+        "empty": "! No mods installed yet",
+        "identifyingNew": "! Identifying {count} new mods...",
+        "filterPlaceholder": "! Search mods...",
+        "filterEmpty": "! No mods match \"{query}\"",
+        "reinstallFailed": "! Reinstall failed: {error}",
+        "updatesAvailable": "! {count} mods can be updated",
+        "updatesAvailableSingle": "! {count} mod can be updated",
+        "reviewUpdates": "! Review updates",
+        "gridView": "! Grid view",
+        "listView": "! List view",
+        "newFolder": "! New Folder",
+        "folder": {
+            "modCount": "! {count} mods",
+            "modCountSingle": "! {count} mod",
+            "enable": "! Enable all mods in folder",
+            "disable": "! Disable all mods in folder",
+            "rename": "! Rename folder",
+            "renamePlaceholder": "! Folder name",
+            "newSubfolder": "! New Subfolder",
+            "delete": "! Delete folder",
+            "deleteConfirm": "! Delete folder and move its contents to the parent?",
+            "dropHere": "! Drop mods here"
+        },
+        "fileCount": "! {count} files",
+        "manageFiles": {
+            "searchPlaceholder": "! Search files...",
+            "enableAll": "! Enable all",
+            "disableAll": "! Disable all",
+            "noMatches": "! No files match \"{query}\"",
+            "fileUnavailable": "! This file is no longer available on ModWorkshop.",
+            "staleDuplicateBadge": "! Outdated",
+            "staleDuplicateHint": "! This is a leftover from before this file's download was repackaged (safe to remove)."
+        },
+        "updatesModal": {
+            "title": "! Available updates ({count})",
+            "update": "! Update",
+            "updating": "! Updating...",
+            "updatingProgress": "! Updating {done} / {total}",
+            "updateSelected": "! Update Selected ({count})",
+            "error": "! Update failed. Check your connection and try again."
+        },
+        "modMenu": {
+            "open": "! Options",
+            "manageFiles": "! Manage files",
+            "identify": "! Identify"
+        },
+        "identifyNexus": {
+            "identifying": "! Identifying...",
+            "identified": "! Identified as \"{name}\"",
+            "notFound": "! No match found on Nexus",
+            "ambiguous": "! Multiple possible matches found on Nexus",
+            "alreadyChecked": "! Already checked against Nexus; no match was found",
+            "error": "! Identification failed: {error}"
+        },
+        "nexusBadge": "! Nexus",
+        "crimeBossMove": {
+            "modkitBadge": "! ModKit",
+            "legacyBadge": "! Legacy",
+            "toLegacy": "! Move to Legacy",
+            "toModKit": "! Move to ModKit",
+            "confirmTitleToLegacy": "! Move to ~mods?",
+            "confirmBodyToLegacy": "! \"{name}\" will no longer merge with other mods' content. Only do this if it needs the old pak format.",
+            "confirmTitleToModkit": "! Move to Mods/?",
+            "confirmBodyToModkit": "! Moves \"{name}\" into Mods/, where it can merge with other mods' content.",
+            "confirm": "! Move",
+            "moving": "! Moving...",
+            "error": "! Move failed: {error}"
+        },
+        "health": {
+            "title": "! Health Check",
+            "cancel": "! Cancel scan",
+            "missingFilesCount": "! Missing files ({count})",
+            "brokenArchivesCount": "! Broken archives ({count})",
+            "outdatedCount": "! Outdated ({count})",
+            "unidentifiedCount": "! Unidentified ({count})",
+            "unidentifiedHint": "! Modrex could not work out what these mods are. They may be recognized later, after a mod index update.",
+            "updatesCount": "! Updates ({count})",
+            "dependenciesCount": "! Dependencies ({count})",
+            "noMissingFiles": "! No missing files.",
+            "noBrokenArchives": "! No broken archives.",
+            "noOutdated": "! No outdated mods.",
+            "noUnidentified": "! Every installed mod is recognized.",
+            "noUpdates": "! Everything is up to date.",
+            "noMissingDeps": "! Every installed mod has its dependencies met.",
+            "missingFileHint": "! File missing from disk",
+            "brokenArchiveHint": "! Archive could not be verified",
+            "outdatedHint": "! Reinstall recommended",
+            "unidentifiedRowHint": "! Not recognized",
+            "missingDepsHint": "! Missing: {deps}",
+            "installDep": "! Install",
+            "installAllDeps": "! Install All Dependencies",
+            "installDepFailed": "! Some dependencies couldn't be installed automatically.",
+            "reinstallAll": "! Reinstall All"
+        }
+    },
+    "news": {
+        "title": "! News",
+        "subtitlePrefix": "! Official headlines, summaries, and images from",
+        "readArticle": "! Read article",
+        "refresh": "! Refresh",
+        "empty": "! No news available",
+        "loadFailed": "! Couldn't load news",
+        "source": "! paydaythegame.com"
+    },
+    "detail": {
+        "spoiler": "! Spoiler!",
+        "back": "! Back",
+        "viewOnSite": "! ModWorkshop",
+        "viewOnNexus": "! Nexus",
+        "donate": "! Donate",
+        "creditsLevelCollaborator": "! Collaborator",
+        "creditsLevelMaintainer": "! Maintainer",
+        "creditsLevelContributor": "! Contributor",
+        "tabs": {
+            "description": "! Description",
+            "images": "! Images",
+            "imagesCount": "! Images ({count})",
+            "downloads": "! Downloads",
+            "downloadsCount": "! Downloads ({count})",
+            "changelog": "! Changelog",
+            "license": "! License",
+            "deps": "! Dependencies & Instructions"
+        },
+        "stats": {
+            "downloads": "! Downloads",
+            "likes": "! Likes",
+            "views": "! Views"
+        },
+        "info": {
+            "version": "! Version",
+            "published": "! Published",
+            "updated": "! Updated",
+            "repository": "! Repository",
+            "link": "! Link",
+            "tags": "! Tags",
+            "members": "! Members",
+            "owner": "! Owner"
+        },
+        "description": {
+            "noDescription": "! No description provided."
+        },
+        "images": {
+            "none": "! No images uploaded for this mod."
+        },
+        "downloads": {
+            "none": "! No files available.",
+            "onNexus": "! Files for this mod are on Nexus Mods.",
+            "external": "! Download",
+            "count": "! {count} dl",
+            "viaNexus": "! Download via Nexus",
+            "awaitingNexus": "! Waiting for browser...",
+            "categoryMain": "! Main files",
+            "categoryUpdate": "! Updates",
+            "categoryOptional": "! Optional files",
+            "categoryOldVersion": "! Old versions",
+            "categoryMiscellaneous": "! Miscellaneous"
+        },
+        "deps": {
+            "instructions": "! Installation Instructions",
+            "dependencies": "! Dependencies",
+            "statusInstalled": "! Installed",
+            "statusMissing": "! Missing",
+            "statusNotInstalled": "! Not installed",
+            "badgeRequired": "! Required",
+            "badgeOptional": "! Optional",
+            "openOnSite": "! Open on modworkshop.net"
+        }
+    },
+    "embed": {
+        "videoThumbnail": "! Video thumbnail",
+        "play": "! Play video",
+        "openInBrowser": "! Open in browser"
+    },
+    "fileSelect": {
+        "title": "! Install files",
+        "subtitle": "! {modName}: select which files to install.",
+        "installSelected": "! Install Selected ({count})"
+    },
+    "zipPicker": {
+        "title": "! Install from archive",
+        "subtitle": "! {modName}: select which files to install.",
+        "installSelected": "! Install Selected ({count})",
+        "selectAll": "! Select all ({count})",
+        "deselectAll": "! Deselect all",
+        "targetMods": "! Mods",
+        "targetOverrides": "! Asset overrides"
+    },
+    "hostPack": {
+        "title": "! Install add-on",
+        "intoHost": "! This is an add-on for {hostName}. Install {count} into it?",
+        "requiresHost": "! This add-on installs into {hostName}, which isn't installed yet. Install it first, then install this add-on.",
+        "installHost": "! Install {hostName}",
+        "install": "! Install ({count})",
+        "installing": "! Installing..."
+    },
+    "unrecognized": {
+        "title": "! Couldn't place this mod",
+        "body": "! Modrex couldn't tell where this mod installs; it likely belongs inside another mod. Follow the author's instructions:",
+        "noInstructions": "! The author didn't include installation instructions. Check the mod's page on ModWorkshop."
+    },
+    "cbFlatArchive": {
+        "title": "! Install as a mod folder?",
+        "body": "! This archive doesn't have its own enclosing folder, so Modrex can't auto-detect a mod name from it. Install all of its contents as \"{name}\" under CrimeBoss/Mods?",
+        "install": "! Install",
+        "installing": "! Installing..."
+    },
+    "depsWarning": {
+        "title": "! Missing required dependencies",
+        "body": "! This mod requires the following mods to be installed:",
+        "gotIt": "! Got it",
+        "installAll": "! Install all",
+        "installFailed": "! Install failed",
+        "bltDiesel3Note": "! Official SuperBLT doesn't support Diesel 3.0 yet.",
+        "bltDiesel3GitHub": "! Get from GitHub"
+    },
+    "crimeBossInstallChoice": {
+        "title": "! Where should \"{name}\" install?",
+        "body": "! Mods/ merges with other mods' content. ~mods is the older format with no merging.",
+        "auto": "! Mods/ (ModKit)",
+        "legacy": "! ~mods (legacy pak)",
+        "installing": "! Installing...",
+        "error": "! Install failed: {error}"
+    },
+    "settings": {
+        "title": "! Settings",
+        "language": {
+            "title": "! Language",
+            "description": "! Language used throughout the app."
+        },
+        "gamePath": {
+            "title": "! Game Path",
+            "description": "! Path to your {game} installation. Detected automatically from your installed launchers if not set manually.",
+            "notFound": "! Not found",
+            "detecting": "! Detecting...",
+            "reset": "! Reset",
+            "browse": "! Browse",
+            "pickTitle": "! Select {game} installation folder",
+            "picking": "! Picking...",
+            "autoDetected": "! Auto-detected",
+            "notDetected": "! Could not detect {game} installation; set the path manually.",
+            "invalid": "! Selected folder is not a valid {game} installation."
+        },
+        "launcher": {
+            "title": "! Launcher",
+            "description": "! How to launch {game}. Detected automatically from your installed stores.",
+            "detecting": "! Detecting...",
+            "steam": "! Steam",
+            "epic": "! Epic Games",
+            "xbox": "! Xbox",
+            "manual": "! Manual (launch executable directly)",
+            "switchFailed": "! That copy of the game is no longer where it was found; pick the folder manually.",
+            "multipleCopies": "! {count} copies found; the selected launcher decides which one Modrex mods and launches."
+        },
+        "launchOptions": {
+            "title": "! Launch Options",
+            "descriptionPre": "! Extra arguments passed to PAYDAY 3 on launch.",
+            "descriptionPost": "! is recommended for most mods to load correctly.",
+            "xboxNotePre": "! Launch options are not supported on Microsoft Store. To enable mod logging, add",
+            "xboxNotePost": "! in the Xbox app under PAYDAY 3 > Manage > Launch options."
+        },
+        "crashReporter": {
+            "title": "! Crash reporter cleanup",
+            "description": "! Work around an empty crash-report window for games that ship a buggy reporter by removing its crash reporter files before launch. This is off by default and may not be needed for every game."
+        },
+        "updates": {
+            "title": "! Updates",
+            "check": "! Check for updates",
+            "checking": "! Checking...",
+            "upToDate": "! You're up to date"
+        },
+        "logs": {
+            "title": "! Logs",
+            "description": "! If something goes wrong, open the log file and attach it to your bug report.",
+            "open": "! Open log file"
+        },
+        "nexusAccount": {
+            "title": "! Nexus Mods Account",
+            "description": "! Sign in with your Nexus Mods account in your browser. Tokens are stored locally and never leave this device.",
+            "signIn": "! Sign in with Nexus Mods",
+            "signOut": "! Sign out",
+            "signedIn": "! Signed in to Nexus Mods.",
+            "failed": "! Sign-in failed: {error}",
+            "sessionExpired": "! Your sign-in expired and was cleared. This happens when the session is revoked, the account password changes, or Modrex goes unused long enough for it to lapse.",
+            "signOutConfirmTitle": "! Sign out of Nexus Mods?",
+            "signOutConfirmBody": "! You'll need to sign in again in your browser to browse and install Nexus Mods.",
+            "signOutConfirm": "! Sign out",
+            "insecureStorage": "! Your Nexus Mods sign-in is stored less securely because no OS credential store is available. On Linux, install and enable a Secret Service provider such as gnome-keyring or KWallet, then restart Modrex to fix this."
+        },
+        "folders": {
+            "title": "! Folders",
+            "description": "! Open these locations in your file manager.",
+            "gameFolder": "! Open game folder",
+            "dataFolder": "! Open data folder",
+            "appFolder": "! Open app folder",
+            "open": "! Open {name}",
+            "mods": "! Mods",
+            "modkitMods": "! ModKit mods",
+            "legacyPaks": "! Legacy paks",
+            "overrides": "! Asset overrides",
+            "ue4ssMods": "! UE4SS mods"
+        },
+        "storage": {
+            "title": "! Storage",
+            "dangerZone": "! Danger zone",
+            "dangerZoneDescription": "! These actions delete locally stored data. Caches free disk space and rebuild automatically as you use the app; resetting restores default settings. None of them remove your installed mods or game files.",
+            "clearing": "! Clearing...",
+            "clearImages": "! Clear images",
+            "clearModInfo": "! Clear mod info",
+            "clearDatabase": "! Clear database",
+            "clearNews": "! Clear news",
+            "clearAll": "! Clear all caches",
+            "clearAllLabel": "! All caches",
+            "clearAllDescription": "! Clears cached images, mod info, the identification database, and news together.",
+            "clearConfirmTitle": "! Clear {name}?",
+            "clearConfirmBody": "! This deletes the cached data now. Modrex rebuilds it automatically as you use the app.",
+            "clearAllConfirmTitle": "! Clear all caches?",
+            "clearAllConfirmBody": "! This deletes all cached images, mod info, the identification database, and news. Modrex rebuilds them automatically as you use the app.",
+            "freed": "! Freed {size}",
+            "cachedImages": "! Cached images",
+            "cachedImagesDescription": "! Mod thumbnails and banners from ModWorkshop.",
+            "cachedModInfo": "! Cached mod info",
+            "cachedModInfoDescription": "! Saved mod names, versions, and details.",
+            "modIndex": "! Mod identification database",
+            "modIndexDescription": "! The hash index used to recognize your installed mods.",
+            "news": "! Cached news",
+            "newsDescription": "! Saved copies of the in-app news pages.",
+            "reset": "! Reset settings",
+            "resetDescription": "! Restore all app settings to their defaults.",
+            "resetConfirmTitle": "! Reset settings?",
+            "resetConfirmBody": "! This clears your saved game paths, launcher choices, preferences, and analytics choice, then returns Modrex to its first-run state. Your installed mods and game files are not affected.",
+            "resetConfirm": "! Reset settings",
+            "resetting": "! Resetting..."
+        },
+        "crimeBossInstallMode": {
+            "title": "! New Mod Installs",
+            "description": "! Where new Crime Boss mods go by default. You can also move an already-installed mod later from the Installed list.",
+            "auto": "! Automatic",
+            "ask": "! Always ask"
+        },
+        "about": {
+            "tagline": "! Free and open-source mod manager.",
+            "supportTitle": "! Support the project",
+            "supportBody": "! Modrex is free and built in spare time. If it saves you time, a GitHub star or a sponsorship helps keep it going.",
+            "star": "! Star on GitHub",
+            "sponsor": "! Sponsor",
+            "communityTitle": "! Community",
+            "discord": "! Join the Discord",
+            "x": "! Follow on X",
+            "bluesky": "! Follow on Bluesky",
+            "website": "! modrex.net",
+            "disclaimer": "! Modrex is a community project and is not affiliated with the developers or publishers of the supported games."
+        },
+        "nav": {
+            "game": "! Game",
+            "application": "! Application",
+            "advanced": "! Advanced",
+            "about": "! About"
+        }
+    },
+    "supportPrompt": {
+        "body": "! Enjoying Modrex? A star on GitHub helps other players find it.",
+        "star": "! Star on GitHub",
+        "dismiss": "! No thanks"
+    },
+    "telemetry": {
+        "title": "! Help improve Modrex",
+        "intro": "! Modrex can send anonymous usage data so we can see which mods break, which games need attention, and what to build next. It's optional, and you can change this anytime in Settings.",
+        "collectTitle": "! What we collect",
+        "collect1": "! Anonymous usage: features used, mods installed, and how well mods are identified",
+        "collect2": "! Your app version and operating system",
+        "dontCollectTitle": "! What we never collect",
+        "dontCollect1": "! No names, emails, accounts, or anything that identifies you",
+        "dontCollect2": "! No file paths, mod search text, or other personal data",
+        "enable": "! Enable",
+        "decline": "! No thanks",
+        "detailsToggle": "! What data is collected?",
+        "privacyPrefix": "! Usage data is processed by Google Analytics. See",
+        "privacyLink": "! Google's Privacy Policy",
+        "settingsTitle": "! Usage analytics",
+        "settingsDescription": "! Share anonymous usage data to help improve Modrex.",
+        "discordPresenceTitle": "! Discord Rich Presence",
+        "discordPresenceDescription": "! Show Modrex activity on your Discord profile with a link to the app."
+    },
+    "drop": {
+        "overlayTitle": "! Drop to install",
+        "overlaySubtitle": "! Release to install into {game}",
+        "installing": "! Installing...",
+        "installingCount": "! Installing {current} of {total}...",
+        "installed": "! Installed {count} mods",
+        "installedSingle": "! Installed 1 mod",
+        "needsPicker": "! Some archives must be installed from their mod page for now",
+        "failed": "! Could not install: {names}",
+        "noGame": "! Set your game folder before dropping mods"
+    }
+}
