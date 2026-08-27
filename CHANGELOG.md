@@ -6,6 +6,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 ### Added
 
+- Added Polish as a language option for the app's interface.
 - Added Italian as a language option for the app's interface.
 
 ### Fixed
