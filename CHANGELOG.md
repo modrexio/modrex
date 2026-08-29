@@ -11,6 +11,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 ### Changed
 
 - Startup no longer runs the Microsoft Store lookup for a game more than once at a time.
+- The game picker no longer changes which copy of a game is selected while working out which games are installed.
 
 ### Fixed
 

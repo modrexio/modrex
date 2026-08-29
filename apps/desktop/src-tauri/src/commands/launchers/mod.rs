@@ -282,6 +282,30 @@ pub async fn detected_installs(game_id: String) -> Result<Vec<DetectedInstall>, 
         .map_err(|e| e.to_string())
 }
 
+/// Which games have a copy on this machine. Read-only, unlike configure_game_path:
+/// greying out a card must not settle which copy a game uses.
+#[tauri::command]
+#[specta::specta]
+pub async fn detect_installed_games(app: AppHandle) -> Result<Vec<String>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let settings = read_settings(&app);
+        crate::commands::games::GAME_REGISTRY
+            .iter()
+            .filter(|spec| {
+                let existing = game_settings(&settings, spec.id)
+                    .cloned()
+                    .unwrap_or_default();
+                resolve_install(spec.def, spec.engine, &existing)
+                    .0
+                    .is_some()
+            })
+            .map(|spec| spec.id.to_string())
+            .collect()
+    })
+    .await
+    .map_err(|e| format!("installed-game detection failed to run: {e}"))
+}
+
 /// What re-detection has to do for a game, decided before any store is probed so that the
 /// decision itself can be reasoned about without a machine's installs in the way.
 #[derive(Debug, PartialEq)]
