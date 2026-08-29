@@ -548,6 +548,9 @@ export const api = {
     getDetectedInstalls(gameId: string): Promise<DetectedInstall[]> {
         return commands.detectedInstalls(gameId)
     },
+    detectInstalledGames(): Promise<string[]> {
+        return commands.detectInstalledGames()
+    },
     openExternal(url: string): Promise<void> {
         return commands.shellOpenExternal(url)
     },

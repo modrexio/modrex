@@ -90,6 +90,7 @@ fn ipc_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::loaders::install_loader,
             // launchers & system
             commands::launchers::detected_installs,
+            commands::launchers::detect_installed_games,
             commands::launchers::configure_game_path,
             commands::launchers::select_game_install,
             commands::launchers::pick_folder,

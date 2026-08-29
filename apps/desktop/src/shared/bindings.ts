@@ -130,6 +130,11 @@ export const commands = {
 	checkLoader: (loaderId: string, gameId: string, gamePath: string) => __TAURI_INVOKE<boolean>("check_loader", { loaderId, gameId, gamePath }),
 	installLoader: (loaderId: string, gamePath: string) => __TAURI_INVOKE<null>("install_loader", { loaderId, gamePath }),
 	detectedInstalls: (gameId: string) => __TAURI_INVOKE<DetectedInstall[]>("detected_installs", { gameId }),
+	/**
+	 *  Which games have a copy on this machine. Read-only, unlike configure_game_path:
+	 *  greying out a card must not settle which copy a game uses.
+	 */
+	detectInstalledGames: () => __TAURI_INVOKE<string[]>("detect_installed_games"),
 	configureGamePath: (gameId: string, gamePath: string | null) => __TAURI_INVOKE<null>("configure_game_path", { gameId, gamePath }),
 	/**
 	 *  Points a game at one specific store's copy, moving the game path and the launcher

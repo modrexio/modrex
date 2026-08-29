@@ -52,11 +52,14 @@ export function WelcomeScreen({ onSelectGame }: Props) {
                     g in prev ? prev : { ...prev, [g]: gs.gamePath != null }
                 )
             })
-            void api.findGamePath(g).then((path) => {
-                if (cancelled) return
-                setInstalledStatus((prev) => ({ ...prev, [g]: path !== null }))
-            })
         }
+        void api.detectInstalledGames().then((installed) => {
+            if (cancelled) return
+            const found = new Set(installed)
+            setInstalledStatus(
+                Object.fromEntries((Object.keys(GAMES) as GameId[]).map((g) => [g, found.has(g)]))
+            )
+        })
         return () => {
             cancelled = true
         }
