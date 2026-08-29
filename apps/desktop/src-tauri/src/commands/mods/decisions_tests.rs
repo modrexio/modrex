@@ -2,7 +2,7 @@ use super::decisions::*;
 use super::engine::{
     ModEngineConfig, ScanTarget, CRIMEBOSS_ENGINE, PD2_ENGINE, PD3_ENGINE, PDTH_ENGINE, RAID_ENGINE,
 };
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 fn target<'a>(cfg: &'a ModEngineConfig, tag: &str) -> &'a ScanTarget {
     cfg.target_for(Some(tag))
@@ -175,58 +175,6 @@ fn zip_entry_filename_keeps_the_entry_name_off_crime_boss() {
     );
 }
 
-/// Crime Boss stages into the skeleton root itself, so its cleanup root is that directory
-/// and never its parent, which is the OS temp dir.
-#[test]
-fn cleanup_root_differs_between_crime_boss_and_the_other_directory_games() {
-    let tmp = staged_dir();
-
-    for cfg in [&PD3_ENGINE, &CRIMEBOSS_ENGINE] {
-        assert_eq!(
-            tmp_cleanup(cfg, target(cfg, "paks"), &tmp),
-            TmpCleanup::FileWithSidecars,
-            "{}",
-            cfg.game_id
-        );
-    }
-
-    assert_eq!(
-        tmp_cleanup(&CRIMEBOSS_ENGINE, target(&CRIMEBOSS_ENGINE, "mods"), &tmp),
-        TmpCleanup::RemoveDir(tmp.clone())
-    );
-    assert_eq!(
-        tmp_cleanup(
-            &CRIMEBOSS_ENGINE,
-            target(&CRIMEBOSS_ENGINE, "ue4ss_mods"),
-            &tmp
-        ),
-        TmpCleanup::RemoveDir(tmp.clone())
-    );
-
-    for (cfg, tag) in [
-        (&PD2_ENGINE, "mods"),
-        (&PD2_ENGINE, "mod_overrides"),
-        (&PDTH_ENGINE, "mods"),
-        (&RAID_ENGINE, "mods"),
-        (&PD3_ENGINE, "ue4ss_mods"),
-    ] {
-        assert_eq!(
-            tmp_cleanup(cfg, target(cfg, tag), &tmp),
-            TmpCleanup::RemoveDir(PathBuf::from("/tmp/modrex-mod-abc")),
-            "{} {tag}",
-            cfg.game_id
-        );
-    }
-}
-
-#[test]
-fn a_directory_unit_without_a_parent_removes_nothing() {
-    assert_eq!(
-        tmp_cleanup(&RAID_ENGINE, target(&RAID_ENGINE, "mods"), Path::new("/")),
-        TmpCleanup::Nothing
-    );
-}
-
 #[test]
 fn cb_dir_entry_needs_both_crime_boss_and_a_dir_entry_kind() {
     assert!(is_cb_dir_entry(&CRIMEBOSS_ENGINE, Some("dir")));
@@ -330,10 +278,6 @@ fn crime_boss_differs_from_other_games_only_where_production_differs() {
         install_filename_from_mod_name(&RAID_ENGINE, raid_dir, "CoolMod", &tmp)
     );
     assert_ne!(
-        tmp_cleanup(&CRIMEBOSS_ENGINE, cb_dir, &tmp),
-        tmp_cleanup(&RAID_ENGINE, raid_dir, &tmp)
-    );
-    assert_ne!(
         entry_staging(&CRIMEBOSS_ENGINE, cb_file, false),
         entry_staging(&PD3_ENGINE, pd3_file, false)
     );
@@ -342,14 +286,10 @@ fn crime_boss_differs_from_other_games_only_where_production_differs() {
         entry_extraction(&PD3_ENGINE, pd3_file, false)
     );
 
-    // File units agree across games for both naming and cleanup.
+    // File units agree across games for naming.
     assert_eq!(
         install_filename_from_mod_name(&CRIMEBOSS_ENGINE, cb_file, "CoolMod", &tmp),
         install_filename_from_mod_name(&PD3_ENGINE, pd3_file, "CoolMod", &tmp)
-    );
-    assert_eq!(
-        tmp_cleanup(&CRIMEBOSS_ENGINE, cb_file, &tmp),
-        tmp_cleanup(&PD3_ENGINE, pd3_file, &tmp)
     );
 }
 

@@ -1,3 +1,4 @@
+mod cleanup;
 mod crimeboss_settings;
 mod decisions;
 mod diesel_signals;
@@ -399,36 +400,38 @@ pub async fn install_mod(
     };
 
     let cfg = engine_for_game(game_id.as_str())?;
-    let (tmp, zip_orig, location_tag) = match resolve_archive_download(downloaded, cfg) {
-        Err(ResolveError::Ue4ssLoader(zip_path)) => {
-            let settings = read_settings(&app);
-            let launcher = game_settings(&settings, cfg.game_id).and_then(|gs| gs.launcher.clone());
-            let result = crate::commands::ue4ss::install_loader(
-                cfg.game_id,
-                &game_path,
-                launcher.as_deref(),
-                &zip_path,
-            );
-            let _ = std::fs::remove_file(&zip_path);
-            return result.map(|()| InstallOutcome::Installed);
-        }
-        Err(ResolveError::Prompt(prompt)) => {
-            return Ok((*prompt)
-                .with_mod_context(ModContext {
-                    mod_id: remote_id,
-                    mod_name: mod_name.clone(),
-                    file_id,
-                    file_type: file_type.clone(),
-                    mod_version: mod_version.clone(),
-                })
-                .into());
-        }
-        Err(ResolveError::Failure(e)) => {
-            log::warn!("install_mod {mod_id}: {e}");
-            return Err(e);
-        }
-        Ok(v) => v,
-    };
+    let (tmp, zip_orig, location_tag, cleanup_plan) =
+        match resolve_archive_download(downloaded, cfg) {
+            Err(ResolveError::Ue4ssLoader(zip_path)) => {
+                let settings = read_settings(&app);
+                let launcher =
+                    game_settings(&settings, cfg.game_id).and_then(|gs| gs.launcher.clone());
+                let result = crate::commands::ue4ss::install_loader(
+                    cfg.game_id,
+                    &game_path,
+                    launcher.as_deref(),
+                    &zip_path,
+                );
+                let _ = std::fs::remove_file(&zip_path);
+                return result.map(|()| InstallOutcome::Installed);
+            }
+            Err(ResolveError::Prompt(prompt)) => {
+                return Ok((*prompt)
+                    .with_mod_context(ModContext {
+                        mod_id: remote_id,
+                        mod_name: mod_name.clone(),
+                        file_id,
+                        file_type: file_type.clone(),
+                        mod_version: mod_version.clone(),
+                    })
+                    .into());
+            }
+            Err(ResolveError::Failure(e)) => {
+                log::warn!("install_mod {mod_id}: {e}");
+                return Err(e);
+            }
+            Ok(v) => v,
+        };
     let _state_guard = lock_game_state(&app, game_id.as_str()).await;
     let target = cfg.target_for(location_tag.as_deref());
 
@@ -555,18 +558,7 @@ pub async fn install_mod(
     }
     .await;
 
-    match decisions::tmp_cleanup(cfg, target, &tmp) {
-        decisions::TmpCleanup::FileWithSidecars => {
-            let _ = tokio::fs::remove_file(&tmp).await;
-            for ext in naming::PAK_SIDECAR_EXTENSIONS {
-                let _ = tokio::fs::remove_file(tmp.with_extension(ext)).await;
-            }
-        }
-        decisions::TmpCleanup::RemoveDir(dir) => {
-            let _ = tokio::fs::remove_dir_all(&dir).await;
-        }
-        decisions::TmpCleanup::Nothing => {}
-    }
+    cleanup::run(&cleanup_plan).await;
     if let Some(orig) = zip_orig {
         let _ = tokio::fs::remove_file(&orig).await;
     }
@@ -608,36 +600,38 @@ pub async fn install_file(
             return Err(e);
         }
     };
-    let (tmp, zip_orig, location_tag) = match resolve_archive_download(downloaded, cfg) {
-        Err(ResolveError::Ue4ssLoader(zip_path)) => {
-            let settings = read_settings(&app);
-            let launcher = game_settings(&settings, cfg.game_id).and_then(|gs| gs.launcher.clone());
-            let result = crate::commands::ue4ss::install_loader(
-                cfg.game_id,
-                &game_path,
-                launcher.as_deref(),
-                &zip_path,
-            );
-            let _ = std::fs::remove_file(&zip_path);
-            return result.map(|()| InstallOutcome::Installed);
-        }
-        Err(ResolveError::Prompt(prompt)) => {
-            return Ok((*prompt)
-                .with_mod_context(ModContext {
-                    mod_id,
-                    mod_name: mod_name.clone(),
-                    file_id,
-                    file_type: file_type.clone(),
-                    mod_version: mod_version.clone(),
-                })
-                .into());
-        }
-        Err(ResolveError::Failure(e)) => {
-            log::warn!("install_file {mod_id}/{file_id}: {e}");
-            return Err(e);
-        }
-        Ok(v) => v,
-    };
+    let (tmp, zip_orig, location_tag, cleanup_plan) =
+        match resolve_archive_download(downloaded, cfg) {
+            Err(ResolveError::Ue4ssLoader(zip_path)) => {
+                let settings = read_settings(&app);
+                let launcher =
+                    game_settings(&settings, cfg.game_id).and_then(|gs| gs.launcher.clone());
+                let result = crate::commands::ue4ss::install_loader(
+                    cfg.game_id,
+                    &game_path,
+                    launcher.as_deref(),
+                    &zip_path,
+                );
+                let _ = std::fs::remove_file(&zip_path);
+                return result.map(|()| InstallOutcome::Installed);
+            }
+            Err(ResolveError::Prompt(prompt)) => {
+                return Ok((*prompt)
+                    .with_mod_context(ModContext {
+                        mod_id,
+                        mod_name: mod_name.clone(),
+                        file_id,
+                        file_type: file_type.clone(),
+                        mod_version: mod_version.clone(),
+                    })
+                    .into());
+            }
+            Err(ResolveError::Failure(e)) => {
+                log::warn!("install_file {mod_id}/{file_id}: {e}");
+                return Err(e);
+            }
+            Ok(v) => v,
+        };
     let _state_guard = lock_game_state(&app, game_id.as_str()).await;
     let target = cfg.target_for(location_tag.as_deref());
 
@@ -739,18 +733,7 @@ pub async fn install_file(
     }
     .await;
 
-    match decisions::tmp_cleanup(cfg, target, &tmp) {
-        decisions::TmpCleanup::FileWithSidecars => {
-            let _ = tokio::fs::remove_file(&tmp).await;
-            for ext in naming::PAK_SIDECAR_EXTENSIONS {
-                let _ = tokio::fs::remove_file(tmp.with_extension(ext)).await;
-            }
-        }
-        decisions::TmpCleanup::RemoveDir(dir) => {
-            let _ = tokio::fs::remove_dir_all(&dir).await;
-        }
-        decisions::TmpCleanup::Nothing => {}
-    }
+    cleanup::run(&cleanup_plan).await;
     if let Some(orig) = zip_orig {
         let _ = tokio::fs::remove_file(&orig).await;
     }
@@ -802,7 +785,9 @@ pub(crate) async fn install_nexus_download(
     } = meta;
     let cfg = engine_for_game(game_id)?;
     let dl_path = downloaded.clone();
-    let (tmp, zip_orig, location_tag) = match resolve_archive_download(downloaded, cfg) {
+    let (tmp, zip_orig, location_tag, cleanup_plan) = match resolve_archive_download(
+        downloaded, cfg,
+    ) {
         Err(ResolveError::Ue4ssLoader(zip_path)) => {
             let settings = read_settings(app);
             let launcher = game_settings(&settings, cfg.game_id).and_then(|gs| gs.launcher.clone());
@@ -892,18 +877,7 @@ pub(crate) async fn install_nexus_download(
     }
     .await;
 
-    match decisions::tmp_cleanup(cfg, target, &tmp) {
-        decisions::TmpCleanup::FileWithSidecars => {
-            let _ = tokio::fs::remove_file(&tmp).await;
-            for ext in naming::PAK_SIDECAR_EXTENSIONS {
-                let _ = tokio::fs::remove_file(tmp.with_extension(ext)).await;
-            }
-        }
-        decisions::TmpCleanup::RemoveDir(dir) => {
-            let _ = tokio::fs::remove_dir_all(&dir).await;
-        }
-        decisions::TmpCleanup::Nothing => {}
-    }
+    cleanup::run(&cleanup_plan).await;
     if let Some(orig) = zip_orig {
         let _ = tokio::fs::remove_file(&orig).await;
     }
@@ -1001,46 +975,48 @@ pub async fn install_dropped_file(
         .await
         .map_err(|e| format!("could not read dropped file: {e}"))?;
 
-    let (tmp, zip_orig, location_tag) = match resolve_archive_download(temp.clone(), cfg) {
-        Err(ResolveError::Ue4ssLoader(zip_path)) => {
-            let settings = read_settings(&app);
-            let launcher = game_settings(&settings, cfg.game_id).and_then(|gs| gs.launcher.clone());
-            let result = crate::commands::ue4ss::install_loader(
-                cfg.game_id,
-                &game_path,
-                launcher.as_deref(),
-                &zip_path,
-            );
-            let _ = std::fs::remove_file(&zip_path);
-            return result.map(|()| InstallOutcome::Installed);
-        }
-        // The picker / host-pack / CB-flat modals install directly from the temp copy (which they
-        // delete afterwards), so forward the prompt enriched with a synthetic identity, mirroring
-        // install_file. get_installed reconciles the resulting entries by SHA256 on the next refresh.
-        Err(ResolveError::Prompt(prompt)) => {
-            let syn = hash_filename(&file_stem);
-            return Ok((*prompt)
-                .with_mod_context(ModContext {
-                    mod_id: syn,
-                    mod_name: file_stem.clone(),
-                    file_id: syn,
-                    file_type: src
-                        .extension()
-                        .and_then(|s| s.to_str())
-                        .unwrap_or("zip")
-                        .to_string(),
-                    mod_version: String::new(),
-                })
-                .into());
-        }
-        Err(ResolveError::Failure(e)) => {
-            let _ = tokio::fs::remove_file(&temp).await;
-            log::warn!("install_dropped_file {path}: {e}");
-            return Err(e);
-        }
+    let (tmp, zip_orig, location_tag, cleanup_plan) =
+        match resolve_archive_download(temp.clone(), cfg) {
+            Err(ResolveError::Ue4ssLoader(zip_path)) => {
+                let settings = read_settings(&app);
+                let launcher =
+                    game_settings(&settings, cfg.game_id).and_then(|gs| gs.launcher.clone());
+                let result = crate::commands::ue4ss::install_loader(
+                    cfg.game_id,
+                    &game_path,
+                    launcher.as_deref(),
+                    &zip_path,
+                );
+                let _ = std::fs::remove_file(&zip_path);
+                return result.map(|()| InstallOutcome::Installed);
+            }
+            // The picker / host-pack / CB-flat modals install directly from the temp copy (which they
+            // delete afterwards), so forward the prompt enriched with a synthetic identity, mirroring
+            // install_file. get_installed reconciles the resulting entries by SHA256 on the next refresh.
+            Err(ResolveError::Prompt(prompt)) => {
+                let syn = hash_filename(&file_stem);
+                return Ok((*prompt)
+                    .with_mod_context(ModContext {
+                        mod_id: syn,
+                        mod_name: file_stem.clone(),
+                        file_id: syn,
+                        file_type: src
+                            .extension()
+                            .and_then(|s| s.to_str())
+                            .unwrap_or("zip")
+                            .to_string(),
+                        mod_version: String::new(),
+                    })
+                    .into());
+            }
+            Err(ResolveError::Failure(e)) => {
+                let _ = tokio::fs::remove_file(&temp).await;
+                log::warn!("install_dropped_file {path}: {e}");
+                return Err(e);
+            }
 
-        Ok(v) => v,
-    };
+            Ok(v) => v,
+        };
     let _state_guard = lock_game_state(&app, game_id.as_str()).await;
     let target = cfg.target_for(location_tag.as_deref());
     let display_stem = recover_dropped_mod_stem(
@@ -1143,18 +1119,7 @@ pub async fn install_dropped_file(
     }
     .await;
 
-    match decisions::tmp_cleanup(cfg, target, &tmp) {
-        decisions::TmpCleanup::FileWithSidecars => {
-            let _ = tokio::fs::remove_file(&tmp).await;
-            for ext in naming::PAK_SIDECAR_EXTENSIONS {
-                let _ = tokio::fs::remove_file(tmp.with_extension(ext)).await;
-            }
-        }
-        decisions::TmpCleanup::RemoveDir(dir) => {
-            let _ = tokio::fs::remove_dir_all(&dir).await;
-        }
-        decisions::TmpCleanup::Nothing => {}
-    }
+    cleanup::run(&cleanup_plan).await;
     if let Some(orig) = zip_orig {
         let _ = tokio::fs::remove_file(&orig).await;
     }
@@ -1365,14 +1330,11 @@ pub async fn install_from_zip_entry(
     .await;
 
     // Keep the zip alive for multi-entry installs; only remove the extracted temp here.
-    if let Some(parent) = tmp_parent {
-        let _ = tokio::fs::remove_dir_all(parent).await;
-    } else {
-        let _ = tokio::fs::remove_file(&ext).await;
-        for sidecar_ext in naming::PAK_SIDECAR_EXTENSIONS {
-            let _ = tokio::fs::remove_file(ext.with_extension(sidecar_ext)).await;
-        }
-    }
+    let entry_cleanup = match tmp_parent {
+        Some(parent) => cleanup::CleanupPlan::RemoveOwnedDirectory(parent),
+        None => cleanup::CleanupPlan::RemoveOwnedFileWithSidecars(ext.clone()),
+    };
+    cleanup::run(&entry_cleanup).await;
     match &result {
         Ok(_) => crate::commands::analytics::track(
             &app,
@@ -1466,7 +1428,7 @@ pub async fn install_cb_flat_archive(
     }
     .await;
 
-    let _ = tokio::fs::remove_dir_all(&tmp_dir).await;
+    cleanup::run(&cleanup::CleanupPlan::RemoveOwnedDirectory(tmp_dir.clone())).await;
     let _ = tokio::fs::remove_file(&zip).await;
 
     match &result {
@@ -1928,6 +1890,10 @@ mod tests;
 #[cfg(test)]
 #[path = "decisions_tests.rs"]
 mod decisions_tests;
+
+#[cfg(test)]
+#[path = "cleanup_tests.rs"]
+mod cleanup_tests;
 
 #[cfg(test)]
 #[path = "marker_contract_tests.rs"]

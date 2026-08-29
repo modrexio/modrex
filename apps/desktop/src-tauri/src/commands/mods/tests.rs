@@ -307,7 +307,7 @@ fn crimeboss_standalone_submod_resolves_to_ue4ss_mods_target() {
     let zip = make_zip(&[("CoolMod/Scripts/main.lua", b"-- a real sub-mod")]);
     let cfg = engine_for_game("cb").unwrap();
 
-    let (extracted, _orig, location_tag) =
+    let (extracted, _orig, location_tag, _cleanup) =
         resolve_archive_download(zip.path().to_path_buf(), cfg).unwrap();
     assert_eq!(location_tag.as_deref(), Some("ue4ss_mods"));
     assert_eq!(extracted.file_name().unwrap(), "CoolMod");
@@ -324,7 +324,7 @@ fn pd3_standalone_submod_resolves_to_ue4ss_mods_target() {
     let zip = make_zip(&[("CoolMod/Scripts/main.lua", b"-- a real sub-mod")]);
     let cfg = engine_for_game("pd3").unwrap();
 
-    let (extracted, _orig, location_tag) =
+    let (extracted, _orig, location_tag, _cleanup) =
         resolve_archive_download(zip.path().to_path_buf(), cfg).unwrap();
     assert_eq!(location_tag.as_deref(), Some("ue4ss_mods"));
     assert_eq!(extracted.file_name().unwrap(), "CoolMod");
@@ -3130,7 +3130,7 @@ fn modkit_packaged_archive_installs_into_crimeboss_mods_skeleton() {
     let cfg = engine_for_game("cb").unwrap();
     let sp = get_state_path(game, cfg);
 
-    let (extracted, _orig, location_tag) =
+    let (extracted, _orig, location_tag, _cleanup) =
         resolve_archive_download(zip.path().to_path_buf(), cfg).unwrap();
     assert_eq!(
         location_tag, None,
@@ -3183,7 +3183,7 @@ fn loose_triplet_archive_also_installs_into_crimeboss_mods_skeleton() {
     let cfg = engine_for_game("cb").unwrap();
     let sp = get_state_path(game, cfg);
 
-    let (extracted, _orig, location_tag) =
+    let (extracted, _orig, location_tag, _cleanup) =
         resolve_archive_download(zip.path().to_path_buf(), cfg).unwrap();
     assert_eq!(location_tag, None);
 

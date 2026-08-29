@@ -15,6 +15,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 ### Fixed
 
+- Fixed cleanup after installing a .pdmod file or a loose non-archive file being able to target the system temporary folder instead of only the files Modrex had staged there.
 - Fixed Nexus Mods sign-in and website mod downloads not reaching Modrex on Linux.
 
 ## 0.14.0

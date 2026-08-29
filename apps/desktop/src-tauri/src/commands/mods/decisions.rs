@@ -5,17 +5,7 @@
 use super::engine::{ModEngineConfig, ModUnit, ScanTarget};
 use super::naming;
 use super::pak_filename;
-use std::path::{Path, PathBuf};
-
-/// What an install path removes from the temp area once the mod has been placed.
-#[derive(Debug, PartialEq, Eq)]
-pub enum TmpCleanup {
-    /// Remove tmp itself and the sidecars sharing its stem.
-    FileWithSidecars,
-    RemoveDir(PathBuf),
-    /// A directory unit whose tmp has no parent, which leaves nothing safe to remove.
-    Nothing,
-}
+use std::path::Path;
 
 /// How a chosen archive entry is laid out in the temp area before installation.
 #[derive(Debug, PartialEq, Eq)]
@@ -117,19 +107,6 @@ pub fn install_filename_for_zip_entry(
         naming::mod_folder_name(mod_name)
     } else {
         entry_filename.to_string()
-    }
-}
-
-/// Crime Boss's staged directory is the synthesized skeleton root itself, one level under
-/// the OS temp dir, so its parent is the temp dir and must never be removed.
-pub fn tmp_cleanup(cfg: &ModEngineConfig, target: &ScanTarget, tmp: &Path) -> TmpCleanup {
-    match &target.unit {
-        ModUnit::File { .. } => TmpCleanup::FileWithSidecars,
-        ModUnit::Directory { .. } if is_crimeboss(cfg) => TmpCleanup::RemoveDir(tmp.to_path_buf()),
-        ModUnit::Directory { .. } => match tmp.parent() {
-            Some(parent) => TmpCleanup::RemoveDir(parent.to_path_buf()),
-            None => TmpCleanup::Nothing,
-        },
     }
 }
 

@@ -1,3 +1,4 @@
+use super::cleanup::CleanupPlan;
 use super::engine::{ModEngineConfig, ModUnit};
 use super::host_mods::detect_host_pack;
 use super::paths::{active_mod_path, disabled_mod_path};
@@ -1060,8 +1061,11 @@ impl From<String> for ResolveError {
 }
 
 /// Same shape resolve_archive_download resolves to: the extracted path, the original archive
-/// (for cleanup once installed), and the target's location tag (None for primary).
-type ResolvedArchive = Result<(PathBuf, Option<PathBuf>, Option<String>), ResolveError>;
+/// (for cleanup once installed), the target's location tag (None for primary), and the plan
+/// for removing whatever staging created. The plan is built here because only the code that
+/// created an artifact knows which one it owns.
+type ResolvedArchive =
+    Result<(PathBuf, Option<PathBuf>, Option<String>, CleanupPlan), ResolveError>;
 
 /// Checks whether a zero-.pak archive instead contains directory-shaped content matching one
 /// of cfg's Directory-unit targets. Currently only ue4ss_mods ever matches here (a
@@ -1100,9 +1104,17 @@ fn try_classify_as_directory_target(
         // generic Directory-unit single-dir branch below.
         let tmp_parent = std::env::temp_dir().join(format!("modrex-mod-{}", Uuid::new_v4()));
         let tmp = tmp_parent.join(&dir_name);
+        let cleanup = CleanupPlan::RemoveOwnedDirectory(tmp_parent);
         return Some(
             extract_dir_entry(downloaded, dir, &tmp)
-                .map(|_| (tmp, Some(downloaded.to_path_buf()), location_tag.clone()))
+                .map(|_| {
+                    (
+                        tmp,
+                        Some(downloaded.to_path_buf()),
+                        location_tag.clone(),
+                        cleanup,
+                    )
+                })
                 .map_err(ResolveError::from),
         );
     }
@@ -1140,11 +1152,13 @@ pub fn resolve_archive_download(downloaded: PathBuf, cfg: &ModEngineConfig) -> R
     {
         let temp_dir = std::env::temp_dir().join(format!("modrex-pdmod-{}", Uuid::new_v4()));
         std::fs::create_dir_all(&temp_dir).map_err(|e| e.to_string())?;
+        let cleanup = CleanupPlan::RemoveOwnedDirectory(temp_dir.clone());
         return match super::pdmod::extract_pdmod(&downloaded, &temp_dir) {
             Ok(()) => Ok((
                 temp_dir,
                 Some(downloaded),
                 Some("mod_overrides".to_string()),
+                cleanup,
             )),
             Err(e) => {
                 let _ = std::fs::remove_dir_all(&temp_dir);
@@ -1156,7 +1170,9 @@ pub fn resolve_archive_download(downloaded: PathBuf, cfg: &ModEngineConfig) -> R
         return resolve_crimeboss_archive(downloaded, cfg);
     }
     if detect_archive(&downloaded).is_none() {
-        return Ok((downloaded, None, None));
+        // Nothing was extracted, so the caller's own downloaded file is the only artifact.
+        let cleanup = CleanupPlan::RemoveOwnedFileWithSidecars(downloaded.clone());
+        return Ok((downloaded, None, None, cleanup));
     }
     match &cfg.primary().unit {
         ModUnit::File { .. } => {
@@ -1178,7 +1194,8 @@ pub fn resolve_archive_download(downloaded: PathBuf, cfg: &ModEngineConfig) -> R
                     let tmp =
                         std::env::temp_dir().join(format!("modrex-mod-{}.pak", Uuid::new_v4()));
                     extract_entry_with_sidecars(&downloaded, &entries[0], &tmp)?;
-                    Ok((tmp, Some(downloaded), None))
+                    let cleanup = CleanupPlan::RemoveOwnedFileWithSidecars(tmp.clone());
+                    Ok((tmp, Some(downloaded), None, cleanup))
                 }
                 _ => {
                     let zip_path = downloaded.to_string_lossy().to_string();
@@ -1265,7 +1282,8 @@ pub fn resolve_archive_download(downloaded: PathBuf, cfg: &ModEngineConfig) -> R
                     std::env::temp_dir().join(format!("modrex-mod-{}", Uuid::new_v4()));
                 let tmp = tmp_parent.join(&dir_name);
                 extract_dir_entry(&downloaded, dir, &tmp)?;
-                return Ok((tmp, Some(downloaded), location_tag.clone()));
+                let cleanup = CleanupPlan::RemoveOwnedDirectory(tmp_parent);
+                return Ok((tmp, Some(downloaded), location_tag.clone(), cleanup));
             }
             let zip_path = downloaded.to_string_lossy().to_string();
             let entry_names: Vec<String> = dirs.iter().map(|(d, _)| d.clone()).collect();
@@ -1301,7 +1319,8 @@ fn resolve_crimeboss_archive(downloaded: PathBuf, cfg: &ModEngineConfig) -> Reso
         // them), but if one shows up, fall back to the legacy flat paks target rather than
         // guessing at a skeleton with no .ucas/.utoc to find.
         let legacy_tag = cfg.targets.iter().find(|t| t.tag == "paks").map(|t| t.tag);
-        return Ok((downloaded, None, legacy_tag.map(str::to_string)));
+        let cleanup = CleanupPlan::RemoveOwnedFileWithSidecars(downloaded.clone());
+        return Ok((downloaded, None, legacy_tag.map(str::to_string), cleanup));
     }
     let entries = list_pak_entries(&downloaded)?;
     match entries.len() {
@@ -1329,7 +1348,8 @@ fn resolve_crimeboss_archive(downloaded: PathBuf, cfg: &ModEngineConfig) -> Reso
         }
         1 => {
             let tmp = extract_entry_into_crimeboss_skeleton(&downloaded, &entries[0])?;
-            Ok((tmp, Some(downloaded), None))
+            let cleanup = CleanupPlan::RemoveOwnedDirectory(tmp.clone());
+            Ok((tmp, Some(downloaded), None, cleanup))
         }
         _ => {
             let zip_path = downloaded.to_string_lossy().to_string();
