@@ -201,9 +201,14 @@ export function useModActions(
                 for (const m of priorMods) {
                     await api.uninstallMod(m.uid, gamePath, activeGame)
                 }
-                const toReinstall = zipPayload.entries.filter((entry) =>
-                    priorMods.some((m) => stripPriorityPrefix(m.filename) === entryFilename(entry))
-                )
+                const toReinstall = zipPayload.entries
+                    .map((entry, pos) => ({ entry, pos }))
+                    .filter(({ entry }) =>
+                        priorMods.some(
+                            (m) => stripPriorityPrefix(m.filename) === entryFilename(entry)
+                        )
+                    )
+                    .map(({ pos }) => pos)
                 if (toReinstall.length > 0) {
                     try {
                         await installZipPickerEntries(

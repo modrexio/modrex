@@ -350,7 +350,7 @@ export const api = {
     },
     installFromZipEntry(
         archiveHandle: string,
-        entryName: string,
+        entryId: number,
         modId: number,
         modName: string,
         fileId: number,
@@ -365,7 +365,7 @@ export const api = {
         return trackInstall(
             commands.installFromZipEntry({
                 archiveHandle,
-                entryName,
+                entryId,
                 modId,
                 modName,
                 fileId,

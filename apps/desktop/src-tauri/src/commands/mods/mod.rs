@@ -58,9 +58,9 @@ pub(crate) use self::reorder::{
 };
 pub(crate) use self::state::save_state;
 pub(crate) use self::zip::{
-    extract_archive_flat, extract_dir_entry, extract_entry, extract_entry_into_crimeboss_skeleton,
-    extract_entry_with_sidecars, list_pak_entries, mark_archive_files, resolve_archive_download,
-    InstallPrompt, ModContext, ResolveError,
+    extract_archive_flat, extract_entry, extract_entry_into_crimeboss_skeleton_at,
+    extract_staged_dir, extract_staged_entry_with_sidecars, list_pak_entries, mark_archive_files,
+    resolve_archive_download, InstallPrompt, ModContext, ResolveError,
 };
 
 // Re-exports needed only in test builds (suppressed in release to avoid unused-import warnings)
@@ -1181,7 +1181,8 @@ pub struct InstallFromZipEntryArgs {
     /// Backend-issued handle for the staged archive. The renderer never receives the
     /// path, so it cannot point this at another local archive.
     pub archive_handle: String,
-    pub entry_name: String,
+    /// Which entry of that archive to install, as issued when it was listed.
+    pub entry_id: staging_tokens::ArchiveEntryId,
     pub mod_id: i64,
     pub mod_name: String,
     pub file_id: i64,
@@ -1203,7 +1204,7 @@ pub async fn install_from_zip_entry(
     let _state_guard = lock_game_state(&app, args.game_id.as_str()).await;
     let InstallFromZipEntryArgs {
         archive_handle,
-        entry_name,
+        entry_id,
         mod_id,
         mod_name,
         file_id,
@@ -1227,7 +1228,14 @@ pub async fn install_from_zip_entry(
         )
         .ok_or("this archive is no longer available to install from")?;
     let _borrow = staging_tokens::BorrowGuard::new(registry, &archive_handle);
-    zip::entry_belongs_to_archive(&zip, &entry_name)?;
+    let entry = registry
+        .entry(
+            &archive_handle,
+            staging_tokens::StagedArchiveKind::MultiEntry,
+            entry_id,
+        )
+        .ok_or("that archive entry is no longer available to install")?;
+    let entry_name = entry.display_name.clone();
     let install_format = file_type.clone(); // file_type is moved before the success emit below
 
     // Set only by classify_archive_dirs's ZIP_MULTI_PAK payload (a ue4ss_mods sub-mod folder
@@ -1249,7 +1257,7 @@ pub async fn install_from_zip_entry(
     // removes afterwards, and is None when the staged path is a bare temp file.
     let (ext, tmp_parent) = match decisions::entry_staging(cfg, target, cb_dir_entry) {
         decisions::EntryStaging::CrimeBossSkeleton => {
-            let skeleton_root = extract_entry_into_crimeboss_skeleton(&zip, &entry_name)?;
+            let skeleton_root = extract_entry_into_crimeboss_skeleton_at(&zip, &entry)?;
             (skeleton_root.clone(), Some(skeleton_root))
         }
         decisions::EntryStaging::DirectoryUnderNewParent => {
@@ -1269,9 +1277,9 @@ pub async fn install_from_zip_entry(
 
     let result = async {
         match decisions::entry_extraction(cfg, target, cb_dir_entry) {
-            decisions::EntryExtraction::DirEntry => extract_dir_entry(&zip, &entry_name, &ext)?,
+            decisions::EntryExtraction::DirEntry => extract_staged_dir(&zip, &entry, &ext)?,
             decisions::EntryExtraction::EntryWithSidecars => {
-                extract_entry_with_sidecars(&zip, &entry_name, &ext)?
+                extract_staged_entry_with_sidecars(&zip, &entry, &ext)?
             }
             decisions::EntryExtraction::AlreadyStaged => {}
         }
@@ -1520,7 +1528,13 @@ pub async fn install_host_pack(app: AppHandle, args: InstallHostPackArgs) -> Res
         .borrow(&archive_handle, staging_tokens::StagedArchiveKind::HostPack)
         .ok_or("this archive is no longer available to install from")?;
     let _borrow = staging_tokens::BorrowGuard::new(registry, &archive_handle);
-    zip::entry_belongs_to_archive(&zip, &entry_name)?;
+    if !registry.offers_entry_named(
+        &archive_handle,
+        staging_tokens::StagedArchiveKind::HostPack,
+        &entry_name,
+    ) {
+        return Err("that entry is not part of this archive".to_string());
+    }
     let sp = get_state_path(&game_path, cfg);
     let install_format = file_type.clone();
     let mod_data = InstalledMod {

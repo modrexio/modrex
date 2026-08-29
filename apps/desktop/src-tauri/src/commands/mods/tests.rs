@@ -489,7 +489,12 @@ fn extract_entry_with_sidecars_pulls_in_ucas_and_utoc() {
         ("readme.txt", b"ignore me"),
     ]);
     let dest = NamedTempFile::new().unwrap();
-    extract_entry_with_sidecars(zip.path(), "TestMod.pak", dest.path()).unwrap();
+    super::zip::extract_staged_entry_with_sidecars(
+        zip.path(),
+        &super::zip::staged_entry_for_test(zip.path(), "TestMod.pak"),
+        dest.path(),
+    )
+    .unwrap();
     assert_eq!(fs::read(dest.path()).unwrap(), b"pak bytes");
     assert_eq!(
         fs::read(dest.path().with_extension("ucas")).unwrap(),
@@ -505,7 +510,12 @@ fn extract_entry_with_sidecars_pulls_in_ucas_and_utoc() {
 fn extract_entry_with_sidecars_ok_when_no_sidecars_present() {
     let zip = make_zip(&[("TestMod.pak", b"pak only")]);
     let dest = NamedTempFile::new().unwrap();
-    extract_entry_with_sidecars(zip.path(), "TestMod.pak", dest.path()).unwrap();
+    super::zip::extract_staged_entry_with_sidecars(
+        zip.path(),
+        &super::zip::staged_entry_for_test(zip.path(), "TestMod.pak"),
+        dest.path(),
+    )
+    .unwrap();
     assert_eq!(fs::read(dest.path()).unwrap(), b"pak only");
     assert!(!dest.path().with_extension("ucas").exists());
     assert!(!dest.path().with_extension("utoc").exists());
@@ -525,9 +535,12 @@ fn extract_entry_with_sidecars_matches_nested_path_siblings_only() {
         ("OtherFolder/Mod-WindowsNoEditor.ucas", b"wrong ucas"),
     ]);
     let dest = NamedTempFile::new().unwrap();
-    extract_entry_with_sidecars(
+    super::zip::extract_staged_entry_with_sidecars(
         zip.path(),
-        "Mod/Content/Paks/WindowsNoEditor/Mod-WindowsNoEditor.pak",
+        &super::zip::staged_entry_for_test(
+            zip.path(),
+            "Mod/Content/Paks/WindowsNoEditor/Mod-WindowsNoEditor.pak",
+        ),
         dest.path(),
     )
     .unwrap();
@@ -2296,7 +2309,7 @@ fn extract_dir_entry_drops_traversal_entries() {
     ]);
     let out = TempDir::new().unwrap();
     let dest = out.path().join("extracted");
-    extract_dir_entry(zip.path(), "mymod", &dest).unwrap();
+    super::zip::extract_dir_entry(zip.path(), "mymod", &dest).unwrap();
 
     assert_eq!(fs::read(dest.join("main.xml")).unwrap(), b"safe");
     // The traversal target (sibling of dest) must never be created.
@@ -3673,7 +3686,11 @@ fn crimeboss_bundle_archive_each_entry_installs_independently_without_cross_cont
             b"sweeper pak".as_slice(),
         ),
     ] {
-        let skeleton = extract_entry_into_crimeboss_skeleton(zip.path(), entry).unwrap();
+        let skeleton = super::zip::extract_entry_into_crimeboss_skeleton_at(
+            zip.path(),
+            &super::zip::staged_entry_for_test(zip.path(), entry),
+        )
+        .unwrap();
         let mod_data = InstalledMod {
             uid: entry.to_string(),
             id: 1,

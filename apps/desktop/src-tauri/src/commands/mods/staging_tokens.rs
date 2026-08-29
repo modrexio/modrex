@@ -27,8 +27,30 @@ pub(crate) enum StagedArchiveKind {
     HostPack,
 }
 
+/// Identifies one entry of a staged archive. Issued while enumerating, so it survives
+/// display names that normalize onto each other.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, specta::Type)]
+#[serde(transparent)]
+pub(crate) struct ArchiveEntryId(pub(crate) u32);
+
+/// How an issued entry is reached inside its archive.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum StagedEntrySource {
+    /// Position in the archive's own enumeration order.
+    File { index: u32 },
+    /// Every entry under this normalized directory path.
+    Directory { prefix: String },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct StagedEntry {
+    pub(crate) source: StagedEntrySource,
+    pub(crate) display_name: String,
+}
+
 struct Grant {
     token: String,
+    entries: Vec<StagedEntry>,
     path: PathBuf,
     cleanup: CleanupPlan,
     kind: StagedArchiveKind,
@@ -87,6 +109,7 @@ impl StagingRegistry {
         kind: StagedArchiveKind,
         path: &Path,
         cleanup_plan: CleanupPlan,
+        entries: Vec<StagedEntry>,
     ) -> Result<String, ()> {
         let mut expired = Vec::new();
         let issued = {
@@ -106,6 +129,7 @@ impl StagingRegistry {
                 let token = Uuid::new_v4().to_string();
                 grants.push(Grant {
                     token: token.clone(),
+                    entries,
                     path: path.to_path_buf(),
                     cleanup: cleanup_plan.clone(),
                     kind,
@@ -144,6 +168,37 @@ impl StagingRegistry {
         }
         grant.borrows += 1;
         Some(grant.path.clone())
+    }
+
+    /// The entry this handle issued under id, if the handle belongs to kind and the id is
+    /// one it actually issued.
+    pub(crate) fn entry(
+        &self,
+        token: &str,
+        kind: StagedArchiveKind,
+        id: ArchiveEntryId,
+    ) -> Option<StagedEntry> {
+        let grants = self.grants.lock().unwrap_or_else(|e| e.into_inner());
+        let grant = grants.iter().find(|g| g.token == token)?;
+        if grant.kind != kind {
+            return None;
+        }
+        grant.entries.get(id.0 as usize).cloned()
+    }
+
+    /// Whether this handle offered an entry under name, for workflows whose renderer
+    /// contract still names a directory rather than carrying an id.
+    pub(crate) fn offers_entry_named(
+        &self,
+        token: &str,
+        kind: StagedArchiveKind,
+        name: &str,
+    ) -> bool {
+        let grants = self.grants.lock().unwrap_or_else(|e| e.into_inner());
+        grants
+            .iter()
+            .find(|g| g.token == token && g.kind == kind)
+            .is_some_and(|g| g.entries.iter().any(|e| e.display_name == name))
     }
 
     pub(crate) fn release(&self, token: &str) {
@@ -227,7 +282,7 @@ mod tests {
         let dir = tempfile::TempDir::new().unwrap();
         let (path, plan) = staged(&dir, "modrex-a.zip");
         let token = reg
-            .register(StagedArchiveKind::MultiEntry, &path, plan)
+            .register(StagedArchiveKind::MultiEntry, &path, plan, Vec::new())
             .unwrap();
 
         assert_eq!(reg.borrow(&token, StagedArchiveKind::HostPack), None);
@@ -259,7 +314,7 @@ mod tests {
         let dir = tempfile::TempDir::new().unwrap();
         let (path, plan) = staged(&dir, "modrex-multi.zip");
         let token = reg
-            .register(StagedArchiveKind::MultiEntry, &path, plan)
+            .register(StagedArchiveKind::MultiEntry, &path, plan, Vec::new())
             .unwrap();
 
         for _ in 0..3 {
@@ -289,7 +344,7 @@ mod tests {
         let dir = tempfile::TempDir::new().unwrap();
         let (path, plan) = staged(&dir, "modrex-fails.zip");
         let token = reg
-            .register(StagedArchiveKind::CrimeBossFlat, &path, plan)
+            .register(StagedArchiveKind::CrimeBossFlat, &path, plan, Vec::new())
             .unwrap();
 
         let failed: Result<(), &str> = (|| {
@@ -312,10 +367,10 @@ mod tests {
         let (a_path, a_plan) = staged(&dir, "modrex-a.zip");
         let (b_path, b_plan) = staged(&dir, "modrex-b.zip");
         let a = reg
-            .register(StagedArchiveKind::MultiEntry, &a_path, a_plan)
+            .register(StagedArchiveKind::MultiEntry, &a_path, a_plan, Vec::new())
             .unwrap();
         let b = reg
-            .register(StagedArchiveKind::HostPack, &b_path, b_plan)
+            .register(StagedArchiveKind::HostPack, &b_path, b_plan, Vec::new())
             .unwrap();
         assert_ne!(a, b);
         assert_eq!(reg.borrow(&a, StagedArchiveKind::MultiEntry), Some(a_path));
@@ -334,7 +389,7 @@ mod tests {
         let dir = tempfile::TempDir::new().unwrap();
         let (path, plan) = staged(&dir, "modrex-mine.zip");
         let token = mine
-            .register(StagedArchiveKind::MultiEntry, &path, plan)
+            .register(StagedArchiveKind::MultiEntry, &path, plan, Vec::new())
             .unwrap();
 
         assert_eq!(theirs.borrow(&token, StagedArchiveKind::MultiEntry), None);
@@ -353,17 +408,27 @@ mod tests {
         for i in 0..2 {
             let (p, plan) = staged(&dir, &format!("modrex-small-{i}.zip"));
             small
-                .register(StagedArchiveKind::MultiEntry, &p, plan)
+                .register(StagedArchiveKind::MultiEntry, &p, plan, Vec::new())
                 .unwrap();
         }
         let (overflow, overflow_plan) = staged(&dir, "modrex-overflow.zip");
         assert_eq!(
-            small.register(StagedArchiveKind::MultiEntry, &overflow, overflow_plan),
+            small.register(
+                StagedArchiveKind::MultiEntry,
+                &overflow,
+                overflow_plan,
+                Vec::new()
+            ),
             Err(())
         );
         let (fresh, fresh_plan) = staged(&dir, "modrex-other.zip");
         assert!(other
-            .register(StagedArchiveKind::MultiEntry, &fresh, fresh_plan)
+            .register(
+                StagedArchiveKind::MultiEntry,
+                &fresh,
+                fresh_plan,
+                Vec::new()
+            )
             .is_ok());
     }
 
@@ -374,7 +439,7 @@ mod tests {
         let dir = tempfile::TempDir::new().unwrap();
         let (path, plan) = staged(&dir, "modrex-busy.zip");
         let token = reg
-            .register(StagedArchiveKind::MultiEntry, &path, plan)
+            .register(StagedArchiveKind::MultiEntry, &path, plan, Vec::new())
             .unwrap();
 
         let guard = BorrowGuard::new(&reg, &token);
@@ -395,7 +460,7 @@ mod tests {
         let dir = tempfile::TempDir::new().unwrap();
         let (path, plan) = staged(&dir, "modrex-race.zip");
         let token = reg
-            .register(StagedArchiveKind::MultiEntry, &path, plan)
+            .register(StagedArchiveKind::MultiEntry, &path, plan, Vec::new())
             .unwrap();
         std::thread::scope(|scope| {
             let a = scope.spawn(|| reg.finalize(&token));
@@ -418,7 +483,7 @@ mod tests {
         for i in 0..CAPACITY {
             let (p, plan) = staged(&dir, &format!("modrex-{i}.zip"));
             let token = reg
-                .register(StagedArchiveKind::MultiEntry, &p, plan)
+                .register(StagedArchiveKind::MultiEntry, &p, plan, Vec::new())
                 .expect("within capacity");
             live.push((p, token));
         }
@@ -426,7 +491,12 @@ mod tests {
 
         let (overflow, overflow_plan) = staged(&dir, "modrex-overflow.zip");
         assert_eq!(
-            reg.register(StagedArchiveKind::MultiEntry, &overflow, overflow_plan),
+            reg.register(
+                StagedArchiveKind::MultiEntry,
+                &overflow,
+                overflow_plan,
+                Vec::new()
+            ),
             Err(()),
             "the grant after capacity is refused"
         );
@@ -448,12 +518,22 @@ mod tests {
         let reg = StagingRegistry::with_limits(MAX_GRANTS, Duration::from_nanos(1));
         let dir = tempfile::TempDir::new().unwrap();
         let (stale, stale_plan) = staged(&dir, "modrex-stale.zip");
-        reg.register(StagedArchiveKind::MultiEntry, &stale, stale_plan)
-            .unwrap();
+        reg.register(
+            StagedArchiveKind::MultiEntry,
+            &stale,
+            stale_plan,
+            Vec::new(),
+        )
+        .unwrap();
 
         let (fresh, fresh_plan) = staged(&dir, "modrex-fresh.zip");
-        reg.register(StagedArchiveKind::MultiEntry, &fresh, fresh_plan)
-            .unwrap();
+        reg.register(
+            StagedArchiveKind::MultiEntry,
+            &fresh,
+            fresh_plan,
+            Vec::new(),
+        )
+        .unwrap();
 
         assert!(!stale.exists(), "the expired archive was removed");
         assert!(fresh.exists());
@@ -467,14 +547,19 @@ mod tests {
         let dir = tempfile::TempDir::new().unwrap();
         let (busy, busy_plan) = staged(&dir, "modrex-busy.zip");
         let token = reg
-            .register(StagedArchiveKind::MultiEntry, &busy, busy_plan)
+            .register(StagedArchiveKind::MultiEntry, &busy, busy_plan, Vec::new())
             .unwrap();
         let _guard = BorrowGuard::new(&reg, &token);
         reg.borrow(&token, StagedArchiveKind::MultiEntry).unwrap();
 
         let (fresh, fresh_plan) = staged(&dir, "modrex-fresh.zip");
-        reg.register(StagedArchiveKind::MultiEntry, &fresh, fresh_plan)
-            .unwrap();
+        reg.register(
+            StagedArchiveKind::MultiEntry,
+            &fresh,
+            fresh_plan,
+            Vec::new(),
+        )
+        .unwrap();
 
         assert!(busy.exists(), "a borrowed archive must not be swept");
         assert_eq!(reg.grant_count(), 2);
@@ -487,12 +572,12 @@ mod tests {
         let dir = tempfile::TempDir::new().unwrap();
         for i in 0..3 {
             let (p, plan) = staged(&dir, &format!("modrex-{i}.zip"));
-            reg.register(StagedArchiveKind::MultiEntry, &p, plan)
+            reg.register(StagedArchiveKind::MultiEntry, &p, plan, Vec::new())
                 .unwrap();
         }
         let (kept, kept_plan) = staged(&dir, "modrex-other.zip");
         other
-            .register(StagedArchiveKind::MultiEntry, &kept, kept_plan)
+            .register(StagedArchiveKind::MultiEntry, &kept, kept_plan, Vec::new())
             .unwrap();
 
         assert_eq!(reg.drain().len(), 3);

@@ -25,6 +25,7 @@ function makePayload(overrides: Partial<ZipMultiPakPayload> = {}): ZipMultiPakPa
     return {
         archiveHandle: 'handle-abc',
         entries: ['VariantA.pak', 'VariantB.pak', 'VariantC.pak'],
+        entryIds: [0, 1, 2],
         modId: 100,
         modName: 'Some Mod',
         fileId: 200,
@@ -67,7 +68,7 @@ describe('computeAutoUpdateSelection', () => {
         ]
         const payload = makePayload()
         const result = mod.computeAutoUpdateSelection(payload, installed)
-        expect(result).toEqual(['VariantA.pak', 'VariantC.pak'])
+        expect(result).toEqual([0, 2])
     })
 
     it('returns null for a fresh install with no prior entries for this mod id', () => {
@@ -94,7 +95,7 @@ describe('computeAutoUpdateSelection', () => {
         const payload = makePayload()
         // VariantA is already installed from this exact archive, so it's excluded from the
         // "to install" set returned for an auto-resolve pass, so it is not pending work.
-        expect(mod.computeAutoUpdateSelection(payload, installed)).toEqual(['VariantC.pak'])
+        expect(mod.computeAutoUpdateSelection(payload, installed)).toEqual([2])
     })
 
     it('ignores missing (uninstalled) prior entries', () => {
@@ -107,19 +108,12 @@ describe('computeAutoUpdateSelection', () => {
 describe('installZipPickerEntries', () => {
     it('installs only the given entries and cleans up the temp file', async () => {
         const payload = makePayload()
-        await mod.installZipPickerEntries(
-            payload,
-            ['VariantA.pak', 'VariantC.pak'],
-            '/game',
-            'pd3',
-            null,
-            async () => {}
-        )
+        await mod.installZipPickerEntries(payload, [0, 2], '/game', 'pd3', null, async () => {})
         expect(mockInstallFromZipEntry).toHaveBeenCalledTimes(2)
         expect(mockInstallFromZipEntry).toHaveBeenNthCalledWith(
             1,
             payload.archiveHandle,
-            'VariantA.pak',
+            payload.entryIds[0],
             payload.modId,
             payload.modName,
             payload.fileId,
@@ -137,14 +131,7 @@ describe('installZipPickerEntries', () => {
     it('calls onRefreshInstalled after each entry', async () => {
         const payload = makePayload()
         const onRefreshInstalled = vi.fn().mockResolvedValue(undefined)
-        await mod.installZipPickerEntries(
-            payload,
-            ['VariantA.pak', 'VariantC.pak'],
-            '/game',
-            'pd3',
-            null,
-            onRefreshInstalled
-        )
+        await mod.installZipPickerEntries(payload, [0, 2], '/game', 'pd3', null, onRefreshInstalled)
         expect(onRefreshInstalled).toHaveBeenCalledTimes(2)
     })
 
@@ -152,14 +139,7 @@ describe('installZipPickerEntries', () => {
         mockInstallFromZipEntry.mockRejectedValueOnce(new Error('boom'))
         const payload = makePayload()
         await expect(
-            mod.installZipPickerEntries(
-                payload,
-                ['VariantA.pak'],
-                '/game',
-                'pd3',
-                null,
-                async () => {}
-            )
+            mod.installZipPickerEntries(payload, [0], '/game', 'pd3', null, async () => {})
         ).rejects.toThrow('boom')
         expect(mockDeleteTempFile).not.toHaveBeenCalled()
     })

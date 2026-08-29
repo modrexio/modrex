@@ -205,6 +205,12 @@ export const commands = {
 };
 
 /* Types */
+/**
+ *  Identifies one entry of a staged archive. Issued while enumerating, so it survives
+ *  display names that normalize onto each other.
+ */
+export type ArchiveEntryId = number;
+
 export type CbFlatPayload = CbFlatPayload_Serialize | CbFlatPayload_Deserialize;
 
 export type CbFlatPayload_Deserialize = {
@@ -391,7 +397,8 @@ export type InstallFromZipEntryArgs = {
 	 *  path, so it cannot point this at another local archive.
 	 */
 	archiveHandle: string,
-	entryName: string,
+	/**  Which entry of that archive to install, as issued when it was listed. */
+	entryId: ArchiveEntryId,
 	modId: number,
 	modName: string,
 	fileId: number,
@@ -883,6 +890,11 @@ export type ZipMultiPakPayload_Deserialize = {
 	 */
 	archiveHandle: string,
 	entries: string[],
+	/**
+	 *  Identity of each listed entry, parallel to entries. Display names can normalize onto
+	 *  each other; these cannot.
+	 */
+	entryIds: ArchiveEntryId[],
 	targetTag: string | null,
 	entryTags?: (string | null)[] | null,
 	entryKind?: string | null,
@@ -906,6 +918,11 @@ export type ZipMultiPakPayload_Serialize = {
 	 */
 	archiveHandle: string,
 	entries: string[],
+	/**
+	 *  Identity of each listed entry, parallel to entries. Display names can normalize onto
+	 *  each other; these cannot.
+	 */
+	entryIds: ArchiveEntryId[],
 	targetTag: string | null,
 	entryTags?: (string | null)[] | null,
 	entryKind?: string | null,

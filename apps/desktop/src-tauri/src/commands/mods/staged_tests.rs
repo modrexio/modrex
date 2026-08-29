@@ -268,34 +268,220 @@ fn stem_recovery_falls_back_when_the_archive_cannot_name_the_mod() {
     }
 }
 
-// ── an authorized archive does not authorize an arbitrary entry ─────────────
+// ── archive entries are identified by position, not by name ─────────────────
 
-/// A handle says which archive may be opened; it does not make every entry name valid.
-/// Checking before extraction keeps a crafted entry from reaching a different file.
+use super::staging_tokens::{ArchiveEntryId, StagedArchiveKind, StagedEntry, StagedEntrySource};
+
+/// Writes entries under their exact raw names, including names a normalizing reader would
+/// fold together.
+fn make_raw_zip(entries: &[(&str, &[u8])]) -> NamedTempFile {
+    make_zip(entries)
+}
+
+fn file_entry(index: u32, name: &str) -> StagedEntry {
+    StagedEntry {
+        source: StagedEntrySource::File { index },
+        display_name: name.to_string(),
+    }
+}
+
+fn extract_at(zip: &Path, index: u32) -> Vec<u8> {
+    let dest = TempDir::new().unwrap().path().join("out.bin");
+    std::fs::create_dir_all(dest.parent().unwrap()).unwrap();
+    super::zip::extract_entry_at(zip, index, &dest).unwrap();
+    std::fs::read(&dest).unwrap()
+}
+
+/// The collision this identity model exists for: two raw names that a normalizing reader
+/// reports identically still extract their own bytes.
 #[test]
-fn entry_validation_accepts_only_names_present_in_that_archive() {
-    let zip = make_zip(&[("Inner/CoolMod.pak", b"pak"), ("readme.txt", b"hi")]);
-    assert!(super::zip::entry_belongs_to_archive(zip.path(), "Inner/CoolMod.pak").is_ok());
-    assert!(super::zip::entry_belongs_to_archive(zip.path(), "readme.txt").is_ok());
+fn separator_colliding_entries_extract_their_own_bytes() {
+    let zip = make_raw_zip(&[
+        ("a/b.pak", b"forward slash bytes"),
+        ("a\\b.pak", b"back slash bytes"),
+    ]);
+    let listed = super::zip::list_entries_for_test(zip.path());
+    assert_eq!(listed.len(), 2, "both raw entries are listed");
+    assert_eq!(
+        listed[0], listed[1],
+        "and they display under the same normalized name"
+    );
 
-    for bogus in [
-        "",
-        "NotThere.pak",
-        "../../../etc/passwd",
-        "C:/Windows/System32/calc.exe",
-        "Inner/coolmod.pak",
-        "Inner/CoolMod.pak ",
-    ] {
+    assert_eq!(extract_at(zip.path(), 0), b"forward slash bytes");
+    assert_eq!(extract_at(zip.path(), 1), b"back slash bytes");
+}
+
+#[test]
+fn case_only_collisions_extract_their_own_bytes() {
+    let zip = make_raw_zip(&[("A.pak", b"upper"), ("a.pak", b"lower")]);
+    assert_eq!(extract_at(zip.path(), 0), b"upper");
+    assert_eq!(extract_at(zip.path(), 1), b"lower");
+}
+
+#[test]
+fn trailing_space_and_dot_collisions_extract_their_own_bytes() {
+    let zip = make_raw_zip(&[("Mod.pak", b"plain"), ("Mod.pak ", b"trailing space")]);
+    assert_eq!(extract_at(zip.path(), 0), b"plain");
+    assert_eq!(extract_at(zip.path(), 1), b"trailing space");
+}
+
+/// A directory entry and a file entry whose names normalize together stay distinguishable,
+/// and asking for the wrong shape is refused rather than silently reinterpreted.
+#[test]
+fn a_directory_and_file_with_colliding_names_stay_distinct() {
+    let zip = make_raw_zip(&[("mod/", b""), ("mod", b"file bytes")]);
+    let dest = TempDir::new().unwrap();
+    let out = dest.path().join("out.bin");
+    assert!(
+        super::zip::extract_entry_at(zip.path(), 0, &out).is_err(),
+        "a directory entry is not extractable as a file"
+    );
+    assert_eq!(extract_at(zip.path(), 1), b"file bytes");
+}
+
+#[test]
+fn an_out_of_range_identity_fails_without_extracting_anything() {
+    let zip = make_raw_zip(&[("Mod.pak", b"only")]);
+    let dest = TempDir::new().unwrap().path().join("out.bin");
+    std::fs::create_dir_all(dest.parent().unwrap()).unwrap();
+    for index in [1u32, 9, u32::MAX] {
+        assert!(super::zip::extract_entry_at(zip.path(), index, &dest).is_err());
+    }
+    assert!(!dest.exists());
+}
+
+/// An identity is only meaningful against the handle that issued it.
+#[test]
+fn an_identity_is_scoped_to_the_archive_that_issued_it() {
+    let reg = StagingRegistry::new();
+    let dir = TempDir::new().unwrap();
+    let a = dir.path().join("modrex-a.zip");
+    let b = dir.path().join("modrex-b.zip");
+    std::fs::write(&a, b"a").unwrap();
+    std::fs::write(&b, b"b").unwrap();
+
+    let handle_a = reg
+        .register(
+            StagedArchiveKind::MultiEntry,
+            &a,
+            CleanupPlan::RemoveOwnedFile(a.clone()),
+            vec![file_entry(0, "OnlyInA.pak")],
+        )
+        .unwrap();
+    let handle_b = reg
+        .register(
+            StagedArchiveKind::MultiEntry,
+            &b,
+            CleanupPlan::RemoveOwnedFile(b.clone()),
+            Vec::new(),
+        )
+        .unwrap();
+
+    assert!(reg
+        .entry(&handle_a, StagedArchiveKind::MultiEntry, ArchiveEntryId(0))
+        .is_some());
+    assert!(
+        reg.entry(&handle_b, StagedArchiveKind::MultiEntry, ArchiveEntryId(0))
+            .is_none(),
+        "an id valid for one archive means nothing for another"
+    );
+}
+
+/// Only the entries the listing issued are reachable, so an index that was filtered out of
+/// the listing cannot be reached by guessing it.
+#[test]
+fn an_identity_the_listing_never_issued_is_rejected() {
+    let reg = StagingRegistry::new();
+    let dir = TempDir::new().unwrap();
+    let archive = dir.path().join("modrex-filtered.zip");
+    std::fs::write(&archive, b"zip").unwrap();
+
+    // The archive holds a readme at position 1, but only the pak was offered.
+    let handle = reg
+        .register(
+            StagedArchiveKind::MultiEntry,
+            &archive,
+            CleanupPlan::RemoveOwnedFile(archive.clone()),
+            vec![file_entry(0, "Mod.pak")],
+        )
+        .unwrap();
+
+    assert!(reg
+        .entry(&handle, StagedArchiveKind::MultiEntry, ArchiveEntryId(0))
+        .is_some());
+    for guess in [1u32, 2, 99] {
         assert!(
-            super::zip::entry_belongs_to_archive(zip.path(), bogus).is_err(),
-            "{bogus} must not be accepted"
+            reg.entry(
+                &handle,
+                StagedArchiveKind::MultiEntry,
+                ArchiveEntryId(guess)
+            )
+            .is_none(),
+            "id {guess} was never issued"
         );
     }
 }
 
 #[test]
-fn entry_validation_fails_closed_on_an_unreadable_archive() {
+fn an_identity_is_rejected_by_a_workflow_it_was_not_issued_for() {
+    let reg = StagingRegistry::new();
     let dir = TempDir::new().unwrap();
-    let missing = dir.path().join("gone.zip");
-    assert!(super::zip::entry_belongs_to_archive(&missing, "anything").is_err());
+    let archive = dir.path().join("modrex-kinded.zip");
+    std::fs::write(&archive, b"zip").unwrap();
+    let handle = reg
+        .register(
+            StagedArchiveKind::MultiEntry,
+            &archive,
+            CleanupPlan::RemoveOwnedFile(archive.clone()),
+            vec![file_entry(0, "Mod.pak")],
+        )
+        .unwrap();
+
+    assert!(reg
+        .entry(&handle, StagedArchiveKind::HostPack, ArchiveEntryId(0))
+        .is_none());
+    assert!(reg
+        .entry(&handle, StagedArchiveKind::CrimeBossFlat, ArchiveEntryId(0))
+        .is_none());
+}
+
+/// An archive replaced after listing fails closed rather than extracting whatever now sits
+/// at that position.
+#[test]
+fn a_truncated_archive_fails_closed() {
+    let dir = TempDir::new().unwrap();
+    let archive = dir.path().join("modrex-changed.zip");
+    let built = make_raw_zip(&[("One.pak", b"one"), ("Two.pak", b"two")]);
+    std::fs::copy(built.path(), &archive).unwrap();
+    assert_eq!(extract_at(&archive, 1), b"two");
+
+    std::fs::write(&archive, b"not an archive any more").unwrap();
+    let dest = dir.path().join("out.bin");
+    assert!(super::zip::extract_entry_at(&archive, 1, &dest).is_err());
+    assert!(!dest.exists());
+}
+
+/// Sidecars are found beside the entry the identity names, not beside a same-named entry
+/// somewhere else in the archive.
+#[test]
+fn sidecars_follow_the_identified_entry() {
+    let zip = make_raw_zip(&[
+        ("Right/Mod.pak", b"right pak"),
+        ("Right/Mod.ucas", b"right ucas"),
+        ("Wrong/Mod.pak", b"wrong pak"),
+        ("Wrong/Mod.ucas", b"wrong ucas"),
+    ]);
+    let dest = TempDir::new().unwrap().path().join("out.pak");
+    std::fs::create_dir_all(dest.parent().unwrap()).unwrap();
+    super::zip::extract_staged_entry_with_sidecars(
+        zip.path(),
+        &file_entry(0, "Right/Mod.pak"),
+        &dest,
+    )
+    .unwrap();
+    assert_eq!(std::fs::read(&dest).unwrap(), b"right pak");
+    assert_eq!(
+        std::fs::read(dest.with_extension("ucas")).unwrap(),
+        b"right ucas"
+    );
 }

@@ -45,6 +45,7 @@ function makeMod(id: number): ModSummary {
 const PICKER_OUTCOME_FOR_MOD_1 = {
     needsPicker: {
         archiveHandle: 'handle-abc',
+        entryIds: [0],
         entries: ['VariantA.pak', 'VariantB.pak'],
         targetTag: null,
         modId: 1,

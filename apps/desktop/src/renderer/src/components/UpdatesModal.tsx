@@ -167,7 +167,7 @@ export function UpdatesModal({
             const zipData = outcome.needsPicker as unknown as ZipMultiPakPayload
             if (gamePath) {
                 const autoEntries = computeAutoUpdateSelection(zipData, installed)
-                const entriesToInstall = autoEntries ?? zipData.entries
+                const entriesToInstall = autoEntries ?? zipData.entries.map((_, pos) => pos)
                 try {
                     await installZipPickerEntries(
                         zipData,

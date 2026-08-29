@@ -226,7 +226,7 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
                 const locationTag = zip.entryTags?.[realIdx] ?? zip.targetTag ?? undefined
                 await api.installFromZipEntry(
                     zip.archiveHandle,
-                    realEntry,
+                    zip.entryIds[realIdx],
                     zip.modId,
                     zip.modName,
                     zip.fileId,
