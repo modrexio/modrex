@@ -41,10 +41,12 @@ pub static GAME_REGISTRY: &[GameSpec] = &[
     },
 ];
 
-// Representation spike for the game-package refactor. Nothing outside its own tests
-// refers to it, and it registers no game.
+// Representation experiment. Registers no game and is not a production location.
 #[cfg(test)]
 mod package;
+
+#[cfg(test)]
+mod package_tests;
 
 pub fn game_spec(game_id: &str) -> Option<&'static GameSpec> {
     GAME_REGISTRY.iter().find(|s| s.id == game_id)
