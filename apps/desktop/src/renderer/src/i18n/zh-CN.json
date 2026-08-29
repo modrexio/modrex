@@ -1,0 +1,536 @@
+{
+    "common": {
+        "beta": "测试版",
+        "install": "安装",
+        "nonPakWarning": "不支持的格式",
+        "openLink": "打开链接",
+        "installing": "正在安装...",
+        "downloading": "正在下载...",
+        "installed": "已安装",
+        "remove": "移除",
+        "fileMissing": "文件缺失",
+        "zipArchiveBroken": "压缩包损坏",
+        "modManagerDisabled": "作者已禁用通过模组管理器下载。",
+        "depNeedsManualInstall": "下载此依赖项时需要进行选择。请打开其模组页面进行安装。",
+        "fix": "修复",
+        "reinstall": "重新安装",
+        "loading": "正在加载...",
+        "cancel": "取消",
+        "close": "关闭",
+        "dontShowAgain": "不再显示",
+        "by": "作者：{name}",
+        "noImage": "无图片",
+        "dismiss": "忽略",
+        "downloadAnyway": "仍然下载",
+        "nonPakConfirmBody": "此文件使用了不支持的格式。Modrex 可能无法正确安装它。"
+    },
+    "app": {
+        "modsHidden": "模组已隐藏；游戏以原版模式启动，并且可能仍在运行。",
+        "restoreMods": "恢复模组",
+        "updateAction": "更新",
+        "updateInstall": "重启并安装",
+        "updateDownload": "下载",
+        "updateNotesTitle": "v{version} 的新内容",
+        "updateViewOnGithub": "在 GitHub 上查看",
+        "updateLater": "稍后"
+    },
+    "splash": {
+        "title": "正在启动 Modrex",
+        "open": "打开 Modrex",
+        "prepare": "正在准备应用数据",
+        "interface": "正在加载界面",
+        "game": "正在检测游戏安装",
+        "mods": "正在读取已安装的模组",
+        "ready": "正在打开 Modrex",
+        "error": "启动未能完成"
+    },
+    "errorBoundary": {
+        "close": "关闭",
+        "message": "出现了问题。"
+    },
+    "topBar": {
+        "title": "Modrex",
+        "stopGame": "停止游戏",
+        "launchWithoutMods": "不加载模组启动",
+        "launchModded": "加载模组启动",
+        "launching": "正在启动...",
+        "minimize": "最小化",
+        "maximize": "最大化",
+        "restore": "还原",
+        "close": "关闭",
+        "missingLaunchOption": {
+            "title": "缺少启动选项",
+            "bodyPre": "建议添加此选项，以确保大多数模组能够正确加载。请在以下位置添加：",
+            "location": "设置 > 启动选项",
+            "launchAnyway": "仍然启动"
+        }
+    },
+    "sidebar": {
+        "browse": "浏览模组",
+        "installed": "已安装",
+        "news": "新闻",
+        "settings": "设置",
+        "back": "返回",
+        "collapse": "收起菜单",
+        "expandTitle": "展开侧边栏",
+        "collapseTitle": "收起侧边栏",
+        "changeGame": "切换游戏",
+        "docs": "文档",
+        "docsTitle": "打开文档",
+        "discord": "Discord",
+        "discordTitle": "加入我们的 Discord"
+    },
+    "gamePicker": {
+        "title": "游戏",
+        "installedOnly": "仅显示已安装",
+        "searchLabel": "搜索游戏",
+        "searchPlaceholder": "搜索游戏...",
+        "noMatches": "未找到游戏"
+    },
+    "browse": {
+        "title": "浏览模组",
+        "gameNotFound": "未找到游戏：无法安装",
+        "goToSettings": "前往设置进行配置",
+        "searchPlaceholder": "搜索模组...",
+        "allCategories": "所有分类",
+        "tags": "标签",
+        "tagsCount": "标签（{count}）",
+        "tagFilterSearch": "筛选标签...",
+        "tagFilterClear": "清除",
+        "tagFilterEmpty": "未找到标签",
+        "noMods": "未找到模组",
+        "loadFailed": "无法加载模组",
+        "rateLimited": "ModWorkshop 当前正在限制请求频率。请稍后再试。",
+        "modCount": "{total} 个模组",
+        "sort": {
+            "lastUpdated": "最近更新",
+            "mostDownloaded": "下载最多",
+            "mostLiked": "点赞最多",
+            "newest": "最新",
+            "name": "名称"
+        }
+    },
+    "nexus": {
+        "searchPlaceholder": "搜索模组...",
+        "noMods": "未找到模组",
+        "loadFailed": "无法加载模组",
+        "modCount": "{total} 个模组",
+        "signInRequired": "登录 Nexus Mods 以浏览来自 Nexus 的模组。",
+        "sessionExpiredHint": "你的 Nexus Mods 登录状态已过期。请重新登录以继续浏览。",
+        "goToSettings": "前往设置进行配置",
+        "sort": {
+            "lastUpdated": "最近更新",
+            "mostDownloaded": "下载最多",
+            "mostEndorsed": "认可最多",
+            "relevance": "相关性"
+        }
+    },
+    "nexusSession": {
+        "expired": "你的 Nexus Mods 登录状态已过期。在重新登录前，Nexus 模组的浏览、安装和更新检查将暂停。",
+        "signIn": "重新登录",
+        "awaiting": "正在等待浏览器...",
+        "failed": "Nexus Mods 登录失败：{error}"
+    },
+    "installed": {
+        "comingSoon": "此游戏的模组管理功能即将推出。",
+        "title": "已安装的模组",
+        "openFolder": "打开模组文件夹",
+        "refresh": "刷新已安装的模组",
+        "modCount": "{count} 个模组",
+        "modCountSingle": "{count} 个模组",
+        "modCountFiltered": "{total} 个模组中的 {count} 个",
+        "empty": "尚未安装任何模组",
+        "identifyingNew": "正在识别 {count} 个新模组...",
+        "filterPlaceholder": "搜索模组...",
+        "filterEmpty": "没有与“{query}”匹配的模组",
+        "reinstallFailed": "重新安装失败：{error}",
+        "updatesAvailable": "有 {count} 个模组可更新",
+        "updatesAvailableSingle": "有 {count} 个模组可更新",
+        "reviewUpdates": "查看更新",
+        "gridView": "网格视图",
+        "listView": "列表视图",
+        "newFolder": "新建文件夹",
+        "folder": {
+            "modCount": "{count} 个模组",
+            "modCountSingle": "{count} 个模组",
+            "enable": "启用文件夹中的所有模组",
+            "disable": "禁用文件夹中的所有模组",
+            "rename": "重命名文件夹",
+            "renamePlaceholder": "文件夹名称",
+            "newSubfolder": "新建子文件夹",
+            "delete": "删除文件夹",
+            "deleteConfirm": "删除此文件夹并将其中内容移动到上一级文件夹吗？",
+            "dropHere": "将模组拖放到此处"
+        },
+        "fileCount": "{count} 个文件",
+        "manageFiles": {
+            "searchPlaceholder": "搜索文件...",
+            "enableAll": "全部启用",
+            "disableAll": "全部禁用",
+            "noMatches": "没有与“{query}”匹配的文件",
+            "fileUnavailable": "此文件已无法从 ModWorkshop 获取。",
+            "staleDuplicateBadge": "已过时",
+            "staleDuplicateHint": "这是该文件重新打包下载前遗留的旧文件（可安全移除）。"
+        },
+        "updatesModal": {
+            "title": "可用更新（{count}）",
+            "update": "更新",
+            "updating": "正在更新...",
+            "updatingProgress": "正在更新 {done} / {total}",
+            "updateSelected": "更新所选项（{count}）",
+            "error": "更新失败。请检查网络连接后重试。"
+        },
+        "modMenu": {
+            "open": "选项",
+            "manageFiles": "管理文件",
+            "identify": "识别"
+        },
+        "identifyNexus": {
+            "identifying": "正在识别...",
+            "identified": "已识别为“{name}”",
+            "notFound": "在 Nexus 上未找到匹配项",
+            "ambiguous": "在 Nexus 上找到多个可能的匹配项",
+            "alreadyChecked": "已在 Nexus 上检查过，但未找到匹配项",
+            "error": "识别失败：{error}"
+        },
+        "nexusBadge": "Nexus",
+        "crimeBossMove": {
+            "modkitBadge": "ModKit",
+            "legacyBadge": "旧版",
+            "toLegacy": "移至旧版格式",
+            "toModKit": "移至 ModKit",
+            "confirmTitleToLegacy": "移至 ~mods？",
+            "confirmBodyToLegacy": "“{name}”将不再与其他模组的内容合并。仅当它需要旧版 pak 格式时才这样做。",
+            "confirmTitleToModkit": "移至 Mods/？",
+            "confirmBodyToModkit": "将“{name}”移动到 Mods/，使其可以与其他模组的内容合并。",
+            "confirm": "移动",
+            "moving": "正在移动...",
+            "error": "移动失败：{error}"
+        },
+        "health": {
+            "title": "健康检查",
+            "cancel": "取消扫描",
+            "missingFilesCount": "缺失文件（{count}）",
+            "brokenArchivesCount": "损坏的压缩包（{count}）",
+            "outdatedCount": "已过时（{count}）",
+            "unidentifiedCount": "未识别（{count}）",
+            "unidentifiedHint": "Modrex 无法识别这些模组。模组索引更新后，它们可能会被识别。",
+            "updatesCount": "更新（{count}）",
+            "dependenciesCount": "依赖项（{count}）",
+            "noMissingFiles": "没有缺失文件。",
+            "noBrokenArchives": "没有损坏的压缩包。",
+            "noOutdated": "没有过时的模组。",
+            "noUnidentified": "所有已安装的模组均已识别。",
+            "noUpdates": "所有内容均为最新。",
+            "noMissingDeps": "所有已安装模组的依赖项均已满足。",
+            "missingFileHint": "磁盘中缺少文件",
+            "brokenArchiveHint": "无法验证压缩包",
+            "outdatedHint": "建议重新安装",
+            "unidentifiedRowHint": "未识别",
+            "missingDepsHint": "缺少：{deps}",
+            "installDep": "安装",
+            "installAllDeps": "安装所有依赖项",
+            "installDepFailed": "部分依赖项无法自动安装。",
+            "reinstallAll": "全部重新安装"
+        }
+    },
+    "news": {
+        "title": "新闻",
+        "subtitlePrefix": "来自以下来源的官方标题、摘要和图片",
+        "readArticle": "阅读文章",
+        "refresh": "刷新",
+        "empty": "暂无新闻",
+        "loadFailed": "无法加载新闻",
+        "source": "paydaythegame.com"
+    },
+    "detail": {
+        "spoiler": "剧透！",
+        "back": "返回",
+        "viewOnSite": "ModWorkshop",
+        "viewOnNexus": "Nexus",
+        "donate": "捐赠",
+        "creditsLevelCollaborator": "协作者",
+        "creditsLevelMaintainer": "维护者",
+        "creditsLevelContributor": "贡献者",
+        "tabs": {
+            "description": "描述",
+            "images": "图片",
+            "imagesCount": "图片（{count}）",
+            "downloads": "下载",
+            "downloadsCount": "下载（{count}）",
+            "changelog": "更新日志",
+            "license": "许可证",
+            "deps": "依赖项与说明"
+        },
+        "stats": {
+            "downloads": "下载",
+            "likes": "点赞",
+            "views": "浏览量"
+        },
+        "info": {
+            "version": "版本",
+            "published": "发布时间",
+            "updated": "更新时间",
+            "repository": "代码仓库",
+            "link": "链接",
+            "tags": "标签",
+            "members": "成员",
+            "owner": "所有者"
+        },
+        "description": {
+            "noDescription": "未提供描述。"
+        },
+        "images": {
+            "none": "此模组未上传图片。"
+        },
+        "downloads": {
+            "none": "没有可用文件。",
+            "onNexus": "此模组的文件位于 Nexus Mods。",
+            "external": "下载",
+            "count": "{count} 次下载",
+            "viaNexus": "通过 Nexus 下载",
+            "awaitingNexus": "正在等待浏览器...",
+            "categoryMain": "主要文件",
+            "categoryUpdate": "更新",
+            "categoryOptional": "可选文件",
+            "categoryOldVersion": "旧版本",
+            "categoryMiscellaneous": "其他"
+        },
+        "deps": {
+            "instructions": "安装说明",
+            "dependencies": "依赖项",
+            "statusInstalled": "已安装",
+            "statusMissing": "缺失",
+            "statusNotInstalled": "未安装",
+            "badgeRequired": "必需",
+            "badgeOptional": "可选",
+            "openOnSite": "在 modworkshop.net 上打开"
+        }
+    },
+    "embed": {
+        "videoThumbnail": "视频缩略图",
+        "play": "播放视频",
+        "openInBrowser": "在浏览器中打开"
+    },
+    "fileSelect": {
+        "title": "安装文件",
+        "subtitle": "{modName}：选择要安装的文件。",
+        "installSelected": "安装所选项（{count}）"
+    },
+    "zipPicker": {
+        "title": "从压缩包安装",
+        "subtitle": "{modName}：选择要安装的文件。",
+        "installSelected": "安装所选项（{count}）",
+        "selectAll": "全选（{count}）",
+        "deselectAll": "取消全选",
+        "targetMods": "模组",
+        "targetOverrides": "资源覆盖"
+    },
+    "hostPack": {
+        "title": "安装附加组件",
+        "intoHost": "这是 {hostName} 的附加组件。要将 {count} 个项目安装到其中吗？",
+        "requiresHost": "此附加组件需要安装到 {hostName} 中，但它尚未安装。请先安装它，然后再安装此附加组件。",
+        "installHost": "安装 {hostName}",
+        "install": "安装（{count}）",
+        "installing": "正在安装..."
+    },
+    "unrecognized": {
+        "title": "无法确定此模组的安装位置",
+        "body": "Modrex 无法判断此模组应安装到哪里；它可能需要放在另一个模组内。请按照作者的说明操作：",
+        "noInstructions": "作者未提供安装说明。请查看该模组在 ModWorkshop 上的页面。"
+    },
+    "cbFlatArchive": {
+        "title": "作为模组文件夹安装？",
+        "body": "此压缩包没有独立的外层文件夹，因此 Modrex 无法自动识别模组名称。要将其全部内容以“{name}”的名称安装到 CrimeBoss/Mods 下吗？",
+        "install": "安装",
+        "installing": "正在安装..."
+    },
+    "depsWarning": {
+        "title": "缺少必需的依赖项",
+        "body": "此模组需要安装以下模组：",
+        "gotIt": "知道了",
+        "installAll": "全部安装",
+        "installFailed": "安装失败",
+        "bltDiesel3Note": "官方版 SuperBLT 暂不支持 Diesel 3.0。",
+        "bltDiesel3GitHub": "从 GitHub 获取"
+    },
+    "crimeBossInstallChoice": {
+        "title": "“{name}”应安装到哪里？",
+        "body": "Mods/ 会与其他模组的内容合并。~mods 是不支持内容合并的旧版格式。",
+        "auto": "Mods/（ModKit）",
+        "legacy": "~mods（旧版 pak）",
+        "installing": "正在安装...",
+        "error": "安装失败：{error}"
+    },
+    "settings": {
+        "title": "设置",
+        "language": {
+            "title": "语言",
+            "description": "应用中使用的语言。"
+        },
+        "gamePath": {
+            "title": "游戏路径",
+            "description": "{game} 的安装路径。如果未手动设置，将根据已安装的启动器自动检测。",
+            "notFound": "未找到",
+            "detecting": "正在检测...",
+            "reset": "重置",
+            "browse": "浏览",
+            "pickTitle": "选择 {game} 安装文件夹",
+            "picking": "正在选择...",
+            "autoDetected": "已自动检测",
+            "notDetected": "无法检测到 {game} 的安装位置；请手动设置路径。",
+            "invalid": "所选文件夹不是有效的 {game} 安装目录。"
+        },
+        "launcher": {
+            "title": "启动器",
+            "description": "用于启动 {game} 的方式。会根据已安装的游戏平台自动检测。",
+            "detecting": "正在检测...",
+            "steam": "Steam",
+            "epic": "Epic Games",
+            "xbox": "Xbox",
+            "manual": "手动（直接运行可执行文件）",
+            "switchFailed": "之前检测到的游戏副本已不在原位置；请手动选择文件夹。",
+            "multipleCopies": "找到 {count} 个游戏副本；所选启动器将决定 Modrex 对哪个副本应用模组并启动。"
+        },
+        "launchOptions": {
+            "title": "启动选项",
+            "descriptionPre": "启动 PAYDAY 3 时传递的额外参数。",
+            "descriptionPost": "建议使用此参数，以确保大多数模组能够正确加载。",
+            "xboxNotePre": "Microsoft Store 不支持启动选项。要启用模组日志记录，请添加",
+            "xboxNotePost": "到 Xbox 应用中的 PAYDAY 3 > 管理 > 启动选项。"
+        },
+        "crashReporter": {
+            "title": "崩溃报告器清理",
+            "description": "对于自带有问题的崩溃报告器的游戏，可在启动前移除其崩溃报告文件，以避免出现空白的崩溃报告窗口。此功能默认关闭，并非所有游戏都需要使用。"
+        },
+        "updates": {
+            "title": "更新",
+            "check": "检查更新",
+            "checking": "正在检查...",
+            "upToDate": "已是最新版本"
+        },
+        "logs": {
+            "title": "日志",
+            "description": "如果出现问题，请打开日志文件并将其附加到错误报告中。",
+            "open": "打开日志文件"
+        },
+        "nexusAccount": {
+            "title": "Nexus Mods 账户",
+            "description": "请在浏览器中登录你的 Nexus Mods 账户。令牌仅存储在本地，不会离开此设备。",
+            "signIn": "登录 Nexus Mods",
+            "signOut": "退出登录",
+            "signedIn": "已登录 Nexus Mods。",
+            "failed": "登录失败：{error}",
+            "sessionExpired": "你的登录状态已过期并被清除。这可能是因为会话被撤销、账户密码发生变化，或 Modrex 长时间未使用导致会话失效。",
+            "signOutConfirmTitle": "退出 Nexus Mods？",
+            "signOutConfirmBody": "之后你需要在浏览器中重新登录，才能浏览和安装 Nexus Mods。",
+            "signOutConfirm": "退出登录",
+            "insecureStorage": "由于系统没有可用的凭据存储，你的 Nexus Mods 登录信息将以较低安全级别保存。在 Linux 上，请安装并启用 Secret Service 提供程序（例如 gnome-keyring 或 KWallet），然后重启 Modrex 以解决此问题。"
+        },
+        "folders": {
+            "title": "文件夹",
+            "description": "在文件管理器中打开以下位置。",
+            "gameFolder": "打开游戏文件夹",
+            "dataFolder": "打开数据文件夹",
+            "appFolder": "打开应用文件夹",
+            "open": "打开 {name}",
+            "mods": "模组",
+            "modkitMods": "ModKit 模组",
+            "legacyPaks": "旧版 pak",
+            "overrides": "资源覆盖",
+            "ue4ssMods": "UE4SS 模组"
+        },
+        "storage": {
+            "title": "存储",
+            "dangerZone": "危险区域",
+            "dangerZoneDescription": "这些操作会删除本地存储的数据。清除缓存可释放磁盘空间，之后会在你使用应用时自动重建；重置则会恢复默认设置。上述操作都不会删除已安装的模组或游戏文件。",
+            "clearing": "正在清除...",
+            "clearImages": "清除图片缓存",
+            "clearModInfo": "清除模组信息",
+            "clearDatabase": "清除数据库",
+            "clearNews": "清除新闻缓存",
+            "clearAll": "清除所有缓存",
+            "clearAllLabel": "所有缓存",
+            "clearAllDescription": "同时清除缓存图片、模组信息、识别数据库和新闻。",
+            "clearConfirmTitle": "清除{name}？",
+            "clearConfirmBody": "这会立即删除缓存数据。之后 Modrex 会在你使用应用时自动重建这些数据。",
+            "clearAllConfirmTitle": "清除所有缓存？",
+            "clearAllConfirmBody": "这会删除所有缓存图片、模组信息、识别数据库和新闻。之后 Modrex 会在你使用应用时自动重建这些数据。",
+            "freed": "已释放 {size}",
+            "cachedImages": "缓存图片",
+            "cachedImagesDescription": "来自 ModWorkshop 的模组缩略图和横幅。",
+            "cachedModInfo": "缓存的模组信息",
+            "cachedModInfoDescription": "已保存的模组名称、版本和详细信息。",
+            "modIndex": "模组识别数据库",
+            "modIndexDescription": "用于识别已安装模组的哈希索引。",
+            "news": "缓存新闻",
+            "newsDescription": "应用内新闻页面的已保存副本。",
+            "reset": "重置设置",
+            "resetDescription": "将所有应用设置恢复为默认值。",
+            "resetConfirmTitle": "重置设置？",
+            "resetConfirmBody": "这会清除已保存的游戏路径、启动器选择、偏好设置和分析选项，并将 Modrex 恢复到首次运行状态。已安装的模组和游戏文件不会受到影响。",
+            "resetConfirm": "重置设置",
+            "resetting": "正在重置..."
+        },
+        "crimeBossInstallMode": {
+            "title": "新模组安装",
+            "description": "设置新的 Crime Boss 模组默认安装到哪里。之后也可以从“已安装”列表中移动已经安装的模组。",
+            "auto": "自动",
+            "ask": "每次询问"
+        },
+        "about": {
+            "tagline": "免费且开源的模组管理器。",
+            "supportTitle": "支持项目",
+            "supportBody": "Modrex 免费提供，并由开发者利用业余时间打造。如果它为你节省了时间，在 GitHub 上点个 Star 或提供赞助都能帮助项目继续发展。",
+            "star": "在 GitHub 上点 Star",
+            "sponsor": "赞助",
+            "communityTitle": "社区",
+            "discord": "加入 Discord",
+            "x": "在 X 上关注",
+            "bluesky": "在 Bluesky 上关注",
+            "website": "modrex.net",
+            "disclaimer": "Modrex 是一个社区项目，与所支持游戏的开发商或发行商没有隶属关系。"
+        },
+        "nav": {
+            "game": "游戏",
+            "application": "应用",
+            "advanced": "高级",
+            "about": "关于"
+        }
+    },
+    "supportPrompt": {
+        "body": "喜欢 Modrex 吗？在 GitHub 上点个 Star 可以帮助更多玩家发现它。",
+        "star": "在 GitHub 上点 Star",
+        "dismiss": "不用了，谢谢"
+    },
+    "telemetry": {
+        "title": "帮助改进 Modrex",
+        "intro": "Modrex 可以发送匿名使用数据，帮助我们了解哪些模组会出问题、哪些游戏需要关注，以及接下来应该开发什么。此功能为可选项，你可以随时在“设置”中更改。",
+        "collectTitle": "我们收集什么",
+        "collect1": "匿名使用情况：使用过的功能、已安装的模组，以及模组识别效果",
+        "collect2": "你的应用版本和操作系统",
+        "dontCollectTitle": "我们绝不会收集什么",
+        "dontCollect1": "不会收集姓名、电子邮件、账户或任何可识别你身份的信息",
+        "dontCollect2": "不会收集文件路径、模组搜索内容或其他个人数据",
+        "enable": "启用",
+        "decline": "不用了，谢谢",
+        "detailsToggle": "会收集哪些数据？",
+        "privacyPrefix": "使用数据由 Google Analytics 处理。请参阅",
+        "privacyLink": "Google 隐私权政策",
+        "settingsTitle": "使用情况分析",
+        "settingsDescription": "分享匿名使用数据，帮助改进 Modrex。",
+        "discordPresenceTitle": "Discord Rich Presence",
+        "discordPresenceDescription": "在你的 Discord 个人资料中显示 Modrex 活动，并附上应用链接。"
+    },
+    "drop": {
+        "overlayTitle": "拖放以安装",
+        "overlaySubtitle": "松开以安装到 {game}",
+        "installing": "正在安装...",
+        "installingCount": "正在安装 {current}/{total}...",
+        "installed": "已安装 {count} 个模组",
+        "installedSingle": "已安装 1 个模组",
+        "needsPicker": "目前部分压缩包必须从对应的模组页面安装",
+        "failed": "无法安装：{names}",
+        "noGame": "拖放模组前，请先设置游戏文件夹"
+    }
+}
