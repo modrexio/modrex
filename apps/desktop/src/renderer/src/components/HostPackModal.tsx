@@ -7,6 +7,7 @@ import { api } from '../api'
 
 export interface HostPackPayload {
     zipPath: string
+    cleanupToken: string
     entries: string[]
     hostModId: number
     hostName: string
@@ -83,7 +84,7 @@ export function HostPackModal({
                     gameId
                 )
             }
-            await api.deleteTempFile(payload.zipPath)
+            await api.discardStagedArchive(payload.cleanupToken)
             await onRefreshInstalled()
             onClose()
         } catch (e) {

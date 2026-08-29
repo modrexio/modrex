@@ -331,8 +331,8 @@ export const api = {
             )
         )
     },
-    deleteTempFile(path: string): Promise<void> {
-        return commands.deleteTempFile(path)
+    discardStagedArchive(token: string): Promise<void> {
+        return commands.discardStagedArchive(token)
     },
     getIndexModFiles(modId: number, gameId: string): Promise<IndexModFile[]> {
         return commands.getIndexModFiles(modId, gameId)

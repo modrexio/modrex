@@ -6,6 +6,7 @@ import { api } from '../api'
 
 export interface CbFlatArchivePayload {
     zipPath: string
+    cleanupToken: string
     modId: number
     modName: string
     fileId: number
@@ -60,7 +61,7 @@ export function CrimeBossFlatArchiveModal({
 
     async function handleCancel() {
         if (busy) return
-        await api.deleteTempFile(payload.zipPath)
+        await api.discardStagedArchive(payload.cleanupToken)
         onClose()
     }
 

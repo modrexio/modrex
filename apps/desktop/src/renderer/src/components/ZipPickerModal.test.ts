@@ -24,6 +24,7 @@ function makeInstalled(overrides: Partial<InstalledMod> = {}): InstalledMod {
 function makePayload(overrides: Partial<ZipMultiPakPayload> = {}): ZipMultiPakPayload {
     return {
         zipPath: '/tmp/archive.zip',
+        cleanupToken: 'token-abc',
         entries: ['VariantA.pak', 'VariantB.pak', 'VariantC.pak'],
         modId: 100,
         modName: 'Some Mod',
@@ -49,7 +50,7 @@ beforeEach(async () => {
     vi.doMock('../api', () => ({
         api: {
             installFromZipEntry: mockInstallFromZipEntry,
-            deleteTempFile: mockDeleteTempFile,
+            discardStagedArchive: mockDeleteTempFile,
             createFolder: mockCreateFolder,
             onDownloadProgress: vi.fn(),
         },
@@ -131,7 +132,7 @@ describe('installZipPickerEntries', () => {
             payload.targetTag,
             payload.entryKind
         )
-        expect(mockDeleteTempFile).toHaveBeenCalledWith(payload.zipPath)
+        expect(mockDeleteTempFile).toHaveBeenCalledWith(payload.cleanupToken)
     })
 
     it('calls onRefreshInstalled after each entry', async () => {

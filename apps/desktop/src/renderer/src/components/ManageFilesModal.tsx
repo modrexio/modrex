@@ -217,7 +217,7 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
                     (en) => entryFilename(en) === entryFilename(ghost.entry)
                 )
                 if (!realEntry) {
-                    await api.deleteTempFile(zip.zipPath)
+                    await api.discardStagedArchive(zip.cleanupToken)
                     setInstallError(t('installed.manageFiles.fileUnavailable'))
                     return
                 }
@@ -237,7 +237,7 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
                     ghost.folderId,
                     locationTag
                 )
-                await api.deleteTempFile(zip.zipPath)
+                await api.discardStagedArchive(zip.cleanupToken)
             }
             await onRefreshInstalled()
         } catch (e) {

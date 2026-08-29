@@ -3,6 +3,7 @@ use super::engine::{ModEngineConfig, ModUnit};
 use super::host_mods::detect_host_pack;
 use super::paths::{active_mod_path, disabled_mod_path};
 use super::staged::{NameSource, Staged};
+use super::staging_tokens;
 use super::state::get_folder_path;
 use super::types::{InstalledMod, ModFolder};
 use md5::Md5;
@@ -930,6 +931,8 @@ fn extract_flat_rar(archive_path: &Path, dest: &Path) -> Result<(), String> {
 #[serde(rename_all = "camelCase")]
 pub struct ZipMultiPakPayload {
     pub zip_path: String,
+    /// One-time handle for discarding zip_path. The path itself is not authority.
+    pub cleanup_token: String,
     pub entries: Vec<String>,
     pub target_tag: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -952,6 +955,8 @@ pub struct ZipMultiPakPayload {
 #[serde(rename_all = "camelCase")]
 pub struct HostPackPayload {
     pub zip_path: String,
+    /// One-time handle for discarding zip_path. The path itself is not authority.
+    pub cleanup_token: String,
     pub entries: Vec<String>,
     pub host_mod_id: i64,
     pub host_name: String,
@@ -972,6 +977,8 @@ pub struct HostPackPayload {
 #[serde(rename_all = "camelCase")]
 pub struct CbFlatPayload {
     pub zip_path: String,
+    /// One-time handle for discarding zip_path. The path itself is not authority.
+    pub cleanup_token: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub mod_id: Option<i64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1029,6 +1036,7 @@ fn multi_pak_payload(
     entry_kind: Option<String>,
 ) -> ZipMultiPakPayload {
     ZipMultiPakPayload {
+        cleanup_token: staging_tokens::register(Path::new(&zip_path)),
         zip_path,
         entries,
         target_tag,
@@ -1240,6 +1248,7 @@ pub fn resolve_archive_download(downloaded: PathBuf, cfg: &ModEngineConfig) -> R
                 if let Some(m) = detect_host_pack(&names) {
                     let zip_path = downloaded.to_string_lossy().to_string();
                     return Err(prompt_err(InstallPrompt::HostModPack(HostPackPayload {
+                        cleanup_token: staging_tokens::register(Path::new(&zip_path)),
                         zip_path,
                         entries: m.dirs,
                         host_mod_id: m.host.host_mod_id,
@@ -1367,6 +1376,7 @@ fn resolve_crimeboss_archive(downloaded: PathBuf, cfg: &ModEngineConfig) -> Reso
             // folder if the user confirms it's the right content.
             let zip_path = downloaded.to_string_lossy().to_string();
             Err(prompt_err(InstallPrompt::CbFlatArchive(CbFlatPayload {
+                cleanup_token: staging_tokens::register(Path::new(&zip_path)),
                 zip_path,
                 mod_id: None,
                 mod_name: None,

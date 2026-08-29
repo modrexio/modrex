@@ -10,6 +10,7 @@ import { entryFilename, stripPriorityPrefix } from '../hooks/installedUtils'
 
 export interface ZipMultiPakPayload {
     zipPath: string
+    cleanupToken: string
     entries: string[]
     modId: number
     modName: string
@@ -172,7 +173,7 @@ export async function installZipPickerEntries(
             await onRefreshInstalled()
         }
         onProgress?.(null)
-        await api.deleteTempFile(payload.zipPath)
+        await api.discardStagedArchive(payload.cleanupToken)
         return
     }
 
@@ -225,7 +226,7 @@ export async function installZipPickerEntries(
         await onRefreshInstalled()
     }
     onProgress?.(null)
-    await api.deleteTempFile(payload.zipPath)
+    await api.discardStagedArchive(payload.cleanupToken)
 }
 
 interface Props {

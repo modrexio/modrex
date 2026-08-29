@@ -101,7 +101,12 @@ export const commands = {
 	 */
 	installCbFlatArchive: (zipPath: string, modId: number, modName: string, fileId: number, fileType: string, modVersion: string, gamePath: string, folderId: string | null) => __TAURI_INVOKE<null>("install_cb_flat_archive", { zipPath, modId, modName, fileId, fileType, modVersion, gamePath, folderId }),
 	installHostPack: (args: InstallHostPackArgs) => __TAURI_INVOKE<null>("install_host_pack", { args }),
-	deleteTempFile: (path: string) => __TAURI_INVOKE<void>("delete_temp_file", { path }),
+	/**
+	 *  Discards a staged archive the renderer was offered a prompt for. Takes the handle from
+	 *  that prompt rather than a path, so the only file this can remove is one the backend
+	 *  registered, and only once.
+	 */
+	discardStagedArchive: (token: string) => __TAURI_INVOKE<void>("discard_staged_archive", { token }),
 	uninstallMod: (gamePath: string, uid: string, gameId: string) => __TAURI_INVOKE<null>("uninstall_mod", { gamePath, uid, gameId }),
 	enableMod: (gamePath: string, uid: string, gameId: string) => __TAURI_INVOKE<null>("enable_mod", { gamePath, uid, gameId }),
 	disableMod: (gamePath: string, uid: string, gameId: string) => __TAURI_INVOKE<null>("disable_mod", { gamePath, uid, gameId }),
@@ -204,6 +209,8 @@ export type CbFlatPayload = CbFlatPayload_Serialize | CbFlatPayload_Deserialize;
 
 export type CbFlatPayload_Deserialize = {
 	zipPath: string,
+	/**  One-time handle for discarding zip_path. The path itself is not authority. */
+	cleanupToken: string,
 	modId?: number | null,
 	modName?: string | null,
 	fileId?: number | null,
@@ -213,6 +220,8 @@ export type CbFlatPayload_Deserialize = {
 
 export type CbFlatPayload_Serialize = {
 	zipPath: string,
+	/**  One-time handle for discarding zip_path. The path itself is not authority. */
+	cleanupToken: string,
 	modId?: number | null,
 	modName?: string | null,
 	fileId?: number | null,
@@ -291,6 +300,8 @@ export type HostPackPayload = HostPackPayload_Serialize | HostPackPayload_Deseri
 
 export type HostPackPayload_Deserialize = {
 	zipPath: string,
+	/**  One-time handle for discarding zip_path. The path itself is not authority. */
+	cleanupToken: string,
 	entries: string[],
 	hostModId: number,
 	hostName: string,
@@ -304,6 +315,8 @@ export type HostPackPayload_Deserialize = {
 
 export type HostPackPayload_Serialize = {
 	zipPath: string,
+	/**  One-time handle for discarding zip_path. The path itself is not authority. */
+	cleanupToken: string,
 	entries: string[],
 	hostModId: number,
 	hostName: string,
@@ -849,6 +862,8 @@ export type ZipMultiPakPayload = ZipMultiPakPayload_Serialize | ZipMultiPakPaylo
  */
 export type ZipMultiPakPayload_Deserialize = {
 	zipPath: string,
+	/**  One-time handle for discarding zip_path. The path itself is not authority. */
+	cleanupToken: string,
 	entries: string[],
 	targetTag: string | null,
 	entryTags?: (string | null)[] | null,
@@ -868,6 +883,8 @@ export type ZipMultiPakPayload_Deserialize = {
  */
 export type ZipMultiPakPayload_Serialize = {
 	zipPath: string,
+	/**  One-time handle for discarding zip_path. The path itself is not authority. */
+	cleanupToken: string,
 	entries: string[],
 	targetTag: string | null,
 	entryTags?: (string | null)[] | null,

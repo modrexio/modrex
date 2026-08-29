@@ -67,7 +67,7 @@ fn ipc_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::mods::install_from_zip_entry,
             commands::mods::install_cb_flat_archive,
             commands::mods::install_host_pack,
-            commands::mods::delete_temp_file,
+            commands::mods::discard_staged_archive,
             commands::mods::uninstall_mod,
             commands::mods::enable_mod,
             commands::mods::disable_mod,

@@ -14,6 +14,7 @@ mod paths;
 mod pdmod;
 mod reorder;
 mod staged;
+mod staging_tokens;
 mod state;
 mod types;
 mod ue4ss_modstxt;
@@ -1535,10 +1536,17 @@ pub async fn install_host_pack(app: AppHandle, args: InstallHostPackArgs) -> Res
     Ok(())
 }
 
+/// Discards a staged archive the renderer was offered a prompt for. Takes the handle from
+/// that prompt rather than a path, so the only file this can remove is one the backend
+/// registered, and only once.
 #[tauri::command]
 #[specta::specta]
-pub async fn delete_temp_file(path: String) {
-    let _ = tokio::fs::remove_file(&path).await;
+pub async fn discard_staged_archive(token: String) {
+    let Some(path) = staging_tokens::consume(&token) else {
+        log::warn!("discard_staged_archive: unknown or already-used handle");
+        return;
+    };
+    cleanup::run(&cleanup::CleanupPlan::RemoveOwnedFile(path)).await;
 }
 
 #[tauri::command]
