@@ -10,10 +10,16 @@ use std::path::{Path, PathBuf};
 
 use super::naming::PAK_SIDECAR_EXTENSIONS;
 
+// The shared Remove-Owned prefix is the point: a variant may only ever name an artifact this
+// operation created, and spelling that out at each one keeps the invariant visible at the
+// construction sites rather than only here.
+#[allow(clippy::enum_variant_names)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CleanupPlan {
     /// A Modrex-created file, plus any pak sidecars sharing its stem.
     RemoveOwnedFileWithSidecars(PathBuf),
+    /// A Modrex-created file that has no sidecars, such as a downloaded archive.
+    RemoveOwnedFile(PathBuf),
     /// A Modrex-created directory tree.
     RemoveOwnedDirectory(PathBuf),
 }
@@ -80,18 +86,9 @@ pub async fn run(plan: &CleanupPlan) {
 
 pub async fn run_in(root: &Path, plan: &CleanupPlan) {
     match plan {
+        CleanupPlan::RemoveOwnedFile(path) => remove_owned_file(root, path).await,
         CleanupPlan::RemoveOwnedFileWithSidecars(path) => {
-            match owned_staging_file(root, path) {
-                Ok(safe) => {
-                    if let Err(e) = tokio::fs::remove_file(&safe).await {
-                        log::warn!("install cleanup: remove {safe:?}: {e}");
-                    }
-                }
-                // A staged file is normally gone only because it was moved into place, so a
-                // missing one is not worth a warning; anything else is.
-                Err(Refusal::Unresolvable) => {}
-                Err(r) => log::warn!("install cleanup: refused to remove {path:?}: {r:?}"),
-            }
+            remove_owned_file(root, path).await;
             for ext in PAK_SIDECAR_EXTENSIONS {
                 let sidecar = path.with_extension(ext);
                 if let Ok(safe) = owned_staging_file(root, &sidecar) {
@@ -102,6 +99,58 @@ pub async fn run_in(root: &Path, plan: &CleanupPlan) {
         CleanupPlan::RemoveOwnedDirectory(dir) => match owned_staging_dir(root, dir) {
             Ok(safe) => {
                 if let Err(e) = tokio::fs::remove_dir_all(&safe).await {
+                    log::warn!("install cleanup: remove staging dir {safe:?}: {e}");
+                }
+            }
+            Err(Refusal::Unresolvable) => {}
+            Err(r) => log::warn!("install cleanup: refused to remove staging dir {dir:?}: {r:?}"),
+        },
+    }
+}
+
+async fn remove_owned_file(root: &Path, path: &Path) {
+    match owned_staging_file(root, path) {
+        Ok(safe) => {
+            if let Err(e) = tokio::fs::remove_file(&safe).await {
+                log::warn!("install cleanup: remove {safe:?}: {e}");
+            }
+        }
+        // A staged file is normally gone only because it was moved into place, so a missing
+        // one is not worth a warning; anything else is.
+        Err(Refusal::Unresolvable) => {}
+        Err(r) => log::warn!("install cleanup: refused to remove {path:?}: {r:?}"),
+    }
+}
+
+/// Same guarantees as run, for the archive resolvers, which are not async.
+pub fn run_sync(plan: &CleanupPlan) {
+    run_sync_in(&temp_root(), plan)
+}
+
+pub fn run_sync_in(root: &Path, plan: &CleanupPlan) {
+    let remove_file = |path: &Path| match owned_staging_file(root, path) {
+        Ok(safe) => {
+            if let Err(e) = std::fs::remove_file(&safe) {
+                log::warn!("install cleanup: remove {safe:?}: {e}");
+            }
+        }
+        Err(Refusal::Unresolvable) => {}
+        Err(r) => log::warn!("install cleanup: refused to remove {path:?}: {r:?}"),
+    };
+    match plan {
+        CleanupPlan::RemoveOwnedFile(path) => remove_file(path),
+        CleanupPlan::RemoveOwnedFileWithSidecars(path) => {
+            remove_file(path);
+            for ext in PAK_SIDECAR_EXTENSIONS {
+                let sidecar = path.with_extension(ext);
+                if let Ok(safe) = owned_staging_file(root, &sidecar) {
+                    let _ = std::fs::remove_file(&safe);
+                }
+            }
+        }
+        CleanupPlan::RemoveOwnedDirectory(dir) => match owned_staging_dir(root, dir) {
+            Ok(safe) => {
+                if let Err(e) = std::fs::remove_dir_all(&safe) {
                     log::warn!("install cleanup: remove staging dir {safe:?}: {e}");
                 }
             }

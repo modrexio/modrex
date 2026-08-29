@@ -315,8 +315,9 @@ fn non_archive_resolution_owns_the_downloaded_file_for_every_game() {
     ] {
         let fx = Fixture::new();
         let downloaded = fx.staged_file("modrex-abc.lua");
-        let (_, _, _, plan) =
-            resolve_archive_download(downloaded.clone(), cfg).expect("non-archive resolves");
+        let plan = resolve_archive_download(downloaded.clone(), cfg)
+            .expect("non-archive resolves")
+            .cleanup;
         assert_eq!(
             plan,
             CleanupPlan::RemoveOwnedFileWithSidecars(downloaded.clone()),
@@ -341,11 +342,13 @@ fn no_resolver_shape_selects_the_staging_root() {
     ] {
         let fx = Fixture::new();
         let downloaded = fx.staged_file("modrex-abc.lua");
-        let (_, _, _, plan) = resolve_archive_download(downloaded, cfg).expect("resolves");
+        let plan = resolve_archive_download(downloaded, cfg)
+            .expect("resolves")
+            .cleanup;
         let named = match &plan {
-            CleanupPlan::RemoveOwnedDirectory(p) | CleanupPlan::RemoveOwnedFileWithSidecars(p) => {
-                p.clone()
-            }
+            CleanupPlan::RemoveOwnedDirectory(p)
+            | CleanupPlan::RemoveOwnedFileWithSidecars(p)
+            | CleanupPlan::RemoveOwnedFile(p) => p.clone(),
         };
         assert_ne!(
             named.canonicalize().ok(),

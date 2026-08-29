@@ -58,10 +58,8 @@ fn recover_dropped_mod_stem_pulls_the_real_pak_name_out_of_a_zip_wrapper() {
     // Mirrors a real Nexus website download: the outer zip is named after Nexus's own
     // download-manager scheme, but the single pak entry inside carries the real name.
     let zip = make_zip(&[("abkarino_RinoHud_P.pak", b"pak bytes")]);
-    let cfg = engine_for_game("pd3").unwrap();
     let stem = recover_dropped_mod_stem(
-        &cfg.primary().unit,
-        false,
+        staged::NameSource::FromModDisplayName,
         Path::new("irrelevant-for-this-branch"),
         Some(zip.path()),
         "abkarino_RinoHud_P 52 1.8 2026-07-02T19-49Z 9QzrVe4KC",
@@ -71,10 +69,8 @@ fn recover_dropped_mod_stem_pulls_the_real_pak_name_out_of_a_zip_wrapper() {
 
 #[test]
 fn recover_dropped_mod_stem_uses_the_directory_unit_tmp_name() {
-    let cfg = engine_for_game("pd2").unwrap();
     let stem = recover_dropped_mod_stem(
-        &cfg.primary().unit,
-        false,
+        staged::NameSource::FromArchive,
         Path::new("/tmp/modrex-mod-abc123/Welrod"),
         None,
         "fallback should not be used",
@@ -85,10 +81,8 @@ fn recover_dropped_mod_stem_uses_the_directory_unit_tmp_name() {
 #[test]
 fn recover_dropped_mod_stem_falls_back_for_a_bare_loose_pak() {
     // No zip wrapper: the dropped file's own OS filename already is the real pak name.
-    let cfg = engine_for_game("pd3").unwrap();
     let stem = recover_dropped_mod_stem(
-        &cfg.primary().unit,
-        false,
+        staged::NameSource::FromModDisplayName,
         Path::new("irrelevant-for-this-branch"),
         None,
         "Foo",
@@ -99,10 +93,8 @@ fn recover_dropped_mod_stem_falls_back_for_a_bare_loose_pak() {
 #[test]
 fn recover_dropped_mod_stem_falls_back_when_the_archive_has_more_than_one_pak() {
     let zip = make_zip(&[("A.pak", b"a"), ("B.pak", b"b")]);
-    let cfg = engine_for_game("pd3").unwrap();
     let stem = recover_dropped_mod_stem(
-        &cfg.primary().unit,
-        false,
+        staged::NameSource::FromModDisplayName,
         Path::new("irrelevant-for-this-branch"),
         Some(zip.path()),
         "fallback",
@@ -116,10 +108,8 @@ fn recover_dropped_mod_stem_reads_the_zip_entry_for_crime_boss_despite_being_dir
     // no usable name of its own - it must take the same zip-entry path as File-unit games,
     // not the plain Directory-unit tmp.file_name() shortcut.
     let zip = make_zip(&[("SomeMod-WindowsNoEditor.pak", b"pak bytes")]);
-    let cfg = engine_for_game("cb").unwrap();
     let stem = recover_dropped_mod_stem(
-        &cfg.primary().unit,
-        true,
+        staged::NameSource::FromModDisplayName,
         Path::new("/tmp/modrex-cb-mod-abc123"),
         Some(zip.path()),
         "fallback should not be used",
@@ -307,8 +297,8 @@ fn crimeboss_standalone_submod_resolves_to_ue4ss_mods_target() {
     let zip = make_zip(&[("CoolMod/Scripts/main.lua", b"-- a real sub-mod")]);
     let cfg = engine_for_game("cb").unwrap();
 
-    let (extracted, _orig, location_tag, _cleanup) =
-        resolve_archive_download(zip.path().to_path_buf(), cfg).unwrap();
+    let staged = resolve_archive_download(zip.path().to_path_buf(), cfg).unwrap();
+    let (extracted, location_tag) = (staged.root.clone(), staged.target_tag.clone());
     assert_eq!(location_tag.as_deref(), Some("ue4ss_mods"));
     assert_eq!(extracted.file_name().unwrap(), "CoolMod");
     assert_eq!(
@@ -324,8 +314,8 @@ fn pd3_standalone_submod_resolves_to_ue4ss_mods_target() {
     let zip = make_zip(&[("CoolMod/Scripts/main.lua", b"-- a real sub-mod")]);
     let cfg = engine_for_game("pd3").unwrap();
 
-    let (extracted, _orig, location_tag, _cleanup) =
-        resolve_archive_download(zip.path().to_path_buf(), cfg).unwrap();
+    let staged = resolve_archive_download(zip.path().to_path_buf(), cfg).unwrap();
+    let (extracted, location_tag) = (staged.root.clone(), staged.target_tag.clone());
     assert_eq!(location_tag.as_deref(), Some("ue4ss_mods"));
     assert_eq!(extracted.file_name().unwrap(), "CoolMod");
 }
@@ -3130,8 +3120,8 @@ fn modkit_packaged_archive_installs_into_crimeboss_mods_skeleton() {
     let cfg = engine_for_game("cb").unwrap();
     let sp = get_state_path(game, cfg);
 
-    let (extracted, _orig, location_tag, _cleanup) =
-        resolve_archive_download(zip.path().to_path_buf(), cfg).unwrap();
+    let staged = resolve_archive_download(zip.path().to_path_buf(), cfg).unwrap();
+    let (extracted, location_tag) = (staged.root.clone(), staged.target_tag.clone());
     assert_eq!(
         location_tag, None,
         "new installs always resolve to the primary Mods/ target"
@@ -3183,8 +3173,8 @@ fn loose_triplet_archive_also_installs_into_crimeboss_mods_skeleton() {
     let cfg = engine_for_game("cb").unwrap();
     let sp = get_state_path(game, cfg);
 
-    let (extracted, _orig, location_tag, _cleanup) =
-        resolve_archive_download(zip.path().to_path_buf(), cfg).unwrap();
+    let staged = resolve_archive_download(zip.path().to_path_buf(), cfg).unwrap();
+    let (extracted, location_tag) = (staged.root.clone(), staged.target_tag.clone());
     assert_eq!(location_tag, None);
 
     let mod_name = "Total Mission Value";
