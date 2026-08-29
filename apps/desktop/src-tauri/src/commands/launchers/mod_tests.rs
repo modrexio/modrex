@@ -875,3 +875,118 @@ fn outside_bundle_drops_loader_overrides_only_inside_a_bundle() {
     std::env::remove_var("APPDIR");
     assert_eq!(removals(&from_appdir), ["LD_LIBRARY_PATH", "LD_PRELOAD"]);
 }
+
+// ── resolve_under: the guard behind log and folder opening ──────────────────
+
+/// A symlink at the expected log path is refused rather than opened or written through.
+/// The pre-fix code copied the log to a fixed name in the shared temp directory, so a link
+/// planted there had the copy written into whatever it pointed at.
+#[cfg(unix)]
+#[test]
+fn resolve_under_refuses_a_symlinked_log_and_leaves_its_target_untouched() {
+    let root = tempfile::TempDir::new().unwrap();
+    let outside = tempfile::TempDir::new().unwrap();
+    let victim = outside.path().join("precious.txt");
+    std::fs::write(&victim, b"original contents").unwrap();
+
+    let link = root.path().join("modrex.log");
+    std::os::unix::fs::symlink(&victim, &link).unwrap();
+
+    assert_eq!(
+        super::resolve_under(root.path(), &link, super::OpenKind::File),
+        None
+    );
+    assert_eq!(std::fs::read(&victim).unwrap(), b"original contents");
+}
+
+#[cfg(windows)]
+#[test]
+fn resolve_under_refuses_a_junction_in_the_log_directory() {
+    let root = tempfile::TempDir::new().unwrap();
+    let outside = tempfile::TempDir::new().unwrap();
+    std::fs::write(outside.path().join("precious.txt"), b"keep").unwrap();
+    let link = root.path().join("linked");
+    let made = std::process::Command::new("cmd")
+        .args(["/C", "mklink", "/J"])
+        .arg(&link)
+        .arg(outside.path())
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false);
+    if !made {
+        return;
+    }
+    assert_eq!(
+        super::resolve_under(root.path(), &link, super::OpenKind::Directory),
+        None
+    );
+    assert!(outside.path().join("precious.txt").exists());
+}
+
+#[test]
+fn resolve_under_accepts_a_real_log_file_and_its_directory() {
+    let root = tempfile::TempDir::new().unwrap();
+    let log = root.path().join("modrex.log");
+    std::fs::write(&log, b"a line").unwrap();
+
+    assert_eq!(
+        super::resolve_under(root.path(), &log, super::OpenKind::File),
+        Some(log.canonicalize().unwrap())
+    );
+    assert_eq!(
+        super::resolve_under(root.path(), root.path(), super::OpenKind::Directory),
+        Some(root.path().canonicalize().unwrap())
+    );
+}
+
+/// A missing log resolves to nothing, so the caller falls back to the directory rather than
+/// creating or truncating anything.
+#[test]
+fn resolve_under_refuses_a_missing_target() {
+    let root = tempfile::TempDir::new().unwrap();
+    let missing = root.path().join("modrex.log");
+    assert_eq!(
+        super::resolve_under(root.path(), &missing, super::OpenKind::File),
+        None
+    );
+    assert!(!missing.exists(), "resolving must not create the target");
+}
+
+#[test]
+fn resolve_under_refuses_a_path_outside_the_root() {
+    let root = tempfile::TempDir::new().unwrap();
+    let outside = tempfile::TempDir::new().unwrap();
+    let other = outside.path().join("other.log");
+    std::fs::write(&other, b"x").unwrap();
+
+    assert_eq!(
+        super::resolve_under(root.path(), &other, super::OpenKind::File),
+        None
+    );
+    assert_eq!(
+        super::resolve_under(root.path(), outside.path(), super::OpenKind::Directory),
+        None
+    );
+    // Traversal that climbs out is refused after canonicalization, not before.
+    let climb = root.path().join("..");
+    assert_eq!(
+        super::resolve_under(root.path(), &climb, super::OpenKind::Directory),
+        None
+    );
+}
+
+#[test]
+fn resolve_under_will_not_substitute_a_file_for_a_directory() {
+    let root = tempfile::TempDir::new().unwrap();
+    let log = root.path().join("modrex.log");
+    std::fs::write(&log, b"x").unwrap();
+
+    assert_eq!(
+        super::resolve_under(root.path(), &log, super::OpenKind::Directory),
+        None
+    );
+    assert_eq!(
+        super::resolve_under(root.path(), root.path(), super::OpenKind::File),
+        None
+    );
+}

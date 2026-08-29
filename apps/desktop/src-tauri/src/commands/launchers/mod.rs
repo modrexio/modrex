@@ -18,7 +18,7 @@ use crate::commands::settings::{game_settings, read_settings, update_settings, G
 use serde::Serialize;
 use std::collections::HashMap;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use tauri::AppHandle;
 
 static STEAM: Steam = Steam;
@@ -784,14 +784,45 @@ pub fn open_log_file(app: AppHandle) {
         return;
     };
     let log_file = log_dir.join(format!("{}.log", app.package_info().name));
-    if let Ok(content) = std::fs::read_to_string(&log_file) {
-        let snapshot = std::env::temp_dir().join("modrex_log.txt");
-        if std::fs::write(&snapshot, content).is_ok() {
-            open_url(&snapshot.to_string_lossy());
-            return;
-        }
+    // The log itself when it is a real file we own, otherwise the directory holding it.
+    // Nothing is written on this path: copying the log to a predictable name in the shared
+    // temp directory let anything that could pre-create that name have the copy written
+    // through its link instead.
+    match resolve_under(&log_dir, &log_file, OpenKind::File) {
+        Some(file) => open_path_on_system(&file.to_string_lossy()),
+        None => match resolve_under(&log_dir, &log_dir, OpenKind::Directory) {
+            Some(dir) => open_path_on_system(&dir.to_string_lossy()),
+            None => log::warn!("open_log_file: no usable log directory at {log_dir:?}"),
+        },
     }
-    open_path_on_system(&log_dir.to_string_lossy());
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum OpenKind {
+    File,
+    Directory,
+}
+
+/// Resolves target and proves it is root or something inside it, of the expected kind.
+///
+/// Canonicalizing both sides is what makes the comparison meaningful: it resolves .. and
+/// symlinks and normalizes Windows casing and verbatim prefixes, so this is not a string
+/// prefix test. A link is refused before that, because opening one hands the shell a
+/// destination Modrex never validated. Anything unresolvable is refused rather than opened.
+pub(crate) fn resolve_under(root: &Path, target: &Path, kind: OpenKind) -> Option<PathBuf> {
+    let meta = std::fs::symlink_metadata(target).ok()?;
+    if meta.file_type().is_symlink() {
+        return None;
+    }
+    let root = root.canonicalize().ok()?;
+    let target = target.canonicalize().ok()?;
+    if !target.starts_with(&root) {
+        return None;
+    }
+    match kind {
+        OpenKind::File => target.is_file().then_some(target),
+        OpenKind::Directory => target.is_dir().then_some(target),
+    }
 }
 
 #[tauri::command]
