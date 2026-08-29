@@ -1,4 +1,5 @@
 mod crimeboss_settings;
+mod decisions;
 mod diesel_signals;
 mod engine;
 mod folders;
@@ -176,7 +177,7 @@ pub async fn get_installed(app: AppHandle, game_id: String) -> Result<InstalledR
 
     // The player can also toggle mods from Crime Boss's own Options > Mods screen, so pull
     // that state back in and stop Modrex's tracked flag silently disagreeing with the game.
-    let cb_resynced = if cfg.game_id == "cb" {
+    let cb_resynced = if decisions::resyncs_enabled_flags(cfg) {
         let launcher = game_settings(&settings, game_id).and_then(|gs| gs.launcher.clone());
         resync_crimeboss_enabled_flags(
             &game_path,
@@ -491,16 +492,8 @@ pub async fn install_mod(
             .iter()
             .find(|m| m.uid == uid)
             .map(|m| m.filename.clone())
-            .unwrap_or_else(|| match &target.unit {
-                engine::ModUnit::File { .. } => pak_filename(&mod_name),
-                engine::ModUnit::Directory { .. } if cfg.game_id == "cb" => {
-                    naming::mod_folder_name(&mod_name)
-                }
-                engine::ModUnit::Directory { .. } => tmp
-                    .file_name()
-                    .and_then(|s| s.to_str())
-                    .unwrap_or(&mod_name)
-                    .to_string(),
+            .unwrap_or_else(|| {
+                decisions::install_filename_from_mod_name(cfg, target, &mod_name, &tmp)
             });
 
         // If the mod had a single previously-installed entry under a different uid
@@ -562,24 +555,17 @@ pub async fn install_mod(
     }
     .await;
 
-    match &target.unit {
-        engine::ModUnit::File { .. } => {
+    match decisions::tmp_cleanup(cfg, target, &tmp) {
+        decisions::TmpCleanup::FileWithSidecars => {
             let _ = tokio::fs::remove_file(&tmp).await;
             for ext in naming::PAK_SIDECAR_EXTENSIONS {
                 let _ = tokio::fs::remove_file(tmp.with_extension(ext)).await;
             }
         }
-        // Crime Boss's synthesized skeleton is tmp itself, one level under the OS temp dir,
-        // not {uuid_dir}/{dir_name} as on PD2 and PDTH. tmp.parent() here would be the OS temp
-        // dir itself, which must never be passed to remove_dir_all.
-        engine::ModUnit::Directory { .. } if cfg.game_id == "cb" => {
-            let _ = tokio::fs::remove_dir_all(&tmp).await;
+        decisions::TmpCleanup::RemoveDir(dir) => {
+            let _ = tokio::fs::remove_dir_all(&dir).await;
         }
-        engine::ModUnit::Directory { .. } => {
-            if let Some(parent) = tmp.parent() {
-                let _ = tokio::fs::remove_dir_all(parent).await;
-            }
-        }
+        decisions::TmpCleanup::Nothing => {}
     }
     if let Some(orig) = zip_orig {
         let _ = tokio::fs::remove_file(&orig).await;
@@ -709,22 +695,10 @@ pub async fn install_file(
             .iter()
             .find(|m| m.uid == uid)
             .map(|m| m.filename.clone())
-            .unwrap_or_else(|| match &target.unit {
-                engine::ModUnit::File { .. } => {
-                    if file_type == "main" {
-                        pak_filename(&mod_name)
-                    } else {
-                        pak_filename(&format!("{}_{}", mod_name, file_id))
-                    }
-                }
-                engine::ModUnit::Directory { .. } if cfg.game_id == "cb" => {
-                    naming::mod_folder_name(&mod_name)
-                }
-                engine::ModUnit::Directory { .. } => tmp
-                    .file_name()
-                    .and_then(|s| s.to_str())
-                    .unwrap_or(&mod_name)
-                    .to_string(),
+            .unwrap_or_else(|| {
+                decisions::install_filename_for_source_file(
+                    cfg, target, &mod_name, file_id, &file_type, &tmp,
+                )
             });
 
         install_mod_from_path(
@@ -765,24 +739,17 @@ pub async fn install_file(
     }
     .await;
 
-    match &target.unit {
-        engine::ModUnit::File { .. } => {
+    match decisions::tmp_cleanup(cfg, target, &tmp) {
+        decisions::TmpCleanup::FileWithSidecars => {
             let _ = tokio::fs::remove_file(&tmp).await;
             for ext in naming::PAK_SIDECAR_EXTENSIONS {
                 let _ = tokio::fs::remove_file(tmp.with_extension(ext)).await;
             }
         }
-        // See the matching comment in install_mod: tmp.parent() must never be removed for Crime
-        // Boss, since tmp is the synthesized skeleton root itself, not a {uuid_dir}/{dir_name}
-        // child like PD2/PDTH.
-        engine::ModUnit::Directory { .. } if cfg.game_id == "cb" => {
-            let _ = tokio::fs::remove_dir_all(&tmp).await;
+        decisions::TmpCleanup::RemoveDir(dir) => {
+            let _ = tokio::fs::remove_dir_all(&dir).await;
         }
-        engine::ModUnit::Directory { .. } => {
-            if let Some(parent) = tmp.parent() {
-                let _ = tokio::fs::remove_dir_all(parent).await;
-            }
-        }
+        decisions::TmpCleanup::Nothing => {}
     }
     if let Some(orig) = zip_orig {
         let _ = tokio::fs::remove_file(&orig).await;
@@ -891,19 +858,9 @@ pub(crate) async fn install_nexus_download(
         let saved = read_state(&sp);
         let existing = saved.mods.iter().find(|m| m.uid == uid);
         let folder_id = existing.and_then(|e| e.folder_id.clone());
-        let filename = existing
-            .map(|m| m.filename.clone())
-            .unwrap_or_else(|| match &target.unit {
-                engine::ModUnit::File { .. } => pak_filename(&mod_name),
-                engine::ModUnit::Directory { .. } if cfg.game_id == "cb" => {
-                    naming::mod_folder_name(&mod_name)
-                }
-                engine::ModUnit::Directory { .. } => tmp
-                    .file_name()
-                    .and_then(|s| s.to_str())
-                    .unwrap_or(&mod_name)
-                    .to_string(),
-            });
+        let filename = existing.map(|m| m.filename.clone()).unwrap_or_else(|| {
+            decisions::install_filename_from_mod_name(cfg, target, &mod_name, &tmp)
+        });
 
         install_mod_from_path(
             game_path,
@@ -935,24 +892,17 @@ pub(crate) async fn install_nexus_download(
     }
     .await;
 
-    match &target.unit {
-        engine::ModUnit::File { .. } => {
+    match decisions::tmp_cleanup(cfg, target, &tmp) {
+        decisions::TmpCleanup::FileWithSidecars => {
             let _ = tokio::fs::remove_file(&tmp).await;
             for ext in naming::PAK_SIDECAR_EXTENSIONS {
                 let _ = tokio::fs::remove_file(tmp.with_extension(ext)).await;
             }
         }
-        // Crime Boss's synthesized skeleton is tmp itself, one level under the OS
-        // temp dir; tmp.parent() there would be the OS temp dir, which must never
-        // be passed to remove_dir_all.
-        engine::ModUnit::Directory { .. } if cfg.game_id == "cb" => {
-            let _ = tokio::fs::remove_dir_all(&tmp).await;
+        decisions::TmpCleanup::RemoveDir(dir) => {
+            let _ = tokio::fs::remove_dir_all(&dir).await;
         }
-        engine::ModUnit::Directory { .. } => {
-            if let Some(parent) = tmp.parent() {
-                let _ = tokio::fs::remove_dir_all(parent).await;
-            }
-        }
+        decisions::TmpCleanup::Nothing => {}
     }
     if let Some(orig) = zip_orig {
         let _ = tokio::fs::remove_file(&orig).await;
@@ -1169,13 +1119,7 @@ pub async fn install_dropped_file(
         };
         // Discovery-matching identity: filename drives the uid/id the untracked-scan would assign,
         // so a later manual refresh reconciles this entry instead of duplicating it.
-        let filename = match &target.unit {
-            engine::ModUnit::File { .. } => pak_filename(&display_stem),
-            engine::ModUnit::Directory { .. } if cfg.game_id == "cb" => {
-                naming::mod_folder_name(&display_stem)
-            }
-            engine::ModUnit::Directory { .. } => display_stem.clone(),
-        };
+        let filename = decisions::install_filename_for_dropped(cfg, target, &display_stem);
         let sp = get_state_path(&game_path, cfg);
 
         let mut mod_entry = InstalledMod {
@@ -1199,21 +1143,17 @@ pub async fn install_dropped_file(
     }
     .await;
 
-    match &target.unit {
-        engine::ModUnit::File { .. } => {
+    match decisions::tmp_cleanup(cfg, target, &tmp) {
+        decisions::TmpCleanup::FileWithSidecars => {
             let _ = tokio::fs::remove_file(&tmp).await;
             for ext in naming::PAK_SIDECAR_EXTENSIONS {
                 let _ = tokio::fs::remove_file(tmp.with_extension(ext)).await;
             }
         }
-        engine::ModUnit::Directory { .. } if cfg.game_id == "cb" => {
-            let _ = tokio::fs::remove_dir_all(&tmp).await;
+        decisions::TmpCleanup::RemoveDir(dir) => {
+            let _ = tokio::fs::remove_dir_all(&dir).await;
         }
-        engine::ModUnit::Directory { .. } => {
-            if let Some(parent) = tmp.parent() {
-                let _ = tokio::fs::remove_dir_all(parent).await;
-            }
-        }
+        decisions::TmpCleanup::Nothing => {}
     }
     if let Some(orig) = zip_orig {
         let _ = tokio::fs::remove_file(&orig).await;
@@ -1305,8 +1245,8 @@ pub async fn install_from_zip_entry(
     let install_format = file_type.clone(); // file_type is moved before the success emit below
 
     // Set only by classify_archive_dirs's ZIP_MULTI_PAK payload (a ue4ss_mods sub-mod folder
-    // or a candidate mod folder). See the (ext, tmp_parent) branch below.
-    let cb_dir_entry = cfg.game_id == "cb" && entry_kind.as_deref() == Some("dir");
+    // or a candidate mod folder).
+    let cb_dir_entry = decisions::is_cb_dir_entry(cfg, entry_kind.as_deref());
 
     // entry_stem / entry_filename are the last path component of entry_name.
     let entry_stem = std::path::Path::new(&entry_name)
@@ -1319,51 +1259,35 @@ pub async fn install_from_zip_entry(
         .unwrap_or(&entry_name)
         .to_string();
 
-    // For File mods: ext is a temp .pak file.
-    // For Directory mods: ext is {tmp_parent}/{dir_name} (two-level, consistent with resolve_archive_download).
-    // Crime Boss pak entries are neither: the chosen .pak entry (plus its .ucas/.utoc siblings) is
-    // wrapped in a synthesized Content/Paks/WindowsNoEditor skeleton, see
-    // extract_entry_into_crimeboss_skeleton. Crime Boss directory entries (cb_dir_entry) use the
-    // same two-level scheme as every other Directory-unit game.
-    let (ext, tmp_parent) = if cfg.game_id == "cb" && !cb_dir_entry {
-        let skeleton_root = extract_entry_into_crimeboss_skeleton(&zip, &entry_name)?;
-        (skeleton_root.clone(), Some(skeleton_root))
-    } else if cb_dir_entry {
-        let parent = std::env::temp_dir().join(format!("modrex-mod-{}", Uuid::new_v4()));
-        let p = parent.join(&entry_filename);
-        (p, Some(parent))
-    } else {
-        match &target.unit {
-            engine::ModUnit::File { .. } => {
-                let p = std::env::temp_dir().join(format!("modrex-mod-{}.pak", Uuid::new_v4()));
-                (p, None)
-            }
-            engine::ModUnit::Directory { .. } => {
-                let parent = std::env::temp_dir().join(format!("modrex-mod-{}", Uuid::new_v4()));
-                let p = parent.join(&entry_filename);
-                (p, Some(parent))
-            }
+    // ext is the staged path the install reads from; tmp_parent is the directory cleanup
+    // removes afterwards, and is None when the staged path is a bare temp file.
+    let (ext, tmp_parent) = match decisions::entry_staging(cfg, target, cb_dir_entry) {
+        decisions::EntryStaging::CrimeBossSkeleton => {
+            let skeleton_root = extract_entry_into_crimeboss_skeleton(&zip, &entry_name)?;
+            (skeleton_root.clone(), Some(skeleton_root))
+        }
+        decisions::EntryStaging::DirectoryUnderNewParent => {
+            let parent = std::env::temp_dir().join(format!("modrex-mod-{}", Uuid::new_v4()));
+            let p = parent.join(&entry_filename);
+            (p, Some(parent))
+        }
+        decisions::EntryStaging::SingleTempFile => {
+            let p = std::env::temp_dir().join(format!("modrex-mod-{}.pak", Uuid::new_v4()));
+            (p, None)
         }
     };
 
     let uid = format!("{}_{}", file_id, entry_stem);
-    // Crime Boss installs into its own named folder, not the archive entry's pak filename.
-    let install_filename = if cfg.game_id == "cb" {
-        naming::mod_folder_name(&mod_name)
-    } else {
-        entry_filename.clone()
-    };
+    let install_filename =
+        decisions::install_filename_for_zip_entry(cfg, &mod_name, &entry_filename);
 
     let result = async {
-        if cb_dir_entry {
-            extract_dir_entry(&zip, &entry_name, &ext)?
-        } else if cfg.game_id != "cb" {
-            match &target.unit {
-                engine::ModUnit::File { .. } => {
-                    extract_entry_with_sidecars(&zip, &entry_name, &ext)?
-                }
-                engine::ModUnit::Directory { .. } => extract_dir_entry(&zip, &entry_name, &ext)?,
+        match decisions::entry_extraction(cfg, target, cb_dir_entry) {
+            decisions::EntryExtraction::DirEntry => extract_dir_entry(&zip, &entry_name, &ext)?,
+            decisions::EntryExtraction::EntryWithSidecars => {
+                extract_entry_with_sidecars(&zip, &entry_name, &ext)?
             }
+            decisions::EntryExtraction::AlreadyStaged => {}
         }
         let sha256 = match &target.unit {
             engine::ModUnit::File { .. } => compute_sha256(&ext).await?,
@@ -2000,6 +1924,10 @@ pub fn open_mod_folder(app: AppHandle, game_id: String, tag: String) -> Result<(
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+#[path = "decisions_tests.rs"]
+mod decisions_tests;
 
 #[cfg(test)]
 #[path = "marker_contract_tests.rs"]
