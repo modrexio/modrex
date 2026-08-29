@@ -990,3 +990,43 @@ fn resolve_under_will_not_substitute_a_file_for_a_directory() {
         None
     );
 }
+
+// ── open_game_folder authorization ──────────────────────────────────────────
+
+/// The command names a game, not a path, so the only folder it can reach is one already
+/// recorded in settings. An unknown id is refused before any lookup happens.
+#[test]
+fn open_game_folder_rejects_an_unknown_game_id() {
+    for id in ["", "nope", "../../etc", "C:/Windows"] {
+        assert!(
+            crate::commands::games::game_spec(id).is_none(),
+            "'{id}' must not resolve to a game"
+        );
+    }
+    for spec in crate::commands::games::GAME_REGISTRY {
+        assert!(crate::commands::games::game_spec(spec.id).is_some());
+    }
+}
+
+/// Only a real directory is opened; a file recorded where a game folder should be, or a
+/// path that no longer exists, resolves to nothing rather than being handed to the shell.
+#[test]
+fn open_game_folder_only_resolves_real_directories() {
+    let root = tempfile::TempDir::new().unwrap();
+    let file = root.path().join("CrimeBoss.exe");
+    std::fs::write(&file, b"x").unwrap();
+
+    assert_eq!(
+        super::resolve_under(&file, &file, super::OpenKind::Directory),
+        None
+    );
+    let missing = root.path().join("gone");
+    assert_eq!(
+        super::resolve_under(&missing, &missing, super::OpenKind::Directory),
+        None
+    );
+    assert_eq!(
+        super::resolve_under(root.path(), root.path(), super::OpenKind::Directory),
+        Some(root.path().canonicalize().unwrap())
+    );
+}

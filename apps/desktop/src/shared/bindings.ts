@@ -154,7 +154,12 @@ export const commands = {
 	isGameRunning: (gameId: string) => __TAURI_INVOKE<boolean>("is_game_running", { gameId }),
 	stopGame: (gameId: string) => __TAURI_INVOKE<null>("stop_game", { gameId }),
 	shellOpenExternal: (url: string) => __TAURI_INVOKE<void>("shell_open_external", { url }),
-	shellOpenPath: (path: string) => __TAURI_INVOKE<void>("shell_open_path", { path }),
+	/**
+	 *  Opens the configured install folder for one game. Takes a game id rather than a path:
+	 *  the renderer names which game it means and Rust looks the folder up, so no caller can
+	 *  ask for a location Modrex has not already recorded for itself.
+	 */
+	openGameFolder: (gameId: string) => __TAURI_INVOKE<null>("open_game_folder", { gameId }),
 	openLogFile: () => __TAURI_INVOKE<void>("open_log_file"),
 	openDataFolder: () => __TAURI_INVOKE<void>("open_data_folder"),
 	openAppFolder: () => __TAURI_INVOKE<void>("open_app_folder"),

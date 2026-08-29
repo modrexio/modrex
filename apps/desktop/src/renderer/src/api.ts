@@ -554,8 +554,8 @@ export const api = {
     openExternal(url: string): Promise<void> {
         return commands.shellOpenExternal(url)
     },
-    openPath(path: string): Promise<void> {
-        return commands.shellOpenPath(path)
+    async openGameFolder(gameId: string): Promise<void> {
+        await commands.openGameFolder(gameId)
     },
 
     // ── Events ─────────────────────────────────────────────────────────────────

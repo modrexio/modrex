@@ -770,10 +770,24 @@ pub fn shell_open_external(url: String) {
     }
 }
 
+/// Opens the configured install folder for one game. Takes a game id rather than a path:
+/// the renderer names which game it means and Rust looks the folder up, so no caller can
+/// ask for a location Modrex has not already recorded for itself.
 #[tauri::command]
 #[specta::specta]
-pub fn shell_open_path(path: String) {
-    open_path_on_system(&path);
+pub fn open_game_folder(app: AppHandle, game_id: String) -> Result<(), String> {
+    let gid = game_id.as_str();
+    crate::commands::games::game_spec(gid).ok_or_else(|| format!("unknown game '{gid}'"))?;
+    let settings = read_settings(&app);
+    let Some(game_path) = game_settings(&settings, gid).and_then(|gs| gs.game_path.clone()) else {
+        return Ok(());
+    };
+    let dir = PathBuf::from(&game_path);
+    match resolve_under(&dir, &dir, OpenKind::Directory) {
+        Some(dir) => open_path_on_system(&dir.to_string_lossy()),
+        None => log::warn!("open_game_folder {gid}: {dir:?} is not a usable directory"),
+    }
+    Ok(())
 }
 
 #[tauri::command]

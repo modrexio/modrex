@@ -925,7 +925,9 @@ export function SettingsPage({
                                                         <Button
                                                             variant="secondary"
                                                             size="md"
-                                                            onClick={() => api.openPath(gamePath)}
+                                                            onClick={() =>
+                                                                api.openGameFolder(activeGame)
+                                                            }
                                                         >
                                                             <FolderOpen className="w-3.5 h-3.5" />
                                                             {t('settings.folders.gameFolder')}

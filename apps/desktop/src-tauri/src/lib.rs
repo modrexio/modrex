@@ -100,7 +100,7 @@ fn ipc_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::launchers::is_game_running,
             commands::launchers::stop_game,
             commands::launchers::shell_open_external,
-            commands::launchers::shell_open_path,
+            commands::launchers::open_game_folder,
             commands::launchers::open_log_file,
             commands::launchers::open_data_folder,
             commands::launchers::open_app_folder,
