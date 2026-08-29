@@ -15,6 +15,7 @@ mod pdmod;
 mod reorder;
 mod staged;
 mod staging_tokens;
+pub(crate) use self::staging_tokens::StagingRegistry;
 mod state;
 mod types;
 mod ue4ss_modstxt;
@@ -408,7 +409,7 @@ pub async fn install_mod(
         name_source: _,
         target_tag: location_tag,
         original_archive: zip_orig,
-    } = match resolve_archive_download(downloaded, cfg) {
+    } = match resolve_archive_download(downloaded, cfg, staged_archives(&app)) {
         Err(ResolveError::Ue4ssLoader(zip_path)) => {
             let settings = read_settings(&app);
             let launcher = game_settings(&settings, cfg.game_id).and_then(|gs| gs.launcher.clone());
@@ -612,7 +613,7 @@ pub async fn install_file(
         name_source: _,
         target_tag: location_tag,
         original_archive: zip_orig,
-    } = match resolve_archive_download(downloaded, cfg) {
+    } = match resolve_archive_download(downloaded, cfg, staged_archives(&app)) {
         Err(ResolveError::Ue4ssLoader(zip_path)) => {
             let settings = read_settings(&app);
             let launcher = game_settings(&settings, cfg.game_id).and_then(|gs| gs.launcher.clone());
@@ -801,7 +802,7 @@ pub(crate) async fn install_nexus_download(
         name_source: _,
         target_tag: location_tag,
         original_archive: zip_orig,
-    } = match resolve_archive_download(downloaded, cfg) {
+    } = match resolve_archive_download(downloaded, cfg, staged_archives(app)) {
         Err(ResolveError::Ue4ssLoader(zip_path)) => {
             let settings = read_settings(app);
             let launcher = game_settings(&settings, cfg.game_id).and_then(|gs| gs.launcher.clone());
@@ -991,7 +992,7 @@ pub async fn install_dropped_file(
         name_source,
         target_tag: location_tag,
         original_archive: zip_orig,
-    } = match resolve_archive_download(temp.clone(), cfg) {
+    } = match resolve_archive_download(temp.clone(), cfg, staged_archives(&app)) {
         Err(ResolveError::Ue4ssLoader(zip_path)) => {
             let settings = read_settings(&app);
             let launcher = game_settings(&settings, cfg.game_id).and_then(|gs| gs.launcher.clone());
@@ -1218,12 +1219,14 @@ pub async fn install_from_zip_entry(
     let target = cfg.target_for(location_tag.as_deref());
     // The handle, not the caller, decides which archive is opened. The borrow is held for
     // the whole install so a concurrent discard cannot remove the file mid-extraction.
-    let zip = staging_tokens::borrow(
-        &archive_handle,
-        staging_tokens::StagedArchiveKind::MultiEntry,
-    )
-    .ok_or("this archive is no longer available to install from")?;
-    let _borrow = staging_tokens::BorrowGuard::new(&archive_handle);
+    let registry = staged_archives(&app);
+    let zip = registry
+        .borrow(
+            &archive_handle,
+            staging_tokens::StagedArchiveKind::MultiEntry,
+        )
+        .ok_or("this archive is no longer available to install from")?;
+    let _borrow = staging_tokens::BorrowGuard::new(registry, &archive_handle);
     zip::entry_belongs_to_archive(&zip, &entry_name)?;
     let install_format = file_type.clone(); // file_type is moved before the success emit below
 
@@ -1390,12 +1393,14 @@ pub async fn install_cb_flat_archive(
     let _state_guard = lock_game_state(&app, "cb").await;
     let cfg = engine_for_game("cb")?;
     let target = cfg.primary();
-    let zip = staging_tokens::borrow(
-        &archive_handle,
-        staging_tokens::StagedArchiveKind::CrimeBossFlat,
-    )
-    .ok_or("this archive is no longer available to install from")?;
-    let _borrow = staging_tokens::BorrowGuard::new(&archive_handle);
+    let registry = staged_archives(&app);
+    let zip = registry
+        .borrow(
+            &archive_handle,
+            staging_tokens::StagedArchiveKind::CrimeBossFlat,
+        )
+        .ok_or("this archive is no longer available to install from")?;
+    let _borrow = staging_tokens::BorrowGuard::new(registry, &archive_handle);
     let tmp_dir = std::env::temp_dir().join(format!("modrex-mod-{}", Uuid::new_v4()));
 
     let result = async {
@@ -1453,7 +1458,7 @@ pub async fn install_cb_flat_archive(
 
     cleanup::run(&cleanup::CleanupPlan::RemoveOwnedDirectory(tmp_dir.clone())).await;
     drop(_borrow);
-    finish_with_archive(&archive_handle).await;
+    finish_with_archive(registry, &archive_handle).await;
 
     match &result {
         Ok(_) => crate::commands::analytics::track(
@@ -1510,9 +1515,11 @@ pub async fn install_host_pack(app: AppHandle, args: InstallHostPackArgs) -> Res
         game_id,
     } = args;
     let cfg = engine_for_game(game_id.as_str())?;
-    let zip = staging_tokens::borrow(&archive_handle, staging_tokens::StagedArchiveKind::HostPack)
+    let registry = staged_archives(&app);
+    let zip = registry
+        .borrow(&archive_handle, staging_tokens::StagedArchiveKind::HostPack)
         .ok_or("this archive is no longer available to install from")?;
-    let _borrow = staging_tokens::BorrowGuard::new(&archive_handle);
+    let _borrow = staging_tokens::BorrowGuard::new(registry, &archive_handle);
     zip::entry_belongs_to_archive(&zip, &entry_name)?;
     let sp = get_state_path(&game_path, cfg);
     let install_format = file_type.clone();
@@ -1552,15 +1559,22 @@ pub async fn install_host_pack(app: AppHandle, args: InstallHostPackArgs) -> Res
 }
 
 /// Removes every archive still registered, for application exit.
-pub(crate) fn discard_all_staged_archives() {
-    for plan in staging_tokens::drain() {
+pub(crate) fn discard_all_staged_archives(app: &AppHandle) {
+    for plan in staged_archives(app).drain() {
         cleanup::run_sync(&plan);
     }
 }
 
+/// The one registry this application owns, held as Tauri managed state so every caller names
+/// the same instance instead of reaching for a process global.
+pub(crate) fn staged_archives(app: &AppHandle) -> &staging_tokens::StagingRegistry {
+    use tauri::Manager;
+    app.state::<staging_tokens::StagingRegistry>().inner()
+}
+
 /// Ends a workflow's hold on its archive and removes it through the plan the registry holds.
-async fn finish_with_archive(handle: &str) {
-    match staging_tokens::finalize(handle) {
+async fn finish_with_archive(registry: &staging_tokens::StagingRegistry, handle: &str) {
+    match registry.finalize(handle) {
         Some(plan) => cleanup::run(&plan).await,
         None => log::warn!("staged archives: nothing to finish for this handle"),
     }
@@ -1571,8 +1585,8 @@ async fn finish_with_archive(handle: &str) {
 /// registered, and only once.
 #[tauri::command]
 #[specta::specta]
-pub async fn discard_staged_archive(token: String) {
-    let Some(plan) = staging_tokens::finalize(&token) else {
+pub async fn discard_staged_archive(app: AppHandle, token: String) {
+    let Some(plan) = staged_archives(&app).finalize(&token) else {
         log::warn!("discard_staged_archive: unknown, in-use, or already-finished handle");
         return;
     };

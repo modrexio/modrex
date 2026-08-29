@@ -297,7 +297,8 @@ fn crimeboss_standalone_submod_resolves_to_ue4ss_mods_target() {
     let zip = make_zip(&[("CoolMod/Scripts/main.lua", b"-- a real sub-mod")]);
     let cfg = engine_for_game("cb").unwrap();
 
-    let staged = resolve_archive_download(zip.path().to_path_buf(), cfg).unwrap();
+    let staged =
+        resolve_archive_download(zip.path().to_path_buf(), cfg, &StagingRegistry::new()).unwrap();
     let (extracted, location_tag) = (staged.root.clone(), staged.target_tag.clone());
     assert_eq!(location_tag.as_deref(), Some("ue4ss_mods"));
     assert_eq!(extracted.file_name().unwrap(), "CoolMod");
@@ -314,7 +315,8 @@ fn pd3_standalone_submod_resolves_to_ue4ss_mods_target() {
     let zip = make_zip(&[("CoolMod/Scripts/main.lua", b"-- a real sub-mod")]);
     let cfg = engine_for_game("pd3").unwrap();
 
-    let staged = resolve_archive_download(zip.path().to_path_buf(), cfg).unwrap();
+    let staged =
+        resolve_archive_download(zip.path().to_path_buf(), cfg, &StagingRegistry::new()).unwrap();
     let (extracted, location_tag) = (staged.root.clone(), staged.target_tag.clone());
     assert_eq!(location_tag.as_deref(), Some("ue4ss_mods"));
     assert_eq!(extracted.file_name().unwrap(), "CoolMod");
@@ -326,7 +328,8 @@ fn genuinely_unplaceable_archive_errors_on_pd3() {
     // Scripts/main.lua), so a flat archive with nothing installable still hard-errors.
     let zip = make_zip(&[("readme.txt", b"nothing installable here")]);
     let cfg = engine_for_game("pd3").unwrap();
-    let err = resolve_archive_download(zip.path().to_path_buf(), cfg).unwrap_err();
+    let err = resolve_archive_download(zip.path().to_path_buf(), cfg, &StagingRegistry::new())
+        .unwrap_err();
     assert!(
         matches!(err, ResolveError::Failure(ref m) if m.contains("no .pak files inside")),
         "{err:?}"
@@ -341,7 +344,7 @@ fn flat_crime_boss_archive_surfaces_confirm_sentinel_not_dead_end() {
     let zip = make_zip(&[("readme.txt", b"nothing installable here")]);
     let cfg = engine_for_game("cb").unwrap();
     let zip_path = zip.path().to_path_buf();
-    let err = resolve_archive_download(zip_path.clone(), cfg).unwrap_err();
+    let err = resolve_archive_download(zip_path.clone(), cfg, &StagingRegistry::new()).unwrap_err();
     assert!(
         matches!(&err, ResolveError::Prompt(p) if matches!(**p, InstallPrompt::CbFlatArchive(_))),
         "{err:?}"
@@ -3120,7 +3123,8 @@ fn modkit_packaged_archive_installs_into_crimeboss_mods_skeleton() {
     let cfg = engine_for_game("cb").unwrap();
     let sp = get_state_path(game, cfg);
 
-    let staged = resolve_archive_download(zip.path().to_path_buf(), cfg).unwrap();
+    let staged =
+        resolve_archive_download(zip.path().to_path_buf(), cfg, &StagingRegistry::new()).unwrap();
     let (extracted, location_tag) = (staged.root.clone(), staged.target_tag.clone());
     assert_eq!(
         location_tag, None,
@@ -3173,7 +3177,8 @@ fn loose_triplet_archive_also_installs_into_crimeboss_mods_skeleton() {
     let cfg = engine_for_game("cb").unwrap();
     let sp = get_state_path(game, cfg);
 
-    let staged = resolve_archive_download(zip.path().to_path_buf(), cfg).unwrap();
+    let staged =
+        resolve_archive_download(zip.path().to_path_buf(), cfg, &StagingRegistry::new()).unwrap();
     let (extracted, location_tag) = (staged.root.clone(), staged.target_tag.clone());
     assert_eq!(location_tag, None);
 
@@ -3623,7 +3628,8 @@ fn crimeboss_bundle_archive_resolves_to_zip_multi_pak_with_both_entries() {
     let zip = janitor_bundle_zip();
     let cfg = engine_for_game("cb").unwrap();
 
-    let err = resolve_archive_download(zip.path().to_path_buf(), cfg).unwrap_err();
+    let err = resolve_archive_download(zip.path().to_path_buf(), cfg, &StagingRegistry::new())
+        .unwrap_err();
     let ResolveError::Prompt(prompt) = err else {
         panic!("expected a prompt, got {err:?}");
     };

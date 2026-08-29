@@ -3,7 +3,7 @@ use super::engine::{ModEngineConfig, ModUnit};
 use super::host_mods::detect_host_pack;
 use super::paths::{active_mod_path, disabled_mod_path};
 use super::staged::{NameSource, Staged};
-use super::staging_tokens::{self, StagedArchiveKind};
+use super::staging_tokens::{StagedArchiveKind, StagingRegistry};
 use super::state::get_folder_path;
 use super::types::{InstalledMod, ModFolder};
 use md5::Md5;
@@ -1040,13 +1040,14 @@ impl InstallPrompt {
 }
 
 fn multi_pak_payload(
+    registry: &StagingRegistry,
     zip_path: String,
     entries: Vec<String>,
     target_tag: Option<String>,
     entry_tags: Option<Vec<Option<String>>>,
     entry_kind: Option<String>,
 ) -> Result<ZipMultiPakPayload, ResolveError> {
-    let archive_handle = stage_archive(StagedArchiveKind::MultiEntry, &zip_path)?;
+    let archive_handle = stage_archive(registry, StagedArchiveKind::MultiEntry, &zip_path)?;
     Ok(ZipMultiPakPayload {
         archive_handle,
         entries,
@@ -1064,9 +1065,15 @@ fn multi_pak_payload(
 /// Hands an archive to the registry and returns its handle. A refusal is surfaced as an
 /// ordinary install failure: the archive has already been removed by then, so there is
 /// nothing for the caller to clean up.
-fn stage_archive(kind: StagedArchiveKind, zip_path: &str) -> Result<String, ResolveError> {
+fn stage_archive(
+    registry: &StagingRegistry,
+    kind: StagedArchiveKind,
+    zip_path: &str,
+) -> Result<String, ResolveError> {
     let path = Path::new(zip_path);
-    staging_tokens::register(kind, path, CleanupPlan::RemoveOwnedFile(path.to_path_buf())).map_err(
+    registry
+        .register(kind, path, CleanupPlan::RemoveOwnedFile(path.to_path_buf()))
+        .map_err(
         |()| {
             ResolveError::Failure(
                 "Too many archives are waiting for a choice. Finish or close the open install prompts and try again."
@@ -1109,6 +1116,7 @@ type ResolvedArchive = Result<Staged, ResolveError>;
 fn try_classify_as_directory_target(
     downloaded: &Path,
     cfg: &ModEngineConfig,
+    registry: &StagingRegistry,
 ) -> Option<ResolvedArchive> {
     let names: Vec<String> = list_entries(downloaded)
         .ok()?
@@ -1156,6 +1164,7 @@ fn try_classify_as_directory_target(
     // for Crime Boss, whose install_from_zip_entry otherwise assumes every entry is a single pak
     // file to wrap in its synthesized skeleton.
     let payload = multi_pak_payload(
+        registry,
         zip_path,
         entry_names,
         if distinct_tags.len() == 1 {
@@ -1176,7 +1185,11 @@ fn try_classify_as_directory_target(
 /// Resolves a downloaded archive into an installable path plus the detected scan-target tag.
 /// Returns (extracted_path, original_archive, location_tag) where location_tag is None
 /// for the primary target and Some(tag) for any secondary target (e.g. "mod_overrides").
-pub fn resolve_archive_download(downloaded: PathBuf, cfg: &ModEngineConfig) -> ResolvedArchive {
+pub fn resolve_archive_download(
+    downloaded: PathBuf,
+    cfg: &ModEngineConfig,
+    registry: &StagingRegistry,
+) -> ResolvedArchive {
     // Must run before detect_archive: .pdmod is a ZIP by magic bytes and would fall through to
     // the Directory-unit path without this early check.
     if cfg.game_id == "pdth"
@@ -1206,7 +1219,7 @@ pub fn resolve_archive_download(downloaded: PathBuf, cfg: &ModEngineConfig) -> R
         };
     }
     if cfg.game_id == "cb" {
-        return resolve_crimeboss_archive(downloaded, cfg);
+        return resolve_crimeboss_archive(downloaded, cfg, registry);
     }
     if detect_archive(&downloaded).is_none() {
         // Nothing was extracted, so the caller's own downloaded file is the only artifact.
@@ -1231,7 +1244,9 @@ pub fn resolve_archive_download(downloaded: PathBuf, cfg: &ModEngineConfig) -> R
                     if has_ue4ss_loader_signature(&downloaded) {
                         return Err(ResolveError::Ue4ssLoader(downloaded));
                     }
-                    if let Some(result) = try_classify_as_directory_target(&downloaded, cfg) {
+                    if let Some(result) =
+                        try_classify_as_directory_target(&downloaded, cfg, registry)
+                    {
                         return result;
                     }
                     cleanup::run_sync(&CleanupPlan::RemoveOwnedFile(downloaded.clone()));
@@ -1254,7 +1269,7 @@ pub fn resolve_archive_download(downloaded: PathBuf, cfg: &ModEngineConfig) -> R
                 }
                 _ => {
                     let zip_path = downloaded.to_string_lossy().to_string();
-                    let payload = multi_pak_payload(zip_path, entries, None, None, None)?;
+                    let payload = multi_pak_payload(registry, zip_path, entries, None, None, None)?;
                     Err(prompt_err(InstallPrompt::ZipMultiPak(payload)))
                 }
             }
@@ -1276,7 +1291,8 @@ pub fn resolve_archive_download(downloaded: PathBuf, cfg: &ModEngineConfig) -> R
             if cfg.game_id == "pd2" {
                 if let Some(m) = detect_host_pack(&names) {
                     let zip_path = downloaded.to_string_lossy().to_string();
-                    let archive_handle = stage_archive(StagedArchiveKind::HostPack, &zip_path)?;
+                    let archive_handle =
+                        stage_archive(registry, StagedArchiveKind::HostPack, &zip_path)?;
                     return Err(prompt_err(InstallPrompt::HostModPack(HostPackPayload {
                         archive_handle,
                         entries: m.dirs,
@@ -1353,6 +1369,7 @@ pub fn resolve_archive_download(downloaded: PathBuf, cfg: &ModEngineConfig) -> R
             // modpack spanning mods/ and assets/mod_overrides/) tag each entry
             // individually so the picker routes it to the right place.
             let payload = multi_pak_payload(
+                registry,
                 zip_path,
                 entry_names,
                 if distinct_tags.len() == 1 {
@@ -1374,7 +1391,11 @@ pub fn resolve_archive_download(downloaded: PathBuf, cfg: &ModEngineConfig) -> R
 /// author-supplied folder copied as-is: Modrex always synthesizes the canonical
 /// Content/Paks/WindowsNoEditor/ skeleton the game's UGC mod-loader expects under
 /// CrimeBoss/Mods/<name>/, regardless of how the source archive nested things.
-fn resolve_crimeboss_archive(downloaded: PathBuf, cfg: &ModEngineConfig) -> ResolvedArchive {
+fn resolve_crimeboss_archive(
+    downloaded: PathBuf,
+    cfg: &ModEngineConfig,
+    registry: &StagingRegistry,
+) -> ResolvedArchive {
     if detect_archive(&downloaded).is_none() {
         // No known real mod ships a bare .pak with no archive (sidecars require a zip to carry
         // them), but if one shows up, fall back to the legacy flat paks target rather than
@@ -1395,7 +1416,7 @@ fn resolve_crimeboss_archive(downloaded: PathBuf, cfg: &ModEngineConfig) -> Reso
             if has_ue4ss_loader_signature(&downloaded) {
                 return Err(ResolveError::Ue4ssLoader(downloaded));
             }
-            if let Some(result) = try_classify_as_directory_target(&downloaded, cfg) {
+            if let Some(result) = try_classify_as_directory_target(&downloaded, cfg, registry) {
                 return result;
             }
             // Nothing classified: classify_archive_dirs found no enclosing folder at all (a
@@ -1404,7 +1425,8 @@ fn resolve_crimeboss_archive(downloaded: PathBuf, cfg: &ModEngineConfig) -> Reso
             // download. The renderer can still install the whole archive as one mods/<name>
             // folder if the user confirms it's the right content.
             let zip_path = downloaded.to_string_lossy().to_string();
-            let archive_handle = stage_archive(StagedArchiveKind::CrimeBossFlat, &zip_path)?;
+            let archive_handle =
+                stage_archive(registry, StagedArchiveKind::CrimeBossFlat, &zip_path)?;
             Err(prompt_err(InstallPrompt::CbFlatArchive(CbFlatPayload {
                 archive_handle,
                 mod_id: None,
@@ -1429,7 +1451,7 @@ fn resolve_crimeboss_archive(downloaded: PathBuf, cfg: &ModEngineConfig) -> Reso
         }
         _ => {
             let zip_path = downloaded.to_string_lossy().to_string();
-            let payload = multi_pak_payload(zip_path, entries, None, None, None)?;
+            let payload = multi_pak_payload(registry, zip_path, entries, None, None, None)?;
             Err(prompt_err(InstallPrompt::ZipMultiPak(payload)))
         }
     }

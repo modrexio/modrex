@@ -4,6 +4,7 @@
 use super::cleanup::CleanupPlan;
 use super::engine::{engine_for_game, ModEngineConfig};
 use super::staged::{NameSource, Staged};
+use super::staging_tokens::StagingRegistry;
 use super::zip::resolve_archive_download;
 use std::fs::File;
 use std::io::Write;
@@ -78,7 +79,12 @@ fn assert_never_names_a_protected_root(staged: &Staged) {
 #[test]
 fn a_single_pak_archive_stages_a_file_for_a_file_unit_game() {
     let zip = make_zip(&[("CoolMod_P.pak", b"pak")]);
-    let staged = resolve_archive_download(zip.path().to_path_buf(), cfg("pd3")).unwrap();
+    let staged = resolve_archive_download(
+        zip.path().to_path_buf(),
+        cfg("pd3"),
+        &StagingRegistry::new(),
+    )
+    .unwrap();
 
     assert_eq!(staged.name_source, NameSource::FromModDisplayName);
     assert_eq!(staged.target_tag, None);
@@ -94,7 +100,12 @@ fn a_single_pak_archive_stages_a_file_for_a_file_unit_game() {
 #[test]
 fn a_mod_directory_archive_stages_its_own_two_level_parent() {
     let zip = make_zip(&[("Welrod/mod.txt", b"{}")]);
-    let staged = resolve_archive_download(zip.path().to_path_buf(), cfg("pd2")).unwrap();
+    let staged = resolve_archive_download(
+        zip.path().to_path_buf(),
+        cfg("pd2"),
+        &StagingRegistry::new(),
+    )
+    .unwrap();
 
     // The root keeps the archive's own directory name, which is what makes it usable as the
     // mod's name; the plan owns the uuid parent that wraps it.
@@ -112,7 +123,9 @@ fn a_mod_directory_archive_stages_its_own_two_level_parent() {
 #[test]
 fn a_standalone_ue4ss_submod_stages_under_its_own_parent_and_keeps_its_tag() {
     let zip = make_zip(&[("CoolMod/Scripts/main.lua", b"-- sub-mod")]);
-    let staged = resolve_archive_download(zip.path().to_path_buf(), cfg("cb")).unwrap();
+    let staged =
+        resolve_archive_download(zip.path().to_path_buf(), cfg("cb"), &StagingRegistry::new())
+            .unwrap();
 
     assert_eq!(staged.target_tag.as_deref(), Some("ue4ss_mods"));
     assert_eq!(staged.root.file_name().unwrap(), "CoolMod");
@@ -127,7 +140,9 @@ fn a_standalone_ue4ss_submod_stages_under_its_own_parent_and_keeps_its_tag() {
 #[test]
 fn the_crime_boss_skeleton_owns_its_synthesized_root() {
     let zip = make_zip(&[("SomeModCrimeBoss-WindowsNoEditor.pak", b"pak")]);
-    let staged = resolve_archive_download(zip.path().to_path_buf(), cfg("cb")).unwrap();
+    let staged =
+        resolve_archive_download(zip.path().to_path_buf(), cfg("cb"), &StagingRegistry::new())
+            .unwrap();
 
     // The skeleton root has no readable name of its own, so naming falls to the archive entry.
     assert_eq!(staged.name_source, NameSource::FromModDisplayName);
@@ -159,7 +174,9 @@ fn a_loose_non_archive_owns_exactly_the_downloaded_file() {
     ] {
         let dir = TempDir::new().unwrap();
         let downloaded = loose_file(&dir, "modrex-abc.lua");
-        let staged = resolve_archive_download(downloaded.clone(), cfg(game)).unwrap();
+        let staged =
+            resolve_archive_download(downloaded.clone(), cfg(game), &StagingRegistry::new())
+                .unwrap();
 
         assert_eq!(staged.root, downloaded, "{game}");
         assert_eq!(
@@ -178,7 +195,7 @@ fn a_loose_non_archive_owns_exactly_the_downloaded_file() {
 fn a_loose_file_on_crime_boss_keeps_the_legacy_paks_tag() {
     let dir = TempDir::new().unwrap();
     let downloaded = loose_file(&dir, "modrex-abc.pak");
-    let staged = resolve_archive_download(downloaded, cfg("cb")).unwrap();
+    let staged = resolve_archive_download(downloaded, cfg("cb"), &StagingRegistry::new()).unwrap();
     assert_eq!(staged.target_tag.as_deref(), Some("paks"));
 }
 
@@ -194,7 +211,8 @@ fn a_dropped_copy_is_owned_and_the_users_original_is_not() {
     let copy = staging.path().join("modrex-drop-abc.lua");
     std::fs::copy(&users_file, &copy).unwrap();
 
-    let staged = resolve_archive_download(copy.clone(), cfg("pd2")).unwrap();
+    let staged =
+        resolve_archive_download(copy.clone(), cfg("pd2"), &StagingRegistry::new()).unwrap();
     assert_eq!(
         staged.cleanup,
         CleanupPlan::RemoveOwnedFileWithSidecars(copy)

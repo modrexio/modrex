@@ -178,6 +178,9 @@ pub fn run() {
         )
         .setup(|app| {
             log::info!("Modrex started");
+            // The one staged-archive registry this application owns. Commands reach it
+            // through managed state, so nothing has to consult a process global.
+            app.manage(commands::mods::StagingRegistry::new());
             #[cfg(windows)]
             if let Some(window) = app.get_webview_window("main") {
                 windows_fullscreen::install(&window)?;
@@ -268,9 +271,9 @@ pub fn run() {
     // Archives still waiting on a prompt when the app exits are removed through the plans
     // the registry holds for them, so a closed window does not leave them behind. Nothing is
     // recovered after a crash: an artifact whose ownership cannot be proven is left alone.
-    app.run(|_, event| {
+    app.run(|app_handle, event| {
         if matches!(event, tauri::RunEvent::Exit) {
-            commands::mods::discard_all_staged_archives();
+            commands::mods::discard_all_staged_archives(app_handle);
         }
     });
 }

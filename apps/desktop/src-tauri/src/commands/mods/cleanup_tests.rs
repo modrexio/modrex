@@ -4,6 +4,7 @@
 
 use super::cleanup::*;
 use super::engine::{CRIMEBOSS_ENGINE, PD2_ENGINE, PD3_ENGINE, PDTH_ENGINE, RAID_ENGINE};
+use super::staging_tokens::StagingRegistry;
 use super::zip::resolve_archive_download;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -315,7 +316,7 @@ fn non_archive_resolution_owns_the_downloaded_file_for_every_game() {
     ] {
         let fx = Fixture::new();
         let downloaded = fx.staged_file("modrex-abc.lua");
-        let plan = resolve_archive_download(downloaded.clone(), cfg)
+        let plan = resolve_archive_download(downloaded.clone(), cfg, &StagingRegistry::new())
             .expect("non-archive resolves")
             .cleanup;
         assert_eq!(
@@ -342,7 +343,7 @@ fn no_resolver_shape_selects_the_staging_root() {
     ] {
         let fx = Fixture::new();
         let downloaded = fx.staged_file("modrex-abc.lua");
-        let plan = resolve_archive_download(downloaded, cfg)
+        let plan = resolve_archive_download(downloaded, cfg, &StagingRegistry::new())
             .expect("resolves")
             .cleanup;
         let named = match &plan {
