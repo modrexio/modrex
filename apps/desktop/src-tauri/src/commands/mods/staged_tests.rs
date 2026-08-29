@@ -249,3 +249,35 @@ fn stem_recovery_falls_back_when_the_archive_cannot_name_the_mod() {
         );
     }
 }
+
+// ── an authorized archive does not authorize an arbitrary entry ─────────────
+
+/// A handle says which archive may be opened; it does not make every entry name valid.
+/// Checking before extraction keeps a crafted entry from reaching a different file.
+#[test]
+fn entry_validation_accepts_only_names_present_in_that_archive() {
+    let zip = make_zip(&[("Inner/CoolMod.pak", b"pak"), ("readme.txt", b"hi")]);
+    assert!(super::zip::entry_belongs_to_archive(zip.path(), "Inner/CoolMod.pak").is_ok());
+    assert!(super::zip::entry_belongs_to_archive(zip.path(), "readme.txt").is_ok());
+
+    for bogus in [
+        "",
+        "NotThere.pak",
+        "../../../etc/passwd",
+        "C:/Windows/System32/calc.exe",
+        "Inner/coolmod.pak",
+        "Inner/CoolMod.pak ",
+    ] {
+        assert!(
+            super::zip::entry_belongs_to_archive(zip.path(), bogus).is_err(),
+            "{bogus} must not be accepted"
+        );
+    }
+}
+
+#[test]
+fn entry_validation_fails_closed_on_an_unreadable_archive() {
+    let dir = TempDir::new().unwrap();
+    let missing = dir.path().join("gone.zip");
+    assert!(super::zip::entry_belongs_to_archive(&missing, "anything").is_err());
+}

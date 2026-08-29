@@ -99,7 +99,7 @@ export const commands = {
 	 *  so unlike install_from_zip_entry there's no entry to pick: the whole archive is extracted flat
 	 *  and installed as a single mods/<name> folder named from the mod's display name.
 	 */
-	installCbFlatArchive: (zipPath: string, modId: number, modName: string, fileId: number, fileType: string, modVersion: string, gamePath: string, folderId: string | null) => __TAURI_INVOKE<null>("install_cb_flat_archive", { zipPath, modId, modName, fileId, fileType, modVersion, gamePath, folderId }),
+	installCbFlatArchive: (archiveHandle: string, modId: number, modName: string, fileId: number, fileType: string, modVersion: string, gamePath: string, folderId: string | null) => __TAURI_INVOKE<null>("install_cb_flat_archive", { archiveHandle, modId, modName, fileId, fileType, modVersion, gamePath, folderId }),
 	installHostPack: (args: InstallHostPackArgs) => __TAURI_INVOKE<null>("install_host_pack", { args }),
 	/**
 	 *  Discards a staged archive the renderer was offered a prompt for. Takes the handle from
@@ -208,9 +208,11 @@ export const commands = {
 export type CbFlatPayload = CbFlatPayload_Serialize | CbFlatPayload_Deserialize;
 
 export type CbFlatPayload_Deserialize = {
-	zipPath: string,
-	/**  One-time handle for discarding zip_path. The path itself is not authority. */
-	cleanupToken: string,
+	/**
+	 *  Backend-issued handle for this staged archive. The renderer never learns
+	 *  the path, so it cannot name a different archive for the install to open.
+	 */
+	archiveHandle: string,
 	modId?: number | null,
 	modName?: string | null,
 	fileId?: number | null,
@@ -219,9 +221,11 @@ export type CbFlatPayload_Deserialize = {
 };
 
 export type CbFlatPayload_Serialize = {
-	zipPath: string,
-	/**  One-time handle for discarding zip_path. The path itself is not authority. */
-	cleanupToken: string,
+	/**
+	 *  Backend-issued handle for this staged archive. The renderer never learns
+	 *  the path, so it cannot name a different archive for the install to open.
+	 */
+	archiveHandle: string,
 	modId?: number | null,
 	modName?: string | null,
 	fileId?: number | null,
@@ -299,9 +303,11 @@ export type GameSettings_Serialize = {
 export type HostPackPayload = HostPackPayload_Serialize | HostPackPayload_Deserialize;
 
 export type HostPackPayload_Deserialize = {
-	zipPath: string,
-	/**  One-time handle for discarding zip_path. The path itself is not authority. */
-	cleanupToken: string,
+	/**
+	 *  Backend-issued handle for this staged archive. The renderer never learns
+	 *  the path, so it cannot name a different archive for the install to open.
+	 */
+	archiveHandle: string,
 	entries: string[],
 	hostModId: number,
 	hostName: string,
@@ -314,9 +320,11 @@ export type HostPackPayload_Deserialize = {
 };
 
 export type HostPackPayload_Serialize = {
-	zipPath: string,
-	/**  One-time handle for discarding zip_path. The path itself is not authority. */
-	cleanupToken: string,
+	/**
+	 *  Backend-issued handle for this staged archive. The renderer never learns
+	 *  the path, so it cannot name a different archive for the install to open.
+	 */
+	archiveHandle: string,
 	entries: string[],
 	hostModId: number,
 	hostName: string,
@@ -378,7 +386,11 @@ export type IndexModFile = {
 };
 
 export type InstallFromZipEntryArgs = {
-	zipPath: string,
+	/**
+	 *  Backend-issued handle for the staged archive. The renderer never receives the
+	 *  path, so it cannot point this at another local archive.
+	 */
+	archiveHandle: string,
 	entryName: string,
 	modId: number,
 	modName: string,
@@ -398,7 +410,11 @@ export type InstallFromZipEntryArgs = {
  *  HOST_MOD_PACK sentinel; the zip is left in place for multi-set installs (caller deletes it).
  */
 export type InstallHostPackArgs = {
-	zipPath: string,
+	/**
+	 *  Backend-issued handle for the staged archive. The renderer never receives the
+	 *  path, so it cannot point this at another local archive.
+	 */
+	archiveHandle: string,
 	entryName: string,
 	modId: number,
 	modName: string,
@@ -861,9 +877,11 @@ export type ZipMultiPakPayload = ZipMultiPakPayload_Serialize | ZipMultiPakPaylo
  *  command knows which mod the archive belongs to.
  */
 export type ZipMultiPakPayload_Deserialize = {
-	zipPath: string,
-	/**  One-time handle for discarding zip_path. The path itself is not authority. */
-	cleanupToken: string,
+	/**
+	 *  Backend-issued handle for this staged archive. The renderer never learns
+	 *  the path, so it cannot name a different archive for the install to open.
+	 */
+	archiveHandle: string,
 	entries: string[],
 	targetTag: string | null,
 	entryTags?: (string | null)[] | null,
@@ -882,9 +900,11 @@ export type ZipMultiPakPayload_Deserialize = {
  *  command knows which mod the archive belongs to.
  */
 export type ZipMultiPakPayload_Serialize = {
-	zipPath: string,
-	/**  One-time handle for discarding zip_path. The path itself is not authority. */
-	cleanupToken: string,
+	/**
+	 *  Backend-issued handle for this staged archive. The renderer never learns
+	 *  the path, so it cannot name a different archive for the install to open.
+	 */
+	archiveHandle: string,
 	entries: string[],
 	targetTag: string | null,
 	entryTags?: (string | null)[] | null,

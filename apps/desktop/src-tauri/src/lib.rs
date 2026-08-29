@@ -265,7 +265,14 @@ pub fn run() {
         });
     }
 
-    app.run(|_, _| {});
+    // Archives still waiting on a prompt when the app exits are removed through the plans
+    // the registry holds for them, so a closed window does not leave them behind. Nothing is
+    // recovered after a crash: an artifact whose ownership cannot be proven is left alone.
+    app.run(|_, event| {
+        if matches!(event, tauri::RunEvent::Exit) {
+            commands::mods::discard_all_staged_archives();
+        }
+    });
 }
 
 /// Regenerates src/shared/bindings.ts from the command registry. CI asserts the result

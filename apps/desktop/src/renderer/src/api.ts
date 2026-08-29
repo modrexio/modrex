@@ -331,8 +331,8 @@ export const api = {
             )
         )
     },
-    discardStagedArchive(token: string): Promise<void> {
-        return commands.discardStagedArchive(token)
+    discardStagedArchive(archiveHandle: string): Promise<void> {
+        return commands.discardStagedArchive(archiveHandle)
     },
     getIndexModFiles(modId: number, gameId: string): Promise<IndexModFile[]> {
         return commands.getIndexModFiles(modId, gameId)
@@ -349,7 +349,7 @@ export const api = {
         return commands.fetchNewsPage(gameId, page)
     },
     installFromZipEntry(
-        zipPath: string,
+        archiveHandle: string,
         entryName: string,
         modId: number,
         modName: string,
@@ -364,7 +364,7 @@ export const api = {
     ): Promise<void> {
         return trackInstall(
             commands.installFromZipEntry({
-                zipPath,
+                archiveHandle,
                 entryName,
                 modId,
                 modName,
@@ -380,7 +380,7 @@ export const api = {
         )
     },
     installCbFlatArchive(
-        zipPath: string,
+        archiveHandle: string,
         modId: number,
         modName: string,
         fileId: number,
@@ -391,7 +391,7 @@ export const api = {
     ): Promise<void> {
         return trackInstall(
             commands.installCbFlatArchive(
-                zipPath,
+                archiveHandle,
                 modId,
                 modName,
                 fileId,
@@ -403,7 +403,7 @@ export const api = {
         )
     },
     installHostPack(
-        zipPath: string,
+        archiveHandle: string,
         entryName: string,
         modId: number,
         modName: string,
@@ -417,7 +417,7 @@ export const api = {
     ): Promise<void> {
         return trackInstall(
             commands.installHostPack({
-                zipPath,
+                archiveHandle,
                 entryName,
                 modId,
                 modName,

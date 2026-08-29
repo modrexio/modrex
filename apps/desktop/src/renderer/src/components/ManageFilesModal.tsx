@@ -217,7 +217,7 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
                     (en) => entryFilename(en) === entryFilename(ghost.entry)
                 )
                 if (!realEntry) {
-                    await api.discardStagedArchive(zip.cleanupToken)
+                    await api.discardStagedArchive(zip.archiveHandle)
                     setInstallError(t('installed.manageFiles.fileUnavailable'))
                     return
                 }
@@ -225,7 +225,7 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
                 const realIdx = zip.entries.indexOf(realEntry)
                 const locationTag = zip.entryTags?.[realIdx] ?? zip.targetTag ?? undefined
                 await api.installFromZipEntry(
-                    zip.zipPath,
+                    zip.archiveHandle,
                     realEntry,
                     zip.modId,
                     zip.modName,
@@ -237,7 +237,7 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
                     ghost.folderId,
                     locationTag
                 )
-                await api.discardStagedArchive(zip.cleanupToken)
+                await api.discardStagedArchive(zip.archiveHandle)
             }
             await onRefreshInstalled()
         } catch (e) {

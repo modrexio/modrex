@@ -12,7 +12,7 @@ function makeHandlers(): InstallSentinelHandlers {
 }
 
 const zipPayload = {
-    zipPath: 'C:/tmp/a.zip',
+    archiveHandle: 'handle-a',
     entries: ['a.pak', 'b.pak'],
     targetTag: null,
     modId: 1,
@@ -23,7 +23,7 @@ const zipPayload = {
 }
 
 const hostPayload = {
-    zipPath: 'C:/tmp/b.zip',
+    archiveHandle: 'handle-b',
     entries: ['Set One'],
     hostModId: 17160,
     hostName: 'Menu Backgrounds',
@@ -36,7 +36,7 @@ const hostPayload = {
 }
 
 const cbFlatPayload = {
-    zipPath: 'C:/tmp/c.zip',
+    archiveHandle: 'handle-c',
     modId: 5,
     modName: 'C',
     fileId: 6,

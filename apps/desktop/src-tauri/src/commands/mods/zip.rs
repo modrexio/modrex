@@ -3,7 +3,7 @@ use super::engine::{ModEngineConfig, ModUnit};
 use super::host_mods::detect_host_pack;
 use super::paths::{active_mod_path, disabled_mod_path};
 use super::staged::{NameSource, Staged};
-use super::staging_tokens;
+use super::staging_tokens::{self, StagedArchiveKind};
 use super::state::get_folder_path;
 use super::types::{InstalledMod, ModFolder};
 use md5::Md5;
@@ -57,6 +57,17 @@ struct ArchiveEntry {
 
 /// Enumerates every member of an archive, dispatching on the detected format. This is the
 /// single per-format read path; listing helpers operate on its output.
+/// Confirms entry_name is really an entry of this archive before anything extracts it, so a
+/// crafted entry cannot make an authorized archive stand in for another file.
+pub(super) fn entry_belongs_to_archive(zip: &Path, entry_name: &str) -> Result<(), String> {
+    let entries = list_entries(zip).map_err(|e| format!("could not read the archive: {e}"))?;
+    entries
+        .iter()
+        .any(|e| e.name == entry_name)
+        .then_some(())
+        .ok_or_else(|| "that entry is not in this archive".to_string())
+}
+
 fn list_entries(path: &Path) -> Result<Vec<ArchiveEntry>, String> {
     match detect_archive(path) {
         Some(ArchiveFormat::Zip) => list_entries_zip(path),
@@ -930,9 +941,9 @@ fn extract_flat_rar(archive_path: &Path, dest: &Path) -> Result<(), String> {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct ZipMultiPakPayload {
-    pub zip_path: String,
-    /// One-time handle for discarding zip_path. The path itself is not authority.
-    pub cleanup_token: String,
+    /// Backend-issued handle for this staged archive. The renderer never learns
+    /// the path, so it cannot name a different archive for the install to open.
+    pub archive_handle: String,
     pub entries: Vec<String>,
     pub target_tag: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -954,9 +965,9 @@ pub struct ZipMultiPakPayload {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct HostPackPayload {
-    pub zip_path: String,
-    /// One-time handle for discarding zip_path. The path itself is not authority.
-    pub cleanup_token: String,
+    /// Backend-issued handle for this staged archive. The renderer never learns
+    /// the path, so it cannot name a different archive for the install to open.
+    pub archive_handle: String,
     pub entries: Vec<String>,
     pub host_mod_id: i64,
     pub host_name: String,
@@ -976,9 +987,9 @@ pub struct HostPackPayload {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct CbFlatPayload {
-    pub zip_path: String,
-    /// One-time handle for discarding zip_path. The path itself is not authority.
-    pub cleanup_token: String,
+    /// Backend-issued handle for this staged archive. The renderer never learns
+    /// the path, so it cannot name a different archive for the install to open.
+    pub archive_handle: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub mod_id: Option<i64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1034,10 +1045,10 @@ fn multi_pak_payload(
     target_tag: Option<String>,
     entry_tags: Option<Vec<Option<String>>>,
     entry_kind: Option<String>,
-) -> ZipMultiPakPayload {
-    ZipMultiPakPayload {
-        cleanup_token: staging_tokens::register(Path::new(&zip_path)),
-        zip_path,
+) -> Result<ZipMultiPakPayload, ResolveError> {
+    let archive_handle = stage_archive(StagedArchiveKind::MultiEntry, &zip_path)?;
+    Ok(ZipMultiPakPayload {
+        archive_handle,
         entries,
         target_tag,
         entry_tags,
@@ -1047,7 +1058,22 @@ fn multi_pak_payload(
         file_id: None,
         file_type: None,
         mod_version: None,
-    }
+    })
+}
+
+/// Hands an archive to the registry and returns its handle. A refusal is surfaced as an
+/// ordinary install failure: the archive has already been removed by then, so there is
+/// nothing for the caller to clean up.
+fn stage_archive(kind: StagedArchiveKind, zip_path: &str) -> Result<String, ResolveError> {
+    let path = Path::new(zip_path);
+    staging_tokens::register(kind, path, CleanupPlan::RemoveOwnedFile(path.to_path_buf())).map_err(
+        |()| {
+            ResolveError::Failure(
+                "Too many archives are waiting for a choice. Finish or close the open install prompts and try again."
+                    .to_string(),
+            )
+        },
+    )
 }
 
 /// Non-success outcomes of archive resolution: a user decision is needed, the archive is
@@ -1140,6 +1166,10 @@ fn try_classify_as_directory_target(
         (distinct_tags.len() > 1).then(|| dirs.iter().map(|(_, t)| t.clone()).collect()),
         Some("dir".to_string()),
     );
+    let payload = match payload {
+        Ok(p) => p,
+        Err(e) => return Some(Err(e)),
+    };
     Some(Err(prompt_err(InstallPrompt::ZipMultiPak(payload))))
 }
 
@@ -1224,9 +1254,8 @@ pub fn resolve_archive_download(downloaded: PathBuf, cfg: &ModEngineConfig) -> R
                 }
                 _ => {
                     let zip_path = downloaded.to_string_lossy().to_string();
-                    Err(prompt_err(InstallPrompt::ZipMultiPak(multi_pak_payload(
-                        zip_path, entries, None, None, None,
-                    ))))
+                    let payload = multi_pak_payload(zip_path, entries, None, None, None)?;
+                    Err(prompt_err(InstallPrompt::ZipMultiPak(payload)))
                 }
             }
         }
@@ -1247,9 +1276,9 @@ pub fn resolve_archive_download(downloaded: PathBuf, cfg: &ModEngineConfig) -> R
             if cfg.game_id == "pd2" {
                 if let Some(m) = detect_host_pack(&names) {
                     let zip_path = downloaded.to_string_lossy().to_string();
+                    let archive_handle = stage_archive(StagedArchiveKind::HostPack, &zip_path)?;
                     return Err(prompt_err(InstallPrompt::HostModPack(HostPackPayload {
-                        cleanup_token: staging_tokens::register(Path::new(&zip_path)),
-                        zip_path,
+                        archive_handle,
                         entries: m.dirs,
                         host_mod_id: m.host.host_mod_id,
                         host_name: m.host.host_name.to_string(),
@@ -1333,7 +1362,7 @@ pub fn resolve_archive_download(downloaded: PathBuf, cfg: &ModEngineConfig) -> R
                 },
                 (distinct_tags.len() > 1).then(|| dirs.iter().map(|(_, t)| t.clone()).collect()),
                 None,
-            );
+            )?;
             Err(prompt_err(InstallPrompt::ZipMultiPak(payload)))
         }
     }
@@ -1375,9 +1404,9 @@ fn resolve_crimeboss_archive(downloaded: PathBuf, cfg: &ModEngineConfig) -> Reso
             // download. The renderer can still install the whole archive as one mods/<name>
             // folder if the user confirms it's the right content.
             let zip_path = downloaded.to_string_lossy().to_string();
+            let archive_handle = stage_archive(StagedArchiveKind::CrimeBossFlat, &zip_path)?;
             Err(prompt_err(InstallPrompt::CbFlatArchive(CbFlatPayload {
-                cleanup_token: staging_tokens::register(Path::new(&zip_path)),
-                zip_path,
+                archive_handle,
                 mod_id: None,
                 mod_name: None,
                 file_id: None,
@@ -1400,7 +1429,7 @@ fn resolve_crimeboss_archive(downloaded: PathBuf, cfg: &ModEngineConfig) -> Reso
         }
         _ => {
             let zip_path = downloaded.to_string_lossy().to_string();
-            let payload = multi_pak_payload(zip_path, entries, None, None, None);
+            let payload = multi_pak_payload(zip_path, entries, None, None, None)?;
             Err(prompt_err(InstallPrompt::ZipMultiPak(payload)))
         }
     }

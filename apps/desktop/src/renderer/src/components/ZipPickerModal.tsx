@@ -9,8 +9,7 @@ import { setArchiveEntries } from '../archiveEntriesCache'
 import { entryFilename, stripPriorityPrefix } from '../hooks/installedUtils'
 
 export interface ZipMultiPakPayload {
-    zipPath: string
-    cleanupToken: string
+    archiveHandle: string
     entries: string[]
     modId: number
     modName: string
@@ -157,7 +156,7 @@ export async function installZipPickerEntries(
         for (const entry of toInstall) {
             onProgress?.(entry)
             await api.installFromZipEntry(
-                payload.zipPath,
+                payload.archiveHandle,
                 entry,
                 payload.modId,
                 payload.modName,
@@ -173,7 +172,7 @@ export async function installZipPickerEntries(
             await onRefreshInstalled()
         }
         onProgress?.(null)
-        await api.discardStagedArchive(payload.cleanupToken)
+        await api.discardStagedArchive(payload.archiveHandle)
         return
     }
 
@@ -210,7 +209,7 @@ export async function installZipPickerEntries(
         const dir = lastSlash === -1 ? '' : rel.slice(0, lastSlash)
         onProgress?.(entry)
         await api.installFromZipEntry(
-            payload.zipPath,
+            payload.archiveHandle,
             entry,
             payload.modId,
             payload.modName,
@@ -226,7 +225,7 @@ export async function installZipPickerEntries(
         await onRefreshInstalled()
     }
     onProgress?.(null)
-    await api.discardStagedArchive(payload.cleanupToken)
+    await api.discardStagedArchive(payload.archiveHandle)
 }
 
 interface Props {

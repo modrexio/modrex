@@ -6,8 +6,7 @@ import { t } from '../i18n'
 import { api } from '../api'
 
 export interface HostPackPayload {
-    zipPath: string
-    cleanupToken: string
+    archiveHandle: string
     entries: string[]
     hostModId: number
     hostName: string
@@ -71,7 +70,7 @@ export function HostPackModal({
         try {
             for (const entry of payload.entries) {
                 await api.installHostPack(
-                    payload.zipPath,
+                    payload.archiveHandle,
                     entry,
                     payload.modId,
                     payload.modName,
@@ -84,7 +83,7 @@ export function HostPackModal({
                     gameId
                 )
             }
-            await api.discardStagedArchive(payload.cleanupToken)
+            await api.discardStagedArchive(payload.archiveHandle)
             await onRefreshInstalled()
             onClose()
         } catch (e) {

@@ -1177,7 +1177,9 @@ fn stale_entry_for_zip_install<'a>(
 #[derive(serde::Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct InstallFromZipEntryArgs {
-    pub zip_path: String,
+    /// Backend-issued handle for the staged archive. The renderer never receives the
+    /// path, so it cannot point this at another local archive.
+    pub archive_handle: String,
     pub entry_name: String,
     pub mod_id: i64,
     pub mod_name: String,
@@ -1199,7 +1201,7 @@ pub async fn install_from_zip_entry(
 ) -> Result<(), String> {
     let _state_guard = lock_game_state(&app, args.game_id.as_str()).await;
     let InstallFromZipEntryArgs {
-        zip_path,
+        archive_handle,
         entry_name,
         mod_id,
         mod_name,
@@ -1214,7 +1216,15 @@ pub async fn install_from_zip_entry(
     } = args;
     let cfg = engine_for_game(game_id.as_str())?;
     let target = cfg.target_for(location_tag.as_deref());
-    let zip = PathBuf::from(&zip_path);
+    // The handle, not the caller, decides which archive is opened. The borrow is held for
+    // the whole install so a concurrent discard cannot remove the file mid-extraction.
+    let zip = staging_tokens::borrow(
+        &archive_handle,
+        staging_tokens::StagedArchiveKind::MultiEntry,
+    )
+    .ok_or("this archive is no longer available to install from")?;
+    let _borrow = staging_tokens::BorrowGuard::new(&archive_handle);
+    zip::entry_belongs_to_archive(&zip, &entry_name)?;
     let install_format = file_type.clone(); // file_type is moved before the success emit below
 
     // Set only by classify_archive_dirs's ZIP_MULTI_PAK payload (a ue4ss_mods sub-mod folder
@@ -1368,7 +1378,7 @@ pub async fn install_from_zip_entry(
 #[allow(clippy::too_many_arguments)]
 pub async fn install_cb_flat_archive(
     app: AppHandle,
-    zip_path: String,
+    archive_handle: String,
     mod_id: i64,
     mod_name: String,
     file_id: i64,
@@ -1380,7 +1390,12 @@ pub async fn install_cb_flat_archive(
     let _state_guard = lock_game_state(&app, "cb").await;
     let cfg = engine_for_game("cb")?;
     let target = cfg.primary();
-    let zip = PathBuf::from(&zip_path);
+    let zip = staging_tokens::borrow(
+        &archive_handle,
+        staging_tokens::StagedArchiveKind::CrimeBossFlat,
+    )
+    .ok_or("this archive is no longer available to install from")?;
+    let _borrow = staging_tokens::BorrowGuard::new(&archive_handle);
     let tmp_dir = std::env::temp_dir().join(format!("modrex-mod-{}", Uuid::new_v4()));
 
     let result = async {
@@ -1437,7 +1452,8 @@ pub async fn install_cb_flat_archive(
     .await;
 
     cleanup::run(&cleanup::CleanupPlan::RemoveOwnedDirectory(tmp_dir.clone())).await;
-    cleanup::run(&cleanup::CleanupPlan::RemoveOwnedFile(zip.clone())).await;
+    drop(_borrow);
+    finish_with_archive(&archive_handle).await;
 
     match &result {
         Ok(_) => crate::commands::analytics::track(
@@ -1461,7 +1477,9 @@ pub async fn install_cb_flat_archive(
 #[derive(serde::Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct InstallHostPackArgs {
-    pub zip_path: String,
+    /// Backend-issued handle for the staged archive. The renderer never receives the
+    /// path, so it cannot point this at another local archive.
+    pub archive_handle: String,
     pub entry_name: String,
     pub mod_id: i64,
     pub mod_name: String,
@@ -1479,7 +1497,7 @@ pub struct InstallHostPackArgs {
 pub async fn install_host_pack(app: AppHandle, args: InstallHostPackArgs) -> Result<(), String> {
     let _state_guard = lock_game_state(&app, args.game_id.as_str()).await;
     let InstallHostPackArgs {
-        zip_path,
+        archive_handle,
         entry_name,
         mod_id,
         mod_name,
@@ -1492,6 +1510,10 @@ pub async fn install_host_pack(app: AppHandle, args: InstallHostPackArgs) -> Res
         game_id,
     } = args;
     let cfg = engine_for_game(game_id.as_str())?;
+    let zip = staging_tokens::borrow(&archive_handle, staging_tokens::StagedArchiveKind::HostPack)
+        .ok_or("this archive is no longer available to install from")?;
+    let _borrow = staging_tokens::BorrowGuard::new(&archive_handle);
+    zip::entry_belongs_to_archive(&zip, &entry_name)?;
     let sp = get_state_path(&game_path, cfg);
     let install_format = file_type.clone();
     let mod_data = InstalledMod {
@@ -1506,14 +1528,7 @@ pub async fn install_host_pack(app: AppHandle, args: InstallHostPackArgs) -> Res
             IdentityEvidence::InstallProvenance,
         )
     };
-    install_host_pack_op(
-        &game_path,
-        &sp,
-        &PathBuf::from(&zip_path),
-        &entry_name,
-        mod_data,
-        cfg,
-    )?;
+    install_host_pack_op(&game_path, &sp, &zip, &entry_name, mod_data, cfg)?;
 
     let _ = http_client()
         .post(format!(
@@ -1536,17 +1551,32 @@ pub async fn install_host_pack(app: AppHandle, args: InstallHostPackArgs) -> Res
     Ok(())
 }
 
+/// Removes every archive still registered, for application exit.
+pub(crate) fn discard_all_staged_archives() {
+    for plan in staging_tokens::drain() {
+        cleanup::run_sync(&plan);
+    }
+}
+
+/// Ends a workflow's hold on its archive and removes it through the plan the registry holds.
+async fn finish_with_archive(handle: &str) {
+    match staging_tokens::finalize(handle) {
+        Some(plan) => cleanup::run(&plan).await,
+        None => log::warn!("staged archives: nothing to finish for this handle"),
+    }
+}
+
 /// Discards a staged archive the renderer was offered a prompt for. Takes the handle from
 /// that prompt rather than a path, so the only file this can remove is one the backend
 /// registered, and only once.
 #[tauri::command]
 #[specta::specta]
 pub async fn discard_staged_archive(token: String) {
-    let Some(path) = staging_tokens::consume(&token) else {
-        log::warn!("discard_staged_archive: unknown or already-used handle");
+    let Some(plan) = staging_tokens::finalize(&token) else {
+        log::warn!("discard_staged_archive: unknown, in-use, or already-finished handle");
         return;
     };
-    cleanup::run(&cleanup::CleanupPlan::RemoveOwnedFile(path)).await;
+    cleanup::run(&plan).await;
 }
 
 #[tauri::command]
