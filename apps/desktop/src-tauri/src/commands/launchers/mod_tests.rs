@@ -142,7 +142,6 @@ fn is_installation_without_xbox_release_matches_executables_only() {
 
 // A Microsoft Store folder spelled differently from the game name in the registry is
 // still found, and the path handed back has to read as the folder the user sees.
-#[cfg(target_os = "windows")]
 #[test]
 fn dir_as_named_on_disk_reports_the_spelling_on_disk() {
     let dir = TempDir::new().unwrap();
@@ -153,7 +152,6 @@ fn dir_as_named_on_disk_reports_the_spelling_on_disk() {
     );
 }
 
-#[cfg(target_os = "windows")]
 #[test]
 fn dir_as_named_on_disk_falls_back_to_the_searched_name() {
     let dir = TempDir::new().unwrap();
@@ -161,6 +159,316 @@ fn dir_as_named_on_disk_falls_back_to_the_searched_name() {
         super::xbox::dir_as_named_on_disk(dir.path(), "PAYDAY 3"),
         dir.path().join("PAYDAY 3")
     );
+}
+
+// ── xbox discovery ────────────────────────────────────────────────────────
+
+use super::xbox::{find_game_in, find_via_package_manager, PackageCache, XboxEnvironment};
+use std::cell::Cell;
+use std::path::PathBuf;
+use std::time::Duration;
+
+struct FakeXboxEnv {
+    roots: Vec<PathBuf>,
+    package: Option<PathBuf>,
+    root_calls: Cell<usize>,
+    package_calls: Cell<usize>,
+}
+
+impl FakeXboxEnv {
+    fn new(roots: Vec<PathBuf>) -> Self {
+        Self {
+            roots,
+            package: None,
+            root_calls: Cell::new(0),
+            package_calls: Cell::new(0),
+        }
+    }
+
+    fn with_package(mut self, content: PathBuf) -> Self {
+        self.package = Some(content);
+        self
+    }
+}
+
+impl XboxEnvironment for FakeXboxEnv {
+    fn fixed_drive_roots(&self) -> Vec<PathBuf> {
+        self.root_calls.set(self.root_calls.get() + 1);
+        self.roots.clone()
+    }
+
+    fn package_content_path(&self, product_id: &str) -> Option<PathBuf> {
+        self.package_calls.set(self.package_calls.get() + 1);
+        if product_id != PD3.xbox.as_ref().unwrap().product_id {
+            return None;
+        }
+        self.package.clone()
+    }
+}
+
+fn xbox_exe() -> &'static str {
+    PD3.xbox.as_ref().unwrap().executable
+}
+
+fn xbox_copy(root: &Path, top: &str, game_dir: &str) -> PathBuf {
+    let content = root.join(top).join(game_dir).join("Content");
+    touch(content.join(xbox_exe()));
+    content
+}
+
+fn found(content: &Path) -> Option<String> {
+    Some(content.to_string_lossy().into_owned())
+}
+
+#[test]
+fn finds_install_in_the_standard_top_level_dir() {
+    let dir = TempDir::new().unwrap();
+    let content = xbox_copy(dir.path(), "XboxGames", PD3.name);
+    let env = FakeXboxEnv::new(vec![dir.path().to_path_buf()]);
+    assert_eq!(find_game_in(&env, &PD3), found(&content));
+}
+
+#[test]
+fn finds_install_in_a_nonstandard_top_level_dir() {
+    let dir = TempDir::new().unwrap();
+    let content = xbox_copy(dir.path(), "Games", PD3.name);
+    let env = FakeXboxEnv::new(vec![dir.path().to_path_buf()]);
+    assert_eq!(find_game_in(&env, &PD3), found(&content));
+}
+
+#[test]
+fn finds_install_on_a_later_root() {
+    let first = TempDir::new().unwrap();
+    let second = TempDir::new().unwrap();
+    std::fs::create_dir(first.path().join("Windows")).unwrap();
+    let content = xbox_copy(second.path(), "XboxGames", PD3.name);
+    let env = FakeXboxEnv::new(vec![
+        first.path().to_path_buf(),
+        second.path().to_path_buf(),
+    ]);
+    assert_eq!(find_game_in(&env, &PD3), found(&content));
+}
+
+#[test]
+fn unreadable_root_is_skipped_and_the_rest_are_searched() {
+    let dir = TempDir::new().unwrap();
+    let content = xbox_copy(dir.path(), "XboxGames", PD3.name);
+    let env = FakeXboxEnv::new(vec![
+        dir.path().join("no-such-root"),
+        dir.path().to_path_buf(),
+    ]);
+    assert_eq!(find_game_in(&env, &PD3), found(&content));
+}
+
+#[test]
+fn a_root_outside_the_reported_set_is_never_searched() {
+    let listed = TempDir::new().unwrap();
+    let unlisted = TempDir::new().unwrap();
+    xbox_copy(unlisted.path(), "XboxGames", PD3.name);
+    let env = FakeXboxEnv::new(vec![listed.path().to_path_buf()]);
+    assert_eq!(find_game_in(&env, &PD3), None);
+}
+
+#[test]
+fn a_top_level_file_is_not_treated_as_a_directory() {
+    let dir = TempDir::new().unwrap();
+    touch(dir.path().join("XboxGames"));
+    let env = FakeXboxEnv::new(vec![dir.path().to_path_buf()]);
+    assert_eq!(find_game_in(&env, &PD3), None);
+}
+
+#[test]
+fn a_deep_install_is_found_via_the_package_manager() {
+    let dir = TempDir::new().unwrap();
+    let content = dir
+        .path()
+        .join("Deep")
+        .join("Nested")
+        .join(PD3.name)
+        .join("Content");
+    touch(content.join(xbox_exe()));
+    let env = FakeXboxEnv::new(vec![dir.path().to_path_buf()]).with_package(content.clone());
+    assert_eq!(find_game_in(&env, &PD3), found(&content));
+}
+
+#[test]
+fn a_drive_hit_stops_before_the_package_manager() {
+    let dir = TempDir::new().unwrap();
+    let content = xbox_copy(dir.path(), "XboxGames", PD3.name);
+    let elsewhere = xbox_copy(dir.path(), "Other", "Something Else");
+    let env = FakeXboxEnv::new(vec![dir.path().to_path_buf()]).with_package(elsewhere);
+    assert_eq!(find_game_in(&env, &PD3), found(&content));
+    assert_eq!(env.package_calls.get(), 0);
+}
+
+#[test]
+fn a_package_for_another_product_id_is_not_matched() {
+    let dir = TempDir::new().unwrap();
+    let content = dir.path().join("Deep").join(PD3.name).join("Content");
+    touch(content.join(xbox_exe()));
+    let env = FakeXboxEnv::new(vec![]).with_package(content);
+    assert_eq!(find_via_package_manager(&env, "NOTPD3", xbox_exe()), None);
+}
+
+#[test]
+fn a_package_without_the_executable_is_rejected() {
+    let dir = TempDir::new().unwrap();
+    let content = dir.path().join("Deep").join(PD3.name).join("Content");
+    std::fs::create_dir_all(&content).unwrap();
+    let env = FakeXboxEnv::new(vec![]).with_package(content);
+    assert_eq!(find_game_in(&env, &PD3), None);
+}
+
+#[test]
+fn a_package_pointing_at_a_gone_location_is_rejected() {
+    let dir = TempDir::new().unwrap();
+    let env = FakeXboxEnv::new(vec![]).with_package(dir.path().join("gone").join("Content"));
+    assert_eq!(find_game_in(&env, &PD3), None);
+}
+
+#[test]
+fn a_package_query_that_answers_nothing_yields_none() {
+    let dir = TempDir::new().unwrap();
+    let env = FakeXboxEnv::new(vec![dir.path().to_path_buf()]);
+    assert_eq!(find_game_in(&env, &PD3), None);
+}
+
+#[test]
+fn a_game_without_a_store_build_asks_the_machine_nothing() {
+    let dir = TempDir::new().unwrap();
+    let env = FakeXboxEnv::new(vec![dir.path().to_path_buf()]);
+    assert_eq!(find_game_in(&env, &PD2), None);
+    assert_eq!(env.root_calls.get(), 0);
+    assert_eq!(env.package_calls.get(), 0);
+}
+
+#[test]
+fn each_call_requeries_the_environment() {
+    let dir = TempDir::new().unwrap();
+    let env = FakeXboxEnv::new(vec![dir.path().to_path_buf()]);
+    for _ in 0..3 {
+        assert_eq!(find_game_in(&env, &PD3), None);
+    }
+    assert_eq!(env.root_calls.get(), 3);
+    assert_eq!(env.package_calls.get(), 3);
+}
+
+// ── package cache ─────────────────────────────────────────────────────────
+
+#[test]
+fn probes_landing_together_query_the_package_manager_once() {
+    let dir = TempDir::new().unwrap();
+    // Two levels down, so the drive scan misses and the package manager is reached.
+    let content = dir
+        .path()
+        .join("Deep")
+        .join("Nested")
+        .join(PD3.name)
+        .join("Content");
+    touch(content.join(xbox_exe()));
+    let env = PackageCache::new(
+        FakeXboxEnv::new(vec![dir.path().to_path_buf()]).with_package(content.clone()),
+        Duration::MAX,
+    );
+    for _ in 0..3 {
+        assert_eq!(find_game_in(&env, &PD3), found(&content));
+    }
+    assert_eq!(env.inner.package_calls.get(), 1);
+}
+
+#[test]
+fn a_held_path_is_still_checked_on_disk() {
+    let dir = TempDir::new().unwrap();
+    let content = dir
+        .path()
+        .join("Deep")
+        .join("Nested")
+        .join(PD3.name)
+        .join("Content");
+    let exe = content.join(xbox_exe());
+    touch(exe.clone());
+    let env = PackageCache::new(
+        FakeXboxEnv::new(vec![dir.path().to_path_buf()]).with_package(content.clone()),
+        Duration::MAX,
+    );
+    assert_eq!(find_game_in(&env, &PD3), found(&content));
+
+    std::fs::remove_file(&exe).unwrap();
+    assert_eq!(find_game_in(&env, &PD3), None);
+    assert_eq!(env.inner.package_calls.get(), 1);
+}
+
+#[test]
+fn a_negative_answer_is_held_as_well() {
+    let dir = TempDir::new().unwrap();
+    let env = PackageCache::new(
+        FakeXboxEnv::new(vec![dir.path().to_path_buf()]),
+        Duration::MAX,
+    );
+    for _ in 0..3 {
+        assert_eq!(find_game_in(&env, &PD3), None);
+    }
+    assert_eq!(env.inner.package_calls.get(), 1);
+}
+
+#[test]
+fn an_expired_answer_is_asked_again() {
+    let dir = TempDir::new().unwrap();
+    let env = PackageCache::new(
+        FakeXboxEnv::new(vec![dir.path().to_path_buf()]),
+        Duration::ZERO,
+    );
+    for _ in 0..3 {
+        assert_eq!(find_game_in(&env, &PD3), None);
+    }
+    assert_eq!(env.inner.package_calls.get(), 3);
+}
+
+#[test]
+fn each_product_id_is_held_separately() {
+    let env = PackageCache::new(FakeXboxEnv::new(vec![]), Duration::MAX);
+    assert_eq!(find_via_package_manager(&env, "ONE", xbox_exe()), None);
+    assert_eq!(find_via_package_manager(&env, "TWO", xbox_exe()), None);
+    assert_eq!(env.inner.package_calls.get(), 2);
+}
+
+#[test]
+fn drive_roots_are_asked_for_every_time() {
+    let dir = TempDir::new().unwrap();
+    let env = PackageCache::new(
+        FakeXboxEnv::new(vec![dir.path().to_path_buf()]),
+        Duration::MAX,
+    );
+    for _ in 0..3 {
+        assert_eq!(find_game_in(&env, &PD3), None);
+    }
+    assert_eq!(env.inner.root_calls.get(), 3);
+}
+
+// The drive scan reaches dir_as_named_on_disk only on a case-insensitive filesystem.
+#[cfg(target_os = "windows")]
+#[test]
+fn a_differently_cased_folder_is_returned_as_it_is_spelled() {
+    let dir = TempDir::new().unwrap();
+    let content = xbox_copy(dir.path(), "XboxGames", "Payday 3");
+    let env = FakeXboxEnv::new(vec![dir.path().to_path_buf()]);
+    assert_eq!(find_game_in(&env, &PD3), found(&content));
+}
+
+// The package query is left out because it spawns PowerShell for up to 15 seconds.
+#[cfg(target_os = "windows")]
+#[test]
+fn the_real_environment_reports_the_system_drive() {
+    let roots = super::xbox::WindowsEnvironment.fixed_drive_roots();
+    assert!(roots.contains(&PathBuf::from("C:\\")), "got {roots:?}");
+}
+
+#[cfg(not(target_os = "windows"))]
+#[test]
+fn the_launcher_finds_nothing_off_windows() {
+    use super::types::Launcher;
+    assert_eq!(super::xbox::Xbox.find_game(&PD3), None);
+    assert!(!super::xbox::Xbox.is_installed());
 }
 
 // ── resolve_install ───────────────────────────────────────────────────────

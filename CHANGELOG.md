@@ -8,6 +8,10 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 - Added Italian as a language option for the app's interface.
 
+### Changed
+
+- Startup no longer runs the Microsoft Store lookup for a game more than once at a time.
+
 ### Fixed
 
 - Fixed Nexus Mods sign-in and website mod downloads not reaching Modrex on Linux.
