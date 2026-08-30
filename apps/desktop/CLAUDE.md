@@ -14,8 +14,6 @@ pnpm typecheck    # Type-check renderer without emitting (same as: pnpm tsc --no
 pnpm check-version # Verify package, Tauri, Cargo, and lockfile versions agree
 pnpm check-commands # Verify api.ts uses every command registered in collect_commands! in lib.rs, that the generated bindings are not stale, and that the invoke API stays api.ts-only (also runs in pre-commit and CI)
 pnpm check-csp    # Verify csp and devCsp in tauri.conf.json agree on all external origins (also runs in pre-commit and CI)
-pnpm check-games  # Verify the Rust GAME_REGISTRY and the TypeScript GAMES record list the same game ids (CI)
-pnpm check-sources # Verify the Rust SOURCE_REGISTRY and @modrex/games agree on each game's modworkshop id (CI)
 pnpm check-updater # Verify release.yml's latest.json generation matches the updater config in tauri.conf.json (CI only)
 pnpm check-i18n   # Validate each locale's translated subset and {var} interpolation against en.json, and report coverage (pre-commit + CI)
 pnpm i18n:help    # List translator-facing commands

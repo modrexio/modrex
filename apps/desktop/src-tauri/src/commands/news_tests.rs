@@ -33,7 +33,6 @@ fn category_slug_comes_from_the_package_news_binding() {
     assert_eq!(category_slug("pdth"), Some("theheist"));
     assert_eq!(category_slug("pd3"), Some("payday3"));
     assert_eq!(category_slug("unknown"), None);
-    // A game that declares no news binding must not fall back to another game's category.
     assert_eq!(category_slug("cb"), None);
     assert_eq!(category_slug("raid"), None);
 }

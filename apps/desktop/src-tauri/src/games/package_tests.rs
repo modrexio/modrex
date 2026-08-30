@@ -98,6 +98,119 @@ fn display_order_is_unique_across_packages() {
 }
 
 #[test]
+fn generating_the_catalogue_twice_is_byte_identical() {
+    assert_eq!(
+        super::catalog::catalog_typescript(),
+        super::catalog::catalog_typescript()
+    );
+}
+
+#[test]
+fn the_catalogue_carries_nothing_machine_specific() {
+    let catalogue = super::catalog::catalog_typescript();
+    assert!(!catalogue.contains(env!("CARGO_MANIFEST_DIR")));
+    for root in ["C:\\", "C:/", "/home/", "/Users/"] {
+        assert!(!catalogue.contains(root), "catalogue names {root}");
+    }
+}
+
+#[test]
+fn the_catalogue_lists_every_discovered_package_in_display_order() {
+    let catalogue = super::catalog::catalog_typescript();
+    let mut expected: Vec<(u16, &str)> = super::discovered()
+        .iter()
+        .map(|(_, pkg)| (pkg.display_order, pkg.id.as_str()))
+        .collect();
+    expected.sort_unstable();
+
+    let listed: Vec<&str> = catalogue
+        .lines()
+        .filter_map(|line| {
+            line.strip_prefix("    ")
+                .and_then(|l| l.strip_suffix(": {"))
+        })
+        .collect();
+    assert_eq!(
+        listed,
+        expected.iter().map(|(_, id)| *id).collect::<Vec<_>>()
+    );
+}
+
+/// Every game fact in the catalogue comes from the package, so a game reaches the frontend
+/// by declaring itself and nothing else.
+#[test]
+fn the_catalogue_derives_each_game_from_its_package() {
+    let catalogue = super::catalog::catalog_typescript();
+    for (directory, pkg) in super::discovered() {
+        let entry = catalogue
+            .split(&format!(
+                "    {}: {{
+",
+                pkg.id
+            ))
+            .nth(1)
+            .and_then(|rest| {
+                rest.split(
+                    "
+    },",
+                )
+                .next()
+            })
+            .unwrap_or_else(|| panic!("{directory} is not in the catalogue"));
+
+        assert!(entry.contains(&format!("name: '{}'", pkg.display_name)));
+        assert!(entry.contains(&format!("shortName: '{}'", pkg.short_name)));
+        assert!(entry.contains(&format!("storageKey: '{}'", pkg.id)));
+        assert!(entry.contains(&format!("hasNews: {}", pkg.news.is_some())));
+
+        let workshop = pkg
+            .sources
+            .modworkshop
+            .as_ref()
+            .expect("modworkshop binding");
+        assert!(entry.contains(&format!("workshopId: {}", workshop.game_id)));
+        match pkg.sources.nexus.as_ref() {
+            Some(nexus) => assert!(entry.contains(&format!("nexusDomain: '{}'", nexus.domain))),
+            None => assert!(!entry.contains("nexusDomain")),
+        }
+        match pkg.installation.required_launch_flag.as_ref() {
+            Some(flag) => assert!(entry.contains(&format!("requiredLaunchFlag: '{flag}'"))),
+            None => assert!(!entry.contains("requiredLaunchFlag")),
+        }
+
+        for (present, label) in [
+            (pkg.installation.steam.is_some(), "Steam"),
+            (pkg.installation.epic.is_some(), "Epic Games"),
+            (pkg.installation.xbox.is_some(), "Xbox App"),
+        ] {
+            assert_eq!(
+                entry.contains(&format!("'{label}'")),
+                present,
+                "{directory} launcher {label}"
+            );
+        }
+
+        for target in &pkg.targets {
+            assert!(entry.contains(&format!(
+                "{{ id: '{}', path: '{}' }}",
+                target.tag,
+                target.mods_subpath.join("/")
+            )));
+        }
+    }
+}
+
+#[test]
+fn catalogue_strings_are_escaped() {
+    assert_eq!(super::catalog::quote_for_test("plain"), "'plain'");
+    assert_eq!(super::catalog::quote_for_test("it's"), r"'it\'s'");
+    assert_eq!(
+        super::catalog::quote_for_test(r"back\slash"),
+        r"'back\\slash'"
+    );
+}
+
+#[test]
 fn an_unknown_package_field_is_rejected() {
     let mut value = serde_json::to_value(raid()).unwrap();
     value

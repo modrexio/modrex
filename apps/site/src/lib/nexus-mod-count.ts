@@ -2,9 +2,8 @@ import { GAMES } from '@modrex/games'
 
 const NEXUS_GRAPHQL_URL = 'https://api.nexusmods.com/v2/graphql'
 
-// Games Modrex has a Nexus presence for, from the single shared registry - RAID has
-// none and is naturally absent since its nexusDomain is unset. Cross-checked against
-// the Rust SOURCE_REGISTRY by check-sources.mjs.
+// Games Modrex has a Nexus presence for - RAID has none and is naturally absent since its
+// nexusDomain is unset.
 const NEXUS_GAME_DOMAINS = new Set(
     Object.values(GAMES)
         .map((g) => g.nexusDomain)

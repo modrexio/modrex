@@ -1,3 +1,5 @@
+pub mod catalog;
+
 use crate::game_package::GamePackage;
 use std::sync::LazyLock;
 

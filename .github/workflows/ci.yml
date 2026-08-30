@@ -76,8 +76,6 @@ jobs:
             - run: pnpm check-version
             - run: pnpm check-commands
             - run: pnpm check-csp
-            - run: pnpm check-games
-            - run: pnpm check-sources
             - run: pnpm check-updater
             - run: pnpm check-i18n
             - name: i18n read-only check
@@ -91,6 +89,10 @@ jobs:
             # registry; a diff means the committed bindings are stale.
             - name: Fail if generated bindings are stale
               run: git diff --exit-code apps/desktop/src/shared/bindings.ts
+
+            # Same test run regenerated the frontend game catalogue from the Rust packages.
+            - name: Fail if the generated game catalogue is stale
+              run: git diff --exit-code packages/games/catalog.generated.ts
 
     check-licenses:
         runs-on: ubuntu-latest
