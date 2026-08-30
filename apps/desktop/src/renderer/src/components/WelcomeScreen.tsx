@@ -10,7 +10,7 @@ import { SearchClearButton } from './ui/SearchClearButton'
 
 const INSTALLED_ONLY_KEY = 'modrex:show-installed-games-only'
 
-const CDN_URLS: Record<GameId, string> = {
+const CDN_URLS: Partial<Record<GameId, string>> = {
     pd3: 'https://cdn.akamai.steamstatic.com/steam/apps/1272080/library_600x900.jpg',
     pd2: 'https://cdn.akamai.steamstatic.com/steam/apps/218620/library_600x900.jpg',
     pdth: 'https://cdn.akamai.steamstatic.com/steam/apps/24240/library_600x900.jpg',
@@ -18,7 +18,7 @@ const CDN_URLS: Record<GameId, string> = {
     raid: 'https://cdn.akamai.steamstatic.com/steam/apps/414740/library_600x900.jpg',
 }
 
-const FALLBACK_STYLES: Record<GameId, { background: string; nameColor: string }> = {
+const FALLBACK_STYLES: Partial<Record<GameId, { background: string; nameColor: string }>> = {
     pd3: { background: 'linear-gradient(135deg, #1c0808 0%, #3d1212 100%)', nameColor: '#e05555' },
     pd2: { background: 'linear-gradient(135deg, #1a1306 0%, #3d2d0f 100%)', nameColor: '#e09020' },
     pdth: { background: 'linear-gradient(135deg, #060d1a 0%, #0f1f3d 100%)', nameColor: '#5588cc' },
@@ -27,6 +27,11 @@ const FALLBACK_STYLES: Record<GameId, { background: string; nameColor: string }>
         background: 'linear-gradient(135deg, #131806 0%, #333d0f 100%)',
         nameColor: '#a9c34f',
     },
+}
+
+const DEFAULT_STYLE = {
+    background: 'linear-gradient(135deg, #0f1014 0%, #262a33 100%)',
+    nameColor: '#c9ced9',
 }
 
 interface Props {
@@ -111,8 +116,8 @@ export function WelcomeScreen({ onSelectGame }: Props) {
                 {games.length ? (
                     <div className="grid grid-cols-[repeat(auto-fill,200px)] gap-6">
                         {games.map((g) => {
-                            const fallback = FALLBACK_STYLES[g]
-                            const showFallback = failed[g]
+                            const fallback = FALLBACK_STYLES[g] ?? DEFAULT_STYLE
+                            const showFallback = failed[g] || !CDN_URLS[g]
                             return (
                                 <button
                                     key={g}
