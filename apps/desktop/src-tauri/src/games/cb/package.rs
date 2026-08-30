@@ -1,7 +1,4 @@
-use crate::game_package::{
-    EnabledStateMechanism, EpicStore, GamePackage, Installation, LoaderBinding, LoaderConfig,
-    SignalSource, SteamStore, Storefront, Target, Ue4ssConfig, Unit, UE4SS_BUNDLED_SUBMODS,
-};
+use crate::game_package::{EnabledStateMechanism, EpicStore, GamePackage, Installation, LoaderBinding, LoaderConfig, ModWorkshopBinding, NexusBinding, SignalSource, Sources, SteamStore, Storefront, Target, Ue4ssConfig, Unit, UE4SS_BUNDLED_SUBMODS};
 
 fn owned(values: &[&str]) -> Vec<String> {
     values.iter().map(|s| s.to_string()).collect()
@@ -25,6 +22,15 @@ pub fn package() -> GamePackage {
                 display_name: "Crime Boss: Rockay City".to_string(),
             }),
             xbox: None,
+        },
+        sources: Sources {
+            modworkshop: Some(ModWorkshopBinding {
+                game_id: "857".to_string(),
+            }),
+            nexus: Some(NexusBinding {
+                domain: "crimebossrockaycity".to_string(),
+                numeric_id: 6528,
+            }),
         },
         loaders: vec![LoaderBinding {
             loader_id: "ue4ss".to_string(),

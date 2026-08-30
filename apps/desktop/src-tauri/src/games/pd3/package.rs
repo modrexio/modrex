@@ -1,8 +1,4 @@
-use crate::game_package::{
-    EnabledStateMechanism, EpicStore, GamePackage, Installation, LoaderBinding, LoaderConfig,
-    SignalSource, SteamStore, Storefront, Target, Ue4ssConfig, Unit, XboxStore,
-    UE4SS_BUNDLED_SUBMODS,
-};
+use crate::game_package::{EnabledStateMechanism, EpicStore, GamePackage, Installation, LoaderBinding, LoaderConfig, ModWorkshopBinding, NexusBinding, SignalSource, Sources, SteamStore, Storefront, Target, Ue4ssConfig, Unit, XboxStore, UE4SS_BUNDLED_SUBMODS};
 
 fn owned(values: &[&str]) -> Vec<String> {
     values.iter().map(|s| s.to_string()).collect()
@@ -28,6 +24,15 @@ pub fn package() -> GamePackage {
             xbox: Some(XboxStore {
                 product_id: "9NPZVDCH73SX".to_string(),
                 executable: "PAYDAY3/Binaries/WinGDK/PAYDAY3-WinGDK-Shipping.exe".to_string(),
+            }),
+        },
+        sources: Sources {
+            modworkshop: Some(ModWorkshopBinding {
+                game_id: "853".to_string(),
+            }),
+            nexus: Some(NexusBinding {
+                domain: "payday3".to_string(),
+                numeric_id: 5717,
             }),
         },
         loaders: vec![LoaderBinding {

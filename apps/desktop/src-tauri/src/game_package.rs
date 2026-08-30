@@ -148,6 +148,30 @@ pub struct LoaderBinding {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
+pub struct ModWorkshopBinding {
+    /// The numeric id modworkshop names this game by in its API paths, kept as text because
+    /// a source identifier is not arithmetic.
+    pub game_id: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct NexusBinding {
+    /// The domain slug the REST API and nxm:// links name this game by.
+    pub domain: String,
+    /// The numeric id the GraphQL content API filters on. Nexus names one game both ways.
+    pub numeric_id: u32,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct Sources {
+    pub modworkshop: Option<ModWorkshopBinding>,
+    pub nexus: Option<NexusBinding>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
 pub struct GamePackage {
     pub id: String,
     pub display_name: String,
@@ -155,6 +179,7 @@ pub struct GamePackage {
     pub state_filename: String,
     pub signals: SignalSource,
     pub installation: Installation,
+    pub sources: Sources,
     pub loaders: Vec<LoaderBinding>,
     pub targets: Vec<Target>,
 }

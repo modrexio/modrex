@@ -1,7 +1,7 @@
-import { readFileSync } from 'fs'
+import { readdirSync, readFileSync } from 'fs'
 
 // Both modworkshop's per-game id and Nexus's per-game domain are registered twice by
-// necessity: SOURCE_REGISTRY in Rust, and workshopId/nexusDomain in @modrex/games. Neither
+// necessity: the game package in Rust, and workshopId/nexusDomain in @modrex/games. Neither
 // side can see the other, so adding a game to one and forgetting the other compiles fine
 // and fails at runtime. This check diffs both.
 //
@@ -11,22 +11,19 @@ import { readFileSync } from 'fs'
 // mod counts at build time, so that copy is real, and diffed here the same way workshopId
 // already is.
 
-const rust = readFileSync('src-tauri/src/commands/sources.rs', 'utf8')
-const registryBlock = rust.match(/SOURCE_REGISTRY: &\[SourceSpec\] = &\[([\s\S]*?)\n\];/)?.[1]
-if (!registryBlock) {
-    console.error('check-sources: SOURCE_REGISTRY not found in src-tauri/src/commands/sources.rs')
-    process.exit(1)
-}
+const PACKAGE_ROOT = 'src-tauri/src/games'
 
-// Each SourceSpec is an id line followed by its games array, so splitting on the id
-// lines attributes every SourceGame block to the source it sits under.
-const rustSources = new Map()
-for (const chunk of registryBlock.split(/\bid:\s*"/).slice(1)) {
-    const sourceId = chunk.slice(0, chunk.indexOf('"'))
-    const pairs = [...chunk.matchAll(/game_id:\s*"([^"]+)"\s*,\s*native_id:\s*"([^"]+)"/g)].map(
-        (m) => [m[1], m[2]]
+const rustWorkshop = new Map()
+const rustNexus = new Map()
+for (const entry of readdirSync(PACKAGE_ROOT, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue
+    const source = readFileSync(`${PACKAGE_ROOT}/${entry.name}/package.rs`, 'utf8')
+    const workshop = source.match(
+        /modworkshop:\s*Some\(ModWorkshopBinding\s*\{[^}]*?game_id:\s*"([^"]+)"/
     )
-    rustSources.set(sourceId, new Map(pairs))
+    if (workshop) rustWorkshop.set(entry.name, workshop[1])
+    const nexus = source.match(/nexus:\s*Some\(NexusBinding\s*\{[^}]*?domain:\s*"([^"]+)"/)
+    if (nexus) rustNexus.set(entry.name, nexus[1])
 }
 
 const ts = readFileSync('../../packages/games/index.ts', 'utf8')
@@ -50,12 +47,7 @@ for (const chunk of specsBlock.split(/^ {4}(?=\w+:\s*\{)/m)) {
 
 const errors = []
 
-function diff(sourceId, tsMap) {
-    const rustMap = rustSources.get(sourceId)
-    if (!rustMap) {
-        errors.push(`source '${sourceId}' is missing from the Rust SOURCE_REGISTRY`)
-        return
-    }
+function diff(sourceId, rustMap, tsMap) {
     for (const [gameId, native] of rustMap) {
         if (!tsMap.has(gameId)) {
             errors.push(`${sourceId}: Rust maps '${gameId}' but @modrex/games does not`)
@@ -69,18 +61,16 @@ function diff(sourceId, tsMap) {
     }
     for (const gameId of tsMap.keys()) {
         if (!rustMap.has(gameId)) {
-            errors.push(
-                `${sourceId}: @modrex/games maps '${gameId}' but the Rust registry does not`
-            )
+            errors.push(`${sourceId}: @modrex/games maps '${gameId}' but its package does not`)
         }
     }
 }
 
-diff('modworkshop', tsWorkshop)
-diff('nexus', tsNexus)
+diff('modworkshop', rustWorkshop, tsWorkshop)
+diff('nexus', rustNexus, tsNexus)
 
 if (errors.length > 0) {
-    console.error('Source registry disagrees between Rust and TypeScript:')
+    console.error('Source bindings disagree between Rust and TypeScript:')
     for (const e of errors) console.error(`  ${e}`)
     process.exit(1)
 }

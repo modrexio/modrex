@@ -1,7 +1,4 @@
-use crate::game_package::{
-    EnabledStateMechanism, EpicStore, GamePackage, Installation, LoaderBinding, SignalSource,
-    SteamStore, Target, Unit, DIESEL_INFRA_FOLDERS,
-};
+use crate::game_package::{EnabledStateMechanism, EpicStore, GamePackage, Installation, LoaderBinding, ModWorkshopBinding, NexusBinding, SignalSource, Sources, SteamStore, Target, Unit, DIESEL_INFRA_FOLDERS};
 
 fn owned(values: &[&str]) -> Vec<String> {
     values.iter().map(|s| s.to_string()).collect()
@@ -25,6 +22,15 @@ pub fn package() -> GamePackage {
                 display_name: "PAYDAY 2".to_string(),
             }),
             xbox: None,
+        },
+        sources: Sources {
+            modworkshop: Some(ModWorkshopBinding {
+                game_id: "1".to_string(),
+            }),
+            nexus: Some(NexusBinding {
+                domain: "payday2".to_string(),
+                numeric_id: 648,
+            }),
         },
         loaders: vec![LoaderBinding {
             loader_id: "superblt".to_string(),
