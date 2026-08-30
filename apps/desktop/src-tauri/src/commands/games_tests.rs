@@ -1,5 +1,5 @@
 use super::*;
-use crate::commands::mods::{backup_dir, disabled_dir, get_state_path, mods_dir};
+use crate::commands::mods::{backup_dir, disabled_dir, get_state_path, mods_dir, ModUnit};
 use crate::game_package::{
     EnabledStateMechanism, SignalSource, DIESEL_INFRA_FOLDERS, UE4SS_BUNDLED_SUBMODS,
 };
@@ -218,6 +218,79 @@ fn pd2_recognises_an_install_by_either_executable() {
         assert_eq!(def.resolve_executable(path), Some(exe));
         assert!(def.is_installation(path));
     }
+}
+
+#[test]
+fn pdth_resolves_both_of_its_mod_targets() {
+    let cfg = crate::commands::mods::engine_for_game("pdth").unwrap();
+    assert_eq!(cfg.targets.len(), 2);
+
+    let mods = cfg.primary();
+    assert_eq!(mods.tag, "mods");
+    assert!(std::ptr::eq(cfg.target_for(None), mods));
+    assert!(std::ptr::eq(cfg.target_for(Some("mods")), mods));
+    assert!(mods.is_directory_unit());
+    assert_eq!(mods.enabled_state, EnabledStateMechanism::Filesystem);
+    assert_eq!(mods.excluded_names(), DIESEL_INFRA_FOLDERS);
+
+    let ModUnit::Directory {
+        entry_markers,
+        scan_markers,
+        index_gated_markers,
+        ..
+    } = &mods.unit
+    else {
+        panic!("pdth installs mods as directories");
+    };
+    assert_eq!(*entry_markers, ["mod.txt", "base.lua"]);
+    assert_eq!(*scan_markers, ["mod.txt"]);
+    assert_eq!(*index_gated_markers, ["base.lua"]);
+
+    let overrides = cfg.target_for(Some("mod_overrides"));
+    assert_eq!(overrides.tag, "mod_overrides");
+    assert!(overrides.is_directory_unit());
+    assert!(overrides.excluded_names().is_empty());
+
+    let game = "C:/Games/PAYDAY The Heist";
+    let root = PathBuf::from(game);
+    assert_eq!(mods_dir(game, mods), root.join("mods"));
+    assert_eq!(disabled_dir(game, mods), root.join("mods/disabled"));
+    assert_eq!(backup_dir(game, mods), root.join("mods.bak"));
+    assert_eq!(mods_dir(game, overrides), root.join("assets/mod_overrides"));
+    assert_eq!(
+        backup_dir(game, overrides),
+        root.join("assets/mod_overrides.bak")
+    );
+    assert_eq!(get_state_path(game, cfg), root.join("mods/.modrex.json"));
+}
+
+#[test]
+fn pdth_keeps_its_launch_and_storefront_metadata() {
+    let spec = game_spec("pdth").expect("pdth resolves");
+    assert_eq!(spec.engine.index_game_name, "PAYDAY: The Heist");
+    assert_eq!(spec.engine.signals, SignalSource::Diesel);
+    assert_eq!(spec.def.name, "PAYDAY: The Heist");
+    assert_eq!(spec.def.executables, ["payday_win32_release.exe"]);
+    assert_eq!(spec.def.process_names, ["payday_win32_release"]);
+    let steam = spec.def.steam.as_ref().expect("pdth ships on steam");
+    assert_eq!(steam.app_id, 24240);
+    assert_eq!(steam.folder_name, "PAYDAY The Heist");
+    assert!(spec.def.epic.is_none());
+    assert!(spec.def.xbox.is_none());
+}
+
+#[test]
+fn pdth_recognises_an_install_by_its_executable() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().to_str().unwrap();
+    let def = game_spec("pdth").unwrap().def;
+    assert!(!def.is_installation(path));
+    std::fs::write(dir.path().join("payday_win32_release.exe"), b"").unwrap();
+    assert_eq!(
+        def.resolve_executable(path),
+        Some("payday_win32_release.exe")
+    );
+    assert!(def.is_installation(path));
 }
 
 #[test]

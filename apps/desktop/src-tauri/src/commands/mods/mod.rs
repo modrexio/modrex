@@ -24,7 +24,6 @@ mod zip;
 // Public API used by lib.rs, launchers/, and other modules
 pub use self::engine::{
     backup_dir, engine_for_game, ModEngineConfig, ModUnit, ScanTarget, CRIMEBOSS_ENGINE,
-    PDTH_ENGINE,
 };
 pub use self::identity::IdentityEvidence;
 pub use self::install::install_mod_from_path;

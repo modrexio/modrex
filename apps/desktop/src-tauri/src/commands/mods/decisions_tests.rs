@@ -1,5 +1,5 @@
 use super::decisions::*;
-use super::engine::{engine_for_game, ModEngineConfig, ScanTarget, CRIMEBOSS_ENGINE, PDTH_ENGINE};
+use super::engine::{engine_for_game, ModEngineConfig, ScanTarget, CRIMEBOSS_ENGINE};
 use std::path::PathBuf;
 
 fn target<'a>(cfg: &'a ModEngineConfig, tag: &str) -> &'a ScanTarget {
@@ -22,10 +22,14 @@ fn pd2_engine() -> &'static ModEngineConfig {
     engine_for_game("pd2").unwrap()
 }
 
+fn pdth_engine() -> &'static ModEngineConfig {
+    engine_for_game("pdth").unwrap()
+}
+
 #[test]
 fn only_crime_boss_resyncs_enabled_flags() {
     assert!(resyncs_enabled_flags(&CRIMEBOSS_ENGINE));
-    for cfg in [pd3_engine(), pd2_engine(), &PDTH_ENGINE, raid_engine()] {
+    for cfg in [pd3_engine(), pd2_engine(), pdth_engine(), raid_engine()] {
         assert!(!resyncs_enabled_flags(cfg), "{} must not", cfg.game_id);
     }
 }
@@ -67,8 +71,8 @@ fn filename_from_mod_name_covers_every_game_and_unit() {
     for (cfg, tag) in [
         (pd2_engine(), "mods"),
         (pd2_engine(), "mod_overrides"),
-        (&PDTH_ENGINE, "mods"),
-        (&PDTH_ENGINE, "mod_overrides"),
+        (pdth_engine(), "mods"),
+        (pdth_engine(), "mod_overrides"),
         (raid_engine(), "mods"),
         (pd3_engine(), "ue4ss_mods"),
     ] {
@@ -176,7 +180,7 @@ fn dropped_filename_uses_the_recovered_stem_for_directories() {
 
 #[test]
 fn zip_entry_filename_keeps_the_entry_name_off_crime_boss() {
-    for cfg in [pd3_engine(), pd2_engine(), &PDTH_ENGINE, raid_engine()] {
+    for cfg in [pd3_engine(), pd2_engine(), pdth_engine(), raid_engine()] {
         assert_eq!(
             install_filename_for_zip_entry(cfg, "CoolMod", "Inner Entry.pak"),
             "Inner Entry.pak",
@@ -227,7 +231,7 @@ fn entry_staging_wraps_only_crime_boss_pak_entries() {
     for (cfg, tag) in [
         (pd3_engine(), "ue4ss_mods"),
         (pd2_engine(), "mods"),
-        (&PDTH_ENGINE, "mods"),
+        (pdth_engine(), "mods"),
         (raid_engine(), "mods"),
     ] {
         assert_eq!(
@@ -263,7 +267,7 @@ fn entry_extraction_skips_only_the_already_staged_crime_boss_entry() {
     for (cfg, tag) in [
         (pd3_engine(), "ue4ss_mods"),
         (pd2_engine(), "mods"),
-        (&PDTH_ENGINE, "mod_overrides"),
+        (pdth_engine(), "mod_overrides"),
         (raid_engine(), "mods"),
     ] {
         assert_eq!(

@@ -1,5 +1,5 @@
+use crate::game_package::UE4SS_BUNDLED_SUBMODS;
 pub use crate::game_package::{EnabledStateMechanism, SignalSource};
-use crate::game_package::{DIESEL_INFRA_FOLDERS, UE4SS_BUNDLED_SUBMODS};
 use std::path::PathBuf;
 
 pub enum ModUnit {
@@ -151,50 +151,6 @@ pub static CRIMEBOSS_ENGINE: ModEngineConfig = ModEngineConfig {
             mods_subpath: &["CrimeBoss", "Binaries", "Win64", "Mods"],
             disabled_subpath: &["CrimeBoss", "Binaries", "Win64", "Mods", "disabled"],
             backup_subpath: &["CrimeBoss", "Binaries", "Win64", "Mods.bak"],
-        },
-    ],
-};
-
-pub static PDTH_ENGINE: ModEngineConfig = ModEngineConfig {
-    game_id: "pdth",
-    index_game_name: "PAYDAY: The Heist",
-    state_filename: ".modrex.json",
-    signals: SignalSource::Diesel,
-    targets: &[
-        ScanTarget {
-            tag: "mods",
-            unit: ModUnit::Directory {
-                // base.lua is the DAHM mod-framework entry point. It is in entry_markers so
-                // DAHM sub-mod ZIPs classify correctly during install, and in
-                // index_gated_markers so base.lua-only directories ARE discovered by the scan
-                // but tracked only when their SHA256 matches the mod index. That match is the
-                // reliable way to tell user-installed sub-mods from DAHM's own framework.
-                entry_markers: &["mod.txt", "base.lua"],
-                scan_markers: &["mod.txt"],
-                index_gated_markers: &["base.lua"],
-                excluded_names: DIESEL_INFRA_FOLDERS,
-                priority_prefix: false,
-            },
-            enabled_state: EnabledStateMechanism::Filesystem,
-            label_key: "mods",
-            mods_subpath: &["mods"],
-            disabled_subpath: &["mods", "disabled"],
-            backup_subpath: &["mods.bak"],
-        },
-        ScanTarget {
-            tag: "mod_overrides",
-            unit: ModUnit::Directory {
-                entry_markers: &[],
-                scan_markers: &[],
-                index_gated_markers: &[],
-                excluded_names: &[],
-                priority_prefix: false,
-            },
-            enabled_state: EnabledStateMechanism::Filesystem,
-            label_key: "overrides",
-            mods_subpath: &["assets", "mod_overrides"],
-            disabled_subpath: &["assets", "mod_overrides", "disabled"],
-            backup_subpath: &["assets", "mod_overrides.bak"],
         },
     ],
 };

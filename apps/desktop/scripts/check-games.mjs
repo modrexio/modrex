@@ -36,11 +36,8 @@ if (!specsBlock) {
 const tsIds = [...specsBlock.matchAll(/^ {4}(\w+):\s*\{/gm)].map((m) => m[1])
 
 // Only the games that have no package yet need these.
-const legacyGameFiles = {
-    pdth: 'pdth',
-    cb: 'crimeboss',
-}
-const legacyEngineNames = { pdth: 'PDTH', cb: 'CRIMEBOSS' }
+const legacyGameFiles = { cb: 'crimeboss' }
+const legacyEngineNames = { cb: 'CRIMEBOSS' }
 const launcherFields = [
     ['Steam', 'steam'],
     ['Epic Games', 'epic'],

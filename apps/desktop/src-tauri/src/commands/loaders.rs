@@ -89,10 +89,7 @@ pub static LOADER_REGISTRY: &[LoaderSpec] = &[
     },
     LoaderSpec {
         id: "pdth_overrides",
-        legacy_games: &[LegacyLoaderGame {
-            game_id: "pdth",
-            modworkshop_ids: &[53474],
-        }],
+        legacy_games: &[],
         // DINPUT8.dll is the proxy loader and PDTHModOverrides.dll the payload. Only the
         // proxy's presence is the install signal, but both are extracted below.
         detect: DetectStrategy::RootFiles(&["DINPUT8.dll"]),
@@ -103,10 +100,7 @@ pub static LOADER_REGISTRY: &[LoaderSpec] = &[
     },
     LoaderSpec {
         id: "dahm",
-        legacy_games: &[LegacyLoaderGame {
-            game_id: "pdth",
-            modworkshop_ids: &[14267],
-        }],
+        legacy_games: &[],
         detect: DetectStrategy::RootFiles(&["lightfx.dll"]),
         // Stable redirect maintained by DAHM's author, which 302s to a versioned ZIP that
         // extracts flat to the game root (it ships ~40 framework modules alongside).
