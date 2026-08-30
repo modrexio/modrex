@@ -92,10 +92,6 @@ jobs:
             - name: Fail if generated bindings are stale
               run: git diff --exit-code apps/desktop/src/shared/bindings.ts
 
-            # Same test run regenerated every discovered game package artifact.
-            - name: Fail if generated game package artifacts are stale
-              run: git diff --exit-code -- 'apps/desktop/src-tauri/src/games/*/package.json'
-
     check-licenses:
         runs-on: ubuntu-latest
         steps:

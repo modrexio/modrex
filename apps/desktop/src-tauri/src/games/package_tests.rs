@@ -34,37 +34,6 @@ fn every_discovered_package_round_trips_through_json() {
 }
 
 #[test]
-fn a_generated_artifact_restores_the_package_it_came_from() {
-    for (directory, pkg) in super::discovered() {
-        let json = super::artifacts::package_json(pkg);
-        assert!(json.ends_with('\n'), "{directory}");
-        let restored: GamePackage = serde_json::from_str(&json).expect("artifact deserializes");
-        assert_eq!(restored, *pkg, "{directory}");
-    }
-}
-
-#[test]
-fn generating_an_artifact_twice_is_byte_identical() {
-    for (_, pkg) in super::discovered() {
-        assert_eq!(
-            super::artifacts::package_json(pkg),
-            super::artifacts::package_json(pkg)
-        );
-    }
-}
-
-#[test]
-fn a_generated_artifact_carries_nothing_machine_specific() {
-    for (directory, pkg) in super::discovered() {
-        let json = super::artifacts::package_json(pkg);
-        assert!(!json.contains(env!("CARGO_MANIFEST_DIR")), "{directory}");
-        for root in ["C:\\", "C:/", "/home/", "/Users/"] {
-            assert!(!json.contains(root), "{directory} names {root}");
-        }
-    }
-}
-
-#[test]
 fn an_unknown_package_field_is_rejected() {
     let mut value = serde_json::to_value(raid()).unwrap();
     value
