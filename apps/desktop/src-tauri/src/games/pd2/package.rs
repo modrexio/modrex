@@ -29,6 +29,7 @@ pub fn package() -> GamePackage {
         loaders: vec![LoaderBinding {
             loader_id: "superblt".to_string(),
             modworkshop_ids: Vec::new(),
+            config: None,
         }],
         targets: vec![
             Target {

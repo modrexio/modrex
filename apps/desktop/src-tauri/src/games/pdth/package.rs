@@ -28,10 +28,12 @@ pub fn package() -> GamePackage {
             LoaderBinding {
                 loader_id: "pdth_overrides".to_string(),
                 modworkshop_ids: vec![53474],
+                config: None,
             },
             LoaderBinding {
                 loader_id: "dahm".to_string(),
                 modworkshop_ids: vec![14267],
+                config: None,
             },
         ],
         targets: vec![

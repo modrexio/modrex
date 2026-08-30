@@ -1,6 +1,7 @@
 use crate::game_package::{
-    EnabledStateMechanism, EpicStore, GamePackage, Installation, LoaderBinding, SignalSource,
-    SteamStore, Target, Unit, XboxStore, UE4SS_BUNDLED_SUBMODS,
+    EnabledStateMechanism, EpicStore, GamePackage, Installation, LoaderBinding, LoaderConfig,
+    SignalSource, SteamStore, Storefront, Target, Ue4ssConfig, Unit, XboxStore,
+    UE4SS_BUNDLED_SUBMODS,
 };
 
 fn owned(values: &[&str]) -> Vec<String> {
@@ -31,7 +32,19 @@ pub fn package() -> GamePackage {
         },
         loaders: vec![LoaderBinding {
             loader_id: "ue4ss".to_string(),
+            // Two independently maintained mod pages distribute UE4SS for this game, each
+            // with its own proxy DLL: 44048 (Narknon) ships dxgi.dll and 47771
+            // (Shalashaska) ships xinput1_3.dll, so either presence counts. The Xbox and
+            // GamePass build stages under Binaries/WinGDK with an unverified proxy DLL,
+            // which is why it is absent from storefronts.
             modworkshop_ids: vec![47771, 44048],
+            config: Some(LoaderConfig::Ue4ss(Ue4ssConfig {
+                storefronts: vec![Storefront::Steam, Storefront::Epic],
+                proxy_dlls: owned(&["xinput1_3.dll", "dxgi.dll"]),
+                // As with the ue4ss_mods target below, game_path already ends in PAYDAY3,
+                // so this names the inner project subfolder, not a second copy of it.
+                binaries_subpath: owned(&["PAYDAY3", "Binaries", "Win64"]),
+            })),
         }],
         targets: vec![
             Target {
@@ -47,8 +60,9 @@ pub fn package() -> GamePackage {
                 disabled_subpath: owned(&["PAYDAY3", "Content", "Paks", "~mods", "disabled"]),
                 backup_subpath: owned(&["PAYDAY3", "Content", "~mods.bak"]),
             },
-            // game_path already ends in PAYDAY3 (the Steam installdir). See ue4ss.rs's
-            // descriptor comment for why this is not a second copy of it. Steam and Epic only.
+            // game_path already ends in PAYDAY3, the Steam installdir name, so this names
+            // the inner project subfolder rather than repeating the installdir. Verified
+            // against a real install.
             Target {
                 tag: "ue4ss_mods".to_string(),
                 label_key: "ue4ssMods".to_string(),

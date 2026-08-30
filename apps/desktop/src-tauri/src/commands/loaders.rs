@@ -386,6 +386,25 @@ mod tests {
         assert_eq!(scoped_bindings().len(), declared);
     }
 
+    /// Loader configuration is only meaningful to the loader it configures, so it must never
+    /// ride along on another loader's binding.
+    #[test]
+    fn loader_configuration_only_appears_on_the_loader_it_configures() {
+        for (game_id, pkg) in crate::games::discovered() {
+            for binding in &pkg.loaders {
+                let Some(config) = binding.config.as_ref() else {
+                    continue;
+                };
+                let crate::game_package::LoaderConfig::Ue4ss(_) = config;
+                assert_eq!(
+                    binding.loader_id, "ue4ss",
+                    "{game_id} put UE4SS configuration on '{}'",
+                    binding.loader_id
+                );
+            }
+        }
+    }
+
     #[test]
     fn an_unknown_loader_id_fails_closed() {
         assert!(loader_spec("nope").is_none());

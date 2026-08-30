@@ -35,6 +35,7 @@ pub fn package() -> GamePackage {
         loaders: vec![LoaderBinding {
             loader_id: "raid_superblt".to_string(),
             modworkshop_ids: vec![49744],
+            config: None,
         }],
         targets: vec![Target {
             tag: "mods".to_string(),

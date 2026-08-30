@@ -1,6 +1,6 @@
 use crate::game_package::{
-    EnabledStateMechanism, EpicStore, GamePackage, Installation, LoaderBinding, SignalSource,
-    SteamStore, Target, Unit, UE4SS_BUNDLED_SUBMODS,
+    EnabledStateMechanism, EpicStore, GamePackage, Installation, LoaderBinding, LoaderConfig,
+    SignalSource, SteamStore, Storefront, Target, Ue4ssConfig, Unit, UE4SS_BUNDLED_SUBMODS,
 };
 
 fn owned(values: &[&str]) -> Vec<String> {
@@ -28,7 +28,15 @@ pub fn package() -> GamePackage {
         },
         loaders: vec![LoaderBinding {
             loader_id: "ue4ss".to_string(),
+            // One maintainer and one release line ("UE4SS-CB"), so no other proxy DLL has
+            // been seen. The game has no Xbox or GamePass release and no Epic build of this
+            // mod has been confirmed.
             modworkshop_ids: vec![47749],
+            config: Some(LoaderConfig::Ue4ss(Ue4ssConfig {
+                storefronts: vec![Storefront::Steam],
+                proxy_dlls: owned(&["dwmapi.dll"]),
+                binaries_subpath: owned(&["CrimeBoss", "Binaries", "Win64"]),
+            })),
         }],
         targets: vec![
             // Primary target is CrimeBoss/Mods/<name>/ (Directory unit), the official

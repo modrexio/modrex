@@ -112,6 +112,28 @@ pub struct Installation {
     pub xbox: Option<XboxStore>,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Storefront {
+    Steam,
+    Epic,
+    Xbox,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct Ue4ssConfig {
+    /// Builds whose proxy DLL and destination were verified against a real install. UE4SS is
+    /// forked per game, so a storefront missing here is unsupported rather than guessed.
+    pub storefronts: Vec<Storefront>,
+    pub proxy_dlls: Vec<String>,
+    pub binaries_subpath: Vec<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+pub enum LoaderConfig {
+    Ue4ss(Ue4ssConfig),
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct LoaderBinding {
@@ -121,6 +143,7 @@ pub struct LoaderBinding {
     /// offsite and has no mod page, which the renderer matches by a name heuristic
     /// instead.
     pub modworkshop_ids: Vec<i64>,
+    pub config: Option<LoaderConfig>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
