@@ -285,6 +285,11 @@ pub fn run() {
 /// integration test: referencing ipc_builder() links the whole command surface, including
 /// rfd's comctl32 v6 dialog imports, which need the manifest build.rs embeds only in tests.
 #[doc(hidden)]
+pub fn export_game_package_artifacts() {
+    games::artifacts::export_package_artifacts();
+}
+
+#[doc(hidden)]
 pub fn export_typescript_bindings() {
     ipc_builder()
         .export(

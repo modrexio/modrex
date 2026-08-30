@@ -1,6 +1,8 @@
 use crate::game_package::GamePackage;
 use std::sync::LazyLock;
 
+pub mod artifacts;
+
 #[cfg(test)]
 mod package_tests;
 

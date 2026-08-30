@@ -1,0 +1,52 @@
+{
+  "id": "raid",
+  "display_name": "RAID: World War II",
+  "index_game_name": "RAID: World War II",
+  "state_filename": ".modrex.json",
+  "signals": "Diesel",
+  "installation": {
+    "executables": [
+      "raid_win64_release.exe"
+    ],
+    "process_names": [
+      "raid_win64_release"
+    ],
+    "steam": {
+      "app_id": 414740,
+      "folder_name": "RAID World War II"
+    },
+    "epic": null,
+    "xbox": null
+  },
+  "targets": [
+    {
+      "tag": "mods",
+      "label_key": "mods",
+      "unit": {
+        "Directory": {
+          "entry_markers": [],
+          "scan_markers": [],
+          "index_gated_markers": [],
+          "excluded_names": [
+            "base",
+            "downloads",
+            "logs",
+            "saves"
+          ],
+          "priority_prefix": false
+        }
+      },
+      "enabled_state": "Filesystem",
+      "mods_subpath": [
+        "mods"
+      ],
+      "disabled_subpath": [
+        "mods",
+        "disabled"
+      ],
+      "backup_subpath": [
+        "mods.bak"
+      ]
+    }
+  ]
+}
