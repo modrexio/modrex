@@ -3647,8 +3647,6 @@ fn directory_unit_targets_select_filesystem_activation() {
     }
 }
 
-// Two engines identical but for their tag and mechanism, crossed against each other so that
-// selecting from the tag rather than from enabled_state fails one of them.
 const fn crossed_target(tag: &'static str, enabled_state: EnabledStateMechanism) -> ScanTarget {
     ScanTarget {
         tag,
@@ -3688,8 +3686,7 @@ static FILESYSTEM_UNDER_THE_UE4SS_TAG: [ScanTarget; 1] = [crossed_target(
 static MODS_TXT_TAG_ENGINE: ModEngineConfig = crossed_engine(&MODS_TXT_UNDER_ANOTHER_TAG);
 static FILESYSTEM_TAG_ENGINE: ModEngineConfig = crossed_engine(&FILESYSTEM_UNDER_THE_UE4SS_TAG);
 
-/// Installs one enabled sub-mod plus the loader's own mods.txt listing it, and returns the
-/// state path, the mods.txt path and the sub-mod's script.
+/// Returns the state path, the mods.txt path and the sub-mod's script.
 fn stage_crossed_submod(game: &TempDir, cfg: &ModEngineConfig) -> (PathBuf, PathBuf, PathBuf) {
     let root = game.path().to_str().unwrap();
     let mods = mods_base(root, cfg.primary());
