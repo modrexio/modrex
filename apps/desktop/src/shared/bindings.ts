@@ -555,6 +555,10 @@ export type ListModsParams = {
 export type LoaderInfo = {
 	id: string,
 	modworkshopIds: number[],
+	/**
+	 *  The one game this entry is scoped to. Its ids mean nothing for any other game, so a
+	 *  consumer must select by game before reading the ids.
+	 */
 	games: string[],
 	/**
 	 *  No direct download, so the renderer must route installs through the normal mod

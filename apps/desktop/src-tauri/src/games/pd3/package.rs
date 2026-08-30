@@ -1,6 +1,6 @@
 use crate::game_package::{
-    EnabledStateMechanism, EpicStore, GamePackage, Installation, SignalSource, SteamStore, Target,
-    Unit, XboxStore, UE4SS_BUNDLED_SUBMODS,
+    EnabledStateMechanism, EpicStore, GamePackage, Installation, LoaderBinding, SignalSource,
+    SteamStore, Target, Unit, XboxStore, UE4SS_BUNDLED_SUBMODS,
 };
 
 fn owned(values: &[&str]) -> Vec<String> {
@@ -29,6 +29,10 @@ pub fn package() -> GamePackage {
                 executable: "PAYDAY3/Binaries/WinGDK/PAYDAY3-WinGDK-Shipping.exe".to_string(),
             }),
         },
+        loaders: vec![LoaderBinding {
+            loader_id: "ue4ss".to_string(),
+            modworkshop_ids: vec![47771, 44048],
+        }],
         targets: vec![
             Target {
                 tag: "paks".to_string(),

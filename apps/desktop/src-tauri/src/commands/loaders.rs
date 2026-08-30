@@ -38,14 +38,18 @@ pub enum InstallStrategy {
     ViaModFlow,
 }
 
+/// A game that names this loader here rather than in its own package, paired with the mod
+/// ids the loader is published under for that game. Empty ids mean the loader is hosted
+/// offsite (SuperBLT has no modworkshop page, so the renderer matches it by a name
+/// heuristic).
+pub struct LegacyLoaderGame {
+    pub game_id: &'static str,
+    pub modworkshop_ids: &'static [i64],
+}
+
 pub struct LoaderSpec {
     pub id: &'static str,
-    /// modworkshop mod ids this loader is published under. A dependency on one of these
-    /// means "install the loader", not "install a mod". Empty for loaders hosted offsite
-    /// (SuperBLT has no modworkshop page, so the renderer matches it by a name heuristic).
-    pub modworkshop_ids: &'static [i64],
-    /// Games whose mods can depend on this loader.
-    pub games: &'static [&'static str],
+    pub legacy_games: &'static [LegacyLoaderGame],
     pub detect: DetectStrategy,
     pub install: InstallStrategy,
 }
@@ -57,6 +61,8 @@ pub struct LoaderSpec {
 pub struct LoaderInfo {
     pub id: String,
     pub modworkshop_ids: Vec<i64>,
+    /// The one game this entry is scoped to. Its ids mean nothing for any other game, so a
+    /// consumer must select by game before reading the ids.
     pub games: Vec<String>,
     /// No direct download, so the renderer must route installs through the normal mod
     /// flow rather than calling install_loader.
@@ -66,8 +72,10 @@ pub struct LoaderInfo {
 pub static LOADER_REGISTRY: &[LoaderSpec] = &[
     LoaderSpec {
         id: "superblt",
-        modworkshop_ids: &[],
-        games: &["pd2"],
+        legacy_games: &[LegacyLoaderGame {
+            game_id: "pd2",
+            modworkshop_ids: &[],
+        }],
         // WSOCK32.dll (current), IPHLPAPI.dll (legacy), libsuperblt_loader.so (Linux
         // native). The loader never appears under mods/, so game-root presence is the
         // only reliable signal.
@@ -86,8 +94,10 @@ pub static LOADER_REGISTRY: &[LoaderSpec] = &[
     },
     LoaderSpec {
         id: "pdth_overrides",
-        modworkshop_ids: &[53474],
-        games: &["pdth"],
+        legacy_games: &[LegacyLoaderGame {
+            game_id: "pdth",
+            modworkshop_ids: &[53474],
+        }],
         // DINPUT8.dll is the proxy loader and PDTHModOverrides.dll the payload. Only the
         // proxy's presence is the install signal, but both are extracted below.
         detect: DetectStrategy::RootFiles(&["DINPUT8.dll"]),
@@ -98,8 +108,10 @@ pub static LOADER_REGISTRY: &[LoaderSpec] = &[
     },
     LoaderSpec {
         id: "dahm",
-        modworkshop_ids: &[14267],
-        games: &["pdth"],
+        legacy_games: &[LegacyLoaderGame {
+            game_id: "pdth",
+            modworkshop_ids: &[14267],
+        }],
         detect: DetectStrategy::RootFiles(&["lightfx.dll"]),
         // Stable redirect maintained by DAHM's author, which 302s to a versioned ZIP that
         // extracts flat to the game root (it ships ~40 framework modules alongside).
@@ -109,8 +121,7 @@ pub static LOADER_REGISTRY: &[LoaderSpec] = &[
     },
     LoaderSpec {
         id: "raid_superblt",
-        modworkshop_ids: &[49744],
-        games: &["raid"],
+        legacy_games: &[],
         // IPHLPAPI.dll is also what the discontinued RaidBLT shipped, so its presence
         // means a BLT hook is installed, not necessarily the SuperBLT one. No Linux
         // variant, because RAID has no native Linux build.
@@ -124,10 +135,10 @@ pub static LOADER_REGISTRY: &[LoaderSpec] = &[
     },
     LoaderSpec {
         id: "ue4ss",
-        // Crime Boss (47749) plus PD3's two independently-maintained mod pages
-        // (47771 newer, 44048 older). Both PD3 ids must be recognized.
-        modworkshop_ids: &[47749, 47771, 44048],
-        games: &["cb", "pd3"],
+        legacy_games: &[LegacyLoaderGame {
+            game_id: "cb",
+            modworkshop_ids: &[47749],
+        }],
         detect: DetectStrategy::Ue4ssProxy,
         install: InstallStrategy::ViaModFlow,
     },
@@ -141,18 +152,38 @@ fn spec_or_err(loader_id: &str) -> Result<&'static LoaderSpec, String> {
     loader_spec(loader_id).ok_or_else(|| format!("unknown loader id '{loader_id}'"))
 }
 
+/// Every game-to-loader relationship, carrying only the mod ids that game publishes the
+/// loader under. A binding comes from the game's package, or from LOADER_REGISTRY for a
+/// game that has none.
+pub fn scoped_bindings() -> Vec<(&'static str, &'static LoaderSpec, Vec<i64>)> {
+    let mut bindings = Vec::new();
+    for spec in LOADER_REGISTRY {
+        for legacy in spec.legacy_games {
+            bindings.push((legacy.game_id, spec, legacy.modworkshop_ids.to_vec()));
+        }
+        for (game_id, pkg) in crate::games::discovered() {
+            for binding in &pkg.loaders {
+                if binding.loader_id == spec.id {
+                    bindings.push((*game_id, spec, binding.modworkshop_ids.clone()));
+                }
+            }
+        }
+    }
+    bindings
+}
+
 /// The whole registry, for the renderer to map dependency ids to loaders without
 /// restating the tables.
 #[tauri::command]
 #[specta::specta]
 pub fn list_loaders() -> Vec<LoaderInfo> {
-    LOADER_REGISTRY
-        .iter()
-        .map(|s| LoaderInfo {
-            id: s.id.to_string(),
-            modworkshop_ids: s.modworkshop_ids.to_vec(),
-            games: s.games.iter().map(|g| g.to_string()).collect(),
-            via_mod_flow: matches!(s.install, InstallStrategy::ViaModFlow),
+    scoped_bindings()
+        .into_iter()
+        .map(|(game_id, spec, modworkshop_ids)| LoaderInfo {
+            id: spec.id.to_string(),
+            modworkshop_ids,
+            games: vec![game_id.to_string()],
+            via_mod_flow: matches!(spec.install, InstallStrategy::ViaModFlow),
         })
         .collect()
 }
@@ -290,13 +321,13 @@ mod tests {
         }
     }
 
-    /// A modworkshop id must map to exactly one loader, because the renderer turns a
-    /// dependency id straight into a loader without disambiguating.
+    /// Within one game a mod id must map to at most one loader, because the renderer turns
+    /// a dependency id straight into a loader without disambiguating.
     #[test]
-    fn modworkshop_ids_do_not_collide_across_loaders() {
-        let mut seen: Vec<i64> = LOADER_REGISTRY
+    fn a_mod_id_names_at_most_one_loader_within_a_game() {
+        let mut seen: Vec<(&str, i64)> = scoped_bindings()
             .iter()
-            .flat_map(|s| s.modworkshop_ids.iter().copied())
+            .flat_map(|(game, _, ids)| ids.iter().map(move |id| (*game, *id)))
             .collect();
         let total = seen.len();
         seen.sort_unstable();
@@ -305,17 +336,99 @@ mod tests {
     }
 
     #[test]
-    fn every_loader_targets_registered_games() {
-        for spec in LOADER_REGISTRY {
-            assert!(!spec.games.is_empty(), "{} lists no games", spec.id);
-            for game in spec.games {
+    fn every_binding_names_a_registered_game_and_a_real_loader() {
+        for (game, spec, _) in scoped_bindings() {
+            assert!(
+                crate::commands::games::game_spec(game).is_some(),
+                "{} binds unknown game '{game}'",
+                spec.id
+            );
+            assert!(
+                loader_spec(spec.id).is_some(),
+                "{} is not registered",
+                spec.id
+            );
+        }
+        for (game, pkg) in crate::games::discovered() {
+            for binding in &pkg.loaders {
                 assert!(
-                    crate::commands::games::game_spec(game).is_some(),
-                    "{} targets unknown game '{game}'",
+                    loader_spec(&binding.loader_id).is_some(),
+                    "{game} declares unknown loader '{}'",
+                    binding.loader_id
+                );
+            }
+        }
+    }
+
+    fn loaders_for(game_id: &str) -> Vec<(&'static str, Vec<i64>)> {
+        list_loaders()
+            .into_iter()
+            .filter(|info| info.games.iter().any(|g| g == game_id))
+            .map(|info| {
+                (
+                    loader_spec(&info.id)
+                        .expect("listed loader is registered")
+                        .id,
+                    info.modworkshop_ids,
+                )
+            })
+            .collect()
+    }
+
+    /// What the renderer does with the listing: the loader a dependency id names for a game.
+    fn loader_for_mod_id(game_id: &str, mod_id: i64) -> Option<&'static str> {
+        loaders_for(game_id)
+            .into_iter()
+            .find(|(_, ids)| ids.contains(&mod_id))
+            .map(|(id, _)| id)
+    }
+
+    #[test]
+    fn a_ue4ss_page_resolves_only_under_the_game_that_publishes_it() {
+        assert_eq!(loader_for_mod_id("pd3", 47771), Some("ue4ss"));
+        assert_eq!(loader_for_mod_id("pd3", 44048), Some("ue4ss"));
+        assert_eq!(loader_for_mod_id("cb", 47749), Some("ue4ss"));
+
+        assert_eq!(loader_for_mod_id("pd3", 47749), None);
+        assert_eq!(loader_for_mod_id("cb", 47771), None);
+        assert_eq!(loader_for_mod_id("cb", 44048), None);
+    }
+
+    #[test]
+    fn a_discovered_game_resolves_its_loaders_from_its_own_package() {
+        assert_eq!(loaders_for("raid"), vec![("raid_superblt", vec![49744])]);
+        assert_eq!(loaders_for("pd3"), vec![("ue4ss", vec![47771, 44048])]);
+    }
+
+    #[test]
+    fn legacy_games_keep_their_loaders() {
+        assert_eq!(loaders_for("pd2"), vec![("superblt", vec![])]);
+        assert_eq!(
+            loaders_for("pdth"),
+            vec![("pdth_overrides", vec![53474]), ("dahm", vec![14267])]
+        );
+        assert_eq!(loaders_for("cb"), vec![("ue4ss", vec![47749])]);
+    }
+
+    /// A game with a package owns its loaders there, so dropping a binding drops the
+    /// relationship instead of falling through to the legacy table.
+    #[test]
+    fn a_discovered_game_has_no_legacy_loader_entry_to_fall_back_on() {
+        for (game_id, _) in crate::games::discovered() {
+            for spec in LOADER_REGISTRY {
+                assert!(
+                    !spec.legacy_games.iter().any(|l| l.game_id == *game_id),
+                    "{} still names discovered game '{game_id}'",
                     spec.id
                 );
             }
         }
+    }
+
+    #[test]
+    fn an_unknown_loader_id_fails_closed() {
+        assert!(loader_spec("nope").is_none());
+        assert!(spec_or_err("nope").is_err());
     }
 
     fn detects(loader_id: &str, files: &[&str]) -> bool {

@@ -114,6 +114,15 @@ pub struct Installation {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
+pub struct LoaderBinding {
+    pub loader_id: String,
+    /// The mod ids this loader is published under for this game. A dependency on one of
+    /// them means install the loader, not install a mod.
+    pub modworkshop_ids: Vec<i64>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
 pub struct GamePackage {
     pub id: String,
     pub display_name: String,
@@ -121,5 +130,6 @@ pub struct GamePackage {
     pub state_filename: String,
     pub signals: SignalSource,
     pub installation: Installation,
+    pub loaders: Vec<LoaderBinding>,
     pub targets: Vec<Target>,
 }

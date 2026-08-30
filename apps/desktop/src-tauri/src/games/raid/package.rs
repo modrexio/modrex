@@ -1,6 +1,6 @@
 use crate::game_package::{
-    EnabledStateMechanism, GamePackage, Installation, SignalSource, SteamStore, Target, Unit,
-    DIESEL_INFRA_FOLDERS,
+    EnabledStateMechanism, GamePackage, Installation, LoaderBinding, SignalSource, SteamStore,
+    Target, Unit, DIESEL_INFRA_FOLDERS,
 };
 
 fn owned(values: &[&str]) -> Vec<String> {
@@ -32,6 +32,10 @@ pub fn package() -> GamePackage {
             epic: None,
             xbox: None,
         },
+        loaders: vec![LoaderBinding {
+            loader_id: "raid_superblt".to_string(),
+            modworkshop_ids: vec![49744],
+        }],
         targets: vec![Target {
             tag: "mods".to_string(),
             label_key: "mods".to_string(),
