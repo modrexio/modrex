@@ -1,5 +1,5 @@
-use crate::game_package::DIESEL_INFRA_FOLDERS;
 pub use crate::game_package::{EnabledStateMechanism, SignalSource};
+use crate::game_package::{DIESEL_INFRA_FOLDERS, UE4SS_BUNDLED_SUBMODS};
 use std::path::PathBuf;
 
 pub enum ModUnit {
@@ -27,24 +27,6 @@ pub enum ModUnit {
         priority_prefix: bool,
     },
 }
-
-/// UE4SS ships these framework-internal sub-mods bundled inside every install's Mods/ folder
-/// (verified against the real UE4SS-CB and PD3-UE4SS releases). They carry the exact same
-/// Scripts/main.lua shape as a genuine user sub-mod, so the ambient scan must exclude them
-/// by name rather than by marker. shared holds Lua libraries the bundled modules import.
-const UE4SS_BUNDLED_SUBMODS: &[&str] = &[
-    "ActorDumperMod",
-    "BPML_GenericFunctions",
-    "BPModLoaderMod",
-    "CheatManagerEnablerMod",
-    "ConsoleCommandsMod",
-    "ConsoleEnablerMod",
-    "jsbLuaProfilerMod",
-    "Keybinds",
-    "LineTraceMod",
-    "SplitScreenMod",
-    "shared",
-];
 
 pub struct ScanTarget {
     pub tag: &'static str,

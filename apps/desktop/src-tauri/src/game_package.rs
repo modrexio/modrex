@@ -11,6 +11,24 @@ pub enum SignalSource {
     None,
 }
 
+/// UE4SS ships these framework-internal sub-mods bundled inside every install's Mods/ folder
+/// (verified against the real UE4SS-CB and PD3-UE4SS releases). They carry the exact same
+/// Scripts/main.lua shape as a genuine user sub-mod, so the ambient scan must exclude them
+/// by name rather than by marker. shared holds Lua libraries the bundled modules import.
+pub const UE4SS_BUNDLED_SUBMODS: &[&str] = &[
+    "ActorDumperMod",
+    "BPML_GenericFunctions",
+    "BPModLoaderMod",
+    "CheatManagerEnablerMod",
+    "ConsoleCommandsMod",
+    "ConsoleEnablerMod",
+    "jsbLuaProfilerMod",
+    "Keybinds",
+    "LineTraceMod",
+    "SplitScreenMod",
+    "shared",
+];
+
 /// Infrastructure dirs the BLT and Diesel loaders create under mods/ that are never user
 /// mods: base (the SuperBLT basemod) plus the downloads, logs and saves runtime dirs BLT and
 /// BeardLib recreate on every launch. Mirrors RAIDWW2-BeardLib's own _ignore_folders list
