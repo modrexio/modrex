@@ -64,6 +64,35 @@ mod tests {
     }
 
     #[test]
+    fn every_target_declares_its_enabled_state_mechanism() {
+        use crate::commands::mods::EnabledStateMechanism::{self, Filesystem, Ue4ssModsTxt};
+        let declared: Vec<(&str, &str, EnabledStateMechanism)> = GAME_REGISTRY
+            .iter()
+            .flat_map(|spec| {
+                spec.engine
+                    .targets
+                    .iter()
+                    .map(move |t| (spec.id, t.tag, t.enabled_state))
+            })
+            .collect();
+        assert_eq!(
+            declared,
+            vec![
+                ("pd3", "paks", Filesystem),
+                ("pd3", "ue4ss_mods", Ue4ssModsTxt),
+                ("pd2", "mods", Filesystem),
+                ("pd2", "mod_overrides", Filesystem),
+                ("pdth", "mods", Filesystem),
+                ("pdth", "mod_overrides", Filesystem),
+                ("cb", "mods", Filesystem),
+                ("cb", "paks", Filesystem),
+                ("cb", "ue4ss_mods", Ue4ssModsTxt),
+                ("raid", "mods", Filesystem),
+            ]
+        );
+    }
+
+    #[test]
     fn spec_ids_are_unique() {
         let mut ids: Vec<&str> = GAME_REGISTRY.iter().map(|s| s.id).collect();
         ids.sort_unstable();

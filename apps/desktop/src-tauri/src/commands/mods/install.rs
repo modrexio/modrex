@@ -1,5 +1,5 @@
 use super::crimeboss_settings;
-use super::engine::{ModEngineConfig, ModUnit, ScanTarget};
+use super::engine::{EnabledStateMechanism, ModEngineConfig, ModUnit, ScanTarget};
 use super::host_mods::{host_target_by_id, parse_host_location};
 use super::naming::{
     apply_priority_prefix, mod_folder_name, sidecar_path, strip_priority_prefix,
@@ -395,10 +395,7 @@ pub fn enable_mod_op(
         return;
     }
     let target = cfg.target_for(m.location.as_deref());
-    // UE4SS reads a central mods.txt to decide which Mods/ folders load, and moving the
-    // folder itself has no effect (confirmed against the real format: see ue4ss_modstxt.rs), so
-    // enabling here only edits that file, leaving the sub-mod's files exactly where they are.
-    if target.tag == "ue4ss_mods" {
+    if target.enabled_state == EnabledStateMechanism::Ue4ssModsTxt {
         let mods_txt = mods_base(game_path, target).join("mods.txt");
         ue4ss_modstxt::sync_enabled(&mods_txt, &m.filename, true);
         for m in state.mods.iter_mut() {
@@ -501,7 +498,7 @@ pub fn disable_mod_op(
         return;
     }
     let target = cfg.target_for(m.location.as_deref());
-    if target.tag == "ue4ss_mods" {
+    if target.enabled_state == EnabledStateMechanism::Ue4ssModsTxt {
         let mods_txt = mods_base(game_path, target).join("mods.txt");
         ue4ss_modstxt::sync_enabled(&mods_txt, &m.filename, false);
         for m in state.mods.iter_mut() {

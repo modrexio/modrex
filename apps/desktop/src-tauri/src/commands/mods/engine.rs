@@ -44,10 +44,20 @@ const UE4SS_BUNDLED_SUBMODS: &[&str] = &[
     "shared",
 ];
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EnabledStateMechanism {
+    Filesystem,
+    /// UE4SS loads the folders under Mods/ that mods.txt beside them lists, and ignores where
+    /// a folder itself sits (confirmed against the real format: see ue4ss_modstxt.rs), so
+    /// enabling and disabling here edit that file and leave the installed files in place.
+    Ue4ssModsTxt,
+}
+
 pub struct ScanTarget {
     pub tag: &'static str,
     pub label_key: &'static str,
     pub unit: ModUnit,
+    pub enabled_state: EnabledStateMechanism,
     pub mods_subpath: &'static [&'static str],
     pub disabled_subpath: &'static [&'static str],
     pub backup_subpath: &'static [&'static str],
@@ -131,6 +141,7 @@ pub static PD3_ENGINE: ModEngineConfig = ModEngineConfig {
                 disabled_suffix: ".disabled",
                 priority_prefix: true,
             },
+            enabled_state: EnabledStateMechanism::Filesystem,
             label_key: "mods",
             mods_subpath: &["PAYDAY3", "Content", "Paks", "~mods"],
             disabled_subpath: &["PAYDAY3", "Content", "Paks", "~mods", "disabled"],
@@ -145,6 +156,7 @@ pub static PD3_ENGINE: ModEngineConfig = ModEngineConfig {
                 excluded_names: UE4SS_BUNDLED_SUBMODS,
                 priority_prefix: false,
             },
+            enabled_state: EnabledStateMechanism::Ue4ssModsTxt,
             // game_path already ends in PAYDAY3 (the Steam installdir). See ue4ss.rs's
             // descriptor comment for why this is not a second copy of it. Steam and Epic only.
             label_key: "ue4ssMods",
@@ -180,6 +192,7 @@ pub static CRIMEBOSS_ENGINE: ModEngineConfig = ModEngineConfig {
                 excluded_names: &[],
                 priority_prefix: false,
             },
+            enabled_state: EnabledStateMechanism::Filesystem,
             label_key: "modkitMods",
             mods_subpath: &["CrimeBoss", "Mods"],
             disabled_subpath: &["CrimeBoss", "Mods", "disabled"],
@@ -192,6 +205,7 @@ pub static CRIMEBOSS_ENGINE: ModEngineConfig = ModEngineConfig {
                 disabled_suffix: ".disabled",
                 priority_prefix: true,
             },
+            enabled_state: EnabledStateMechanism::Filesystem,
             label_key: "legacyPaks",
             mods_subpath: &["CrimeBoss", "Content", "Paks", "~mods"],
             disabled_subpath: &["CrimeBoss", "Content", "Paks", "~mods", "disabled"],
@@ -206,6 +220,7 @@ pub static CRIMEBOSS_ENGINE: ModEngineConfig = ModEngineConfig {
                 excluded_names: UE4SS_BUNDLED_SUBMODS,
                 priority_prefix: false,
             },
+            enabled_state: EnabledStateMechanism::Ue4ssModsTxt,
             label_key: "ue4ssMods",
             mods_subpath: &["CrimeBoss", "Binaries", "Win64", "Mods"],
             disabled_subpath: &["CrimeBoss", "Binaries", "Win64", "Mods", "disabled"],
@@ -229,6 +244,7 @@ pub static PD2_ENGINE: ModEngineConfig = ModEngineConfig {
                 excluded_names: BLT_INFRA_FOLDERS,
                 priority_prefix: false,
             },
+            enabled_state: EnabledStateMechanism::Filesystem,
             label_key: "mods",
             mods_subpath: &["mods"],
             disabled_subpath: &["mods", "disabled"],
@@ -243,6 +259,7 @@ pub static PD2_ENGINE: ModEngineConfig = ModEngineConfig {
                 excluded_names: &[],
                 priority_prefix: false,
             },
+            enabled_state: EnabledStateMechanism::Filesystem,
             label_key: "overrides",
             mods_subpath: &["assets", "mod_overrides"],
             disabled_subpath: &["assets", "mod_overrides", "disabled"],
@@ -271,6 +288,7 @@ pub static PDTH_ENGINE: ModEngineConfig = ModEngineConfig {
                 excluded_names: BLT_INFRA_FOLDERS,
                 priority_prefix: false,
             },
+            enabled_state: EnabledStateMechanism::Filesystem,
             label_key: "mods",
             mods_subpath: &["mods"],
             disabled_subpath: &["mods", "disabled"],
@@ -285,6 +303,7 @@ pub static PDTH_ENGINE: ModEngineConfig = ModEngineConfig {
                 excluded_names: &[],
                 priority_prefix: false,
             },
+            enabled_state: EnabledStateMechanism::Filesystem,
             label_key: "overrides",
             mods_subpath: &["assets", "mod_overrides"],
             disabled_subpath: &["assets", "mod_overrides", "disabled"],
@@ -329,6 +348,7 @@ pub static RAID_ENGINE: ModEngineConfig = ModEngineConfig {
             excluded_names: BLT_INFRA_FOLDERS,
             priority_prefix: false,
         },
+        enabled_state: EnabledStateMechanism::Filesystem,
         label_key: "mods",
         mods_subpath: &["mods"],
         disabled_subpath: &["mods", "disabled"],

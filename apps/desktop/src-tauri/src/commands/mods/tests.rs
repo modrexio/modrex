@@ -1,9 +1,10 @@
+use super::engine::{ModUnit, ScanTarget, SignalSource};
 use super::*;
 use crate::commands::mods::identity::IdentityConfidence;
 use std::collections::HashSet;
 use std::fs::{self, File};
 use std::io::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use tempfile::{NamedTempFile, TempDir};
 
 fn make_zip(entries: &[(&str, &[u8])]) -> NamedTempFile {
@@ -3589,6 +3590,180 @@ fn read_enabled_from_mods_txt_none_when_missing_or_unknown() {
 
     fs::write(&path, UE4SS_MODSTXT_FIXTURE).unwrap();
     assert_eq!(read_enabled_from_mods_txt(&path, "NotInFile"), None);
+}
+
+// ── enabled-state mechanism selection ────────────────────────────────────────
+
+fn target_named(game_id: &str, tag: &str) -> &'static ScanTarget {
+    engine_for_game(game_id)
+        .unwrap()
+        .targets
+        .iter()
+        .find(|t| t.tag == tag)
+        .unwrap()
+}
+
+#[test]
+fn ue4ss_targets_select_mods_txt_activation() {
+    for game_id in ["pd3", "cb"] {
+        assert_eq!(
+            target_named(game_id, "ue4ss_mods").enabled_state,
+            EnabledStateMechanism::Ue4ssModsTxt,
+            "{game_id}"
+        );
+    }
+}
+
+#[test]
+fn file_unit_targets_select_filesystem_activation() {
+    for (game_id, tag) in [("pd3", "paks"), ("cb", "paks")] {
+        let target = target_named(game_id, tag);
+        assert!(!target.is_directory_unit(), "{game_id}/{tag}");
+        assert_eq!(
+            target.enabled_state,
+            EnabledStateMechanism::Filesystem,
+            "{game_id}/{tag}"
+        );
+    }
+}
+
+#[test]
+fn directory_unit_targets_select_filesystem_activation() {
+    for (game_id, tag) in [
+        ("cb", "mods"),
+        ("pd2", "mods"),
+        ("pd2", "mod_overrides"),
+        ("pdth", "mods"),
+        ("pdth", "mod_overrides"),
+        ("raid", "mods"),
+    ] {
+        let target = target_named(game_id, tag);
+        assert!(target.is_directory_unit(), "{game_id}/{tag}");
+        assert_eq!(
+            target.enabled_state,
+            EnabledStateMechanism::Filesystem,
+            "{game_id}/{tag}"
+        );
+    }
+}
+
+// Two engines identical but for their tag and mechanism, crossed against each other so that
+// selecting from the tag rather than from enabled_state fails one of them.
+const fn crossed_target(tag: &'static str, enabled_state: EnabledStateMechanism) -> ScanTarget {
+    ScanTarget {
+        tag,
+        label_key: "ue4ssMods",
+        unit: ModUnit::Directory {
+            entry_markers: &["Scripts/main.lua"],
+            scan_markers: &["Scripts/main.lua"],
+            index_gated_markers: &[],
+            excluded_names: &[],
+            priority_prefix: false,
+        },
+        enabled_state,
+        mods_subpath: &["Binaries", "Win64", "Mods"],
+        disabled_subpath: &["Binaries", "Win64", "Mods", "disabled"],
+        backup_subpath: &["Binaries", "Win64", "Mods.bak"],
+    }
+}
+
+const fn crossed_engine(targets: &'static [ScanTarget]) -> ModEngineConfig {
+    ModEngineConfig {
+        game_id: "fixture",
+        index_game_name: "Fixture",
+        state_filename: ".modrex.json",
+        signals: SignalSource::None,
+        targets,
+    }
+}
+
+static MODS_TXT_UNDER_ANOTHER_TAG: [ScanTarget; 1] = [crossed_target(
+    "scripts",
+    EnabledStateMechanism::Ue4ssModsTxt,
+)];
+static FILESYSTEM_UNDER_THE_UE4SS_TAG: [ScanTarget; 1] = [crossed_target(
+    "ue4ss_mods",
+    EnabledStateMechanism::Filesystem,
+)];
+static MODS_TXT_TAG_ENGINE: ModEngineConfig = crossed_engine(&MODS_TXT_UNDER_ANOTHER_TAG);
+static FILESYSTEM_TAG_ENGINE: ModEngineConfig = crossed_engine(&FILESYSTEM_UNDER_THE_UE4SS_TAG);
+
+/// Installs one enabled sub-mod plus the loader's own mods.txt listing it, and returns the
+/// state path, the mods.txt path and the sub-mod's script.
+fn stage_crossed_submod(game: &TempDir, cfg: &ModEngineConfig) -> (PathBuf, PathBuf, PathBuf) {
+    let root = game.path().to_str().unwrap();
+    let mods = mods_base(root, cfg.primary());
+    let main_lua = mods.join("CoolMod").join("Scripts").join("main.lua");
+    fs::create_dir_all(main_lua.parent().unwrap()).unwrap();
+    fs::write(&main_lua, b"-- lua").unwrap();
+    let mods_txt = mods.join("mods.txt");
+    fs::write(&mods_txt, "CoolMod : 1\r\n").unwrap();
+
+    let sp = get_state_path(root, cfg);
+    let mut state = read_state(&sp);
+    state.mods.push(InstalledMod {
+        uid: "1".into(),
+        id: 1,
+        name: "Cool Mod".into(),
+        filename: "CoolMod".into(),
+        enabled: true,
+        ..InstalledMod::default()
+    });
+    save_state(&sp, &state);
+    (sp, mods_txt, main_lua)
+}
+
+#[test]
+fn the_mods_txt_mechanism_applies_under_a_tag_other_than_ue4ss_mods() {
+    let game = TempDir::new().unwrap();
+    let cfg = &MODS_TXT_TAG_ENGINE;
+    let root = game.path().to_str().unwrap();
+    assert_eq!(cfg.primary().tag, "scripts");
+    let (sp, mods_txt, main_lua) = stage_crossed_submod(&game, cfg);
+
+    disable_mod_op(root, &sp, "1", cfg, None);
+    assert!(main_lua.exists(), "the files must not move");
+    assert_eq!(
+        read_enabled_from_mods_txt(&mods_txt, "CoolMod"),
+        Some(false)
+    );
+    assert!(!read_state(&sp).mods[0].enabled);
+
+    enable_mod_op(root, &sp, "1", cfg, None);
+    assert!(main_lua.exists(), "the files must not move");
+    assert_eq!(read_enabled_from_mods_txt(&mods_txt, "CoolMod"), Some(true));
+    assert!(read_state(&sp).mods[0].enabled);
+}
+
+#[test]
+fn the_ue4ss_mods_tag_alone_does_not_select_the_mods_txt_mechanism() {
+    let game = TempDir::new().unwrap();
+    let cfg = &FILESYSTEM_TAG_ENGINE;
+    let root = game.path().to_str().unwrap();
+    assert_eq!(cfg.primary().tag, "ue4ss_mods");
+    let (sp, mods_txt, main_lua) = stage_crossed_submod(&game, cfg);
+    let disabled_lua = disabled_mod_path(root, "CoolMod", None, cfg.primary())
+        .join("Scripts")
+        .join("main.lua");
+
+    disable_mod_op(root, &sp, "1", cfg, None);
+    assert!(!main_lua.exists());
+    assert!(
+        disabled_lua.exists(),
+        "the folder must move to the disabled dir"
+    );
+    assert_eq!(
+        read_enabled_from_mods_txt(&mods_txt, "CoolMod"),
+        Some(true),
+        "mods.txt must be untouched"
+    );
+    assert!(!read_state(&sp).mods[0].enabled);
+
+    enable_mod_op(root, &sp, "1", cfg, None);
+    assert!(main_lua.exists());
+    assert!(!disabled_lua.exists());
+    assert_eq!(read_enabled_from_mods_txt(&mods_txt, "CoolMod"), Some(true));
+    assert!(read_state(&sp).mods[0].enabled);
 }
 
 // ── Crime Boss multi-pak bundle archives (ZIP_MULTI_PAK) ──────────────────────

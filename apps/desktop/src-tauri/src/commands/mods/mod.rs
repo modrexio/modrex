@@ -71,7 +71,7 @@ pub(crate) use self::crimeboss_settings::{
     find_pak_in_dir, read_enabled_from_file, set_enabled_in_file, settings_id_from_pak_filename,
 };
 #[cfg(test)]
-pub(crate) use self::engine::{disabled_dir, mods_dir};
+pub(crate) use self::engine::{disabled_dir, mods_dir, EnabledStateMechanism};
 #[cfg(test)]
 pub(crate) use self::naming::{
     apply_priority_prefix, derive_content_segment, make_uid, mod_folder_name,
