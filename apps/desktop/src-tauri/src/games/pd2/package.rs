@@ -9,6 +9,7 @@ pub fn package() -> GamePackage {
         id: "pd2".to_string(),
         display_name: "PAYDAY 2".to_string(),
         short_name: "PD2".to_string(),
+        display_order: 2,
         index_game_name: "PAYDAY 2".to_string(),
         state_filename: ".modrex.json".to_string(),
         signals: SignalSource::Diesel,

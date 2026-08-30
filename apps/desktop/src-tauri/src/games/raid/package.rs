@@ -17,6 +17,7 @@ pub fn package() -> GamePackage {
         id: "raid".to_string(),
         display_name: "RAID: World War II".to_string(),
         short_name: "RAID".to_string(),
+        display_order: 5,
         index_game_name: "RAID: World War II".to_string(),
         state_filename: ".modrex.json".to_string(),
         signals: SignalSource::Diesel,

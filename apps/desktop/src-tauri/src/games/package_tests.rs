@@ -83,6 +83,20 @@ fn news_categories_are_unique() {
     assert_eq!(slugs.len(), total);
 }
 
+/// The picker, the documentation tables and the index scheduler all read this order, and the
+/// scheduler breaks ties on it, so a shared position would make one game lose every tie.
+#[test]
+fn display_order_is_unique_across_packages() {
+    let mut orders: Vec<u16> = super::discovered()
+        .iter()
+        .map(|(_, pkg)| pkg.display_order)
+        .collect();
+    let total = orders.len();
+    orders.sort_unstable();
+    orders.dedup();
+    assert_eq!(orders.len(), total);
+}
+
 #[test]
 fn an_unknown_package_field_is_rejected() {
     let mut value = serde_json::to_value(raid()).unwrap();

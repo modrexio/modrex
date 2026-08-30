@@ -9,6 +9,7 @@ pub fn package() -> GamePackage {
         id: "pdth".to_string(),
         display_name: "PAYDAY: The Heist".to_string(),
         short_name: "PDTH".to_string(),
+        display_order: 3,
         index_game_name: "PAYDAY: The Heist".to_string(),
         state_filename: ".modrex.json".to_string(),
         signals: SignalSource::Diesel,

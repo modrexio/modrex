@@ -186,6 +186,10 @@ pub struct GamePackage {
     pub id: String,
     pub display_name: String,
     pub short_name: String,
+    /// Where this game sits in the game picker and the documentation tables. The index
+    /// scheduler also breaks ties on it, so two games sharing a position would make one of
+    /// them lose every tie.
+    pub display_order: u16,
     pub index_game_name: String,
     pub state_filename: String,
     pub signals: SignalSource,

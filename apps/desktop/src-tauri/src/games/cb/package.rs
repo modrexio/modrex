@@ -9,6 +9,7 @@ pub fn package() -> GamePackage {
         id: "cb".to_string(),
         display_name: "Crime Boss: Rockay City".to_string(),
         short_name: "CBRC".to_string(),
+        display_order: 4,
         index_game_name: "Crime Boss: Rockay City".to_string(),
         state_filename: ".modrex.json".to_string(),
         signals: SignalSource::None,
