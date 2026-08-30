@@ -1,4 +1,5 @@
 mod commands;
+mod game_package;
 mod games;
 
 #[cfg(windows)]

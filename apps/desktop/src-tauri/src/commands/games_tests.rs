@@ -1,6 +1,6 @@
 use super::*;
 use crate::commands::mods::{backup_dir, disabled_dir, get_state_path, mods_dir};
-use crate::games::package::SignalSource;
+use crate::game_package::{SignalSource, DIESEL_INFRA_FOLDERS};
 use std::path::PathBuf;
 use tempfile::TempDir;
 
@@ -10,7 +10,7 @@ fn owned(values: &[&str]) -> Vec<String> {
 
 fn discovered_ids() -> Vec<String> {
     crate::games::discovered()
-        .into_iter()
+        .iter()
         .map(|(directory, _)| directory.to_string())
         .collect()
 }
@@ -41,7 +41,7 @@ fn every_registered_game_is_reachable_by_its_own_id() {
 #[test]
 fn a_package_directory_name_matches_the_package_it_holds() {
     for (directory, pkg) in crate::games::discovered() {
-        assert_eq!(directory, pkg.id);
+        assert_eq!(*directory, pkg.id);
     }
 }
 
@@ -175,10 +175,7 @@ fn raid_resolves_the_paths_its_loader_reads() {
     assert!(target.is_directory_unit());
     assert_eq!(target.disabled_suffix(), "");
     assert!(!target.priority_prefix_enabled());
-    assert_eq!(
-        target.excluded_names(),
-        ["base", "downloads", "logs", "saves"]
-    );
+    assert_eq!(target.excluded_names(), DIESEL_INFRA_FOLDERS);
 }
 
 #[test]

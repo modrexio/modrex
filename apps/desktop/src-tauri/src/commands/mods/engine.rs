@@ -1,4 +1,5 @@
-pub use crate::games::package::{EnabledStateMechanism, SignalSource};
+use crate::game_package::DIESEL_INFRA_FOLDERS;
+pub use crate::game_package::{EnabledStateMechanism, SignalSource};
 use std::path::PathBuf;
 
 pub enum ModUnit {
@@ -223,7 +224,7 @@ pub static PD2_ENGINE: ModEngineConfig = ModEngineConfig {
                 entry_markers: &["mod.txt", "main.xml"],
                 scan_markers: &["mod.txt", "main.xml"],
                 index_gated_markers: &[],
-                excluded_names: BLT_INFRA_FOLDERS,
+                excluded_names: DIESEL_INFRA_FOLDERS,
                 priority_prefix: false,
             },
             enabled_state: EnabledStateMechanism::Filesystem,
@@ -267,7 +268,7 @@ pub static PDTH_ENGINE: ModEngineConfig = ModEngineConfig {
                 entry_markers: &["mod.txt", "base.lua"],
                 scan_markers: &["mod.txt"],
                 index_gated_markers: &["base.lua"],
-                excluded_names: BLT_INFRA_FOLDERS,
+                excluded_names: DIESEL_INFRA_FOLDERS,
                 priority_prefix: false,
             },
             enabled_state: EnabledStateMechanism::Filesystem,
@@ -293,15 +294,6 @@ pub static PDTH_ENGINE: ModEngineConfig = ModEngineConfig {
         },
     ],
 };
-
-// BLT and Diesel infrastructure dirs the loader creates under mods/ that are never user
-// mods: base (the SuperBLT basemod) plus the downloads, logs and saves runtime dirs BLT and
-// BeardLib recreate on every launch. On PD2 and PDTH markers already exclude them, but the
-// list is still needed so launch_without_mods, which moves folders regardless of markers,
-// does not back them up and then fail to restore them once the loader recreates them.
-// BeardLib itself is deliberately omitted: it is a normal installable mod page (id 49760),
-// tracked like any other mod.
-const BLT_INFRA_FOLDERS: &[&str] = &["base", "downloads", "logs", "saves"];
 
 pub fn engine_for_game(game_id: &str) -> Result<&'static ModEngineConfig, String> {
     crate::commands::games::game_spec(game_id)

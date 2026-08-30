@@ -11,6 +11,17 @@ pub enum SignalSource {
     None,
 }
 
+/// Infrastructure dirs the BLT and Diesel loaders create under mods/ that are never user
+/// mods: base (the SuperBLT basemod) plus the downloads, logs and saves runtime dirs BLT and
+/// BeardLib recreate on every launch. Mirrors RAIDWW2-BeardLib's own _ignore_folders list
+/// (Classes/Frameworks.lua), verified against a real install. On a blanket-accept target this
+/// is what keeps them out of the mod scan, and where markers already exclude them it is still
+/// needed so launch_without_mods, which moves folders regardless of markers, does not back
+/// them up and then fail to restore them once the loader recreates them. BeardLib itself is
+/// deliberately omitted: it is a normal installable mod page (id 49760), tracked like any
+/// other mod.
+pub const DIESEL_INFRA_FOLDERS: &[&str] = &["base", "downloads", "logs", "saves"];
+
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EnabledStateMechanism {
     Filesystem,

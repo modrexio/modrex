@@ -1,19 +1,35 @@
-use super::package::{EnabledStateMechanism, GamePackage, SignalSource, Unit};
+use crate::game_package::{
+    EnabledStateMechanism, GamePackage, SignalSource, Unit, DIESEL_INFRA_FOLDERS,
+};
 
-fn raid() -> GamePackage {
-    super::discovered()
-        .into_iter()
+fn raid() -> &'static GamePackage {
+    &super::discovered()
+        .iter()
         .find(|(directory, _)| *directory == "raid")
         .expect("raid is discovered")
         .1
 }
 
+/// Repeated lookups hand back the same values, so a package is built once per process and
+/// the runtime registry can borrow from it rather than copying it.
+#[test]
+fn discovery_hands_back_one_cached_set_of_packages() {
+    assert!(std::ptr::eq(super::discovered(), super::discovered()));
+}
+
+/// A package module authors data, so building the set twice yields the same values. This
+/// catches a constructor that varies its result, not one that merely reads something.
+#[test]
+fn constructing_the_built_in_packages_twice_yields_the_same_values() {
+    assert_eq!(super::built_in_packages(), super::built_in_packages());
+}
+
 #[test]
 fn every_discovered_package_round_trips_through_json() {
     for (directory, pkg) in super::discovered() {
-        let json = serde_json::to_string(&pkg).expect("package serializes");
+        let json = serde_json::to_string(pkg).expect("package serializes");
         let restored: GamePackage = serde_json::from_str(&json).expect("package deserializes");
-        assert_eq!(restored, pkg, "{directory}");
+        assert_eq!(restored, *pkg, "{directory}");
     }
 }
 
@@ -55,10 +71,10 @@ fn the_raid_package_declares_its_identity() {
 
 #[test]
 fn the_raid_package_installs_from_steam_only() {
-    let installation = raid().installation;
+    let installation = &raid().installation;
     assert_eq!(installation.executables, ["raid_win64_release.exe"]);
     assert_eq!(installation.process_names, ["raid_win64_release"]);
-    let steam = installation.steam.expect("raid ships on steam");
+    let steam = installation.steam.as_ref().expect("raid ships on steam");
     assert_eq!(steam.app_id, 414740);
     assert_eq!(steam.folder_name, "RAID World War II");
     assert!(installation.epic.is_none());
@@ -90,6 +106,6 @@ fn the_raid_package_has_one_blanket_accept_target() {
     assert!(entry_markers.is_empty());
     assert!(scan_markers.is_empty());
     assert!(index_gated_markers.is_empty());
-    assert_eq!(*excluded_names, ["base", "downloads", "logs", "saves"]);
+    assert_eq!(*excluded_names, DIESEL_INFRA_FOLDERS);
     assert!(!priority_prefix);
 }

@@ -79,7 +79,7 @@ fn emit_game_package_registry() {
         ));
     }
     source.push_str(
-        "pub fn discovered() -> Vec<(&'static str, crate::games::package::GamePackage)> {\n    vec![\n",
+        "fn built_in_packages() -> Vec<(&'static str, crate::game_package::GamePackage)> {\n    vec![\n",
     );
     for id in &ids {
         source.push_str(&format!("        (\"{id}\", {id}::package()),\n"));

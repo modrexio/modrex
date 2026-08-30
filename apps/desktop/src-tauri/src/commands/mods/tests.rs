@@ -1055,11 +1055,8 @@ fn raid_engine_has_single_blanket_mods_target() {
         } => {
             assert!(entry_markers.is_empty());
             assert!(scan_markers.is_empty());
-            for infra in ["base", "downloads", "logs", "saves"] {
-                assert!(
-                    excluded_names.contains(&infra),
-                    "missing exclusion: {infra}"
-                );
+            for infra in crate::game_package::DIESEL_INFRA_FOLDERS {
+                assert!(excluded_names.contains(infra), "missing exclusion: {infra}");
             }
         }
         _ => panic!("RAID mods target must be a Directory unit"),

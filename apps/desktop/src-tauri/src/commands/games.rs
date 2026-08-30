@@ -6,7 +6,7 @@ use crate::commands::launchers::{EpicDef, GameDef, SteamDef, XboxDef, CRIMEBOSS,
 use crate::commands::mods::{
     ModEngineConfig, ModUnit, ScanTarget, CRIMEBOSS_ENGINE, PD2_ENGINE, PD3_ENGINE, PDTH_ENGINE,
 };
-use crate::games::package::{self, GamePackage};
+use crate::game_package::{self as package, GamePackage};
 use std::sync::LazyLock;
 
 pub struct GameSpec {
@@ -19,7 +19,7 @@ pub static GAME_REGISTRY: LazyLock<Vec<GameSpec>> = LazyLock::new(|| {
     let mut specs = handwritten_specs();
     specs.extend(
         crate::games::discovered()
-            .into_iter()
+            .iter()
             .map(|(_, pkg)| spec_from(pkg)),
     );
     specs
@@ -51,50 +51,52 @@ fn handwritten_specs() -> Vec<GameSpec> {
 }
 
 // ModEngineConfig, ScanTarget and GameDef borrow for 'static because every consumer holds
-// them for the life of the process. A package owns its strings, so materialising one means
-// giving them that lifetime. GAME_REGISTRY builds each package exactly once, so what this
-// leaks is bounded by the number of packages compiled in.
-fn spec_from(pkg: GamePackage) -> GameSpec {
-    let id = leak_str(pkg.id);
+// them for the life of the process. Their text points into the cached package, so only the
+// slices and the two structs are allocated, once per package.
+fn spec_from(pkg: &'static GamePackage) -> GameSpec {
     let engine = Box::leak(Box::new(ModEngineConfig {
-        game_id: id,
-        index_game_name: leak_str(pkg.index_game_name),
-        state_filename: leak_str(pkg.state_filename),
+        game_id: &pkg.id,
+        index_game_name: &pkg.index_game_name,
+        state_filename: &pkg.state_filename,
         signals: pkg.signals,
-        targets: leak_slice(pkg.targets.into_iter().map(scan_target).collect()),
+        targets: own_slice(pkg.targets.iter().map(scan_target).collect()),
     }));
     let def = Box::leak(Box::new(GameDef {
-        name: leak_str(pkg.display_name),
-        executables: leak_strs(pkg.installation.executables),
-        process_names: leak_strs(pkg.installation.process_names),
-        steam: pkg.installation.steam.map(|s| SteamDef {
-            app_id: s.app_id,
-            folder_name: leak_str(s.folder_name),
+        name: &pkg.display_name,
+        executables: text_slice(&pkg.installation.executables),
+        process_names: text_slice(&pkg.installation.process_names),
+        steam: pkg.installation.steam.as_ref().map(|store| SteamDef {
+            app_id: store.app_id,
+            folder_name: &store.folder_name,
         }),
-        epic: pkg.installation.epic.map(|e| EpicDef {
-            display_name: leak_str(e.display_name),
+        epic: pkg.installation.epic.as_ref().map(|store| EpicDef {
+            display_name: &store.display_name,
         }),
-        xbox: pkg.installation.xbox.map(|x| XboxDef {
-            product_id: leak_str(x.product_id),
-            executable: leak_str(x.executable),
+        xbox: pkg.installation.xbox.as_ref().map(|store| XboxDef {
+            product_id: &store.product_id,
+            executable: &store.executable,
         }),
     }));
-    GameSpec { id, engine, def }
+    GameSpec {
+        id: &pkg.id,
+        engine,
+        def,
+    }
 }
 
-fn scan_target(target: package::Target) -> ScanTarget {
+fn scan_target(target: &'static package::Target) -> ScanTarget {
     ScanTarget {
-        tag: leak_str(target.tag),
-        label_key: leak_str(target.label_key),
-        unit: match target.unit {
+        tag: &target.tag,
+        label_key: &target.label_key,
+        unit: match &target.unit {
             package::Unit::File {
                 extension,
                 disabled_suffix,
                 priority_prefix,
             } => ModUnit::File {
-                extension: leak_str(extension),
-                disabled_suffix: leak_str(disabled_suffix),
-                priority_prefix,
+                extension,
+                disabled_suffix,
+                priority_prefix: *priority_prefix,
             },
             package::Unit::Directory {
                 entry_markers,
@@ -103,29 +105,25 @@ fn scan_target(target: package::Target) -> ScanTarget {
                 excluded_names,
                 priority_prefix,
             } => ModUnit::Directory {
-                entry_markers: leak_strs(entry_markers),
-                scan_markers: leak_strs(scan_markers),
-                index_gated_markers: leak_strs(index_gated_markers),
-                excluded_names: leak_strs(excluded_names),
-                priority_prefix,
+                entry_markers: text_slice(entry_markers),
+                scan_markers: text_slice(scan_markers),
+                index_gated_markers: text_slice(index_gated_markers),
+                excluded_names: text_slice(excluded_names),
+                priority_prefix: *priority_prefix,
             },
         },
         enabled_state: target.enabled_state,
-        mods_subpath: leak_strs(target.mods_subpath),
-        disabled_subpath: leak_strs(target.disabled_subpath),
-        backup_subpath: leak_strs(target.backup_subpath),
+        mods_subpath: text_slice(&target.mods_subpath),
+        disabled_subpath: text_slice(&target.disabled_subpath),
+        backup_subpath: text_slice(&target.backup_subpath),
     }
 }
 
-fn leak_str(value: String) -> &'static str {
-    Box::leak(value.into_boxed_str())
+fn text_slice(values: &'static [String]) -> &'static [&'static str] {
+    own_slice(values.iter().map(String::as_str).collect())
 }
 
-fn leak_strs(values: Vec<String>) -> &'static [&'static str] {
-    leak_slice(values.into_iter().map(leak_str).collect())
-}
-
-fn leak_slice<T>(values: Vec<T>) -> &'static [T] {
+fn own_slice<T>(values: Vec<T>) -> &'static [T] {
     Box::leak(values.into_boxed_slice())
 }
 

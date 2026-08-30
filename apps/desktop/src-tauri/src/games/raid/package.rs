@@ -1,5 +1,6 @@
-use crate::games::package::{
+use crate::game_package::{
     EnabledStateMechanism, GamePackage, Installation, SignalSource, SteamStore, Target, Unit,
+    DIESEL_INFRA_FOLDERS,
 };
 
 fn owned(values: &[&str]) -> Vec<String> {
@@ -14,16 +15,6 @@ fn owned(values: &[&str]) -> Vec<String> {
 // in mods/ is a user mod unless it is excluded by name. Markers are unusable here because
 // asset packs carry no supermod.xml or mod.xml. Identification still reads those embedded ids
 // when present (embedded_modworkshop_id) and otherwise falls back to SHA256 then name.
-//
-// The excluded names are the BLT and Diesel infrastructure dirs the loader creates under
-// mods/ that are never user mods: base (the SuperBLT basemod) plus the downloads, logs and
-// saves runtime dirs BLT and BeardLib recreate on every launch. This mirrors
-// RAIDWW2-BeardLib's own _ignore_folders list (Classes/Frameworks.lua), verified against a
-// real install. On a blanket-accept target this list is what keeps them out of the mod scan,
-// and it is also what stops launch_without_mods, which moves folders regardless of markers,
-// backing them up and then failing to restore them once the loader recreates them. BeardLib
-// itself is deliberately omitted: it is a normal installable mod page (id 49760), tracked
-// like any other mod.
 pub fn package() -> GamePackage {
     GamePackage {
         id: "raid".to_string(),
@@ -48,7 +39,7 @@ pub fn package() -> GamePackage {
                 entry_markers: Vec::new(),
                 scan_markers: Vec::new(),
                 index_gated_markers: Vec::new(),
-                excluded_names: owned(&["base", "downloads", "logs", "saves"]),
+                excluded_names: owned(DIESEL_INFRA_FOLDERS),
                 priority_prefix: false,
             },
             enabled_state: EnabledStateMechanism::Filesystem,
