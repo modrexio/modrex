@@ -91,15 +91,15 @@ Open a pull request against `main`. Run `pnpm checks` first, it runs the same ga
 Adding support for a new game, mod loader, or mod source is mostly a matter of adding an
 entry to the relevant registry rather than editing call sites:
 
-| What you're adding | Registry                                                                                            |
-| ------------------ | --------------------------------------------------------------------------------------------------- |
-| Game               | `apps/desktop/src-tauri/src/commands/games.rs` + `GAME_SPECS` in `apps/desktop/src/shared/types.ts` |
-| Mod loader         | `apps/desktop/src-tauri/src/commands/loaders.rs`                                                    |
-| Mod source         | `apps/desktop/src-tauri/src/commands/sources.rs`                                                    |
+| What you're adding | Registry                                                          |
+| ------------------ | ----------------------------------------------------------------- |
+| Game               | one directory: `apps/desktop/src-tauri/src/games/<id>/package.rs` |
+| Mod loader         | `apps/desktop/src-tauri/src/commands/loaders.rs`                  |
+| Mod source         | `apps/desktop/src-tauri/src/commands/sources.rs`                  |
 
-Neither side of a cross-language pair can see the other, so `pnpm check-games` and
-`pnpm check-sources` diff them in CI. See `CLAUDE.md` for how they fit together before
-starting.
+A game package is the one authority for its own facts: the TypeScript catalogue
+(`packages/games/catalog.generated.ts`) is generated from it, and CI fails if the committed
+copy is stale. See `CLAUDE.md` for how they fit together before starting.
 
 ## Translations
 
