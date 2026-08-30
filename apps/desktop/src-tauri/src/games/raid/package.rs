@@ -16,11 +16,13 @@ pub fn package() -> GamePackage {
     GamePackage {
         id: "raid".to_string(),
         display_name: "RAID: World War II".to_string(),
+        short_name: "RAID".to_string(),
         index_game_name: "RAID: World War II".to_string(),
         state_filename: ".modrex.json".to_string(),
         signals: SignalSource::Diesel,
         installation: Installation {
             executables: owned(&["raid_win64_release.exe"]),
+            required_launch_flag: None,
             process_names: owned(&["raid_win64_release"]),
             steam: Some(SteamStore {
                 app_id: 414740,
@@ -35,6 +37,7 @@ pub fn package() -> GamePackage {
             }),
             nexus: None,
         },
+        news: None,
         loaders: vec![LoaderBinding {
             loader_id: "raid_superblt".to_string(),
             modworkshop_ids: vec![49744],

@@ -33,6 +33,56 @@ fn every_discovered_package_round_trips_through_json() {
     }
 }
 
+/// The frontend keys browser storage by game. Nothing stores that key because it is the
+/// package id, so the id must stay usable as one.
+#[test]
+fn every_package_id_is_usable_as_a_storage_key() {
+    for (directory, pkg) in super::discovered() {
+        assert!(!pkg.id.is_empty(), "{directory}");
+        assert!(
+            pkg.id
+                .chars()
+                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_'),
+            "{directory} has an id that is not a plain storage key"
+        );
+    }
+}
+
+#[test]
+fn every_package_declares_a_short_name_distinct_from_its_display_name() {
+    for (directory, pkg) in super::discovered() {
+        assert!(!pkg.short_name.is_empty(), "{directory}");
+        assert!(
+            pkg.short_name.len() <= pkg.display_name.len(),
+            "{directory}"
+        );
+    }
+}
+
+#[test]
+fn a_news_binding_carries_a_non_empty_category() {
+    for (directory, pkg) in super::discovered() {
+        let Some(news) = pkg.news.as_ref() else {
+            continue;
+        };
+        assert!(!news.category_slug.is_empty(), "{directory}");
+    }
+}
+
+/// Two games sharing a category would share the cache file the slug names.
+#[test]
+fn news_categories_are_unique() {
+    let mut slugs: Vec<&str> = super::discovered()
+        .iter()
+        .filter_map(|(_, pkg)| pkg.news.as_ref().map(|n| n.category_slug.as_str()))
+        .collect();
+    let total = slugs.len();
+    assert!(total > 0);
+    slugs.sort_unstable();
+    slugs.dedup();
+    assert_eq!(slugs.len(), total);
+}
+
 #[test]
 fn an_unknown_package_field_is_rejected() {
     let mut value = serde_json::to_value(raid()).unwrap();

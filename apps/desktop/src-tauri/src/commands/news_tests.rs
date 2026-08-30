@@ -28,30 +28,33 @@ fn parses_articles_from_category_page() {
 }
 
 #[test]
-fn category_slug_maps_known_games() {
-    assert_eq!(category_slug("pd2"), "payday2");
-    assert_eq!(category_slug("pdth"), "theheist");
-    assert_eq!(category_slug("pd3"), "payday3");
-    assert_eq!(category_slug("unknown"), "payday3");
+fn category_slug_comes_from_the_package_news_binding() {
+    assert_eq!(category_slug("pd2"), Some("payday2"));
+    assert_eq!(category_slug("pdth"), Some("theheist"));
+    assert_eq!(category_slug("pd3"), Some("payday3"));
+    assert_eq!(category_slug("unknown"), None);
+    // A game that declares no news binding must not fall back to another game's category.
+    assert_eq!(category_slug("cb"), None);
+    assert_eq!(category_slug("raid"), None);
 }
 
 #[test]
 fn category_url_omits_page_segment_on_first_page() {
     assert_eq!(
-        category_url("pd3", 1),
-        "https://www.paydaythegame.com/news/category/payday3/"
+        category_url("pd3", 1).as_deref(),
+        Some("https://www.paydaythegame.com/news/category/payday3/")
     );
     assert_eq!(
-        category_url("pd3", 0),
-        "https://www.paydaythegame.com/news/category/payday3/"
+        category_url("pd3", 0).as_deref(),
+        Some("https://www.paydaythegame.com/news/category/payday3/")
     );
 }
 
 #[test]
 fn category_url_adds_page_segment_for_later_pages() {
     assert_eq!(
-        category_url("pd2", 3),
-        "https://www.paydaythegame.com/news/category/payday2/page/3/"
+        category_url("pd2", 3).as_deref(),
+        Some("https://www.paydaythegame.com/news/category/payday2/page/3/")
     );
 }
 

@@ -8,11 +8,13 @@ pub fn package() -> GamePackage {
     GamePackage {
         id: "cb".to_string(),
         display_name: "Crime Boss: Rockay City".to_string(),
+        short_name: "CBRC".to_string(),
         index_game_name: "Crime Boss: Rockay City".to_string(),
         state_filename: ".modrex.json".to_string(),
         signals: SignalSource::None,
         installation: Installation {
             executables: owned(&["CrimeBoss.exe"]),
+            required_launch_flag: None,
             process_names: owned(&["CrimeBoss-Win64-Shipping"]),
             steam: Some(SteamStore {
                 app_id: 2933080,
@@ -32,6 +34,7 @@ pub fn package() -> GamePackage {
                 numeric_id: 6528,
             }),
         },
+        news: None,
         loaders: vec![LoaderBinding {
             loader_id: "ue4ss".to_string(),
             // One maintainer and one release line ("UE4SS-CB"), so no other proxy DLL has

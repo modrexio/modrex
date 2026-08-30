@@ -106,6 +106,9 @@ pub struct XboxStore {
 #[serde(deny_unknown_fields)]
 pub struct Installation {
     pub executables: Vec<String>,
+    /// Launch argument the game needs for mods to load. The user supplies their own launch
+    /// options, so this is what the interface tells them to include.
+    pub required_launch_flag: Option<String>,
     pub process_names: Vec<String>,
     pub steam: Option<SteamStore>,
     pub epic: Option<EpicStore>,
@@ -148,6 +151,13 @@ pub struct LoaderBinding {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
+pub struct NewsBinding {
+    /// The category segment of the publisher's news URL, which is also the cache filename.
+    pub category_slug: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
 pub struct ModWorkshopBinding {
     /// The numeric id modworkshop names this game by in its API paths, kept as text because
     /// a source identifier is not arithmetic.
@@ -175,11 +185,13 @@ pub struct Sources {
 pub struct GamePackage {
     pub id: String,
     pub display_name: String,
+    pub short_name: String,
     pub index_game_name: String,
     pub state_filename: String,
     pub signals: SignalSource,
     pub installation: Installation,
     pub sources: Sources,
+    pub news: Option<NewsBinding>,
     pub loaders: Vec<LoaderBinding>,
     pub targets: Vec<Target>,
 }

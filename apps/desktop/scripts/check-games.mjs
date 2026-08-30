@@ -27,6 +27,10 @@ const launcherFields = [
     ['Xbox App', 'xbox'],
 ]
 
+function match(source, pattern) {
+    return source.match(pattern)?.[1]
+}
+
 /** The Rust text declaring this game's storefronts and mod targets. */
 function backendSource(id) {
     return readFileSync(`${PACKAGE_ROOT}/${id}/package.rs`, 'utf8')
@@ -77,6 +81,32 @@ for (const id of tsIds) {
     if (sharedTargets.join('|') !== rustTargets.join('|')) {
         failed = true
         console.error(`Mod targets for '${id}' differ between Rust and @modrex/games`)
+    }
+
+    for (const [label, shared, rust] of [
+        [
+            'Short name',
+            spec?.match(/shortName:\s*'([^']*)'/)?.[1],
+            match(source, /short_name:\s*"([^"]*)"/),
+        ],
+        [
+            'Required launch flag',
+            spec?.match(/requiredLaunchFlag:\s*'([^']*)'/)?.[1] ?? 'none',
+            match(source, /required_launch_flag:\s*Some\("([^"]*)"/) ?? 'none',
+        ],
+        [
+            'News availability',
+            String(spec?.match(/hasNews:\s*(true|false)/)?.[1] === 'true'),
+            String(/news:\s*Some\(NewsBinding/.test(source)),
+        ],
+        ['Storage key', spec?.match(/storageKey:\s*'([^']*)'/)?.[1], id],
+    ]) {
+        if (shared !== rust) {
+            failed = true
+            console.error(
+                `${label} for '${id}' differs: Rust has '${rust}'; @modrex/games has '${shared}'`
+            )
+        }
     }
 }
 

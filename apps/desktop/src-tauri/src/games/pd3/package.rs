@@ -1,4 +1,4 @@
-use crate::game_package::{EnabledStateMechanism, EpicStore, GamePackage, Installation, LoaderBinding, LoaderConfig, ModWorkshopBinding, NexusBinding, SignalSource, Sources, SteamStore, Storefront, Target, Ue4ssConfig, Unit, XboxStore, UE4SS_BUNDLED_SUBMODS};
+use crate::game_package::{EnabledStateMechanism, EpicStore, GamePackage, Installation, LoaderBinding, LoaderConfig, ModWorkshopBinding, NewsBinding, NexusBinding, SignalSource, Sources, SteamStore, Storefront, Target, Ue4ssConfig, Unit, XboxStore, UE4SS_BUNDLED_SUBMODS};
 
 fn owned(values: &[&str]) -> Vec<String> {
     values.iter().map(|s| s.to_string()).collect()
@@ -8,11 +8,13 @@ pub fn package() -> GamePackage {
     GamePackage {
         id: "pd3".to_string(),
         display_name: "PAYDAY 3".to_string(),
+        short_name: "PD3".to_string(),
         index_game_name: "PAYDAY 3".to_string(),
         state_filename: ".modrex.json".to_string(),
         signals: SignalSource::None,
         installation: Installation {
             executables: owned(&["PAYDAY3.exe"]),
+            required_launch_flag: Some("-fileopenlog".to_string()),
             process_names: owned(&["PAYDAY3-Win64-Shipping"]),
             steam: Some(SteamStore {
                 app_id: 1272080,
@@ -35,6 +37,9 @@ pub fn package() -> GamePackage {
                 numeric_id: 5717,
             }),
         },
+        news: Some(NewsBinding {
+            category_slug: "payday3".to_string(),
+        }),
         loaders: vec![LoaderBinding {
             loader_id: "ue4ss".to_string(),
             // Two independently maintained mod pages distribute UE4SS for this game, each

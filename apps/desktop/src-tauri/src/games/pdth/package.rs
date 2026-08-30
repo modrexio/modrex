@@ -1,4 +1,4 @@
-use crate::game_package::{EnabledStateMechanism, GamePackage, Installation, LoaderBinding, ModWorkshopBinding, NexusBinding, SignalSource, Sources, SteamStore, Target, Unit, DIESEL_INFRA_FOLDERS};
+use crate::game_package::{EnabledStateMechanism, GamePackage, Installation, LoaderBinding, ModWorkshopBinding, NewsBinding, NexusBinding, SignalSource, Sources, SteamStore, Target, Unit, DIESEL_INFRA_FOLDERS};
 
 fn owned(values: &[&str]) -> Vec<String> {
     values.iter().map(|s| s.to_string()).collect()
@@ -8,11 +8,13 @@ pub fn package() -> GamePackage {
     GamePackage {
         id: "pdth".to_string(),
         display_name: "PAYDAY: The Heist".to_string(),
+        short_name: "PDTH".to_string(),
         index_game_name: "PAYDAY: The Heist".to_string(),
         state_filename: ".modrex.json".to_string(),
         signals: SignalSource::Diesel,
         installation: Installation {
             executables: owned(&["payday_win32_release.exe"]),
+            required_launch_flag: None,
             process_names: owned(&["payday_win32_release"]),
             steam: Some(SteamStore {
                 app_id: 24240,
@@ -30,6 +32,9 @@ pub fn package() -> GamePackage {
                 numeric_id: 4339,
             }),
         },
+        news: Some(NewsBinding {
+            category_slug: "theheist".to_string(),
+        }),
         loaders: vec![
             LoaderBinding {
                 loader_id: "pdth_overrides".to_string(),
