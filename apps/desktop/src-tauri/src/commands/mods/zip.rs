@@ -1,5 +1,5 @@
 use super::cleanup::{self, CleanupPlan};
-use super::engine::{ModEngineConfig, ModUnit};
+use super::engine::{InputDecoderBinding, ModEngineConfig, ModUnit};
 use super::host_mods::detect_host_pack;
 use super::paths::{active_mod_path, disabled_mod_path};
 use super::staged::{NameSource, Staged};
@@ -1344,6 +1344,16 @@ fn try_classify_as_directory_target(
     Some(Err(prompt_err(InstallPrompt::ZipMultiPak(payload))))
 }
 
+fn decoder_for(cfg: &ModEngineConfig, downloaded: &Path) -> Option<&'static InputDecoderBinding> {
+    let extension = downloaded.extension()?.to_str()?;
+    cfg.input_decoders.iter().find(|binding| {
+        let claimed = match binding.decoder {
+            crate::game_package::InputDecoder::Pdmod => super::pdmod::EXTENSION,
+        };
+        extension.eq_ignore_ascii_case(claimed)
+    })
+}
+
 /// Resolves a downloaded archive into an installable path plus the detected scan-target tag.
 /// Returns (extracted_path, original_archive, location_tag) where location_tag is None
 /// for the primary target and Some(tag) for any secondary target (e.g. "mod_overrides").
@@ -1352,14 +1362,9 @@ pub fn resolve_archive_download(
     cfg: &ModEngineConfig,
     registry: &StagingRegistry,
 ) -> ResolvedArchive {
-    // Must run before detect_archive: .pdmod is a ZIP by magic bytes and would fall through to
-    // the Directory-unit path without this early check.
-    if cfg.game_id == "pdth"
-        && downloaded
-            .extension()
-            .map(|e| e.eq_ignore_ascii_case("pdmod"))
-            .unwrap_or(false)
-    {
+    // Must run before detect_archive: a decoded container is a ZIP by magic bytes and would
+    // fall through to the Directory-unit path without this early check.
+    if let Some(binding) = decoder_for(cfg, &downloaded) {
         let temp_dir = std::env::temp_dir().join(format!("modrex-pdmod-{}", Uuid::new_v4()));
         std::fs::create_dir_all(&temp_dir).map_err(|e| e.to_string())?;
         let cleanup = CleanupPlan::RemoveOwnedDirectory(temp_dir.clone());
@@ -1371,7 +1376,7 @@ pub fn resolve_archive_download(
                 root: temp_dir,
                 cleanup,
                 name_source: NameSource::FromArchive,
-                target_tag: Some("mod_overrides".to_string()),
+                target_tag: Some(binding.target_tag.clone()),
                 original_archive: Some(downloaded),
             }),
             Err(e) => {

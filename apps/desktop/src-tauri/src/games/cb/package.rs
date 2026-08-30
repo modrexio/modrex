@@ -36,6 +36,7 @@ pub fn package() -> GamePackage {
             }),
         },
         news: None,
+        input_decoders: Vec::new(),
         loaders: vec![LoaderBinding {
             loader_id: "ue4ss".to_string(),
             // One maintainer and one release line ("UE4SS-CB"), so no other proxy DLL has

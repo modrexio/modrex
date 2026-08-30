@@ -149,6 +149,20 @@ pub struct LoaderBinding {
     pub config: Option<LoaderConfig>,
 }
 
+/// A container format whose contents must be decoded before the generic archive readers see
+/// them. The decoder and the extension it claims are host-owned.
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InputDecoder {
+    Pdmod,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct InputDecoderBinding {
+    pub decoder: InputDecoder,
+    pub target_tag: String,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct NewsBinding {
@@ -196,6 +210,7 @@ pub struct GamePackage {
     pub installation: Installation,
     pub sources: Sources,
     pub news: Option<NewsBinding>,
+    pub input_decoders: Vec<InputDecoderBinding>,
     pub loaders: Vec<LoaderBinding>,
     pub targets: Vec<Target>,
 }

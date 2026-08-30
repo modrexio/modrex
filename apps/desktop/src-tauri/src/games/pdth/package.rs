@@ -1,4 +1,4 @@
-use crate::game_package::{EnabledStateMechanism, GamePackage, Installation, LoaderBinding, ModWorkshopBinding, NewsBinding, NexusBinding, SignalSource, Sources, SteamStore, Target, Unit, DIESEL_INFRA_FOLDERS};
+use crate::game_package::{InputDecoder, InputDecoderBinding, EnabledStateMechanism, GamePackage, Installation, LoaderBinding, ModWorkshopBinding, NewsBinding, NexusBinding, SignalSource, Sources, SteamStore, Target, Unit, DIESEL_INFRA_FOLDERS};
 
 fn owned(values: &[&str]) -> Vec<String> {
     values.iter().map(|s| s.to_string()).collect()
@@ -36,6 +36,10 @@ pub fn package() -> GamePackage {
         news: Some(NewsBinding {
             category_slug: "theheist".to_string(),
         }),
+        input_decoders: vec![InputDecoderBinding {
+            decoder: InputDecoder::Pdmod,
+            target_tag: "mod_overrides".to_string(),
+        }],
         loaders: vec![
             LoaderBinding {
                 loader_id: "pdth_overrides".to_string(),

@@ -3589,6 +3589,83 @@ fn read_enabled_from_mods_txt_none_when_missing_or_unknown() {
     assert_eq!(read_enabled_from_mods_txt(&path, "NotInFile"), None);
 }
 
+// ── input decoder selection ────────────────────────────────────────
+
+const fn overrides_target() -> ScanTarget {
+    ScanTarget {
+        tag: "mod_overrides",
+        label_key: "overrides",
+        unit: ModUnit::Directory {
+            entry_markers: &[],
+            scan_markers: &[],
+            index_gated_markers: &[],
+            excluded_names: &[],
+            priority_prefix: false,
+        },
+        enabled_state: EnabledStateMechanism::Filesystem,
+        mods_subpath: &["assets", "mod_overrides"],
+        disabled_subpath: &["assets", "mod_overrides", "disabled"],
+        backup_subpath: &["assets", "mod_overrides.bak"],
+    }
+}
+
+static DECODER_TARGETS: [ScanTarget; 1] = [overrides_target()];
+static PDMOD_BINDING: std::sync::LazyLock<Vec<crate::game_package::InputDecoderBinding>> =
+    std::sync::LazyLock::new(|| {
+        vec![crate::game_package::InputDecoderBinding {
+            decoder: crate::game_package::InputDecoder::Pdmod,
+            target_tag: "mod_overrides".to_string(),
+        }]
+    });
+
+fn decoder_engine(game_id: &'static str, decoders: bool) -> ModEngineConfig {
+    ModEngineConfig {
+        game_id,
+        input_decoders: if decoders { &PDMOD_BINDING } else { &[] },
+        index_game_name: "Fixture",
+        state_filename: ".modrex.json",
+        signals: SignalSource::Diesel,
+        targets: &DECODER_TARGETS,
+    }
+}
+
+fn written_pdmod() -> NamedTempFile {
+    let bytes = super::pdmod::build_pdmod(&[("units/weapons/glock/glock", "texture", b"pixels")]);
+    let file = NamedTempFile::with_suffix(".pdmod").unwrap();
+    fs::write(file.path(), &bytes).unwrap();
+    file
+}
+
+#[test]
+fn a_declared_decoder_runs_under_any_game_id() {
+    let file = written_pdmod();
+    let registry = StagingRegistry::new();
+    let staged = resolve_archive_download(
+        file.path().to_path_buf(),
+        &decoder_engine("raid", true),
+        &registry,
+    )
+    .expect("declared decoder resolves");
+    assert_eq!(staged.target_tag.as_deref(), Some("mod_overrides"));
+    assert!(staged.root.to_string_lossy().contains("modrex-pdmod-"));
+}
+
+#[test]
+fn the_pdth_game_id_alone_does_not_select_a_decoder() {
+    let file = written_pdmod();
+    let registry = StagingRegistry::new();
+    let resolved = resolve_archive_download(
+        file.path().to_path_buf(),
+        &decoder_engine("pdth", false),
+        &registry,
+    );
+    let decoded = match &resolved {
+        Ok(staged) => staged.root.to_string_lossy().contains("modrex-pdmod-"),
+        Err(_) => false,
+    };
+    assert!(!decoded, "an undeclared decoder must not run");
+}
+
 // ── enabled-state mechanism selection ────────────────────────────────────────
 
 fn target_named(game_id: &str, tag: &str) -> &'static ScanTarget {
@@ -3665,6 +3742,7 @@ const fn crossed_target(tag: &'static str, enabled_state: EnabledStateMechanism)
 const fn crossed_engine(targets: &'static [ScanTarget]) -> ModEngineConfig {
     ModEngineConfig {
         game_id: "fixture",
+        input_decoders: &[],
         index_game_name: "Fixture",
         state_filename: ".modrex.json",
         signals: SignalSource::None,

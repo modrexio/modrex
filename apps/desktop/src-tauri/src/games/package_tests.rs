@@ -210,6 +210,21 @@ fn catalogue_strings_are_escaped() {
     );
 }
 
+/// Decoded content installs into the named target, so a tag no target declares would stage
+/// into a location the scan never reads.
+#[test]
+fn every_input_decoder_names_a_declared_target() {
+    for (directory, pkg) in super::discovered() {
+        for binding in &pkg.input_decoders {
+            assert!(
+                pkg.targets.iter().any(|t| t.tag == binding.target_tag),
+                "{directory} decodes into unknown target '{}'",
+                binding.target_tag
+            );
+        }
+    }
+}
+
 #[test]
 fn an_unknown_package_field_is_rejected() {
     let mut value = serde_json::to_value(raid()).unwrap();

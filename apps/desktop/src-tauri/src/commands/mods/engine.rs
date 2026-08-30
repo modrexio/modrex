@@ -1,4 +1,4 @@
-pub use crate::game_package::{EnabledStateMechanism, SignalSource};
+pub use crate::game_package::{EnabledStateMechanism, InputDecoderBinding, SignalSource};
 use std::path::PathBuf;
 
 pub enum ModUnit {
@@ -72,6 +72,7 @@ impl ScanTarget {
 
 pub struct ModEngineConfig {
     pub game_id: &'static str,
+    pub input_decoders: &'static [InputDecoderBinding],
     pub index_game_name: &'static str,
     pub state_filename: &'static str,
     pub targets: &'static [ScanTarget],

@@ -38,6 +38,7 @@ pub fn package() -> GamePackage {
         news: Some(NewsBinding {
             category_slug: "payday2".to_string(),
         }),
+        input_decoders: Vec::new(),
         loaders: vec![LoaderBinding {
             loader_id: "superblt".to_string(),
             modworkshop_ids: Vec::new(),

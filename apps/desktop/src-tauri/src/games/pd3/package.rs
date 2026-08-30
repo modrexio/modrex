@@ -41,6 +41,7 @@ pub fn package() -> GamePackage {
         news: Some(NewsBinding {
             category_slug: "payday3".to_string(),
         }),
+        input_decoders: Vec::new(),
         loaders: vec![LoaderBinding {
             loader_id: "ue4ss".to_string(),
             // Two independently maintained mod pages distribute UE4SS for this game, each

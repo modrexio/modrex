@@ -39,6 +39,7 @@ pub fn package() -> GamePackage {
             nexus: None,
         },
         news: None,
+        input_decoders: Vec::new(),
         loaders: vec![LoaderBinding {
             loader_id: "raid_superblt".to_string(),
             modworkshop_ids: vec![49744],

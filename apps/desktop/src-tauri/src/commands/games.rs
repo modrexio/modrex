@@ -27,6 +27,7 @@ fn spec_from(pkg: &'static GamePackage) -> GameSpec {
         index_game_name: &pkg.index_game_name,
         state_filename: &pkg.state_filename,
         signals: pkg.signals,
+        input_decoders: &pkg.input_decoders,
         targets: own_slice(pkg.targets.iter().map(scan_target).collect()),
     }));
     let def = Box::leak(Box::new(GameDef {
