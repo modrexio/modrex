@@ -99,6 +99,14 @@ async fn send_event(app: &AppHandle, name: &str, mut params: Value) {
     }
 }
 
+pub(crate) fn track_mod_installed(app: &AppHandle, game_id: &str, mod_id: i64, format: &str) {
+    track(
+        app,
+        "mod_installed",
+        json!({ "game": game_id, "mod_id": mod_id, "format": format }),
+    );
+}
+
 /// Adds the properties every event carries. Callers can override any of them by
 /// supplying the key themselves, since or_insert only fills what is missing.
 fn inject_defaults(app: &AppHandle, params: &mut Value) {

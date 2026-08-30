@@ -36,12 +36,14 @@ pub use self::types::{
 pub use self::zip::{compute_md5, compute_sha256};
 
 // Mod-identification helpers for the get_installed pipeline, see identify.rs
+use self::identify::staged_content_sha256;
 #[cfg(test)]
 pub(crate) use self::identify::{embedded_modworkshop_id, upgrade_negative_ids_with_conn};
 pub(crate) use self::identify::{
     ensure_untracked_folders, hash_untracked, hashable_file_for_mod_dir, identify_untracked,
     regroup_negative_ids_by_name_suffix, resync_crimeboss_enabled_flags, upgrade_negative_ids,
 };
+use crate::commands::analytics::track_mod_installed;
 
 // Internal helpers used by Tauri commands in this file
 pub(crate) use self::folders::{
@@ -411,16 +413,9 @@ pub async fn install_mod(
         original_archive: zip_orig,
     } = match resolve_archive_download(downloaded, cfg, staged_archives(&app)) {
         Err(ResolveError::Ue4ssLoader(zip_path)) => {
-            let settings = read_settings(&app);
-            let launcher = game_settings(&settings, cfg.game_id).and_then(|gs| gs.launcher.clone());
-            let result = crate::commands::ue4ss::install_loader(
-                cfg.game_id,
-                &game_path,
-                launcher.as_deref(),
-                &zip_path,
-            );
-            cleanup::run(&cleanup::CleanupPlan::RemoveOwnedFile(zip_path)).await;
-            return result.map(|()| InstallOutcome::Installed);
+            return install_ue4ss_loader_from(&app, cfg, &game_path, zip_path)
+                .await
+                .map(|()| InstallOutcome::Installed);
         }
         Err(ResolveError::Prompt(prompt)) => {
             return Ok((*prompt)
@@ -443,22 +438,7 @@ pub async fn install_mod(
     let target = cfg.target_for(location_tag.as_deref());
 
     let result = async {
-        let sha256 = match &target.unit {
-            engine::ModUnit::File { .. } => compute_sha256(&tmp).await?,
-            engine::ModUnit::Directory { entry_markers, .. } => {
-                let hash_path = if entry_markers.is_empty() {
-                    hashable_file_for_mod_dir(&tmp)
-                        .ok_or_else(|| "mod directory is empty".to_string())?
-                } else {
-                    entry_markers
-                        .iter()
-                        .map(|m| tmp.join(m))
-                        .find(|p| p.exists())
-                        .unwrap_or_else(|| tmp.join(entry_markers[0]))
-                };
-                compute_sha256(&hash_path).await?
-            }
-        };
+        let sha256 = staged_content_sha256(target, &tmp).await?;
         let uid = file_id.to_string();
         // The real modworkshop id, kept as a string for remote_id and identity comparisons.
         // InstalledMod.id is an opaque, source-scoped key (see
@@ -552,33 +532,15 @@ pub async fn install_mod(
             disable_mod_op(&game_path, &sp, &uid, cfg, launcher_str.as_deref());
         }
 
-        let _ = http_client()
-            .post(format!(
-                "https://api.modworkshop.net/files/{}/register-download",
-                file_id
-            ))
-            .header("User-Agent", user_agent(&app))
-            .send()
-            .await;
+        register_download(&app, file_id).await;
 
         Ok::<(), String>(())
     }
     .await;
 
-    cleanup::run(&cleanup_plan).await;
-    if let Some(orig) = zip_orig {
-        cleanup::run(&cleanup::CleanupPlan::RemoveOwnedFile(orig)).await;
-    }
+    cleanup::run_staged(&cleanup_plan, zip_orig).await;
     match &result {
-        Ok(_) => crate::commands::analytics::track(
-            &app,
-            "mod_installed",
-            serde_json::json!({
-                "game": game_id.as_str(),
-                "mod_id": mod_id,
-                "format": file_type,
-            }),
-        ),
+        Ok(_) => track_mod_installed(&app, game_id.as_str(), mod_id as i64, &file_type),
         Err(e) => log::warn!("install_mod {mod_id}: {e}"),
     }
     result.map(|()| InstallOutcome::Installed)
@@ -615,16 +577,9 @@ pub async fn install_file(
         original_archive: zip_orig,
     } = match resolve_archive_download(downloaded, cfg, staged_archives(&app)) {
         Err(ResolveError::Ue4ssLoader(zip_path)) => {
-            let settings = read_settings(&app);
-            let launcher = game_settings(&settings, cfg.game_id).and_then(|gs| gs.launcher.clone());
-            let result = crate::commands::ue4ss::install_loader(
-                cfg.game_id,
-                &game_path,
-                launcher.as_deref(),
-                &zip_path,
-            );
-            cleanup::run(&cleanup::CleanupPlan::RemoveOwnedFile(zip_path)).await;
-            return result.map(|()| InstallOutcome::Installed);
+            return install_ue4ss_loader_from(&app, cfg, &game_path, zip_path)
+                .await
+                .map(|()| InstallOutcome::Installed);
         }
         Err(ResolveError::Prompt(prompt)) => {
             return Ok((*prompt)
@@ -647,22 +602,7 @@ pub async fn install_file(
     let target = cfg.target_for(location_tag.as_deref());
 
     let result = async {
-        let sha256 = match &target.unit {
-            engine::ModUnit::File { .. } => compute_sha256(&tmp).await?,
-            engine::ModUnit::Directory { entry_markers, .. } => {
-                let hash_path = if entry_markers.is_empty() {
-                    hashable_file_for_mod_dir(&tmp)
-                        .ok_or_else(|| "mod directory is empty".to_string())?
-                } else {
-                    entry_markers
-                        .iter()
-                        .map(|m| tmp.join(m))
-                        .find(|p| p.exists())
-                        .unwrap_or_else(|| tmp.join(entry_markers[0]))
-                };
-                compute_sha256(&hash_path).await?
-            }
-        };
+        let sha256 = staged_content_sha256(target, &tmp).await?;
         let uid = file_id.to_string();
         let mod_id_str = mod_id.to_string();
         let sp = get_state_path(&game_path, cfg);
@@ -731,33 +671,15 @@ pub async fn install_file(
             target,
         )?;
 
-        let _ = http_client()
-            .post(format!(
-                "https://api.modworkshop.net/files/{}/register-download",
-                file_id
-            ))
-            .header("User-Agent", user_agent(&app))
-            .send()
-            .await;
+        register_download(&app, file_id).await;
 
         Ok::<(), String>(())
     }
     .await;
 
-    cleanup::run(&cleanup_plan).await;
-    if let Some(orig) = zip_orig {
-        cleanup::run(&cleanup::CleanupPlan::RemoveOwnedFile(orig)).await;
-    }
+    cleanup::run_staged(&cleanup_plan, zip_orig).await;
     match &result {
-        Ok(_) => crate::commands::analytics::track(
-            &app,
-            "mod_installed",
-            serde_json::json!({
-                "game": game_id.as_str(),
-                "mod_id": mod_id,
-                "format": file_type,
-            }),
-        ),
+        Ok(_) => track_mod_installed(&app, game_id.as_str(), mod_id, &file_type),
         Err(e) => log::warn!("install_file {mod_id} file={file_id}: {e}"),
     }
     result.map(|()| InstallOutcome::Installed)
@@ -804,16 +726,7 @@ pub(crate) async fn install_nexus_download(
         original_archive: zip_orig,
     } = match resolve_archive_download(downloaded, cfg, staged_archives(app)) {
         Err(ResolveError::Ue4ssLoader(zip_path)) => {
-            let settings = read_settings(app);
-            let launcher = game_settings(&settings, cfg.game_id).and_then(|gs| gs.launcher.clone());
-            let result = crate::commands::ue4ss::install_loader(
-                cfg.game_id,
-                game_path,
-                launcher.as_deref(),
-                &zip_path,
-            );
-            cleanup::run(&cleanup::CleanupPlan::RemoveOwnedFile(zip_path)).await;
-            return result;
+            return install_ue4ss_loader_from(app, cfg, game_path, zip_path).await;
         }
         Err(ResolveError::Prompt(prompt)) => {
             cleanup::run(&cleanup::CleanupPlan::RemoveOwnedFile(dl_path.clone())).await;
@@ -837,22 +750,7 @@ pub(crate) async fn install_nexus_download(
     let target = cfg.target_for(location_tag.as_deref());
 
     let result = async {
-        let sha256 = match &target.unit {
-            engine::ModUnit::File { .. } => compute_sha256(&tmp).await?,
-            engine::ModUnit::Directory { entry_markers, .. } => {
-                let hash_path = if entry_markers.is_empty() {
-                    hashable_file_for_mod_dir(&tmp)
-                        .ok_or_else(|| "mod directory is empty".to_string())?
-                } else {
-                    entry_markers
-                        .iter()
-                        .map(|m| tmp.join(m))
-                        .find(|p| p.exists())
-                        .unwrap_or_else(|| tmp.join(entry_markers[0]))
-                };
-                compute_sha256(&hash_path).await?
-            }
-        };
+        let sha256 = staged_content_sha256(target, &tmp).await?;
         let uid = format!("nexus:{nexus_mod_id}:{nexus_file_id}");
         let sp = get_state_path(game_path, cfg);
         let saved = read_state(&sp);
@@ -892,14 +790,43 @@ pub(crate) async fn install_nexus_download(
     }
     .await;
 
-    cleanup::run(&cleanup_plan).await;
-    if let Some(orig) = zip_orig {
-        cleanup::run(&cleanup::CleanupPlan::RemoveOwnedFile(orig)).await;
-    }
+    cleanup::run_staged(&cleanup_plan, zip_orig).await;
     if let Err(e) = &result {
         log::warn!("install_nexus_download {nexus_mod_id}/{nexus_file_id}: {e}");
     }
     result
+}
+
+/// Removes the download once the loader installer has taken it.
+async fn install_ue4ss_loader_from(
+    app: &AppHandle,
+    cfg: &ModEngineConfig,
+    game_path: &str,
+    zip_path: PathBuf,
+) -> Result<(), String> {
+    let settings = read_settings(app);
+    let launcher = game_settings(&settings, cfg.game_id).and_then(|gs| gs.launcher.clone());
+    let result = crate::commands::ue4ss::install_loader(
+        cfg.game_id,
+        game_path,
+        launcher.as_deref(),
+        &zip_path,
+    );
+    cleanup::run(&cleanup::CleanupPlan::RemoveOwnedFile(zip_path)).await;
+    result
+}
+
+/// Reports a completed download to modworkshop. Best effort: a failure here never affects
+/// the install that already succeeded.
+async fn register_download(app: &AppHandle, file_id: i64) {
+    let _ = http_client()
+        .post(format!(
+            "https://api.modworkshop.net/files/{}/register-download",
+            file_id
+        ))
+        .header("User-Agent", user_agent(app))
+        .send()
+        .await;
 }
 
 /// Recovers a dropped mod's real name, for both display and the on-disk filename. The
@@ -994,16 +921,9 @@ pub async fn install_dropped_file(
         original_archive: zip_orig,
     } = match resolve_archive_download(temp.clone(), cfg, staged_archives(&app)) {
         Err(ResolveError::Ue4ssLoader(zip_path)) => {
-            let settings = read_settings(&app);
-            let launcher = game_settings(&settings, cfg.game_id).and_then(|gs| gs.launcher.clone());
-            let result = crate::commands::ue4ss::install_loader(
-                cfg.game_id,
-                &game_path,
-                launcher.as_deref(),
-                &zip_path,
-            );
-            cleanup::run(&cleanup::CleanupPlan::RemoveOwnedFile(zip_path)).await;
-            return result.map(|()| InstallOutcome::Installed);
+            return install_ue4ss_loader_from(&app, cfg, &game_path, zip_path)
+                .await
+                .map(|()| InstallOutcome::Installed);
         }
         // The picker / host-pack / CB-flat modals install directly from the temp copy (which they
         // delete afterwards), so forward the prompt enriched with a synthetic identity, mirroring
@@ -1086,22 +1006,7 @@ pub async fn install_dropped_file(
     };
 
     let result = async {
-        let sha256 = match &target.unit {
-            engine::ModUnit::File { .. } => compute_sha256(&tmp).await?,
-            engine::ModUnit::Directory { entry_markers, .. } => {
-                let hash_path = if entry_markers.is_empty() {
-                    hashable_file_for_mod_dir(&tmp)
-                        .ok_or_else(|| "mod directory is empty".to_string())?
-                } else {
-                    entry_markers
-                        .iter()
-                        .map(|m| tmp.join(m))
-                        .find(|p| p.exists())
-                        .unwrap_or_else(|| tmp.join(entry_markers[0]))
-                };
-                compute_sha256(&hash_path).await?
-            }
-        };
+        let sha256 = staged_content_sha256(target, &tmp).await?;
         // Discovery-matching identity: filename drives the uid/id the untracked-scan would assign,
         // so a later manual refresh reconciles this entry instead of duplicating it.
         let filename = decisions::install_filename_for_dropped(cfg, target, &display_stem);
@@ -1128,22 +1033,11 @@ pub async fn install_dropped_file(
     }
     .await;
 
-    cleanup::run(&cleanup_plan).await;
-    if let Some(orig) = zip_orig {
-        cleanup::run(&cleanup::CleanupPlan::RemoveOwnedFile(orig)).await;
-    }
+    cleanup::run_staged(&cleanup_plan, zip_orig).await;
     cleanup::run(&cleanup::CleanupPlan::RemoveOwnedFile(temp)).await;
 
     match &result {
-        Ok(_) => crate::commands::analytics::track(
-            &app,
-            "mod_installed",
-            serde_json::json!({
-                "game": game_id.as_str(),
-                "mod_id": -1,
-                "format": "local",
-            }),
-        ),
+        Ok(_) => track_mod_installed(&app, game_id.as_str(), -1, "local"),
         Err(e) => log::warn!("install_dropped_file {path}: {e}"),
     }
     result.map(|()| InstallOutcome::Installed)
@@ -1283,22 +1177,7 @@ pub async fn install_from_zip_entry(
             }
             decisions::EntryExtraction::AlreadyStaged => {}
         }
-        let sha256 = match &target.unit {
-            engine::ModUnit::File { .. } => compute_sha256(&ext).await?,
-            engine::ModUnit::Directory { entry_markers, .. } => {
-                let hash_path = if entry_markers.is_empty() {
-                    hashable_file_for_mod_dir(&ext)
-                        .ok_or_else(|| "mod directory is empty".to_string())?
-                } else {
-                    entry_markers
-                        .iter()
-                        .map(|m| ext.join(m))
-                        .find(|p| p.exists())
-                        .unwrap_or_else(|| ext.join(entry_markers[0]))
-                };
-                compute_sha256(&hash_path).await?
-            }
-        };
+        let sha256 = staged_content_sha256(target, &ext).await?;
         let sp = get_state_path(&game_path, cfg);
         let saved = read_state(&sp);
         let mod_id_str = mod_id.to_string();
@@ -1345,14 +1224,7 @@ pub async fn install_from_zip_entry(
             target,
         )?;
 
-        let _ = http_client()
-            .post(format!(
-                "https://api.modworkshop.net/files/{}/register-download",
-                file_id
-            ))
-            .header("User-Agent", user_agent(&app))
-            .send()
-            .await;
+        register_download(&app, file_id).await;
 
         Ok::<(), String>(())
     }
@@ -1365,15 +1237,7 @@ pub async fn install_from_zip_entry(
     };
     cleanup::run(&entry_cleanup).await;
     match &result {
-        Ok(_) => crate::commands::analytics::track(
-            &app,
-            "mod_installed",
-            serde_json::json!({
-                "game": game_id.as_str(),
-                "mod_id": mod_id,
-                "format": install_format,
-            }),
-        ),
+        Ok(_) => track_mod_installed(&app, game_id.as_str(), mod_id, &install_format),
         Err(e) => log::warn!("install_from_zip_entry {mod_id} file={file_id}: {e}"),
     }
     result
@@ -1451,14 +1315,7 @@ pub async fn install_cb_flat_archive(
             target,
         )?;
 
-        let _ = http_client()
-            .post(format!(
-                "https://api.modworkshop.net/files/{}/register-download",
-                file_id
-            ))
-            .header("User-Agent", user_agent(&app))
-            .send()
-            .await;
+        register_download(&app, file_id).await;
 
         Ok::<(), String>(())
     }
@@ -1469,15 +1326,7 @@ pub async fn install_cb_flat_archive(
     finish_with_archive(registry, &archive_handle).await;
 
     match &result {
-        Ok(_) => crate::commands::analytics::track(
-            &app,
-            "mod_installed",
-            serde_json::json!({
-                "game": "cb",
-                "mod_id": mod_id,
-                "format": file_type,
-            }),
-        ),
+        Ok(_) => track_mod_installed(&app, "cb", mod_id, &file_type),
         Err(e) => log::warn!("install_cb_flat_archive {mod_id} file={file_id}: {e}"),
     }
     result
@@ -1551,24 +1400,9 @@ pub async fn install_host_pack(app: AppHandle, args: InstallHostPackArgs) -> Res
     };
     install_host_pack_op(&game_path, &sp, &zip, &entry_name, mod_data, cfg)?;
 
-    let _ = http_client()
-        .post(format!(
-            "https://api.modworkshop.net/files/{}/register-download",
-            file_id
-        ))
-        .header("User-Agent", user_agent(&app))
-        .send()
-        .await;
+    register_download(&app, file_id).await;
 
-    crate::commands::analytics::track(
-        &app,
-        "mod_installed",
-        serde_json::json!({
-            "game": game_id.as_str(),
-            "mod_id": mod_id,
-            "format": install_format,
-        }),
-    );
+    track_mod_installed(&app, game_id.as_str(), mod_id, &install_format);
     Ok(())
 }
 

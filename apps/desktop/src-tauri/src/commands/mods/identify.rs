@@ -11,6 +11,30 @@ use std::collections::HashMap;
 use tauri::AppHandle;
 use uuid::Uuid;
 
+/// The SHA256 an install records for staged content: the file itself for a file unit, and for
+/// a directory unit the marker the target declares, falling back to the representative file.
+pub(crate) async fn staged_content_sha256(
+    target: &engine::ScanTarget,
+    staged: &std::path::Path,
+) -> Result<String, String> {
+    match &target.unit {
+        engine::ModUnit::File { .. } => compute_sha256(staged).await,
+        engine::ModUnit::Directory { entry_markers, .. } => {
+            let hash_path = if entry_markers.is_empty() {
+                hashable_file_for_mod_dir(staged)
+                    .ok_or_else(|| "mod directory is empty".to_string())?
+            } else {
+                entry_markers
+                    .iter()
+                    .map(|m| staged.join(m))
+                    .find(|p| p.exists())
+                    .unwrap_or_else(|| staged.join(entry_markers[0]))
+            };
+            compute_sha256(&hash_path).await
+        }
+    }
+}
+
 /// The representative file of a mod that ships no marker: the one whose path relative to the
 /// mod folder sorts first by UTF-8 bytes. The indexer chooses the same file from the archive by
 /// the same rule, and the two are tested against one set of vectors

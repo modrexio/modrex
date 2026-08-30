@@ -84,6 +84,19 @@ pub async fn run(plan: &CleanupPlan) {
     run_in(&temp_root(), plan).await
 }
 
+/// Releases what staging produced for one install: the artifact the producer declared, then
+/// the archive it was extracted from.
+pub async fn run_staged(plan: &CleanupPlan, original_archive: Option<PathBuf>) {
+    run_staged_in(&temp_root(), plan, original_archive).await
+}
+
+pub async fn run_staged_in(root: &Path, plan: &CleanupPlan, original_archive: Option<PathBuf>) {
+    run_in(root, plan).await;
+    if let Some(archive) = original_archive {
+        run_in(root, &CleanupPlan::RemoveOwnedFile(archive)).await;
+    }
+}
+
 pub async fn run_in(root: &Path, plan: &CleanupPlan) {
     match plan {
         CleanupPlan::RemoveOwnedFile(path) => remove_owned_file(root, path).await,

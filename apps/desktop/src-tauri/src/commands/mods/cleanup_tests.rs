@@ -380,3 +380,61 @@ fn parent_derivation_resolves_to_the_staging_root_and_is_refused() {
     }
     fx.sentinels_survive();
 }
+
+// ── run_staged ─────────────────────────────────────────────────────────────
+
+fn run_staged_plan(root: &Path, plan: &CleanupPlan, archive: Option<PathBuf>) {
+    tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("runtime")
+        .block_on(run_staged_in(root, plan, archive));
+}
+
+#[test]
+fn staged_release_removes_the_staged_artifact_and_its_archive() {
+    let fx = Fixture::new();
+    let staged = fx.staged_dir("modrex-mod-abc");
+    let archive = fx.staged_file("modrex-abc.zip");
+
+    run_staged_plan(
+        fx.path(),
+        &CleanupPlan::RemoveOwnedDirectory(staged.clone()),
+        Some(archive.clone()),
+    );
+    assert!(!staged.exists());
+    assert!(!archive.exists());
+    fx.sentinels_survive();
+}
+
+#[test]
+fn staged_release_without_an_archive_touches_only_the_staged_artifact() {
+    let fx = Fixture::new();
+    let staged = fx.staged_file("modrex-abc.lua");
+    let bystander = fx.staged_file("modrex-other.lua");
+
+    run_staged_plan(
+        fx.path(),
+        &CleanupPlan::RemoveOwnedFileWithSidecars(staged.clone()),
+        None,
+    );
+    assert!(!staged.exists());
+    assert!(bystander.exists());
+    fx.sentinels_survive();
+}
+
+/// The two removals are independent: a refused plan does not strand the archive, and a
+/// refusal never widens to anything else.
+#[test]
+fn a_refused_plan_still_releases_the_archive() {
+    let fx = Fixture::new();
+    let archive = fx.staged_file("modrex-abc.zip");
+
+    run_staged_plan(
+        fx.path(),
+        &CleanupPlan::RemoveOwnedDirectory(fx.path().to_path_buf()),
+        Some(archive.clone()),
+    );
+    assert!(!archive.exists());
+    fx.sentinels_survive();
+}

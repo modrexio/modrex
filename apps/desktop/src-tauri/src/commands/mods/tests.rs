@@ -4049,3 +4049,77 @@ fn read_state_migrates_legacy_version_sentinels() {
     assert_eq!(state.mods[2].update_status, UpdateStatus::Known);
     assert_eq!(state.mods[2].version, "2.11");
 }
+
+// ── staged_content_sha256 ─────────────────────────────────────────────────
+
+#[tokio::test]
+async fn staged_content_sha256_hashes_a_file_unit_directly() {
+    let dir = TempDir::new().unwrap();
+    let pak = dir.path().join("Mod.pak");
+    fs::write(&pak, b"pak bytes").unwrap();
+    let cfg = engine_for_game("pd3").unwrap();
+
+    let got = super::identify::staged_content_sha256(cfg.target_for(Some("paks")), &pak)
+        .await
+        .unwrap();
+    assert_eq!(got, compute_sha256(&pak).await.unwrap());
+}
+
+#[tokio::test]
+async fn staged_content_sha256_hashes_the_declared_marker_of_a_directory_unit() {
+    let dir = TempDir::new().unwrap();
+    let staged = dir.path().join("Welrod");
+    fs::create_dir_all(&staged).unwrap();
+    fs::write(staged.join("mod.txt"), b"marker bytes").unwrap();
+    fs::write(staged.join("zzz.lua"), b"other bytes").unwrap();
+    let cfg = engine_for_game("pd2").unwrap();
+
+    let got = super::identify::staged_content_sha256(cfg.primary(), &staged)
+        .await
+        .unwrap();
+    assert_eq!(got, compute_sha256(&staged.join("mod.txt")).await.unwrap());
+}
+
+/// PD2 declares mod.txt before main.xml; a mod shipping only the second must still hash.
+#[tokio::test]
+async fn staged_content_sha256_falls_through_to_a_later_marker() {
+    let dir = TempDir::new().unwrap();
+    let staged = dir.path().join("Welrod");
+    fs::create_dir_all(&staged).unwrap();
+    fs::write(staged.join("main.xml"), b"second marker").unwrap();
+    let cfg = engine_for_game("pd2").unwrap();
+
+    let got = super::identify::staged_content_sha256(cfg.primary(), &staged)
+        .await
+        .unwrap();
+    assert_eq!(got, compute_sha256(&staged.join("main.xml")).await.unwrap());
+}
+
+#[tokio::test]
+async fn staged_content_sha256_uses_the_representative_file_when_no_marker_is_declared() {
+    let dir = TempDir::new().unwrap();
+    let staged = dir.path().join("SomeMod");
+    fs::create_dir_all(&staged).unwrap();
+    fs::write(staged.join("b.txt"), b"bee").unwrap();
+    fs::write(staged.join("a.txt"), b"aye").unwrap();
+    let cfg = engine_for_game("raid").unwrap();
+
+    let got = super::identify::staged_content_sha256(cfg.primary(), &staged)
+        .await
+        .unwrap();
+    let representative = hashable_file_for_mod_dir(&staged).unwrap();
+    assert_eq!(got, compute_sha256(&representative).await.unwrap());
+}
+
+#[tokio::test]
+async fn staged_content_sha256_reports_an_empty_directory() {
+    let dir = TempDir::new().unwrap();
+    let staged = dir.path().join("Empty");
+    fs::create_dir_all(&staged).unwrap();
+    let cfg = engine_for_game("raid").unwrap();
+
+    assert_eq!(
+        super::identify::staged_content_sha256(cfg.primary(), &staged).await,
+        Err("mod directory is empty".to_string())
+    );
+}
