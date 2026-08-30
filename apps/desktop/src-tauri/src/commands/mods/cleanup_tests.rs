@@ -3,7 +3,7 @@
 //! staged artifact; the sentinel surviving is what proves cleanup stayed inside its boundary.
 
 use super::cleanup::*;
-use super::engine::{CRIMEBOSS_ENGINE, PD2_ENGINE, PD3_ENGINE, PDTH_ENGINE, RAID_ENGINE};
+use super::engine::{engine_for_game, CRIMEBOSS_ENGINE, PD2_ENGINE, PD3_ENGINE, PDTH_ENGINE};
 use super::staging_tokens::StagingRegistry;
 use super::zip::resolve_archive_download;
 use std::fs;
@@ -310,7 +310,7 @@ fn non_archive_resolution_owns_the_downloaded_file_for_every_game() {
     for cfg in [
         &PD2_ENGINE,
         &PDTH_ENGINE,
-        &RAID_ENGINE,
+        engine_for_game("raid").unwrap(),
         &PD3_ENGINE,
         &CRIMEBOSS_ENGINE,
     ] {
@@ -337,7 +337,7 @@ fn no_resolver_shape_selects_the_staging_root() {
     for cfg in [
         &PD2_ENGINE,
         &PDTH_ENGINE,
-        &RAID_ENGINE,
+        engine_for_game("raid").unwrap(),
         &PD3_ENGINE,
         &CRIMEBOSS_ENGINE,
     ] {

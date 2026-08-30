@@ -1003,7 +1003,7 @@ fn open_game_folder_rejects_an_unknown_game_id() {
             "'{id}' must not resolve to a game"
         );
     }
-    for spec in crate::commands::games::GAME_REGISTRY {
+    for spec in crate::commands::games::GAME_REGISTRY.iter() {
         assert!(crate::commands::games::game_spec(spec.id).is_some());
     }
 }

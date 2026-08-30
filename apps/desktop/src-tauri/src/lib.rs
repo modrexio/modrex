@@ -1,4 +1,5 @@
 mod commands;
+mod games;
 
 #[cfg(windows)]
 mod windows_fullscreen;

@@ -1,6 +1,7 @@
 use super::decisions::*;
 use super::engine::{
-    ModEngineConfig, ScanTarget, CRIMEBOSS_ENGINE, PD2_ENGINE, PD3_ENGINE, PDTH_ENGINE, RAID_ENGINE,
+    engine_for_game, ModEngineConfig, ScanTarget, CRIMEBOSS_ENGINE, PD2_ENGINE, PD3_ENGINE,
+    PDTH_ENGINE,
 };
 use std::path::PathBuf;
 
@@ -12,10 +13,14 @@ fn staged_dir() -> PathBuf {
     PathBuf::from("/tmp/modrex-mod-abc/CoolMod")
 }
 
+fn raid_engine() -> &'static ModEngineConfig {
+    engine_for_game("raid").unwrap()
+}
+
 #[test]
 fn only_crime_boss_resyncs_enabled_flags() {
     assert!(resyncs_enabled_flags(&CRIMEBOSS_ENGINE));
-    for cfg in [&PD3_ENGINE, &PD2_ENGINE, &PDTH_ENGINE, &RAID_ENGINE] {
+    for cfg in [&PD3_ENGINE, &PD2_ENGINE, &PDTH_ENGINE, raid_engine()] {
         assert!(!resyncs_enabled_flags(cfg), "{} must not", cfg.game_id);
     }
 }
@@ -59,7 +64,7 @@ fn filename_from_mod_name_covers_every_game_and_unit() {
         (&PD2_ENGINE, "mod_overrides"),
         (&PDTH_ENGINE, "mods"),
         (&PDTH_ENGINE, "mod_overrides"),
-        (&RAID_ENGINE, "mods"),
+        (raid_engine(), "mods"),
         (&PD3_ENGINE, "ue4ss_mods"),
     ] {
         assert_eq!(
@@ -77,7 +82,12 @@ fn filename_from_mod_name_covers_every_game_and_unit() {
 fn directory_fallback_prefers_the_staged_directory_name() {
     let tmp = PathBuf::from("/tmp/modrex-mod-abc/OnDiskName");
     assert_eq!(
-        install_filename_from_mod_name(&RAID_ENGINE, target(&RAID_ENGINE, "mods"), "CoolMod", &tmp),
+        install_filename_from_mod_name(
+            raid_engine(),
+            target(raid_engine(), "mods"),
+            "CoolMod",
+            &tmp
+        ),
         "OnDiskName"
     );
     assert_eq!(
@@ -107,8 +117,8 @@ fn source_file_filename_separates_extras_from_the_main_download() {
     // The file id only reaches file units; directory units ignore it entirely.
     assert_eq!(
         install_filename_for_source_file(
-            &RAID_ENGINE,
-            target(&RAID_ENGINE, "mods"),
+            raid_engine(),
+            target(raid_engine(), "mods"),
             "CoolMod",
             42,
             "optional",
@@ -138,7 +148,7 @@ fn dropped_filename_uses_the_recovered_stem_for_directories() {
         "CoolMod.pak"
     );
     assert_eq!(
-        install_filename_for_dropped(&RAID_ENGINE, target(&RAID_ENGINE, "mods"), "CoolMod"),
+        install_filename_for_dropped(raid_engine(), target(raid_engine(), "mods"), "CoolMod"),
         "CoolMod"
     );
     assert_eq!(
@@ -161,7 +171,7 @@ fn dropped_filename_uses_the_recovered_stem_for_directories() {
 
 #[test]
 fn zip_entry_filename_keeps_the_entry_name_off_crime_boss() {
-    for cfg in [&PD3_ENGINE, &PD2_ENGINE, &PDTH_ENGINE, &RAID_ENGINE] {
+    for cfg in [&PD3_ENGINE, &PD2_ENGINE, &PDTH_ENGINE, raid_engine()] {
         assert_eq!(
             install_filename_for_zip_entry(cfg, "CoolMod", "Inner Entry.pak"),
             "Inner Entry.pak",
@@ -181,7 +191,7 @@ fn cb_dir_entry_needs_both_crime_boss_and_a_dir_entry_kind() {
     assert!(!is_cb_dir_entry(&CRIMEBOSS_ENGINE, Some("pak")));
     assert!(!is_cb_dir_entry(&CRIMEBOSS_ENGINE, None));
     assert!(!is_cb_dir_entry(&PD3_ENGINE, Some("dir")));
-    assert!(!is_cb_dir_entry(&RAID_ENGINE, Some("dir")));
+    assert!(!is_cb_dir_entry(raid_engine(), Some("dir")));
 }
 
 #[test]
@@ -213,7 +223,7 @@ fn entry_staging_wraps_only_crime_boss_pak_entries() {
         (&PD3_ENGINE, "ue4ss_mods"),
         (&PD2_ENGINE, "mods"),
         (&PDTH_ENGINE, "mods"),
-        (&RAID_ENGINE, "mods"),
+        (raid_engine(), "mods"),
     ] {
         assert_eq!(
             entry_staging(cfg, target(cfg, tag), false),
@@ -249,7 +259,7 @@ fn entry_extraction_skips_only_the_already_staged_crime_boss_entry() {
         (&PD3_ENGINE, "ue4ss_mods"),
         (&PD2_ENGINE, "mods"),
         (&PDTH_ENGINE, "mod_overrides"),
-        (&RAID_ENGINE, "mods"),
+        (raid_engine(), "mods"),
     ] {
         assert_eq!(
             entry_extraction(cfg, target(cfg, tag), false),
@@ -269,13 +279,13 @@ fn crime_boss_differs_from_other_games_only_where_production_differs() {
     // the same string when it is, so only a differing name exposes the divergence.
     let tmp = PathBuf::from("/tmp/modrex-mod-abc/OnDiskName");
     let cb_dir = target(&CRIMEBOSS_ENGINE, "mods");
-    let raid_dir = target(&RAID_ENGINE, "mods");
+    let raid_dir = target(raid_engine(), "mods");
     let cb_file = target(&CRIMEBOSS_ENGINE, "paks");
     let pd3_file = target(&PD3_ENGINE, "paks");
 
     assert_ne!(
         install_filename_from_mod_name(&CRIMEBOSS_ENGINE, cb_dir, "CoolMod", &tmp),
-        install_filename_from_mod_name(&RAID_ENGINE, raid_dir, "CoolMod", &tmp)
+        install_filename_from_mod_name(raid_engine(), raid_dir, "CoolMod", &tmp)
     );
     assert_ne!(
         entry_staging(&CRIMEBOSS_ENGINE, cb_file, false),

@@ -1,3 +1,4 @@
+pub use crate::games::package::{EnabledStateMechanism, SignalSource};
 use std::path::PathBuf;
 
 pub enum ModUnit {
@@ -44,15 +45,6 @@ const UE4SS_BUNDLED_SUBMODS: &[&str] = &[
     "shared",
 ];
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum EnabledStateMechanism {
-    Filesystem,
-    /// UE4SS loads the folders under Mods/ that mods.txt beside them lists, and ignores where
-    /// a folder itself sits (confirmed against the real format: see ue4ss_modstxt.rs), so
-    /// enabling and disabling here edit that file and leave the installed files in place.
-    Ue4ssModsTxt,
-}
-
 pub struct ScanTarget {
     pub tag: &'static str,
     pub label_key: &'static str,
@@ -94,16 +86,6 @@ impl ScanTarget {
             } => *priority_prefix,
         }
     }
-}
-
-/// Which marker vocabulary a game's mods describe themselves in. Identity resolution is
-/// game-neutral, so the ecosystem-specific parsing sits behind this instead of leaking into
-/// the shared model (see mods/diesel_signals.rs).
-pub enum SignalSource {
-    /// BLT mod.txt and BeardLib main.xml: PAYDAY 2, PAYDAY: The Heist, RAID.
-    Diesel,
-    /// Pak-based games, whose mods carry no self-describing metadata to read.
-    None,
 }
 
 pub struct ModEngineConfig {
@@ -314,47 +296,12 @@ pub static PDTH_ENGINE: ModEngineConfig = ModEngineConfig {
 
 // BLT and Diesel infrastructure dirs the loader creates under mods/ that are never user
 // mods: base (the SuperBLT basemod) plus the downloads, logs and saves runtime dirs BLT and
-// BeardLib recreate on every launch. Common to every Diesel game (RAID, PD2, PDTH), and
-// mirrors RAIDWW2-BeardLib's own _ignore_folders list (Classes/Frameworks.lua), verified
-// against a real install. On RAID's blanket-accept target this list is what keeps them out
-// of the mod scan. On PD2 and PDTH markers already exclude them, but the list is still
-// needed so launch_without_mods, which moves folders regardless of markers, does not back
-// them up and then fail to restore them once the loader recreates them. BeardLib itself is
-// deliberately omitted: it is a normal installable mod page (id 49760), tracked like any
-// other mod.
+// BeardLib recreate on every launch. On PD2 and PDTH markers already exclude them, but the
+// list is still needed so launch_without_mods, which moves folders regardless of markers,
+// does not back them up and then fail to restore them once the loader recreates them.
+// BeardLib itself is deliberately omitted: it is a normal installable mod page (id 49760),
+// tracked like any other mod.
 const BLT_INFRA_FOLDERS: &[&str] = &["base", "downloads", "logs", "saves"];
-
-// RAID's modern loader (RAID-SuperBLT plus RAIDWW2-BeardLib) loads BLT script mods AND asset
-// override packs from a single mods/<name>/ folder. The game's assets/mod_overrides mount is
-// gone (current builds show a "MOD OVERRIDES IS NO LONGER USED" migration dialog, and
-// BeardLib's FindOverrides scans each mods/<name>/ folder for override content such as
-// soundbanks/, guis/ and units/ instead). So RAID has one blanket-accept target like Crime
-// Boss's Mods/: every folder in mods/ is a user mod unless it is on RAID_INFRA_FOLDERS.
-// Markers are unusable here because asset packs carry no supermod.xml or mod.xml.
-// Identification still reads those embedded ids when present (embedded_modworkshop_id) and
-// otherwise falls back to SHA256 then name. The top-level base skip in find_untracked_paks
-// also covers mods/base, whose supermod.xml a blanket scan would treat as a user mod.
-pub static RAID_ENGINE: ModEngineConfig = ModEngineConfig {
-    game_id: "raid",
-    index_game_name: "RAID: World War II",
-    state_filename: ".modrex.json",
-    signals: SignalSource::Diesel,
-    targets: &[ScanTarget {
-        tag: "mods",
-        unit: ModUnit::Directory {
-            entry_markers: &[],
-            scan_markers: &[],
-            index_gated_markers: &[],
-            excluded_names: BLT_INFRA_FOLDERS,
-            priority_prefix: false,
-        },
-        enabled_state: EnabledStateMechanism::Filesystem,
-        label_key: "mods",
-        mods_subpath: &["mods"],
-        disabled_subpath: &["mods", "disabled"],
-        backup_subpath: &["mods.bak"],
-    }],
-};
 
 pub fn engine_for_game(game_id: &str) -> Result<&'static ModEngineConfig, String> {
     crate::commands::games::game_spec(game_id)

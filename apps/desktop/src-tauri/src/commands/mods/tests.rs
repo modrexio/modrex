@@ -1038,7 +1038,7 @@ fn pd2_engine_has_two_targets() {
 // ── RAID single blanket-accept engine ─────────────────────────────────────
 // RAID's loader reads both BLT script mods and asset packs from one mods/<name>/ folder
 // (assets/mod_overrides was removed), so the engine is a single blanket-accept target that
-// excludes only BLT infrastructure dirs. See RAID_ENGINE in engine.rs.
+// excludes only BLT infrastructure dirs. See the raid game package.
 
 #[test]
 fn raid_engine_has_single_blanket_mods_target() {

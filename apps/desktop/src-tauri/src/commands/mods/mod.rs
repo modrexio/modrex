@@ -23,8 +23,8 @@ mod zip;
 
 // Public API used by lib.rs, launchers/, and other modules
 pub use self::engine::{
-    backup_dir, engine_for_game, ModEngineConfig, CRIMEBOSS_ENGINE, PD2_ENGINE, PD3_ENGINE,
-    PDTH_ENGINE, RAID_ENGINE,
+    backup_dir, engine_for_game, ModEngineConfig, ModUnit, ScanTarget, CRIMEBOSS_ENGINE,
+    PD2_ENGINE, PD3_ENGINE, PDTH_ENGINE,
 };
 pub use self::identity::IdentityEvidence;
 pub use self::install::install_mod_from_path;
