@@ -93,45 +93,6 @@ impl ModEngineConfig {
     }
 }
 
-pub static PD3_ENGINE: ModEngineConfig = ModEngineConfig {
-    game_id: "pd3",
-    index_game_name: "PAYDAY 3",
-    state_filename: ".modrex.json",
-    signals: SignalSource::None,
-    targets: &[
-        ScanTarget {
-            tag: "paks",
-            unit: ModUnit::File {
-                extension: "pak",
-                disabled_suffix: ".disabled",
-                priority_prefix: true,
-            },
-            enabled_state: EnabledStateMechanism::Filesystem,
-            label_key: "mods",
-            mods_subpath: &["PAYDAY3", "Content", "Paks", "~mods"],
-            disabled_subpath: &["PAYDAY3", "Content", "Paks", "~mods", "disabled"],
-            backup_subpath: &["PAYDAY3", "Content", "~mods.bak"],
-        },
-        ScanTarget {
-            tag: "ue4ss_mods",
-            unit: ModUnit::Directory {
-                entry_markers: &["Scripts/main.lua"],
-                scan_markers: &["Scripts/main.lua"],
-                index_gated_markers: &[],
-                excluded_names: UE4SS_BUNDLED_SUBMODS,
-                priority_prefix: false,
-            },
-            enabled_state: EnabledStateMechanism::Ue4ssModsTxt,
-            // game_path already ends in PAYDAY3 (the Steam installdir). See ue4ss.rs's
-            // descriptor comment for why this is not a second copy of it. Steam and Epic only.
-            label_key: "ue4ssMods",
-            mods_subpath: &["PAYDAY3", "Binaries", "Win64", "Mods"],
-            disabled_subpath: &["PAYDAY3", "Binaries", "Win64", "Mods", "disabled"],
-            backup_subpath: &["PAYDAY3", "Binaries", "Win64", "Mods.bak"],
-        },
-    ],
-};
-
 // Primary target is CrimeBoss/Mods/<name>/ (Directory unit), the official ModKit's install
 // location. Unlike PD2 and PDTH's Directory targets the install-time content is not an
 // author-supplied folder copied as-is. Modrex synthesizes the Content/Paks/WindowsNoEditor/

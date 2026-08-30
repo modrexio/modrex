@@ -2,6 +2,14 @@ use super::steam::steam_libraries;
 use super::*;
 use tempfile::TempDir;
 
+fn pd3() -> &'static crate::commands::launchers::GameDef {
+    crate::commands::games::game_spec("pd3").unwrap().def
+}
+
+fn pd3_engine() -> &'static crate::commands::mods::ModEngineConfig {
+    crate::commands::mods::engine_for_game("pd3").unwrap()
+}
+
 // ── steam_libraries ───────────────────────────────────────────────────────
 
 fn write_vdf(dir: &TempDir, content: &str) -> String {
@@ -99,7 +107,7 @@ fn touch(path: std::path::PathBuf) {
 fn is_installation_accepts_win64_layout() {
     let dir = TempDir::new().unwrap();
     touch(dir.path().join("PAYDAY3.exe"));
-    assert!(PD3.is_installation(dir.path().to_str().unwrap()));
+    assert!(pd3().is_installation(dir.path().to_str().unwrap()));
 }
 
 // A Microsoft Store copy stages only the WinGDK binary, so the launch executable is
@@ -115,15 +123,15 @@ fn is_installation_accepts_microsoft_store_layout() {
             .join("PAYDAY3-WinGDK-Shipping.exe"),
     );
     let path = dir.path().to_str().unwrap();
-    assert!(PD3.resolve_executable(path).is_none());
-    assert!(PD3.is_installation(path));
+    assert!(pd3().resolve_executable(path).is_none());
+    assert!(pd3().is_installation(path));
 }
 
 #[test]
 fn is_installation_rejects_unrelated_folder() {
     let dir = TempDir::new().unwrap();
     touch(dir.path().join("readme.txt"));
-    assert!(!PD3.is_installation(dir.path().to_str().unwrap()));
+    assert!(!pd3().is_installation(dir.path().to_str().unwrap()));
 }
 
 // PAYDAY 2 has no Microsoft Store release, so nothing widens its check.
@@ -199,7 +207,7 @@ impl XboxEnvironment for FakeXboxEnv {
 
     fn package_content_path(&self, product_id: &str) -> Option<PathBuf> {
         self.package_calls.set(self.package_calls.get() + 1);
-        if product_id != PD3.xbox.as_ref().unwrap().product_id {
+        if product_id != pd3().xbox.as_ref().unwrap().product_id {
             return None;
         }
         self.package.clone()
@@ -207,7 +215,7 @@ impl XboxEnvironment for FakeXboxEnv {
 }
 
 fn xbox_exe() -> &'static str {
-    PD3.xbox.as_ref().unwrap().executable
+    pd3().xbox.as_ref().unwrap().executable
 }
 
 fn xbox_copy(root: &Path, top: &str, game_dir: &str) -> PathBuf {
@@ -223,17 +231,17 @@ fn found(content: &Path) -> Option<String> {
 #[test]
 fn finds_install_in_the_standard_top_level_dir() {
     let dir = TempDir::new().unwrap();
-    let content = xbox_copy(dir.path(), "XboxGames", PD3.name);
+    let content = xbox_copy(dir.path(), "XboxGames", pd3().name);
     let env = FakeXboxEnv::new(vec![dir.path().to_path_buf()]);
-    assert_eq!(find_game_in(&env, &PD3), found(&content));
+    assert_eq!(find_game_in(&env, pd3()), found(&content));
 }
 
 #[test]
 fn finds_install_in_a_nonstandard_top_level_dir() {
     let dir = TempDir::new().unwrap();
-    let content = xbox_copy(dir.path(), "Games", PD3.name);
+    let content = xbox_copy(dir.path(), "Games", pd3().name);
     let env = FakeXboxEnv::new(vec![dir.path().to_path_buf()]);
-    assert_eq!(find_game_in(&env, &PD3), found(&content));
+    assert_eq!(find_game_in(&env, pd3()), found(&content));
 }
 
 #[test]
@@ -241,32 +249,32 @@ fn finds_install_on_a_later_root() {
     let first = TempDir::new().unwrap();
     let second = TempDir::new().unwrap();
     std::fs::create_dir(first.path().join("Windows")).unwrap();
-    let content = xbox_copy(second.path(), "XboxGames", PD3.name);
+    let content = xbox_copy(second.path(), "XboxGames", pd3().name);
     let env = FakeXboxEnv::new(vec![
         first.path().to_path_buf(),
         second.path().to_path_buf(),
     ]);
-    assert_eq!(find_game_in(&env, &PD3), found(&content));
+    assert_eq!(find_game_in(&env, pd3()), found(&content));
 }
 
 #[test]
 fn unreadable_root_is_skipped_and_the_rest_are_searched() {
     let dir = TempDir::new().unwrap();
-    let content = xbox_copy(dir.path(), "XboxGames", PD3.name);
+    let content = xbox_copy(dir.path(), "XboxGames", pd3().name);
     let env = FakeXboxEnv::new(vec![
         dir.path().join("no-such-root"),
         dir.path().to_path_buf(),
     ]);
-    assert_eq!(find_game_in(&env, &PD3), found(&content));
+    assert_eq!(find_game_in(&env, pd3()), found(&content));
 }
 
 #[test]
 fn a_root_outside_the_reported_set_is_never_searched() {
     let listed = TempDir::new().unwrap();
     let unlisted = TempDir::new().unwrap();
-    xbox_copy(unlisted.path(), "XboxGames", PD3.name);
+    xbox_copy(unlisted.path(), "XboxGames", pd3().name);
     let env = FakeXboxEnv::new(vec![listed.path().to_path_buf()]);
-    assert_eq!(find_game_in(&env, &PD3), None);
+    assert_eq!(find_game_in(&env, pd3()), None);
 }
 
 #[test]
@@ -274,7 +282,7 @@ fn a_top_level_file_is_not_treated_as_a_directory() {
     let dir = TempDir::new().unwrap();
     touch(dir.path().join("XboxGames"));
     let env = FakeXboxEnv::new(vec![dir.path().to_path_buf()]);
-    assert_eq!(find_game_in(&env, &PD3), None);
+    assert_eq!(find_game_in(&env, pd3()), None);
 }
 
 #[test]
@@ -284,27 +292,27 @@ fn a_deep_install_is_found_via_the_package_manager() {
         .path()
         .join("Deep")
         .join("Nested")
-        .join(PD3.name)
+        .join(pd3().name)
         .join("Content");
     touch(content.join(xbox_exe()));
     let env = FakeXboxEnv::new(vec![dir.path().to_path_buf()]).with_package(content.clone());
-    assert_eq!(find_game_in(&env, &PD3), found(&content));
+    assert_eq!(find_game_in(&env, pd3()), found(&content));
 }
 
 #[test]
 fn a_drive_hit_stops_before_the_package_manager() {
     let dir = TempDir::new().unwrap();
-    let content = xbox_copy(dir.path(), "XboxGames", PD3.name);
+    let content = xbox_copy(dir.path(), "XboxGames", pd3().name);
     let elsewhere = xbox_copy(dir.path(), "Other", "Something Else");
     let env = FakeXboxEnv::new(vec![dir.path().to_path_buf()]).with_package(elsewhere);
-    assert_eq!(find_game_in(&env, &PD3), found(&content));
+    assert_eq!(find_game_in(&env, pd3()), found(&content));
     assert_eq!(env.package_calls.get(), 0);
 }
 
 #[test]
 fn a_package_for_another_product_id_is_not_matched() {
     let dir = TempDir::new().unwrap();
-    let content = dir.path().join("Deep").join(PD3.name).join("Content");
+    let content = dir.path().join("Deep").join(pd3().name).join("Content");
     touch(content.join(xbox_exe()));
     let env = FakeXboxEnv::new(vec![]).with_package(content);
     assert_eq!(find_via_package_manager(&env, "NOTPD3", xbox_exe()), None);
@@ -313,24 +321,24 @@ fn a_package_for_another_product_id_is_not_matched() {
 #[test]
 fn a_package_without_the_executable_is_rejected() {
     let dir = TempDir::new().unwrap();
-    let content = dir.path().join("Deep").join(PD3.name).join("Content");
+    let content = dir.path().join("Deep").join(pd3().name).join("Content");
     std::fs::create_dir_all(&content).unwrap();
     let env = FakeXboxEnv::new(vec![]).with_package(content);
-    assert_eq!(find_game_in(&env, &PD3), None);
+    assert_eq!(find_game_in(&env, pd3()), None);
 }
 
 #[test]
 fn a_package_pointing_at_a_gone_location_is_rejected() {
     let dir = TempDir::new().unwrap();
     let env = FakeXboxEnv::new(vec![]).with_package(dir.path().join("gone").join("Content"));
-    assert_eq!(find_game_in(&env, &PD3), None);
+    assert_eq!(find_game_in(&env, pd3()), None);
 }
 
 #[test]
 fn a_package_query_that_answers_nothing_yields_none() {
     let dir = TempDir::new().unwrap();
     let env = FakeXboxEnv::new(vec![dir.path().to_path_buf()]);
-    assert_eq!(find_game_in(&env, &PD3), None);
+    assert_eq!(find_game_in(&env, pd3()), None);
 }
 
 #[test]
@@ -347,7 +355,7 @@ fn each_call_requeries_the_environment() {
     let dir = TempDir::new().unwrap();
     let env = FakeXboxEnv::new(vec![dir.path().to_path_buf()]);
     for _ in 0..3 {
-        assert_eq!(find_game_in(&env, &PD3), None);
+        assert_eq!(find_game_in(&env, pd3()), None);
     }
     assert_eq!(env.root_calls.get(), 3);
     assert_eq!(env.package_calls.get(), 3);
@@ -363,7 +371,7 @@ fn probes_landing_together_query_the_package_manager_once() {
         .path()
         .join("Deep")
         .join("Nested")
-        .join(PD3.name)
+        .join(pd3().name)
         .join("Content");
     touch(content.join(xbox_exe()));
     let env = PackageCache::new(
@@ -371,7 +379,7 @@ fn probes_landing_together_query_the_package_manager_once() {
         Duration::MAX,
     );
     for _ in 0..3 {
-        assert_eq!(find_game_in(&env, &PD3), found(&content));
+        assert_eq!(find_game_in(&env, pd3()), found(&content));
     }
     assert_eq!(env.inner.package_calls.get(), 1);
 }
@@ -383,7 +391,7 @@ fn a_held_path_is_still_checked_on_disk() {
         .path()
         .join("Deep")
         .join("Nested")
-        .join(PD3.name)
+        .join(pd3().name)
         .join("Content");
     let exe = content.join(xbox_exe());
     touch(exe.clone());
@@ -391,10 +399,10 @@ fn a_held_path_is_still_checked_on_disk() {
         FakeXboxEnv::new(vec![dir.path().to_path_buf()]).with_package(content.clone()),
         Duration::MAX,
     );
-    assert_eq!(find_game_in(&env, &PD3), found(&content));
+    assert_eq!(find_game_in(&env, pd3()), found(&content));
 
     std::fs::remove_file(&exe).unwrap();
-    assert_eq!(find_game_in(&env, &PD3), None);
+    assert_eq!(find_game_in(&env, pd3()), None);
     assert_eq!(env.inner.package_calls.get(), 1);
 }
 
@@ -406,7 +414,7 @@ fn a_negative_answer_is_held_as_well() {
         Duration::MAX,
     );
     for _ in 0..3 {
-        assert_eq!(find_game_in(&env, &PD3), None);
+        assert_eq!(find_game_in(&env, pd3()), None);
     }
     assert_eq!(env.inner.package_calls.get(), 1);
 }
@@ -419,7 +427,7 @@ fn an_expired_answer_is_asked_again() {
         Duration::ZERO,
     );
     for _ in 0..3 {
-        assert_eq!(find_game_in(&env, &PD3), None);
+        assert_eq!(find_game_in(&env, pd3()), None);
     }
     assert_eq!(env.inner.package_calls.get(), 3);
 }
@@ -440,7 +448,7 @@ fn drive_roots_are_asked_for_every_time() {
         Duration::MAX,
     );
     for _ in 0..3 {
-        assert_eq!(find_game_in(&env, &PD3), None);
+        assert_eq!(find_game_in(&env, pd3()), None);
     }
     assert_eq!(env.inner.root_calls.get(), 3);
 }
@@ -452,7 +460,7 @@ fn a_differently_cased_folder_is_returned_as_it_is_spelled() {
     let dir = TempDir::new().unwrap();
     let content = xbox_copy(dir.path(), "XboxGames", "Payday 3");
     let env = FakeXboxEnv::new(vec![dir.path().to_path_buf()]);
-    assert_eq!(find_game_in(&env, &PD3), found(&content));
+    assert_eq!(find_game_in(&env, pd3()), found(&content));
 }
 
 // The package query is left out because it spawns PowerShell for up to 15 seconds.
@@ -467,7 +475,7 @@ fn the_real_environment_reports_the_system_drive() {
 #[test]
 fn the_launcher_finds_nothing_off_windows() {
     use super::types::Launcher;
-    assert_eq!(super::xbox::Xbox.find_game(&PD3), None);
+    assert_eq!(super::xbox::Xbox.find_game(pd3()), None);
     assert!(!super::xbox::Xbox.is_installed());
 }
 
@@ -477,7 +485,7 @@ fn the_launcher_finds_nothing_off_windows() {
 // mods. Zero still writes a mod list: that is what a copy the app was pointed at once, and
 // found nothing in, actually looks like on disk.
 fn make_pd3_copy(root: &Path, mod_count: usize) -> String {
-    use crate::commands::mods::{save_state, InstalledMod, ModsState, PD3_ENGINE};
+    use crate::commands::mods::{save_state, InstalledMod, ModsState};
     touch(root.join("PAYDAY3.exe"));
     let game_path = root.to_string_lossy().into_owned();
     let mods = (0..mod_count)
@@ -488,7 +496,7 @@ fn make_pd3_copy(root: &Path, mod_count: usize) -> String {
         })
         .collect();
     save_state(
-        &get_state_path(&game_path, &PD3_ENGINE),
+        &get_state_path(&game_path, pd3_engine()),
         &ModsState {
             mods,
             folders: vec![],
@@ -520,7 +528,7 @@ fn pick_prefers_the_copy_tracking_the_most_mods() {
     let xbox_path = make_pd3_copy(xbox.path(), 142);
     let installs = vec![install("steam", &steam_path), install("xbox", &xbox_path)];
 
-    let picked = pick_install(&installs, &crate::commands::mods::PD3_ENGINE, None).unwrap();
+    let picked = pick_install(&installs, pd3_engine(), None).unwrap();
     assert_eq!(picked.launcher, "xbox");
     assert_eq!(picked.game_path, xbox_path);
 }
@@ -537,7 +545,7 @@ fn pick_ignores_a_mod_list_left_behind_by_a_copy_that_was_only_pointed_at() {
         install("xbox", &make_pd3_copy(xbox.path(), 142)),
     ];
 
-    let picked = pick_install(&installs, &crate::commands::mods::PD3_ENGINE, None).unwrap();
+    let picked = pick_install(&installs, pd3_engine(), None).unwrap();
     assert_eq!(picked.launcher, "xbox");
 }
 
@@ -545,12 +553,12 @@ fn pick_ignores_a_mod_list_left_behind_by_a_copy_that_was_only_pointed_at() {
 // copy is still the one being modded.
 #[test]
 fn pick_counts_mods_hidden_in_a_backup() {
-    use crate::commands::mods::{save_state, InstalledMod, ModsState, PD3_ENGINE};
+    use crate::commands::mods::{save_state, InstalledMod, ModsState};
     let steam = TempDir::new().unwrap();
     let xbox = TempDir::new().unwrap();
     let steam_path = make_pd3_copy(steam.path(), 0);
     let xbox_path = make_bare_pd3_copy(xbox.path());
-    let backup = backup_dir(&xbox_path, PD3_ENGINE.primary()).join(PD3_ENGINE.state_filename);
+    let backup = backup_dir(&xbox_path, pd3_engine().primary()).join(pd3_engine().state_filename);
     std::fs::create_dir_all(backup.parent().unwrap()).unwrap();
     save_state(
         &backup,
@@ -561,7 +569,7 @@ fn pick_counts_mods_hidden_in_a_backup() {
     );
 
     let installs = vec![install("steam", &steam_path), install("xbox", &xbox_path)];
-    let picked = pick_install(&installs, &PD3_ENGINE, None).unwrap();
+    let picked = pick_install(&installs, pd3_engine(), None).unwrap();
     assert_eq!(picked.launcher, "xbox");
 }
 
@@ -574,7 +582,7 @@ fn pick_falls_back_to_the_recorded_launcher_when_no_copy_has_mods() {
         install("xbox", &make_bare_pd3_copy(xbox.path())),
     ];
 
-    let picked = pick_install(&installs, &crate::commands::mods::PD3_ENGINE, Some("xbox")).unwrap();
+    let picked = pick_install(&installs, pd3_engine(), Some("xbox")).unwrap();
     assert_eq!(picked.launcher, "xbox");
 }
 
@@ -588,7 +596,7 @@ fn pick_keeps_the_recorded_launcher_when_both_copies_are_equally_modded() {
         install("xbox", &make_pd3_copy(xbox.path(), 3)),
     ];
 
-    let picked = pick_install(&installs, &crate::commands::mods::PD3_ENGINE, Some("xbox")).unwrap();
+    let picked = pick_install(&installs, pd3_engine(), Some("xbox")).unwrap();
     assert_eq!(picked.launcher, "xbox");
 }
 
@@ -601,9 +609,9 @@ fn pick_falls_back_to_the_first_copy_when_nothing_else_decides() {
         install("xbox", &make_bare_pd3_copy(xbox.path())),
     ];
 
-    let picked = pick_install(&installs, &crate::commands::mods::PD3_ENGINE, None).unwrap();
+    let picked = pick_install(&installs, pd3_engine(), None).unwrap();
     assert_eq!(picked.launcher, "steam");
-    assert!(pick_install(&[], &crate::commands::mods::PD3_ENGINE, None).is_none());
+    assert!(pick_install(&[], pd3_engine(), None).is_none());
 }
 
 fn settled_on(path: &str, launcher: &str) -> GameSettings {
@@ -620,7 +628,7 @@ fn plan_keeps_a_settled_copy_that_is_still_there() {
     let dir = TempDir::new().unwrap();
     let path = make_pd3_copy(dir.path(), 3);
     assert_eq!(
-        plan_resolution(&PD3, &settled_on(&path, "xbox")),
+        plan_resolution(pd3(), &settled_on(&path, "xbox")),
         Resolution::Keep
     );
 }
@@ -632,7 +640,7 @@ fn plan_refinds_a_settled_copy_under_its_own_launcher_only() {
     let dir = TempDir::new().unwrap();
     let gone = dir.path().join("gone").to_string_lossy().into_owned();
     assert_eq!(
-        plan_resolution(&PD3, &settled_on(&gone, "xbox")),
+        plan_resolution(pd3(), &settled_on(&gone, "xbox")),
         Resolution::Refind("xbox".to_string())
     );
 }
@@ -643,7 +651,7 @@ fn plan_reports_a_missing_hand_picked_folder_rather_than_probing() {
     let dir = TempDir::new().unwrap();
     let gone = dir.path().join("gone").to_string_lossy().into_owned();
     assert_eq!(
-        plan_resolution(&PD3, &settled_on(&gone, "manual")),
+        plan_resolution(pd3(), &settled_on(&gone, "manual")),
         Resolution::Missing
     );
 }
@@ -659,7 +667,7 @@ fn plan_settles_a_game_that_was_never_pinned_even_with_a_valid_path() {
         launcher: Some("steam".to_string()),
         ..Default::default()
     };
-    assert_eq!(plan_resolution(&PD3, &existing), Resolution::Settle);
+    assert_eq!(plan_resolution(pd3(), &existing), Resolution::Settle);
 }
 
 // ── identify_launcher_for_path ────────────────────────────────────────────

@@ -1,6 +1,8 @@
 use super::*;
 use crate::commands::mods::{backup_dir, disabled_dir, get_state_path, mods_dir};
-use crate::game_package::{SignalSource, DIESEL_INFRA_FOLDERS};
+use crate::game_package::{
+    EnabledStateMechanism, SignalSource, DIESEL_INFRA_FOLDERS, UE4SS_BUNDLED_SUBMODS,
+};
 use std::path::PathBuf;
 use tempfile::TempDir;
 
@@ -147,6 +149,104 @@ fn a_discovered_spec_carries_its_package_verbatim() {
             }
         }
     }
+}
+
+#[test]
+fn pd3_resolves_both_of_its_mod_targets() {
+    let cfg = crate::commands::mods::engine_for_game("pd3").unwrap();
+    assert_eq!(cfg.targets.len(), 2);
+
+    let paks = cfg.primary();
+    assert_eq!(paks.tag, "paks");
+    assert!(std::ptr::eq(cfg.target_for(None), paks));
+    assert!(std::ptr::eq(cfg.target_for(Some("paks")), paks));
+    assert!(!paks.is_directory_unit());
+    assert_eq!(paks.disabled_suffix(), ".disabled");
+    assert!(paks.priority_prefix_enabled());
+    assert_eq!(paks.enabled_state, EnabledStateMechanism::Filesystem);
+
+    let ue4ss = cfg.target_for(Some("ue4ss_mods"));
+    assert_eq!(ue4ss.tag, "ue4ss_mods");
+    assert!(ue4ss.is_directory_unit());
+    assert_eq!(ue4ss.disabled_suffix(), "");
+    assert!(!ue4ss.priority_prefix_enabled());
+    assert_eq!(ue4ss.enabled_state, EnabledStateMechanism::Ue4ssModsTxt);
+    assert_eq!(ue4ss.excluded_names(), UE4SS_BUNDLED_SUBMODS);
+
+    let game = "C:/Games/PAYDAY 3";
+    let root = PathBuf::from(game);
+    assert_eq!(
+        mods_dir(game, paks),
+        root.join("PAYDAY3/Content/Paks/~mods")
+    );
+    assert_eq!(
+        disabled_dir(game, paks),
+        root.join("PAYDAY3/Content/Paks/~mods/disabled")
+    );
+    assert_eq!(
+        backup_dir(game, paks),
+        root.join("PAYDAY3/Content/~mods.bak")
+    );
+    assert_eq!(
+        mods_dir(game, ue4ss),
+        root.join("PAYDAY3/Binaries/Win64/Mods")
+    );
+    assert_eq!(
+        disabled_dir(game, ue4ss),
+        root.join("PAYDAY3/Binaries/Win64/Mods/disabled")
+    );
+    assert_eq!(
+        backup_dir(game, ue4ss),
+        root.join("PAYDAY3/Binaries/Win64/Mods.bak")
+    );
+    assert_eq!(
+        get_state_path(game, cfg),
+        root.join("PAYDAY3/Content/Paks/~mods/.modrex.json")
+    );
+}
+
+#[test]
+fn pd3_keeps_its_launch_and_storefront_metadata() {
+    let spec = game_spec("pd3").expect("pd3 resolves");
+    assert_eq!(spec.engine.index_game_name, "PAYDAY 3");
+    assert_eq!(spec.engine.signals, SignalSource::None);
+    assert_eq!(spec.def.name, "PAYDAY 3");
+    assert_eq!(spec.def.executables, ["PAYDAY3.exe"]);
+    assert_eq!(spec.def.process_names, ["PAYDAY3-Win64-Shipping"]);
+
+    let steam = spec.def.steam.as_ref().expect("pd3 ships on steam");
+    assert_eq!(steam.app_id, 1272080);
+    assert_eq!(steam.folder_name, "PAYDAY3");
+    let epic = spec.def.epic.as_ref().expect("pd3 ships on epic");
+    assert_eq!(epic.display_name, "PAYDAY 3");
+    let xbox = spec.def.xbox.as_ref().expect("pd3 ships on xbox");
+    assert_eq!(xbox.product_id, "9NPZVDCH73SX");
+    assert_eq!(
+        xbox.executable,
+        "PAYDAY3/Binaries/WinGDK/PAYDAY3-WinGDK-Shipping.exe"
+    );
+}
+
+/// The Microsoft Store build ships no Win64 bootstrapper, so recognising an install must not
+/// depend on the launchable executable alone.
+#[test]
+fn pd3_recognises_both_its_win64_and_store_builds() {
+    let def = game_spec("pd3").unwrap().def;
+
+    let win64 = TempDir::new().unwrap();
+    let win64_path = win64.path().to_str().unwrap();
+    assert!(!def.is_installation(win64_path));
+    std::fs::write(win64.path().join("PAYDAY3.exe"), b"").unwrap();
+    assert_eq!(def.resolve_executable(win64_path), Some("PAYDAY3.exe"));
+    assert!(def.is_installation(win64_path));
+
+    let store = TempDir::new().unwrap();
+    let store_path = store.path().to_str().unwrap();
+    let staged = store.path().join("PAYDAY3/Binaries/WinGDK");
+    std::fs::create_dir_all(&staged).unwrap();
+    std::fs::write(staged.join("PAYDAY3-WinGDK-Shipping.exe"), b"").unwrap();
+    assert_eq!(def.resolve_executable(store_path), None);
+    assert!(def.is_installation(store_path));
 }
 
 #[test]
