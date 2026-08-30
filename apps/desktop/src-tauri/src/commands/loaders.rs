@@ -39,9 +39,7 @@ pub enum InstallStrategy {
 }
 
 /// A game that names this loader here rather than in its own package, paired with the mod
-/// ids the loader is published under for that game. Empty ids mean the loader is hosted
-/// offsite (SuperBLT has no modworkshop page, so the renderer matches it by a name
-/// heuristic).
+/// ids the loader is published under for that game.
 pub struct LegacyLoaderGame {
     pub game_id: &'static str,
     pub modworkshop_ids: &'static [i64],
@@ -72,10 +70,7 @@ pub struct LoaderInfo {
 pub static LOADER_REGISTRY: &[LoaderSpec] = &[
     LoaderSpec {
         id: "superblt",
-        legacy_games: &[LegacyLoaderGame {
-            game_id: "pd2",
-            modworkshop_ids: &[],
-        }],
+        legacy_games: &[],
         // WSOCK32.dll (current), IPHLPAPI.dll (legacy), libsuperblt_loader.so (Linux
         // native). The loader never appears under mods/, so game-root presence is the
         // only reliable signal.
@@ -398,11 +393,11 @@ mod tests {
     fn a_discovered_game_resolves_its_loaders_from_its_own_package() {
         assert_eq!(loaders_for("raid"), vec![("raid_superblt", vec![49744])]);
         assert_eq!(loaders_for("pd3"), vec![("ue4ss", vec![47771, 44048])]);
+        assert_eq!(loaders_for("pd2"), vec![("superblt", vec![])]);
     }
 
     #[test]
     fn legacy_games_keep_their_loaders() {
-        assert_eq!(loaders_for("pd2"), vec![("superblt", vec![])]);
         assert_eq!(
             loaders_for("pdth"),
             vec![("pdth_overrides", vec![53474]), ("dahm", vec![14267])]

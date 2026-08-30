@@ -117,7 +117,9 @@ pub struct Installation {
 pub struct LoaderBinding {
     pub loader_id: String,
     /// The mod ids this loader is published under for this game. A dependency on one of
-    /// them means install the loader, not install a mod.
+    /// them means install the loader, not install a mod. Empty when the loader is hosted
+    /// offsite and has no mod page, which the renderer matches by a name heuristic
+    /// instead.
     pub modworkshop_ids: Vec<i64>,
 }
 

@@ -5,7 +5,7 @@ mod types;
 mod xbox;
 
 use epic::Epic;
-pub(crate) use games::{CRIMEBOSS, PD2, PDTH};
+pub(crate) use games::{CRIMEBOSS, PDTH};
 use steam::Steam;
 use types::Launcher;
 pub(crate) use types::{EpicDef, GameDef, SteamDef, XboxDef};

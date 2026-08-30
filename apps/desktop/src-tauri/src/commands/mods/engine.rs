@@ -155,45 +155,6 @@ pub static CRIMEBOSS_ENGINE: ModEngineConfig = ModEngineConfig {
     ],
 };
 
-pub static PD2_ENGINE: ModEngineConfig = ModEngineConfig {
-    game_id: "pd2",
-    index_game_name: "PAYDAY 2",
-    state_filename: ".modrex.json",
-    signals: SignalSource::Diesel,
-    targets: &[
-        ScanTarget {
-            tag: "mods",
-            unit: ModUnit::Directory {
-                entry_markers: &["mod.txt", "main.xml"],
-                scan_markers: &["mod.txt", "main.xml"],
-                index_gated_markers: &[],
-                excluded_names: DIESEL_INFRA_FOLDERS,
-                priority_prefix: false,
-            },
-            enabled_state: EnabledStateMechanism::Filesystem,
-            label_key: "mods",
-            mods_subpath: &["mods"],
-            disabled_subpath: &["mods", "disabled"],
-            backup_subpath: &["mods.bak"],
-        },
-        ScanTarget {
-            tag: "mod_overrides",
-            unit: ModUnit::Directory {
-                entry_markers: &[],
-                scan_markers: &[],
-                index_gated_markers: &[],
-                excluded_names: &[],
-                priority_prefix: false,
-            },
-            enabled_state: EnabledStateMechanism::Filesystem,
-            label_key: "overrides",
-            mods_subpath: &["assets", "mod_overrides"],
-            disabled_subpath: &["assets", "mod_overrides", "disabled"],
-            backup_subpath: &["assets", "mod_overrides.bak"],
-        },
-    ],
-};
-
 pub static PDTH_ENGINE: ModEngineConfig = ModEngineConfig {
     game_id: "pdth",
     index_game_name: "PAYDAY: The Heist",

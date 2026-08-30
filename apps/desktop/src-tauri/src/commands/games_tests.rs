@@ -152,6 +152,75 @@ fn a_discovered_spec_carries_its_package_verbatim() {
 }
 
 #[test]
+fn pd2_resolves_both_of_its_mod_targets() {
+    let cfg = crate::commands::mods::engine_for_game("pd2").unwrap();
+    assert_eq!(cfg.targets.len(), 2);
+
+    let mods = cfg.primary();
+    assert_eq!(mods.tag, "mods");
+    assert!(std::ptr::eq(cfg.target_for(None), mods));
+    assert!(std::ptr::eq(cfg.target_for(Some("mods")), mods));
+    assert!(mods.is_directory_unit());
+    assert_eq!(mods.disabled_suffix(), "");
+    assert!(!mods.priority_prefix_enabled());
+    assert_eq!(mods.enabled_state, EnabledStateMechanism::Filesystem);
+    assert_eq!(mods.excluded_names(), DIESEL_INFRA_FOLDERS);
+
+    let overrides = cfg.target_for(Some("mod_overrides"));
+    assert_eq!(overrides.tag, "mod_overrides");
+    assert!(overrides.is_directory_unit());
+    assert!(overrides.excluded_names().is_empty());
+
+    let game = "C:/Games/PAYDAY 2";
+    let root = PathBuf::from(game);
+    assert_eq!(mods_dir(game, mods), root.join("mods"));
+    assert_eq!(disabled_dir(game, mods), root.join("mods/disabled"));
+    assert_eq!(backup_dir(game, mods), root.join("mods.bak"));
+    assert_eq!(mods_dir(game, overrides), root.join("assets/mod_overrides"));
+    assert_eq!(
+        disabled_dir(game, overrides),
+        root.join("assets/mod_overrides/disabled")
+    );
+    assert_eq!(
+        backup_dir(game, overrides),
+        root.join("assets/mod_overrides.bak")
+    );
+    assert_eq!(get_state_path(game, cfg), root.join("mods/.modrex.json"));
+}
+
+#[test]
+fn pd2_keeps_its_launch_and_storefront_metadata() {
+    let spec = game_spec("pd2").expect("pd2 resolves");
+    assert_eq!(spec.engine.index_game_name, "PAYDAY 2");
+    assert_eq!(spec.engine.signals, SignalSource::Diesel);
+    assert_eq!(spec.def.name, "PAYDAY 2");
+    assert_eq!(
+        spec.def.executables,
+        ["PAYDAY2.exe", "payday2_win32_release.exe"]
+    );
+    assert_eq!(spec.def.process_names, ["PAYDAY2", "payday2_win32_release"]);
+    let steam = spec.def.steam.as_ref().expect("pd2 ships on steam");
+    assert_eq!(steam.app_id, 218620);
+    assert_eq!(steam.folder_name, "PAYDAY 2");
+    let epic = spec.def.epic.as_ref().expect("pd2 ships on epic");
+    assert_eq!(epic.display_name, "PAYDAY 2");
+    assert!(spec.def.xbox.is_none());
+}
+
+#[test]
+fn pd2_recognises_an_install_by_either_executable() {
+    let def = game_spec("pd2").unwrap().def;
+    for exe in ["PAYDAY2.exe", "payday2_win32_release.exe"] {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().to_str().unwrap();
+        assert!(!def.is_installation(path));
+        std::fs::write(dir.path().join(exe), b"").unwrap();
+        assert_eq!(def.resolve_executable(path), Some(exe));
+        assert!(def.is_installation(path));
+    }
+}
+
+#[test]
 fn pd3_resolves_both_of_its_mod_targets() {
     let cfg = crate::commands::mods::engine_for_game("pd3").unwrap();
     assert_eq!(cfg.targets.len(), 2);

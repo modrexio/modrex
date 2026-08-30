@@ -2,10 +2,8 @@
 //! packages are the source for the games that have one; the rest are still handwritten
 //! statics.
 
-use crate::commands::launchers::{EpicDef, GameDef, SteamDef, XboxDef, CRIMEBOSS, PD2, PDTH};
-use crate::commands::mods::{
-    ModEngineConfig, ModUnit, ScanTarget, CRIMEBOSS_ENGINE, PD2_ENGINE, PDTH_ENGINE,
-};
+use crate::commands::launchers::{EpicDef, GameDef, SteamDef, XboxDef, CRIMEBOSS, PDTH};
+use crate::commands::mods::{ModEngineConfig, ModUnit, ScanTarget, CRIMEBOSS_ENGINE, PDTH_ENGINE};
 use crate::game_package::{self as package, GamePackage};
 use std::sync::LazyLock;
 
@@ -27,11 +25,6 @@ pub static GAME_REGISTRY: LazyLock<Vec<GameSpec>> = LazyLock::new(|| {
 
 fn handwritten_specs() -> Vec<GameSpec> {
     vec![
-        GameSpec {
-            id: "pd2",
-            engine: &PD2_ENGINE,
-            def: &PD2,
-        },
         GameSpec {
             id: "pdth",
             engine: &PDTH_ENGINE,

@@ -6,6 +6,10 @@ fn pd3() -> &'static crate::commands::launchers::GameDef {
     crate::commands::games::game_spec("pd3").unwrap().def
 }
 
+fn pd2() -> &'static crate::commands::launchers::GameDef {
+    crate::commands::games::game_spec("pd2").unwrap().def
+}
+
 fn pd3_engine() -> &'static crate::commands::mods::ModEngineConfig {
     crate::commands::mods::engine_for_game("pd3").unwrap()
 }
@@ -139,11 +143,11 @@ fn is_installation_rejects_unrelated_folder() {
 fn is_installation_without_xbox_release_matches_executables_only() {
     let dir = TempDir::new().unwrap();
     touch(dir.path().join("payday2_win32_release.exe"));
-    assert!(PD2.is_installation(dir.path().to_str().unwrap()));
+    assert!(pd2().is_installation(dir.path().to_str().unwrap()));
 
     let other = TempDir::new().unwrap();
     touch(other.path().join("PAYDAY3.exe"));
-    assert!(!PD2.is_installation(other.path().to_str().unwrap()));
+    assert!(!pd2().is_installation(other.path().to_str().unwrap()));
 }
 
 // ── dir_as_named_on_disk ──────────────────────────────────────────────────
@@ -345,7 +349,7 @@ fn a_package_query_that_answers_nothing_yields_none() {
 fn a_game_without_a_store_build_asks_the_machine_nothing() {
     let dir = TempDir::new().unwrap();
     let env = FakeXboxEnv::new(vec![dir.path().to_path_buf()]);
-    assert_eq!(find_game_in(&env, &PD2), None);
+    assert_eq!(find_game_in(&env, pd2()), None);
     assert_eq!(env.root_calls.get(), 0);
     assert_eq!(env.package_calls.get(), 0);
 }
