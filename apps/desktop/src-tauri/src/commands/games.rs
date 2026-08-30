@@ -1,9 +1,7 @@
-//! Resolves a game id to its engine config and storefront definition. Discovered game
-//! packages are the source for the games that have one; the rest are still handwritten
-//! statics.
+//! Resolves a game id to the engine config and storefront definition its package declares.
 
-use crate::commands::launchers::{EpicDef, GameDef, SteamDef, XboxDef, CRIMEBOSS};
-use crate::commands::mods::{ModEngineConfig, ModUnit, ScanTarget, CRIMEBOSS_ENGINE};
+use crate::commands::launchers::{EpicDef, GameDef, SteamDef, XboxDef};
+use crate::commands::mods::{ModEngineConfig, ModUnit, ScanTarget};
 use crate::game_package::{self as package, GamePackage};
 use std::sync::LazyLock;
 
@@ -14,22 +12,11 @@ pub struct GameSpec {
 }
 
 pub static GAME_REGISTRY: LazyLock<Vec<GameSpec>> = LazyLock::new(|| {
-    let mut specs = handwritten_specs();
-    specs.extend(
-        crate::games::discovered()
-            .iter()
-            .map(|(_, pkg)| spec_from(pkg)),
-    );
-    specs
+    crate::games::discovered()
+        .iter()
+        .map(|(_, pkg)| spec_from(pkg))
+        .collect()
 });
-
-fn handwritten_specs() -> Vec<GameSpec> {
-    vec![GameSpec {
-        id: "cb",
-        engine: &CRIMEBOSS_ENGINE,
-        def: &CRIMEBOSS,
-    }]
-}
 
 // ModEngineConfig, ScanTarget and GameDef borrow for 'static because every consumer holds
 // them for the life of the process. Their text points into the cached package, so only the

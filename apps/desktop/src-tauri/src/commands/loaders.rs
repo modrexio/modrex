@@ -38,16 +38,8 @@ pub enum InstallStrategy {
     ViaModFlow,
 }
 
-/// A game that names this loader here rather than in its own package, paired with the mod
-/// ids the loader is published under for that game.
-pub struct LegacyLoaderGame {
-    pub game_id: &'static str,
-    pub modworkshop_ids: &'static [i64],
-}
-
 pub struct LoaderSpec {
     pub id: &'static str,
-    pub legacy_games: &'static [LegacyLoaderGame],
     pub detect: DetectStrategy,
     pub install: InstallStrategy,
 }
@@ -70,7 +62,6 @@ pub struct LoaderInfo {
 pub static LOADER_REGISTRY: &[LoaderSpec] = &[
     LoaderSpec {
         id: "superblt",
-        legacy_games: &[],
         // WSOCK32.dll (current), IPHLPAPI.dll (legacy), libsuperblt_loader.so (Linux
         // native). The loader never appears under mods/, so game-root presence is the
         // only reliable signal.
@@ -89,7 +80,6 @@ pub static LOADER_REGISTRY: &[LoaderSpec] = &[
     },
     LoaderSpec {
         id: "pdth_overrides",
-        legacy_games: &[],
         // DINPUT8.dll is the proxy loader and PDTHModOverrides.dll the payload. Only the
         // proxy's presence is the install signal, but both are extracted below.
         detect: DetectStrategy::RootFiles(&["DINPUT8.dll"]),
@@ -100,7 +90,6 @@ pub static LOADER_REGISTRY: &[LoaderSpec] = &[
     },
     LoaderSpec {
         id: "dahm",
-        legacy_games: &[],
         detect: DetectStrategy::RootFiles(&["lightfx.dll"]),
         // Stable redirect maintained by DAHM's author, which 302s to a versioned ZIP that
         // extracts flat to the game root (it ships ~40 framework modules alongside).
@@ -110,7 +99,6 @@ pub static LOADER_REGISTRY: &[LoaderSpec] = &[
     },
     LoaderSpec {
         id: "raid_superblt",
-        legacy_games: &[],
         // IPHLPAPI.dll is also what the discontinued RaidBLT shipped, so its presence
         // means a BLT hook is installed, not necessarily the SuperBLT one. No Linux
         // variant, because RAID has no native Linux build.
@@ -124,10 +112,6 @@ pub static LOADER_REGISTRY: &[LoaderSpec] = &[
     },
     LoaderSpec {
         id: "ue4ss",
-        legacy_games: &[LegacyLoaderGame {
-            game_id: "cb",
-            modworkshop_ids: &[47749],
-        }],
         detect: DetectStrategy::Ue4ssProxy,
         install: InstallStrategy::ViaModFlow,
     },
@@ -142,14 +126,10 @@ fn spec_or_err(loader_id: &str) -> Result<&'static LoaderSpec, String> {
 }
 
 /// Every game-to-loader relationship, carrying only the mod ids that game publishes the
-/// loader under. A binding comes from the game's package, or from LOADER_REGISTRY for a
-/// game that has none.
+/// loader under.
 pub fn scoped_bindings() -> Vec<(&'static str, &'static LoaderSpec, Vec<i64>)> {
     let mut bindings = Vec::new();
     for spec in LOADER_REGISTRY {
-        for legacy in spec.legacy_games {
-            bindings.push((legacy.game_id, spec, legacy.modworkshop_ids.to_vec()));
-        }
         for (game_id, pkg) in crate::games::discovered() {
             for binding in &pkg.loaders {
                 if binding.loader_id == spec.id {
@@ -384,14 +364,10 @@ mod tests {
     }
 
     #[test]
-    fn a_discovered_game_resolves_its_loaders_from_its_own_package() {
+    fn every_game_resolves_the_loaders_its_package_declares() {
         assert_eq!(loaders_for("raid"), vec![("raid_superblt", vec![49744])]);
         assert_eq!(loaders_for("pd3"), vec![("ue4ss", vec![47771, 44048])]);
         assert_eq!(loaders_for("pd2"), vec![("superblt", vec![])]);
-    }
-
-    #[test]
-    fn legacy_games_keep_their_loaders() {
         assert_eq!(
             loaders_for("pdth"),
             vec![("pdth_overrides", vec![53474]), ("dahm", vec![14267])]
@@ -399,19 +375,15 @@ mod tests {
         assert_eq!(loaders_for("cb"), vec![("ue4ss", vec![47749])]);
     }
 
-    /// A game with a package owns its loaders there, so dropping a binding drops the
-    /// relationship instead of falling through to the legacy table.
+    /// A game owns its loaders in its package, so dropping a binding drops the relationship
+    /// rather than leaving another source to restore it.
     #[test]
-    fn a_discovered_game_has_no_legacy_loader_entry_to_fall_back_on() {
-        for (game_id, _) in crate::games::discovered() {
-            for spec in LOADER_REGISTRY {
-                assert!(
-                    !spec.legacy_games.iter().any(|l| l.game_id == *game_id),
-                    "{} still names discovered game '{game_id}'",
-                    spec.id
-                );
-            }
-        }
+    fn a_binding_has_no_source_other_than_a_package() {
+        let declared: usize = crate::games::discovered()
+            .iter()
+            .map(|(_, pkg)| pkg.loaders.len())
+            .sum();
+        assert_eq!(scoped_bindings().len(), declared);
     }
 
     #[test]

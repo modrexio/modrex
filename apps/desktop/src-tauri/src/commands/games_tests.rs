@@ -48,15 +48,15 @@ fn a_package_directory_name_matches_the_package_it_holds() {
 }
 
 #[test]
-fn the_registry_lists_discovered_games_last_in_a_stable_order() {
+fn the_registry_is_exactly_the_discovered_packages_in_a_stable_order() {
     let ids: Vec<&str> = GAME_REGISTRY.iter().map(|s| s.id).collect();
-    let discovered = discovered_ids();
-    let split = ids.len() - discovered.len();
     assert_eq!(
-        ids[split..].to_vec(),
-        discovered.iter().map(String::as_str).collect::<Vec<_>>()
+        ids,
+        discovered_ids()
+            .iter()
+            .map(String::as_str)
+            .collect::<Vec<_>>()
     );
-    assert!(!ids[..split].is_empty(), "handwritten games still resolve");
     let again: Vec<&str> = GAME_REGISTRY.iter().map(|s| s.id).collect();
     assert_eq!(ids, again);
 }
@@ -149,6 +149,89 @@ fn a_discovered_spec_carries_its_package_verbatim() {
             }
         }
     }
+}
+
+#[test]
+fn cb_resolves_all_three_of_its_mod_targets() {
+    let cfg = crate::commands::mods::engine_for_game("cb").unwrap();
+    assert_eq!(cfg.targets.len(), 3);
+
+    let modkit = cfg.primary();
+    assert_eq!(modkit.tag, "mods");
+    assert!(std::ptr::eq(cfg.target_for(None), modkit));
+    assert!(std::ptr::eq(cfg.target_for(Some("mods")), modkit));
+    assert!(modkit.is_directory_unit());
+    assert_eq!(modkit.enabled_state, EnabledStateMechanism::Filesystem);
+    assert!(!modkit.priority_prefix_enabled());
+
+    let paks = cfg.target_for(Some("paks"));
+    assert_eq!(paks.tag, "paks");
+    assert!(!paks.is_directory_unit());
+    assert_eq!(paks.disabled_suffix(), ".disabled");
+    assert!(paks.priority_prefix_enabled());
+    assert_eq!(paks.enabled_state, EnabledStateMechanism::Filesystem);
+
+    let ue4ss = cfg.target_for(Some("ue4ss_mods"));
+    assert_eq!(ue4ss.tag, "ue4ss_mods");
+    assert!(ue4ss.is_directory_unit());
+    assert_eq!(ue4ss.enabled_state, EnabledStateMechanism::Ue4ssModsTxt);
+    assert_eq!(ue4ss.excluded_names(), UE4SS_BUNDLED_SUBMODS);
+
+    let game = "C:/Games/Crime Boss";
+    let root = PathBuf::from(game);
+    assert_eq!(mods_dir(game, modkit), root.join("CrimeBoss/Mods"));
+    assert_eq!(
+        disabled_dir(game, modkit),
+        root.join("CrimeBoss/Mods/disabled")
+    );
+    assert_eq!(backup_dir(game, modkit), root.join("CrimeBoss/Mods.bak"));
+    assert_eq!(
+        mods_dir(game, paks),
+        root.join("CrimeBoss/Content/Paks/~mods")
+    );
+    assert_eq!(
+        backup_dir(game, paks),
+        root.join("CrimeBoss/Content/~mods.bak")
+    );
+    assert_eq!(
+        mods_dir(game, ue4ss),
+        root.join("CrimeBoss/Binaries/Win64/Mods")
+    );
+    assert_eq!(
+        backup_dir(game, ue4ss),
+        root.join("CrimeBoss/Binaries/Win64/Mods.bak")
+    );
+    assert_eq!(
+        get_state_path(game, cfg),
+        root.join("CrimeBoss/Mods/.modrex.json")
+    );
+}
+
+#[test]
+fn cb_keeps_its_launch_and_storefront_metadata() {
+    let spec = game_spec("cb").expect("cb resolves");
+    assert_eq!(spec.engine.index_game_name, "Crime Boss: Rockay City");
+    assert_eq!(spec.engine.signals, SignalSource::None);
+    assert_eq!(spec.def.name, "Crime Boss: Rockay City");
+    assert_eq!(spec.def.executables, ["CrimeBoss.exe"]);
+    assert_eq!(spec.def.process_names, ["CrimeBoss-Win64-Shipping"]);
+    let steam = spec.def.steam.as_ref().expect("cb ships on steam");
+    assert_eq!(steam.app_id, 2933080);
+    assert_eq!(steam.folder_name, "CrimeBossRockayCity");
+    let epic = spec.def.epic.as_ref().expect("cb ships on epic");
+    assert_eq!(epic.display_name, "Crime Boss: Rockay City");
+    assert!(spec.def.xbox.is_none());
+}
+
+#[test]
+fn cb_recognises_an_install_by_its_executable() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().to_str().unwrap();
+    let def = game_spec("cb").unwrap().def;
+    assert!(!def.is_installation(path));
+    std::fs::write(dir.path().join("CrimeBoss.exe"), b"").unwrap();
+    assert_eq!(def.resolve_executable(path), Some("CrimeBoss.exe"));
+    assert!(def.is_installation(path));
 }
 
 #[test]

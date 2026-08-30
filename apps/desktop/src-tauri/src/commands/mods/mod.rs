@@ -22,9 +22,7 @@ mod ue4ss_modstxt;
 mod zip;
 
 // Public API used by lib.rs, launchers/, and other modules
-pub use self::engine::{
-    backup_dir, engine_for_game, ModEngineConfig, ModUnit, ScanTarget, CRIMEBOSS_ENGINE,
-};
+pub use self::engine::{backup_dir, engine_for_game, ModEngineConfig, ModUnit, ScanTarget};
 pub use self::identity::IdentityEvidence;
 pub use self::install::install_mod_from_path;
 pub use self::paths::{find_untracked_host_packs, find_untracked_paks, get_state_path, mods_base};

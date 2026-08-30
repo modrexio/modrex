@@ -1,11 +1,9 @@
 mod epic;
-mod games;
 mod steam;
 mod types;
 mod xbox;
 
 use epic::Epic;
-pub(crate) use games::CRIMEBOSS;
 use steam::Steam;
 use types::Launcher;
 pub(crate) use types::{EpicDef, GameDef, SteamDef, XboxDef};

@@ -3,7 +3,7 @@
 //! staged artifact; the sentinel surviving is what proves cleanup stayed inside its boundary.
 
 use super::cleanup::*;
-use super::engine::{engine_for_game, CRIMEBOSS_ENGINE};
+use super::engine::engine_for_game;
 use super::staging_tokens::StagingRegistry;
 use super::zip::resolve_archive_download;
 use std::fs;
@@ -312,7 +312,7 @@ fn non_archive_resolution_owns_the_downloaded_file_for_every_game() {
         engine_for_game("pdth").unwrap(),
         engine_for_game("raid").unwrap(),
         engine_for_game("pd3").unwrap(),
-        &CRIMEBOSS_ENGINE,
+        engine_for_game("cb").unwrap(),
     ] {
         let fx = Fixture::new();
         let downloaded = fx.staged_file("modrex-abc.lua");
@@ -339,7 +339,7 @@ fn no_resolver_shape_selects_the_staging_root() {
         engine_for_game("pdth").unwrap(),
         engine_for_game("raid").unwrap(),
         engine_for_game("pd3").unwrap(),
-        &CRIMEBOSS_ENGINE,
+        engine_for_game("cb").unwrap(),
     ] {
         let fx = Fixture::new();
         let downloaded = fx.staged_file("modrex-abc.lua");
