@@ -34,10 +34,6 @@ fn descriptor_for(game_id: &str, launcher: Option<&str>) -> Option<Ue4ssDescript
             proxy_dlls: &["dwmapi.dll"],
             binaries_subpath: &["CrimeBoss", "Binaries", "Win64"],
         }),
-        ("hce", Some("steam")) => Some(Ue4ssDescriptor {
-            proxy_dlls: &["dwmapi.dll"],
-            binaries_subpath: &["Meteorite", "Binaries", "Win64"],
-        }),
         ("pd3", Some("steam")) | ("pd3", Some("epic")) => Some(Ue4ssDescriptor {
             proxy_dlls: &["xinput1_3.dll", "dxgi.dll"],
             // game_path already ends in .../PAYDAY3 (the Steam installdir name), so this

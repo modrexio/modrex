@@ -2,9 +2,9 @@
 //! engine_for_game and game_def_for_id derive from it, so a family-conforming new game
 //! is one GameSpec line here plus its launchers/games/<id>.rs file and engine config.
 
-use crate::commands::launchers::{GameDef, CRIMEBOSS, HCE, ITR2, PD2, PD3, PDTH, RAID};
+use crate::commands::launchers::{GameDef, CRIMEBOSS, PD2, PD3, PDTH, RAID};
 use crate::commands::mods::{
-    ModEngineConfig, CRIMEBOSS_ENGINE, HCE_ENGINE, ITR2_ENGINE, PD2_ENGINE, PD3_ENGINE,
+    ModEngineConfig, CRIMEBOSS_ENGINE, PD2_ENGINE, PD3_ENGINE,
     PDTH_ENGINE, RAID_ENGINE,
 };
 
@@ -39,16 +39,6 @@ pub static GAME_REGISTRY: &[GameSpec] = &[
         id: "raid",
         engine: &RAID_ENGINE,
         def: &RAID,
-    },
-    GameSpec {
-        id: "itr2",
-        engine: &ITR2_ENGINE,
-        def: &ITR2,
-    },
-    GameSpec {
-        id: "hce",
-        engine: &HCE_ENGINE,
-        def: &HCE,
     },
 ];
 

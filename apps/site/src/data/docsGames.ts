@@ -102,46 +102,6 @@ export const docsGameRegistry = {
             },
         ],
     },
-    itr2: {
-        slug: 'into-the-radius-2',
-        targets: [
-            {
-                label: 'SML mods',
-                targetId: 'sml',
-                notes: 'SML (S.M.A.R.T. Mod Loader) mods: a .uplugin sharing a base name with its .pak/.ucas/.utoc goes into Content/Mods.',
-            },
-            {
-                label: 'Paks',
-                targetId: 'paks',
-                notes: 'Standard Unreal pak mods go into Content/Paks/Mods.',
-            },
-            {
-                label: 'Logic mods',
-                targetId: 'logicmods',
-                notes: 'Mods whose pak sits under a LogicMods/ segment go into Content/Paks/LogicMods.',
-            },
-            {
-                label: 'Lua mods',
-                targetId: 'lua_mods',
-                notes: 'UE4SS Lua mods (enabled.txt / Scripts/main.lua) go into Content/Paks/LuaMods.',
-            },
-        ],
-    },
-    hce: {
-        slug: 'halo-campaign-evolved',
-        targets: [
-            {
-                label: 'Pak mods',
-                targetId: 'paks',
-                notes: 'Standard Unreal pak mods go into Meteorite/Content/Paks/~mods. Disabled files are kept under disabled with a .disabled suffix.',
-            },
-            {
-                label: 'UE4SS mods',
-                targetId: 'ue4ss_mods',
-                notes: 'UE4SS Lua mods go into Meteorite/Binaries/Win64/ue4ss/Mods. Modrex excludes bundled UE4SS framework modules from the installed list.',
-            },
-        ],
-    },
 } as const satisfies Record<GameId, DocsGameRegistration>
 
 export type DocsGameId = GameId

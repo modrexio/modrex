@@ -17,8 +17,6 @@ const CDN_URLS: Record<GameId, string> = {
     pdth: 'https://cdn.akamai.steamstatic.com/steam/apps/24240/library_600x900.jpg',
     cb: 'https://cdn.akamai.steamstatic.com/steam/apps/2933080/library_600x900.jpg',
     raid: 'https://cdn.akamai.steamstatic.com/steam/apps/414740/library_600x900.jpg',
-    itr2: 'https://cdn.akamai.steamstatic.com/steam/apps/2307350/library_600x900.jpg',
-    hce: 'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/2806050/712eb45cff910f317c1a7e8fc5f487f26f83c195/library_capsule_2x.jpg',
 }
 
 const FALLBACK_STYLES: Record<GameId, { background: string; nameColor: string }> = {
@@ -29,14 +27,6 @@ const FALLBACK_STYLES: Record<GameId, { background: string; nameColor: string }>
     raid: {
         background: 'linear-gradient(135deg, #131806 0%, #333d0f 100%)',
         nameColor: '#a9c34f',
-    },
-    itr2: {
-        background: 'linear-gradient(135deg, #12081c 0%, #2a1245 100%)',
-        nameColor: '#c08bf2',
-    },
-    hce: {
-        background: 'linear-gradient(135deg, #06110c 0%, #0f2b1c 100%)',
-        nameColor: '#6ee7a0',
     },
 }
 

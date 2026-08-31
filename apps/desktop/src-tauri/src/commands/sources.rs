@@ -75,16 +75,6 @@ pub static SOURCE_REGISTRY: &[SourceSpec] = &[
                 native_id: "crimebossrockaycity",
                 numeric_id: Some(6528),
             },
-            SourceGame {
-                game_id: "itr2",
-                native_id: "intotheradius2",
-                numeric_id: Some(6632),
-            },
-            SourceGame {
-                game_id: "hce",
-                native_id: "halocampaignevolved",
-                numeric_id: Some(9685),
-            },
         ],
     },
 ];

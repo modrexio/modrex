@@ -1,0 +1,76 @@
+    Checking modrex v0.13.0 (E:\GitHub\modrex-purple\apps\desktop\src-tauri)
+error: missing parameters for function definition
+    --> src\commands\mods\zip.rs:1364:8
+     |
+1364 | fn name: &str -> String {
+     |        ^
+     |
+help: add a parameter list
+     |
+1364 | fn name(): &str -> String {
+     |        ++
+
+error: return types are denoted using `->`
+    --> src\commands\mods\zip.rs:1364:8
+     |
+1364 | fn name: &str -> String {
+     |        ^
+     |
+help: use `->` instead
+     |
+1364 - fn name: &str -> String {
+1364 + fn name -> &str -> String {
+     |
+
+error: expected one of `!`, `(`, `::`, `<`, `where`, or `{`, found `->`
+    --> src\commands\mods\zip.rs:1364:15
+     |
+1364 | fn name: &str -> String {
+     |               ^^ expected one of `!`, `(`, `::`, `<`, `where`, or `{`
+
+error[E0277]: the size for values of type `[u8]` cannot be known at compilation time
+   --> src\commands\mods\mod.rs:402:10
+    |
+402 |     let (tmp, zip_orig, location_tag) = match resolve_archive_download(downloaded, cfg) {
+    |          ^^^ doesn't have a size known at compile-time
+    |
+    = help: within `std::path::Path`, the trait `Sized` is not implemented for `[u8]`
+note: required because it appears within the type `std::path::Path`
+   --> /rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library\std\src\path.rs:2357:11
+    = note: all local variables must have a statically known size
+
+error[E0277]: the size for values of type `[u8]` cannot be known at compilation time
+   --> src\commands\mods\mod.rs:626:10
+    |
+626 |     let (tmp, zip_orig, location_tag) = match resolve_archive_download(downloaded, cfg) {
+    |          ^^^ doesn't have a size known at compile-time
+    |
+    = help: within `std::path::Path`, the trait `Sized` is not implemented for `[u8]`
+note: required because it appears within the type `std::path::Path`
+   --> /rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library\std\src\path.rs:2357:11
+    = note: all local variables must have a statically known size
+
+error[E0277]: the size for values of type `[u8]` cannot be known at compilation time
+   --> src\commands\mods\mod.rs:839:10
+    |
+839 |     let (tmp, zip_orig, location_tag) = match resolve_archive_download(downloaded, cfg) {
+    |          ^^^ doesn't have a size known at compile-time
+    |
+    = help: within `std::path::Path`, the trait `Sized` is not implemented for `[u8]`
+note: required because it appears within the type `std::path::Path`
+   --> /rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library\std\src\path.rs:2357:11
+    = note: all local variables must have a statically known size
+
+error[E0277]: the size for values of type `[u8]` cannot be known at compilation time
+    --> src\commands\mods\mod.rs:1055:10
+     |
+1055 |     let (tmp, zip_orig, location_tag) = match resolve_archive_download(temp.clone(), cfg) {
+     |          ^^^ doesn't have a size known at compile-time
+     |
+     = help: within `std::path::Path`, the trait `Sized` is not implemented for `[u8]`
+note: required because it appears within the type `std::path::Path`
+    --> /rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library\std\src\path.rs:2357:11
+     = note: all local variables must have a statically known size
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `modrex` (lib) due to 7 previous errors

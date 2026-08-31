@@ -90,34 +90,6 @@ const GAME_SPECS = {
         launchers: ['Steam'],
         modTargets: [{ id: 'mods', path: 'mods' }],
     },
-    itr2: {
-        name: 'Into the Radius 2',
-        shortName: 'ITR2',
-        // No modworkshop presence — Nexus is the browse source.
-        nexusDomain: 'intotheradius2',
-        storageKey: 'itr2',
-        hasNews: false,
-        launchers: ['Steam'],
-        modTargets: [
-            { id: 'sml', path: 'IntoTheRadius2/Content/Mods' },
-            { id: 'paks', path: 'IntoTheRadius2/Content/Paks/Mods' },
-            { id: 'logicmods', path: 'IntoTheRadius2/Content/Paks/LogicMods' },
-            { id: 'lua_mods', path: 'IntoTheRadius2/Content/Paks/LuaMods' },
-        ],
-    },
-    hce: {
-        name: 'Halo: Campaign Evolved',
-        shortName: 'HCE',
-        // No modworkshop presence — Nexus is the browse source.
-        nexusDomain: 'halocampaignevolved',
-        storageKey: 'hce',
-        hasNews: false,
-        launchers: ['Steam', 'Xbox App'],
-        modTargets: [
-            { id: 'paks', path: 'Meteorite/Content/Paks/~mods' },
-            { id: 'ue4ss_mods', path: 'Meteorite/Binaries/Win64/ue4ss/Mods' },
-        ],
-    },
 } satisfies Record<string, GameSpec>
 
 export type GameId = keyof typeof GAME_SPECS

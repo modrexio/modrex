@@ -23,8 +23,6 @@ export const GAME_THEMES: Record<GameId, ThemeId> = {
     pdth: 'red',
     cb: 'orange',
     raid: 'darkRed',
-    itr2: 'purple',
-    hce: 'green',
 }
 
 const THEME_MODE_STORAGE_KEY = 'modrex:theme-mode'

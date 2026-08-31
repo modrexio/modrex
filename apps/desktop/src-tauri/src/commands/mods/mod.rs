@@ -18,7 +18,7 @@ mod zip;
 
 // Public API used by lib.rs, launchers/, and other modules
 pub use self::engine::{
-    backup_dir, engine_for_game, ModEngineConfig, CRIMEBOSS_ENGINE, HCE_ENGINE, ITR2_ENGINE,
+    backup_dir, engine_for_game, ModEngineConfig, CRIMEBOSS_ENGINE,
     PD2_ENGINE, PD3_ENGINE, PDTH_ENGINE, RAID_ENGINE,
 };
 pub use self::identity::IdentityEvidence;
@@ -76,7 +76,7 @@ pub(crate) use self::ue4ss_modstxt::{
 };
 #[cfg(test)]
 pub(crate) use self::zip::{
-    classify_archive_dirs, classify_intotheradius, copy_capped, detect_archive, extract_budget,
+    classify_archive_dirs, copy_capped, detect_archive, extract_budget,
     has_ue4ss_loader_signature, is_unplaceable_pack, is_zip, safe_dest, ArchiveFormat,
     MIN_EXTRACT_BUDGET,
 };
