@@ -47,7 +47,7 @@ pub(crate) use self::install::{
     uninstall_mod_op,
 };
 pub(crate) use self::naming::{hash_filename, pak_filename, strip_priority_prefix};
-pub(crate) use self::paths::{active_mod_path, disabled_base, disabled_mod_path};
+pub(crate) use self::paths::{active_mod_path, disabled_base, disabled_mod_path, resolve_pak_path};
 pub(crate) use self::reorder::{
     move_mod_to_folder_op, reorder_children_op, reorder_mods_in_folder_op,
 };

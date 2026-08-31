@@ -19,6 +19,7 @@ import type { LucideIcon } from 'lucide-react'
 import { siGithub, siDiscord, siX, siBluesky } from 'simple-icons'
 import { t, getLocale, setLocale } from '../i18n'
 import { LOCALE_IDS, localeLabel, type LocaleId } from '../locales'
+import { useThemeMode, setThemeMode, THEMES, type ThemeId, type ThemeMode } from '../theme'
 import { Select } from './Select'
 import { Dialog, DialogHeader } from './Dialog'
 import { Toggle } from './Toggle'
@@ -193,6 +194,37 @@ export function SettingsPage({
             overrides: t('settings.folders.overrides'),
             ue4ssMods: t('settings.folders.ue4ssMods'),
         }),
+        []
+    )
+
+    const themeMode = useThemeMode()
+    const themeOptions = useMemo(
+        () => [
+            {
+                value: 'auto' as ThemeMode,
+                label: t('settings.theme.automatic'),
+                icon: (
+                    <span
+                        className="w-2.5 h-2.5 rounded-full shrink-0"
+                        style={{
+                            background: `conic-gradient(${Object.values(THEMES)
+                                .map((theme) => theme.fill)
+                                .join(', ')})`,
+                        }}
+                    />
+                ),
+            },
+            ...(Object.keys(THEMES) as ThemeId[]).map((id) => ({
+                value: id as ThemeMode,
+                label: t(`settings.theme.${id}`),
+                icon: (
+                    <span
+                        className="w-2.5 h-2.5 rounded-full shrink-0"
+                        style={{ backgroundColor: THEMES[id].fill }}
+                    />
+                ),
+            })),
+        ],
         []
     )
 
@@ -620,6 +652,21 @@ export function SettingsPage({
                                                     }
                                                     options={languageOptions}
                                                     icon={<Globe className="w-3.5 h-3.5" />}
+                                                />
+                                            </div>
+                                        </Section>
+
+                                        <Section
+                                            title={t('settings.theme.title')}
+                                            description={t('settings.theme.description')}
+                                        >
+                                            <div className="mt-1">
+                                                <Select
+                                                    value={themeMode}
+                                                    onChange={(value) =>
+                                                        setThemeMode(value as ThemeMode)
+                                                    }
+                                                    options={themeOptions}
                                                 />
                                             </div>
                                         </Section>

@@ -8,6 +8,8 @@ import type {
     SourceInfo,
     NexusArchiveIdentity,
     NexusContentIdentifyOutcome,
+    PakAsset,
+    PakViewerConfig,
 } from '../../shared/bindings'
 export type {
     InstallOutcome,
@@ -17,6 +19,8 @@ export type {
     NexusArchiveIdentity,
     NexusHashMatch,
     NexusContentIdentifyOutcome,
+    PakAsset,
+    PakViewerConfig,
 } from '../../shared/bindings'
 
 // The library declares this union without exporting it.
@@ -336,6 +340,19 @@ export const api = {
     },
     getIndexModFiles(modId: number, gameId: string): Promise<IndexModFile[]> {
         return commands.getIndexModFiles(modId, gameId)
+    },
+
+    listPakAssets(gameId: string, uid: string): Promise<PakAsset[]> {
+        return commands.listPakAssets(gameId, uid)
+    },
+    getPakViewerConfig(gameId: string): Promise<PakViewerConfig> {
+        return commands.getPakViewerConfig(gameId)
+    },
+    async setPakAesKey(gameId: string, key: string): Promise<void> {
+        await commands.setPakAesKey(gameId, key)
+    },
+    async setPakUsmapPath(gameId: string, path: string | null): Promise<void> {
+        await commands.setPakUsmapPath(gameId, path)
     },
 
     // ── News ───────────────────────────────────────────────────────────────────

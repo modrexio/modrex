@@ -192,6 +192,27 @@ export const commands = {
 	 *  preferences. Does not touch installed mods, game files, or the on-disk caches.
 	 */
 	resetAppSettings: () => __TAURI_INVOKE<void>("reset_app_settings"),
+	/**
+	 *  Lists the assets inside a tracked mod's pak by running the CUE4Parse sidecar. The
+	 *  sidecar already applies the game's baked-in default key; --aes is only passed when the
+	 *  user configured an override for this game.
+	 */
+	listPakAssets: (gameId: string, uid: string) => __TAURI_INVOKE<PakAsset[]>("list_pak_assets", { gameId, uid }),
+	/**
+	 *  The per-game pak-viewer settings for the renderer. The AES override itself is stored
+	 *  in settings.json but never crosses IPC; only its presence does.
+	 */
+	getPakViewerConfig: (gameId: string) => __TAURI_INVOKE<PakViewerConfig>("get_pak_viewer_config", { gameId }),
+	/**
+	 *  Stores (or, with an empty key, clears) a per-game AES override. Empty clears because
+	 *  the game's baked-in default is what the sidecar uses when no override exists.
+	 */
+	setPakAesKey: (gameId: string, key: string) => __TAURI_INVOKE<null>("set_pak_aes_key", { gameId, key }),
+	/**
+	 *  Sets (or, with None, clears) the per-game .usmap mapping path used to decode asset
+	 *  names when listing paks.
+	 */
+	setPakUsmapPath: (gameId: string, path: string | null) => __TAURI_INVOKE<null>("set_pak_usmap_path", { gameId, path }),
 };
 
 /* Types */
@@ -271,6 +292,7 @@ export type GameSettings_Deserialize = {
 	launchOptions?: string,
 	suppressCrashReporter?: boolean,
 	crimebossInstallMode?: string,
+	pakUsmapPath?: string | null,
 };
 
 export type GameSettings_Serialize = {
@@ -280,6 +302,7 @@ export type GameSettings_Serialize = {
 	launchOptions: string,
 	suppressCrashReporter: boolean,
 	crimebossInstallMode: string,
+	pakUsmapPath: string | null,
 };
 
 export type HostPackPayload = HostPackPayload_Serialize | HostPackPayload_Deserialize;
@@ -769,6 +792,26 @@ export type PageMeta = {
 	last_page: number,
 	per_page: number,
 	total: number,
+};
+
+/**
+ *  One asset (file) listed out of a mod's pak. `class` is the resolved UObject export type
+ *  where the sidecar could load the package (typically the main export), None for non-pak
+ *  files and for packages whose load failed or that have no mapping.
+ */
+export type PakAsset = {
+	path: string,
+	size: number,
+	class: string | null,
+};
+
+/**
+ *  What the renderer needs to build the pak-viewer settings UI. The AES key itself is
+ *  never sent back over IPC; only whether a user override exists is revealed.
+ */
+export type PakViewerConfig = {
+	hasAesOverride: boolean,
+	usmapPath: string | null,
 };
 
 export type SourceGameInfo = {

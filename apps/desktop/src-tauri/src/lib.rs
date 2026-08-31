@@ -122,6 +122,10 @@ fn ipc_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::storage::clear_index_cache,
             commands::storage::clear_news_cache,
             commands::settings::reset_app_settings,
+            commands::pak_viewer::list_pak_assets,
+            commands::pak_viewer::get_pak_viewer_config,
+            commands::pak_viewer::set_pak_aes_key,
+            commands::pak_viewer::set_pak_usmap_path,
         ])
 }
 

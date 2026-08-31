@@ -1,5 +1,8 @@
 import { api, type StartupPhase } from './api'
 import { getLocale, t, type StringKey } from './i18n'
+import { initTheme } from './theme'
+
+initTheme()
 
 const phases: Exclude<StartupPhase, 'error'>[] = ['prepare', 'interface', 'game', 'mods', 'ready']
 

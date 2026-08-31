@@ -180,6 +180,18 @@
             "updateSelected": "Update Selected ({count})",
             "error": "Update failed. Check your connection and try again."
         },
+        "pakViewer": {
+            "title": "Pak contents",
+            "open": "View pak contents",
+            "searchPlaceholder": "Search assets",
+            "assetCount": "{count} assets",
+            "matchCount": "{count} of {total} assets",
+            "loading": "Reading pak",
+            "empty": "No assets found",
+            "noMatches": "No assets match \"{query}\"",
+            "error": "Couldn't read the pak.",
+            "aesHint": "Encrypted paks need this game's AES key."
+        },
         "modMenu": {
             "open": "Options",
             "manageFiles": "Manage files",
@@ -367,6 +379,17 @@
         "language": {
             "title": "Language",
             "description": "Language used throughout the app."
+        },
+        "theme": {
+            "title": "Theme",
+            "description": "Accent colour used throughout the app. By default each game has its own preset colour.",
+            "automatic": "Automatic",
+            "purple": "Purple",
+            "orange": "Orange",
+            "green": "Green",
+            "blue": "Blue",
+            "red": "Red",
+            "darkRed": "Dark red"
         },
         "gamePath": {
             "title": "Game Path",
