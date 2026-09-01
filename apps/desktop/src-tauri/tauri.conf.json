@@ -4,7 +4,7 @@
     "identifier": "modrex",
     "build": {
         "beforeDevCommand": "pnpm run dev-renderer",
-        "beforeBuildCommand": "pnpm run build-renderer && pnpm run build:pakviewer",
+        "beforeBuildCommand": "pnpm run build-renderer",
         "frontendDist": "../out/renderer",
         "devUrl": "http://localhost:5173"
     },
@@ -60,7 +60,7 @@
             "icons/icon.ico"
         ],
         "license": "../../../LICENSE",
-        "resources": ["../THIRD_PARTY_LICENSES.md", "resources/pakviewer/*"],
+        "resources": ["../THIRD_PARTY_LICENSES.md"],
         "linux": {
             "deb": {
                 "conflicts": ["pd3-mod-manager"],

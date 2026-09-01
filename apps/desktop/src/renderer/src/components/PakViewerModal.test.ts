@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { buildTree, countFiles, filterTree, type TreeNode } from './PakViewerModal'
 import type { PakAsset } from '../api'
 
-function asset(path: string, size = 10, klass: string | null = null): PakAsset {
-    return { path, size, class: klass }
+function asset(path: string): PakAsset {
+    return { path }
 }
 
 function paths(node: TreeNode): string[] {
@@ -53,21 +53,15 @@ describe('countFiles', () => {
 
 describe('filterTree', () => {
     const tree = buildTree([
-        asset('Game/Maps/Start.umap', 10, 'World'),
-        asset('Game/Maps/End.umap', 20, 'World'),
-        asset('Game/UI/Hud.uasset', 30, 'WidgetBlueprint'),
+        asset('Game/Maps/Start.umap'),
+        asset('Game/Maps/End.umap'),
+        asset('Game/UI/Hud.uasset'),
     ])
 
     it('keeps folders whose descendants match by path', () => {
         const filtered = filterTree(tree, 'start')
         expect(filtered).not.toBeNull()
         expect(paths(filtered!)).toEqual(['Game/Maps/Start.umap'])
-    })
-
-    it('matches on the asset class', () => {
-        const filtered = filterTree(tree, 'widget')
-        expect(filtered).not.toBeNull()
-        expect(paths(filtered!)).toEqual(['Game/UI/Hud.uasset'])
     })
 
     it('is case-insensitive', () => {

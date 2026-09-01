@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
-import { MoreVertical, FileArchive } from 'lucide-react'
+import { MoreVertical } from 'lucide-react'
 import { t } from '../i18n'
-import type { InstalledMod } from '../../../shared/types'
+import { GAMES, type InstalledMod } from '../../../shared/types'
 import { ModCard } from './ModCard'
 import { ModListRow } from './ModListRow'
 import { SkeletonCard } from './SkeletonCard'
@@ -10,7 +10,6 @@ import { syntheticMod, detailNavArgs, hasCatalogLink, identityKey } from '../hoo
 import { useInstalledContext } from './InstalledContext'
 import { ManageFilesModal } from './ManageFilesModal'
 import { PakViewerModal } from './PakViewerModal'
-import { Tooltip } from './Tooltip'
 import { hasSource } from '../sources'
 
 export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
@@ -90,7 +89,7 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
         !hasCatalogLink(ins) && !combined.missing && hasSource(activeGame, 'nexus')
 
     const canViewPak =
-        (activeGame === 'pd3' || activeGame === 'cb') &&
+        GAMES[activeGame].supportsPackageViewer &&
         combined.location !== 'ue4ss_mods' &&
         !combined.location?.startsWith('host:') &&
         !combined.missing
@@ -121,6 +120,21 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
                         >
                             {t('installed.modMenu.manageFiles')}
                         </button>
+                        {canViewPak && (
+                            <>
+                                <div className="h-px bg-border" />
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation()
+                                        setMenuOpen(false)
+                                        setPakViewerKey(groupKey)
+                                    }}
+                                    className="w-full text-left px-3 py-2 text-xs text-text hover:bg-surface-hover transition-colors"
+                                >
+                                    {t('installed.pakViewer.open')}
+                                </button>
+                            </>
+                        )}
                         {canIdentifyViaNexus && (
                             <>
                                 <div className="h-px bg-border" />
@@ -212,15 +226,7 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
                     onEnable={() => handleEnable(mods)}
                     onDisable={() => handleDisable(mods)}
                     onReinstall={() => handleReinstall(mods)}
-                    optionsButton={
-                        <>
-                            <PakViewerButton
-                                visible={canViewPak}
-                                onClick={() => setPakViewerKey(groupKey)}
-                            />
-                            {renderMenuButton('left')}
-                        </>
-                    }
+                    optionsButton={renderMenuButton('left')}
                 />
             </div>
         )
@@ -238,65 +244,7 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
             {dropTarget?.kind === 'after-mod' && dropTarget.uid === repUid && (
                 <div className="absolute top-0 bottom-0 right-0 w-1 bg-accent z-10 pointer-events-none rounded-r-lg" />
             )}
-            <div ref={menuRef} className="absolute top-2 right-2 z-20 flex items-center gap-1.5">
-                <PakViewerButton visible={canViewPak} onClick={() => setPakViewerKey(groupKey)} />
-                <button
-                    onClick={(e) => {
-                        e.stopPropagation()
-                        setMenuOpen((o) => !o)
-                    }}
-                    className="flex items-center justify-center w-6 h-6 rounded border border-border text-text-subtle hover:text-text hover:border-accent/60 transition-colors bg-surface-raised/80"
-                >
-                    <MoreVertical className="w-3.5 h-3.5" />
-                </button>
-                {menuOpen && (
-                    <div className="absolute right-0 top-7 min-w-40 bg-surface-raised border border-border rounded-lg shadow-xl overflow-hidden z-50">
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation()
-                                setMenuOpen(false)
-                                setManageFilesKey(groupKey)
-                            }}
-                            className="w-full text-left px-3 py-2 text-xs text-text hover:bg-surface-hover transition-colors"
-                        >
-                            {t('installed.modMenu.manageFiles')}
-                        </button>
-                        {canIdentifyViaNexus && (
-                            <>
-                                <div className="h-px bg-border" />
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation()
-                                        setMenuOpen(false)
-                                        void handleIdentifyViaNexus(ins)
-                                    }}
-                                    disabled={isBusy}
-                                    className="w-full text-left px-3 py-2 text-xs text-text hover:bg-surface-hover transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                                >
-                                    {t('installed.modMenu.identify')}
-                                </button>
-                            </>
-                        )}
-                        {canMoveCrimeBossTarget && (
-                            <>
-                                <div className="h-px bg-border" />
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation()
-                                        setMenuOpen(false)
-                                        requestMoveCrimeBossTarget(ins)
-                                    }}
-                                    className="w-full text-left px-3 py-2 text-xs text-text hover:bg-surface-hover transition-colors"
-                                >
-                                    {combined.location === 'paks'
-                                        ? t('installed.crimeBossMove.toModKit')
-                                        : t('installed.crimeBossMove.toLegacy')}
-                                </button>
-                            </>
-                        )}
-                    </div>
-                )}
-            </div>
+            <div className="absolute top-2 right-2 z-20">{renderMenuButton('right')}</div>
             {showManageFiles && (
                 <ManageFilesModal
                     mods={mods}
@@ -326,22 +274,5 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
                 onReinstall={() => handleReinstall(mods)}
             />
         </div>
-    )
-}
-
-function PakViewerButton({ visible, onClick }: { visible: boolean; onClick: () => void }) {
-    if (!visible) return null
-    return (
-        <Tooltip content={t('installed.pakViewer.open')}>
-            <button
-                onClick={(event) => {
-                    event.stopPropagation()
-                    onClick()
-                }}
-                className="flex items-center justify-center w-6 h-6 rounded border border-border text-text-subtle hover:text-text hover:border-accent/60 transition-colors bg-surface-raised/80"
-            >
-                <FileArchive className="w-3.5 h-3.5" />
-            </button>
-        </Tooltip>
     )
 }

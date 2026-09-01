@@ -27,16 +27,6 @@ export interface TreeNode {
     children: TreeNode[]
 }
 
-function formatPakSize(bytes: number): string {
-    if (bytes < 1024) return `${bytes} B`
-    let value = bytes
-    for (const unit of ['KB', 'MB', 'GB', 'TB']) {
-        value /= 1024
-        if (value < 1024) return `${value.toFixed(1)} ${unit}`
-    }
-    return `${value.toFixed(1)} TB`
-}
-
 export function buildTree(assets: PakAsset[]): TreeNode {
     const root: TreeNode = { name: '', path: '', asset: null, children: [] }
     for (const asset of assets) {
@@ -64,9 +54,7 @@ export function buildTree(assets: PakAsset[]): TreeNode {
 export function filterTree(node: TreeNode, q: string): TreeNode | null {
     const needle = q.toLowerCase()
     if (node.asset !== null) {
-        const matches =
-            node.asset.path.toLowerCase().includes(needle) ||
-            (node.asset.class !== null && node.asset.class.toLowerCase().includes(needle))
+        const matches = node.asset.path.toLowerCase().includes(needle)
         return matches ? node : null
     }
     const children: TreeNode[] = []
@@ -105,19 +93,10 @@ function TreeRow({ node, depth, expanded, searching, onToggle }: TreeRowProps) {
                 >
                     {node.name}
                 </span>
-                {node.asset.class !== null && (
-                    <span className="px-1.5 py-0.5 rounded bg-surface-active border border-border text-[10px] text-text-subtle shrink-0">
-                        {node.asset.class}
-                    </span>
-                )}
-                <span className="text-xs text-text-muted tabular-nums shrink-0">
-                    {formatPakSize(node.asset.size)}
-                </span>
             </div>
         )
     }
     const isOpen = searching || expanded.has(node.path)
-    const fileCount = countFiles(node)
     return (
         <div>
             <button
@@ -132,7 +111,6 @@ function TreeRow({ node, depth, expanded, searching, onToggle }: TreeRowProps) {
                 <span className="text-xs font-medium flex-1 min-w-0 truncate text-text">
                     {node.name}
                 </span>
-                <span className="text-xs text-text-muted tabular-nums shrink-0">{fileCount}</span>
             </button>
             {isOpen &&
                 node.children.map((child) => (
@@ -180,6 +158,7 @@ export function PakViewerModal({ modName, uid, gameId, onClose }: Props) {
     const searching = q !== ''
     const matchCount = visibleTree === null ? 0 : countFiles(visibleTree)
     const hasMatches = searching ? matchCount > 0 : (assets?.length ?? 0) > 0
+    const hasAesError = error !== null && /aes|decrypt|encrypt/i.test(error)
 
     const toggle = (path: string) => {
         setExpanded((prev) => {
@@ -198,7 +177,7 @@ export function PakViewerModal({ modName, uid, gameId, onClose }: Props) {
             open={true}
             onOpenChange={(open) => !open && onClose()}
             title={t('installed.pakViewer.title')}
-            size="list"
+            size="panel"
             className="w-[56rem] max-w-[92vw] text-text"
             onOpenAutoFocus={(e) => e.preventDefault()}
         >
@@ -240,9 +219,11 @@ export function PakViewerModal({ modName, uid, gameId, onClose }: Props) {
                             {t('installed.pakViewer.error')}
                         </span>
                         <span className="text-xs break-words">{error}</span>
-                        <span className="text-xs text-text-muted">
-                            {t('installed.pakViewer.aesHint')}
-                        </span>
+                        {hasAesError && (
+                            <span className="text-xs text-text-muted">
+                                {t('installed.pakViewer.aesHint')}
+                            </span>
+                        )}
                     </div>
                 )}
                 {error === null && assets === null && (

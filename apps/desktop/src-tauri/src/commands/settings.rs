@@ -64,8 +64,6 @@ pub struct GameSettings {
     )]
     #[specta(type = String)]
     pub crimeboss_install_mode: String,
-    #[serde(default)]
-    pub pak_usmap_path: Option<String>,
 }
 
 fn default_crimeboss_mode() -> String {
@@ -81,7 +79,6 @@ impl Default for GameSettings {
             launch_options: String::new(),
             suppress_crash_reporter: false,
             crimeboss_install_mode: default_crimeboss_mode(),
-            pak_usmap_path: None,
         }
     }
 }
@@ -107,8 +104,6 @@ pub struct Settings {
     // modworkshop mod ids only; ids from other sources must not land here.
     #[serde(default, deserialize_with = "null_default")]
     pub dismissed_deps_warnings: Vec<i32>,
-    #[serde(default, deserialize_with = "null_default")]
-    pub pak_aes_overrides: HashMap<String, String>,
     // analytics_consent_asked distinguishes "never shown the first-run consent dialog"
     // from "shown it, and this is their answer". Its own bool keeps that state without
     // the dialog either nagging forever or the saved choice reading as "never asked".
@@ -154,7 +149,6 @@ impl Default for Settings {
             games: None,
             skip_file_open_log_warning: false,
             dismissed_deps_warnings: Vec::new(),
-            pak_aes_overrides: HashMap::new(),
             analytics_consent_asked: false,
             analytics_enabled: false,
             analytics_id: None,
