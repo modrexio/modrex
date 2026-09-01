@@ -18,27 +18,27 @@
     },
     "devDependencies": {
         "@astrojs/check": "0.9.10",
-        "@astrojs/mdx": "7.0.5",
+        "@astrojs/mdx": "7.0.8",
         "@eslint/js": "10.0.1",
         "@tailwindcss/vite": "4.3.3",
-        "astro": "7.1.6",
-        "eslint": "10.8.0",
-        "eslint-plugin-astro": "3.0.1",
-        "marked": "18.0.7",
+        "astro": "7.2.9",
+        "eslint": "10.9.1",
+        "eslint-plugin-astro": "3.1.0",
+        "marked": "18.0.11",
         "prettier": "3.9.6",
         "prettier-plugin-astro": "0.14.1",
-        "sharp": "0.35.3",
+        "sharp": "0.35.4",
         "tailwindcss": "4.3.3",
         "typescript": "6.0.3",
-        "typescript-eslint": "8.65.0",
-        "vite": "8.2.0",
-        "vitest": "4.1.10",
-        "zod": "4.4.3"
+        "typescript-eslint": "8.68.0",
+        "vite": "8.2.2",
+        "vitest": "4.1.11",
+        "zod": "4.5.2"
     },
     "dependencies": {
         "@modrex/games": "workspace:*",
         "@astrojs/sitemap": "3.7.3",
-        "@astrojs/starlight": "0.41.5",
-        "lucide": "1.28.0"
+        "@astrojs/starlight": "0.41.10",
+        "lucide": "1.35.0"
     }
 }
