@@ -63,6 +63,13 @@
             "bodyPre": "is recommended for most mods to load correctly. Add it in",
             "location": "Settings > Launch Options",
             "launchAnyway": "Launch anyway"
+        },
+        "sisr": {
+            "unsupported": "SISR auto-launch is not supported on this operating system. The game was launched without it.",
+            "notInstalled": "SISR was not found. The game was launched without it.",
+            "setupRequired": "SISR needs its first-run setup before controller redirection will work. The game was launched anyway.",
+            "startFailed": "SISR failed to start. The game was launched without it.",
+            "startUnconfirmed": "Modrex could not confirm that SISR started. The game was launched anyway."
         }
     },
     "sidebar": {
@@ -425,6 +432,17 @@
         "crashReporter": {
             "title": "Crash reporter cleanup",
             "description": "Work around an empty crash-report window for games that ship a buggy reporter by removing its crash reporter files before launch. This is off by default and may not be needed for every game."
+        },
+        "sisr": {
+            "title": "Auto-launch SISR",
+            "description": "Start SISR (Steam Input System Redirector) before launching a game when it is not already running, so Steam Input controllers work with games launched outside Steam.",
+            "running": "SISR is running.",
+            "notRunning": "SISR is not running. It will start when you launch a game.",
+            "notInstalled": "SISR was not found in its default installation location.",
+            "setupRequired": "Complete SISR's first-run Steam setup before using auto-launch.",
+            "setup": "Set up SISR",
+            "finishSetup": "Finish setup",
+            "failed": "SISR setting failed: {error}"
         },
         "updates": {
             "title": "Updates",

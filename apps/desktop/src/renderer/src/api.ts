@@ -9,6 +9,8 @@ import type {
     NexusArchiveIdentity,
     NexusContentIdentifyOutcome,
     PakAsset,
+    SisrLaunchIssue,
+    SisrStatus,
 } from '../../shared/bindings'
 export type {
     InstallOutcome,
@@ -19,6 +21,8 @@ export type {
     NexusHashMatch,
     NexusContentIdentifyOutcome,
     PakAsset,
+    SisrLaunchIssue,
+    SisrStatus,
 } from '../../shared/bindings'
 
 // The library declares this union without exporting it.
@@ -542,11 +546,11 @@ export const api = {
     async stopGame(gameId: string): Promise<void> {
         await commands.stopGame(gameId)
     },
-    async launchModded(gameId: string): Promise<void> {
-        await commands.launchGame(gameId)
+    launchModded(gameId: string): Promise<SisrLaunchIssue | null> {
+        return commands.launchGame(gameId)
     },
-    async launchWithoutMods(gameId: string): Promise<void> {
-        await commands.launchWithoutMods(gameId)
+    launchWithoutMods(gameId: string): Promise<SisrLaunchIssue | null> {
+        return commands.launchWithoutMods(gameId)
     },
     async restoreMods(gameId: string): Promise<void> {
         await commands.restoreMods(gameId)
@@ -562,6 +566,12 @@ export const api = {
     },
     openPath(path: string): Promise<void> {
         return commands.shellOpenPath(path)
+    },
+    getSisrStatus(): Promise<SisrStatus> {
+        return commands.getSisrStatus()
+    },
+    async setAutoLaunchSisr(enabled: boolean): Promise<void> {
+        await commands.setAutoLaunchSisr(enabled)
     },
 
     // ── Events ─────────────────────────────────────────────────────────────────

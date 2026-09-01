@@ -7,6 +7,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 ### Added
 
 - Added Italian as a language option for the app's interface.
+- Added an optional Windows setting to start SISR before games launched from Modrex, with setup and launch-failure warnings.
 
 ### Changed
 

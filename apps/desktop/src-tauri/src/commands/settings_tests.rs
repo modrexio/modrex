@@ -72,6 +72,21 @@ fn roundtrip_defaults_when_absent() {
     assert!(!loaded.analytics_consent_asked);
     assert!(!loaded.analytics_enabled);
     assert!(loaded.discord_rich_presence_enabled);
+    assert!(!loaded.auto_launch_sisr);
+}
+
+#[test]
+fn auto_launch_sisr_roundtrips_and_treats_null_as_disabled() {
+    let f = NamedTempFile::new().unwrap();
+    let original = Settings {
+        auto_launch_sisr: true,
+        ..Default::default()
+    };
+    write_to(f.path(), &original);
+    assert!(read_from(f.path()).auto_launch_sisr);
+
+    let settings: Settings = serde_json::from_str(r#"{"autoLaunchSisr":null}"#).unwrap();
+    assert!(!settings.auto_launch_sisr);
 }
 
 #[test]

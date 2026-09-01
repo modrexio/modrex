@@ -17,6 +17,7 @@ pub mod nxm;
 pub mod pak_viewer;
 pub mod secrets;
 pub mod settings;
+pub mod sisr;
 pub mod sources;
 pub mod startup;
 pub mod storage;

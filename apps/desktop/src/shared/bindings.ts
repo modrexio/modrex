@@ -48,6 +48,8 @@ export const commands = {
 	setCrimebossInstallMode: (mode: string) => __TAURI_INVOKE<void>("set_crimeboss_install_mode", { mode }),
 	setSuppressCrashReporter: (gameId: string, suppress: boolean) => __TAURI_INVOKE<void>("set_suppress_crash_reporter", { gameId, suppress }),
 	setSkipFileopenlogWarning: (skip: boolean) => __TAURI_INVOKE<void>("set_skip_fileopenlog_warning", { skip }),
+	getSisrStatus: () => __TAURI_INVOKE<SisrStatus>("get_sisr_status"),
+	setAutoLaunchSisr: (enabled: boolean) => __TAURI_INVOKE<null>("set_auto_launch_sisr", { enabled }),
 	dismissDepsWarning: (modId: number) => __TAURI_INVOKE<void>("dismiss_deps_warning", { modId }),
 	/**
 	 *  Counts a successful mod install toward the one-time "star us on GitHub" prompt. When
@@ -148,8 +150,8 @@ export const commands = {
 	 */
 	selectGameInstall: (gameId: string, launcher: string, gamePath: string) => __TAURI_INVOKE<null>("select_game_install", { gameId, launcher, gamePath }),
 	pickFolder: (title: string, defaultPath: string | null) => __TAURI_INVOKE<string | null>("pick_folder", { title, defaultPath }),
-	launchGame: (gameId: string) => __TAURI_INVOKE<null>("launch_game", { gameId }),
-	launchWithoutMods: (gameId: string) => __TAURI_INVOKE<null>("launch_without_mods", { gameId }),
+	launchGame: (gameId: string) => __TAURI_INVOKE<"unsupported" | "notInstalled" | "setupRequired" | "startFailed" | "startUnconfirmed" | null>("launch_game", { gameId }),
+	launchWithoutMods: (gameId: string) => __TAURI_INVOKE<"unsupported" | "notInstalled" | "setupRequired" | "startFailed" | "startUnconfirmed" | null>("launch_without_mods", { gameId }),
 	restoreMods: (gameId: string) => __TAURI_INVOKE<null>("restore_mods", { gameId }),
 	isGameRunning: (gameId: string) => __TAURI_INVOKE<boolean>("is_game_running", { gameId }),
 	stopGame: (gameId: string) => __TAURI_INVOKE<null>("stop_game", { gameId }),
@@ -774,6 +776,16 @@ export type PageMeta = {
 
 export type PakAsset = {
 	path: string,
+};
+
+export type SisrLaunchIssue = "unsupported" | "notInstalled" | "setupRequired" | "startFailed" | "startUnconfirmed";
+
+export type SisrStatus = {
+	supported: boolean,
+	installed: boolean,
+	running: boolean,
+	setupComplete: boolean,
+	autoLaunch: boolean,
 };
 
 export type SourceGameInfo = {

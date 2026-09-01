@@ -26,6 +26,7 @@ import { Toggle } from './Toggle'
 import { SkeletonBar } from './Skeleton'
 import { TelemetryConsentDialog } from './TelemetryConsentDialog'
 import { StorageSettings } from './StorageSettings'
+import { SisrSettings } from './SisrSettings'
 import { api } from '../api'
 import type { DetectedInstall, GameSettings } from '../api'
 import { getSettingsCache, setSettingsCache, patchSettingsCache } from '../settingsCache'
@@ -849,6 +850,8 @@ export function SettingsPage({
 
                                 {activeTab === 'advanced' && (
                                     <>
+                                        <SisrSettings isActive={isActive} />
+
                                         <Section
                                             title={t('settings.logs.title')}
                                             description={t('settings.logs.description')}

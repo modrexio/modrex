@@ -403,6 +403,10 @@
             "title": "Bereinigung des Absturzberichterstatters",
             "description": "Umgehe ein leeres Absturzbericht-Fenster bei Spielen mit fehlerhaftem Berichterstatter, indem dessen Dateien vor dem Start entfernt werden. Dies ist standardmäßig deaktiviert und wird möglicherweise nicht für jedes Spiel benötigt."
         },
+        "sisr": {
+            "title": "Automatischer Start von SISR",
+            "description": "Starte SISR (Steam Input System Redirector) bevor dem Spiel wenn es noch nicht läuft, so das Steam Input Controller außerhalb von Steam Spielen funktionieren."
+        },
         "updates": {
             "title": "Updates",
             "check": "Nach Updates suchen",
