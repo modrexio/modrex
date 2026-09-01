@@ -1263,7 +1263,7 @@ MIT License
 
 ---
 
-### @types/react 19.2.17
+### @types/react 19.2.18
 
 **License:** MIT
 
@@ -1293,7 +1293,7 @@ MIT License
 
 ---
 
-### @types/react-dom 19.2.3
+### @types/react-dom 19.2.5
 
 **License:** MIT
 
@@ -5161,7 +5161,7 @@ PERFORMANCE OF THIS SOFTWARE.
 
 ---
 
-### lucide-react 1.28.0
+### lucide-react 1.35.0
 
 **License:** ISC
 
@@ -5432,7 +5432,7 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ---
 
-### highlight.js 11.11.1
+### highlight.js 11.11.2
 
 **License:** BSD-3-Clause
 
@@ -5470,7 +5470,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ---
 
-### simple-icons 16.27.1
+### simple-icons 16.29.0
 
 **License:** CC0-1.0
 
