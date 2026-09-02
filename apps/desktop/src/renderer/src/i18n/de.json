@@ -63,6 +63,13 @@
             "bodyPre": "wird empfohlen damit die meisten Mods korrekt laufen. Füge es hinzu",
             "location": "Einstellungen → Startargumente",
             "launchAnyway": "Spiel trotzdem starten"
+        },
+        "sisr": {
+            "unsupported": "! SISR auto-launch is not supported on this operating system. The game was launched without it.",
+            "notInstalled": "! SISR was not found. The game was launched without it.",
+            "setupRequired": "! SISR needs its first-run setup before controller redirection will work. The game was launched anyway.",
+            "startFailed": "! SISR failed to start. The game was launched without it.",
+            "startUnconfirmed": "! Modrex could not confirm that SISR started. The game was launched anyway."
         }
     },
     "sidebar": {
@@ -183,11 +190,14 @@
         "pakViewer": {
             "title": "Inhalte dieser PAK-Datei",
             "open": "PAK-Datei öffnene",
+            "searchPlaceholder": "! Search assets",
             "assetCount": "{count} Dateien",
             "matchCount": "{count} von {total} Gesamtassets",
+            "loading": "! Reading pak",
             "empty": "Keine Assets gefunden",
             "noMatches": "Keine Assets gefunden mit \"{query}\"",
-            "error": "PAK-Datei konnte nicht ausgelesen werden."
+            "error": "PAK-Datei konnte nicht ausgelesen werden.",
+            "aesHint": "! Encrypted paks need this game's AES key."
         },
         "modMenu": {
             "open": "Optionen",
@@ -378,11 +388,14 @@
             "description": "Die in der gesamten App verwendete Sprache."
         },
         "accentColor": {
-            "purple": "Lila",
+            "title": "! Accent color",
+            "description": "! Accent color used throughout the app.",
             "orange": "Orange",
+            "purple": "Lila",
             "green": "Grün",
             "blue": "Blau",
-            "red": "Rot"
+            "red": "Rot",
+            "gray": "! Gray"
         },
         "gamePath": {
             "title": "Spielpfad",
@@ -421,7 +434,14 @@
         },
         "sisr": {
             "title": "Automatischer Start von SISR",
-            "description": "Starte SISR (Steam Input System Redirector) bevor dem Spiel wenn es noch nicht läuft, so das Steam Input Controller außerhalb von Steam Spielen funktionieren."
+            "description": "Starte SISR (Steam Input System Redirector) bevor dem Spiel wenn es noch nicht läuft, so das Steam Input Controller außerhalb von Steam Spielen funktionieren.",
+            "running": "! SISR is running.",
+            "notRunning": "! SISR is not running. It will start when you launch a game.",
+            "notInstalled": "! SISR was not found in its default installation location.",
+            "setupRequired": "! Complete SISR's first-run Steam setup before using auto-launch.",
+            "setup": "! Set up SISR",
+            "finishSetup": "! Finish setup",
+            "failed": "! SISR setting failed: {error}"
         },
         "updates": {
             "title": "Updates",
