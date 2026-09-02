@@ -1,3 +1,4 @@
+use super::crimeboss_settings::find_pak_in_dir;
 use super::engine::{
     backup_dir as engine_backup_dir, disabled_dir, mods_dir, state_path as engine_state_path,
     ModEngineConfig, ModUnit, ScanTarget,
@@ -169,6 +170,41 @@ pub fn disabled_mod_path(
         } => base.join(format!("{}{}", filename, disabled_suffix)),
         ModUnit::Directory { .. } => base.join(filename),
     }
+}
+
+pub(crate) fn resolve_pak_path(
+    game_path: &str,
+    cfg: &ModEngineConfig,
+    folders: &[ModFolder],
+    m: &InstalledMod,
+) -> Option<PathBuf> {
+    let location = m.location.as_deref();
+    if location == Some("ue4ss_mods") || location.is_some_and(|value| value.starts_with("host:")) {
+        return None;
+    }
+
+    let target = cfg.target_for(location);
+    let folder = get_folder_path(folders, m.folder_id.as_deref());
+    if !target.is_directory_unit() {
+        let active = active_mod_path(game_path, &m.filename, folder.as_deref(), target);
+        if active.exists() {
+            return Some(active);
+        }
+        let disabled = disabled_mod_path(game_path, &m.filename, folder.as_deref(), target);
+        return disabled.exists().then_some(disabled);
+    }
+
+    let active = active_mod_path(game_path, &m.filename, folder.as_deref(), target);
+    let mod_dir = if active.exists() {
+        active
+    } else {
+        let disabled = disabled_mod_path(game_path, &m.filename, folder.as_deref(), target);
+        if !disabled.exists() {
+            return None;
+        }
+        disabled
+    };
+    find_pak_in_dir(&mod_dir.join("Content").join("Paks").join("WindowsNoEditor"))
 }
 
 pub async fn find_untracked_paks(

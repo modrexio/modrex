@@ -54,6 +54,7 @@ if (missingInRust.length > 0) {
 
 for (const id of tsIds) {
     const spec = specsBlock.split(new RegExp(`^ {4}${id}:\\s*\\{`, 'm'))[1]
+    const rustSpec = registryBlock.split(new RegExp(`\\bid:\\s*"${id}",`))[1]?.split(/\n    },/)[0]
     const declared = spec?.match(/launchers:\s*\[([^\]]*)\]/)?.[1]
     const sharedLaunchers = [...(declared?.matchAll(/'([^']+)'/g) ?? [])].map((m) => m[1])
     const rustGame = readFileSync(
@@ -88,6 +89,14 @@ for (const id of tsIds) {
     if (sharedTargets.join('|') !== rustTargets.join('|')) {
         failed = true
         console.error(`Mod targets for '${id}' differ between Rust and @modrex/games`)
+    }
+
+    const sharedPackageViewer = spec?.match(/supportsPackageViewer:\s*(true|false)/)?.[1] === 'true'
+    const rustPackageViewer =
+        rustSpec?.match(/unreal_package_reader:\s*(Some|None)/)?.[1] === 'Some'
+    if (sharedPackageViewer !== rustPackageViewer) {
+        failed = true
+        console.error(`Package viewer support for '${id}' differs between Rust and @modrex/games`)
     }
 }
 

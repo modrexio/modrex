@@ -10,6 +10,7 @@ accepted = [
     "Unicode-3.0",
     "Zlib",
     "CC0-1.0",
+    "CDLA-Permissive-2.0",
     "OpenSSL",
 ]
 
@@ -17,4 +18,3 @@ targets = [
     "x86_64-pc-windows-msvc",
     "x86_64-unknown-linux-gnu",
 ]
-

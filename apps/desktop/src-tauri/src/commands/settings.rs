@@ -115,6 +115,8 @@ pub struct Settings {
     pub analytics_id: Option<String>,
     #[serde(default = "default_true", deserialize_with = "null_or_true")]
     pub discord_rich_presence_enabled: bool,
+    #[serde(default, deserialize_with = "null_default")]
+    pub auto_launch_sisr: bool,
     // OAuth credentials are persisted only in local settings and sent only to
     // Nexus's OAuth and API endpoints.
     pub nexus_oauth: Option<NexusOAuthTokens>,
@@ -153,6 +155,7 @@ impl Default for Settings {
             analytics_enabled: false,
             analytics_id: None,
             discord_rich_presence_enabled: true,
+            auto_launch_sisr: false,
             nexus_oauth: None,
             successful_installs: 0,
             first_install_at: 0,
