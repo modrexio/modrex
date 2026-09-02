@@ -387,16 +387,15 @@
             "title": "Language",
             "description": "Language used throughout the app."
         },
-        "theme": {
-            "title": "Theme",
-            "description": "Accent colour used throughout the app. By default each game has its own preset colour.",
-            "automatic": "Automatic",
-            "purple": "Purple",
+        "accentColor": {
+            "title": "Accent color",
+            "description": "Accent color used throughout the app.",
             "orange": "Orange",
+            "purple": "Purple",
             "green": "Green",
             "blue": "Blue",
             "red": "Red",
-            "darkRed": "Dark red"
+            "gray": "Gray"
         },
         "gamePath": {
             "title": "Game Path",

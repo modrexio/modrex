@@ -19,7 +19,7 @@ import type { LucideIcon } from 'lucide-react'
 import { siGithub, siDiscord, siX, siBluesky } from 'simple-icons'
 import { t, getLocale, setLocale } from '../i18n'
 import { LOCALE_IDS, localeLabel, type LocaleId } from '../locales'
-import { useThemeMode, setThemeMode, THEMES, type ThemeId, type ThemeMode } from '../theme'
+import { ACCENT_COLORS, setAccentColor, useAccentColor, type AccentColor } from '../accentColor'
 import { Select } from './Select'
 import { Dialog, DialogHeader } from './Dialog'
 import { Toggle } from './Toggle'
@@ -198,34 +198,19 @@ export function SettingsPage({
         []
     )
 
-    const themeMode = useThemeMode()
-    const themeOptions = useMemo(
-        () => [
-            {
-                value: 'auto' as ThemeMode,
-                label: t('settings.theme.automatic'),
+    const accentColor = useAccentColor()
+    const accentColorOptions = useMemo(
+        () =>
+            (Object.keys(ACCENT_COLORS) as AccentColor[]).map((color) => ({
+                value: color,
+                label: t(`settings.accentColor.${color}`),
                 icon: (
                     <span
                         className="w-2.5 h-2.5 rounded-full shrink-0"
-                        style={{
-                            background: `conic-gradient(${Object.values(THEMES)
-                                .map((theme) => theme.fill)
-                                .join(', ')})`,
-                        }}
-                    />
-                ),
-            },
-            ...(Object.keys(THEMES) as ThemeId[]).map((id) => ({
-                value: id as ThemeMode,
-                label: t(`settings.theme.${id}`),
-                icon: (
-                    <span
-                        className="w-2.5 h-2.5 rounded-full shrink-0"
-                        style={{ backgroundColor: THEMES[id].fill }}
+                        style={{ backgroundColor: ACCENT_COLORS[color].swatch }}
                     />
                 ),
             })),
-        ],
         []
     )
 
@@ -658,16 +643,16 @@ export function SettingsPage({
                                         </Section>
 
                                         <Section
-                                            title={t('settings.theme.title')}
-                                            description={t('settings.theme.description')}
+                                            title={t('settings.accentColor.title')}
+                                            description={t('settings.accentColor.description')}
                                         >
                                             <div className="mt-1">
                                                 <Select
-                                                    value={themeMode}
+                                                    value={accentColor}
                                                     onChange={(value) =>
-                                                        setThemeMode(value as ThemeMode)
+                                                        setAccentColor(value as AccentColor)
                                                     }
-                                                    options={themeOptions}
+                                                    options={accentColorOptions}
                                                 />
                                             </div>
                                         </Section>

@@ -14,7 +14,6 @@ import type { InstalledMod, ModFolder, GameId, ModSummary } from '../../shared/t
 import { GAMES, isGameId } from '../../shared/types'
 import { loadLoaderRegistry } from './loaders'
 import { loadSourceRegistry, hasSource } from './sources'
-import { syncThemeForGame } from './theme'
 import { t, useLocale } from './i18n'
 import { MarkdownContent } from './components/MarkdownContent'
 import { Sidebar } from './components/Sidebar'
@@ -343,10 +342,6 @@ export default function App() {
 
     useEffect(() => {
         warmSettingsCache(activeGame)
-    }, [activeGame])
-
-    useEffect(() => {
-        syncThemeForGame(activeGame)
     }, [activeGame])
 
     useEffect(() => {

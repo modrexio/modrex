@@ -3,21 +3,21 @@
 :root {
     color-scheme: dark;
     --modrex-surface: #131313;
-    --modrex-surface-raised: #1b1a26;
-    --modrex-surface-hover: #262433;
-    --modrex-surface-active: #322e45;
-    --modrex-surface-light: #453e5e;
-    --modrex-border: #2c2939;
+    --modrex-surface-raised: #1e1b1a;
+    --modrex-surface-hover: #272221;
+    --modrex-surface-active: #342f2d;
+    --modrex-surface-light: #47413f;
+    --modrex-border: #2e2a28;
     --modrex-text: #f4f4f3;
-    --modrex-text-muted: #8f8aa3;
-    --modrex-text-subtle: #736e86;
-    --modrex-accent: #9771f7;
-    --modrex-accent-fill: #7c3aed;
-    --modrex-accent-fill-hover: #6d28d9;
-    --modrex-accent-bright: #c4b5fd;
-    --modrex-danger: #7f1d1d;
-    --modrex-danger-hover: #991b1b;
-    --modrex-danger-text: #fca5a5;
+    --modrex-text-muted: #928c87;
+    --modrex-text-subtle: #756f6b;
+    --modrex-accent: #e36300;
+    --modrex-accent-fill: #c45500;
+    --modrex-accent-fill-hover: #b84d00;
+    --modrex-accent-bright: #f87d36;
+    --modrex-danger: #5a2204;
+    --modrex-danger-hover: #7a3508;
+    --modrex-danger-text: #fda578;
     --modrex-success: #053d1c;
     --modrex-success-text: #00df72;
     --modrex-warning: #d4a017;
@@ -43,39 +43,39 @@
     --color-warning: var(--modrex-warning);
 }
 
-:root[data-theme='orange'] {
-    --modrex-accent: #e36300;
-    --modrex-accent-fill: #c45500;
-    --modrex-accent-fill-hover: #b84d00;
-    --modrex-accent-bright: #f87d36;
+:root[data-accent='purple'] {
+    --modrex-accent: #9770fa;
+    --modrex-accent-fill: #874cf9;
+    --modrex-accent-fill-hover: #8036f8;
+    --modrex-accent-bright: #a990fb;
 }
 
-:root[data-theme='green'] {
-    --modrex-accent: #4ade80;
-    --modrex-accent-fill: #15803d;
-    --modrex-accent-fill-hover: #166534;
-    --modrex-accent-bright: #bbf7d0;
+:root[data-accent='green'] {
+    --modrex-accent: #1eaa53;
+    --modrex-accent-fill: #189346;
+    --modrex-accent-fill-hover: #168841;
+    --modrex-accent-bright: #24c460;
 }
 
-:root[data-theme='blue'] {
-    --modrex-accent: #60a5fa;
-    --modrex-accent-fill: #2563eb;
-    --modrex-accent-fill-hover: #1d4ed8;
-    --modrex-accent-bright: #93c5fd;
+:root[data-accent='blue'] {
+    --modrex-accent: #498bfa;
+    --modrex-accent-fill: #1a71f9;
+    --modrex-accent-fill-hover: #1068ec;
+    --modrex-accent-bright: #70a4fb;
 }
 
-:root[data-theme='red'] {
-    --modrex-accent: #f87171;
-    --modrex-accent-fill: #dc2626;
-    --modrex-accent-fill-hover: #b91c1c;
-    --modrex-accent-bright: #fecaca;
+:root[data-accent='red'] {
+    --modrex-accent: #fa3d3a;
+    --modrex-accent-fill: #e21c23;
+    --modrex-accent-fill-hover: #d2191f;
+    --modrex-accent-bright: #fb766a;
 }
 
-:root[data-theme='darkRed'] {
-    --modrex-accent: #ef4444;
-    --modrex-accent-fill: #b91c1c;
-    --modrex-accent-fill-hover: #8f1111;
-    --modrex-accent-bright: #f87171;
+:root[data-accent='gray'] {
+    --modrex-accent: #8f8f8f;
+    --modrex-accent-fill: #7b7b7b;
+    --modrex-accent-fill-hover: #727272;
+    --modrex-accent-bright: #a4a4a4;
 }
 
 @theme inline {
@@ -242,6 +242,11 @@ button:not(:disabled),
 input[type='checkbox']:not(:disabled) {
     cursor: pointer;
 }
+
+input[type='checkbox'] {
+    accent-color: var(--color-accent-fill);
+}
+
 ::-webkit-scrollbar {
     width: 8px;
     height: 8px;

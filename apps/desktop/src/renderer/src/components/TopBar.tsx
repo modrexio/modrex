@@ -324,7 +324,6 @@ export function TopBar({
                             type="checkbox"
                             checked={dontShowAgain}
                             onChange={(e) => setDontShowAgain(e.target.checked)}
-                            className="accent-accent"
                         />
                         <span className="text-xs text-text-muted">{t('common.dontShowAgain')}</span>
                     </label>
