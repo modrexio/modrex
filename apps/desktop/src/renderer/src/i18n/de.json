@@ -180,6 +180,15 @@
             "updateSelected": "Ausgewählte aktualisieren ({count})",
             "error": "Aktualisierung fehlgeschlagen. Überprüfe deine Verbindung und versuche es erneut."
         },
+        "pakViewer": {
+            "title": "Inhalte dieser PAK-Datei",
+            "open": "PAK-Datei öffnene",
+            "assetCount": "{count} Dateien",
+            "matchCount": "{count} von {total} Gesamtassets",
+            "empty": "Keine Assets gefunden",
+            "noMatches": "Keine Assets gefunden mit \"{query}\"",
+            "error": "PAK-Datei konnte nicht ausgelesen werden."
+        },
         "modMenu": {
             "open": "Optionen",
             "manageFiles": "Dateien verwalten",
@@ -367,6 +376,13 @@
         "language": {
             "title": "Sprache",
             "description": "Die in der gesamten App verwendete Sprache."
+        },
+        "accentColor": {
+            "purple": "Lila",
+            "orange": "Orange",
+            "green": "Grün",
+            "blue": "Blau",
+            "red": "Rot"
         },
         "gamePath": {
             "title": "Spielpfad",
