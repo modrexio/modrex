@@ -11,6 +11,8 @@ import { useInstalledContext } from './InstalledContext'
 import { ManageFilesModal } from './ManageFilesModal'
 import { PakViewerModal } from './PakViewerModal'
 import { hasSource } from '../sources'
+import { Button } from './ui/Button'
+import { Tooltip } from './Tooltip'
 
 export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
     const {
@@ -97,75 +99,87 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
     function renderMenuButton(dropdownSide: 'right' | 'left') {
         return (
             <div ref={menuRef} className="relative">
-                <button
-                    onClick={(e) => {
-                        e.stopPropagation()
-                        setMenuOpen((o) => !o)
-                    }}
-                    className="flex items-center justify-center w-6 h-6 rounded border border-border text-text-subtle hover:text-text hover:border-accent/60 transition-colors bg-surface-raised/80"
-                >
-                    <MoreVertical className="w-3.5 h-3.5" />
-                </button>
+                <Tooltip content={t('installed.modMenu.open')}>
+                    <Button
+                        variant="secondary"
+                        size="icon"
+                        onClick={(e) => {
+                            e.stopPropagation()
+                            setMenuOpen((o) => !o)
+                        }}
+                        className="w-6 h-6 bg-surface-raised/80 hover:border-accent/60"
+                    >
+                        <MoreVertical className="w-3.5 h-3.5" />
+                    </Button>
+                </Tooltip>
                 {menuOpen && (
                     <div
                         className={`absolute top-7 ${dropdownSide === 'right' ? 'right-0' : 'left-0'} min-w-40 bg-surface-raised border border-border rounded-lg shadow-xl overflow-hidden z-50`}
                     >
-                        <button
+                        <Button
+                            variant="ghost"
+                            size="sm"
                             onClick={(e) => {
                                 e.stopPropagation()
                                 setMenuOpen(false)
                                 setManageFilesKey(groupKey)
                             }}
-                            className="w-full text-left px-3 py-2 text-xs text-text hover:bg-surface-hover transition-colors"
+                            className="w-full justify-start rounded-none px-3 py-2 text-text"
                         >
                             {t('installed.modMenu.manageFiles')}
-                        </button>
+                        </Button>
                         {canViewPak && (
                             <>
                                 <div className="h-px bg-border" />
-                                <button
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
                                     onClick={(e) => {
                                         e.stopPropagation()
                                         setMenuOpen(false)
                                         setPakViewerKey(groupKey)
                                     }}
-                                    className="w-full text-left px-3 py-2 text-xs text-text hover:bg-surface-hover transition-colors"
+                                    className="w-full justify-start rounded-none px-3 py-2 text-text"
                                 >
                                     {t('installed.pakViewer.open')}
-                                </button>
+                                </Button>
                             </>
                         )}
                         {canIdentifyViaNexus && (
                             <>
                                 <div className="h-px bg-border" />
-                                <button
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
                                     onClick={(e) => {
                                         e.stopPropagation()
                                         setMenuOpen(false)
                                         void handleIdentifyViaNexus(ins)
                                     }}
                                     disabled={isBusy}
-                                    className="w-full text-left px-3 py-2 text-xs text-text hover:bg-surface-hover transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                    className="w-full justify-start rounded-none px-3 py-2 text-text"
                                 >
                                     {t('installed.modMenu.identify')}
-                                </button>
+                                </Button>
                             </>
                         )}
                         {canMoveCrimeBossTarget && (
                             <>
                                 <div className="h-px bg-border" />
-                                <button
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
                                     onClick={(e) => {
                                         e.stopPropagation()
                                         setMenuOpen(false)
                                         requestMoveCrimeBossTarget(ins)
                                     }}
-                                    className="w-full text-left px-3 py-2 text-xs text-text hover:bg-surface-hover transition-colors"
+                                    className="w-full justify-start rounded-none px-3 py-2 text-text"
                                 >
                                     {combined.location === 'paks'
                                         ? t('installed.crimeBossMove.toModKit')
                                         : t('installed.crimeBossMove.toLegacy')}
-                                </button>
+                                </Button>
                             </>
                         )}
                     </div>

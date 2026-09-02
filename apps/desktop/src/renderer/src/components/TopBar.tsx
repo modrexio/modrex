@@ -274,23 +274,31 @@ export function TopBar({
             {launchError && (
                 <div className="shrink-0 flex items-center justify-between gap-3 px-4 py-2 bg-danger border-b border-danger-hover text-xs text-danger-text">
                     <span>{launchError}</span>
-                    <button
-                        onClick={() => setLaunchError(null)}
-                        className="shrink-0 hover:text-text transition-colors"
-                    >
-                        <X className="w-3.5 h-3.5" />
-                    </button>
+                    <Tooltip content={t('common.close')}>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setLaunchError(null)}
+                            className="shrink-0 p-0 text-danger-text hover:bg-transparent"
+                        >
+                            <X className="w-3.5 h-3.5" />
+                        </Button>
+                    </Tooltip>
                 </div>
             )}
             {launchWarning && (
                 <div className="shrink-0 flex items-center justify-between gap-3 px-4 py-2 bg-warning/10 border-b border-warning/30 text-xs text-warning">
                     <span>{t(`topBar.sisr.${launchWarning}`)}</span>
-                    <button
-                        onClick={() => setLaunchWarning(null)}
-                        className="shrink-0 hover:text-text transition-colors"
-                    >
-                        <X className="w-3.5 h-3.5" />
-                    </button>
+                    <Tooltip content={t('common.close')}>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setLaunchWarning(null)}
+                            className="shrink-0 p-0 text-warning hover:bg-transparent"
+                        >
+                            <X className="w-3.5 h-3.5" />
+                        </Button>
+                    </Tooltip>
                 </div>
             )}
 

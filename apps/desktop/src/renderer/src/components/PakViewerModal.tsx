@@ -9,6 +9,7 @@ import {
     TriangleAlert,
 } from 'lucide-react'
 import { Dialog, DialogHeader } from './Dialog'
+import { Button } from './ui/Button'
 import { SearchClearButton } from './ui/SearchClearButton'
 import { t } from '../i18n'
 import { api, type PakAsset } from '../api'
@@ -99,10 +100,12 @@ function TreeRow({ node, depth, expanded, searching, onToggle }: TreeRowProps) {
     const isOpen = searching || expanded.has(node.path)
     return (
         <div>
-            <button
+            <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => onToggle(node.path)}
                 style={{ paddingLeft: `${depth * 14 + 6}px` }}
-                className="flex items-center gap-2 w-full pr-3 py-1.5 rounded-lg hover:bg-surface-hover transition-colors text-left"
+                className="w-full justify-start gap-2 pr-3 py-1.5 text-left text-text"
             >
                 <ChevronRight
                     className={`w-3.5 h-3.5 text-text-subtle shrink-0 transition-transform ${isOpen ? 'rotate-90' : ''}`}
@@ -111,7 +114,7 @@ function TreeRow({ node, depth, expanded, searching, onToggle }: TreeRowProps) {
                 <span className="text-xs font-medium flex-1 min-w-0 truncate text-text">
                     {node.name}
                 </span>
-            </button>
+            </Button>
             {isOpen &&
                 node.children.map((child) => (
                     <TreeRow
