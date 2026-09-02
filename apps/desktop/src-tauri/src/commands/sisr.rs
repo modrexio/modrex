@@ -42,6 +42,7 @@ fn sisr_is_running() -> bool {
         .any(|process| matches_sisr_process_name(&process.name().to_string_lossy()))
 }
 
+#[cfg(any(windows, test))]
 fn sisr_executable_in(local_app_data: &Path) -> Option<PathBuf> {
     let executable = local_app_data.join("SISR").join("SISR.exe");
     executable.is_file().then_some(executable)
