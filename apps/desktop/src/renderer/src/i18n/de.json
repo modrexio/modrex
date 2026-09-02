@@ -65,11 +65,11 @@
             "launchAnyway": "Spiel trotzdem starten"
         },
         "sisr": {
-            "unsupported": "! SISR auto-launch is not supported on this operating system. The game was launched without it.",
-            "notInstalled": "! SISR was not found. The game was launched without it.",
-            "setupRequired": "! SISR needs its first-run setup before controller redirection will work. The game was launched anyway.",
-            "startFailed": "! SISR failed to start. The game was launched without it.",
-            "startUnconfirmed": "! Modrex could not confirm that SISR started. The game was launched anyway."
+            "unsupported": "Der automatische Start von SISR wird nicht auf diesem Betriebssystem unterstützt. Das Spiel wurde ohne SISR gestartet.",
+            "notInstalled": "SISR wurde nicht gefunden. Das Spiel wurde ohne SISR gestartet.",
+            "setupRequired": "SISR muss zuerst zum ersten mal gestartet werden  bevor der Controller funktioniert. Das Spiel wurde trotzdem gestartet.",
+            "startFailed": "SISR hat einen Fehler erfahren und konnte deswegen nicht gestartet werden. Das Spiel wurde ohne SISR gestartet.",
+            "startUnconfirmed": "Modrex konnte nicht bestätigen das SISR gestartet wurde. Das Spiel wurde trotzdem gestartet."
         }
     },
     "sidebar": {
@@ -190,14 +190,14 @@
         "pakViewer": {
             "title": "Inhalte dieser PAK-Datei",
             "open": "PAK-Datei öffnene",
-            "searchPlaceholder": "! Search assets",
+            "searchPlaceholder": "Assets durchsuchen",
             "assetCount": "{count} Dateien",
             "matchCount": "{count} von {total} Gesamtassets",
-            "loading": "! Reading pak",
+            "loading": "PAK wird gelesen",
             "empty": "Keine Assets gefunden",
             "noMatches": "Keine Assets gefunden mit \"{query}\"",
             "error": "PAK-Datei konnte nicht ausgelesen werden.",
-            "aesHint": "! Encrypted paks need this game's AES key."
+            "aesHint": "Verschlüsselte PAK-Dateien brauchen einen AES Schlüssel für dieses Spiel."
         },
         "modMenu": {
             "open": "Optionen",
@@ -388,14 +388,14 @@
             "description": "Die in der gesamten App verwendete Sprache."
         },
         "accentColor": {
-            "title": "! Accent color",
-            "description": "! Accent color used throughout the app.",
+            "title": "Akzentfarbe",
+            "description": "Die Akzentfarbe die in der App verwendet wird.",
             "orange": "Orange",
             "purple": "Lila",
             "green": "Grün",
             "blue": "Blau",
             "red": "Rot",
-            "gray": "! Gray"
+            "gray": "Grau"
         },
         "gamePath": {
             "title": "Spielpfad",
@@ -435,13 +435,13 @@
         "sisr": {
             "title": "Automatischer Start von SISR",
             "description": "Starte SISR (Steam Input System Redirector) bevor dem Spiel wenn es noch nicht läuft, so das Steam Input Controller außerhalb von Steam Spielen funktionieren.",
-            "running": "! SISR is running.",
-            "notRunning": "! SISR is not running. It will start when you launch a game.",
-            "notInstalled": "! SISR was not found in its default installation location.",
-            "setupRequired": "! Complete SISR's first-run Steam setup before using auto-launch.",
-            "setup": "! Set up SISR",
-            "finishSetup": "! Finish setup",
-            "failed": "! SISR setting failed: {error}"
+            "running": "SISR läuft.",
+            "notRunning": "SISR läuft noch nicht. Es wird gestartet sobald das Spiel läuft.",
+            "notInstalled": "Es konnte nicht festgestellt werden ob SISR installiert ist.",
+            "setupRequired": "Beende das First-Time Setup bevor du SISR benutzen kannst.",
+            "setup": "SISR einstellen.",
+            "finishSetup": "Setup beenden",
+            "failed": "SISR Einstellung hat einen Fehler: {error}"
         },
         "updates": {
             "title": "Updates",
