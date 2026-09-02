@@ -7641,7 +7641,7 @@ THE SOFTWARE.
 
 ## MIT License
 
-Used by: bitflags 1.3.2, bitflags 2.13.0, getopts 0.2.24, glob 0.3.3, log 0.4.33, num-bigint 0.4.8, num-complex 0.4.6, num-integer 0.1.46, num-iter 0.1.46, num-rational 0.4.2, num-traits 0.2.19, num 0.4.3, regex-automata 0.4.14, regex-syntax 0.8.11, regex 1.12.4
+Used by: bitflags 1.3.2, bitflags 2.13.0, getopts 0.2.24, glob 0.3.3, log 0.4.34, num-bigint 0.4.8, num-complex 0.4.6, num-integer 0.1.46, num-iter 0.1.46, num-rational 0.4.2, num-traits 0.2.19, num 0.4.3, regex-automata 0.4.14, regex-syntax 0.8.11, regex 1.12.4
 
 ```
 Copyright (c) 2014 The Rust Project Developers
@@ -7676,7 +7676,7 @@ DEALINGS IN THE SOFTWARE.
 
 ## MIT License
 
-Used by: uuid 1.24.0
+Used by: uuid 1.26.0
 
 ```
 Copyright (c) 2014 The Rust Project Developers
@@ -7783,7 +7783,7 @@ DEALINGS IN THE SOFTWARE.
 
 ## MIT License
 
-Used by: libsqlite3-sys 0.38.1, rusqlite 0.40.1
+Used by: libsqlite3-sys 0.38.2, rusqlite 0.40.2
 
 ```
 Copyright (c) 2014 The rusqlite developers
@@ -7892,7 +7892,7 @@ DEALINGS IN THE SOFTWARE.
 
 ## MIT License
 
-Used by: flate2 1.1.9
+Used by: flate2 1.1.10
 
 ```
 Copyright (c) 2014-2026 Alex Crichton
@@ -8399,7 +8399,7 @@ DEALINGS IN THE SOFTWARE.
 
 ## MIT License
 
-Used by: futures-channel 0.3.33, futures-core 0.3.33, futures-executor 0.3.33, futures-io 0.3.33, futures-macro 0.3.33, futures-sink 0.3.33, futures-task 0.3.33, futures-util 0.3.33, futures 0.3.33
+Used by: futures-channel 0.3.34, futures-core 0.3.34, futures-executor 0.3.34, futures-io 0.3.34, futures-macro 0.3.34, futures-sink 0.3.34, futures-task 0.3.34, futures-util 0.3.34, futures 0.3.34
 
 ```
 Copyright (c) 2016 Alex Crichton
@@ -8697,7 +8697,7 @@ SOFTWARE.
 
 ## MIT License
 
-Used by: keyring-core 1.0.0, keyring 4.1.5, zbus-secret-service-keyring-store 1.0.0
+Used by: keyring-core 1.0.0, keyring 4.2.0, zbus-secret-service-keyring-store 1.0.0
 
 ```
 Copyright (c) 2016 keyring Developers
@@ -12378,7 +12378,7 @@ SOFTWARE.
 
 ## MIT License
 
-Used by: miniz_oxide 0.8.9
+Used by: miniz_oxide 0.8.9, miniz_oxide 0.9.1
 
 ```
 MIT License
@@ -13486,7 +13486,7 @@ DEALINGS IN THE SOFTWARE.
 
 ## MIT License
 
-Used by: base64 0.23.0
+Used by: base64 0.23.1
 
 ```
 The MIT License (MIT)
