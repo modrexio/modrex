@@ -111,7 +111,7 @@ Translation is the share of English source keys for which target-language text c
 | Language | Translation | Contributors |
 | --- | --- | --- |
 | [English (en)](apps/desktop/src/renderer/src/i18n/en.json) | <img src="assets/i18n/status/en.svg" alt="English source: 456 valid strings."> Complete | - |
-| [Deutsch (de)](apps/desktop/src/renderer/src/i18n/de.json) | <img src="assets/i18n/status/de.svg" alt="Deutsch (de): 438 accepted, 0 review, 18 missing; 96.1%."> 96.1% | [TarekLP](https://github.com/TarekLP) |
+| [Deutsch (de)](apps/desktop/src/renderer/src/i18n/de.json) | <img src="assets/i18n/status/de.svg" alt="Deutsch (de): 456 accepted, 0 review, 0 missing; Complete."> Complete | [TarekLP](https://github.com/TarekLP) |
 | [Italiano (it)](apps/desktop/src/renderer/src/i18n/it.json) | <img src="assets/i18n/status/it.svg" alt="Italiano (it): 424 accepted, 0 review, 32 missing; 93%."> 93% | [Enderbox89](https://github.com/Enderbox89) |
 | [Русский (ru)](apps/desktop/src/renderer/src/i18n/ru.json) | <img src="assets/i18n/status/ru.svg" alt="Русский (ru): 424 accepted, 0 review, 32 missing; 93%."> 93% | [ShulhaOleh](https://github.com/ShulhaOleh) |
 | [Українська (uk)](apps/desktop/src/renderer/src/i18n/uk.json) | <img src="assets/i18n/status/uk.svg" alt="Українська (uk): 424 accepted, 0 review, 32 missing; 93%."> 93% | [ShevRuslan1](https://github.com/ShevRuslan1) |
