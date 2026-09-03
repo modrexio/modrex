@@ -1,8 +1,8 @@
-import { GAME_SPECS } from './catalog.generated'
-import type { GameSpec } from './types'
+import { GAME_SPECS } from './catalog.generated.js'
+import type { GameSpec } from './types.js'
 
-export { LAUNCHERS } from './types'
-export type { GameSpec, LauncherName, ModTarget, ModTargetId } from './types'
+export { LAUNCHERS } from './types.js'
+export type { GameSpec, LauncherName, ModTarget, ModTargetId } from './types.js'
 
 export type GameId = keyof typeof GAME_SPECS
 
