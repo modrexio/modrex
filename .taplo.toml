@@ -1,0 +1,3 @@
+# Game manifests are TOML 1.1; Taplo implements 1.0 and reports the multiline inline tables as
+# syntax errors. Remove this exclusion once the supported language server parses TOML 1.1.
+exclude = ["**/apps/desktop/src-tauri/src/games/*/package.toml"]
