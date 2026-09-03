@@ -17,7 +17,11 @@ import { docsGames } from '../../data/docsGames'
                 docsGames.map((game) => (
                     <tr>
                         <td>
-                            <a href={`/docs/games/${game.slug}`}>{GAMES[game.id].name}</a>
+                            {game.hasPage ? (
+                                <a href={`/docs/games/${game.slug}`}>{GAMES[game.id].name}</a>
+                            ) : (
+                                GAMES[game.id].name
+                            )}
                         </td>
                         <td>{GAMES[game.id].launchers.join(', ')}</td>
                         <td>
