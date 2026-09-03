@@ -607,19 +607,24 @@ export default function App() {
                             <div
                                 className={`absolute inset-0 ${view === 'browse' && browseSource === 'modworkshop' ? '' : 'invisible pointer-events-none'}`}
                             >
-                                <BrowsePageMemo
-                                    key={activeGame}
-                                    activeGame={activeGame}
-                                    isActive={view === 'browse' && browseSource === 'modworkshop'}
-                                    source={browseSource}
-                                    onSourceChange={handleSourceChange}
-                                    gamePath={gamePath}
-                                    gamePathReady={gamePathReady}
-                                    installed={installed}
-                                    onRefreshInstalled={refreshInstalled}
-                                    onOpenDetail={openDetailFromBrowse}
-                                    onGoToSettings={goToSettings}
-                                />
+                                {GAMES[activeGame].workshopId !== undefined && (
+                                    <BrowsePageMemo
+                                        key={activeGame}
+                                        activeGame={activeGame}
+                                        workshopId={GAMES[activeGame].workshopId}
+                                        isActive={
+                                            view === 'browse' && browseSource === 'modworkshop'
+                                        }
+                                        source={browseSource}
+                                        onSourceChange={handleSourceChange}
+                                        gamePath={gamePath}
+                                        gamePathReady={gamePathReady}
+                                        installed={installed}
+                                        onRefreshInstalled={refreshInstalled}
+                                        onOpenDetail={openDetailFromBrowse}
+                                        onGoToSettings={goToSettings}
+                                    />
+                                )}
                             </div>
                             <div
                                 className={`absolute inset-0 ${view === 'browse' && browseSource === 'nexus' ? '' : 'invisible pointer-events-none'}`}

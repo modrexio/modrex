@@ -54,6 +54,7 @@ import { markForegroundActivity, waitForForegroundClear } from '../requestPriori
 
 interface Props {
     activeGame: GameId
+    workshopId: number
     isActive: boolean
     gamePath: string | null
     gamePathReady: boolean
@@ -207,6 +208,7 @@ function getSavedSort(game: GameId): SortOption {
 
 export function BrowsePage({
     activeGame,
+    workshopId,
     isActive,
     source,
     onSourceChange,
@@ -222,7 +224,6 @@ export function BrowsePage({
     const [categoryId, setCategoryId] = useState<number | undefined>()
     const [includeTags, setIncludeTags] = useState<number[]>([])
     const [excludeTags, setExcludeTags] = useState<number[]>([])
-    const workshopId = GAMES[activeGame].workshopId
     const initialSort = getSavedSort(activeGame)
     const [sort, setSort] = useState<SortOption>(initialSort)
     const initialCache = getBrowseCache(workshopId, 1, '', initialSort, undefined)

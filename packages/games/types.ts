@@ -11,7 +11,8 @@ export interface ModTarget {
 export interface GameSpec {
     name: string
     shortName: string
-    workshopId: number
+    // Absent for a game that is not listed on modworkshop.
+    workshopId?: number
     // Nexus's domain slug for this game, e.g. "payday3". Absent for games with no
     // Nexus presence (RAID).
     nexusDomain?: string

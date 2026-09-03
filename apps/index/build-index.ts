@@ -1246,8 +1246,14 @@ async function main(): Promise<void> {
         'listing',
         async () => {
             const selected = (game: GameSlug) => !SELECTED_GAME || SELECTED_GAME === game
-            const list = async (game: GameSlug, gameId: number, label: string): Promise<Mod[]> => {
-                if (!selected(game)) return []
+            const list = async (
+                game: GameSlug,
+                gameId: number | undefined,
+                label: string
+            ): Promise<Mod[]> => {
+                // A game reaches modworkshop only by declaring a binding, and this builder
+                // indexes modworkshop, so one without an id contributes nothing here.
+                if (!selected(game) || gameId === undefined) return []
                 console.log(`Fetching ${label} mod list...`)
                 const mods = await listModsSince(gameId, since)
                 console.log(`  ${mods.length} ${label} mods to process\n`)
