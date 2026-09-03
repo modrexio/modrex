@@ -1,8 +1,6 @@
 use super::*;
 use crate::commands::mods::{backup_dir, disabled_dir, get_state_path, mods_dir, ModUnit};
-use crate::game_package::{
-    EnabledStateMechanism, SignalSource, DIESEL_INFRA_FOLDERS, UE4SS_BUNDLED_SUBMODS,
-};
+use crate::game_package::{Activation, ModMetadata, DIESEL_INFRA_FOLDERS, UE4SS_BUNDLED_SUBMODS};
 use std::path::PathBuf;
 use tempfile::TempDir;
 
@@ -62,66 +60,94 @@ fn the_registry_is_exactly_the_discovered_packages_in_a_stable_order() {
 }
 
 #[test]
-fn a_discovered_spec_carries_its_package_verbatim() {
+fn a_discovered_spec_resolves_its_package() {
     for (_, pkg) in crate::games::discovered() {
         let spec = game_spec(&pkg.id).expect("discovered package is registered");
         assert_eq!(spec.id, pkg.id);
         assert_eq!(spec.engine.game_id, pkg.id);
-        assert_eq!(spec.engine.index_game_name, pkg.index_game_name);
-        assert_eq!(spec.engine.state_filename, pkg.state_filename);
-        assert_eq!(spec.engine.signals, pkg.signals);
-        assert_eq!(spec.def.name, pkg.display_name);
-        assert_eq!(owned(spec.def.executables), pkg.installation.executables);
+        assert_eq!(spec.engine.index_game_name, pkg.name);
+        assert_eq!(spec.engine.mod_metadata, pkg.mod_metadata);
+        assert_eq!(spec.def.name, pkg.name);
+        assert_eq!(owned(spec.def.executables), pkg.install.executables);
+        assert_eq!(owned(spec.def.process_names), pkg.install.processes);
+
+        for store in &pkg.install.stores {
+            match store {
+                package::StoreBinding::Steam { app_id, folder } => {
+                    let resolved = spec.def.steam.as_ref().expect("steam store resolved");
+                    assert_eq!(
+                        (resolved.app_id, resolved.folder_name),
+                        (*app_id, folder.as_str())
+                    );
+                }
+                package::StoreBinding::Epic { name } => {
+                    let resolved = spec.def.epic.as_ref().expect("epic store resolved");
+                    assert_eq!(resolved.display_name, name);
+                }
+                package::StoreBinding::Xbox {
+                    product_id,
+                    executable,
+                } => {
+                    let resolved = spec.def.xbox.as_ref().expect("xbox store resolved");
+                    assert_eq!(
+                        (resolved.product_id, resolved.executable),
+                        (product_id.as_str(), executable.as_str())
+                    );
+                }
+            }
+        }
         assert_eq!(
-            owned(spec.def.process_names),
-            pkg.installation.process_names
+            spec.def.steam.is_some(),
+            pkg.install.stores.iter().any(|s| s.provider() == "steam"),
+            "{} steam",
+            pkg.id
         );
         assert_eq!(
-            spec.def.steam.as_ref().map(|s| (s.app_id, s.folder_name)),
-            pkg.installation
-                .steam
-                .as_ref()
-                .map(|s| (s.app_id, s.folder_name.as_str()))
+            spec.def.epic.is_some(),
+            pkg.install.stores.iter().any(|s| s.provider() == "epic"),
+            "{} epic",
+            pkg.id
         );
         assert_eq!(
-            spec.def.epic.as_ref().map(|e| e.display_name),
-            pkg.installation
-                .epic
-                .as_ref()
-                .map(|e| e.display_name.as_str())
-        );
-        assert_eq!(
-            spec.def.xbox.as_ref().map(|x| (x.product_id, x.executable)),
-            pkg.installation
-                .xbox
-                .as_ref()
-                .map(|x| (x.product_id.as_str(), x.executable.as_str()))
+            spec.def.xbox.is_some(),
+            pkg.install.stores.iter().any(|s| s.provider() == "xbox"),
+            "{} xbox",
+            pkg.id
         );
 
         assert_eq!(spec.engine.targets.len(), pkg.targets.len());
         for (target, declared) in spec.engine.targets.iter().zip(&pkg.targets) {
             assert_eq!(target.tag, declared.tag);
-            assert_eq!(target.label_key, declared.label_key);
-            assert_eq!(target.enabled_state, declared.enabled_state);
-            assert_eq!(owned(target.mods_subpath), declared.mods_subpath);
-            assert_eq!(owned(target.disabled_subpath), declared.disabled_subpath);
-            assert_eq!(owned(target.backup_subpath), declared.backup_subpath);
+            assert_eq!(target.label_key, declared.label.key());
+            assert_eq!(target.enabled_state, declared.activation);
+            assert_eq!(owned(target.mods_subpath), declared.path);
+            assert_eq!(owned(target.backup_subpath), declared.backup);
+
+            // The disabled folder is always the target plus one component, never declared.
+            let mut expected_disabled = declared.path.clone();
+            expected_disabled.push("disabled".to_string());
+            assert_eq!(owned(target.disabled_subpath), expected_disabled);
+
+            assert_eq!(
+                target.priority_prefix_enabled(),
+                declared.load_order == package::LoadOrder::FilenamePrefix
+            );
+
             match (&target.unit, &declared.unit) {
                 (
                     ModUnit::File {
                         extension,
                         disabled_suffix,
-                        priority_prefix,
+                        ..
                     },
                     package::Unit::File {
-                        extension: declared_extension,
+                        family,
                         disabled_suffix: declared_suffix,
-                        priority_prefix: declared_prefix,
                     },
                 ) => {
-                    assert_eq!(extension, declared_extension);
+                    assert_eq!(*extension, family.extension);
                     assert_eq!(disabled_suffix, declared_suffix);
-                    assert_eq!(priority_prefix, declared_prefix);
+                    assert_eq!(owned(target.companions), family.companions);
                 }
                 (
                     ModUnit::Directory {
@@ -129,21 +155,49 @@ fn a_discovered_spec_carries_its_package_verbatim() {
                         scan_markers,
                         index_gated_markers,
                         excluded_names,
-                        priority_prefix,
+                        ..
                     },
                     package::Unit::Directory {
-                        entry_markers: declared_entry,
-                        scan_markers: declared_scan,
-                        index_gated_markers: declared_gated,
-                        excluded_names: declared_excluded,
-                        priority_prefix: declared_prefix,
+                        discovery,
+                        ignore_preset,
+                        contains,
                     },
                 ) => {
-                    assert_eq!(owned(entry_markers), *declared_entry);
-                    assert_eq!(owned(scan_markers), *declared_scan);
-                    assert_eq!(owned(index_gated_markers), *declared_gated);
-                    assert_eq!(owned(excluded_names), *declared_excluded);
-                    assert_eq!(priority_prefix, declared_prefix);
+                    // Each rule lands in the flat list of every mode it names, and an
+                    // all_directories policy contributes none, which is what makes the scan
+                    // accept every folder.
+                    let of_mode = |wanted: package::MarkerMode| -> Vec<String> {
+                        match discovery {
+                            package::Discovery::AllDirectories => Vec::new(),
+                            package::Discovery::Markers { markers } => markers
+                                .iter()
+                                .filter(|rule| rule.modes.contains(&wanted))
+                                .map(|rule| rule.file.clone())
+                                .collect(),
+                        }
+                    };
+                    assert_eq!(owned(entry_markers), of_mode(package::MarkerMode::Archive));
+                    assert_eq!(owned(scan_markers), of_mode(package::MarkerMode::Scan));
+                    assert_eq!(
+                        owned(index_gated_markers),
+                        of_mode(package::MarkerMode::IndexGated)
+                    );
+                    assert_eq!(
+                        owned(excluded_names),
+                        ignore_preset
+                            .map(package::NamePreset::names)
+                            .unwrap_or_default()
+                            .iter()
+                            .map(|name| name.to_string())
+                            .collect::<Vec<_>>()
+                    );
+                    assert_eq!(
+                        owned(target.companions),
+                        contains
+                            .as_ref()
+                            .map(|family| family.companions.clone())
+                            .unwrap_or_default()
+                    );
                 }
                 _ => panic!("{} target {} changed unit kind", pkg.id, target.tag),
             }
@@ -161,7 +215,7 @@ fn cb_resolves_all_three_of_its_mod_targets() {
     assert!(std::ptr::eq(cfg.target_for(None), modkit));
     assert!(std::ptr::eq(cfg.target_for(Some("mods")), modkit));
     assert!(modkit.is_directory_unit());
-    assert_eq!(modkit.enabled_state, EnabledStateMechanism::Filesystem);
+    assert_eq!(modkit.enabled_state, Activation::Filesystem);
     assert!(!modkit.priority_prefix_enabled());
 
     let paks = cfg.target_for(Some("paks"));
@@ -169,12 +223,12 @@ fn cb_resolves_all_three_of_its_mod_targets() {
     assert!(!paks.is_directory_unit());
     assert_eq!(paks.disabled_suffix(), ".disabled");
     assert!(paks.priority_prefix_enabled());
-    assert_eq!(paks.enabled_state, EnabledStateMechanism::Filesystem);
+    assert_eq!(paks.enabled_state, Activation::Filesystem);
 
     let ue4ss = cfg.target_for(Some("ue4ss_mods"));
     assert_eq!(ue4ss.tag, "ue4ss_mods");
     assert!(ue4ss.is_directory_unit());
-    assert_eq!(ue4ss.enabled_state, EnabledStateMechanism::Ue4ssModsTxt);
+    assert_eq!(ue4ss.enabled_state, Activation::Ue4ssModsTxt);
     assert_eq!(ue4ss.excluded_names(), UE4SS_BUNDLED_SUBMODS);
 
     let game = "C:/Games/Crime Boss";
@@ -210,8 +264,7 @@ fn cb_resolves_all_three_of_its_mod_targets() {
 #[test]
 fn cb_keeps_its_launch_and_storefront_metadata() {
     let spec = game_spec("cb").expect("cb resolves");
-    assert_eq!(spec.engine.index_game_name, "Crime Boss: Rockay City");
-    assert_eq!(spec.engine.signals, SignalSource::None);
+    assert_eq!(spec.engine.mod_metadata, ModMetadata::None);
     assert_eq!(spec.def.name, "Crime Boss: Rockay City");
     assert_eq!(spec.def.executables, ["CrimeBoss.exe"]);
     assert_eq!(spec.def.process_names, ["CrimeBoss-Win64-Shipping"]);
@@ -246,7 +299,7 @@ fn pd2_resolves_both_of_its_mod_targets() {
     assert!(mods.is_directory_unit());
     assert_eq!(mods.disabled_suffix(), "");
     assert!(!mods.priority_prefix_enabled());
-    assert_eq!(mods.enabled_state, EnabledStateMechanism::Filesystem);
+    assert_eq!(mods.enabled_state, Activation::Filesystem);
     assert_eq!(mods.excluded_names(), DIESEL_INFRA_FOLDERS);
 
     let overrides = cfg.target_for(Some("mod_overrides"));
@@ -274,8 +327,7 @@ fn pd2_resolves_both_of_its_mod_targets() {
 #[test]
 fn pd2_keeps_its_launch_and_storefront_metadata() {
     let spec = game_spec("pd2").expect("pd2 resolves");
-    assert_eq!(spec.engine.index_game_name, "PAYDAY 2");
-    assert_eq!(spec.engine.signals, SignalSource::Diesel);
+    assert_eq!(spec.engine.mod_metadata, ModMetadata::Diesel);
     assert_eq!(spec.def.name, "PAYDAY 2");
     assert_eq!(
         spec.def.executables,
@@ -313,7 +365,7 @@ fn pdth_resolves_both_of_its_mod_targets() {
     assert!(std::ptr::eq(cfg.target_for(None), mods));
     assert!(std::ptr::eq(cfg.target_for(Some("mods")), mods));
     assert!(mods.is_directory_unit());
-    assert_eq!(mods.enabled_state, EnabledStateMechanism::Filesystem);
+    assert_eq!(mods.enabled_state, Activation::Filesystem);
     assert_eq!(mods.excluded_names(), DIESEL_INFRA_FOLDERS);
 
     let ModUnit::Directory {
@@ -350,8 +402,7 @@ fn pdth_resolves_both_of_its_mod_targets() {
 #[test]
 fn pdth_keeps_its_launch_and_storefront_metadata() {
     let spec = game_spec("pdth").expect("pdth resolves");
-    assert_eq!(spec.engine.index_game_name, "PAYDAY: The Heist");
-    assert_eq!(spec.engine.signals, SignalSource::Diesel);
+    assert_eq!(spec.engine.mod_metadata, ModMetadata::Diesel);
     assert_eq!(spec.def.name, "PAYDAY: The Heist");
     assert_eq!(spec.def.executables, ["payday_win32_release.exe"]);
     assert_eq!(spec.def.process_names, ["payday_win32_release"]);
@@ -388,14 +439,14 @@ fn pd3_resolves_both_of_its_mod_targets() {
     assert!(!paks.is_directory_unit());
     assert_eq!(paks.disabled_suffix(), ".disabled");
     assert!(paks.priority_prefix_enabled());
-    assert_eq!(paks.enabled_state, EnabledStateMechanism::Filesystem);
+    assert_eq!(paks.enabled_state, Activation::Filesystem);
 
     let ue4ss = cfg.target_for(Some("ue4ss_mods"));
     assert_eq!(ue4ss.tag, "ue4ss_mods");
     assert!(ue4ss.is_directory_unit());
     assert_eq!(ue4ss.disabled_suffix(), "");
     assert!(!ue4ss.priority_prefix_enabled());
-    assert_eq!(ue4ss.enabled_state, EnabledStateMechanism::Ue4ssModsTxt);
+    assert_eq!(ue4ss.enabled_state, Activation::Ue4ssModsTxt);
     assert_eq!(ue4ss.excluded_names(), UE4SS_BUNDLED_SUBMODS);
 
     let game = "C:/Games/PAYDAY 3";
@@ -433,8 +484,7 @@ fn pd3_resolves_both_of_its_mod_targets() {
 #[test]
 fn pd3_keeps_its_launch_and_storefront_metadata() {
     let spec = game_spec("pd3").expect("pd3 resolves");
-    assert_eq!(spec.engine.index_game_name, "PAYDAY 3");
-    assert_eq!(spec.engine.signals, SignalSource::None);
+    assert_eq!(spec.engine.mod_metadata, ModMetadata::None);
     assert_eq!(spec.def.name, "PAYDAY 3");
     assert_eq!(spec.def.executables, ["PAYDAY3.exe"]);
     assert_eq!(spec.def.process_names, ["PAYDAY3-Win64-Shipping"]);
@@ -506,8 +556,7 @@ fn raid_resolves_the_paths_its_loader_reads() {
 #[test]
 fn raid_keeps_its_launch_and_storefront_metadata() {
     let spec = game_spec("raid").expect("raid resolves");
-    assert_eq!(spec.engine.index_game_name, "RAID: World War II");
-    assert_eq!(spec.engine.signals, SignalSource::Diesel);
+    assert_eq!(spec.engine.mod_metadata, ModMetadata::Diesel);
     assert_eq!(spec.def.name, "RAID: World War II");
     assert_eq!(spec.def.executables, ["raid_win64_release.exe"]);
     assert_eq!(spec.def.process_names, ["raid_win64_release"]);

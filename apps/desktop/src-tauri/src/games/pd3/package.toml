@@ -1,0 +1,109 @@
+id = "pd3"
+name = "PAYDAY 3"
+short_name = "PD3"
+mod_metadata = "none"
+
+sources = [
+    {
+        provider = "modworkshop",
+        game_id = "853",
+    },
+    {
+        provider = "nexus",
+        domain = "payday3",
+        numeric_id = 5717,
+    },
+]
+
+news = [
+    {
+        provider = "paydaythegame",
+        category = "payday3",
+    },
+]
+
+install = {
+    executables = ["PAYDAY3.exe"],
+    processes = ["PAYDAY3-Win64-Shipping"],
+    launch_flag = "-fileopenlog",
+    stores = [
+        {
+            provider = "steam",
+            app_id = 1272080,
+            folder = "PAYDAY3",
+        },
+        {
+            provider = "epic",
+            name = "PAYDAY 3",
+        },
+        {
+            provider = "xbox",
+            product_id = "9NPZVDCH73SX",
+            executable = "PAYDAY3/Binaries/WinGDK/PAYDAY3-WinGDK-Shipping.exe",
+        },
+    ],
+}
+
+loaders = [
+    # Two independently maintained pages distribute UE4SS for this game, each with its own proxy
+    # DLL: 44048 (Narknon) ships dxgi.dll and 47771 (Shalashaska) ships xinput1_3.dll, so either
+    # one present counts as installed. The Xbox and GamePass build stages under Binaries/WinGDK
+    # with an unverified proxy DLL, which is why xbox is not a supported storefront here.
+    {
+        kind = "ue4ss",
+        modworkshop_ids = [47771, 44048],
+        storefronts = ["steam", "epic"],
+        proxy_dlls = ["xinput1_3.dll", "dxgi.dll"],
+        # A game path already ends in PAYDAY3, the Steam installdir name, so this and every
+        # target path name the inner project folder rather than repeating the installdir.
+        # Verified against a real install.
+        install_into = ["PAYDAY3", "Binaries", "Win64"],
+    },
+]
+
+targets = [
+    {
+        tag = "paks",
+        label = "mods",
+        primary = true,
+        path = ["PAYDAY3", "Content", "Paks", "~mods"],
+        # Outside Paks/ on purpose: Unreal mounts every subdirectory of Paks, so a backup left
+        # inside would still load.
+        backup = ["PAYDAY3", "Content", "~mods.bak"],
+        activation = "filesystem",
+        load_order = "filename_prefix",
+
+        unit = {
+            kind = "file",
+            disabled_suffix = ".disabled",
+
+            family = {
+                extension = "pak",
+                companions = ["ucas", "utoc"],
+            },
+        },
+    },
+    {
+        tag = "ue4ss_mods",
+        label = "ue4ss_mods",
+        path = ["PAYDAY3", "Binaries", "Win64", "Mods"],
+        backup = ["PAYDAY3", "Binaries", "Win64", "Mods.bak"],
+        activation = "ue4ss_mods_txt",
+        load_order = "none",
+
+        unit = {
+            kind = "directory",
+            ignore_preset = "ue4ss_bundled_submods",
+
+            discovery = {
+                policy = "markers",
+                markers = [
+                    {
+                        file = "Scripts/main.lua",
+                        modes = ["archive", "scan"],
+                    },
+                ],
+            },
+        },
+    },
+]

@@ -28,11 +28,6 @@ fn every_game_resolves_its_own_engine_and_def() {
             spec.id
         );
         assert!(
-            !spec.engine.state_filename.is_empty(),
-            "{} has no state_filename",
-            spec.id
-        );
-        assert!(
             !spec.engine.targets.is_empty(),
             "{} has no targets",
             spec.id

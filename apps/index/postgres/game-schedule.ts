@@ -1,4 +1,4 @@
-import { GAME_IDS, type GameId } from '@modrex/games'
+import { type GameId } from '@modrex/games'
 
 export interface ScheduleCandidate {
     game: GameId
@@ -26,9 +26,12 @@ export function turnKey(game: GameId): string {
 export function chooseNextGame(candidates: ScheduleCandidate[], maxTurn: number): GameId | null {
     if (candidates.length === 0) return null
 
-    const position = (candidate: ScheduleCandidate) => GAME_IDS.indexOf(candidate.game)
+    // Ties resolve on the game id so a run is reproducible. Catalogue order must not decide
+    // this: it is presentation, and a game moving up the picker would gain refresh turns.
+    const byId = (left: ScheduleCandidate, right: ScheduleCandidate) =>
+        left.game < right.game ? -1 : left.game > right.game ? 1 : 0
     const byPending = (left: ScheduleCandidate, right: ScheduleCandidate) =>
-        right.pending - left.pending || position(left) - position(right)
+        right.pending - left.pending || byId(left, right)
 
     const unselected: ScheduleCandidate[] = []
     const scheduled: Array<{ candidate: ScheduleCandidate; wait: number }> = []
@@ -39,7 +42,7 @@ export function chooseNextGame(candidates: ScheduleCandidate[], maxTurn: number)
 
     // A game the scheduler has never selected outranks every game that holds a turn.
     // Giving it a fixed wait equal to the ceiling instead ties it with every merely
-    // overdue game, and one late in GAME_IDS order then loses that tie on every run.
+    // overdue game, and one late in id order then loses that tie on every run.
     if (unselected.length > 0) return unselected.sort(byPending)[0].game
 
     const overdue = scheduled.filter((entry) => entry.wait >= SERVICE_CEILING)
@@ -53,6 +56,6 @@ export function chooseNextGame(candidates: ScheduleCandidate[], maxTurn: number)
         (left, right) =>
             right.candidate.pending - left.candidate.pending ||
             right.wait - left.wait ||
-            position(left.candidate) - position(right.candidate)
+            byId(left.candidate, right.candidate)
     )[0].candidate.game
 }

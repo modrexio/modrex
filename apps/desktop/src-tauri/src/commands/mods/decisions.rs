@@ -4,7 +4,7 @@
 
 use super::engine::{ModEngineConfig, ModUnit, ScanTarget};
 use super::naming;
-use super::pak_filename;
+use super::unit_filename;
 use std::path::Path;
 
 /// How a chosen archive entry is laid out in the temp area before installation.
@@ -45,7 +45,7 @@ pub fn install_filename_from_mod_name(
     tmp: &Path,
 ) -> String {
     match &target.unit {
-        ModUnit::File { .. } => pak_filename(mod_name),
+        ModUnit::File { extension, .. } => unit_filename(mod_name, extension),
         ModUnit::Directory { .. } if is_crimeboss(cfg) => naming::mod_folder_name(mod_name),
         ModUnit::Directory { .. } => tmp
             .file_name()
@@ -66,11 +66,11 @@ pub fn install_filename_for_source_file(
     tmp: &Path,
 ) -> String {
     match &target.unit {
-        ModUnit::File { .. } => {
+        ModUnit::File { extension, .. } => {
             if file_type == "main" {
-                pak_filename(mod_name)
+                unit_filename(mod_name, extension)
             } else {
-                pak_filename(&format!("{}_{}", mod_name, file_id))
+                unit_filename(&format!("{}_{}", mod_name, file_id), extension)
             }
         }
         ModUnit::Directory { .. } if is_crimeboss(cfg) => naming::mod_folder_name(mod_name),
@@ -90,7 +90,7 @@ pub fn install_filename_for_dropped(
     display_stem: &str,
 ) -> String {
     match &target.unit {
-        ModUnit::File { .. } => pak_filename(display_stem),
+        ModUnit::File { extension, .. } => unit_filename(display_stem, extension),
         ModUnit::Directory { .. } if is_crimeboss(cfg) => naming::mod_folder_name(display_stem),
         ModUnit::Directory { .. } => display_stem.to_string(),
     }

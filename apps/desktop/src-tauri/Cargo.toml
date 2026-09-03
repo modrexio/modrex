@@ -4,18 +4,25 @@ version = "0.14.0"
 edition = "2021"
 license = "MIT"
 
+# The contract crate is a member so one cargo invocation formats, lints and locks both.
+[workspace]
+members = ["game-package"]
+
 [lib]
 name = "modrex_lib"
 crate-type = ["rlib"]
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
+modrex-game-package = { path = "game-package", features = ["codegen"] }
+toml = "1"
 
 [dependencies]
 tauri = { version = "2", features = [] }
 percent-encoding = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+modrex-game-package = { path = "game-package" }
 reqwest = { version = "0.13", default-features = false, features = [
     "rustls-no-provider",
     "charset",
@@ -61,6 +68,8 @@ tauri-specta = { version = "=2.0.0-rc.25", features = ["derive", "typescript"] }
 tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }
 
 [dev-dependencies]
+toml = "1"
+modrex-game-package = { path = "game-package", features = ["codegen"] }
 tempfile = "3"
 filetime = "0.2"
 tokio = { version = "1", features = ["rt", "macros"] }

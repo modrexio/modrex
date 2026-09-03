@@ -1,0 +1,103 @@
+id = "pdth"
+name = "PAYDAY: The Heist"
+short_name = "PDTH"
+mod_metadata = "diesel"
+
+sources = [
+    {
+        provider = "modworkshop",
+        game_id = "2",
+    },
+    {
+        provider = "nexus",
+        domain = "paydaytheheist",
+        numeric_id = 4339,
+    },
+]
+
+news = [
+    {
+        provider = "paydaythegame",
+        category = "theheist",
+    },
+]
+
+decoders = [
+    {
+        format = "pdmod",
+        target = "mod_overrides",
+    },
+]
+
+install = {
+    executables = ["payday_win32_release.exe"],
+    processes = ["payday_win32_release"],
+    stores = [
+        {
+            provider = "steam",
+            app_id = 24240,
+            folder = "PAYDAY The Heist",
+        },
+    ],
+}
+
+loaders = [
+    {
+        kind = "pdth_overrides",
+        modworkshop_ids = [53474],
+    },
+    {
+        kind = "dahm",
+        modworkshop_ids = [14267],
+    },
+]
+
+targets = [
+    {
+        tag = "mods",
+        label = "mods",
+        primary = true,
+        path = ["mods"],
+        backup = ["mods.bak"],
+        activation = "filesystem",
+        load_order = "none",
+
+        unit = {
+            kind = "directory",
+            ignore_preset = "diesel_infra",
+
+            # base.lua is DAHM's framework entry point, shared by its own bundled modules and
+            # by genuinely installable sub-mods, so an index match is the only reliable way to
+            # tell them apart.
+            discovery = {
+                policy = "markers",
+                markers = [
+                    {
+                        file = "mod.txt",
+                        modes = ["archive", "scan"],
+                    },
+                    {
+                        file = "base.lua",
+                        modes = ["archive", "index_gated"],
+                    },
+                ],
+            },
+        },
+    },
+    {
+        tag = "mod_overrides",
+        label = "overrides",
+        path = ["assets", "mod_overrides"],
+        backup = ["assets", "mod_overrides.bak"],
+        activation = "filesystem",
+        load_order = "none",
+
+        unit = {
+            kind = "directory",
+
+            discovery = {
+                policy = "all_directories",
+            },
+        },
+    },
+]

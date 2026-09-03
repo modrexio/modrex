@@ -78,7 +78,7 @@ fn tracked_mod_count(game_path: &str, cfg: &ModEngineConfig) -> usize {
     }
     // Launching without mods renames the whole folder for pak games, so until the next
     // launch restores it the list lives inside the backup instead.
-    read_state(&backup_dir(game_path, cfg.primary()).join(cfg.state_filename))
+    read_state(&backup_dir(game_path, cfg.primary()).join(crate::commands::mods::STATE_FILENAME))
         .mods
         .len()
 }

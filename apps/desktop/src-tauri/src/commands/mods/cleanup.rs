@@ -8,16 +8,18 @@
 
 use std::path::{Path, PathBuf};
 
-use super::naming::PAK_SIDECAR_EXTENSIONS;
-
 // The shared Remove-Owned prefix is the point: a variant may only ever name an artifact this
 // operation created, and spelling that out at each one keeps the invariant visible at the
 // construction sites rather than only here.
 #[allow(clippy::enum_variant_names)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CleanupPlan {
-    /// A Modrex-created file, plus any pak sidecars sharing its stem.
-    RemoveOwnedFileWithSidecars(PathBuf),
+    /// A Modrex-created file, plus any companions sharing its stem. The extensions come from
+    /// the game package, since only it knows what accompanies one of its mod files.
+    RemoveOwnedFileWithSidecars {
+        path: PathBuf,
+        companions: &'static [&'static str],
+    },
     /// A Modrex-created file that has no sidecars, such as a downloaded archive.
     RemoveOwnedFile(PathBuf),
     /// A Modrex-created directory tree.
@@ -100,9 +102,9 @@ pub async fn run_staged_in(root: &Path, plan: &CleanupPlan, original_archive: Op
 pub async fn run_in(root: &Path, plan: &CleanupPlan) {
     match plan {
         CleanupPlan::RemoveOwnedFile(path) => remove_owned_file(root, path).await,
-        CleanupPlan::RemoveOwnedFileWithSidecars(path) => {
+        CleanupPlan::RemoveOwnedFileWithSidecars { path, companions } => {
             remove_owned_file(root, path).await;
-            for ext in PAK_SIDECAR_EXTENSIONS {
+            for ext in *companions {
                 let sidecar = path.with_extension(ext);
                 if let Ok(safe) = owned_staging_file(root, &sidecar) {
                     let _ = tokio::fs::remove_file(&safe).await;
@@ -152,9 +154,9 @@ pub fn run_sync_in(root: &Path, plan: &CleanupPlan) {
     };
     match plan {
         CleanupPlan::RemoveOwnedFile(path) => remove_file(path),
-        CleanupPlan::RemoveOwnedFileWithSidecars(path) => {
+        CleanupPlan::RemoveOwnedFileWithSidecars { path, companions } => {
             remove_file(path);
-            for ext in PAK_SIDECAR_EXTENSIONS {
+            for ext in *companions {
                 let sidecar = path.with_extension(ext);
                 if let Ok(safe) = owned_staging_file(root, &sidecar) {
                     let _ = std::fs::remove_file(&safe);

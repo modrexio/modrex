@@ -1,11 +1,3 @@
-/// UE5 IoStore splits a single mod's cooked content across three sibling files sharing one
-/// stem: Foo.pak (header), Foo.ucas (bulk data), Foo.utoc (table of contents). Some games
-/// (Crime Boss: Rockay City) ship this triplet for essentially every mod, while others
-/// (PAYDAY 3) ship a bare .pak for most mods. Every ModUnit::File operation must carry the
-/// siblings alongside the .pak it already tracks. InstalledMod stores only the .pak
-/// filename, so siblings are located by extension rather than stored explicitly.
-pub const PAK_SIDECAR_EXTENSIONS: &[&str] = &["ucas", "utoc"];
-
 /// Replaces the .{main_ext} component of path's filename with .{sidecar_ext}, preserving
 /// anything after it. Plain Path::with_extension is unsafe here: a disabled File-unit mod's
 /// filename is Foo.pak.disabled (disabled_suffix appended on top of the real extension), and
@@ -60,14 +52,14 @@ fn sanitize(mod_name: &str) -> String {
 }
 
 /// Folder name for a Crime Boss mod installed under CrimeBoss/Mods/<name>/, using the same
-/// sanitization as pak_filename minus the .pak extension.
+/// sanitization as unit_filename without an extension.
 pub fn mod_folder_name(mod_name: &str) -> String {
     sanitize(mod_name)
 }
 
-pub fn pak_filename(mod_name: &str) -> String {
-    let result = sanitize(mod_name);
-    format!("{}.pak", result)
+/// Filename for a file-unit mod, carrying the extension its target declares.
+pub fn unit_filename(mod_name: &str, extension: &str) -> String {
+    format!("{}.{extension}", sanitize(mod_name))
 }
 
 pub fn hash_filename(filename: &str) -> i64 {

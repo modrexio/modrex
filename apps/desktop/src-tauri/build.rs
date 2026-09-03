@@ -1,7 +1,9 @@
+use modrex_game_package::GamePackage;
 use std::path::Path;
 
-/// Every directory here is one built-in game package and must hold package.rs exposing a
-/// package function returning its GamePackage.
+/// Every directory here is one built-in game package and must hold package.toml declaring it.
+/// The manifests are read, checked and turned into Rust here so the application carries the
+/// packages as typed data and no parser goes into the binary with them.
 const GAME_PACKAGE_ROOT: &str = "src/games";
 
 fn main() {
@@ -31,7 +33,7 @@ fn main() {
 
 fn emit_game_package_registry() {
     // Watches the root itself so adding or removing a package directory is noticed, and each
-    // package file so editing one is.
+    // manifest so editing one is.
     println!("cargo:rerun-if-changed={GAME_PACKAGE_ROOT}");
 
     let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR is set");
@@ -43,7 +45,7 @@ fn emit_game_package_registry() {
     let entries =
         std::fs::read_dir(&root).unwrap_or_else(|e| panic!("cannot read {}: {e}", root.display()));
 
-    let mut ids: Vec<String> = Vec::new();
+    let mut packages: Vec<(String, GamePackage)> = Vec::new();
     for entry in entries {
         let entry =
             entry.unwrap_or_else(|e| panic!("cannot read an entry of {}: {e}", root.display()));
@@ -58,31 +60,32 @@ fn emit_game_package_registry() {
                 path.display()
             );
         }
-        let package_file = path.join("package.rs");
-        if !package_file.is_file() {
+        let manifest = path.join("package.toml");
+        if !manifest.is_file() {
             panic!(
-                "game package '{id}' has no package.rs: expected {}",
-                package_file.display()
+                "game package '{id}' has no package.toml: expected {}",
+                manifest.display()
             );
         }
-        println!("cargo:rerun-if-changed={}", package_file.display());
-        ids.push(id);
+        println!("cargo:rerun-if-changed={}", manifest.display());
+        let declared = std::fs::read_to_string(&manifest)
+            .unwrap_or_else(|e| panic!("cannot read {}: {e}", manifest.display()));
+        let package: GamePackage =
+            toml::from_str(&declared).unwrap_or_else(|e| panic!("{}: {e}", manifest.display()));
+        modrex_game_package::validate::check(&id, &package)
+            .unwrap_or_else(|problem| panic!("{}: {problem}", manifest.display()));
+        packages.push((id, package));
     }
-    ids.sort();
+    packages.sort_by(|left, right| left.0.cmp(&right.0));
 
-    let mut source = String::new();
-    for id in &ids {
-        let package_file = root.join(id).join("package.rs");
-        source.push_str(&format!(
-            "#[path = \"{}\"]\nmod {id};\n",
-            package_file.display().to_string().replace('\\', "/")
-        ));
-    }
-    source.push_str(
+    let mut source = String::from(
         "fn built_in_packages() -> Vec<(&'static str, crate::game_package::GamePackage)> {\n    vec![\n",
     );
-    for id in &ids {
-        source.push_str(&format!("        (\"{id}\", {id}::package()),\n"));
+    for (id, package) in &packages {
+        source.push_str(&format!(
+            "        (\"{id}\", {}),\n",
+            package.rust_literal()
+        ));
     }
     source.push_str("    ]\n}\n");
 

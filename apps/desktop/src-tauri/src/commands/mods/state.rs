@@ -10,6 +10,9 @@ use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::Path;
 
+/// Modrex's own record of what it installed, kept inside the primary target's mods dir.
+pub const STATE_FILENAME: &str = ".modrex.json";
+
 pub fn get_folder_path(folders: &[ModFolder], folder_id: Option<&str>) -> Option<String> {
     let folder_id = folder_id?;
     let folder = folders.iter().find(|f| f.id == folder_id)?;
@@ -188,7 +191,7 @@ pub fn reconcile_state(game_path: &str, state_path: &Path, cfg: &ModEngineConfig
             return read_state(state_path);
         }
         // PD3: the entire mods folder was renamed, so the state file is inside the backup.
-        return read_state(&bak.join(cfg.state_filename));
+        return read_state(&bak.join(STATE_FILENAME));
     }
 
     // Migrate legacy state file name from .pd3mm.json to .modrex.json.

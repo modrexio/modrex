@@ -1,5 +1,5 @@
 use super::cleanup::{self, CleanupPlan};
-use super::engine::{InputDecoderBinding, ModEngineConfig, ModUnit};
+use super::engine::{DecoderBinding, ModEngineConfig, ModUnit};
 use super::host_mods::detect_host_pack;
 use super::paths::{active_mod_path, disabled_mod_path};
 use super::staged::{NameSource, Staged};
@@ -135,20 +135,23 @@ fn list_entries_rar(path: &Path) -> Result<Vec<ArchiveEntry>, String> {
     Ok(out)
 }
 
-/// Installable pak entries paired with their position in the archive's enumeration order.
-fn list_pak_entries_indexed(path: &Path) -> Result<Vec<(u32, String)>, String> {
+/// Installable entries of the given extension, paired with their position in the archive's
+/// enumeration order.
+fn list_unit_entries_indexed(path: &Path, extension: &str) -> Result<Vec<(u32, String)>, String> {
+    let suffix = format!(".{extension}");
     Ok(list_entries(path)?
         .into_iter()
         .enumerate()
-        .filter(|(_, e)| !e.is_dir && e.name.ends_with(".pak"))
+        .filter(|(_, e)| !e.is_dir && e.name.ends_with(&suffix))
         .map(|(i, e)| (i as u32, e.name))
         .collect())
 }
 
-pub fn list_pak_entries(path: &Path) -> Result<Vec<String>, String> {
+pub fn list_unit_entries(path: &Path, extension: &str) -> Result<Vec<String>, String> {
+    let suffix = format!(".{extension}");
     Ok(list_entries(path)?
         .into_iter()
-        .filter(|e| !e.is_dir && e.name.ends_with(".pak"))
+        .filter(|e| !e.is_dir && e.name.ends_with(&suffix))
         .map(|e| e.name)
         .collect())
 }
@@ -1344,11 +1347,11 @@ fn try_classify_as_directory_target(
     Some(Err(prompt_err(InstallPrompt::ZipMultiPak(payload))))
 }
 
-fn decoder_for(cfg: &ModEngineConfig, downloaded: &Path) -> Option<&'static InputDecoderBinding> {
+fn decoder_for(cfg: &ModEngineConfig, downloaded: &Path) -> Option<&'static DecoderBinding> {
     let extension = downloaded.extension()?.to_str()?;
-    cfg.input_decoders.iter().find(|binding| {
-        let claimed = match binding.decoder {
-            crate::game_package::InputDecoder::Pdmod => super::pdmod::EXTENSION,
+    cfg.decoders.iter().find(|binding| {
+        let claimed = match binding {
+            DecoderBinding::Pdmod { .. } => super::pdmod::EXTENSION,
         };
         extension.eq_ignore_ascii_case(claimed)
     })
@@ -1376,7 +1379,7 @@ pub fn resolve_archive_download(
                 root: temp_dir,
                 cleanup,
                 name_source: NameSource::FromArchive,
-                target_tag: Some(binding.target_tag.clone()),
+                target_tag: Some(binding.target().to_string()),
                 original_archive: Some(downloaded),
             }),
             Err(e) => {
@@ -1390,7 +1393,10 @@ pub fn resolve_archive_download(
     }
     if detect_archive(&downloaded).is_none() {
         // Nothing was extracted, so the caller's own downloaded file is the only artifact.
-        let cleanup = CleanupPlan::RemoveOwnedFileWithSidecars(downloaded.clone());
+        let cleanup = CleanupPlan::RemoveOwnedFileWithSidecars {
+            path: downloaded.clone(),
+            companions: cfg.primary().companions,
+        };
         let name_source = match &cfg.primary().unit {
             ModUnit::Directory { .. } => NameSource::FromArchive,
             ModUnit::File { .. } => NameSource::FromModDisplayName,
@@ -1404,8 +1410,8 @@ pub fn resolve_archive_download(
         });
     }
     match &cfg.primary().unit {
-        ModUnit::File { .. } => {
-            let entries = list_pak_entries_indexed(&downloaded)?;
+        ModUnit::File { extension, .. } => {
+            let entries = list_unit_entries_indexed(&downloaded, extension)?;
             match entries.len() {
                 0 => {
                     if has_ue4ss_loader_signature(&downloaded) {
@@ -1417,20 +1423,28 @@ pub fn resolve_archive_download(
                         return result;
                     }
                     cleanup::run_sync(&CleanupPlan::RemoveOwnedFile(downloaded.clone()));
-                    Err(ResolveError::Failure(
-                        "This mod is packaged as an archive with no .pak files inside.".to_string(),
-                    ))
+                    Err(ResolveError::Failure(format!(
+                        "This mod is packaged as an archive with no .{extension} files inside."
+                    )))
                 }
                 1 => {
-                    let tmp =
-                        std::env::temp_dir().join(format!("modrex-mod-{}.pak", Uuid::new_v4()));
+                    let tmp = std::env::temp_dir()
+                        .join(format!("modrex-mod-{}.{extension}", Uuid::new_v4()));
                     let (index, name) = entries[0].clone();
                     let entry = StagedEntry {
                         source: StagedEntrySource::File { index },
                         display_name: name,
                     };
-                    extract_staged_entry_with_sidecars(&downloaded, &entry, &tmp)?;
-                    let cleanup = CleanupPlan::RemoveOwnedFileWithSidecars(tmp.clone());
+                    extract_staged_entry_with_sidecars(
+                        &downloaded,
+                        &entry,
+                        &tmp,
+                        cfg.primary().companions,
+                    )?;
+                    let cleanup = CleanupPlan::RemoveOwnedFileWithSidecars {
+                        path: tmp.clone(),
+                        companions: cfg.primary().companions,
+                    };
                     Ok(Staged {
                         root: tmp,
                         cleanup,
@@ -1593,17 +1607,26 @@ fn resolve_crimeboss_archive(
         // No known real mod ships a bare .pak with no archive (sidecars require a zip to carry
         // them), but if one shows up, fall back to the legacy flat paks target rather than
         // guessing at a skeleton with no .ucas/.utoc to find.
-        let legacy_tag = cfg.targets.iter().find(|t| t.tag == "paks").map(|t| t.tag);
-        let cleanup = CleanupPlan::RemoveOwnedFileWithSidecars(downloaded.clone());
+        let legacy = cfg.targets.iter().find(|t| t.tag == "paks");
+        let cleanup = CleanupPlan::RemoveOwnedFileWithSidecars {
+            path: downloaded.clone(),
+            companions: legacy.map(|t| t.companions).unwrap_or(&[]),
+        };
         return Ok(Staged {
             root: downloaded,
             cleanup,
             name_source: NameSource::FromModDisplayName,
-            target_tag: legacy_tag.map(str::to_string),
+            target_tag: legacy.map(|t| t.tag.to_string()),
             original_archive: None,
         });
     }
-    let entries = list_pak_entries_indexed(&downloaded)?;
+    // The skeleton wraps whatever family the primary target declares it contains, so that is
+    // the extension worth finding in the archive.
+    let contained = cfg
+        .primary()
+        .contained_extension
+        .ok_or_else(|| "this game's primary target declares no file family".to_string())?;
+    let entries = list_unit_entries_indexed(&downloaded, contained)?;
     match entries.len() {
         0 => {
             if has_ue4ss_loader_signature(&downloaded) {
@@ -1639,7 +1662,11 @@ fn resolve_crimeboss_archive(
                 source: StagedEntrySource::File { index },
                 display_name: name,
             };
-            let tmp = extract_entry_into_crimeboss_skeleton_at(&downloaded, &entry)?;
+            let tmp = extract_entry_into_crimeboss_skeleton_at(
+                &downloaded,
+                &entry,
+                cfg.primary().companions,
+            )?;
             let cleanup = CleanupPlan::RemoveOwnedDirectory(tmp.clone());
             Ok(Staged {
                 root: tmp,
@@ -1672,6 +1699,7 @@ fn resolve_crimeboss_archive(
 pub(crate) fn extract_entry_into_crimeboss_skeleton_at(
     archive_path: &Path,
     entry: &StagedEntry,
+    companions: &[&str],
 ) -> Result<PathBuf, String> {
     let tmp_root = std::env::temp_dir().join(format!("modrex-cb-mod-{}", Uuid::new_v4()));
     let skeleton_dir = tmp_root
@@ -1683,15 +1711,21 @@ pub(crate) fn extract_entry_into_crimeboss_skeleton_at(
         .file_name()
         .and_then(|s| s.to_str())
         .ok_or_else(|| format!("invalid archive entry name: {}", entry.display_name))?;
-    extract_staged_entry_with_sidecars(archive_path, entry, &skeleton_dir.join(filename))?;
+    extract_staged_entry_with_sidecars(
+        archive_path,
+        entry,
+        &skeleton_dir.join(filename),
+        companions,
+    )?;
     Ok(tmp_root)
 }
 
-/// Extracts the entry this staged identity names, plus its pak sidecars.
+/// Extracts the entry this staged identity names, plus the companion entries sharing its stem.
 pub(crate) fn extract_staged_entry_with_sidecars(
     archive_path: &Path,
     entry: &StagedEntry,
     dest: &Path,
+    companions: &[&str],
 ) -> Result<(), String> {
     let StagedEntrySource::File { index } = entry.source else {
         return Err("that archive entry is not a file".to_string());
@@ -1701,7 +1735,7 @@ pub(crate) fn extract_staged_entry_with_sidecars(
         return Ok(());
     };
     let key = entry_key(&entry.display_name);
-    for ext in super::naming::PAK_SIDECAR_EXTENSIONS {
+    for ext in companions {
         let sidecar = entries.iter().enumerate().find(|(_, e)| {
             !e.is_dir
                 && entry_key(&e.name) == key

@@ -1,4 +1,4 @@
-pub use crate::game_package::{EnabledStateMechanism, InputDecoderBinding, SignalSource};
+pub use crate::game_package::{Activation, DecoderBinding, ModMetadata};
 use std::path::PathBuf;
 
 pub enum ModUnit {
@@ -31,7 +31,15 @@ pub struct ScanTarget {
     pub tag: &'static str,
     pub label_key: &'static str,
     pub unit: ModUnit,
-    pub enabled_state: EnabledStateMechanism,
+    /// Extensions carried alongside a mod's primary file wherever it is copied, renamed,
+    /// removed or extracted, because they share its filename stem. Empty when one mod here is
+    /// a single file or an author-supplied folder.
+    pub companions: &'static [&'static str],
+    /// The primary extension of the file family a directory unit wraps. Identification hashes
+    /// that file rather than whichever one sorts first, so a sibling config folder cannot be
+    /// hashed instead of the content.
+    pub contained_extension: Option<&'static str>,
+    pub enabled_state: Activation,
     pub mods_subpath: &'static [&'static str],
     pub disabled_subpath: &'static [&'static str],
     pub backup_subpath: &'static [&'static str],
@@ -58,6 +66,15 @@ impl ScanTarget {
         }
     }
 
+    /// The extension of the file a mod here is built around: the unit's own for a file
+    /// target, and the wrapped family's for a directory target that declares one.
+    pub fn content_extension(&self) -> Option<&'static str> {
+        match &self.unit {
+            ModUnit::File { extension, .. } => Some(extension),
+            ModUnit::Directory { .. } => self.contained_extension,
+        }
+    }
+
     pub fn priority_prefix_enabled(&self) -> bool {
         match &self.unit {
             ModUnit::File {
@@ -72,11 +89,10 @@ impl ScanTarget {
 
 pub struct ModEngineConfig {
     pub game_id: &'static str,
-    pub input_decoders: &'static [InputDecoderBinding],
+    pub decoders: &'static [DecoderBinding],
     pub index_game_name: &'static str,
-    pub state_filename: &'static str,
     pub targets: &'static [ScanTarget],
-    pub signals: SignalSource,
+    pub mod_metadata: ModMetadata,
 }
 
 impl ModEngineConfig {
@@ -121,5 +137,5 @@ pub fn backup_dir(game_path: &str, target: &ScanTarget) -> PathBuf {
 }
 
 pub fn state_path(game_path: &str, cfg: &ModEngineConfig) -> PathBuf {
-    mods_dir(game_path, cfg.primary()).join(cfg.state_filename)
+    mods_dir(game_path, cfg.primary()).join(super::state::STATE_FILENAME)
 }

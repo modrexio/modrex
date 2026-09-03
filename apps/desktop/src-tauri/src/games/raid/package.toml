@@ -1,0 +1,54 @@
+id = "raid"
+name = "RAID: World War II"
+short_name = "RAID"
+mod_metadata = "diesel"
+
+sources = [
+    {
+        provider = "modworkshop",
+        game_id = "543",
+    },
+]
+
+install = {
+    executables = ["raid_win64_release.exe"],
+    processes = ["raid_win64_release"],
+    stores = [
+        {
+            provider = "steam",
+            app_id = 414740,
+            folder = "RAID World War II",
+        },
+    ],
+}
+
+loaders = [
+    {
+        kind = "raid_superblt",
+        modworkshop_ids = [49744],
+    },
+]
+
+targets = [
+    {
+        tag = "mods",
+        label = "mods",
+        primary = true,
+        path = ["mods"],
+        backup = ["mods.bak"],
+        activation = "filesystem",
+        load_order = "none",
+
+        unit = {
+            kind = "directory",
+            ignore_preset = "diesel_infra",
+
+            # RAID-SuperBLT and RAIDWW2-BeardLib load script mods and asset override packs from
+            # this one folder, and the game's assets/mod_overrides mount is gone. Asset packs
+            # carry no supermod.xml or mod.xml, so no marker file could recognise them.
+            discovery = {
+                policy = "all_directories",
+            },
+        },
+    },
+]

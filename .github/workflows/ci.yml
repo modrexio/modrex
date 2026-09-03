@@ -81,7 +81,7 @@ jobs:
             - name: i18n read-only check
               run: pnpm i18n:check-readonly
             - run: pnpm typecheck
-            - run: cargo clippy --all-targets -- -D warnings
+            - run: cargo clippy --workspace --all-targets -- -D warnings
               working-directory: apps/desktop/src-tauri
             - run: pnpm test
 
@@ -93,6 +93,10 @@ jobs:
             # Same test run regenerated the frontend game catalogue from the Rust packages.
             - name: Fail if the generated game catalogue is stale
               run: git diff --exit-code packages/games/catalog.generated.ts
+
+            # And the contributor reference, which is rendered from the package contract.
+            - name: Fail if the generated package reference is stale
+              run: git diff --exit-code apps/desktop/docs/game-package.md
 
     check-licenses:
         runs-on: ubuntu-latest

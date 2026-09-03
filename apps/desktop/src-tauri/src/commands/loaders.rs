@@ -132,8 +132,8 @@ pub fn scoped_bindings() -> Vec<(&'static str, &'static LoaderSpec, Vec<i64>)> {
     for spec in LOADER_REGISTRY {
         for (game_id, pkg) in crate::games::discovered() {
             for binding in &pkg.loaders {
-                if binding.loader_id == spec.id {
-                    bindings.push((*game_id, spec, binding.modworkshop_ids.clone()));
+                if binding.id() == spec.id {
+                    bindings.push((*game_id, spec, binding.modworkshop_ids().to_vec()));
                 }
             }
         }
@@ -321,9 +321,9 @@ mod tests {
         for (game, pkg) in crate::games::discovered() {
             for binding in &pkg.loaders {
                 assert!(
-                    loader_spec(&binding.loader_id).is_some(),
+                    loader_spec(binding.id()).is_some(),
                     "{game} declares unknown loader '{}'",
-                    binding.loader_id
+                    binding.id()
                 );
             }
         }
@@ -386,20 +386,14 @@ mod tests {
         assert_eq!(scoped_bindings().len(), declared);
     }
 
-    /// Loader configuration is only meaningful to the loader it configures, so it must never
-    /// ride along on another loader's binding.
     #[test]
-    fn loader_configuration_only_appears_on_the_loader_it_configures() {
+    fn every_declared_loader_resolves_to_a_registered_one() {
         for (game_id, pkg) in crate::games::discovered() {
             for binding in &pkg.loaders {
-                let Some(config) = binding.config.as_ref() else {
-                    continue;
-                };
-                let crate::game_package::LoaderConfig::Ue4ss(_) = config;
-                assert_eq!(
-                    binding.loader_id, "ue4ss",
-                    "{game_id} put UE4SS configuration on '{}'",
-                    binding.loader_id
+                assert!(
+                    loader_spec(binding.id()).is_some(),
+                    "{game_id} declares the unregistered loader '{}'",
+                    binding.id()
                 );
             }
         }

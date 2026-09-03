@@ -1,0 +1,120 @@
+id = "cb"
+name = "Crime Boss: Rockay City"
+short_name = "CBRC"
+mod_metadata = "none"
+
+sources = [
+    {
+        provider = "modworkshop",
+        game_id = "857",
+    },
+    {
+        provider = "nexus",
+        domain = "crimebossrockaycity",
+        numeric_id = 6528,
+    },
+]
+
+install = {
+    executables = ["CrimeBoss.exe"],
+    processes = ["CrimeBoss-Win64-Shipping"],
+    stores = [
+        {
+            provider = "steam",
+            app_id = 2933080,
+            folder = "CrimeBossRockayCity",
+        },
+        {
+            provider = "epic",
+            name = "Crime Boss: Rockay City",
+        },
+    ],
+}
+
+loaders = [
+    # One maintainer and one release line, UE4SS-CB, so no other proxy DLL has been seen. The
+    # game has no Xbox or GamePass release and no Epic build of this loader has been confirmed.
+    {
+        kind = "ue4ss",
+        modworkshop_ids = [47749],
+        storefronts = ["steam"],
+        proxy_dlls = ["dwmapi.dll"],
+        # A game path already ends in the installdir, so this and every target path name the
+        # inner CrimeBoss project folder rather than repeating it. Verified against a real
+        # install.
+        install_into = ["CrimeBoss", "Binaries", "Win64"],
+    },
+]
+
+targets = [
+    # The official ModKit installs here, and its UGC loader merges the Data Table Extensions of
+    # the mods living here additively. The legacy paks target below is plain Unreal pak mounting
+    # with no merge semantics, resolving overlapping data as last-loaded-wins, so it is kept only
+    # for loose-triplet mods and is never chosen for a new install.
+    {
+        tag = "mods",
+        label = "modkit_mods",
+        primary = true,
+        path = ["CrimeBoss", "Mods"],
+        backup = ["CrimeBoss", "Mods.bak"],
+        activation = "filesystem",
+        load_order = "none",
+
+        unit = {
+            kind = "directory",
+
+            # Modrex synthesizes the Content/Paks/WindowsNoEditor/ wrapper itself around the pak
+            # it finds, however the source archive nested things, so the folder installed here
+            # always holds one family.
+            contains = {
+                extension = "pak",
+                companions = ["ucas", "utoc"],
+            },
+
+            discovery = {
+                policy = "all_directories",
+            },
+        },
+    },
+    {
+        tag = "paks",
+        label = "legacy_paks",
+        path = ["CrimeBoss", "Content", "Paks", "~mods"],
+        backup = ["CrimeBoss", "Content", "~mods.bak"],
+        activation = "filesystem",
+        load_order = "filename_prefix",
+
+        unit = {
+            kind = "file",
+            disabled_suffix = ".disabled",
+
+            family = {
+                extension = "pak",
+                companions = ["ucas", "utoc"],
+            },
+        },
+    },
+    {
+        tag = "ue4ss_mods",
+        label = "ue4ss_mods",
+        path = ["CrimeBoss", "Binaries", "Win64", "Mods"],
+        backup = ["CrimeBoss", "Binaries", "Win64", "Mods.bak"],
+        activation = "ue4ss_mods_txt",
+        load_order = "none",
+
+        unit = {
+            kind = "directory",
+            ignore_preset = "ue4ss_bundled_submods",
+
+            discovery = {
+                policy = "markers",
+                markers = [
+                    {
+                        file = "Scripts/main.lua",
+                        modes = ["archive", "scan"],
+                    },
+                ],
+            },
+        },
+    },
+]

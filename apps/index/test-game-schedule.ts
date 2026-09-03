@@ -149,7 +149,21 @@ assert.equal(
         5
     ),
     'pd3',
-    'equal pending and equal turns resolve in GAME_IDS order'
+    'equal pending and equal turns resolve in game id order'
+)
+
+// Catalogue order must not reach the scheduler: a game moving up the picker would otherwise
+// gain refresh turns.
+assert.equal(
+    chooseNextGame(
+        [
+            { game: 'raid', pending: 7, lastTurn: 3 },
+            { game: 'cb', pending: 7, lastTurn: 3 },
+        ],
+        5
+    ),
+    'cb',
+    'ties resolve on the id, independent of catalogue order'
 )
 
 const tied = [

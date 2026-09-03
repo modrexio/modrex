@@ -24,13 +24,13 @@ pub(crate) fn settings_id_from_pak_filename(pak_filename: &str) -> Option<String
     Some(id.to_ascii_lowercase())
 }
 
-/// Finds the single pak directly inside dir, a mod's Content/Paks/WindowsNoEditor folder.
-/// Crime Boss Directory-unit installs always have exactly one (see engine.rs's
-/// CRIMEBOSS_ENGINE comment), but this tolerates zero without panicking.
-pub(crate) fn find_pak_in_dir(dir: &Path) -> Option<PathBuf> {
+/// Finds the single content file directly inside dir, a mod's Content/Paks/WindowsNoEditor
+/// folder. Crime Boss Directory-unit installs always have exactly one, but this tolerates zero
+/// without panicking.
+pub(crate) fn find_content_file_in_dir(dir: &Path, extension: &str) -> Option<PathBuf> {
     fs::read_dir(dir).ok()?.flatten().find_map(|entry| {
         let path = entry.path();
-        (path.extension().and_then(|e| e.to_str()) == Some("pak")).then_some(path)
+        (path.extension().and_then(|e| e.to_str()) == Some(extension)).then_some(path)
     })
 }
 
@@ -66,11 +66,12 @@ fn mod_settings_dir(launcher: &str) -> Option<PathBuf> {
 /// install (~mods/<name>.pak) mod_path already is the pak.
 fn pak_path_for_mod(mod_path: &Path, is_directory_unit: bool) -> Option<PathBuf> {
     if is_directory_unit {
-        find_pak_in_dir(
+        find_content_file_in_dir(
             &mod_path
                 .join("Content")
                 .join("Paks")
                 .join("WindowsNoEditor"),
+            "pak",
         )
     } else {
         Some(mod_path.to_path_buf())

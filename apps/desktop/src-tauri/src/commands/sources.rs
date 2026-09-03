@@ -2,7 +2,7 @@
 //! bindings, and sources name games their own way: modworkshop by numeric game id, Nexus by
 //! domain slug plus a separate numeric id its content API filters on.
 
-use crate::game_package::GamePackage;
+use crate::game_package::{GamePackage, SourceBinding};
 
 /// The sources Modrex implements a connector for. A game reaches one by declaring a binding,
 /// never by being listed here.
@@ -45,12 +45,14 @@ pub fn source_native_local_id(source_id: &str, remote_id: &str) -> i64 {
 
 /// What the source calls this game, or None when the game declares no binding for it.
 pub fn native_id(source_id: &str, game_id: &str) -> Option<String> {
-    let sources = &package(game_id)?.sources;
-    match source_id {
-        "modworkshop" => sources.modworkshop.as_ref().map(|b| b.game_id.clone()),
-        "nexus" => sources.nexus.as_ref().map(|b| b.domain.clone()),
-        _ => None,
-    }
+    package(game_id)?
+        .sources
+        .iter()
+        .find_map(|binding| match (source_id, binding) {
+            ("modworkshop", SourceBinding::ModWorkshop { game_id }) => Some(game_id.clone()),
+            ("nexus", SourceBinding::Nexus { domain, .. }) => Some(domain.clone()),
+            _ => None,
+        })
 }
 
 /// The reverse, for callbacks where a source hands us its own id (an nxm:// link carries the
@@ -67,9 +69,11 @@ pub fn game_id_for_native(source_id: &str, native_id: &str) -> Option<&'static s
 pub fn nexus_numeric_id(game_id: &str) -> Option<u32> {
     package(game_id)?
         .sources
-        .nexus
-        .as_ref()
-        .map(|b| b.numeric_id)
+        .iter()
+        .find_map(|binding| match binding {
+            SourceBinding::Nexus { numeric_id, .. } => Some(*numeric_id),
+            SourceBinding::ModWorkshop { .. } => None,
+        })
 }
 
 /// The registry as the renderer sees it, so the source list a game offers lives in one
@@ -126,11 +130,8 @@ mod tests {
     #[test]
     fn every_source_binding_names_a_source_with_a_connector() {
         for (game_id, pkg) in crate::games::discovered() {
-            if pkg.sources.modworkshop.is_some() {
-                assert!(SOURCE_IDS.contains(&"modworkshop"), "{game_id}");
-            }
-            if pkg.sources.nexus.is_some() {
-                assert!(SOURCE_IDS.contains(&"nexus"), "{game_id}");
+            for binding in &pkg.sources {
+                assert!(SOURCE_IDS.contains(&binding.provider()), "{game_id}");
             }
         }
     }

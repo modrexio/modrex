@@ -50,25 +50,26 @@ pub(crate) use self::install::{
     disable_mod_op, enable_mod_op, install_host_pack_op, move_crimeboss_mod_target_op,
     uninstall_mod_op,
 };
-pub(crate) use self::naming::{hash_filename, pak_filename, strip_priority_prefix};
+pub(crate) use self::naming::{hash_filename, strip_priority_prefix, unit_filename};
 pub(crate) use self::paths::{active_mod_path, disabled_base, disabled_mod_path};
 pub(crate) use self::reorder::{
     move_mod_to_folder_op, reorder_children_op, reorder_mods_in_folder_op,
 };
-pub(crate) use self::state::save_state;
+pub(crate) use self::state::{save_state, STATE_FILENAME};
 pub(crate) use self::zip::{
     extract_archive_flat, extract_entry, extract_entry_into_crimeboss_skeleton_at,
-    extract_staged_dir, extract_staged_entry_with_sidecars, list_pak_entries, mark_archive_files,
+    extract_staged_dir, extract_staged_entry_with_sidecars, list_unit_entries, mark_archive_files,
     resolve_archive_download, InstallPrompt, ModContext, ResolveError,
 };
 
 // Re-exports needed only in test builds (suppressed in release to avoid unused-import warnings)
 #[cfg(test)]
 pub(crate) use self::crimeboss_settings::{
-    find_pak_in_dir, read_enabled_from_file, set_enabled_in_file, settings_id_from_pak_filename,
+    find_content_file_in_dir, read_enabled_from_file, set_enabled_in_file,
+    settings_id_from_pak_filename,
 };
 #[cfg(test)]
-pub(crate) use self::engine::{disabled_dir, mods_dir, EnabledStateMechanism};
+pub(crate) use self::engine::{disabled_dir, mods_dir, Activation};
 #[cfg(test)]
 pub(crate) use self::naming::{
     apply_priority_prefix, derive_content_segment, make_uid, mod_folder_name,
@@ -202,7 +203,7 @@ pub async fn get_installed(app: AppHandle, game_id: String) -> Result<InstalledR
     for (host_id, subpath, set_name, enabled, dir) in
         find_untracked_host_packs(&game_path, cfg, &state.mods, &state.folders)
     {
-        let sha256 = match hashable_file_for_mod_dir(&dir) {
+        let sha256 = match hashable_file_for_mod_dir(&dir, cfg.primary().contained_extension) {
             Some(p) => compute_sha256(&p).await.ok(),
             None => None,
         };
@@ -839,6 +840,7 @@ fn recover_dropped_mod_stem(
     tmp: &std::path::Path,
     zip_orig: Option<&std::path::Path>,
     fallback: &str,
+    content_extension: Option<&str>,
 ) -> String {
     if name_source == staged::NameSource::FromArchive {
         return tmp
@@ -848,7 +850,8 @@ fn recover_dropped_mod_stem(
             .unwrap_or_else(|| fallback.to_string());
     }
     zip_orig
-        .and_then(|orig| list_pak_entries(orig).ok())
+        .zip(content_extension)
+        .and_then(|(orig, extension)| list_unit_entries(orig, extension).ok())
         .and_then(|entries| match entries.as_slice() {
             [entry] => std::path::Path::new(entry)
                 .file_stem()
@@ -951,7 +954,13 @@ pub async fn install_dropped_file(
     };
     let _state_guard = lock_game_state(&app, game_id.as_str()).await;
     let target = cfg.target_for(location_tag.as_deref());
-    let display_stem = recover_dropped_mod_stem(name_source, &tmp, zip_orig.as_deref(), &file_stem);
+    let display_stem = recover_dropped_mod_stem(
+        name_source,
+        &tmp,
+        zip_orig.as_deref(),
+        &file_stem,
+        target.content_extension(),
+    );
 
     // Best-effort Nexus identification: only possible when the whole downloaded
     // archive is still available (zip_orig - a bare loose .pak drop has nothing
@@ -1148,7 +1157,8 @@ pub async fn install_from_zip_entry(
     // removes afterwards, and is None when the staged path is a bare temp file.
     let (ext, tmp_parent) = match decisions::entry_staging(cfg, target, cb_dir_entry) {
         decisions::EntryStaging::CrimeBossSkeleton => {
-            let skeleton_root = extract_entry_into_crimeboss_skeleton_at(&zip, &entry)?;
+            let skeleton_root =
+                extract_entry_into_crimeboss_skeleton_at(&zip, &entry, cfg.primary().companions)?;
             (skeleton_root.clone(), Some(skeleton_root))
         }
         decisions::EntryStaging::DirectoryUnderNewParent => {
@@ -1157,7 +1167,11 @@ pub async fn install_from_zip_entry(
             (p, Some(parent))
         }
         decisions::EntryStaging::SingleTempFile => {
-            let p = std::env::temp_dir().join(format!("modrex-mod-{}.pak", Uuid::new_v4()));
+            let p = std::env::temp_dir().join(format!(
+                "modrex-mod-{}.{}",
+                Uuid::new_v4(),
+                target.content_extension().unwrap_or("bin")
+            ));
             (p, None)
         }
     };
@@ -1170,7 +1184,7 @@ pub async fn install_from_zip_entry(
         match decisions::entry_extraction(cfg, target, cb_dir_entry) {
             decisions::EntryExtraction::DirEntry => extract_staged_dir(&zip, &entry, &ext)?,
             decisions::EntryExtraction::EntryWithSidecars => {
-                extract_staged_entry_with_sidecars(&zip, &entry, &ext)?
+                extract_staged_entry_with_sidecars(&zip, &entry, &ext, target.companions)?
             }
             decisions::EntryExtraction::AlreadyStaged => {}
         }
@@ -1230,7 +1244,10 @@ pub async fn install_from_zip_entry(
     // Keep the zip alive for multi-entry installs; only remove the extracted temp here.
     let entry_cleanup = match tmp_parent {
         Some(parent) => cleanup::CleanupPlan::RemoveOwnedDirectory(parent),
-        None => cleanup::CleanupPlan::RemoveOwnedFileWithSidecars(ext.clone()),
+        None => cleanup::CleanupPlan::RemoveOwnedFileWithSidecars {
+            path: ext.clone(),
+            companions: target.companions,
+        },
     };
     cleanup::run(&entry_cleanup).await;
     match &result {
@@ -1274,7 +1291,7 @@ pub async fn install_cb_flat_archive(
 
     let result = async {
         extract_archive_flat(&zip, &tmp_dir)?;
-        let hash_path = hashable_file_for_mod_dir(&tmp_dir)
+        let hash_path = hashable_file_for_mod_dir(&tmp_dir, cfg.primary().contained_extension)
             .ok_or_else(|| "mod directory is empty".to_string())?;
         let sha256 = compute_sha256(&hash_path).await?;
         let sp = get_state_path(&game_path, cfg);

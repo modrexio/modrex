@@ -1,5 +1,6 @@
 use crate::game_package::{
-    EnabledStateMechanism, GamePackage, SignalSource, Unit, DIESEL_INFRA_FOLDERS,
+    Activation, Discovery, GamePackage, LoadOrder, ModMetadata, NamePreset, NewsBinding,
+    SourceBinding, StoreBinding, Unit,
 };
 
 fn raid() -> &'static GamePackage {
@@ -52,20 +53,17 @@ fn every_package_id_is_usable_as_a_storage_key() {
 fn every_package_declares_a_short_name_distinct_from_its_display_name() {
     for (directory, pkg) in super::discovered() {
         assert!(!pkg.short_name.is_empty(), "{directory}");
-        assert!(
-            pkg.short_name.len() <= pkg.display_name.len(),
-            "{directory}"
-        );
+        assert!(pkg.short_name.len() <= pkg.name.len(), "{directory}");
     }
 }
 
 #[test]
 fn a_news_binding_carries_a_non_empty_category() {
     for (directory, pkg) in super::discovered() {
-        let Some(news) = pkg.news.as_ref() else {
-            continue;
-        };
-        assert!(!news.category_slug.is_empty(), "{directory}");
+        for feed in &pkg.news {
+            let NewsBinding::PaydayTheGame { category } = feed;
+            assert!(!category.is_empty(), "{directory}");
+        }
     }
 }
 
@@ -74,27 +72,17 @@ fn a_news_binding_carries_a_non_empty_category() {
 fn news_categories_are_unique() {
     let mut slugs: Vec<&str> = super::discovered()
         .iter()
-        .filter_map(|(_, pkg)| pkg.news.as_ref().map(|n| n.category_slug.as_str()))
+        .flat_map(|(_, pkg)| &pkg.news)
+        .map(|feed| {
+            let NewsBinding::PaydayTheGame { category } = feed;
+            category.as_str()
+        })
         .collect();
     let total = slugs.len();
     assert!(total > 0);
     slugs.sort_unstable();
     slugs.dedup();
     assert_eq!(slugs.len(), total);
-}
-
-/// The picker, the documentation tables and the index scheduler all read this order, and the
-/// scheduler breaks ties on it, so a shared position would make one game lose every tie.
-#[test]
-fn display_order_is_unique_across_packages() {
-    let mut orders: Vec<u16> = super::discovered()
-        .iter()
-        .map(|(_, pkg)| pkg.display_order)
-        .collect();
-    let total = orders.len();
-    orders.sort_unstable();
-    orders.dedup();
-    assert_eq!(orders.len(), total);
 }
 
 #[test]
@@ -115,11 +103,11 @@ fn the_catalogue_carries_nothing_machine_specific() {
 }
 
 #[test]
-fn the_catalogue_lists_every_discovered_package_in_display_order() {
+fn the_catalogue_lists_every_discovered_package_by_display_name() {
     let catalogue = super::catalog::catalog_typescript();
-    let mut expected: Vec<(u16, &str)> = super::discovered()
+    let mut expected: Vec<(&str, &str)> = super::discovered()
         .iter()
-        .map(|(_, pkg)| (pkg.display_order, pkg.id.as_str()))
+        .map(|(_, pkg)| (pkg.name.as_str(), pkg.id.as_str()))
         .collect();
     expected.sort_unstable();
 
@@ -158,30 +146,37 @@ fn the_catalogue_derives_each_game_from_its_package() {
             })
             .unwrap_or_else(|| panic!("{directory} is not in the catalogue"));
 
-        assert!(entry.contains(&format!("name: '{}'", pkg.display_name)));
+        assert!(entry.contains(&format!("name: '{}'", pkg.name)));
         assert!(entry.contains(&format!("shortName: '{}'", pkg.short_name)));
         assert!(entry.contains(&format!("storageKey: '{}'", pkg.id)));
-        assert!(entry.contains(&format!("hasNews: {}", pkg.news.is_some())));
+        assert!(entry.contains(&format!("hasNews: {}", !pkg.news.is_empty())));
 
-        let workshop = pkg
-            .sources
-            .modworkshop
-            .as_ref()
-            .expect("modworkshop binding");
-        assert!(entry.contains(&format!("workshopId: {}", workshop.game_id)));
-        match pkg.sources.nexus.as_ref() {
-            Some(nexus) => assert!(entry.contains(&format!("nexusDomain: '{}'", nexus.domain))),
+        let workshop = pkg.sources.iter().find_map(|binding| match binding {
+            SourceBinding::ModWorkshop { game_id } => Some(game_id),
+            SourceBinding::Nexus { .. } => None,
+        });
+        match workshop {
+            Some(game_id) => assert!(entry.contains(&format!("workshopId: {game_id}"))),
+            None => assert!(!entry.contains("workshopId")),
+        }
+        let nexus = pkg.sources.iter().find_map(|binding| match binding {
+            SourceBinding::Nexus { domain, .. } => Some(domain),
+            SourceBinding::ModWorkshop { .. } => None,
+        });
+        match nexus {
+            Some(domain) => assert!(entry.contains(&format!("nexusDomain: '{domain}'"))),
             None => assert!(!entry.contains("nexusDomain")),
         }
-        match pkg.installation.required_launch_flag.as_ref() {
+        match pkg.install.launch_flag.as_ref() {
             Some(flag) => assert!(entry.contains(&format!("requiredLaunchFlag: '{flag}'"))),
             None => assert!(!entry.contains("requiredLaunchFlag")),
         }
 
+        let has = |provider: &str| pkg.install.stores.iter().any(|s| s.provider() == provider);
         for (present, label) in [
-            (pkg.installation.steam.is_some(), "Steam"),
-            (pkg.installation.epic.is_some(), "Epic Games"),
-            (pkg.installation.xbox.is_some(), "Xbox App"),
+            (has("steam"), "Steam"),
+            (has("epic"), "Epic Games"),
+            (has("xbox"), "Xbox App"),
         ] {
             assert_eq!(
                 entry.contains(&format!("'{label}'")),
@@ -194,7 +189,7 @@ fn the_catalogue_derives_each_game_from_its_package() {
             assert!(entry.contains(&format!(
                 "{{ id: '{}', path: '{}' }}",
                 target.tag,
-                target.mods_subpath.join("/")
+                target.path.join("/")
             )));
         }
     }
@@ -213,13 +208,13 @@ fn catalogue_strings_are_escaped() {
 /// Decoded content installs into the named target, so a tag no target declares would stage
 /// into a location the scan never reads.
 #[test]
-fn every_input_decoder_names_a_declared_target() {
+fn every_decoder_names_a_declared_target() {
     for (directory, pkg) in super::discovered() {
-        for binding in &pkg.input_decoders {
+        for binding in &pkg.decoders {
             assert!(
-                pkg.targets.iter().any(|t| t.tag == binding.target_tag),
+                pkg.targets.iter().any(|t| t.tag == binding.target()),
                 "{directory} decodes into unknown target '{}'",
-                binding.target_tag
+                binding.target()
             );
         }
     }
@@ -255,22 +250,22 @@ fn an_unknown_target_field_is_rejected() {
 fn the_raid_package_declares_its_identity() {
     let pkg = raid();
     assert_eq!(pkg.id, "raid");
-    assert_eq!(pkg.display_name, "RAID: World War II");
-    assert_eq!(pkg.index_game_name, "RAID: World War II");
-    assert_eq!(pkg.state_filename, ".modrex.json");
-    assert_eq!(pkg.signals, SignalSource::Diesel);
+    assert_eq!(pkg.name, "RAID: World War II");
+    assert_eq!(pkg.mod_metadata, ModMetadata::Diesel);
 }
 
 #[test]
 fn the_raid_package_installs_from_steam_only() {
-    let installation = &raid().installation;
-    assert_eq!(installation.executables, ["raid_win64_release.exe"]);
-    assert_eq!(installation.process_names, ["raid_win64_release"]);
-    let steam = installation.steam.as_ref().expect("raid ships on steam");
-    assert_eq!(steam.app_id, 414740);
-    assert_eq!(steam.folder_name, "RAID World War II");
-    assert!(installation.epic.is_none());
-    assert!(installation.xbox.is_none());
+    let install = &raid().install;
+    assert_eq!(install.executables, ["raid_win64_release.exe"]);
+    assert_eq!(install.processes, ["raid_win64_release"]);
+    assert_eq!(
+        install.stores,
+        [StoreBinding::Steam {
+            app_id: 414740,
+            folder: "RAID World War II".to_string(),
+        }]
+    );
 }
 
 #[test]
@@ -279,25 +274,21 @@ fn the_raid_package_has_one_blanket_accept_target() {
     assert_eq!(pkg.targets.len(), 1);
     let target = &pkg.targets[0];
     assert_eq!(target.tag, "mods");
-    assert_eq!(target.label_key, "mods");
-    assert_eq!(target.enabled_state, EnabledStateMechanism::Filesystem);
-    assert_eq!(target.mods_subpath, ["mods"]);
-    assert_eq!(target.disabled_subpath, ["mods", "disabled"]);
-    assert_eq!(target.backup_subpath, ["mods.bak"]);
+    assert!(target.primary);
+    assert_eq!(target.activation, Activation::Filesystem);
+    assert_eq!(target.load_order, LoadOrder::None);
+    assert_eq!(target.path, ["mods"]);
+    assert_eq!(target.backup, ["mods.bak"]);
 
     let Unit::Directory {
-        entry_markers,
-        scan_markers,
-        index_gated_markers,
-        excluded_names,
-        priority_prefix,
+        discovery,
+        ignore_preset,
+        contains,
     } = &target.unit
     else {
         panic!("raid installs mods as directories");
     };
-    assert!(entry_markers.is_empty());
-    assert!(scan_markers.is_empty());
-    assert!(index_gated_markers.is_empty());
-    assert_eq!(*excluded_names, DIESEL_INFRA_FOLDERS);
-    assert!(!priority_prefix);
+    assert_eq!(*discovery, Discovery::AllDirectories);
+    assert_eq!(*ignore_preset, Some(NamePreset::DieselInfra));
+    assert!(contains.is_none());
 }

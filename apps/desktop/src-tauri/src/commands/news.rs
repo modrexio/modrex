@@ -34,8 +34,11 @@ fn category_slug(game_id: &str) -> Option<&'static str> {
     crate::games::discovered()
         .iter()
         .find(|(id, _)| *id == game_id)
-        .and_then(|(_, pkg)| pkg.news.as_ref())
-        .map(|news| news.category_slug.as_str())
+        .and_then(|(_, pkg)| {
+            pkg.news.first().map(|feed| match feed {
+                crate::game_package::NewsBinding::PaydayTheGame { category } => category.as_str(),
+            })
+        })
 }
 
 fn no_news(game_id: &str) -> String {
@@ -43,7 +46,7 @@ fn no_news(game_id: &str) -> String {
         .iter()
         .find(|(id, _)| *id == game_id)
     {
-        Some((_, pkg)) => format!("{} has no official news source", pkg.display_name),
+        Some((_, pkg)) => format!("{} has no official news source", pkg.name),
         None => format!("unknown game '{game_id}'"),
     }
 }

@@ -1,4 +1,4 @@
-use crate::game_package::{GamePackage, Storefront};
+use crate::game_package::{GamePackage, SourceBinding, StoreBinding, Storefront};
 use std::fmt::Write as _;
 
 /// Relative to the crate root, which is the directory cargo runs a test binary from.
@@ -19,7 +19,7 @@ fn launcher_name(storefront: Storefront) -> &'static str {
 
 fn ordered_packages() -> Vec<&'static GamePackage> {
     let mut packages: Vec<&GamePackage> = super::discovered().iter().map(|(_, pkg)| pkg).collect();
-    packages.sort_by_key(|pkg| pkg.display_order);
+    packages.sort_by(|left, right| left.name.cmp(&right.name));
     packages
 }
 
@@ -30,49 +30,54 @@ pub fn quote_for_test(value: &str) -> String {
 
 pub fn catalog_typescript() -> String {
     let mut out = String::from(
-        "// Generated from apps/desktop/src-tauri/src/games/<id>/package.rs. Do not edit.\n\n\
-         import type { GameSpec } from './types'\n\n\
+        "// Generated from apps/desktop/src-tauri/src/games/<id>/package.toml. Do not edit.\n\n\
+         import type { GameSpec } from './types.js'\n\n\
          export const GAME_SPECS = {\n",
     );
 
     for pkg in ordered_packages() {
-        let workshop_id = pkg
-            .sources
-            .modworkshop
-            .as_ref()
-            .map(|binding| {
-                binding
-                    .game_id
-                    .parse::<u64>()
-                    .unwrap_or_else(|_| panic!("{}: modworkshop id is not numeric", pkg.id))
-            })
-            .unwrap_or_else(|| panic!("{}: no modworkshop binding", pkg.id));
+        // A game reaches modworkshop by declaring a binding. Without one the field is absent
+        // rather than zero, so the renderer cannot mistake "not listed there" for an id.
+        let workshop_id = pkg.sources.iter().find_map(|binding| match binding {
+            SourceBinding::ModWorkshop { game_id } => game_id.parse::<u64>().ok(),
+            SourceBinding::Nexus { .. } => None,
+        });
 
         let _ = writeln!(out, "    {}: {{", pkg.id);
-        let _ = writeln!(out, "        name: {},", quote(&pkg.display_name));
+        let _ = writeln!(out, "        name: {},", quote(&pkg.name));
         let _ = writeln!(out, "        shortName: {},", quote(&pkg.short_name));
-        let _ = writeln!(out, "        workshopId: {workshop_id},");
-        if let Some(nexus) = pkg.sources.nexus.as_ref() {
-            let _ = writeln!(out, "        nexusDomain: {},", quote(&nexus.domain));
+        if let Some(id) = workshop_id {
+            let _ = writeln!(out, "        workshopId: {id},");
+        }
+        let nexus_domain = pkg.sources.iter().find_map(|binding| match binding {
+            SourceBinding::Nexus { domain, .. } => Some(domain),
+            SourceBinding::ModWorkshop { .. } => None,
+        });
+        if let Some(domain) = nexus_domain {
+            let _ = writeln!(out, "        nexusDomain: {},", quote(domain));
         }
         let _ = writeln!(out, "        storageKey: {},", quote(&pkg.id));
-        let _ = writeln!(out, "        hasNews: {},", pkg.news.is_some());
-        if let Some(flag) = pkg.installation.required_launch_flag.as_ref() {
+        let _ = writeln!(out, "        hasNews: {},", !pkg.news.is_empty());
+        if let Some(flag) = pkg.install.launch_flag.as_ref() {
             let _ = writeln!(out, "        requiredLaunchFlag: {},", quote(flag));
         }
 
-        let launchers: Vec<String> = [
-            pkg.installation
-                .steam
-                .is_some()
-                .then_some(Storefront::Steam),
-            pkg.installation.epic.is_some().then_some(Storefront::Epic),
-            pkg.installation.xbox.is_some().then_some(Storefront::Xbox),
-        ]
-        .into_iter()
-        .flatten()
-        .map(|storefront| quote(launcher_name(storefront)))
-        .collect();
+        // Listed in a fixed order so the catalogue does not change when a manifest lists its
+        // stores in another order.
+        let launchers: Vec<String> = [Storefront::Steam, Storefront::Epic, Storefront::Xbox]
+            .into_iter()
+            .filter(|wanted| {
+                pkg.install.stores.iter().any(|store| {
+                    matches!(
+                        (store, wanted),
+                        (StoreBinding::Steam { .. }, Storefront::Steam)
+                            | (StoreBinding::Epic { .. }, Storefront::Epic)
+                            | (StoreBinding::Xbox { .. }, Storefront::Xbox)
+                    )
+                })
+            })
+            .map(|storefront| quote(launcher_name(storefront)))
+            .collect();
         let _ = writeln!(out, "        launchers: [{}],", launchers.join(", "));
 
         let _ = writeln!(out, "        modTargets: [");
@@ -81,7 +86,7 @@ pub fn catalog_typescript() -> String {
                 out,
                 "            {{ id: {}, path: {} }},",
                 quote(&target.tag),
-                quote(&target.mods_subpath.join("/"))
+                quote(&target.path.join("/"))
             );
         }
         let _ = writeln!(out, "        ],");

@@ -244,10 +244,10 @@ async fn scan_active(
             format!("{}/{}", prefix, name)
         };
         match &target.unit {
-            ModUnit::File { .. } => {
+            ModUnit::File { extension, .. } => {
                 if ft.is_dir() {
                     subdirs.push((entry.path(), rel));
-                } else if name.ends_with(".pak") && !known.contains(&rel) {
+                } else if name.ends_with(&format!(".{extension}")) && !known.contains(&rel) {
                     out.push((rel, true));
                 }
             }
@@ -304,15 +304,22 @@ async fn scan_disabled(
             format!("{}/{}", prefix, name)
         };
         match &target.unit {
-            ModUnit::File { .. } => {
+            ModUnit::File {
+                extension,
+                disabled_suffix,
+                ..
+            } => {
                 if ft.is_dir() {
                     subdirs.push((entry.path(), sub));
-                } else if name.ends_with(".pak.disabled") {
-                    let pak = name.trim_end_matches(".disabled").to_string();
+                } else if name.ends_with(&format!(".{extension}{disabled_suffix}")) {
+                    let active = name
+                        .strip_suffix(disabled_suffix)
+                        .expect("the suffix matched above")
+                        .to_string();
                     let rel = if prefix.is_empty() {
-                        pak.clone()
+                        active.clone()
                     } else {
-                        format!("{}/{}", prefix, pak)
+                        format!("{}/{}", prefix, active)
                     };
                     if !known.contains(&rel) {
                         out.push((rel, false));

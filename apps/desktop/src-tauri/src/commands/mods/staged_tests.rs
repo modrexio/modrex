@@ -38,7 +38,7 @@ fn loose_file(dir: &TempDir, name: &str) -> PathBuf {
 fn named(plan: &CleanupPlan) -> &Path {
     match plan {
         CleanupPlan::RemoveOwnedDirectory(p)
-        | CleanupPlan::RemoveOwnedFileWithSidecars(p)
+        | CleanupPlan::RemoveOwnedFileWithSidecars { path: p, .. }
         | CleanupPlan::RemoveOwnedFile(p) => p,
     }
 }
@@ -55,7 +55,8 @@ fn assert_owns_a_real_artifact(staged: &Staged) {
     );
     match &staged.cleanup {
         CleanupPlan::RemoveOwnedDirectory(p) => assert!(p.is_dir(), "{p:?} is not a directory"),
-        CleanupPlan::RemoveOwnedFileWithSidecars(p) | CleanupPlan::RemoveOwnedFile(p) => {
+        CleanupPlan::RemoveOwnedFileWithSidecars { path: p, .. }
+        | CleanupPlan::RemoveOwnedFile(p) => {
             assert!(p.is_file(), "{p:?} is not a file")
         }
     }
@@ -91,7 +92,10 @@ fn a_single_pak_archive_stages_a_file_for_a_file_unit_game() {
     assert_eq!(staged.original_archive.as_deref(), Some(zip.path()));
     assert_eq!(
         staged.cleanup,
-        CleanupPlan::RemoveOwnedFileWithSidecars(staged.root.clone())
+        CleanupPlan::RemoveOwnedFileWithSidecars {
+            path: staged.root.clone(),
+            companions: &["ucas", "utoc"],
+        }
     );
     assert_owns_a_real_artifact(&staged);
     assert_never_names_a_protected_root(&staged);
@@ -181,7 +185,10 @@ fn a_loose_non_archive_owns_exactly_the_downloaded_file() {
         assert_eq!(staged.root, downloaded, "{game}");
         assert_eq!(
             staged.cleanup,
-            CleanupPlan::RemoveOwnedFileWithSidecars(downloaded.clone()),
+            CleanupPlan::RemoveOwnedFileWithSidecars {
+                path: downloaded.clone(),
+                companions: cfg(game).primary().companions,
+            },
             "{game} must own exactly the downloaded file"
         );
         assert_eq!(staged.name_source, expected_name, "{game}");
@@ -215,7 +222,10 @@ fn a_dropped_copy_is_owned_and_the_users_original_is_not() {
         resolve_archive_download(copy.clone(), cfg("pd2"), &StagingRegistry::new()).unwrap();
     assert_eq!(
         staged.cleanup,
-        CleanupPlan::RemoveOwnedFileWithSidecars(copy)
+        CleanupPlan::RemoveOwnedFileWithSidecars {
+            path: copy,
+            companions: cfg("pd2").primary().companions,
+        }
     );
     assert_ne!(named(&staged.cleanup), users_file);
     assert!(users_file.exists());
@@ -236,6 +246,7 @@ fn stem_recovery_follows_the_staged_name_source() {
             Path::new("irrelevant-for-this-branch"),
             Some(zip.path()),
             "download-manager name",
+            Some("pak"),
         ),
         "abkarino_RinoHud_P"
     );
@@ -247,6 +258,7 @@ fn stem_recovery_follows_the_staged_name_source() {
             Path::new("/tmp/modrex-mod-abc123/Welrod"),
             None,
             "fallback should not be used",
+            Some("pak"),
         ),
         "Welrod"
     );
@@ -262,6 +274,7 @@ fn stem_recovery_falls_back_when_the_archive_cannot_name_the_mod() {
                 Path::new("irrelevant-for-this-branch"),
                 orig,
                 "Foo",
+                Some("pak"),
             ),
             "Foo"
         );
@@ -477,6 +490,7 @@ fn sidecars_follow_the_identified_entry() {
         zip.path(),
         &file_entry(0, "Right/Mod.pak"),
         &dest,
+        &["ucas", "utoc"],
     )
     .unwrap();
     assert_eq!(std::fs::read(&dest).unwrap(), b"right pak");

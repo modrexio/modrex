@@ -562,7 +562,8 @@ fn pick_counts_mods_hidden_in_a_backup() {
     let xbox = TempDir::new().unwrap();
     let steam_path = make_pd3_copy(steam.path(), 0);
     let xbox_path = make_bare_pd3_copy(xbox.path());
-    let backup = backup_dir(&xbox_path, pd3_engine().primary()).join(pd3_engine().state_filename);
+    let backup =
+        backup_dir(&xbox_path, pd3_engine().primary()).join(crate::commands::mods::STATE_FILENAME);
     std::fs::create_dir_all(backup.parent().unwrap()).unwrap();
     save_state(
         &backup,

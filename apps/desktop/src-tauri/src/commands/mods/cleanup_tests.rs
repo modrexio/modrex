@@ -94,7 +94,10 @@ fn loose_staged_file_removes_only_that_file() {
         let staged = fx.staged_file(name);
         run_plan(
             fx.path(),
-            &CleanupPlan::RemoveOwnedFileWithSidecars(staged.clone()),
+            &CleanupPlan::RemoveOwnedFileWithSidecars {
+                path: staged.clone(),
+                companions: &["ucas", "utoc"],
+            },
         );
         assert!(!staged.exists(), "{name} should be gone");
         fx.sentinels_survive();
@@ -110,7 +113,10 @@ fn file_cleanup_takes_known_sidecars_and_nothing_else() {
     let unrelated = fx.staged_file("modrex-mod-abc.txt");
     run_plan(
         fx.path(),
-        &CleanupPlan::RemoveOwnedFileWithSidecars(staged.clone()),
+        &CleanupPlan::RemoveOwnedFileWithSidecars {
+            path: staged.clone(),
+            companions: &["ucas", "utoc"],
+        },
     );
     assert!(!staged.exists() && !ucas.exists() && !utoc.exists());
     assert!(unrelated.exists(), "unknown extension must be left alone");
@@ -215,7 +221,10 @@ fn a_user_selected_file_and_its_parent_are_rejected() {
 
     run_plan(
         fx.path(),
-        &CleanupPlan::RemoveOwnedFileWithSidecars(users_file.clone()),
+        &CleanupPlan::RemoveOwnedFileWithSidecars {
+            path: users_file.clone(),
+            companions: &["ucas", "utoc"],
+        },
     );
     run_plan(
         fx.path(),
@@ -321,7 +330,10 @@ fn non_archive_resolution_owns_the_downloaded_file_for_every_game() {
             .cleanup;
         assert_eq!(
             plan,
-            CleanupPlan::RemoveOwnedFileWithSidecars(downloaded.clone()),
+            CleanupPlan::RemoveOwnedFileWithSidecars {
+                path: downloaded.clone(),
+                companions: cfg.primary().companions,
+            },
             "{} must own exactly the downloaded file",
             cfg.game_id
         );
@@ -348,7 +360,7 @@ fn no_resolver_shape_selects_the_staging_root() {
             .cleanup;
         let named = match &plan {
             CleanupPlan::RemoveOwnedDirectory(p)
-            | CleanupPlan::RemoveOwnedFileWithSidecars(p)
+            | CleanupPlan::RemoveOwnedFileWithSidecars { path: p, .. }
             | CleanupPlan::RemoveOwnedFile(p) => p.clone(),
         };
         assert_ne!(
@@ -415,7 +427,10 @@ fn staged_release_without_an_archive_touches_only_the_staged_artifact() {
 
     run_staged_plan(
         fx.path(),
-        &CleanupPlan::RemoveOwnedFileWithSidecars(staged.clone()),
+        &CleanupPlan::RemoveOwnedFileWithSidecars {
+            path: staged.clone(),
+            companions: &["ucas", "utoc"],
+        },
         None,
     );
     assert!(!staged.exists());
