@@ -882,6 +882,15 @@ fn apply_nexus_archive_identity(
     entry.file_id = Some(m.file_id as i64);
 }
 
+/// The dropped file's name without the directory it came from, which is normally inside the
+/// user's profile and reaches logs that are attached to public bug reports.
+fn dropped_file_name(path: &str) -> &str {
+    std::path::Path::new(path)
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or(path)
+}
+
 /// Installs a mod from a local file the user dropped onto the window (Explorer drag-drop).
 /// The file carries no modworkshop identity, so it is installed as an unidentified entry
 /// (negative id, "unknown" version) exactly like an ambiently-discovered pak; get_installed's
@@ -946,7 +955,7 @@ pub async fn install_dropped_file(
         }
         Err(ResolveError::Failure(e)) => {
             cleanup::run(&cleanup::CleanupPlan::RemoveOwnedFile(temp.clone())).await;
-            log::warn!("install_dropped_file {path}: {e}");
+            log::warn!("install_dropped_file {}: {e}", dropped_file_name(&path));
             return Err(e);
         }
 
@@ -1044,7 +1053,7 @@ pub async fn install_dropped_file(
 
     match &result {
         Ok(_) => track_mod_installed(&app, game_id.as_str(), -1, "local"),
-        Err(e) => log::warn!("install_dropped_file {path}: {e}"),
+        Err(e) => log::warn!("install_dropped_file {}: {e}", dropped_file_name(&path)),
     }
     result.map(|()| InstallOutcome::Installed)
 }

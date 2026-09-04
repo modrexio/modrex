@@ -35,6 +35,16 @@ fn game_def_for_id(game_id: &str) -> Result<&'static GameDef, String> {
         .ok_or_else(|| format!("unknown game id '{game_id}'"))
 }
 
+/// The install folder alone, which is the game's own directory name rather than anything about
+/// the user. Logs are attached to public bug reports, and a full game path carries the account
+/// name on Linux and on any relocated library.
+fn install_folder(path: &str) -> &str {
+    std::path::Path::new(path)
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or(path)
+}
+
 // A stalled find_game leaves no trace in Modrex.log without the probe line before it.
 fn probe_installs(game: &'static GameDef) -> Vec<DetectedInstall> {
     let mut found = Vec::new();
@@ -44,7 +54,12 @@ fn probe_installs(game: &'static GameDef) -> Vec<DetectedInstall> {
         }
         log::info!("probing {} for {}", launcher.id(), game.name);
         if let Some(game_path) = launcher.find_game(game) {
-            log::info!("found {} via {}: {game_path}", game.name, launcher.id());
+            log::info!(
+                "found {} via {} in {}",
+                game.name,
+                launcher.id(),
+                install_folder(&game_path)
+            );
             found.push(DetectedInstall {
                 launcher: launcher.id().to_string(),
                 game_path,
@@ -63,7 +78,12 @@ fn probe_one(game: &'static GameDef, launcher_id: &str) -> Option<String> {
     }
     log::info!("probing {} for {}", launcher.id(), game.name);
     let path = launcher.find_game(game)?;
-    log::info!("found {} via {}: {path}", game.name, launcher.id());
+    log::info!(
+        "found {} via {} in {}",
+        game.name,
+        launcher.id(),
+        install_folder(&path)
+    );
     Some(path)
 }
 

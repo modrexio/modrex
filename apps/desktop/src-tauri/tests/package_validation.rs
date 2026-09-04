@@ -437,7 +437,7 @@ fn the_documented_starter_manifest_is_valid() {
     validate::check("example", &package).expect("the starter manifest validates");
 }
 
-const KEY: &str = "27DFBADBB537388ACDE27A7C5F3EBC3721AF0AE0A7602D2D7F8A16548F37D394";
+const KEY: &str = "0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF";
 
 /// package_reader is a root key, and BASE ends inside a nested table, so it has to go in
 /// before the first section header rather than being appended.
@@ -478,7 +478,7 @@ fn a_package_without_a_reader_declares_none_rather_than_a_default() {
 #[test]
 fn a_key_of_the_wrong_length_is_rejected() {
     assert_rejected(
-        &with_reader("package_reader = { format = \"unreal\", aes_key = \"27DFBADB\" }"),
+        &with_reader("package_reader = { format = \"unreal\", aes_key = \"0123456789\" }"),
         "64 hexadecimal characters",
     );
 }

@@ -186,9 +186,8 @@ pub fn extract_pdmod(path: &Path, dest_dir: &Path) -> Result<(), String> {
     }
 
     log::info!(
-        "pdmod: extracted {extracted}/{} entries to {}",
-        manifest.item_queue.len(),
-        dest_dir.display()
+        "pdmod: extracted {extracted}/{} entries",
+        manifest.item_queue.len()
     );
     Ok(())
 }
