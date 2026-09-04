@@ -44,7 +44,8 @@ function makeMod(id: number): ModSummary {
 
 const PICKER_OUTCOME_FOR_MOD_1 = {
     needsPicker: {
-        zipPath: '/tmp/archive.zip',
+        archiveHandle: 'handle-abc',
+        entryIds: [0],
         entries: ['VariantA.pak', 'VariantB.pak'],
         targetTag: null,
         modId: 1,
@@ -71,7 +72,7 @@ beforeEach(async () => {
         api: {
             installMod: mockInstallMod,
             installFromZipEntry: mockInstallFromZipEntry,
-            deleteTempFile: mockDeleteTempFile,
+            discardStagedArchive: mockDeleteTempFile,
         },
     }))
 

@@ -1,10 +1,8 @@
 use super::crimeboss_settings;
-use super::engine::{ModEngineConfig, ModUnit, ScanTarget};
+use super::engine::{Activation, ModEngineConfig, ModUnit, ScanTarget};
 use super::host_mods::{host_target_by_id, parse_host_location};
-use super::naming::{
-    apply_priority_prefix, mod_folder_name, sidecar_path, strip_priority_prefix,
-    PAK_SIDECAR_EXTENSIONS,
-};
+use super::naming::log_name;
+use super::naming::{apply_priority_prefix, mod_folder_name, sidecar_path, strip_priority_prefix};
 use super::paths::{
     active_mod_path, disabled_base, disabled_mod_path, host_pack_dir, host_pack_disabled_dir,
     mods_base, resolve_host_mod_dir,
@@ -141,7 +139,7 @@ pub fn install_mod_from_path(
     let dest = active_mod_path(game_path, &filename, folder_rel.as_deref(), target);
     match &target.unit {
         ModUnit::File { extension, .. } => {
-            copy_file_with_sidecars(source, &dest, extension)?;
+            copy_file_with_sidecars(source, &dest, extension, target.companions)?;
         }
         ModUnit::Directory { .. } => {
             copy_dir_all(source, &dest)?;
@@ -159,13 +157,13 @@ pub fn install_mod_from_path(
         if old != new_active && old.exists() {
             match &target.unit {
                 ModUnit::File { extension, .. } => {
-                    if let Err(e) = remove_file_with_sidecars(&old, extension) {
-                        log::warn!("install: remove old pak {old:?}: {e}");
+                    if let Err(e) = remove_file_with_sidecars(&old, extension, target.companions) {
+                        log::warn!("install: remove old pak {}: {e}", log_name(&old));
                     }
                 }
                 ModUnit::Directory { .. } => {
                     if let Err(e) = fs::remove_dir_all(&old) {
-                        log::warn!("install: remove old mod dir {old:?}: {e}");
+                        log::warn!("install: remove old mod dir {}: {e}", log_name(&old));
                     }
                 }
             }
@@ -253,25 +251,25 @@ pub fn move_crimeboss_mod_target_op(
     // skeleton to a flat pak or wrapping a flat pak into one, so install_mod_from_path can
     // write it exactly like a normal install.
     let (source, new_filename, tmp_root) = match (&old_target.unit, &new_target.unit) {
-        (ModUnit::Directory { .. }, ModUnit::File { .. }) => {
+        (ModUnit::Directory { .. }, ModUnit::File { extension, .. }) => {
             let pak_dir = old_path
                 .join("Content")
                 .join("Paks")
                 .join("WindowsNoEditor");
-            let pak = crimeboss_settings::find_pak_in_dir(&pak_dir)
-                .ok_or_else(|| "no .pak found inside this mod's folder".to_string())?;
+            let pak = crimeboss_settings::find_content_file_in_dir(&pak_dir, extension)
+                .ok_or_else(|| format!("no .{extension} found inside this mod's folder"))?;
             let filename = pak
                 .file_name()
                 .and_then(|s| s.to_str())
-                .unwrap_or("mod.pak")
+                .ok_or_else(|| "that mod's file has no usable name".to_string())?
                 .to_string();
             let tmp_root = std::env::temp_dir().join(format!("modrex-move-{}", Uuid::new_v4()));
             fs::create_dir_all(&tmp_root).map_err(|e| e.to_string())?;
             let dest = tmp_root.join(&filename);
-            copy_file_with_sidecars(&pak, &dest, "pak")?;
+            copy_file_with_sidecars(&pak, &dest, extension, new_target.companions)?;
             (dest, filename, tmp_root)
         }
-        (ModUnit::File { .. }, ModUnit::Directory { .. }) => {
+        (ModUnit::File { extension, .. }, ModUnit::Directory { .. }) => {
             let canonical = strip_priority_prefix(&m.filename).to_string();
             let tmp_root = std::env::temp_dir().join(format!("modrex-move-{}", Uuid::new_v4()));
             let skeleton_dir = tmp_root
@@ -279,7 +277,12 @@ pub fn move_crimeboss_mod_target_op(
                 .join("Paks")
                 .join("WindowsNoEditor");
             fs::create_dir_all(&skeleton_dir).map_err(|e| e.to_string())?;
-            copy_file_with_sidecars(&old_path, &skeleton_dir.join(&canonical), "pak")?;
+            copy_file_with_sidecars(
+                &old_path,
+                &skeleton_dir.join(&canonical),
+                extension,
+                old_target.companions,
+            )?;
             (tmp_root.clone(), mod_folder_name(&m.name), tmp_root)
         }
         _ => return Err("unsupported target shapes for this move".to_string()),
@@ -312,7 +315,7 @@ pub fn move_crimeboss_mod_target_op(
     // real old location, under the old target's directory, is removed here instead.
     match &old_target.unit {
         ModUnit::File { extension, .. } => {
-            let _ = remove_file_with_sidecars(&old_path, extension);
+            let _ = remove_file_with_sidecars(&old_path, extension, old_target.companions);
         }
         ModUnit::Directory { .. } => {
             let _ = fs::remove_dir_all(&old_path);
@@ -357,13 +360,13 @@ pub fn uninstall_mod_op(game_path: &str, state_path: &Path, uid: &str, cfg: &Mod
     if path.exists() {
         match &target.unit {
             ModUnit::File { extension, .. } => {
-                if let Err(e) = remove_file_with_sidecars(&path, extension) {
-                    log::warn!("uninstall: remove {path:?}: {e}");
+                if let Err(e) = remove_file_with_sidecars(&path, extension, target.companions) {
+                    log::warn!("uninstall: remove {}: {e}", log_name(&path));
                 }
             }
             ModUnit::Directory { .. } => {
                 if let Err(e) = fs::remove_dir_all(&path) {
-                    log::warn!("uninstall: remove dir {path:?}: {e}");
+                    log::warn!("uninstall: remove dir {}: {e}", log_name(&path));
                 }
             }
         }
@@ -395,10 +398,7 @@ pub fn enable_mod_op(
         return;
     }
     let target = cfg.target_for(m.location.as_deref());
-    // UE4SS reads a central mods.txt to decide which Mods/ folders load, and moving the
-    // folder itself has no effect (confirmed against the real format: see ue4ss_modstxt.rs), so
-    // enabling here only edits that file, leaving the sub-mod's files exactly where they are.
-    if target.tag == "ue4ss_mods" {
+    if target.enabled_state == Activation::Ue4ssModsTxt {
         let mods_txt = mods_base(game_path, target).join("mods.txt");
         ue4ss_modstxt::sync_enabled(&mods_txt, &m.filename, true);
         for m in state.mods.iter_mut() {
@@ -427,7 +427,9 @@ pub fn enable_mod_op(
     }
     if from.exists() {
         let renamed = match &target.unit {
-            ModUnit::File { extension, .. } => rename_with_sidecars(&from, &to, extension),
+            ModUnit::File { extension, .. } => {
+                rename_with_sidecars(&from, &to, extension, target.companions)
+            }
             ModUnit::Directory { .. } => fs::rename(&from, &to),
         };
         if let Err(e) = renamed {
@@ -501,7 +503,7 @@ pub fn disable_mod_op(
         return;
     }
     let target = cfg.target_for(m.location.as_deref());
-    if target.tag == "ue4ss_mods" {
+    if target.enabled_state == Activation::Ue4ssModsTxt {
         let mods_txt = mods_base(game_path, target).join("mods.txt");
         ue4ss_modstxt::sync_enabled(&mods_txt, &m.filename, false);
         for m in state.mods.iter_mut() {
@@ -518,7 +520,7 @@ pub fn disable_mod_op(
         None => disabled_base(game_path, target),
     };
     if let Err(e) = fs::create_dir_all(&dis_dir) {
-        log::warn!("disable_mod: create_dir_all {dis_dir:?}: {e}");
+        log::warn!("disable_mod: create_dir_all failed: {e}");
     }
     let from = active_mod_path(game_path, &m.filename, rel.as_deref(), target);
     let to = disabled_mod_path(game_path, &m.filename, rel.as_deref(), target);
@@ -528,7 +530,9 @@ pub fn disable_mod_op(
     }
     if from.exists() {
         let renamed = match &target.unit {
-            ModUnit::File { extension, .. } => rename_with_sidecars(&from, &to, extension),
+            ModUnit::File { extension, .. } => {
+                rename_with_sidecars(&from, &to, extension, target.companions)
+            }
             ModUnit::Directory { .. } => fs::rename(&from, &to),
         };
         if let Err(e) = renamed {
@@ -543,11 +547,16 @@ pub fn disable_mod_op(
     save_state(state_path, &state);
 }
 
-/// Copies src to dest, plus any .ucas and .utoc siblings sharing src's stem, to the matching
-/// siblings of dest. A missing sidecar is not an error.
-fn copy_file_with_sidecars(src: &Path, dest: &Path, main_ext: &str) -> Result<(), String> {
+/// Copies src to dest, plus any companion siblings sharing src's stem, to the matching
+/// siblings of dest. A missing companion is not an error.
+fn copy_file_with_sidecars(
+    src: &Path,
+    dest: &Path,
+    main_ext: &str,
+    companions: &[&str],
+) -> Result<(), String> {
     fs::copy(src, dest).map_err(|e| e.to_string())?;
-    for ext in PAK_SIDECAR_EXTENSIONS {
+    for ext in companions {
         let Some(sidecar) = sidecar_path(src, main_ext, ext) else {
             continue;
         };
@@ -560,11 +569,16 @@ fn copy_file_with_sidecars(src: &Path, dest: &Path, main_ext: &str) -> Result<()
     Ok(())
 }
 
-/// Renames from to to, plus any .ucas and .utoc siblings of from to the matching siblings of
-/// to. Used for enable and disable, which move a mod between active and disabled directories.
-fn rename_with_sidecars(from: &Path, to: &Path, main_ext: &str) -> std::io::Result<()> {
+/// Renames from to to, plus any companion siblings of from to the matching siblings of to.
+/// Used for enable and disable, which move a mod between active and disabled directories.
+fn rename_with_sidecars(
+    from: &Path,
+    to: &Path,
+    main_ext: &str,
+    companions: &[&str],
+) -> std::io::Result<()> {
     fs::rename(from, to)?;
-    for ext in PAK_SIDECAR_EXTENSIONS {
+    for ext in companions {
         let Some(sidecar) = sidecar_path(from, main_ext, ext) else {
             continue;
         };
@@ -577,10 +591,14 @@ fn rename_with_sidecars(from: &Path, to: &Path, main_ext: &str) -> std::io::Resu
     Ok(())
 }
 
-/// Removes path, plus any .ucas and .utoc siblings sharing its stem.
-fn remove_file_with_sidecars(path: &Path, main_ext: &str) -> std::io::Result<()> {
+/// Removes path, plus any companion siblings sharing its stem.
+fn remove_file_with_sidecars(
+    path: &Path,
+    main_ext: &str,
+    companions: &[&str],
+) -> std::io::Result<()> {
     fs::remove_file(path)?;
-    for ext in PAK_SIDECAR_EXTENSIONS {
+    for ext in companions {
         let Some(sidecar) = sidecar_path(path, main_ext, ext) else {
             continue;
         };

@@ -161,7 +161,7 @@ fn prepare_for_game_launch_blocking() -> Option<SisrLaunchIssue> {
     {
         Ok(child) => child,
         Err(error) => {
-            log::warn!("failed to start SISR from {executable:?}: {error}");
+            log::warn!("failed to start SISR: {error}");
             return Some(SisrLaunchIssue::StartFailed);
         }
     };
@@ -169,7 +169,7 @@ fn prepare_for_game_launch_blocking() -> Option<SisrLaunchIssue> {
     let deadline = Instant::now() + START_TIMEOUT;
     while Instant::now() < deadline {
         if TcpStream::connect_timeout(&api_address, START_POLL_INTERVAL).is_ok() {
-            log::info!("started SISR from {executable:?}");
+            log::info!("started SISR");
             return (!setup_complete).then_some(SisrLaunchIssue::SetupRequired);
         }
         match child.try_wait() {

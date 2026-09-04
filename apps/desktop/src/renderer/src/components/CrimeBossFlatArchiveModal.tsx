@@ -5,7 +5,7 @@ import { t } from '../i18n'
 import { api } from '../api'
 
 export interface CbFlatArchivePayload {
-    zipPath: string
+    archiveHandle: string
     modId: number
     modName: string
     fileId: number
@@ -41,7 +41,7 @@ export function CrimeBossFlatArchiveModal({
         setError(null)
         try {
             await api.installCbFlatArchive(
-                payload.zipPath,
+                payload.archiveHandle,
                 payload.modId,
                 payload.modName,
                 payload.fileId,
@@ -60,7 +60,7 @@ export function CrimeBossFlatArchiveModal({
 
     async function handleCancel() {
         if (busy) return
-        await api.deleteTempFile(payload.zipPath)
+        await api.discardStagedArchive(payload.archiveHandle)
         onClose()
     }
 

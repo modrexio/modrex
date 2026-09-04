@@ -1,4 +1,6 @@
+mod cleanup;
 mod crimeboss_settings;
+mod decisions;
 mod diesel_signals;
 mod engine;
 mod folders;
@@ -11,16 +13,16 @@ mod nexus_content;
 mod paths;
 mod pdmod;
 mod reorder;
+mod staged;
+mod staging_tokens;
+pub(crate) use self::staging_tokens::StagingRegistry;
 mod state;
 mod types;
 mod ue4ss_modstxt;
 mod zip;
 
 // Public API used by lib.rs, launchers/, and other modules
-pub use self::engine::{
-    backup_dir, engine_for_game, ModEngineConfig, CRIMEBOSS_ENGINE, PD2_ENGINE, PD3_ENGINE,
-    PDTH_ENGINE, RAID_ENGINE,
-};
+pub use self::engine::{backup_dir, engine_for_game, ModEngineConfig, ModUnit, ScanTarget};
 pub use self::identity::IdentityEvidence;
 pub use self::install::install_mod_from_path;
 pub use self::paths::{find_untracked_host_packs, find_untracked_paks, get_state_path, mods_base};
@@ -31,12 +33,14 @@ pub use self::types::{
 pub use self::zip::{compute_md5, compute_sha256};
 
 // Mod-identification helpers for the get_installed pipeline, see identify.rs
+use self::identify::staged_content_sha256;
 #[cfg(test)]
 pub(crate) use self::identify::{embedded_modworkshop_id, upgrade_negative_ids_with_conn};
 pub(crate) use self::identify::{
     ensure_untracked_folders, hash_untracked, hashable_file_for_mod_dir, identify_untracked,
     regroup_negative_ids_by_name_suffix, resync_crimeboss_enabled_flags, upgrade_negative_ids,
 };
+use crate::commands::analytics::track_mod_installed;
 
 // Internal helpers used by Tauri commands in this file
 pub(crate) use self::folders::{
@@ -46,25 +50,26 @@ pub(crate) use self::install::{
     disable_mod_op, enable_mod_op, install_host_pack_op, move_crimeboss_mod_target_op,
     uninstall_mod_op,
 };
-pub(crate) use self::naming::{hash_filename, pak_filename, sidecar_path, strip_priority_prefix};
+pub(crate) use self::naming::{hash_filename, sidecar_path, strip_priority_prefix, unit_filename};
 pub(crate) use self::paths::{active_mod_path, disabled_base, disabled_mod_path, resolve_pak_path};
 pub(crate) use self::reorder::{
     move_mod_to_folder_op, reorder_children_op, reorder_mods_in_folder_op,
 };
-pub(crate) use self::state::save_state;
+pub(crate) use self::state::{save_state, STATE_FILENAME};
 pub(crate) use self::zip::{
-    extract_archive_flat, extract_dir_entry, extract_entry, extract_entry_into_crimeboss_skeleton,
-    extract_entry_with_sidecars, list_pak_entries, mark_archive_files, resolve_archive_download,
-    InstallPrompt, ModContext, ResolveError,
+    extract_archive_flat, extract_entry, extract_entry_into_crimeboss_skeleton_at,
+    extract_staged_dir, extract_staged_entry_with_sidecars, list_unit_entries, mark_archive_files,
+    resolve_archive_download, InstallPrompt, ModContext, ResolveError,
 };
 
 // Re-exports needed only in test builds (suppressed in release to avoid unused-import warnings)
 #[cfg(test)]
 pub(crate) use self::crimeboss_settings::{
-    find_pak_in_dir, read_enabled_from_file, set_enabled_in_file, settings_id_from_pak_filename,
+    find_content_file_in_dir, read_enabled_from_file, set_enabled_in_file,
+    settings_id_from_pak_filename,
 };
 #[cfg(test)]
-pub(crate) use self::engine::{disabled_dir, mods_dir};
+pub(crate) use self::engine::{disabled_dir, mods_dir, Activation};
 #[cfg(test)]
 pub(crate) use self::naming::{
     apply_priority_prefix, derive_content_segment, make_uid, mod_folder_name,
@@ -176,7 +181,7 @@ pub async fn get_installed(app: AppHandle, game_id: String) -> Result<InstalledR
 
     // The player can also toggle mods from Crime Boss's own Options > Mods screen, so pull
     // that state back in and stop Modrex's tracked flag silently disagreeing with the game.
-    let cb_resynced = if cfg.game_id == "cb" {
+    let cb_resynced = if decisions::resyncs_enabled_flags(cfg) {
         let launcher = game_settings(&settings, game_id).and_then(|gs| gs.launcher.clone());
         resync_crimeboss_enabled_flags(
             &game_path,
@@ -198,7 +203,7 @@ pub async fn get_installed(app: AppHandle, game_id: String) -> Result<InstalledR
     for (host_id, subpath, set_name, enabled, dir) in
         find_untracked_host_packs(&game_path, cfg, &state.mods, &state.folders)
     {
-        let sha256 = match hashable_file_for_mod_dir(&dir) {
+        let sha256 = match hashable_file_for_mod_dir(&dir, cfg.primary().contained_extension) {
             Some(p) => compute_sha256(&p).await.ok(),
             None => None,
         };
@@ -398,18 +403,17 @@ pub async fn install_mod(
     };
 
     let cfg = engine_for_game(game_id.as_str())?;
-    let (tmp, zip_orig, location_tag) = match resolve_archive_download(downloaded, cfg) {
+    let staged::Staged {
+        root: tmp,
+        cleanup: cleanup_plan,
+        name_source: _,
+        target_tag: location_tag,
+        original_archive: zip_orig,
+    } = match resolve_archive_download(downloaded, cfg, staged_archives(&app)) {
         Err(ResolveError::Ue4ssLoader(zip_path)) => {
-            let settings = read_settings(&app);
-            let launcher = game_settings(&settings, cfg.game_id).and_then(|gs| gs.launcher.clone());
-            let result = crate::commands::ue4ss::install_loader(
-                cfg.game_id,
-                &game_path,
-                launcher.as_deref(),
-                &zip_path,
-            );
-            let _ = std::fs::remove_file(&zip_path);
-            return result.map(|()| InstallOutcome::Installed);
+            return install_ue4ss_loader_from(&app, cfg, &game_path, zip_path)
+                .await
+                .map(|()| InstallOutcome::Installed);
         }
         Err(ResolveError::Prompt(prompt)) => {
             return Ok((*prompt)
@@ -432,22 +436,7 @@ pub async fn install_mod(
     let target = cfg.target_for(location_tag.as_deref());
 
     let result = async {
-        let sha256 = match &target.unit {
-            engine::ModUnit::File { .. } => compute_sha256(&tmp).await?,
-            engine::ModUnit::Directory { entry_markers, .. } => {
-                let hash_path = if entry_markers.is_empty() {
-                    hashable_file_for_mod_dir(&tmp)
-                        .ok_or_else(|| "mod directory is empty".to_string())?
-                } else {
-                    entry_markers
-                        .iter()
-                        .map(|m| tmp.join(m))
-                        .find(|p| p.exists())
-                        .unwrap_or_else(|| tmp.join(entry_markers[0]))
-                };
-                compute_sha256(&hash_path).await?
-            }
-        };
+        let sha256 = staged_content_sha256(target, &tmp).await?;
         let uid = file_id.to_string();
         // The real modworkshop id, kept as a string for remote_id and identity comparisons.
         // InstalledMod.id is an opaque, source-scoped key (see
@@ -491,16 +480,8 @@ pub async fn install_mod(
             .iter()
             .find(|m| m.uid == uid)
             .map(|m| m.filename.clone())
-            .unwrap_or_else(|| match &target.unit {
-                engine::ModUnit::File { .. } => pak_filename(&mod_name),
-                engine::ModUnit::Directory { .. } if cfg.game_id == "cb" => {
-                    naming::mod_folder_name(&mod_name)
-                }
-                engine::ModUnit::Directory { .. } => tmp
-                    .file_name()
-                    .and_then(|s| s.to_str())
-                    .unwrap_or(&mod_name)
-                    .to_string(),
+            .unwrap_or_else(|| {
+                decisions::install_filename_from_mod_name(cfg, target, &mod_name, &tmp)
             });
 
         // If the mod had a single previously-installed entry under a different uid
@@ -549,51 +530,15 @@ pub async fn install_mod(
             disable_mod_op(&game_path, &sp, &uid, cfg, launcher_str.as_deref());
         }
 
-        let _ = http_client()
-            .post(format!(
-                "https://api.modworkshop.net/files/{}/register-download",
-                file_id
-            ))
-            .header("User-Agent", user_agent(&app))
-            .send()
-            .await;
+        register_download(&app, file_id).await;
 
         Ok::<(), String>(())
     }
     .await;
 
-    match &target.unit {
-        engine::ModUnit::File { .. } => {
-            let _ = tokio::fs::remove_file(&tmp).await;
-            for ext in naming::PAK_SIDECAR_EXTENSIONS {
-                let _ = tokio::fs::remove_file(tmp.with_extension(ext)).await;
-            }
-        }
-        // Crime Boss's synthesized skeleton is tmp itself, one level under the OS temp dir,
-        // not {uuid_dir}/{dir_name} as on PD2 and PDTH. tmp.parent() here would be the OS temp
-        // dir itself, which must never be passed to remove_dir_all.
-        engine::ModUnit::Directory { .. } if cfg.game_id == "cb" => {
-            let _ = tokio::fs::remove_dir_all(&tmp).await;
-        }
-        engine::ModUnit::Directory { .. } => {
-            if let Some(parent) = tmp.parent() {
-                let _ = tokio::fs::remove_dir_all(parent).await;
-            }
-        }
-    }
-    if let Some(orig) = zip_orig {
-        let _ = tokio::fs::remove_file(&orig).await;
-    }
+    cleanup::run_staged(&cleanup_plan, zip_orig).await;
     match &result {
-        Ok(_) => crate::commands::analytics::track(
-            &app,
-            "mod_installed",
-            serde_json::json!({
-                "game": game_id.as_str(),
-                "mod_id": mod_id,
-                "format": file_type,
-            }),
-        ),
+        Ok(_) => track_mod_installed(&app, game_id.as_str(), mod_id as i64, &file_type),
         Err(e) => log::warn!("install_mod {mod_id}: {e}"),
     }
     result.map(|()| InstallOutcome::Installed)
@@ -622,18 +567,17 @@ pub async fn install_file(
             return Err(e);
         }
     };
-    let (tmp, zip_orig, location_tag) = match resolve_archive_download(downloaded, cfg) {
+    let staged::Staged {
+        root: tmp,
+        cleanup: cleanup_plan,
+        name_source: _,
+        target_tag: location_tag,
+        original_archive: zip_orig,
+    } = match resolve_archive_download(downloaded, cfg, staged_archives(&app)) {
         Err(ResolveError::Ue4ssLoader(zip_path)) => {
-            let settings = read_settings(&app);
-            let launcher = game_settings(&settings, cfg.game_id).and_then(|gs| gs.launcher.clone());
-            let result = crate::commands::ue4ss::install_loader(
-                cfg.game_id,
-                &game_path,
-                launcher.as_deref(),
-                &zip_path,
-            );
-            let _ = std::fs::remove_file(&zip_path);
-            return result.map(|()| InstallOutcome::Installed);
+            return install_ue4ss_loader_from(&app, cfg, &game_path, zip_path)
+                .await
+                .map(|()| InstallOutcome::Installed);
         }
         Err(ResolveError::Prompt(prompt)) => {
             return Ok((*prompt)
@@ -656,22 +600,7 @@ pub async fn install_file(
     let target = cfg.target_for(location_tag.as_deref());
 
     let result = async {
-        let sha256 = match &target.unit {
-            engine::ModUnit::File { .. } => compute_sha256(&tmp).await?,
-            engine::ModUnit::Directory { entry_markers, .. } => {
-                let hash_path = if entry_markers.is_empty() {
-                    hashable_file_for_mod_dir(&tmp)
-                        .ok_or_else(|| "mod directory is empty".to_string())?
-                } else {
-                    entry_markers
-                        .iter()
-                        .map(|m| tmp.join(m))
-                        .find(|p| p.exists())
-                        .unwrap_or_else(|| tmp.join(entry_markers[0]))
-                };
-                compute_sha256(&hash_path).await?
-            }
-        };
+        let sha256 = staged_content_sha256(target, &tmp).await?;
         let uid = file_id.to_string();
         let mod_id_str = mod_id.to_string();
         let sp = get_state_path(&game_path, cfg);
@@ -709,22 +638,10 @@ pub async fn install_file(
             .iter()
             .find(|m| m.uid == uid)
             .map(|m| m.filename.clone())
-            .unwrap_or_else(|| match &target.unit {
-                engine::ModUnit::File { .. } => {
-                    if file_type == "main" {
-                        pak_filename(&mod_name)
-                    } else {
-                        pak_filename(&format!("{}_{}", mod_name, file_id))
-                    }
-                }
-                engine::ModUnit::Directory { .. } if cfg.game_id == "cb" => {
-                    naming::mod_folder_name(&mod_name)
-                }
-                engine::ModUnit::Directory { .. } => tmp
-                    .file_name()
-                    .and_then(|s| s.to_str())
-                    .unwrap_or(&mod_name)
-                    .to_string(),
+            .unwrap_or_else(|| {
+                decisions::install_filename_for_source_file(
+                    cfg, target, &mod_name, file_id, &file_type, &tmp,
+                )
             });
 
         install_mod_from_path(
@@ -752,51 +669,15 @@ pub async fn install_file(
             target,
         )?;
 
-        let _ = http_client()
-            .post(format!(
-                "https://api.modworkshop.net/files/{}/register-download",
-                file_id
-            ))
-            .header("User-Agent", user_agent(&app))
-            .send()
-            .await;
+        register_download(&app, file_id).await;
 
         Ok::<(), String>(())
     }
     .await;
 
-    match &target.unit {
-        engine::ModUnit::File { .. } => {
-            let _ = tokio::fs::remove_file(&tmp).await;
-            for ext in naming::PAK_SIDECAR_EXTENSIONS {
-                let _ = tokio::fs::remove_file(tmp.with_extension(ext)).await;
-            }
-        }
-        // See the matching comment in install_mod: tmp.parent() must never be removed for Crime
-        // Boss, since tmp is the synthesized skeleton root itself, not a {uuid_dir}/{dir_name}
-        // child like PD2/PDTH.
-        engine::ModUnit::Directory { .. } if cfg.game_id == "cb" => {
-            let _ = tokio::fs::remove_dir_all(&tmp).await;
-        }
-        engine::ModUnit::Directory { .. } => {
-            if let Some(parent) = tmp.parent() {
-                let _ = tokio::fs::remove_dir_all(parent).await;
-            }
-        }
-    }
-    if let Some(orig) = zip_orig {
-        let _ = tokio::fs::remove_file(&orig).await;
-    }
+    cleanup::run_staged(&cleanup_plan, zip_orig).await;
     match &result {
-        Ok(_) => crate::commands::analytics::track(
-            &app,
-            "mod_installed",
-            serde_json::json!({
-                "game": game_id.as_str(),
-                "mod_id": mod_id,
-                "format": file_type,
-            }),
-        ),
+        Ok(_) => track_mod_installed(&app, game_id.as_str(), mod_id, &file_type),
         Err(e) => log::warn!("install_file {mod_id} file={file_id}: {e}"),
     }
     result.map(|()| InstallOutcome::Installed)
@@ -835,21 +716,18 @@ pub(crate) async fn install_nexus_download(
     } = meta;
     let cfg = engine_for_game(game_id)?;
     let dl_path = downloaded.clone();
-    let (tmp, zip_orig, location_tag) = match resolve_archive_download(downloaded, cfg) {
+    let staged::Staged {
+        root: tmp,
+        cleanup: cleanup_plan,
+        name_source: _,
+        target_tag: location_tag,
+        original_archive: zip_orig,
+    } = match resolve_archive_download(downloaded, cfg, staged_archives(app)) {
         Err(ResolveError::Ue4ssLoader(zip_path)) => {
-            let settings = read_settings(app);
-            let launcher = game_settings(&settings, cfg.game_id).and_then(|gs| gs.launcher.clone());
-            let result = crate::commands::ue4ss::install_loader(
-                cfg.game_id,
-                game_path,
-                launcher.as_deref(),
-                &zip_path,
-            );
-            let _ = std::fs::remove_file(&zip_path);
-            return result;
+            return install_ue4ss_loader_from(app, cfg, game_path, zip_path).await;
         }
         Err(ResolveError::Prompt(prompt)) => {
-            let _ = std::fs::remove_file(&dl_path);
+            cleanup::run(&cleanup::CleanupPlan::RemoveOwnedFile(dl_path.clone())).await;
             let kind = match *prompt {
                 InstallPrompt::ZipMultiPak(_) => "ZIP_MULTI_PAK",
                 InstallPrompt::HostModPack(_) => "HOST_MOD_PACK",
@@ -870,40 +748,15 @@ pub(crate) async fn install_nexus_download(
     let target = cfg.target_for(location_tag.as_deref());
 
     let result = async {
-        let sha256 = match &target.unit {
-            engine::ModUnit::File { .. } => compute_sha256(&tmp).await?,
-            engine::ModUnit::Directory { entry_markers, .. } => {
-                let hash_path = if entry_markers.is_empty() {
-                    hashable_file_for_mod_dir(&tmp)
-                        .ok_or_else(|| "mod directory is empty".to_string())?
-                } else {
-                    entry_markers
-                        .iter()
-                        .map(|m| tmp.join(m))
-                        .find(|p| p.exists())
-                        .unwrap_or_else(|| tmp.join(entry_markers[0]))
-                };
-                compute_sha256(&hash_path).await?
-            }
-        };
+        let sha256 = staged_content_sha256(target, &tmp).await?;
         let uid = format!("nexus:{nexus_mod_id}:{nexus_file_id}");
         let sp = get_state_path(game_path, cfg);
         let saved = read_state(&sp);
         let existing = saved.mods.iter().find(|m| m.uid == uid);
         let folder_id = existing.and_then(|e| e.folder_id.clone());
-        let filename = existing
-            .map(|m| m.filename.clone())
-            .unwrap_or_else(|| match &target.unit {
-                engine::ModUnit::File { .. } => pak_filename(&mod_name),
-                engine::ModUnit::Directory { .. } if cfg.game_id == "cb" => {
-                    naming::mod_folder_name(&mod_name)
-                }
-                engine::ModUnit::Directory { .. } => tmp
-                    .file_name()
-                    .and_then(|s| s.to_str())
-                    .unwrap_or(&mod_name)
-                    .to_string(),
-            });
+        let filename = existing.map(|m| m.filename.clone()).unwrap_or_else(|| {
+            decisions::install_filename_from_mod_name(cfg, target, &mod_name, &tmp)
+        });
 
         install_mod_from_path(
             game_path,
@@ -935,32 +788,43 @@ pub(crate) async fn install_nexus_download(
     }
     .await;
 
-    match &target.unit {
-        engine::ModUnit::File { .. } => {
-            let _ = tokio::fs::remove_file(&tmp).await;
-            for ext in naming::PAK_SIDECAR_EXTENSIONS {
-                let _ = tokio::fs::remove_file(tmp.with_extension(ext)).await;
-            }
-        }
-        // Crime Boss's synthesized skeleton is tmp itself, one level under the OS
-        // temp dir; tmp.parent() there would be the OS temp dir, which must never
-        // be passed to remove_dir_all.
-        engine::ModUnit::Directory { .. } if cfg.game_id == "cb" => {
-            let _ = tokio::fs::remove_dir_all(&tmp).await;
-        }
-        engine::ModUnit::Directory { .. } => {
-            if let Some(parent) = tmp.parent() {
-                let _ = tokio::fs::remove_dir_all(parent).await;
-            }
-        }
-    }
-    if let Some(orig) = zip_orig {
-        let _ = tokio::fs::remove_file(&orig).await;
-    }
+    cleanup::run_staged(&cleanup_plan, zip_orig).await;
     if let Err(e) = &result {
         log::warn!("install_nexus_download {nexus_mod_id}/{nexus_file_id}: {e}");
     }
     result
+}
+
+/// Removes the download once the loader installer has taken it.
+async fn install_ue4ss_loader_from(
+    app: &AppHandle,
+    cfg: &ModEngineConfig,
+    game_path: &str,
+    zip_path: PathBuf,
+) -> Result<(), String> {
+    let settings = read_settings(app);
+    let launcher = game_settings(&settings, cfg.game_id).and_then(|gs| gs.launcher.clone());
+    let result = crate::commands::ue4ss::install_loader(
+        cfg.game_id,
+        game_path,
+        launcher.as_deref(),
+        &zip_path,
+    );
+    cleanup::run(&cleanup::CleanupPlan::RemoveOwnedFile(zip_path)).await;
+    result
+}
+
+/// Reports a completed download to modworkshop. Best effort: a failure here never affects
+/// the install that already succeeded.
+async fn register_download(app: &AppHandle, file_id: i64) {
+    let _ = http_client()
+        .post(format!(
+            "https://api.modworkshop.net/files/{}/register-download",
+            file_id
+        ))
+        .header("User-Agent", user_agent(app))
+        .send()
+        .await;
 }
 
 /// Recovers a dropped mod's real name, for both display and the on-disk filename. The
@@ -969,19 +833,16 @@ pub(crate) async fn install_nexus_download(
 /// real name. fallback, the dropped file's own stem, is only correct when nothing better is
 /// available, which is exactly the case for a bare loose .pak dropped with no zip wrapper.
 ///
-/// Directory-unit's tmp already carries the real folder name (resolve_archive_download's
-/// two-level temp makes tmp.file_name() the mod's own directory name), but File-unit's tmp is
-/// a random-uuid path and Crime Boss's is an opaque skeleton root with no readable name of its
-/// own (see extract_entry_into_crimeboss_skeleton). Both need the real name pulled back out of
-/// the original archive's single pak entry instead.
+/// Whether the staged root carries the mod's own name is the producer's to say, so this
+/// reads name_source instead of re-deriving it from the destination unit and the game.
 fn recover_dropped_mod_stem(
-    unit: &engine::ModUnit,
-    is_crimeboss: bool,
+    name_source: staged::NameSource,
     tmp: &std::path::Path,
     zip_orig: Option<&std::path::Path>,
     fallback: &str,
+    content_extension: Option<&str>,
 ) -> String {
-    if matches!(unit, engine::ModUnit::Directory { .. }) && !is_crimeboss {
+    if name_source == staged::NameSource::FromArchive {
         return tmp
             .file_name()
             .and_then(|s| s.to_str())
@@ -989,7 +850,8 @@ fn recover_dropped_mod_stem(
             .unwrap_or_else(|| fallback.to_string());
     }
     zip_orig
-        .and_then(|orig| list_pak_entries(orig).ok())
+        .zip(content_extension)
+        .and_then(|(orig, extension)| list_unit_entries(orig, extension).ok())
         .and_then(|entries| match entries.as_slice() {
             [entry] => std::path::Path::new(entry)
                 .file_stem()
@@ -1018,6 +880,15 @@ fn apply_nexus_archive_identity(
     entry.author = Some(detail.user.name.clone());
     entry.thumbnail_url = detail.thumbnail.as_ref().map(|t| t.file.clone());
     entry.file_id = Some(m.file_id as i64);
+}
+
+/// The dropped file's name without the directory it came from, which is normally inside the
+/// user's profile and reaches logs that are attached to public bug reports.
+fn dropped_file_name(path: &str) -> &str {
+    std::path::Path::new(path)
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or(path)
 }
 
 /// Installs a mod from a local file the user dropped onto the window (Explorer drag-drop).
@@ -1051,18 +922,17 @@ pub async fn install_dropped_file(
         .await
         .map_err(|e| format!("could not read dropped file: {e}"))?;
 
-    let (tmp, zip_orig, location_tag) = match resolve_archive_download(temp.clone(), cfg) {
+    let staged::Staged {
+        root: tmp,
+        cleanup: cleanup_plan,
+        name_source,
+        target_tag: location_tag,
+        original_archive: zip_orig,
+    } = match resolve_archive_download(temp.clone(), cfg, staged_archives(&app)) {
         Err(ResolveError::Ue4ssLoader(zip_path)) => {
-            let settings = read_settings(&app);
-            let launcher = game_settings(&settings, cfg.game_id).and_then(|gs| gs.launcher.clone());
-            let result = crate::commands::ue4ss::install_loader(
-                cfg.game_id,
-                &game_path,
-                launcher.as_deref(),
-                &zip_path,
-            );
-            let _ = std::fs::remove_file(&zip_path);
-            return result.map(|()| InstallOutcome::Installed);
+            return install_ue4ss_loader_from(&app, cfg, &game_path, zip_path)
+                .await
+                .map(|()| InstallOutcome::Installed);
         }
         // The picker / host-pack / CB-flat modals install directly from the temp copy (which they
         // delete afterwards), so forward the prompt enriched with a synthetic identity, mirroring
@@ -1084,8 +954,8 @@ pub async fn install_dropped_file(
                 .into());
         }
         Err(ResolveError::Failure(e)) => {
-            let _ = tokio::fs::remove_file(&temp).await;
-            log::warn!("install_dropped_file {path}: {e}");
+            cleanup::run(&cleanup::CleanupPlan::RemoveOwnedFile(temp.clone())).await;
+            log::warn!("install_dropped_file {}: {e}", dropped_file_name(&path));
             return Err(e);
         }
 
@@ -1094,11 +964,11 @@ pub async fn install_dropped_file(
     let _state_guard = lock_game_state(&app, game_id.as_str()).await;
     let target = cfg.target_for(location_tag.as_deref());
     let display_stem = recover_dropped_mod_stem(
-        &target.unit,
-        cfg.game_id == "cb",
+        name_source,
         &tmp,
         zip_orig.as_deref(),
         &file_stem,
+        target.content_extension(),
     );
 
     // Best-effort Nexus identification: only possible when the whole downloaded
@@ -1151,31 +1021,10 @@ pub async fn install_dropped_file(
     };
 
     let result = async {
-        let sha256 = match &target.unit {
-            engine::ModUnit::File { .. } => compute_sha256(&tmp).await?,
-            engine::ModUnit::Directory { entry_markers, .. } => {
-                let hash_path = if entry_markers.is_empty() {
-                    hashable_file_for_mod_dir(&tmp)
-                        .ok_or_else(|| "mod directory is empty".to_string())?
-                } else {
-                    entry_markers
-                        .iter()
-                        .map(|m| tmp.join(m))
-                        .find(|p| p.exists())
-                        .unwrap_or_else(|| tmp.join(entry_markers[0]))
-                };
-                compute_sha256(&hash_path).await?
-            }
-        };
+        let sha256 = staged_content_sha256(target, &tmp).await?;
         // Discovery-matching identity: filename drives the uid/id the untracked-scan would assign,
         // so a later manual refresh reconciles this entry instead of duplicating it.
-        let filename = match &target.unit {
-            engine::ModUnit::File { .. } => pak_filename(&display_stem),
-            engine::ModUnit::Directory { .. } if cfg.game_id == "cb" => {
-                naming::mod_folder_name(&display_stem)
-            }
-            engine::ModUnit::Directory { .. } => display_stem.clone(),
-        };
+        let filename = decisions::install_filename_for_dropped(cfg, target, &display_stem);
         let sp = get_state_path(&game_path, cfg);
 
         let mut mod_entry = InstalledMod {
@@ -1199,38 +1048,12 @@ pub async fn install_dropped_file(
     }
     .await;
 
-    match &target.unit {
-        engine::ModUnit::File { .. } => {
-            let _ = tokio::fs::remove_file(&tmp).await;
-            for ext in naming::PAK_SIDECAR_EXTENSIONS {
-                let _ = tokio::fs::remove_file(tmp.with_extension(ext)).await;
-            }
-        }
-        engine::ModUnit::Directory { .. } if cfg.game_id == "cb" => {
-            let _ = tokio::fs::remove_dir_all(&tmp).await;
-        }
-        engine::ModUnit::Directory { .. } => {
-            if let Some(parent) = tmp.parent() {
-                let _ = tokio::fs::remove_dir_all(parent).await;
-            }
-        }
-    }
-    if let Some(orig) = zip_orig {
-        let _ = tokio::fs::remove_file(&orig).await;
-    }
-    let _ = tokio::fs::remove_file(&temp).await;
+    cleanup::run_staged(&cleanup_plan, zip_orig).await;
+    cleanup::run(&cleanup::CleanupPlan::RemoveOwnedFile(temp)).await;
 
     match &result {
-        Ok(_) => crate::commands::analytics::track(
-            &app,
-            "mod_installed",
-            serde_json::json!({
-                "game": game_id.as_str(),
-                "mod_id": -1,
-                "format": "local",
-            }),
-        ),
-        Err(e) => log::warn!("install_dropped_file {path}: {e}"),
+        Ok(_) => track_mod_installed(&app, game_id.as_str(), -1, "local"),
+        Err(e) => log::warn!("install_dropped_file {}: {e}", dropped_file_name(&path)),
     }
     result.map(|()| InstallOutcome::Installed)
 }
@@ -1264,8 +1087,11 @@ fn stale_entry_for_zip_install<'a>(
 #[derive(serde::Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct InstallFromZipEntryArgs {
-    pub zip_path: String,
-    pub entry_name: String,
+    /// Backend-issued handle for the staged archive. The renderer never receives the
+    /// path, so it cannot point this at another local archive.
+    pub archive_handle: String,
+    /// Which entry of that archive to install, as issued when it was listed.
+    pub entry_id: staging_tokens::ArchiveEntryId,
     pub mod_id: i64,
     pub mod_name: String,
     pub file_id: i64,
@@ -1286,8 +1112,8 @@ pub async fn install_from_zip_entry(
 ) -> Result<(), String> {
     let _state_guard = lock_game_state(&app, args.game_id.as_str()).await;
     let InstallFromZipEntryArgs {
-        zip_path,
-        entry_name,
+        archive_handle,
+        entry_id,
         mod_id,
         mod_name,
         file_id,
@@ -1301,12 +1127,29 @@ pub async fn install_from_zip_entry(
     } = args;
     let cfg = engine_for_game(game_id.as_str())?;
     let target = cfg.target_for(location_tag.as_deref());
-    let zip = PathBuf::from(&zip_path);
+    // The handle, not the caller, decides which archive is opened. The borrow is held for
+    // the whole install so a concurrent discard cannot remove the file mid-extraction.
+    let registry = staged_archives(&app);
+    let zip = registry
+        .borrow(
+            &archive_handle,
+            staging_tokens::StagedArchiveKind::MultiEntry,
+        )
+        .ok_or("this archive is no longer available to install from")?;
+    let _borrow = staging_tokens::BorrowGuard::new(registry, &archive_handle);
+    let entry = registry
+        .entry(
+            &archive_handle,
+            staging_tokens::StagedArchiveKind::MultiEntry,
+            entry_id,
+        )
+        .ok_or("that archive entry is no longer available to install")?;
+    let entry_name = entry.display_name.clone();
     let install_format = file_type.clone(); // file_type is moved before the success emit below
 
     // Set only by classify_archive_dirs's ZIP_MULTI_PAK payload (a ue4ss_mods sub-mod folder
-    // or a candidate mod folder). See the (ext, tmp_parent) branch below.
-    let cb_dir_entry = cfg.game_id == "cb" && entry_kind.as_deref() == Some("dir");
+    // or a candidate mod folder).
+    let cb_dir_entry = decisions::is_cb_dir_entry(cfg, entry_kind.as_deref());
 
     // entry_stem / entry_filename are the last path component of entry_name.
     let entry_stem = std::path::Path::new(&entry_name)
@@ -1319,68 +1162,42 @@ pub async fn install_from_zip_entry(
         .unwrap_or(&entry_name)
         .to_string();
 
-    // For File mods: ext is a temp .pak file.
-    // For Directory mods: ext is {tmp_parent}/{dir_name} (two-level, consistent with resolve_archive_download).
-    // Crime Boss pak entries are neither: the chosen .pak entry (plus its .ucas/.utoc siblings) is
-    // wrapped in a synthesized Content/Paks/WindowsNoEditor skeleton, see
-    // extract_entry_into_crimeboss_skeleton. Crime Boss directory entries (cb_dir_entry) use the
-    // same two-level scheme as every other Directory-unit game.
-    let (ext, tmp_parent) = if cfg.game_id == "cb" && !cb_dir_entry {
-        let skeleton_root = extract_entry_into_crimeboss_skeleton(&zip, &entry_name)?;
-        (skeleton_root.clone(), Some(skeleton_root))
-    } else if cb_dir_entry {
-        let parent = std::env::temp_dir().join(format!("modrex-mod-{}", Uuid::new_v4()));
-        let p = parent.join(&entry_filename);
-        (p, Some(parent))
-    } else {
-        match &target.unit {
-            engine::ModUnit::File { .. } => {
-                let p = std::env::temp_dir().join(format!("modrex-mod-{}.pak", Uuid::new_v4()));
-                (p, None)
-            }
-            engine::ModUnit::Directory { .. } => {
-                let parent = std::env::temp_dir().join(format!("modrex-mod-{}", Uuid::new_v4()));
-                let p = parent.join(&entry_filename);
-                (p, Some(parent))
-            }
+    // ext is the staged path the install reads from; tmp_parent is the directory cleanup
+    // removes afterwards, and is None when the staged path is a bare temp file.
+    let (ext, tmp_parent) = match decisions::entry_staging(cfg, target, cb_dir_entry) {
+        decisions::EntryStaging::CrimeBossSkeleton => {
+            let skeleton_root =
+                extract_entry_into_crimeboss_skeleton_at(&zip, &entry, cfg.primary().companions)?;
+            (skeleton_root.clone(), Some(skeleton_root))
+        }
+        decisions::EntryStaging::DirectoryUnderNewParent => {
+            let parent = std::env::temp_dir().join(format!("modrex-mod-{}", Uuid::new_v4()));
+            let p = parent.join(&entry_filename);
+            (p, Some(parent))
+        }
+        decisions::EntryStaging::SingleTempFile => {
+            let p = std::env::temp_dir().join(format!(
+                "modrex-mod-{}.{}",
+                Uuid::new_v4(),
+                target.content_extension().unwrap_or("bin")
+            ));
+            (p, None)
         }
     };
 
     let uid = format!("{}_{}", file_id, entry_stem);
-    // Crime Boss installs into its own named folder, not the archive entry's pak filename.
-    let install_filename = if cfg.game_id == "cb" {
-        naming::mod_folder_name(&mod_name)
-    } else {
-        entry_filename.clone()
-    };
+    let install_filename =
+        decisions::install_filename_for_zip_entry(cfg, &mod_name, &entry_filename);
 
     let result = async {
-        if cb_dir_entry {
-            extract_dir_entry(&zip, &entry_name, &ext)?
-        } else if cfg.game_id != "cb" {
-            match &target.unit {
-                engine::ModUnit::File { .. } => {
-                    extract_entry_with_sidecars(&zip, &entry_name, &ext)?
-                }
-                engine::ModUnit::Directory { .. } => extract_dir_entry(&zip, &entry_name, &ext)?,
+        match decisions::entry_extraction(cfg, target, cb_dir_entry) {
+            decisions::EntryExtraction::DirEntry => extract_staged_dir(&zip, &entry, &ext)?,
+            decisions::EntryExtraction::EntryWithSidecars => {
+                extract_staged_entry_with_sidecars(&zip, &entry, &ext, target.companions)?
             }
+            decisions::EntryExtraction::AlreadyStaged => {}
         }
-        let sha256 = match &target.unit {
-            engine::ModUnit::File { .. } => compute_sha256(&ext).await?,
-            engine::ModUnit::Directory { entry_markers, .. } => {
-                let hash_path = if entry_markers.is_empty() {
-                    hashable_file_for_mod_dir(&ext)
-                        .ok_or_else(|| "mod directory is empty".to_string())?
-                } else {
-                    entry_markers
-                        .iter()
-                        .map(|m| ext.join(m))
-                        .find(|p| p.exists())
-                        .unwrap_or_else(|| ext.join(entry_markers[0]))
-                };
-                compute_sha256(&hash_path).await?
-            }
-        };
+        let sha256 = staged_content_sha256(target, &ext).await?;
         let sp = get_state_path(&game_path, cfg);
         let saved = read_state(&sp);
         let mod_id_str = mod_id.to_string();
@@ -1427,38 +1244,23 @@ pub async fn install_from_zip_entry(
             target,
         )?;
 
-        let _ = http_client()
-            .post(format!(
-                "https://api.modworkshop.net/files/{}/register-download",
-                file_id
-            ))
-            .header("User-Agent", user_agent(&app))
-            .send()
-            .await;
+        register_download(&app, file_id).await;
 
         Ok::<(), String>(())
     }
     .await;
 
     // Keep the zip alive for multi-entry installs; only remove the extracted temp here.
-    if let Some(parent) = tmp_parent {
-        let _ = tokio::fs::remove_dir_all(parent).await;
-    } else {
-        let _ = tokio::fs::remove_file(&ext).await;
-        for sidecar_ext in naming::PAK_SIDECAR_EXTENSIONS {
-            let _ = tokio::fs::remove_file(ext.with_extension(sidecar_ext)).await;
-        }
-    }
+    let entry_cleanup = match tmp_parent {
+        Some(parent) => cleanup::CleanupPlan::RemoveOwnedDirectory(parent),
+        None => cleanup::CleanupPlan::RemoveOwnedFileWithSidecars {
+            path: ext.clone(),
+            companions: target.companions,
+        },
+    };
+    cleanup::run(&entry_cleanup).await;
     match &result {
-        Ok(_) => crate::commands::analytics::track(
-            &app,
-            "mod_installed",
-            serde_json::json!({
-                "game": game_id.as_str(),
-                "mod_id": mod_id,
-                "format": install_format,
-            }),
-        ),
+        Ok(_) => track_mod_installed(&app, game_id.as_str(), mod_id, &install_format),
         Err(e) => log::warn!("install_from_zip_entry {mod_id} file={file_id}: {e}"),
     }
     result
@@ -1474,7 +1276,7 @@ pub async fn install_from_zip_entry(
 #[allow(clippy::too_many_arguments)]
 pub async fn install_cb_flat_archive(
     app: AppHandle,
-    zip_path: String,
+    archive_handle: String,
     mod_id: i64,
     mod_name: String,
     file_id: i64,
@@ -1486,12 +1288,19 @@ pub async fn install_cb_flat_archive(
     let _state_guard = lock_game_state(&app, "cb").await;
     let cfg = engine_for_game("cb")?;
     let target = cfg.primary();
-    let zip = PathBuf::from(&zip_path);
+    let registry = staged_archives(&app);
+    let zip = registry
+        .borrow(
+            &archive_handle,
+            staging_tokens::StagedArchiveKind::CrimeBossFlat,
+        )
+        .ok_or("this archive is no longer available to install from")?;
+    let _borrow = staging_tokens::BorrowGuard::new(registry, &archive_handle);
     let tmp_dir = std::env::temp_dir().join(format!("modrex-mod-{}", Uuid::new_v4()));
 
     let result = async {
         extract_archive_flat(&zip, &tmp_dir)?;
-        let hash_path = hashable_file_for_mod_dir(&tmp_dir)
+        let hash_path = hashable_file_for_mod_dir(&tmp_dir, cfg.primary().contained_extension)
             .ok_or_else(|| "mod directory is empty".to_string())?;
         let sha256 = compute_sha256(&hash_path).await?;
         let sp = get_state_path(&game_path, cfg);
@@ -1529,32 +1338,18 @@ pub async fn install_cb_flat_archive(
             target,
         )?;
 
-        let _ = http_client()
-            .post(format!(
-                "https://api.modworkshop.net/files/{}/register-download",
-                file_id
-            ))
-            .header("User-Agent", user_agent(&app))
-            .send()
-            .await;
+        register_download(&app, file_id).await;
 
         Ok::<(), String>(())
     }
     .await;
 
-    let _ = tokio::fs::remove_dir_all(&tmp_dir).await;
-    let _ = tokio::fs::remove_file(&zip).await;
+    cleanup::run(&cleanup::CleanupPlan::RemoveOwnedDirectory(tmp_dir.clone())).await;
+    drop(_borrow);
+    finish_with_archive(registry, &archive_handle).await;
 
     match &result {
-        Ok(_) => crate::commands::analytics::track(
-            &app,
-            "mod_installed",
-            serde_json::json!({
-                "game": "cb",
-                "mod_id": mod_id,
-                "format": file_type,
-            }),
-        ),
+        Ok(_) => track_mod_installed(&app, "cb", mod_id, &file_type),
         Err(e) => log::warn!("install_cb_flat_archive {mod_id} file={file_id}: {e}"),
     }
     result
@@ -1567,7 +1362,9 @@ pub async fn install_cb_flat_archive(
 #[derive(serde::Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct InstallHostPackArgs {
-    pub zip_path: String,
+    /// Backend-issued handle for the staged archive. The renderer never receives the
+    /// path, so it cannot point this at another local archive.
+    pub archive_handle: String,
     pub entry_name: String,
     pub mod_id: i64,
     pub mod_name: String,
@@ -1585,7 +1382,7 @@ pub struct InstallHostPackArgs {
 pub async fn install_host_pack(app: AppHandle, args: InstallHostPackArgs) -> Result<(), String> {
     let _state_guard = lock_game_state(&app, args.game_id.as_str()).await;
     let InstallHostPackArgs {
-        zip_path,
+        archive_handle,
         entry_name,
         mod_id,
         mod_name,
@@ -1598,6 +1395,18 @@ pub async fn install_host_pack(app: AppHandle, args: InstallHostPackArgs) -> Res
         game_id,
     } = args;
     let cfg = engine_for_game(game_id.as_str())?;
+    let registry = staged_archives(&app);
+    let zip = registry
+        .borrow(&archive_handle, staging_tokens::StagedArchiveKind::HostPack)
+        .ok_or("this archive is no longer available to install from")?;
+    let _borrow = staging_tokens::BorrowGuard::new(registry, &archive_handle);
+    if !registry.offers_entry_named(
+        &archive_handle,
+        staging_tokens::StagedArchiveKind::HostPack,
+        &entry_name,
+    ) {
+        return Err("that entry is not part of this archive".to_string());
+    }
     let sp = get_state_path(&game_path, cfg);
     let install_format = file_type.clone();
     let mod_data = InstalledMod {
@@ -1612,40 +1421,47 @@ pub async fn install_host_pack(app: AppHandle, args: InstallHostPackArgs) -> Res
             IdentityEvidence::InstallProvenance,
         )
     };
-    install_host_pack_op(
-        &game_path,
-        &sp,
-        &PathBuf::from(&zip_path),
-        &entry_name,
-        mod_data,
-        cfg,
-    )?;
+    install_host_pack_op(&game_path, &sp, &zip, &entry_name, mod_data, cfg)?;
 
-    let _ = http_client()
-        .post(format!(
-            "https://api.modworkshop.net/files/{}/register-download",
-            file_id
-        ))
-        .header("User-Agent", user_agent(&app))
-        .send()
-        .await;
+    register_download(&app, file_id).await;
 
-    crate::commands::analytics::track(
-        &app,
-        "mod_installed",
-        serde_json::json!({
-            "game": game_id.as_str(),
-            "mod_id": mod_id,
-            "format": install_format,
-        }),
-    );
+    track_mod_installed(&app, game_id.as_str(), mod_id, &install_format);
     Ok(())
 }
 
+/// Removes every archive still registered, for application exit.
+pub(crate) fn discard_all_staged_archives(app: &AppHandle) {
+    for plan in staged_archives(app).drain() {
+        cleanup::run_sync(&plan);
+    }
+}
+
+/// The one registry this application owns, held as Tauri managed state so every caller names
+/// the same instance instead of reaching for a process global.
+pub(crate) fn staged_archives(app: &AppHandle) -> &staging_tokens::StagingRegistry {
+    use tauri::Manager;
+    app.state::<staging_tokens::StagingRegistry>().inner()
+}
+
+/// Ends a workflow's hold on its archive and removes it through the plan the registry holds.
+async fn finish_with_archive(registry: &staging_tokens::StagingRegistry, handle: &str) {
+    match registry.finalize(handle) {
+        Some(plan) => cleanup::run(&plan).await,
+        None => log::warn!("staged archives: nothing to finish for this handle"),
+    }
+}
+
+/// Discards a staged archive the renderer was offered a prompt for. Takes the handle from
+/// that prompt rather than a path, so the only file this can remove is one the backend
+/// registered, and only once.
 #[tauri::command]
 #[specta::specta]
-pub async fn delete_temp_file(path: String) {
-    let _ = tokio::fs::remove_file(&path).await;
+pub async fn discard_staged_archive(app: AppHandle, token: String) {
+    let Some(plan) = staged_archives(&app).finalize(&token) else {
+        log::warn!("discard_staged_archive: unknown, in-use, or already-finished handle");
+        return;
+    };
+    cleanup::run(&plan).await;
 }
 
 #[tauri::command]
@@ -2000,6 +1816,18 @@ pub fn open_mod_folder(app: AppHandle, game_id: String, tag: String) -> Result<(
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+#[path = "decisions_tests.rs"]
+mod decisions_tests;
+
+#[cfg(test)]
+#[path = "cleanup_tests.rs"]
+mod cleanup_tests;
+
+#[cfg(test)]
+#[path = "staged_tests.rs"]
+mod staged_tests;
 
 #[cfg(test)]
 #[path = "marker_contract_tests.rs"]

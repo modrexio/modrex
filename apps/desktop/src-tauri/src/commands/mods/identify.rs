@@ -11,6 +11,30 @@ use std::collections::HashMap;
 use tauri::AppHandle;
 use uuid::Uuid;
 
+/// The SHA256 an install records for staged content: the file itself for a file unit, and for
+/// a directory unit the marker the target declares, falling back to the representative file.
+pub(crate) async fn staged_content_sha256(
+    target: &engine::ScanTarget,
+    staged: &std::path::Path,
+) -> Result<String, String> {
+    match &target.unit {
+        engine::ModUnit::File { .. } => compute_sha256(staged).await,
+        engine::ModUnit::Directory { entry_markers, .. } => {
+            let hash_path = if entry_markers.is_empty() {
+                hashable_file_for_mod_dir(staged, target.contained_extension)
+                    .ok_or_else(|| "mod directory is empty".to_string())?
+            } else {
+                entry_markers
+                    .iter()
+                    .map(|m| staged.join(m))
+                    .find(|p| p.exists())
+                    .unwrap_or_else(|| staged.join(entry_markers[0]))
+            };
+            compute_sha256(&hash_path).await
+        }
+    }
+}
+
 /// The representative file of a mod that ships no marker: the one whose path relative to the
 /// mod folder sorts first by UTF-8 bytes. The indexer chooses the same file from the archive by
 /// the same rule, and the two are tested against one set of vectors
@@ -55,23 +79,24 @@ fn collect_relative_files(dir: &std::path::Path, prefix: &str, out: &mut Vec<Str
     }
 }
 
-/// Recursively finds a .pak file inside dir, preferring it over first_file_in_dir's
-/// alphabetical-first pick. Crime Boss's Mods/<name>/ can have a sibling Config/ folder
-/// (custom gameplay tags) that sorts before Content/, and without this, identification
-/// would hash an .ini instead of the .pak the index records a SHA256 for.
-fn first_pak_file_in_dir(dir: &std::path::Path) -> Option<std::path::PathBuf> {
+/// Recursively finds a file with the target's contained extension, preferring it over
+/// first_file_in_dir's alphabetical-first pick. Crime Boss's Mods/<name>/ can have a sibling
+/// Config/ folder (custom gameplay tags) that sorts before Content/, and without this,
+/// identification would hash an .ini instead of the file the index records a SHA256 for.
+fn first_file_of_type_in_dir(dir: &std::path::Path, extension: &str) -> Option<std::path::PathBuf> {
+    let suffix = format!(".{extension}");
     let mut entries: Vec<_> = std::fs::read_dir(dir).ok()?.flatten().collect();
     entries.sort_by_key(|e| e.file_name());
     for entry in &entries {
         if entry.file_type().ok()?.is_file()
-            && entry.file_name().to_string_lossy().ends_with(".pak")
+            && entry.file_name().to_string_lossy().ends_with(&suffix)
         {
             return Some(entry.path());
         }
     }
     for entry in &entries {
         if entry.file_type().ok()?.is_dir() {
-            if let Some(p) = first_pak_file_in_dir(&entry.path()) {
+            if let Some(p) = first_file_of_type_in_dir(&entry.path(), extension) {
                 return Some(p);
             }
         }
@@ -79,7 +104,10 @@ fn first_pak_file_in_dir(dir: &std::path::Path) -> Option<std::path::PathBuf> {
     None
 }
 
-pub(crate) fn hashable_file_for_mod_dir(dir: &std::path::Path) -> Option<std::path::PathBuf> {
+pub(crate) fn hashable_file_for_mod_dir(
+    dir: &std::path::Path,
+    contained_extension: Option<&str>,
+) -> Option<std::path::PathBuf> {
     // Marker preference mirrors the indexer's chooseMarker so both sides hash the same
     // representative file: main.xml (BeardLib), then RAID's supermod.xml (RAID-SuperBLT) and
     // mod.xml (legacy RaidBLT). The marker-less fallback below is the other half of that
@@ -90,7 +118,9 @@ pub(crate) fn hashable_file_for_mod_dir(dir: &std::path::Path) -> Option<std::pa
             return Some(p);
         }
     }
-    first_pak_file_in_dir(dir).or_else(|| first_file_in_dir(dir))
+    contained_extension
+        .and_then(|extension| first_file_of_type_in_dir(dir, extension))
+        .or_else(|| first_file_in_dir(dir))
 }
 
 /// Reads the value of an XML attribute (name="value" or name='value') from a single
@@ -475,7 +505,10 @@ pub(crate) async fn hash_untracked(
                             disabled_base(&game_path, entry_target).join(&rel_path)
                         };
                         if entry_markers.is_empty() {
-                            let p = hashable_file_for_mod_dir(&mod_dir)?;
+                            let p = hashable_file_for_mod_dir(
+                                &mod_dir,
+                                entry_target.contained_extension,
+                            )?;
                             return compute_sha256(&p).await.ok();
                         }
                         entry_markers
@@ -565,10 +598,17 @@ pub(crate) fn identify_untracked(
 
         let entry_target = cfg.target_for(location_tag.as_deref());
         let stem = match &entry_target.unit {
-            engine::ModUnit::File { .. } => filename
-                .strip_suffix(".pak")
-                .or_else(|| filename.strip_suffix(".pak.disabled"))
-                .unwrap_or(&filename),
+            engine::ModUnit::File {
+                extension,
+                disabled_suffix,
+                ..
+            } => {
+                let active = format!(".{extension}");
+                filename
+                    .strip_suffix(&active)
+                    .or_else(|| filename.strip_suffix(&format!("{active}{disabled_suffix}")))
+                    .unwrap_or(&filename)
+            }
             engine::ModUnit::Directory { .. } => &filename[..],
         };
         let stripped = strip_priority_prefix(stem);

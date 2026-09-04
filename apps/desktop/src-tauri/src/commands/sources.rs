@@ -1,83 +1,19 @@
-//! The one table a mod source registers in: which games it serves and the id it knows
-//! each game by. Sources differ per game (modworkshop covers all five, Nexus has no RAID
-//! presence), and each names games in its own way (modworkshop by numeric game id, Nexus
-//! by domain slug), so the mapping is data both sides need and neither should restate.
-//! nexus_domain and its reverse derive from this.
+//! Resolves the id a mod source knows a game by. Each game declares its own source
+//! bindings, and sources name games their own way: modworkshop by numeric game id, Nexus by
+//! domain slug plus a separate numeric id its content API filters on.
 
-pub struct SourceGame {
-    pub game_id: &'static str,
-    /// What this source calls the game: modworkshop's numeric game id, Nexus's
-    /// domain slug. Stored as a string because the two are not the same kind of id.
-    pub native_id: &'static str,
-    /// Nexus's GraphQL content API (modFileContents) filters on a numeric game id,
-    /// while its REST API and nxm:// links name the game by the domain slug in
-    /// native_id. Only Nexus has two names for one game, so this is None for every
-    /// other source.
-    pub numeric_id: Option<u32>,
+use crate::game_package::{GamePackage, SourceBinding};
+
+/// The sources Modrex implements a connector for. A game reaches one by declaring a binding,
+/// never by being listed here.
+pub const SOURCE_IDS: &[&str] = &["modworkshop", "nexus"];
+
+fn package(game_id: &str) -> Option<&'static GamePackage> {
+    crate::games::discovered()
+        .iter()
+        .find(|(id, _)| *id == game_id)
+        .map(|(_, pkg)| pkg)
 }
-
-pub struct SourceSpec {
-    pub id: &'static str,
-    pub games: &'static [SourceGame],
-}
-
-pub static SOURCE_REGISTRY: &[SourceSpec] = &[
-    SourceSpec {
-        id: "modworkshop",
-        games: &[
-            SourceGame {
-                game_id: "pd3",
-                native_id: "853",
-                numeric_id: None,
-            },
-            SourceGame {
-                game_id: "pd2",
-                native_id: "1",
-                numeric_id: None,
-            },
-            SourceGame {
-                game_id: "pdth",
-                native_id: "2",
-                numeric_id: None,
-            },
-            SourceGame {
-                game_id: "cb",
-                native_id: "857",
-                numeric_id: None,
-            },
-            SourceGame {
-                game_id: "raid",
-                native_id: "543",
-                numeric_id: None,
-            },
-        ],
-    },
-    SourceSpec {
-        id: "nexus",
-        games: &[
-            SourceGame {
-                game_id: "pd3",
-                native_id: "payday3",
-                numeric_id: Some(5717),
-            },
-            SourceGame {
-                game_id: "pd2",
-                native_id: "payday2",
-                numeric_id: Some(648),
-            },
-            SourceGame {
-                game_id: "pdth",
-                native_id: "paydaytheheist",
-                numeric_id: Some(4339),
-            },
-            SourceGame {
-                game_id: "cb",
-                native_id: "crimebossrockaycity",
-                numeric_id: Some(6528),
-            },
-        ],
-    },
-];
 
 /// A stable, source-scoped id for InstalledMod.id. Deliberately not a bare negation of
 /// remote_id: two different sources can each assign the number 52 to different mods, and
@@ -107,27 +43,37 @@ pub fn source_native_local_id(source_id: &str, remote_id: &str) -> i64 {
     -magnitude
 }
 
-pub fn source_spec(source_id: &str) -> Option<&'static SourceSpec> {
-    SOURCE_REGISTRY.iter().find(|s| s.id == source_id)
-}
-
-/// What the source calls this game, or None when the source does not serve it.
-pub fn native_id(source_id: &str, game_id: &str) -> Option<&'static str> {
-    source_spec(source_id)?
-        .games
+/// What the source calls this game, or None when the game declares no binding for it.
+pub fn native_id(source_id: &str, game_id: &str) -> Option<String> {
+    package(game_id)?
+        .sources
         .iter()
-        .find(|g| g.game_id == game_id)
-        .map(|g| g.native_id)
+        .find_map(|binding| match (source_id, binding) {
+            ("modworkshop", SourceBinding::ModWorkshop { game_id }) => Some(game_id.clone()),
+            ("nexus", SourceBinding::Nexus { domain, .. }) => Some(domain.clone()),
+            _ => None,
+        })
 }
 
-/// The reverse, for callbacks where a source hands us its own id (an nxm:// link
-/// carries the Nexus domain) and the internal game id is what routes the work.
+/// The reverse, for callbacks where a source hands us its own id (an nxm:// link carries the
+/// Nexus domain) and the internal game id is what routes the work.
 pub fn game_id_for_native(source_id: &str, native_id: &str) -> Option<&'static str> {
-    source_spec(source_id)?
-        .games
+    crate::games::discovered()
         .iter()
-        .find(|g| g.native_id == native_id)
-        .map(|g| g.game_id)
+        .find(|(id, _)| self::native_id(source_id, id).as_deref() == Some(native_id))
+        .map(|(id, _)| *id)
+}
+
+/// The numeric id Nexus's GraphQL content API filters on, which is a different id than the
+/// domain slug native_id returns. Both name the same game.
+pub fn nexus_numeric_id(game_id: &str) -> Option<u32> {
+    package(game_id)?
+        .sources
+        .iter()
+        .find_map(|binding| match binding {
+            SourceBinding::Nexus { numeric_id, .. } => Some(*numeric_id),
+            SourceBinding::ModWorkshop { .. } => None,
+        })
 }
 
 /// The registry as the renderer sees it, so the source list a game offers lives in one
@@ -153,16 +99,17 @@ pub struct SourceGameInfo {
 #[tauri::command]
 #[specta::specta]
 pub fn list_sources() -> Vec<SourceInfo> {
-    SOURCE_REGISTRY
+    SOURCE_IDS
         .iter()
-        .map(|s| SourceInfo {
-            id: s.id.to_string(),
-            games: s
-                .games
+        .map(|source_id| SourceInfo {
+            id: source_id.to_string(),
+            games: crate::games::discovered()
                 .iter()
-                .map(|g| SourceGameInfo {
-                    game_id: g.game_id.to_string(),
-                    native_id: g.native_id.to_string(),
+                .filter_map(|(game_id, _)| {
+                    native_id(source_id, game_id).map(|native_id| SourceGameInfo {
+                        game_id: game_id.to_string(),
+                        native_id,
+                    })
                 })
                 .collect(),
         })
@@ -172,77 +119,100 @@ pub fn list_sources() -> Vec<SourceInfo> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::commands::games::GAME_REGISTRY;
 
-    #[test]
-    fn source_ids_are_unique() {
-        let mut ids: Vec<&str> = SOURCE_REGISTRY.iter().map(|s| s.id).collect();
-        ids.sort_unstable();
-        ids.dedup();
-        assert_eq!(ids.len(), SOURCE_REGISTRY.len());
+    fn bound_games(source_id: &str) -> Vec<(&'static str, String)> {
+        crate::games::discovered()
+            .iter()
+            .filter_map(|(game_id, _)| native_id(source_id, game_id).map(|n| (*game_id, n)))
+            .collect()
     }
 
     #[test]
-    fn every_source_serves_only_registered_games() {
-        for source in SOURCE_REGISTRY {
-            assert!(
-                !source.games.is_empty(),
-                "source {} serves no game",
-                source.id
-            );
-            for game in source.games {
-                assert!(
-                    GAME_REGISTRY.iter().any(|s| s.id == game.game_id),
-                    "source {} names game '{}', which is not in GAME_REGISTRY",
-                    source.id,
-                    game.game_id
+    fn every_source_binding_names_a_source_with_a_connector() {
+        for (game_id, pkg) in crate::games::discovered() {
+            for binding in &pkg.sources {
+                assert!(SOURCE_IDS.contains(&binding.provider()), "{game_id}");
+            }
+        }
+    }
+
+    #[test]
+    fn a_native_id_round_trips_for_every_binding() {
+        for source_id in SOURCE_IDS {
+            for (game_id, native) in bound_games(source_id) {
+                assert_eq!(
+                    game_id_for_native(source_id, &native),
+                    Some(game_id),
+                    "{source_id}:{game_id} does not round trip"
                 );
             }
         }
     }
 
     #[test]
-    fn a_source_names_each_game_once() {
-        for source in SOURCE_REGISTRY {
-            let mut ids: Vec<&str> = source.games.iter().map(|g| g.game_id).collect();
-            ids.sort_unstable();
-            ids.dedup();
-            assert_eq!(
-                ids.len(),
-                source.games.len(),
-                "source {} lists a game twice, so native_id would never reach the second",
-                source.id
-            );
-        }
-    }
-
-    #[test]
     fn native_ids_are_unique_within_a_source() {
-        for source in SOURCE_REGISTRY {
-            let mut ids: Vec<&str> = source.games.iter().map(|g| g.native_id).collect();
-            ids.sort_unstable();
+        for source_id in SOURCE_IDS {
+            let mut ids: Vec<String> = bound_games(source_id).into_iter().map(|(_, n)| n).collect();
+            let total = ids.len();
+            ids.sort();
             ids.dedup();
             assert_eq!(
                 ids.len(),
-                source.games.len(),
-                "source {} reuses a native id, so game_id_for_native is ambiguous",
-                source.id
+                total,
+                "{source_id} reuses a native id, so game_id_for_native is ambiguous"
             );
         }
     }
 
     #[test]
-    fn native_id_round_trips_for_every_registered_pair() {
-        for source in SOURCE_REGISTRY {
-            for game in source.games {
-                let native = native_id(source.id, game.game_id).expect("native id");
-                assert_eq!(native, game.native_id);
-                assert_eq!(
-                    game_id_for_native(source.id, native),
-                    Some(game.game_id),
-                    "{}:{} does not round trip",
-                    source.id,
-                    game.game_id
+    fn a_native_id_is_never_empty() {
+        for source_id in SOURCE_IDS {
+            for (game_id, native) in bound_games(source_id) {
+                assert!(
+                    !native.is_empty(),
+                    "{source_id}:{game_id} has an empty native id"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn every_nexus_binding_carries_a_unique_numeric_id() {
+        let mut ids: Vec<u32> = bound_games("nexus")
+            .into_iter()
+            .map(|(game_id, _)| nexus_numeric_id(game_id).expect("nexus binding has a numeric id"))
+            .collect();
+        let total = ids.len();
+        assert!(total > 0);
+        ids.sort_unstable();
+        ids.dedup();
+        assert_eq!(ids.len(), total);
+    }
+
+    #[test]
+    fn an_unbound_source_or_game_resolves_to_nothing() {
+        assert_eq!(native_id("no-such-source", "pd3"), None);
+        assert_eq!(native_id("nexus", "no-such-game"), None);
+        // Nexus has no RAID presence, so that must not resolve.
+        assert_eq!(native_id("nexus", "raid"), None);
+        assert_eq!(nexus_numeric_id("raid"), None);
+        assert_eq!(game_id_for_native("nexus", "no-such-domain"), None);
+    }
+
+    #[test]
+    fn listed_sources_carry_only_the_games_bound_to_them() {
+        let listed = list_sources();
+        assert_eq!(listed.len(), SOURCE_IDS.len());
+        for info in listed {
+            let expected = bound_games(&info.id);
+            assert_eq!(info.games.len(), expected.len(), "{}", info.id);
+            for (game_id, native) in expected {
+                assert!(
+                    info.games
+                        .iter()
+                        .any(|g| g.game_id == game_id && g.native_id == native),
+                    "{} is missing {game_id}",
+                    info.id
                 );
             }
         }
@@ -274,46 +244,5 @@ mod tests {
             source_native_local_id("nexus", "52"),
             source_native_local_id("modio", "52")
         );
-    }
-
-    #[test]
-    fn unknown_source_or_game_resolves_to_nothing() {
-        assert_eq!(native_id("no-such-source", "pd3"), None);
-        assert_eq!(native_id("nexus", "no-such-game"), None);
-        // Nexus has no RAID presence, so that must not resolve.
-        assert_eq!(native_id("nexus", "raid"), None);
-    }
-
-    #[test]
-    fn every_nexus_game_has_a_numeric_id() {
-        let nexus = source_spec("nexus").expect("nexus registered");
-        for game in nexus.games {
-            assert!(
-                game.numeric_id.is_some(),
-                "nexus:{} has no numeric_id, so modFileContents lookups can't filter on it",
-                game.game_id
-            );
-        }
-    }
-
-    #[test]
-    fn every_modworkshop_game_has_no_numeric_id() {
-        let modworkshop = source_spec("modworkshop").expect("modworkshop registered");
-        for game in modworkshop.games {
-            assert!(
-                game.numeric_id.is_none(),
-                "modworkshop:{} has a numeric_id, but only nexus has two names for one game",
-                game.game_id
-            );
-        }
-    }
-
-    #[test]
-    fn nexus_numeric_ids_are_unique() {
-        let nexus = source_spec("nexus").expect("nexus registered");
-        let mut ids: Vec<u32> = nexus.games.iter().filter_map(|g| g.numeric_id).collect();
-        ids.sort_unstable();
-        ids.dedup();
-        assert_eq!(ids.len(), nexus.games.len());
     }
 }

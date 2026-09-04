@@ -1,6 +1,7 @@
 use crate::commands::games::game_spec;
 use crate::commands::mods::{get_state_path, read_state, resolve_pak_path, sidecar_path};
 use crate::commands::settings::{game_settings, read_settings};
+use crate::game_package::PackageReaderBinding;
 use aes::cipher::KeyInit;
 use retoc::ser::ReadExt;
 use serde::Serialize;
@@ -69,9 +70,20 @@ fn list_iostore(utoc_path: &Path, aes_key: &str) -> Result<Vec<PakAsset>, String
     Ok(assets)
 }
 
-fn list_unreal_assets(pak_path: &Path, aes_key: &str) -> Result<Vec<PakAsset>, String> {
-    let utoc_path = sidecar_path(pak_path, "pak", "utoc")
-        .ok_or_else(|| format!("pak path has no .pak extension: {}", pak_path.display()))?;
+/// The container extension is the one the target declares, so a game that names its packages
+/// something else still resolves. Which companion holds the IoStore index is the reader's own
+/// knowledge, not the game's.
+fn list_unreal_assets(
+    pak_path: &Path,
+    container_extension: &str,
+    aes_key: &str,
+) -> Result<Vec<PakAsset>, String> {
+    let utoc_path = sidecar_path(pak_path, container_extension, "utoc").ok_or_else(|| {
+        format!(
+            "package path has no .{container_extension} extension: {}",
+            pak_path.display()
+        )
+    })?;
     if utoc_path
         .try_exists()
         .map_err(|e| format!("failed to inspect {}: {e}", utoc_path.display()))?
@@ -89,11 +101,10 @@ pub async fn list_pak_assets(
     uid: String,
 ) -> Result<Vec<PakAsset>, String> {
     let spec = game_spec(&game_id).ok_or_else(|| format!("unknown game '{game_id}'"))?;
-    let package_reader = spec
-        .unreal_package_reader
-        .as_ref()
-        .ok_or_else(|| format!("package viewer is not available for '{game_id}'"))?;
-    let aes_key = package_reader.aes_key;
+    let aes_key = match spec.package_reader {
+        Some(PackageReaderBinding::Unreal { aes_key }) => aes_key.as_str(),
+        None => return Err(format!("package viewer is not available for '{game_id}'")),
+    };
     let cfg = spec.engine;
     let settings = read_settings(&app);
     let Some(game_path) = game_settings(&settings, &game_id).and_then(|gs| gs.game_path.clone())
@@ -107,8 +118,11 @@ pub async fn list_pak_assets(
     let Some(pak) = resolve_pak_path(&game_path, cfg, &state.folders, m) else {
         return Err("this mod has no pak to inspect".to_string());
     };
+    let Some(extension) = cfg.target_for(m.location.as_deref()).content_extension() else {
+        return Err("this mod's target declares no package file".to_string());
+    };
 
-    tokio::task::spawn_blocking(move || list_unreal_assets(&pak, aes_key))
+    tokio::task::spawn_blocking(move || list_unreal_assets(&pak, extension, aes_key))
         .await
         .map_err(|e| format!("pak reader task failed: {e}"))?
 }

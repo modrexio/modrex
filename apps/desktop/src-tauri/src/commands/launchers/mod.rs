@@ -1,14 +1,12 @@
 mod epic;
-mod games;
 mod steam;
 mod types;
 mod xbox;
 
 use epic::Epic;
-pub(crate) use games::{CRIMEBOSS, PD2, PD3, PDTH, RAID};
 use steam::Steam;
-pub(crate) use types::GameDef;
 use types::Launcher;
+pub(crate) use types::{EpicDef, GameDef, SteamDef, XboxDef};
 use xbox::Xbox;
 
 use crate::commands::mods::{
@@ -18,7 +16,7 @@ use crate::commands::settings::{game_settings, read_settings, update_settings, G
 use serde::Serialize;
 use std::collections::HashMap;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use tauri::AppHandle;
 
 static STEAM: Steam = Steam;
@@ -46,7 +44,7 @@ fn probe_installs(game: &'static GameDef) -> Vec<DetectedInstall> {
         }
         log::info!("probing {} for {}", launcher.id(), game.name);
         if let Some(game_path) = launcher.find_game(game) {
-            log::info!("found {} via {}: {game_path}", game.name, launcher.id());
+            log::info!("found {} via {}", game.name, launcher.id());
             found.push(DetectedInstall {
                 launcher: launcher.id().to_string(),
                 game_path,
@@ -65,7 +63,7 @@ fn probe_one(game: &'static GameDef, launcher_id: &str) -> Option<String> {
     }
     log::info!("probing {} for {}", launcher.id(), game.name);
     let path = launcher.find_game(game)?;
-    log::info!("found {} via {}: {path}", game.name, launcher.id());
+    log::info!("found {} via {}", game.name, launcher.id());
     Some(path)
 }
 
@@ -80,7 +78,7 @@ fn tracked_mod_count(game_path: &str, cfg: &ModEngineConfig) -> usize {
     }
     // Launching without mods renames the whole folder for pak games, so until the next
     // launch restores it the list lives inside the backup instead.
-    read_state(&backup_dir(game_path, cfg.primary()).join(cfg.state_filename))
+    read_state(&backup_dir(game_path, cfg.primary()).join(crate::commands::mods::STATE_FILENAME))
         .mods
         .len()
 }
@@ -216,7 +214,7 @@ fn launch_with(launcher_id: &str, game: &'static GameDef, game_path: &str, opts:
             .map(|o| o.split_whitespace().collect())
             .unwrap_or_default();
         if let Err(e) = outside_bundle(std::process::Command::new(&exe).args(&args)).spawn() {
-            log::warn!("launch_game: spawn {exe:?}: {e}");
+            log::warn!("launch_game: spawn failed: {e}");
         }
     }
 }
@@ -235,8 +233,8 @@ fn remove_pd3_xbox_crash_reporter_files(game_path: &str) {
             continue;
         }
         match fs::remove_file(&file) {
-            Ok(()) => log::info!("removed PAYDAY 3 Xbox crash reporter file {file:?}"),
-            Err(e) => log::warn!("remove PAYDAY 3 Xbox crash reporter file {file:?}: {e}"),
+            Ok(()) => log::info!("removed a PAYDAY 3 Xbox crash reporter file"),
+            Err(e) => log::warn!("remove PAYDAY 3 Xbox crash reporter file: {e}"),
         }
     }
 }
@@ -778,10 +776,24 @@ pub fn shell_open_external(url: String) {
     }
 }
 
+/// Opens the configured install folder for one game. Takes a game id rather than a path:
+/// the renderer names which game it means and Rust looks the folder up, so no caller can
+/// ask for a location Modrex has not already recorded for itself.
 #[tauri::command]
 #[specta::specta]
-pub fn shell_open_path(path: String) {
-    open_path_on_system(&path);
+pub fn open_game_folder(app: AppHandle, game_id: String) -> Result<(), String> {
+    let gid = game_id.as_str();
+    crate::commands::games::game_spec(gid).ok_or_else(|| format!("unknown game '{gid}'"))?;
+    let settings = read_settings(&app);
+    let Some(game_path) = game_settings(&settings, gid).and_then(|gs| gs.game_path.clone()) else {
+        return Ok(());
+    };
+    let dir = PathBuf::from(&game_path);
+    match resolve_under(&dir, &dir, OpenKind::Directory) {
+        Some(dir) => open_path_on_system(&dir.to_string_lossy()),
+        None => log::warn!("open_game_folder {gid}: the configured path is not a usable directory"),
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -792,14 +804,45 @@ pub fn open_log_file(app: AppHandle) {
         return;
     };
     let log_file = log_dir.join(format!("{}.log", app.package_info().name));
-    if let Ok(content) = std::fs::read_to_string(&log_file) {
-        let snapshot = std::env::temp_dir().join("modrex_log.txt");
-        if std::fs::write(&snapshot, content).is_ok() {
-            open_url(&snapshot.to_string_lossy());
-            return;
-        }
+    // The log itself when it is a real file we own, otherwise the directory holding it.
+    // Nothing is written on this path: copying the log to a predictable name in the shared
+    // temp directory let anything that could pre-create that name have the copy written
+    // through its link instead.
+    match resolve_under(&log_dir, &log_file, OpenKind::File) {
+        Some(file) => open_path_on_system(&file.to_string_lossy()),
+        None => match resolve_under(&log_dir, &log_dir, OpenKind::Directory) {
+            Some(dir) => open_path_on_system(&dir.to_string_lossy()),
+            None => log::warn!("open_log_file: no usable log directory"),
+        },
     }
-    open_path_on_system(&log_dir.to_string_lossy());
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum OpenKind {
+    File,
+    Directory,
+}
+
+/// Resolves target and proves it is root or something inside it, of the expected kind.
+///
+/// Canonicalizing both sides is what makes the comparison meaningful: it resolves .. and
+/// symlinks and normalizes Windows casing and verbatim prefixes, so this is not a string
+/// prefix test. A link is refused before that, because opening one hands the shell a
+/// destination Modrex never validated. Anything unresolvable is refused rather than opened.
+pub(crate) fn resolve_under(root: &Path, target: &Path, kind: OpenKind) -> Option<PathBuf> {
+    let meta = std::fs::symlink_metadata(target).ok()?;
+    if meta.file_type().is_symlink() {
+        return None;
+    }
+    let root = root.canonicalize().ok()?;
+    let target = target.canonicalize().ok()?;
+    if !target.starts_with(&root) {
+        return None;
+    }
+    match kind {
+        OpenKind::File => target.is_file().then_some(target),
+        OpenKind::Directory => target.is_dir().then_some(target),
+    }
 }
 
 #[tauri::command]

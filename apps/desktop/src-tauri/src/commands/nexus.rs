@@ -37,9 +37,9 @@ fn rate_limiter() -> &'static Mutex<TokenBucket> {
     RATE_LIMITER.get_or_init(|| Mutex::new(TokenBucket::new(RATE_BURST, RATE_PER_SEC)))
 }
 
-// Which games Nexus serves, and the domain slug it knows each by, live in the source
-// registry. An unsupported id is a real error, not a silent fallback to a default game.
-pub(crate) fn nexus_domain(game_id: &str) -> Result<&'static str, String> {
+// A game reaches Nexus by declaring the domain slug in its package. An unsupported id is a
+// real error, not a silent fallback to a default game.
+pub(crate) fn nexus_domain(game_id: &str) -> Result<String, String> {
     sources::native_id("nexus", game_id)
         .ok_or_else(|| format!("nexus: no game domain mapping for '{game_id}'"))
 }
@@ -54,9 +54,7 @@ pub(crate) fn game_id_for_domain(domain: &str) -> Result<&'static str, String> {
 // The GraphQL content API filters on Nexus's numeric game id, a different id than
 // the domain slug nexus_domain returns. Both name the same game.
 pub(crate) fn nexus_numeric_game_id(game_id: &str) -> Result<u32, String> {
-    sources::source_spec("nexus")
-        .and_then(|s| s.games.iter().find(|g| g.game_id == game_id))
-        .and_then(|g| g.numeric_id)
+    sources::nexus_numeric_id(game_id)
         .ok_or_else(|| format!("nexus: no numeric game id for '{game_id}'"))
 }
 
@@ -209,7 +207,7 @@ pub async fn nexus_list_mod_files(
         vec![],
     )
     .await?;
-    crate::commands::domain::parse_nexus_files(value, domain, mod_id)
+    crate::commands::domain::parse_nexus_files(value, &domain, mod_id)
 }
 
 // Single-file details; carries file_name, which the nxm flow needs when the

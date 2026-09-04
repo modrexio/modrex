@@ -1,4 +1,9 @@
 #[test]
+fn export_game_catalog() {
+    modrex_lib::export_game_catalog();
+}
+
+#[test]
 fn export_typescript_bindings() {
     // specta's type collection recurses deeply in unoptimized builds; the default test
     // thread stack overflows, so run the export on a roomier one.

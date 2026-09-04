@@ -15,7 +15,7 @@ function isModworkshopSourced(m: InstalledMod): boolean {
 
 export function useModData(
     installed: InstalledMod[],
-    workshopId: number,
+    workshopId: number | undefined,
     gameId: GameId
 ): {
     modData: Map<number, ModSummary>
@@ -123,7 +123,7 @@ export function useModData(
             const t = fetchedAt.current.get(m.id)
             return t === undefined || now - t >= INSTALLED_META_TTL_MS
         })
-        if (stale.length > 0) {
+        if (stale.length > 0 && workshopId !== undefined) {
             const insIdByRemoteId = new Map<number, number>()
             for (const m of stale) {
                 const remoteId = Number(m.remoteId)

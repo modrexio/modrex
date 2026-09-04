@@ -16,7 +16,7 @@ use crate::commands::mods::{
 
 #[test]
 fn every_game_resolves_its_own_engine_and_def() {
-    for spec in GAME_REGISTRY {
+    for spec in GAME_REGISTRY.iter() {
         assert_eq!(
             spec.id, spec.engine.game_id,
             "engine game_id for {}",
@@ -25,11 +25,6 @@ fn every_game_resolves_its_own_engine_and_def() {
         assert!(
             !spec.engine.index_game_name.is_empty(),
             "{} has no index_game_name, so no mod can ever be identified by hash",
-            spec.id
-        );
-        assert!(
-            !spec.engine.state_filename.is_empty(),
-            "{} has no state_filename",
             spec.id
         );
         assert!(
@@ -42,7 +37,7 @@ fn every_game_resolves_its_own_engine_and_def() {
 
 #[test]
 fn every_game_is_detectable_by_at_least_one_store() {
-    for spec in GAME_REGISTRY {
+    for spec in GAME_REGISTRY.iter() {
         let def = spec.def;
         assert!(!def.name.is_empty(), "{} has no name", spec.id);
         assert!(
@@ -65,7 +60,7 @@ fn every_game_is_detectable_by_at_least_one_store() {
 
 #[test]
 fn target_tags_are_unique_within_a_game() {
-    for spec in GAME_REGISTRY {
+    for spec in GAME_REGISTRY.iter() {
         let mut tags: Vec<&str> = spec.engine.targets.iter().map(|t| t.tag).collect();
         tags.sort_unstable();
         tags.dedup();
@@ -80,7 +75,7 @@ fn target_tags_are_unique_within_a_game() {
 
 #[test]
 fn target_for_routes_every_tag_back_to_its_own_target() {
-    for spec in GAME_REGISTRY {
+    for spec in GAME_REGISTRY.iter() {
         let cfg = spec.engine;
         assert_eq!(
             cfg.target_for(None).tag,
@@ -108,7 +103,7 @@ fn target_for_routes_every_tag_back_to_its_own_target() {
 
 #[test]
 fn disabled_suffix_matches_the_unit_kind() {
-    for spec in GAME_REGISTRY {
+    for spec in GAME_REGISTRY.iter() {
         for target in spec.engine.targets {
             let suffix = target.disabled_suffix();
             if target.is_directory_unit() {
@@ -135,7 +130,7 @@ fn disabled_suffix_matches_the_unit_kind() {
 #[test]
 fn disabled_dir_lives_under_its_own_mods_dir() {
     let game_path = "C:/game";
-    for spec in GAME_REGISTRY {
+    for spec in GAME_REGISTRY.iter() {
         for target in spec.engine.targets {
             let mods = mods_dir(game_path, target);
             let disabled = disabled_dir(game_path, target);
@@ -154,7 +149,7 @@ fn disabled_dir_lives_under_its_own_mods_dir() {
 #[test]
 fn backup_dir_lives_outside_its_own_mods_dir() {
     let game_path = "C:/game";
-    for spec in GAME_REGISTRY {
+    for spec in GAME_REGISTRY.iter() {
         for target in spec.engine.targets {
             let mods = mods_dir(game_path, target);
             let backup = backup_dir(game_path, target);
@@ -174,7 +169,7 @@ fn backup_dir_lives_outside_its_own_mods_dir() {
 #[test]
 fn targets_never_share_a_mods_or_backup_dir() {
     let game_path = "C:/game";
-    for spec in GAME_REGISTRY {
+    for spec in GAME_REGISTRY.iter() {
         let mut mods = HashSet::new();
         let mut backups = HashSet::new();
         for target in spec.engine.targets {
@@ -197,7 +192,7 @@ fn targets_never_share_a_mods_or_backup_dir() {
 
 #[test]
 fn state_round_trips_for_every_game_and_target() {
-    for spec in GAME_REGISTRY {
+    for spec in GAME_REGISTRY.iter() {
         let cfg = spec.engine;
         let tmp = TempDir::new().unwrap();
         let game_path = tmp.path().to_str().unwrap();

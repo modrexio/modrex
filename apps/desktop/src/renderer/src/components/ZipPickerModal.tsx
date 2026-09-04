@@ -9,8 +9,9 @@ import { setArchiveEntries } from '../archiveEntriesCache'
 import { entryFilename, stripPriorityPrefix } from '../hooks/installedUtils'
 
 export interface ZipMultiPakPayload {
-    zipPath: string
+    archiveHandle: string
     entries: string[]
+    entryIds: number[]
     modId: number
     modName: string
     fileId: number
@@ -49,15 +50,17 @@ function stripWrapperPrefix(entries: string[]): string {
     return stripped.some((e) => e.includes('/')) ? raw : ''
 }
 
-function groupEntriesByDir(entries: string[], prefix: string): Map<string, string[]> {
-    const map = new Map<string, string[]>()
-    for (const entry of entries) {
+// Groups entry positions, not names: two entries can display the same name and must stay
+// separately selectable.
+function groupEntriesByDir(entries: string[], prefix: string): Map<string, number[]> {
+    const map = new Map<string, number[]>()
+    entries.forEach((entry, pos) => {
         const rel = entry.slice(prefix.length)
         const lastSlash = rel.lastIndexOf('/')
         const dir = lastSlash === -1 ? '' : rel.slice(0, lastSlash)
         if (!map.has(dir)) map.set(dir, [])
-        map.get(dir)!.push(entry)
-    }
+        map.get(dir)!.push(pos)
+    })
     return map
 }
 
@@ -92,9 +95,9 @@ function targetLabel(tag: string | null): string {
 function computeInstalledEntries(
     payload: ZipMultiPakPayload,
     installedFiles: InstalledMod[]
-): Set<string> {
-    const set = new Set<string>()
-    for (const entry of payload.entries) {
+): Set<number> {
+    const set = new Set<number>()
+    payload.entries.forEach((entry, pos) => {
         const uid = `${payload.fileId}_${entryStem(entry)}`
         const filename = entryFilename(entry)
         const isInstalled = installedFiles.some(
@@ -103,8 +106,8 @@ function computeInstalledEntries(
                 (m.uid === uid ||
                     (m.fileId === payload.fileId && stripPriorityPrefix(m.filename) === filename))
         )
-        if (isInstalled) set.add(entry)
-    }
+        if (isInstalled) set.add(pos)
+    })
     return set
 }
 
@@ -115,7 +118,7 @@ function computeInstalledEntries(
 export function computeAutoUpdateSelection(
     payload: ZipMultiPakPayload,
     installedFiles: InstalledMod[]
-): string[] | null {
+): number[] | null {
     const installedEntries = computeInstalledEntries(payload, installedFiles)
     // Archive picker prompts never reach the Nexus install flow (it cannot forward them,
     // see install_nexus_download), so payload.modId is always a real modworkshop id;
@@ -123,14 +126,14 @@ export function computeAutoUpdateSelection(
     const modIdStr = String(payload.modId)
     const priorEntriesForMod = installedFiles.filter((m) => m.remoteId === modIdStr && !m.missing)
     if (priorEntriesForMod.length === 0) return null
-    const matched: string[] = []
-    for (const entry of payload.entries) {
-        if (installedEntries.has(entry)) continue
+    const matched: number[] = []
+    payload.entries.forEach((entry, pos) => {
+        if (installedEntries.has(pos)) return
         const filename = entryFilename(entry)
         if (priorEntriesForMod.some((m) => stripPriorityPrefix(m.filename) === filename)) {
-            matched.push(entry)
+            matched.push(pos)
         }
-    }
+    })
     return matched.length > 0 ? matched : null
 }
 
@@ -139,25 +142,25 @@ export function computeAutoUpdateSelection(
 // already know what to install and never show the picker UI at all.
 export async function installZipPickerEntries(
     payload: ZipMultiPakPayload,
-    toInstall: string[],
+    toInstall: number[],
     gamePath: string,
     gameId: string,
     folderId: string | null | undefined,
     onRefreshInstalled: () => Promise<void>,
     onProgress?: (entry: string | null) => void
 ): Promise<void> {
-    const tagByEntry = new Map<string, string | null>()
+    const tagByPos = new Map<number, string | null>()
     if (payload.entryTags && payload.entryTags.length === payload.entries.length) {
-        payload.entries.forEach((e, i) => tagByEntry.set(e, payload.entryTags![i] ?? null))
+        payload.entries.forEach((_, i) => tagByPos.set(i, payload.entryTags![i] ?? null))
     }
-    const multiTarget = tagByEntry.size > 0 && new Set(tagByEntry.values()).size > 1
+    const multiTarget = tagByPos.size > 0 && new Set(tagByPos.values()).size > 1
 
     if (multiTarget) {
-        for (const entry of toInstall) {
-            onProgress?.(entry)
+        for (const pos of toInstall) {
+            onProgress?.(payload.entries[pos])
             await api.installFromZipEntry(
-                payload.zipPath,
-                entry,
+                payload.archiveHandle,
+                payload.entryIds[pos],
                 payload.modId,
                 payload.modName,
                 payload.fileId,
@@ -166,13 +169,13 @@ export async function installZipPickerEntries(
                 gamePath,
                 gameId,
                 null,
-                tagByEntry.get(entry) ?? undefined,
+                tagByPos.get(pos) ?? undefined,
                 payload.entryKind
             )
             await onRefreshInstalled()
         }
         onProgress?.(null)
-        await api.deleteTempFile(payload.zipPath)
+        await api.discardStagedArchive(payload.archiveHandle)
         return
     }
 
@@ -187,7 +190,9 @@ export async function installZipPickerEntries(
     ])
 
     if (isStructured && !payload.targetTag) {
-        const normalizedToInstall = toInstall.map((e) => e.slice(prefix.length))
+        const normalizedToInstall = toInstall.map((pos) =>
+            payload.entries[pos].slice(prefix.length)
+        )
         for (const dir of getRequiredDirs(normalizedToInstall)) {
             const lastSlash = dir.lastIndexOf('/')
             const parentDir = lastSlash === -1 ? '' : dir.slice(0, lastSlash)
@@ -203,14 +208,14 @@ export async function installZipPickerEntries(
         await onRefreshInstalled()
     }
 
-    for (const entry of toInstall) {
-        const rel = entry.slice(prefix.length)
+    for (const pos of toInstall) {
+        const rel = payload.entries[pos].slice(prefix.length)
         const lastSlash = rel.lastIndexOf('/')
         const dir = lastSlash === -1 ? '' : rel.slice(0, lastSlash)
-        onProgress?.(entry)
+        onProgress?.(payload.entries[pos])
         await api.installFromZipEntry(
-            payload.zipPath,
-            entry,
+            payload.archiveHandle,
+            payload.entryIds[pos],
             payload.modId,
             payload.modName,
             payload.fileId,
@@ -225,7 +230,7 @@ export async function installZipPickerEntries(
         await onRefreshInstalled()
     }
     onProgress?.(null)
-    await api.deleteTempFile(payload.zipPath)
+    await api.discardStagedArchive(payload.archiveHandle)
 }
 
 interface Props {
@@ -252,7 +257,9 @@ export function ZipPickerModal({
         [payload, installedFiles]
     )
 
-    const selectable = payload.entries.filter((e) => !installedEntries.has(e))
+    const selectable = payload.entries
+        .map((_, pos) => pos)
+        .filter((pos) => !installedEntries.has(pos))
 
     // Defaults the picker to "what you already have" across a version bump (matched by
     // filename, since the new file's id never matches the old install) instead of re-selecting
@@ -262,11 +269,13 @@ export function ZipPickerModal({
         [payload, installedFiles]
     )
 
-    const [selected, setSelected] = useState<Set<string>>(() => {
+    const [selected, setSelected] = useState<Set<number>>(() => {
         if (matchedPriorSelection && matchedPriorSelection.length > 0) {
             return new Set(matchedPriorSelection)
         }
-        return new Set(payload.entries.filter((e) => !installedEntries.has(e)))
+        return new Set(
+            payload.entries.map((_, pos) => pos).filter((pos) => !installedEntries.has(pos))
+        )
     })
     const [installingEntry, setInstallingEntry] = useState<string | null>(null)
     const [error, setError] = useState<string | null>(null)
@@ -298,42 +307,42 @@ export function ZipPickerModal({
     )
 
     // Per-entry target routing: present only when the archive spans more than one scan target.
-    const tagByEntry = useMemo(() => {
-        const map = new Map<string, string | null>()
+    const tagByPos = useMemo(() => {
+        const map = new Map<number, string | null>()
         const tags = payload.entryTags
         if (tags && tags.length === payload.entries.length) {
-            payload.entries.forEach((e, i) => map.set(e, tags[i] ?? null))
+            payload.entries.forEach((_, i) => map.set(i, tags[i] ?? null))
         }
         return map
     }, [payload.entries, payload.entryTags])
 
     const multiTarget = useMemo(
-        () => tagByEntry.size > 0 && new Set(tagByEntry.values()).size > 1,
-        [tagByEntry]
+        () => tagByPos.size > 0 && new Set(tagByPos.values()).size > 1,
+        [tagByPos]
     )
 
     // Entries grouped by destination target, primary (null) first.
     const targetSections = useMemo(() => {
-        const groups = new Map<string | null, string[]>()
-        for (const entry of payload.entries) {
-            const tag = tagByEntry.get(entry) ?? null
+        const groups = new Map<string | null, number[]>()
+        payload.entries.forEach((_, pos) => {
+            const tag = tagByPos.get(pos) ?? null
             if (!groups.has(tag)) groups.set(tag, [])
-            groups.get(tag)!.push(entry)
-        }
+            groups.get(tag)!.push(pos)
+        })
         return [...groups.entries()].sort(([a], [b]) =>
             a === null ? -1 : b === null ? 1 : a.localeCompare(b)
         )
-    }, [payload.entries, tagByEntry])
+    }, [payload.entries, tagByPos])
 
     useEffect(() => {
         setArchiveEntries((gameId ?? 'pd3') as GameId, payload.fileId, payload.entries)
     }, [payload, gameId])
 
-    function toggle(entry: string) {
+    function toggle(pos: number) {
         setSelected((prev) => {
             const next = new Set(prev)
-            if (next.has(entry)) next.delete(entry)
-            else next.add(entry)
+            if (next.has(pos)) next.delete(pos)
+            else next.add(pos)
             return next
         })
     }
@@ -342,13 +351,13 @@ export function ZipPickerModal({
         setSelected((prev) => (prev.size === selectable.length ? new Set() : new Set(selectable)))
     }
 
-    function toggleGroup(entries: string[]) {
-        const groupSelectable = entries.filter((e) => !installedEntries.has(e))
+    function toggleGroup(positions: number[]) {
+        const groupSelectable = positions.filter((pos) => !installedEntries.has(pos))
         setSelected((prev) => {
-            const allSelected = groupSelectable.every((e) => prev.has(e))
+            const allSelected = groupSelectable.every((pos) => prev.has(pos))
             const next = new Set(prev)
-            if (allSelected) groupSelectable.forEach((e) => next.delete(e))
-            else groupSelectable.forEach((e) => next.add(e))
+            if (allSelected) groupSelectable.forEach((pos) => next.delete(pos))
+            else groupSelectable.forEach((pos) => next.add(pos))
             return next
         })
     }
@@ -356,7 +365,7 @@ export function ZipPickerModal({
     async function handleInstall() {
         if (selected.size === 0) return
         setError(null)
-        const toInstall = payload.entries.filter((e) => selected.has(e))
+        const toInstall = payload.entries.map((_, pos) => pos).filter((pos) => selected.has(pos))
         try {
             await installZipPickerEntries(
                 payload,
@@ -376,18 +385,19 @@ export function ZipPickerModal({
         onClose()
     }
 
-    function renderEntry(entry: string, indented = false) {
+    function renderEntry(pos: number, indented = false) {
+        const entry = payload.entries[pos]
         const isInstalling = installingEntry === entry
-        const isInstalled = installedEntries.has(entry)
+        const isInstalled = installedEntries.has(pos)
         const name = entry.slice(prefix.length).split('/').pop() ?? entry
         return (
             <div
-                key={entry}
-                onClick={() => !isInstalled && !isBusy && toggle(entry)}
+                key={payload.entryIds[pos]}
+                onClick={() => !isInstalled && !isBusy && toggle(pos)}
                 className={`flex items-center gap-3 p-3 rounded-xl border transition-colors ${
                     isInstalled
                         ? 'bg-surface-hover border-border opacity-60'
-                        : selected.has(entry)
+                        : selected.has(pos)
                           ? 'bg-accent/5 border-accent/40 cursor-pointer'
                           : 'bg-surface-hover border-border cursor-pointer'
                 } ${isBusy ? 'cursor-not-allowed opacity-60' : isInstalled ? '' : 'hover:bg-surface-active'} ${
@@ -396,8 +406,8 @@ export function ZipPickerModal({
             >
                 <input
                     type="checkbox"
-                    checked={isInstalled || selected.has(entry)}
-                    onChange={() => toggle(entry)}
+                    checked={isInstalled || selected.has(pos)}
+                    onChange={() => toggle(pos)}
                     disabled={isInstalled || isBusy}
                     onClick={(e) => e.stopPropagation()}
                     className="w-4 h-4 shrink-0"
@@ -550,7 +560,7 @@ export function ZipPickerModal({
                         })}
                     </>
                 ) : (
-                    payload.entries.map((entry) => renderEntry(entry))
+                    payload.entries.map((_, pos) => renderEntry(pos))
                 )}
             </div>
 

@@ -1,6 +1,11 @@
-use super::engine::{ModEngineConfig, ModUnit};
+use super::cleanup::{self, CleanupPlan};
+use super::engine::{DecoderBinding, ModEngineConfig, ModUnit};
 use super::host_mods::detect_host_pack;
 use super::paths::{active_mod_path, disabled_mod_path};
+use super::staged::{NameSource, Staged};
+use super::staging_tokens::{
+    ArchiveEntryId, StagedArchiveKind, StagedEntry, StagedEntrySource, StagingRegistry,
+};
 use super::state::get_folder_path;
 use super::types::{InstalledMod, ModFolder};
 use md5::Md5;
@@ -130,10 +135,23 @@ fn list_entries_rar(path: &Path) -> Result<Vec<ArchiveEntry>, String> {
     Ok(out)
 }
 
-pub fn list_pak_entries(path: &Path) -> Result<Vec<String>, String> {
+/// Installable entries of the given extension, paired with their position in the archive's
+/// enumeration order.
+fn list_unit_entries_indexed(path: &Path, extension: &str) -> Result<Vec<(u32, String)>, String> {
+    let suffix = format!(".{extension}");
     Ok(list_entries(path)?
         .into_iter()
-        .filter(|e| !e.is_dir && e.name.ends_with(".pak"))
+        .enumerate()
+        .filter(|(_, e)| !e.is_dir && e.name.ends_with(&suffix))
+        .map(|(i, e)| (i as u32, e.name))
+        .collect())
+}
+
+pub fn list_unit_entries(path: &Path, extension: &str) -> Result<Vec<String>, String> {
+    let suffix = format!(".{extension}");
+    Ok(list_entries(path)?
+        .into_iter()
+        .filter(|e| !e.is_dir && e.name.ends_with(&suffix))
         .map(|e| e.name)
         .collect())
 }
@@ -179,6 +197,172 @@ pub(crate) fn copy_capped<R: Read + ?Sized, W: std::io::Write + ?Sized>(
     }
     *budget -= written;
     Ok(())
+}
+
+#[cfg(test)]
+pub(super) fn list_entries_for_test(archive_path: &Path) -> Vec<String> {
+    list_entries(archive_path)
+        .expect("archive lists")
+        .into_iter()
+        .map(|e| e.name)
+        .collect()
+}
+
+#[cfg(test)]
+pub(super) fn staged_entry_for_test(archive_path: &Path, name: &str) -> StagedEntry {
+    let index = list_entries(archive_path)
+        .expect("archive lists")
+        .iter()
+        .position(|e| e.name == name)
+        .expect("entry is in the archive") as u32;
+    StagedEntry {
+        source: StagedEntrySource::File { index },
+        display_name: name.to_string(),
+    }
+}
+
+/// Extracts the entry at this position in the archive's own enumeration order, the same order
+/// list_entries reports. Selecting by position rather than by name is what keeps two entries
+/// whose names normalize onto each other distinguishable.
+pub(crate) fn extract_entry_at(archive_path: &Path, index: u32, dest: &Path) -> Result<(), String> {
+    let budget = &mut extract_budget(archive_path);
+    let index = index as usize;
+    match detect_archive(archive_path) {
+        Some(ArchiveFormat::Zip) => extract_zip_entry_at(archive_path, index, dest, budget),
+        Some(ArchiveFormat::SevenZip) => extract_7z_entry_at(archive_path, index, dest, budget),
+        Some(ArchiveFormat::TarGz) => extract_tar_entry_at(
+            flate2::read::GzDecoder::new(File::open(archive_path).map_err(|e| e.to_string())?),
+            index,
+            dest,
+            budget,
+        ),
+        Some(ArchiveFormat::TarXz) => extract_tar_entry_at(
+            xz2::read::XzDecoder::new(File::open(archive_path).map_err(|e| e.to_string())?),
+            index,
+            dest,
+            budget,
+        ),
+        Some(ArchiveFormat::Rar) => {
+            check_rar_budget(archive_path, *budget)?;
+            extract_rar_entry_at(archive_path, index, dest)
+        }
+        None => Err("Not a supported archive format".to_string()),
+    }
+}
+
+fn out_of_range(index: usize) -> String {
+    format!("archive entry {index} is no longer in this archive")
+}
+
+fn extract_zip_entry_at(
+    zip_path: &Path,
+    index: usize,
+    dest: &Path,
+    budget: &mut u64,
+) -> Result<(), String> {
+    let file = File::open(zip_path).map_err(|e| e.to_string())?;
+    let mut archive = zip::ZipArchive::new(file).map_err(|e| e.to_string())?;
+    if index >= archive.len() {
+        return Err(out_of_range(index));
+    }
+    let mut entry = archive.by_index(index).map_err(|e| e.to_string())?;
+    if entry.is_dir() {
+        return Err(out_of_range(index));
+    }
+    let mut dest_file = File::create(dest).map_err(|e| e.to_string())?;
+    copy_capped(&mut entry, &mut dest_file, budget)
+}
+
+fn extract_7z_entry_at(
+    archive_path: &Path,
+    index: usize,
+    dest: &Path,
+    budget: &mut u64,
+) -> Result<(), String> {
+    use std::cell::RefCell;
+    let write_result: RefCell<Option<Result<(), String>>> = RefCell::new(None);
+    let seen = RefCell::new(0usize);
+    let file = File::open(archive_path).map_err(|e| e.to_string())?;
+    let budget = RefCell::new(budget);
+    sevenz_rust::decompress_with_extract_fn(file, Path::new("."), |entry, reader, _dest| {
+        let position = *seen.borrow();
+        *seen.borrow_mut() = position + 1;
+        if position == index && !entry.is_directory() {
+            let r = File::create(dest)
+                .map_err(|e| e.to_string())
+                .and_then(|mut f| copy_capped(reader, &mut f, &mut budget.borrow_mut()));
+            *write_result.borrow_mut() = Some(r);
+            return Ok(false);
+        }
+        // Drain so the stream stays at the right offset for the next entry in solid archives.
+        let _ = std::io::copy(reader, &mut std::io::sink());
+        Ok(true)
+    })
+    .map_err(|e| e.to_string())?;
+
+    write_result
+        .into_inner()
+        .unwrap_or_else(|| Err(out_of_range(index)))
+}
+
+fn extract_tar_entry_at<R: Read>(
+    reader: R,
+    index: usize,
+    dest: &Path,
+    budget: &mut u64,
+) -> Result<(), String> {
+    let mut archive = tar::Archive::new(reader);
+    for (position, entry) in archive.entries().map_err(|e| e.to_string())?.enumerate() {
+        let mut entry = entry.map_err(|e| e.to_string())?;
+        if position != index {
+            continue;
+        }
+        if entry.header().entry_type().is_dir() {
+            return Err(out_of_range(index));
+        }
+        let mut dest_file = File::create(dest).map_err(|e| e.to_string())?;
+        return copy_capped(&mut entry, &mut dest_file, budget);
+    }
+    Err(out_of_range(index))
+}
+
+fn extract_rar_entry_at(archive_path: &Path, index: usize, dest: &Path) -> Result<(), String> {
+    let tmp_dir = std::env::temp_dir().join(format!("rar-{}", Uuid::new_v4()));
+    std::fs::create_dir_all(&tmp_dir).map_err(|e| e.to_string())?;
+    let result = (|| -> Result<(), String> {
+        let mut archive = unrar::Archive::new(archive_path)
+            .open_for_processing()
+            .map_err(|e| e.to_string())?;
+        let mut position = 0usize;
+        loop {
+            match archive.read_header().map_err(|e| e.to_string())? {
+                None => return Err(out_of_range(index)),
+                Some(header) => {
+                    if position != index {
+                        position += 1;
+                        archive = header.skip().map_err(|e| e.to_string())?;
+                        continue;
+                    }
+                    let name = header.entry().filename.to_string_lossy().replace('\\', "/");
+                    // extract_with_base writes to tmp_dir joined with the internal name,
+                    // reject traversal so it can't escape tmp_dir.
+                    if safe_dest(&tmp_dir, &name).is_none() {
+                        return Err("archive entry escapes extraction directory".to_string());
+                    }
+                    let entry_filename = header.entry().filename.clone();
+                    header
+                        .extract_with_base(&tmp_dir)
+                        .map_err(|e| e.to_string())?;
+                    let extracted = tmp_dir.join(&entry_filename);
+                    return std::fs::copy(&extracted, dest)
+                        .map(|_| ())
+                        .map_err(|e| e.to_string());
+                }
+            }
+        }
+    })();
+    let _ = std::fs::remove_dir_all(&tmp_dir);
+    result
 }
 
 pub fn extract_entry(archive_path: &Path, entry_name: &str, dest: &Path) -> Result<(), String> {
@@ -317,29 +501,6 @@ fn entry_key(name: &str) -> String {
 /// Like extract_entry, but also extracts any .ucas/.utoc siblings of entry_name found in
 /// the same archive (matched by directory + stem) to dest.with_extension(...). A missing
 /// sidecar is not an error, since most mods ship no IoStore triplet at all.
-pub fn extract_entry_with_sidecars(
-    archive_path: &Path,
-    entry_name: &str,
-    dest: &Path,
-) -> Result<(), String> {
-    extract_entry(archive_path, entry_name, dest)?;
-    let Ok(entries) = list_entries(archive_path) else {
-        return Ok(());
-    };
-    let key = entry_key(entry_name);
-    for ext in super::naming::PAK_SIDECAR_EXTENSIONS {
-        let sidecar = entries.iter().find(|e| {
-            !e.is_dir
-                && entry_key(&e.name) == key
-                && e.name.to_ascii_lowercase().ends_with(&format!(".{ext}"))
-        });
-        if let Some(sidecar) = sidecar {
-            let _ = extract_entry(archive_path, &sidecar.name, &dest.with_extension(ext));
-        }
-    }
-    Ok(())
-}
-
 pub async fn compute_sha256(path: &Path) -> Result<String, String> {
     let path = path.to_path_buf();
     tauri::async_runtime::spawn_blocking(move || {
@@ -927,8 +1088,13 @@ fn extract_flat_rar(archive_path: &Path, dest: &Path) -> Result<(), String> {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct ZipMultiPakPayload {
-    pub zip_path: String,
+    /// Backend-issued handle for this staged archive. The renderer never learns
+    /// the path, so it cannot name a different archive for the install to open.
+    pub archive_handle: String,
     pub entries: Vec<String>,
+    /// Identity of each listed entry, parallel to entries. Display names can normalize onto
+    /// each other; these cannot.
+    pub entry_ids: Vec<ArchiveEntryId>,
     pub target_tag: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub entry_tags: Option<Vec<Option<String>>>,
@@ -949,7 +1115,9 @@ pub struct ZipMultiPakPayload {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct HostPackPayload {
-    pub zip_path: String,
+    /// Backend-issued handle for this staged archive. The renderer never learns
+    /// the path, so it cannot name a different archive for the install to open.
+    pub archive_handle: String,
     pub entries: Vec<String>,
     pub host_mod_id: i64,
     pub host_name: String,
@@ -969,7 +1137,9 @@ pub struct HostPackPayload {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct CbFlatPayload {
-    pub zip_path: String,
+    /// Backend-issued handle for this staged archive. The renderer never learns
+    /// the path, so it cannot name a different archive for the install to open.
+    pub archive_handle: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub mod_id: Option<i64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1020,15 +1190,20 @@ impl InstallPrompt {
 }
 
 fn multi_pak_payload(
+    registry: &StagingRegistry,
     zip_path: String,
-    entries: Vec<String>,
+    staged: Vec<StagedEntry>,
     target_tag: Option<String>,
     entry_tags: Option<Vec<Option<String>>>,
     entry_kind: Option<String>,
-) -> ZipMultiPakPayload {
-    ZipMultiPakPayload {
-        zip_path,
+) -> Result<ZipMultiPakPayload, ResolveError> {
+    let entries = staged.iter().map(|e| e.display_name.clone()).collect();
+    let entry_ids = (0..staged.len() as u32).map(ArchiveEntryId).collect();
+    let archive_handle = stage_archive(registry, StagedArchiveKind::MultiEntry, &zip_path, staged)?;
+    Ok(ZipMultiPakPayload {
+        archive_handle,
         entries,
+        entry_ids,
         target_tag,
         entry_tags,
         entry_kind,
@@ -1037,7 +1212,34 @@ fn multi_pak_payload(
         file_id: None,
         file_type: None,
         mod_version: None,
-    }
+    })
+}
+
+/// Hands an archive to the registry and returns its handle. A refusal is surfaced as an
+/// ordinary install failure: the archive has already been removed by then, so there is
+/// nothing for the caller to clean up.
+fn stage_archive(
+    registry: &StagingRegistry,
+    kind: StagedArchiveKind,
+    zip_path: &str,
+    entries: Vec<StagedEntry>,
+) -> Result<String, ResolveError> {
+    let path = Path::new(zip_path);
+    registry
+        .register(
+            kind,
+            path,
+            CleanupPlan::RemoveOwnedFile(path.to_path_buf()),
+            entries,
+        )
+        .map_err(
+        |()| {
+            ResolveError::Failure(
+                "Too many archives are waiting for a choice. Finish or close the open install prompts and try again."
+                    .to_string(),
+            )
+        },
+    )
 }
 
 /// Non-success outcomes of archive resolution: a user decision is needed, the archive is
@@ -1059,9 +1261,9 @@ impl From<String> for ResolveError {
     }
 }
 
-/// Same shape resolve_archive_download resolves to: the extracted path, the original archive
-/// (for cleanup once installed), and the target's location tag (None for primary).
-type ResolvedArchive = Result<(PathBuf, Option<PathBuf>, Option<String>), ResolveError>;
+/// Staging is described by whichever branch performed it: only the code that created an
+/// artifact knows which one it owns and whether the root it produced carries a usable name.
+type ResolvedArchive = Result<Staged, ResolveError>;
 
 /// Checks whether a zero-.pak archive instead contains directory-shaped content matching one
 /// of cfg's Directory-unit targets. Currently only ue4ss_mods ever matches here (a
@@ -1073,6 +1275,7 @@ type ResolvedArchive = Result<(PathBuf, Option<PathBuf>, Option<String>), Resolv
 fn try_classify_as_directory_target(
     downloaded: &Path,
     cfg: &ModEngineConfig,
+    registry: &StagingRegistry,
 ) -> Option<ResolvedArchive> {
     let names: Vec<String> = list_entries(downloaded)
         .ok()?
@@ -1100,21 +1303,35 @@ fn try_classify_as_directory_target(
         // generic Directory-unit single-dir branch below.
         let tmp_parent = std::env::temp_dir().join(format!("modrex-mod-{}", Uuid::new_v4()));
         let tmp = tmp_parent.join(&dir_name);
+        let cleanup = CleanupPlan::RemoveOwnedDirectory(tmp_parent);
         return Some(
             extract_dir_entry(downloaded, dir, &tmp)
-                .map(|_| (tmp, Some(downloaded.to_path_buf()), location_tag.clone()))
+                .map(|_| Staged {
+                    root: tmp,
+                    cleanup,
+                    name_source: NameSource::FromArchive,
+                    target_tag: location_tag.clone(),
+                    original_archive: Some(downloaded.to_path_buf()),
+                })
                 .map_err(ResolveError::from),
         );
     }
     let zip_path = downloaded.to_string_lossy().to_string();
-    let entry_names: Vec<String> = dirs.iter().map(|(d, _)| d.clone()).collect();
+    let staged: Vec<StagedEntry> = dirs
+        .iter()
+        .map(|(d, _)| StagedEntry {
+            source: StagedEntrySource::Directory { prefix: d.clone() },
+            display_name: d.clone(),
+        })
+        .collect();
     let distinct_tags: HashSet<&Option<String>> = dirs.iter().map(|(_, t)| t).collect();
     // These entries are directory paths (from classify_archive_dirs), not .pak files, which is
     // for Crime Boss, whose install_from_zip_entry otherwise assumes every entry is a single pak
     // file to wrap in its synthesized skeleton.
     let payload = multi_pak_payload(
+        registry,
         zip_path,
-        entry_names,
+        staged,
         if distinct_tags.len() == 1 {
             dirs[0].1.clone()
         } else {
@@ -1123,29 +1340,48 @@ fn try_classify_as_directory_target(
         (distinct_tags.len() > 1).then(|| dirs.iter().map(|(_, t)| t.clone()).collect()),
         Some("dir".to_string()),
     );
+    let payload = match payload {
+        Ok(p) => p,
+        Err(e) => return Some(Err(e)),
+    };
     Some(Err(prompt_err(InstallPrompt::ZipMultiPak(payload))))
+}
+
+fn decoder_for(cfg: &ModEngineConfig, downloaded: &Path) -> Option<&'static DecoderBinding> {
+    let extension = downloaded.extension()?.to_str()?;
+    cfg.decoders.iter().find(|binding| {
+        let claimed = match binding {
+            DecoderBinding::Pdmod { .. } => super::pdmod::EXTENSION,
+        };
+        extension.eq_ignore_ascii_case(claimed)
+    })
 }
 
 /// Resolves a downloaded archive into an installable path plus the detected scan-target tag.
 /// Returns (extracted_path, original_archive, location_tag) where location_tag is None
 /// for the primary target and Some(tag) for any secondary target (e.g. "mod_overrides").
-pub fn resolve_archive_download(downloaded: PathBuf, cfg: &ModEngineConfig) -> ResolvedArchive {
-    // Must run before detect_archive: .pdmod is a ZIP by magic bytes and would fall through to
-    // the Directory-unit path without this early check.
-    if cfg.game_id == "pdth"
-        && downloaded
-            .extension()
-            .map(|e| e.eq_ignore_ascii_case("pdmod"))
-            .unwrap_or(false)
-    {
+pub fn resolve_archive_download(
+    downloaded: PathBuf,
+    cfg: &ModEngineConfig,
+    registry: &StagingRegistry,
+) -> ResolvedArchive {
+    // Must run before detect_archive: a decoded container is a ZIP by magic bytes and would
+    // fall through to the Directory-unit path without this early check.
+    if let Some(binding) = decoder_for(cfg, &downloaded) {
         let temp_dir = std::env::temp_dir().join(format!("modrex-pdmod-{}", Uuid::new_v4()));
         std::fs::create_dir_all(&temp_dir).map_err(|e| e.to_string())?;
+        let cleanup = CleanupPlan::RemoveOwnedDirectory(temp_dir.clone());
         return match super::pdmod::extract_pdmod(&downloaded, &temp_dir) {
-            Ok(()) => Ok((
-                temp_dir,
-                Some(downloaded),
-                Some("mod_overrides".to_string()),
-            )),
+            // FromArchive preserves the existing naming, where a dropped .pdmod takes its
+            // stem from this directory's own uuid name. Changing that is a naming fix, not
+            // a staging one.
+            Ok(()) => Ok(Staged {
+                root: temp_dir,
+                cleanup,
+                name_source: NameSource::FromArchive,
+                target_tag: Some(binding.target().to_string()),
+                original_archive: Some(downloaded),
+            }),
             Err(e) => {
                 let _ = std::fs::remove_dir_all(&temp_dir);
                 Err(e.into())
@@ -1153,38 +1389,81 @@ pub fn resolve_archive_download(downloaded: PathBuf, cfg: &ModEngineConfig) -> R
         };
     }
     if cfg.game_id == "cb" {
-        return resolve_crimeboss_archive(downloaded, cfg);
+        return resolve_crimeboss_archive(downloaded, cfg, registry);
     }
     if detect_archive(&downloaded).is_none() {
-        return Ok((downloaded, None, None));
+        // Nothing was extracted, so the caller's own downloaded file is the only artifact.
+        let cleanup = CleanupPlan::RemoveOwnedFileWithSidecars {
+            path: downloaded.clone(),
+            companions: cfg.primary().companions,
+        };
+        let name_source = match &cfg.primary().unit {
+            ModUnit::Directory { .. } => NameSource::FromArchive,
+            ModUnit::File { .. } => NameSource::FromModDisplayName,
+        };
+        return Ok(Staged {
+            root: downloaded,
+            cleanup,
+            name_source,
+            target_tag: None,
+            original_archive: None,
+        });
     }
     match &cfg.primary().unit {
-        ModUnit::File { .. } => {
-            let entries = list_pak_entries(&downloaded)?;
+        ModUnit::File { extension, .. } => {
+            let entries = list_unit_entries_indexed(&downloaded, extension)?;
             match entries.len() {
                 0 => {
                     if has_ue4ss_loader_signature(&downloaded) {
                         return Err(ResolveError::Ue4ssLoader(downloaded));
                     }
-                    if let Some(result) = try_classify_as_directory_target(&downloaded, cfg) {
+                    if let Some(result) =
+                        try_classify_as_directory_target(&downloaded, cfg, registry)
+                    {
                         return result;
                     }
-                    let _ = std::fs::remove_file(&downloaded);
-                    Err(ResolveError::Failure(
-                        "This mod is packaged as an archive with no .pak files inside.".to_string(),
-                    ))
+                    cleanup::run_sync(&CleanupPlan::RemoveOwnedFile(downloaded.clone()));
+                    Err(ResolveError::Failure(format!(
+                        "This mod is packaged as an archive with no .{extension} files inside."
+                    )))
                 }
                 1 => {
-                    let tmp =
-                        std::env::temp_dir().join(format!("modrex-mod-{}.pak", Uuid::new_v4()));
-                    extract_entry_with_sidecars(&downloaded, &entries[0], &tmp)?;
-                    Ok((tmp, Some(downloaded), None))
+                    let tmp = std::env::temp_dir()
+                        .join(format!("modrex-mod-{}.{extension}", Uuid::new_v4()));
+                    let (index, name) = entries[0].clone();
+                    let entry = StagedEntry {
+                        source: StagedEntrySource::File { index },
+                        display_name: name,
+                    };
+                    extract_staged_entry_with_sidecars(
+                        &downloaded,
+                        &entry,
+                        &tmp,
+                        cfg.primary().companions,
+                    )?;
+                    let cleanup = CleanupPlan::RemoveOwnedFileWithSidecars {
+                        path: tmp.clone(),
+                        companions: cfg.primary().companions,
+                    };
+                    Ok(Staged {
+                        root: tmp,
+                        cleanup,
+                        name_source: NameSource::FromModDisplayName,
+                        target_tag: None,
+                        original_archive: Some(downloaded),
+                    })
                 }
                 _ => {
                     let zip_path = downloaded.to_string_lossy().to_string();
-                    Err(prompt_err(InstallPrompt::ZipMultiPak(multi_pak_payload(
-                        zip_path, entries, None, None, None,
-                    ))))
+                    let staged = entries
+                        .into_iter()
+                        .map(|(index, name)| StagedEntry {
+                            source: StagedEntrySource::File { index },
+                            display_name: name,
+                        })
+                        .collect();
+                    let payload = multi_pak_payload(registry, zip_path, staged, None, None, None)?;
+                    Err(prompt_err(InstallPrompt::ZipMultiPak(payload)))
                 }
             }
         }
@@ -1205,8 +1484,18 @@ pub fn resolve_archive_download(downloaded: PathBuf, cfg: &ModEngineConfig) -> R
             if cfg.game_id == "pd2" {
                 if let Some(m) = detect_host_pack(&names) {
                     let zip_path = downloaded.to_string_lossy().to_string();
+                    let staged: Vec<StagedEntry> = m
+                        .dirs
+                        .iter()
+                        .map(|d| StagedEntry {
+                            source: StagedEntrySource::Directory { prefix: d.clone() },
+                            display_name: d.clone(),
+                        })
+                        .collect();
+                    let archive_handle =
+                        stage_archive(registry, StagedArchiveKind::HostPack, &zip_path, staged)?;
                     return Err(prompt_err(InstallPrompt::HostModPack(HostPackPayload {
-                        zip_path,
+                        archive_handle,
                         entries: m.dirs,
                         host_mod_id: m.host.host_mod_id,
                         host_name: m.host.host_name.to_string(),
@@ -1231,12 +1520,12 @@ pub fn resolve_archive_download(downloaded: PathBuf, cfg: &ModEngineConfig) -> R
                 })
                 .collect();
             if is_unplaceable_pack(&names, &engine_markers) {
-                let _ = std::fs::remove_file(&downloaded);
+                cleanup::run_sync(&CleanupPlan::RemoveOwnedFile(downloaded.clone()));
                 return Err(prompt_err(InstallPrompt::UnrecognizedArchive));
             }
             let dirs = classify_archive_dirs(&names, cfg);
             if dirs.is_empty() {
-                let _ = std::fs::remove_file(&downloaded);
+                cleanup::run_sync(&CleanupPlan::RemoveOwnedFile(downloaded.clone()));
                 return Err(ResolveError::Failure(
                     if let ModUnit::Directory { entry_markers, .. } = &cfg.primary().unit {
                         if entry_markers.is_empty() {
@@ -1265,17 +1554,31 @@ pub fn resolve_archive_download(downloaded: PathBuf, cfg: &ModEngineConfig) -> R
                     std::env::temp_dir().join(format!("modrex-mod-{}", Uuid::new_v4()));
                 let tmp = tmp_parent.join(&dir_name);
                 extract_dir_entry(&downloaded, dir, &tmp)?;
-                return Ok((tmp, Some(downloaded), location_tag.clone()));
+                let cleanup = CleanupPlan::RemoveOwnedDirectory(tmp_parent);
+                return Ok(Staged {
+                    root: tmp,
+                    cleanup,
+                    name_source: NameSource::FromArchive,
+                    target_tag: location_tag.clone(),
+                    original_archive: Some(downloaded),
+                });
             }
             let zip_path = downloaded.to_string_lossy().to_string();
-            let entry_names: Vec<String> = dirs.iter().map(|(d, _)| d.clone()).collect();
+            let staged: Vec<StagedEntry> = dirs
+                .iter()
+                .map(|(d, _)| StagedEntry {
+                    source: StagedEntrySource::Directory { prefix: d.clone() },
+                    display_name: d.clone(),
+                })
+                .collect();
             let distinct_tags: HashSet<&Option<String>> = dirs.iter().map(|(_, t)| t).collect();
             // Single target keeps one targetTag for all entries; mixed targets (e.g. a
             // modpack spanning mods/ and assets/mod_overrides/) tag each entry
             // individually so the picker routes it to the right place.
             let payload = multi_pak_payload(
+                registry,
                 zip_path,
-                entry_names,
+                staged,
                 if distinct_tags.len() == 1 {
                     dirs[0].1.clone()
                 } else {
@@ -1283,7 +1586,7 @@ pub fn resolve_archive_download(downloaded: PathBuf, cfg: &ModEngineConfig) -> R
                 },
                 (distinct_tags.len() > 1).then(|| dirs.iter().map(|(_, t)| t.clone()).collect()),
                 None,
-            );
+            )?;
             Err(prompt_err(InstallPrompt::ZipMultiPak(payload)))
         }
     }
@@ -1295,21 +1598,41 @@ pub fn resolve_archive_download(downloaded: PathBuf, cfg: &ModEngineConfig) -> R
 /// author-supplied folder copied as-is: Modrex always synthesizes the canonical
 /// Content/Paks/WindowsNoEditor/ skeleton the game's UGC mod-loader expects under
 /// CrimeBoss/Mods/<name>/, regardless of how the source archive nested things.
-fn resolve_crimeboss_archive(downloaded: PathBuf, cfg: &ModEngineConfig) -> ResolvedArchive {
+fn resolve_crimeboss_archive(
+    downloaded: PathBuf,
+    cfg: &ModEngineConfig,
+    registry: &StagingRegistry,
+) -> ResolvedArchive {
     if detect_archive(&downloaded).is_none() {
         // No known real mod ships a bare .pak with no archive (sidecars require a zip to carry
         // them), but if one shows up, fall back to the legacy flat paks target rather than
         // guessing at a skeleton with no .ucas/.utoc to find.
-        let legacy_tag = cfg.targets.iter().find(|t| t.tag == "paks").map(|t| t.tag);
-        return Ok((downloaded, None, legacy_tag.map(str::to_string)));
+        let legacy = cfg.targets.iter().find(|t| t.tag == "paks");
+        let cleanup = CleanupPlan::RemoveOwnedFileWithSidecars {
+            path: downloaded.clone(),
+            companions: legacy.map(|t| t.companions).unwrap_or(&[]),
+        };
+        return Ok(Staged {
+            root: downloaded,
+            cleanup,
+            name_source: NameSource::FromModDisplayName,
+            target_tag: legacy.map(|t| t.tag.to_string()),
+            original_archive: None,
+        });
     }
-    let entries = list_pak_entries(&downloaded)?;
+    // The skeleton wraps whatever family the primary target declares it contains, so that is
+    // the extension worth finding in the archive.
+    let contained = cfg
+        .primary()
+        .contained_extension
+        .ok_or_else(|| "this game's primary target declares no file family".to_string())?;
+    let entries = list_unit_entries_indexed(&downloaded, contained)?;
     match entries.len() {
         0 => {
             if has_ue4ss_loader_signature(&downloaded) {
                 return Err(ResolveError::Ue4ssLoader(downloaded));
             }
-            if let Some(result) = try_classify_as_directory_target(&downloaded, cfg) {
+            if let Some(result) = try_classify_as_directory_target(&downloaded, cfg, registry) {
                 return result;
             }
             // Nothing classified: classify_archive_dirs found no enclosing folder at all (a
@@ -1318,8 +1641,14 @@ fn resolve_crimeboss_archive(downloaded: PathBuf, cfg: &ModEngineConfig) -> Reso
             // download. The renderer can still install the whole archive as one mods/<name>
             // folder if the user confirms it's the right content.
             let zip_path = downloaded.to_string_lossy().to_string();
+            let archive_handle = stage_archive(
+                registry,
+                StagedArchiveKind::CrimeBossFlat,
+                &zip_path,
+                Vec::new(),
+            )?;
             Err(prompt_err(InstallPrompt::CbFlatArchive(CbFlatPayload {
-                zip_path,
+                archive_handle,
                 mod_id: None,
                 mod_name: None,
                 file_id: None,
@@ -1328,23 +1657,49 @@ fn resolve_crimeboss_archive(downloaded: PathBuf, cfg: &ModEngineConfig) -> Reso
             })))
         }
         1 => {
-            let tmp = extract_entry_into_crimeboss_skeleton(&downloaded, &entries[0])?;
-            Ok((tmp, Some(downloaded), None))
+            let (index, name) = entries[0].clone();
+            let entry = StagedEntry {
+                source: StagedEntrySource::File { index },
+                display_name: name,
+            };
+            let tmp = extract_entry_into_crimeboss_skeleton_at(
+                &downloaded,
+                &entry,
+                cfg.primary().companions,
+            )?;
+            let cleanup = CleanupPlan::RemoveOwnedDirectory(tmp.clone());
+            Ok(Staged {
+                root: tmp,
+                cleanup,
+                // The skeleton root is a uuid directory, so the real name has to come back
+                // out of the archive's single pak entry.
+                name_source: NameSource::FromModDisplayName,
+                target_tag: None,
+                original_archive: Some(downloaded),
+            })
         }
         _ => {
             let zip_path = downloaded.to_string_lossy().to_string();
-            let payload = multi_pak_payload(zip_path, entries, None, None, None);
+            let staged = entries
+                .into_iter()
+                .map(|(index, name)| StagedEntry {
+                    source: StagedEntrySource::File { index },
+                    display_name: name,
+                })
+                .collect();
+            let payload = multi_pak_payload(registry, zip_path, staged, None, None, None)?;
             Err(prompt_err(InstallPrompt::ZipMultiPak(payload)))
         }
     }
 }
 
-/// Extracts entry_name (a .pak archive entry) plus its .ucas/.utoc siblings into a fresh
-/// temp directory shaped Content/Paks/WindowsNoEditor/<filename>, ready to be copied wholesale
-/// into CrimeBoss/Mods/<name>/ as a Directory-unit install.
-pub fn extract_entry_into_crimeboss_skeleton(
+/// Extracts a staged entry that names one entry of this archive, plus its .ucas/.utoc
+/// siblings, into a fresh temp directory shaped Content/Paks/WindowsNoEditor/<filename>,
+/// ready to be copied wholesale into CrimeBoss/Mods/<name>/ as a Directory-unit install.
+pub(crate) fn extract_entry_into_crimeboss_skeleton_at(
     archive_path: &Path,
-    entry_name: &str,
+    entry: &StagedEntry,
+    companions: &[&str],
 ) -> Result<PathBuf, String> {
     let tmp_root = std::env::temp_dir().join(format!("modrex-cb-mod-{}", Uuid::new_v4()));
     let skeleton_dir = tmp_root
@@ -1352,12 +1707,61 @@ pub fn extract_entry_into_crimeboss_skeleton(
         .join("Paks")
         .join("WindowsNoEditor");
     std::fs::create_dir_all(&skeleton_dir).map_err(|e| e.to_string())?;
-    let filename = Path::new(entry_name)
+    let filename = Path::new(&entry.display_name)
         .file_name()
         .and_then(|s| s.to_str())
-        .ok_or_else(|| format!("invalid archive entry name: {entry_name}"))?;
-    extract_entry_with_sidecars(archive_path, entry_name, &skeleton_dir.join(filename))?;
+        .ok_or_else(|| format!("invalid archive entry name: {}", entry.display_name))?;
+    extract_staged_entry_with_sidecars(
+        archive_path,
+        entry,
+        &skeleton_dir.join(filename),
+        companions,
+    )?;
     Ok(tmp_root)
+}
+
+/// Extracts the entry this staged identity names, plus the companion entries sharing its stem.
+pub(crate) fn extract_staged_entry_with_sidecars(
+    archive_path: &Path,
+    entry: &StagedEntry,
+    dest: &Path,
+    companions: &[&str],
+) -> Result<(), String> {
+    let StagedEntrySource::File { index } = entry.source else {
+        return Err("that archive entry is not a file".to_string());
+    };
+    extract_entry_at(archive_path, index, dest)?;
+    let Ok(entries) = list_entries(archive_path) else {
+        return Ok(());
+    };
+    let key = entry_key(&entry.display_name);
+    for ext in companions {
+        let sidecar = entries.iter().enumerate().find(|(_, e)| {
+            !e.is_dir
+                && entry_key(&e.name) == key
+                && e.name.to_ascii_lowercase().ends_with(&format!(".{ext}"))
+        });
+        if let Some((sidecar_index, _)) = sidecar {
+            let _ = extract_entry_at(
+                archive_path,
+                sidecar_index as u32,
+                &dest.with_extension(ext),
+            );
+        }
+    }
+    Ok(())
+}
+
+/// Extracts everything under the directory this staged identity names.
+pub(crate) fn extract_staged_dir(
+    archive_path: &Path,
+    entry: &StagedEntry,
+    dest: &Path,
+) -> Result<(), String> {
+    match &entry.source {
+        StagedEntrySource::Directory { prefix } => extract_dir_entry(archive_path, prefix, dest),
+        StagedEntrySource::File { .. } => Err("that archive entry is not a directory".to_string()),
+    }
 }
 
 fn extract_rar_entry(archive_path: &Path, entry_name: &str, dest: &Path) -> Result<(), String> {

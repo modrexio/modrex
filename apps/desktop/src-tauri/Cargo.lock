@@ -3016,6 +3016,7 @@ dependencies = [
  "keyring",
  "log",
  "md-5",
+ "modrex-game-package",
  "percent-encoding",
  "rand 0.10.2",
  "repak",
@@ -3042,10 +3043,18 @@ dependencies = [
  "tauri-specta",
  "tempfile",
  "tokio",
+ "toml 1.1.2+spec-1.1.0",
  "unrar",
  "uuid 1.26.0",
  "xz2",
  "zip 2.4.2",
+]
+
+[[package]]
+name = "modrex-game-package"
+version = "0.0.0"
+dependencies = [
+ "serde",
 ]
 
 [[package]]

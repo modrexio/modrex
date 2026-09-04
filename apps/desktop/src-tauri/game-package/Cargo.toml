@@ -1,0 +1,14 @@
+[package]
+name = "modrex-game-package"
+version = "0.0.0"
+edition = "2021"
+license = "MIT"
+publish = false
+
+[features]
+# Rendering a package as Rust is only ever done by a build script, so the application does
+# not carry the generator.
+codegen = []
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }

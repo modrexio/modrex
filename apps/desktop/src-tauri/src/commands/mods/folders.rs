@@ -1,4 +1,5 @@
 use super::engine::ModEngineConfig;
+use super::naming::log_name;
 use super::naming::{apply_priority_prefix, strip_priority_prefix};
 use super::paths::{active_mod_path, disabled_base, disabled_mod_path, mods_base};
 use super::state::{get_folder_path, read_state, save_state};
@@ -146,7 +147,7 @@ pub fn move_folder_op(
             log::warn!("move_folder: create_dir_all active: {e}");
         }
         if let Err(e) = fs::rename(&old_a, mods_b.join(&new_rel)) {
-            log::warn!("move_folder: rename active {old_a:?}: {e}");
+            log::warn!("move_folder: rename active {}: {e}", log_name(&old_a));
         }
     }
     let old_d = dis_b.join(&old_rel);
@@ -155,7 +156,7 @@ pub fn move_folder_op(
             log::warn!("move_folder: create_dir_all disabled: {e}");
         }
         if let Err(e) = fs::rename(&old_d, dis_b.join(&new_rel)) {
-            log::warn!("move_folder: rename disabled {old_d:?}: {e}");
+            log::warn!("move_folder: rename disabled {}: {e}", log_name(&old_d));
         }
     }
 
@@ -204,7 +205,7 @@ pub fn rename_folder_op(
         };
         if old_a.exists() {
             if let Err(e) = fs::rename(&old_a, &new_a) {
-                log::warn!("rename_folder: rename active {old_a:?} -> {new_a:?}: {e}");
+                log::warn!("rename_folder: rename active {}: {e}", log_name(&old_a));
             }
         }
 
@@ -217,7 +218,7 @@ pub fn rename_folder_op(
         };
         if old_d.exists() {
             if let Err(e) = fs::rename(&old_d, &new_d) {
-                log::warn!("rename_folder: rename disabled {old_d:?} -> {new_d:?}: {e}");
+                log::warn!("rename_folder: rename disabled {}: {e}", log_name(&old_d));
             }
         }
     }
@@ -306,7 +307,7 @@ pub fn delete_folder_op(
         };
         if old.exists() {
             if let Err(e) = fs::rename(&old, &new) {
-                log::warn!("delete_folder: move mod {old:?}: {e}");
+                log::warn!("delete_folder: move mod {}: {e}", log_name(&old));
             }
         }
         m.filename = new_filename;
@@ -343,7 +344,10 @@ pub fn delete_folder_op(
         };
         if old_a.exists() {
             if let Err(e) = fs::rename(&old_a, &new_a) {
-                log::warn!("delete_folder: move subfolder active {old_a:?}: {e}");
+                log::warn!(
+                    "delete_folder: move subfolder active {}: {e}",
+                    log_name(&old_a)
+                );
             }
         }
 
@@ -354,7 +358,10 @@ pub fn delete_folder_op(
         };
         if old_d.exists() {
             if let Err(e) = fs::rename(&old_d, &new_d) {
-                log::warn!("delete_folder: move subfolder disabled {old_d:?}: {e}");
+                log::warn!(
+                    "delete_folder: move subfolder disabled {}: {e}",
+                    log_name(&old_d)
+                );
             }
         }
 

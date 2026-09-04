@@ -1,9 +1,10 @@
+use super::engine::{ModMetadata, ModUnit, ScanTarget};
 use super::*;
 use crate::commands::mods::identity::IdentityConfidence;
 use std::collections::HashSet;
 use std::fs::{self, File};
 use std::io::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use tempfile::{NamedTempFile, TempDir};
 
 fn make_zip(entries: &[(&str, &[u8])]) -> NamedTempFile {
@@ -58,26 +59,24 @@ fn recover_dropped_mod_stem_pulls_the_real_pak_name_out_of_a_zip_wrapper() {
     // Mirrors a real Nexus website download: the outer zip is named after Nexus's own
     // download-manager scheme, but the single pak entry inside carries the real name.
     let zip = make_zip(&[("abkarino_RinoHud_P.pak", b"pak bytes")]);
-    let cfg = engine_for_game("pd3").unwrap();
     let stem = recover_dropped_mod_stem(
-        &cfg.primary().unit,
-        false,
+        staged::NameSource::FromModDisplayName,
         Path::new("irrelevant-for-this-branch"),
         Some(zip.path()),
         "abkarino_RinoHud_P 52 1.8 2026-07-02T19-49Z 9QzrVe4KC",
+        Some("pak"),
     );
     assert_eq!(stem, "abkarino_RinoHud_P");
 }
 
 #[test]
 fn recover_dropped_mod_stem_uses_the_directory_unit_tmp_name() {
-    let cfg = engine_for_game("pd2").unwrap();
     let stem = recover_dropped_mod_stem(
-        &cfg.primary().unit,
-        false,
+        staged::NameSource::FromArchive,
         Path::new("/tmp/modrex-mod-abc123/Welrod"),
         None,
         "fallback should not be used",
+        Some("pak"),
     );
     assert_eq!(stem, "Welrod");
 }
@@ -85,13 +84,12 @@ fn recover_dropped_mod_stem_uses_the_directory_unit_tmp_name() {
 #[test]
 fn recover_dropped_mod_stem_falls_back_for_a_bare_loose_pak() {
     // No zip wrapper: the dropped file's own OS filename already is the real pak name.
-    let cfg = engine_for_game("pd3").unwrap();
     let stem = recover_dropped_mod_stem(
-        &cfg.primary().unit,
-        false,
+        staged::NameSource::FromModDisplayName,
         Path::new("irrelevant-for-this-branch"),
         None,
         "Foo",
+        Some("pak"),
     );
     assert_eq!(stem, "Foo");
 }
@@ -99,13 +97,12 @@ fn recover_dropped_mod_stem_falls_back_for_a_bare_loose_pak() {
 #[test]
 fn recover_dropped_mod_stem_falls_back_when_the_archive_has_more_than_one_pak() {
     let zip = make_zip(&[("A.pak", b"a"), ("B.pak", b"b")]);
-    let cfg = engine_for_game("pd3").unwrap();
     let stem = recover_dropped_mod_stem(
-        &cfg.primary().unit,
-        false,
+        staged::NameSource::FromModDisplayName,
         Path::new("irrelevant-for-this-branch"),
         Some(zip.path()),
         "fallback",
+        Some("pak"),
     );
     assert_eq!(stem, "fallback");
 }
@@ -116,13 +113,12 @@ fn recover_dropped_mod_stem_reads_the_zip_entry_for_crime_boss_despite_being_dir
     // no usable name of its own - it must take the same zip-entry path as File-unit games,
     // not the plain Directory-unit tmp.file_name() shortcut.
     let zip = make_zip(&[("SomeMod-WindowsNoEditor.pak", b"pak bytes")]);
-    let cfg = engine_for_game("cb").unwrap();
     let stem = recover_dropped_mod_stem(
-        &cfg.primary().unit,
-        true,
+        staged::NameSource::FromModDisplayName,
         Path::new("/tmp/modrex-cb-mod-abc123"),
         Some(zip.path()),
         "fallback should not be used",
+        Some("pak"),
     );
     assert_eq!(stem, "SomeMod-WindowsNoEditor");
 }
@@ -225,7 +221,7 @@ fn list_pak_entries_finds_pak_files() {
         ("weapons_default.pak", b"pak content"),
         ("weapons_alt.pak", b"pak content 2"),
     ]);
-    let mut entries = list_pak_entries(zip.path()).unwrap();
+    let mut entries = list_unit_entries(zip.path(), "pak").unwrap();
     entries.sort();
     assert_eq!(entries, vec!["weapons_alt.pak", "weapons_default.pak"]);
 }
@@ -307,8 +303,9 @@ fn crimeboss_standalone_submod_resolves_to_ue4ss_mods_target() {
     let zip = make_zip(&[("CoolMod/Scripts/main.lua", b"-- a real sub-mod")]);
     let cfg = engine_for_game("cb").unwrap();
 
-    let (extracted, _orig, location_tag) =
-        resolve_archive_download(zip.path().to_path_buf(), cfg).unwrap();
+    let staged =
+        resolve_archive_download(zip.path().to_path_buf(), cfg, &StagingRegistry::new()).unwrap();
+    let (extracted, location_tag) = (staged.root.clone(), staged.target_tag.clone());
     assert_eq!(location_tag.as_deref(), Some("ue4ss_mods"));
     assert_eq!(extracted.file_name().unwrap(), "CoolMod");
     assert_eq!(
@@ -324,8 +321,9 @@ fn pd3_standalone_submod_resolves_to_ue4ss_mods_target() {
     let zip = make_zip(&[("CoolMod/Scripts/main.lua", b"-- a real sub-mod")]);
     let cfg = engine_for_game("pd3").unwrap();
 
-    let (extracted, _orig, location_tag) =
-        resolve_archive_download(zip.path().to_path_buf(), cfg).unwrap();
+    let staged =
+        resolve_archive_download(zip.path().to_path_buf(), cfg, &StagingRegistry::new()).unwrap();
+    let (extracted, location_tag) = (staged.root.clone(), staged.target_tag.clone());
     assert_eq!(location_tag.as_deref(), Some("ue4ss_mods"));
     assert_eq!(extracted.file_name().unwrap(), "CoolMod");
 }
@@ -336,7 +334,8 @@ fn genuinely_unplaceable_archive_errors_on_pd3() {
     // Scripts/main.lua), so a flat archive with nothing installable still hard-errors.
     let zip = make_zip(&[("readme.txt", b"nothing installable here")]);
     let cfg = engine_for_game("pd3").unwrap();
-    let err = resolve_archive_download(zip.path().to_path_buf(), cfg).unwrap_err();
+    let err = resolve_archive_download(zip.path().to_path_buf(), cfg, &StagingRegistry::new())
+        .unwrap_err();
     assert!(
         matches!(err, ResolveError::Failure(ref m) if m.contains("no .pak files inside")),
         "{err:?}"
@@ -351,7 +350,7 @@ fn flat_crime_boss_archive_surfaces_confirm_sentinel_not_dead_end() {
     let zip = make_zip(&[("readme.txt", b"nothing installable here")]);
     let cfg = engine_for_game("cb").unwrap();
     let zip_path = zip.path().to_path_buf();
-    let err = resolve_archive_download(zip_path.clone(), cfg).unwrap_err();
+    let err = resolve_archive_download(zip_path.clone(), cfg, &StagingRegistry::new()).unwrap_err();
     assert!(
         matches!(&err, ResolveError::Prompt(p) if matches!(**p, InstallPrompt::CbFlatArchive(_))),
         "{err:?}"
@@ -365,14 +364,14 @@ fn flat_crime_boss_archive_surfaces_confirm_sentinel_not_dead_end() {
 #[test]
 fn list_pak_entries_empty_when_no_paks() {
     let zip = make_zip(&[("readme.txt", b"hello"), ("data.bin", b"data")]);
-    let entries = list_pak_entries(zip.path()).unwrap();
+    let entries = list_unit_entries(zip.path(), "pak").unwrap();
     assert!(entries.is_empty());
 }
 
 #[test]
 fn list_pak_entries_handles_nested_paths() {
     let zip = make_zip(&[("Real Weapon Names/weapons_default.pak", b"content")]);
-    let entries = list_pak_entries(zip.path()).unwrap();
+    let entries = list_unit_entries(zip.path(), "pak").unwrap();
     assert_eq!(entries, vec!["Real Weapon Names/weapons_default.pak"]);
 }
 
@@ -496,7 +495,13 @@ fn extract_entry_with_sidecars_pulls_in_ucas_and_utoc() {
         ("readme.txt", b"ignore me"),
     ]);
     let dest = NamedTempFile::new().unwrap();
-    extract_entry_with_sidecars(zip.path(), "TestMod.pak", dest.path()).unwrap();
+    super::zip::extract_staged_entry_with_sidecars(
+        zip.path(),
+        &super::zip::staged_entry_for_test(zip.path(), "TestMod.pak"),
+        dest.path(),
+        &["ucas", "utoc"],
+    )
+    .unwrap();
     assert_eq!(fs::read(dest.path()).unwrap(), b"pak bytes");
     assert_eq!(
         fs::read(dest.path().with_extension("ucas")).unwrap(),
@@ -512,7 +517,13 @@ fn extract_entry_with_sidecars_pulls_in_ucas_and_utoc() {
 fn extract_entry_with_sidecars_ok_when_no_sidecars_present() {
     let zip = make_zip(&[("TestMod.pak", b"pak only")]);
     let dest = NamedTempFile::new().unwrap();
-    extract_entry_with_sidecars(zip.path(), "TestMod.pak", dest.path()).unwrap();
+    super::zip::extract_staged_entry_with_sidecars(
+        zip.path(),
+        &super::zip::staged_entry_for_test(zip.path(), "TestMod.pak"),
+        dest.path(),
+        &["ucas", "utoc"],
+    )
+    .unwrap();
     assert_eq!(fs::read(dest.path()).unwrap(), b"pak only");
     assert!(!dest.path().with_extension("ucas").exists());
     assert!(!dest.path().with_extension("utoc").exists());
@@ -532,10 +543,14 @@ fn extract_entry_with_sidecars_matches_nested_path_siblings_only() {
         ("OtherFolder/Mod-WindowsNoEditor.ucas", b"wrong ucas"),
     ]);
     let dest = NamedTempFile::new().unwrap();
-    extract_entry_with_sidecars(
+    super::zip::extract_staged_entry_with_sidecars(
         zip.path(),
-        "Mod/Content/Paks/WindowsNoEditor/Mod-WindowsNoEditor.pak",
+        &super::zip::staged_entry_for_test(
+            zip.path(),
+            "Mod/Content/Paks/WindowsNoEditor/Mod-WindowsNoEditor.pak",
+        ),
         dest.path(),
+        &["ucas", "utoc"],
     )
     .unwrap();
     assert_eq!(
@@ -652,23 +667,23 @@ fn apply_prefix_large_number() {
 
 #[test]
 fn pak_filename_spaces_become_underscores() {
-    assert_eq!(pak_filename("My Mod"), "My_Mod.pak");
+    assert_eq!(unit_filename("My Mod", "pak"), "My_Mod.pak");
 }
 
 #[test]
 fn pak_filename_consecutive_spaces_collapse() {
-    assert_eq!(pak_filename("My  Mod"), "My_Mod.pak");
+    assert_eq!(unit_filename("My  Mod", "pak"), "My_Mod.pak");
 }
 
 #[test]
 fn pak_filename_leading_trailing_stripped() {
-    assert_eq!(pak_filename("  My Mod  "), "My_Mod.pak");
+    assert_eq!(unit_filename("  My Mod  ", "pak"), "My_Mod.pak");
 }
 
 #[test]
 fn pak_filename_allowed_chars_preserved() {
     assert_eq!(
-        pak_filename("CSA-39_Assault.Rifle"),
+        unit_filename("CSA-39_Assault.Rifle", "pak"),
         "CSA-39_Assault.Rifle.pak"
     );
 }
@@ -676,7 +691,10 @@ fn pak_filename_allowed_chars_preserved() {
 #[test]
 fn pak_filename_special_chars_removed() {
     // trailing separator from '>' is trimmed by trim_matches('_')
-    assert_eq!(pak_filename("Mod: \"Test\" <v1>"), "Mod_Test_v1.pak");
+    assert_eq!(
+        unit_filename("Mod: \"Test\" <v1>", "pak"),
+        "Mod_Test_v1.pak"
+    );
 }
 
 // ── hash_filename ─────────────────────────────────────────────────────────
@@ -1031,7 +1049,7 @@ fn pd2_engine_has_two_targets() {
 // ── RAID single blanket-accept engine ─────────────────────────────────────
 // RAID's loader reads both BLT script mods and asset packs from one mods/<name>/ folder
 // (assets/mod_overrides was removed), so the engine is a single blanket-accept target that
-// excludes only BLT infrastructure dirs. See RAID_ENGINE in engine.rs.
+// excludes only BLT infrastructure dirs. See the raid game package.
 
 #[test]
 fn raid_engine_has_single_blanket_mods_target() {
@@ -1048,11 +1066,8 @@ fn raid_engine_has_single_blanket_mods_target() {
         } => {
             assert!(entry_markers.is_empty());
             assert!(scan_markers.is_empty());
-            for infra in ["base", "downloads", "logs", "saves"] {
-                assert!(
-                    excluded_names.contains(&infra),
-                    "missing exclusion: {infra}"
-                );
+            for infra in crate::game_package::DIESEL_INFRA_FOLDERS {
+                assert!(excluded_names.contains(infra), "missing exclusion: {infra}");
             }
         }
         _ => panic!("RAID mods target must be a Directory unit"),
@@ -2303,7 +2318,7 @@ fn extract_dir_entry_drops_traversal_entries() {
     ]);
     let out = TempDir::new().unwrap();
     let dest = out.path().join("extracted");
-    extract_dir_entry(zip.path(), "mymod", &dest).unwrap();
+    super::zip::extract_dir_entry(zip.path(), "mymod", &dest).unwrap();
 
     assert_eq!(fs::read(dest.join("main.xml")).unwrap(), b"safe");
     // The traversal target (sibling of dest) must never be created.
@@ -3104,6 +3119,259 @@ fn uninstall_removes_iostore_sidecars() {
 // of how the archive nests the triplet, Modrex always synthesizes the canonical
 // Content/Paks/WindowsNoEditor/ skeleton itself rather than copying the archive's wrapper
 // folder as-is.
+
+// ── the companion set is package data, not a constant ───────────────────────
+// The three tests above run on Crime Boss, which declares ucas and utoc. These cross a
+// File-unit target with other declarations so a hardcoded pak-sidecar list could not pass.
+
+const fn companion_target(companions: &'static [&'static str]) -> ScanTarget {
+    ScanTarget {
+        tag: "paks",
+        label_key: "mods",
+        unit: ModUnit::File {
+            extension: "pak",
+            disabled_suffix: ".disabled",
+            priority_prefix: false,
+        },
+        companions,
+        contained_extension: None,
+        enabled_state: Activation::Filesystem,
+        mods_subpath: &["Paks"],
+        disabled_subpath: &["Paks", "disabled"],
+        backup_subpath: &["Paks.bak"],
+    }
+}
+
+static NO_COMPANION_TARGETS: [ScanTarget; 1] = [companion_target(&[])];
+static SIG_COMPANION_TARGETS: [ScanTarget; 1] = [companion_target(&["sig"])];
+
+const fn companion_engine(targets: &'static [ScanTarget]) -> ModEngineConfig {
+    ModEngineConfig {
+        game_id: "fixture",
+        decoders: &[],
+        index_game_name: "Fixture",
+        mod_metadata: ModMetadata::None,
+        targets,
+    }
+}
+
+static NO_COMPANIONS: ModEngineConfig = companion_engine(&NO_COMPANION_TARGETS);
+static SIG_COMPANION: ModEngineConfig = companion_engine(&SIG_COMPANION_TARGETS);
+
+// ── the declared extension and suffix govern every file-unit operation ──────
+// A target that declares neither .pak nor .disabled, so any operation still reaching for
+// those literals fails rather than passing by coincidence.
+
+const VPK_TARGETS: [ScanTarget; 1] = [ScanTarget {
+    tag: "paks",
+    label_key: "mods",
+    unit: ModUnit::File {
+        extension: "vpk",
+        disabled_suffix: ".off",
+        priority_prefix: false,
+    },
+    companions: &["vsig"],
+    contained_extension: None,
+    enabled_state: Activation::Filesystem,
+    mods_subpath: &["Paks"],
+    disabled_subpath: &["Paks", "disabled"],
+    backup_subpath: &["Paks.bak"],
+}];
+
+static VPK_ENGINE: ModEngineConfig = companion_engine(&VPK_TARGETS);
+
+fn vpk_source() -> (TempDir, std::path::PathBuf) {
+    let src = TempDir::new().unwrap();
+    let main = src.path().join("TestMod.vpk");
+    fs::write(&main, b"vpk bytes").unwrap();
+    fs::write(src.path().join("TestMod.vsig"), b"signature").unwrap();
+    // A .pak sharing the stem must be left alone: it is not this target's family.
+    fs::write(src.path().join("TestMod.pak"), b"not mine").unwrap();
+    (src, main)
+}
+
+fn vpk_mod_data() -> InstalledMod {
+    InstalledMod {
+        uid: "1".into(),
+        id: 1,
+        name: "Test Mod".into(),
+        filename: "TestMod.vpk".into(),
+        enabled: true,
+        file_id: Some(1),
+        ..InstalledMod::default()
+    }
+}
+
+#[test]
+fn a_declared_extension_governs_install_disable_enable_and_uninstall() {
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let cfg = &VPK_ENGINE;
+    let sp = get_state_path(game, cfg);
+    let (_src, main) = vpk_source();
+
+    install_mod_from_path(game, &sp, vpk_mod_data(), &main, None, cfg, cfg.primary()).unwrap();
+    let active = tmp.path().join("Paks");
+    assert!(active.join("TestMod.vpk").is_file());
+    assert_eq!(fs::read(active.join("TestMod.vsig")).unwrap(), b"signature");
+    assert!(
+        !active.join("TestMod.pak").exists(),
+        "an unrelated stem-sharing file was taken"
+    );
+
+    disable_mod_op(game, &sp, "1", cfg, None);
+    let disabled = active.join("disabled");
+    assert!(disabled.join("TestMod.vpk.off").is_file());
+    assert!(disabled.join("TestMod.vsig.off").is_file());
+    assert!(!active.join("TestMod.vpk").exists());
+
+    enable_mod_op(game, &sp, "1", cfg, None);
+    assert!(active.join("TestMod.vpk").is_file());
+    assert!(active.join("TestMod.vsig").is_file());
+
+    uninstall_mod_op(game, &sp, "1", cfg);
+    assert!(!active.join("TestMod.vpk").exists());
+    assert!(!active.join("TestMod.vsig").exists());
+}
+
+/// The scan reads the declared extension and suffix, so an installed mod is found in both
+/// states and a file of another type in the same folder is not mistaken for one.
+#[tokio::test]
+async fn the_scan_finds_declared_units_in_both_states() {
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let cfg = &VPK_ENGINE;
+    let active = tmp.path().join("Paks");
+    let disabled = active.join("disabled");
+    fs::create_dir_all(&disabled).unwrap();
+    fs::write(active.join("Enabled.vpk"), b"a").unwrap();
+    fs::write(active.join("Stranger.pak"), b"b").unwrap();
+    fs::write(disabled.join("Disabled.vpk.off"), b"c").unwrap();
+
+    let found = find_untracked_paks(game, &HashSet::new(), cfg).await;
+    let mut names: Vec<(String, bool)> = found
+        .into_iter()
+        .map(|(rel, enabled, _)| (rel, enabled))
+        .collect();
+    names.sort();
+    assert_eq!(
+        names,
+        vec![
+            ("Disabled.vpk".to_string(), false),
+            ("Enabled.vpk".to_string(), true),
+        ]
+    );
+}
+
+/// The name a download is installed under carries the target's extension, not a fixed one.
+#[test]
+fn the_install_filename_carries_the_declared_extension() {
+    let cfg = &VPK_ENGINE;
+    let tmp = TempDir::new().unwrap();
+    assert_eq!(
+        decisions::install_filename_from_mod_name(cfg, cfg.primary(), "My Mod", tmp.path()),
+        "My_Mod.vpk"
+    );
+    assert_eq!(
+        decisions::install_filename_for_dropped(cfg, cfg.primary(), "My Mod"),
+        "My_Mod.vpk"
+    );
+}
+
+/// Archive classification looks for the declared extension, so an archive holding only the
+/// old hardcoded type is not treated as installable content.
+#[test]
+fn archive_classification_reads_the_declared_extension() {
+    let zip = make_zip(&[("Mod.vpk", b"a"), ("Other.pak", b"b")]);
+    assert_eq!(
+        super::zip::list_unit_entries(zip.path(), "vpk").unwrap(),
+        vec!["Mod.vpk".to_string()]
+    );
+    assert_eq!(
+        super::zip::list_unit_entries(zip.path(), "pak").unwrap(),
+        vec!["Other.pak".to_string()]
+    );
+}
+
+/// Writes TestMod.pak with a .ucas and a .sig beside it, and returns the pak.
+fn pak_with_neighbours() -> (TempDir, std::path::PathBuf) {
+    let src = TempDir::new().unwrap();
+    let pak = src.path().join("TestMod.pak");
+    fs::write(&pak, b"pak header").unwrap();
+    fs::write(src.path().join("TestMod.ucas"), b"bulk data").unwrap();
+    fs::write(src.path().join("TestMod.sig"), b"signature").unwrap();
+    (src, pak)
+}
+
+#[test]
+fn a_package_declaring_no_companions_installs_the_file_alone() {
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let cfg = &NO_COMPANIONS;
+    let sp = get_state_path(game, cfg);
+    let (_src, pak) = pak_with_neighbours();
+
+    install_mod_from_path(
+        game,
+        &sp,
+        iostore_mod_data(),
+        &pak,
+        None,
+        cfg,
+        cfg.primary(),
+    )
+    .unwrap();
+
+    let active_dir = tmp.path().join("Paks");
+    assert!(active_dir.join("TestMod.pak").is_file());
+    assert!(!active_dir.join("TestMod.ucas").exists());
+    assert!(!active_dir.join("TestMod.sig").exists());
+
+    disable_mod_op(game, &sp, "1", cfg, None);
+    let disabled_dir = active_dir.join("disabled");
+    assert!(disabled_dir.join("TestMod.pak.disabled").is_file());
+    assert!(!disabled_dir.join("TestMod.ucas.disabled").exists());
+}
+
+#[test]
+fn a_package_declaring_its_own_companion_carries_that_one_and_no_other() {
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let cfg = &SIG_COMPANION;
+    let sp = get_state_path(game, cfg);
+    let (_src, pak) = pak_with_neighbours();
+
+    install_mod_from_path(
+        game,
+        &sp,
+        iostore_mod_data(),
+        &pak,
+        None,
+        cfg,
+        cfg.primary(),
+    )
+    .unwrap();
+
+    let active_dir = tmp.path().join("Paks");
+    assert_eq!(
+        fs::read(active_dir.join("TestMod.sig")).unwrap(),
+        b"signature"
+    );
+    assert!(!active_dir.join("TestMod.ucas").exists());
+
+    disable_mod_op(game, &sp, "1", cfg, None);
+    let disabled_dir = active_dir.join("disabled");
+    assert!(disabled_dir.join("TestMod.sig.disabled").is_file());
+    assert!(!active_dir.join("TestMod.sig").exists());
+
+    enable_mod_op(game, &sp, "1", cfg, None);
+    assert!(active_dir.join("TestMod.sig").is_file());
+
+    uninstall_mod_op(game, &sp, "1", cfg);
+    assert!(!active_dir.join("TestMod.pak").exists());
+    assert!(!active_dir.join("TestMod.sig").exists());
+}
+
 #[test]
 fn modkit_packaged_archive_installs_into_crimeboss_mods_skeleton() {
     let zip = make_zip(&[
@@ -3130,8 +3398,9 @@ fn modkit_packaged_archive_installs_into_crimeboss_mods_skeleton() {
     let cfg = engine_for_game("cb").unwrap();
     let sp = get_state_path(game, cfg);
 
-    let (extracted, _orig, location_tag) =
-        resolve_archive_download(zip.path().to_path_buf(), cfg).unwrap();
+    let staged =
+        resolve_archive_download(zip.path().to_path_buf(), cfg, &StagingRegistry::new()).unwrap();
+    let (extracted, location_tag) = (staged.root.clone(), staged.target_tag.clone());
     assert_eq!(
         location_tag, None,
         "new installs always resolve to the primary Mods/ target"
@@ -3183,8 +3452,9 @@ fn loose_triplet_archive_also_installs_into_crimeboss_mods_skeleton() {
     let cfg = engine_for_game("cb").unwrap();
     let sp = get_state_path(game, cfg);
 
-    let (extracted, _orig, location_tag) =
-        resolve_archive_download(zip.path().to_path_buf(), cfg).unwrap();
+    let staged =
+        resolve_archive_download(zip.path().to_path_buf(), cfg, &StagingRegistry::new()).unwrap();
+    let (extracted, location_tag) = (staged.root.clone(), staged.target_tag.clone());
     assert_eq!(location_tag, None);
 
     let mod_name = "Total Mission Value";
@@ -3224,7 +3494,7 @@ fn hashable_file_for_mod_dir_prefers_pak_over_alphabetically_first_file() {
     fs::create_dir_all(&pak_dir).unwrap();
     fs::write(pak_dir.join("SomeMod-WindowsNoEditor.pak"), b"pak bytes").unwrap();
 
-    let hashed = hashable_file_for_mod_dir(dir.path()).unwrap();
+    let hashed = hashable_file_for_mod_dir(dir.path(), Some("pak")).unwrap();
     assert_eq!(hashed, pak_dir.join("SomeMod-WindowsNoEditor.pak"));
 }
 
@@ -3237,7 +3507,7 @@ fn hashable_file_for_mod_dir_prefers_raid_supermod_marker() {
     fs::write(dir.path().join("AaaFirst.lua"), b"lua").unwrap();
     fs::write(dir.path().join("supermod.xml"), b"<mod/>").unwrap();
     assert_eq!(
-        hashable_file_for_mod_dir(dir.path()).unwrap(),
+        hashable_file_for_mod_dir(dir.path(), Some("pak")).unwrap(),
         dir.path().join("supermod.xml")
     );
 }
@@ -3248,7 +3518,7 @@ fn hashable_file_for_mod_dir_prefers_supermod_over_legacy_mod_xml() {
     fs::write(dir.path().join("mod.xml"), b"<table/>").unwrap();
     fs::write(dir.path().join("supermod.xml"), b"<mod/>").unwrap();
     assert_eq!(
-        hashable_file_for_mod_dir(dir.path()).unwrap(),
+        hashable_file_for_mod_dir(dir.path(), Some("pak")).unwrap(),
         dir.path().join("supermod.xml")
     );
 }
@@ -3299,7 +3569,7 @@ fn find_pak_in_dir_finds_the_pak_and_ignores_siblings() {
     fs::write(dir.path().join("SomeMod-WindowsNoEditor.ucas"), b"").unwrap();
     fs::write(dir.path().join("SomeMod-WindowsNoEditor.pak"), b"").unwrap();
     assert_eq!(
-        find_pak_in_dir(dir.path()),
+        find_content_file_in_dir(dir.path(), "pak"),
         Some(dir.path().join("SomeMod-WindowsNoEditor.pak"))
     );
 }
@@ -3307,8 +3577,11 @@ fn find_pak_in_dir_finds_the_pak_and_ignores_siblings() {
 #[test]
 fn find_pak_in_dir_none_when_missing() {
     let dir = TempDir::new().unwrap();
-    assert_eq!(find_pak_in_dir(dir.path()), None);
-    assert_eq!(find_pak_in_dir(&dir.path().join("nonexistent")), None);
+    assert_eq!(find_content_file_in_dir(dir.path(), "pak"), None);
+    assert_eq!(
+        find_content_file_in_dir(&dir.path().join("nonexistent"), "pak"),
+        None
+    );
 }
 
 #[test]
@@ -3583,6 +3856,252 @@ fn read_enabled_from_mods_txt_none_when_missing_or_unknown() {
     assert_eq!(read_enabled_from_mods_txt(&path, "NotInFile"), None);
 }
 
+// ── input decoder selection ────────────────────────────────────────
+
+const fn overrides_target() -> ScanTarget {
+    ScanTarget {
+        tag: "mod_overrides",
+        label_key: "overrides",
+        unit: ModUnit::Directory {
+            entry_markers: &[],
+            scan_markers: &[],
+            index_gated_markers: &[],
+            excluded_names: &[],
+            priority_prefix: false,
+        },
+        companions: &[],
+        contained_extension: None,
+        enabled_state: Activation::Filesystem,
+        mods_subpath: &["assets", "mod_overrides"],
+        disabled_subpath: &["assets", "mod_overrides", "disabled"],
+        backup_subpath: &["assets", "mod_overrides.bak"],
+    }
+}
+
+static DECODER_TARGETS: [ScanTarget; 1] = [overrides_target()];
+static PDMOD_BINDING: std::sync::LazyLock<Vec<crate::game_package::DecoderBinding>> =
+    std::sync::LazyLock::new(|| {
+        vec![crate::game_package::DecoderBinding::Pdmod {
+            target: "mod_overrides".to_string(),
+        }]
+    });
+
+fn decoder_engine(game_id: &'static str, decoders: bool) -> ModEngineConfig {
+    ModEngineConfig {
+        game_id,
+        decoders: if decoders { &PDMOD_BINDING } else { &[] },
+        index_game_name: "Fixture",
+        mod_metadata: ModMetadata::Diesel,
+        targets: &DECODER_TARGETS,
+    }
+}
+
+fn written_pdmod() -> NamedTempFile {
+    let bytes = super::pdmod::build_pdmod(&[("units/weapons/glock/glock", "texture", b"pixels")]);
+    let file = NamedTempFile::with_suffix(".pdmod").unwrap();
+    fs::write(file.path(), &bytes).unwrap();
+    file
+}
+
+#[test]
+fn a_declared_decoder_runs_under_any_game_id() {
+    let file = written_pdmod();
+    let registry = StagingRegistry::new();
+    let staged = resolve_archive_download(
+        file.path().to_path_buf(),
+        &decoder_engine("raid", true),
+        &registry,
+    )
+    .expect("declared decoder resolves");
+    assert_eq!(staged.target_tag.as_deref(), Some("mod_overrides"));
+    assert!(staged.root.to_string_lossy().contains("modrex-pdmod-"));
+}
+
+#[test]
+fn the_pdth_game_id_alone_does_not_select_a_decoder() {
+    let file = written_pdmod();
+    let registry = StagingRegistry::new();
+    let resolved = resolve_archive_download(
+        file.path().to_path_buf(),
+        &decoder_engine("pdth", false),
+        &registry,
+    );
+    let decoded = match &resolved {
+        Ok(staged) => staged.root.to_string_lossy().contains("modrex-pdmod-"),
+        Err(_) => false,
+    };
+    assert!(!decoded, "an undeclared decoder must not run");
+}
+
+// ── enabled-state mechanism selection ────────────────────────────────────────
+
+fn target_named(game_id: &str, tag: &str) -> &'static ScanTarget {
+    engine_for_game(game_id)
+        .unwrap()
+        .targets
+        .iter()
+        .find(|t| t.tag == tag)
+        .unwrap()
+}
+
+#[test]
+fn ue4ss_targets_select_mods_txt_activation() {
+    for game_id in ["pd3", "cb"] {
+        assert_eq!(
+            target_named(game_id, "ue4ss_mods").enabled_state,
+            Activation::Ue4ssModsTxt,
+            "{game_id}"
+        );
+    }
+}
+
+#[test]
+fn file_unit_targets_select_filesystem_activation() {
+    for (game_id, tag) in [("pd3", "paks"), ("cb", "paks")] {
+        let target = target_named(game_id, tag);
+        assert!(!target.is_directory_unit(), "{game_id}/{tag}");
+        assert_eq!(
+            target.enabled_state,
+            Activation::Filesystem,
+            "{game_id}/{tag}"
+        );
+    }
+}
+
+#[test]
+fn directory_unit_targets_select_filesystem_activation() {
+    for (game_id, tag) in [
+        ("cb", "mods"),
+        ("pd2", "mods"),
+        ("pd2", "mod_overrides"),
+        ("pdth", "mods"),
+        ("pdth", "mod_overrides"),
+        ("raid", "mods"),
+    ] {
+        let target = target_named(game_id, tag);
+        assert!(target.is_directory_unit(), "{game_id}/{tag}");
+        assert_eq!(
+            target.enabled_state,
+            Activation::Filesystem,
+            "{game_id}/{tag}"
+        );
+    }
+}
+
+const fn crossed_target(tag: &'static str, enabled_state: Activation) -> ScanTarget {
+    ScanTarget {
+        tag,
+        label_key: "ue4ssMods",
+        unit: ModUnit::Directory {
+            entry_markers: &["Scripts/main.lua"],
+            scan_markers: &["Scripts/main.lua"],
+            index_gated_markers: &[],
+            excluded_names: &[],
+            priority_prefix: false,
+        },
+        companions: &[],
+        contained_extension: None,
+        enabled_state,
+        mods_subpath: &["Binaries", "Win64", "Mods"],
+        disabled_subpath: &["Binaries", "Win64", "Mods", "disabled"],
+        backup_subpath: &["Binaries", "Win64", "Mods.bak"],
+    }
+}
+
+const fn crossed_engine(targets: &'static [ScanTarget]) -> ModEngineConfig {
+    ModEngineConfig {
+        game_id: "fixture",
+        decoders: &[],
+        index_game_name: "Fixture",
+        mod_metadata: ModMetadata::None,
+        targets,
+    }
+}
+
+static MODS_TXT_UNDER_ANOTHER_TAG: [ScanTarget; 1] =
+    [crossed_target("scripts", Activation::Ue4ssModsTxt)];
+static FILESYSTEM_UNDER_THE_UE4SS_TAG: [ScanTarget; 1] =
+    [crossed_target("ue4ss_mods", Activation::Filesystem)];
+static MODS_TXT_TAG_ENGINE: ModEngineConfig = crossed_engine(&MODS_TXT_UNDER_ANOTHER_TAG);
+static FILESYSTEM_TAG_ENGINE: ModEngineConfig = crossed_engine(&FILESYSTEM_UNDER_THE_UE4SS_TAG);
+
+/// Returns the state path, the mods.txt path and the sub-mod's script.
+fn stage_crossed_submod(game: &TempDir, cfg: &ModEngineConfig) -> (PathBuf, PathBuf, PathBuf) {
+    let root = game.path().to_str().unwrap();
+    let mods = mods_base(root, cfg.primary());
+    let main_lua = mods.join("CoolMod").join("Scripts").join("main.lua");
+    fs::create_dir_all(main_lua.parent().unwrap()).unwrap();
+    fs::write(&main_lua, b"-- lua").unwrap();
+    let mods_txt = mods.join("mods.txt");
+    fs::write(&mods_txt, "CoolMod : 1\r\n").unwrap();
+
+    let sp = get_state_path(root, cfg);
+    let mut state = read_state(&sp);
+    state.mods.push(InstalledMod {
+        uid: "1".into(),
+        id: 1,
+        name: "Cool Mod".into(),
+        filename: "CoolMod".into(),
+        enabled: true,
+        ..InstalledMod::default()
+    });
+    save_state(&sp, &state);
+    (sp, mods_txt, main_lua)
+}
+
+#[test]
+fn the_mods_txt_mechanism_applies_under_a_tag_other_than_ue4ss_mods() {
+    let game = TempDir::new().unwrap();
+    let cfg = &MODS_TXT_TAG_ENGINE;
+    let root = game.path().to_str().unwrap();
+    assert_eq!(cfg.primary().tag, "scripts");
+    let (sp, mods_txt, main_lua) = stage_crossed_submod(&game, cfg);
+
+    disable_mod_op(root, &sp, "1", cfg, None);
+    assert!(main_lua.exists(), "the files must not move");
+    assert_eq!(
+        read_enabled_from_mods_txt(&mods_txt, "CoolMod"),
+        Some(false)
+    );
+    assert!(!read_state(&sp).mods[0].enabled);
+
+    enable_mod_op(root, &sp, "1", cfg, None);
+    assert!(main_lua.exists(), "the files must not move");
+    assert_eq!(read_enabled_from_mods_txt(&mods_txt, "CoolMod"), Some(true));
+    assert!(read_state(&sp).mods[0].enabled);
+}
+
+#[test]
+fn the_ue4ss_mods_tag_alone_does_not_select_the_mods_txt_mechanism() {
+    let game = TempDir::new().unwrap();
+    let cfg = &FILESYSTEM_TAG_ENGINE;
+    let root = game.path().to_str().unwrap();
+    assert_eq!(cfg.primary().tag, "ue4ss_mods");
+    let (sp, mods_txt, main_lua) = stage_crossed_submod(&game, cfg);
+    let disabled_lua = disabled_mod_path(root, "CoolMod", None, cfg.primary())
+        .join("Scripts")
+        .join("main.lua");
+
+    disable_mod_op(root, &sp, "1", cfg, None);
+    assert!(!main_lua.exists());
+    assert!(
+        disabled_lua.exists(),
+        "the folder must move to the disabled dir"
+    );
+    assert_eq!(
+        read_enabled_from_mods_txt(&mods_txt, "CoolMod"),
+        Some(true),
+        "mods.txt must be untouched"
+    );
+    assert!(!read_state(&sp).mods[0].enabled);
+
+    enable_mod_op(root, &sp, "1", cfg, None);
+    assert!(main_lua.exists());
+    assert!(!disabled_lua.exists());
+    assert_eq!(read_enabled_from_mods_txt(&mods_txt, "CoolMod"), Some(true));
+    assert!(read_state(&sp).mods[0].enabled);
+}
+
 // ── Crime Boss multi-pak bundle archives (ZIP_MULTI_PAK) ──────────────────────
 // Real-world shape verified against modworkshop mod id 56196 ("Career Criminal Janitor Set"):
 // two independent mods ("The Cleaner", "The Sweeper") bundled in one archive, each with its own
@@ -3633,7 +4152,8 @@ fn crimeboss_bundle_archive_resolves_to_zip_multi_pak_with_both_entries() {
     let zip = janitor_bundle_zip();
     let cfg = engine_for_game("cb").unwrap();
 
-    let err = resolve_archive_download(zip.path().to_path_buf(), cfg).unwrap_err();
+    let err = resolve_archive_download(zip.path().to_path_buf(), cfg, &StagingRegistry::new())
+        .unwrap_err();
     let ResolveError::Prompt(prompt) = err else {
         panic!("expected a prompt, got {err:?}");
     };
@@ -3677,7 +4197,12 @@ fn crimeboss_bundle_archive_each_entry_installs_independently_without_cross_cont
             b"sweeper pak".as_slice(),
         ),
     ] {
-        let skeleton = extract_entry_into_crimeboss_skeleton(zip.path(), entry).unwrap();
+        let skeleton = super::zip::extract_entry_into_crimeboss_skeleton_at(
+            zip.path(),
+            &super::zip::staged_entry_for_test(zip.path(), entry),
+            &["ucas", "utoc"],
+        )
+        .unwrap();
         let mod_data = InstalledMod {
             uid: entry.to_string(),
             id: 1,
@@ -4035,4 +4560,78 @@ fn read_state_migrates_legacy_version_sentinels() {
     // A real version is left completely alone.
     assert_eq!(state.mods[2].update_status, UpdateStatus::Known);
     assert_eq!(state.mods[2].version, "2.11");
+}
+
+// ── staged_content_sha256 ─────────────────────────────────────────────────
+
+#[tokio::test]
+async fn staged_content_sha256_hashes_a_file_unit_directly() {
+    let dir = TempDir::new().unwrap();
+    let pak = dir.path().join("Mod.pak");
+    fs::write(&pak, b"pak bytes").unwrap();
+    let cfg = engine_for_game("pd3").unwrap();
+
+    let got = super::identify::staged_content_sha256(cfg.target_for(Some("paks")), &pak)
+        .await
+        .unwrap();
+    assert_eq!(got, compute_sha256(&pak).await.unwrap());
+}
+
+#[tokio::test]
+async fn staged_content_sha256_hashes_the_declared_marker_of_a_directory_unit() {
+    let dir = TempDir::new().unwrap();
+    let staged = dir.path().join("Welrod");
+    fs::create_dir_all(&staged).unwrap();
+    fs::write(staged.join("mod.txt"), b"marker bytes").unwrap();
+    fs::write(staged.join("zzz.lua"), b"other bytes").unwrap();
+    let cfg = engine_for_game("pd2").unwrap();
+
+    let got = super::identify::staged_content_sha256(cfg.primary(), &staged)
+        .await
+        .unwrap();
+    assert_eq!(got, compute_sha256(&staged.join("mod.txt")).await.unwrap());
+}
+
+/// PD2 declares mod.txt before main.xml; a mod shipping only the second must still hash.
+#[tokio::test]
+async fn staged_content_sha256_falls_through_to_a_later_marker() {
+    let dir = TempDir::new().unwrap();
+    let staged = dir.path().join("Welrod");
+    fs::create_dir_all(&staged).unwrap();
+    fs::write(staged.join("main.xml"), b"second marker").unwrap();
+    let cfg = engine_for_game("pd2").unwrap();
+
+    let got = super::identify::staged_content_sha256(cfg.primary(), &staged)
+        .await
+        .unwrap();
+    assert_eq!(got, compute_sha256(&staged.join("main.xml")).await.unwrap());
+}
+
+#[tokio::test]
+async fn staged_content_sha256_uses_the_representative_file_when_no_marker_is_declared() {
+    let dir = TempDir::new().unwrap();
+    let staged = dir.path().join("SomeMod");
+    fs::create_dir_all(&staged).unwrap();
+    fs::write(staged.join("b.txt"), b"bee").unwrap();
+    fs::write(staged.join("a.txt"), b"aye").unwrap();
+    let cfg = engine_for_game("raid").unwrap();
+
+    let got = super::identify::staged_content_sha256(cfg.primary(), &staged)
+        .await
+        .unwrap();
+    let representative = hashable_file_for_mod_dir(&staged, Some("pak")).unwrap();
+    assert_eq!(got, compute_sha256(&representative).await.unwrap());
+}
+
+#[tokio::test]
+async fn staged_content_sha256_reports_an_empty_directory() {
+    let dir = TempDir::new().unwrap();
+    let staged = dir.path().join("Empty");
+    fs::create_dir_all(&staged).unwrap();
+    let cfg = engine_for_game("raid").unwrap();
+
+    assert_eq!(
+        super::identify::staged_content_sha256(cfg.primary(), &staged).await,
+        Err("mod directory is empty".to_string())
+    );
 }

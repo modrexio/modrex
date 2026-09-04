@@ -35,6 +35,24 @@ function getFolderPath(folders: ModFolder[], folderId: string | null): string | 
     return parent ? `${parent}/${folder.diskName}` : folder.diskName
 }
 
+// Ghosts are seeded from three sources with different name shapes: real archive paths, a
+// mod's Modrex folder path, and index entry names. Only the first can match an archive entry
+// exactly, so the basename fallback is what keeps the other two installable, and it is used
+// only when it names exactly one entry.
+export function resolveGhostEntryIndex(entries: string[], ghostEntry: string): number | null {
+    const onlyMatch = (matches: (entry: string) => boolean): number | null => {
+        const hits: number[] = []
+        entries.forEach((entry, index) => {
+            if (matches(entry)) hits.push(index)
+        })
+        return hits.length === 1 ? hits[0] : null
+    }
+    const exact = onlyMatch((entry) => entry === ghostEntry)
+    if (exact !== null) return exact
+    const name = entryFilename(ghostEntry)
+    return onlyMatch((entry) => entryFilename(entry) === name)
+}
+
 function entryDir(entry: string): string {
     const i = entry.lastIndexOf('/')
     return i === -1 ? '' : entry.slice(0, i)
@@ -213,20 +231,17 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
                 // The archive is authoritative, so heal the cache and resolve the
                 // real entry path (cached ghosts may carry a reconstructed one).
                 setArchiveEntries(activeGame, zip.fileId, zip.entries)
-                const realEntry = zip.entries.find(
-                    (en) => entryFilename(en) === entryFilename(ghost.entry)
-                )
-                if (!realEntry) {
-                    await api.deleteTempFile(zip.zipPath)
+                const realIdx = resolveGhostEntryIndex(zip.entries, ghost.entry)
+                if (realIdx === null) {
+                    await api.discardStagedArchive(zip.archiveHandle)
                     setInstallError(t('installed.manageFiles.fileUnavailable'))
                     return
                 }
                 // Mixed-target archives carry a per-entry tag; fall back to the single targetTag.
-                const realIdx = zip.entries.indexOf(realEntry)
                 const locationTag = zip.entryTags?.[realIdx] ?? zip.targetTag ?? undefined
                 await api.installFromZipEntry(
-                    zip.zipPath,
-                    realEntry,
+                    zip.archiveHandle,
+                    zip.entryIds[realIdx],
                     zip.modId,
                     zip.modName,
                     zip.fileId,
@@ -237,7 +252,7 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
                     ghost.folderId,
                     locationTag
                 )
-                await api.deleteTempFile(zip.zipPath)
+                await api.discardStagedArchive(zip.archiveHandle)
             }
             await onRefreshInstalled()
         } catch (e) {

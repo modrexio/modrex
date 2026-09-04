@@ -101,7 +101,9 @@ async function fetchCount(gameId: GameId, sourceId: string): Promise<number | nu
         const page = await api.nexusSearchMods(gameId, '', 'downloads', 0)
         return page.meta.total
     }
-    const page = await api.listMods(GAMES[gameId].workshopId, { limit: 1 })
+    const workshopId = GAMES[gameId].workshopId
+    if (workshopId === undefined) return null
+    const page = await api.listMods(workshopId, { limit: 1 })
     return page.meta.total
 }
 

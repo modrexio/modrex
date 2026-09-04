@@ -1,0 +1,93 @@
+id = "pd2"
+name = "PAYDAY 2"
+short_name = "PD2"
+mod_metadata = "diesel"
+
+sources = [
+    {
+        provider = "modworkshop",
+        game_id = "1",
+    },
+    {
+        provider = "nexus",
+        domain = "payday2",
+        numeric_id = 648,
+    },
+]
+
+news = [
+    {
+        provider = "paydaythegame",
+        category = "payday2",
+    },
+]
+
+install = {
+    executables = ["PAYDAY2.exe", "payday2_win32_release.exe"],
+    processes = ["PAYDAY2", "payday2_win32_release"],
+    stores = [
+        {
+            provider = "steam",
+            app_id = 218620,
+            folder = "PAYDAY 2",
+        },
+        {
+            provider = "epic",
+            name = "PAYDAY 2",
+        },
+    ],
+}
+
+loaders = [
+    # SuperBLT is hosted on its own site and has no mod page, so the renderer matches it by name.
+    {
+        kind = "superblt",
+    },
+]
+
+targets = [
+    {
+        tag = "mods",
+        label = "mods",
+        primary = true,
+        path = ["mods"],
+        backup = ["mods.bak"],
+        activation = "filesystem",
+        load_order = "none",
+
+        unit = {
+            kind = "directory",
+            ignore_preset = "diesel_infra",
+
+            discovery = {
+                policy = "markers",
+                markers = [
+                    {
+                        file = "mod.txt",
+                        modes = ["archive", "scan"],
+                    },
+                    {
+                        file = "main.xml",
+                        modes = ["archive", "scan"],
+                    },
+                ],
+            },
+        },
+    },
+    {
+        tag = "mod_overrides",
+        label = "overrides",
+        path = ["assets", "mod_overrides"],
+        backup = ["assets", "mod_overrides.bak"],
+        activation = "filesystem",
+        load_order = "none",
+
+        unit = {
+            kind = "directory",
+
+            discovery = {
+                policy = "all_directories",
+            },
+        },
+    },
+]

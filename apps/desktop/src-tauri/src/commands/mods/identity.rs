@@ -226,7 +226,7 @@ pub fn resolve_identity(signals: &LocalSignals) -> Option<ModIdentity> {
 
 // ── wiring into the installed pipeline ────────────────────────────────────────
 
-use super::engine::{ModEngineConfig, SignalSource};
+use super::engine::{ModEngineConfig, ModMetadata};
 use super::paths::{active_mod_path, disabled_mod_path};
 use super::state::get_folder_path;
 use super::types::{DeclaredMetadata, InstalledMod, ModFolder};
@@ -234,9 +234,9 @@ use crate::commands::mod_index;
 
 /// What the mod says about itself, in whichever vocabulary its game uses.
 pub fn local_signals(cfg: &ModEngineConfig, dir: &std::path::Path) -> LocalSignals {
-    match cfg.signals {
-        SignalSource::Diesel => super::diesel_signals::local_signals(dir),
-        SignalSource::None => LocalSignals::default(),
+    match cfg.mod_metadata {
+        ModMetadata::Diesel => super::diesel_signals::local_signals(dir),
+        ModMetadata::None => LocalSignals::default(),
     }
 }
 

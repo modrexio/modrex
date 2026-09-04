@@ -30,28 +30,44 @@ pub struct NewsResult {
     pub total_pages: u32,
 }
 
-fn category_slug(game_id: &str) -> &'static str {
-    match game_id {
-        "pd2" => "payday2",
-        "pdth" => "theheist",
-        _ => "payday3",
+fn category_slug(game_id: &str) -> Option<&'static str> {
+    crate::games::discovered()
+        .iter()
+        .find(|(id, _)| *id == game_id)
+        .and_then(|(_, pkg)| {
+            pkg.news.first().map(|feed| match feed {
+                crate::game_package::NewsBinding::PaydayTheGame { category } => category.as_str(),
+            })
+        })
+}
+
+fn no_news(game_id: &str) -> String {
+    match crate::games::discovered()
+        .iter()
+        .find(|(id, _)| *id == game_id)
+    {
+        Some((_, pkg)) => format!("{} has no official news source", pkg.name),
+        None => format!("unknown game '{game_id}'"),
     }
 }
 
-fn category_url(game_id: &str, page: u32) -> String {
-    let slug = category_slug(game_id);
-    if page <= 1 {
+fn category_url(game_id: &str, page: u32) -> Option<String> {
+    let slug = category_slug(game_id)?;
+    Some(if page <= 1 {
         format!("https://www.paydaythegame.com/news/category/{slug}/")
     } else {
         format!("https://www.paydaythegame.com/news/category/{slug}/page/{page}/")
-    }
+    })
 }
 
-fn cache_path(app: &AppHandle, game_id: &str) -> PathBuf {
-    app.path()
-        .app_data_dir()
-        .expect("failed to resolve app data dir")
-        .join(format!("news-{}.json", category_slug(game_id)))
+fn cache_path(app: &AppHandle, game_id: &str) -> Option<PathBuf> {
+    let slug = category_slug(game_id)?;
+    Some(
+        app.path()
+            .app_data_dir()
+            .expect("failed to resolve app data dir")
+            .join(format!("news-{slug}.json")),
+    )
 }
 
 /// Picks the 700w variant from a srcset when present (matches the card's thumbnail
@@ -205,10 +221,9 @@ fn curl_fetch(url: &str) -> Result<String, String> {
 }
 
 async fn download_news(game_id: &str, page: u32) -> Result<NewsResult, String> {
-    if game_id == "cb" {
-        return Err("Crime Boss: Rockay City has no official news source".to_string());
-    }
-    let url = category_url(game_id, page);
+    let Some(url) = category_url(game_id, page) else {
+        return Err(no_news(game_id));
+    };
     let html = tokio::task::spawn_blocking(move || curl_fetch(&url))
         .await
         .map_err(|e| e.to_string())??;
@@ -223,7 +238,9 @@ async fn download_news(game_id: &str, page: u32) -> Result<NewsResult, String> {
 #[tauri::command]
 #[specta::specta]
 pub async fn fetch_news(app: AppHandle, game_id: String) -> Result<NewsResult, String> {
-    let path = cache_path(&app, &game_id);
+    let Some(path) = cache_path(&app, &game_id) else {
+        return Err(no_news(&game_id));
+    };
     if cache_age_secs(&path).is_some_and(|age| age < MAX_AGE_SECS) {
         if let Some(result) = read_cache(&path) {
             return Ok(result);
@@ -237,8 +254,11 @@ pub async fn fetch_news(app: AppHandle, game_id: String) -> Result<NewsResult, S
 #[tauri::command]
 #[specta::specta]
 pub async fn refresh_news(app: AppHandle, game_id: String) -> Result<NewsResult, String> {
+    let Some(path) = cache_path(&app, &game_id) else {
+        return Err(no_news(&game_id));
+    };
     let result = download_news(&game_id, 1).await?;
-    let _ = write_cache(&cache_path(&app, &game_id), &result);
+    let _ = write_cache(&path, &result);
     Ok(result)
 }
 

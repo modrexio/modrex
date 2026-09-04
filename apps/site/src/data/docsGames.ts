@@ -1,4 +1,4 @@
-import { GAME_IDS, type GameId, type ModTargetId } from '@modrex/games'
+import { GAME_IDS, GAMES, type GameId, type ModTargetId } from '@modrex/games'
 
 export interface CanonicalDocsTarget {
     label: string
@@ -16,11 +16,11 @@ export interface SupplementalDocsTarget {
 export type DocsTarget = CanonicalDocsTarget | SupplementalDocsTarget
 
 export interface DocsGameRegistration {
-    slug: string
+    slug?: string
     targets: readonly DocsTarget[]
 }
 
-export const docsGameRegistry = {
+export const docsGameRegistry: Partial<Record<GameId, DocsGameRegistration>> = {
     pd3: {
         slug: 'payday-3',
         targets: [
@@ -102,15 +102,33 @@ export const docsGameRegistry = {
             },
         ],
     },
-} as const satisfies Record<GameId, DocsGameRegistration>
+}
 
 export type DocsGameId = GameId
 
-export interface DocsGame extends DocsGameRegistration {
+export interface DocsGame {
     id: DocsGameId
+    slug: string
+    targets: readonly DocsTarget[]
+    /** Whether a hand-written page exists for this game under content/docs/docs/games. */
+    hasPage: boolean
 }
 
-export const docsGames = GAME_IDS.map((id) => ({ id, ...docsGameRegistry[id] }))
+export const docsGames: DocsGame[] = GAME_IDS.map((id) => {
+    const authored = docsGameRegistry[id]
+    return {
+        id,
+        slug: authored?.slug ?? id,
+        targets:
+            authored?.targets ??
+            GAMES[id].modTargets.map((target) => ({
+                label: target.id,
+                targetId: target.id,
+                notes: '',
+            })),
+        hasPage: authored !== undefined,
+    }
+})
 
 export function getDocsGame(id: DocsGameId): DocsGame {
     const game = docsGames.find((candidate) => candidate.id === id)

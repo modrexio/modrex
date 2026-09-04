@@ -1,49 +1,46 @@
 use std::path::{Path, PathBuf};
 
 use crate::commands::mods::extract_archive_flat;
+use crate::game_package::{LoaderBinding, Storefront};
 
-/// UE4SS is a community-forked Lua and native modding framework. Unlike SuperBLT and DAHM
-/// (one maintainer, one stable build), each game's UE4SS build is a separately maintained
-/// fork with its own proxy DLLs and destination. Every entry below was verified by
-/// downloading and inspecting the real released archives rather than assumed.
-///
-/// Crime Boss ("UE4SS-CB", modworkshop id 47749): proxy dwmapi.dll, installs into
-/// CrimeBoss/Binaries/Win64. Only Steam is verified, as Crime Boss has no Xbox or GamePass
-/// release and no Epic build of this mod has been confirmed. One maintainer and one release
-/// line, so no other proxy DLL has been seen for this game.
-///
-/// PAYDAY 3: installs into <game_path>/PAYDAY3/Binaries/Win64 for Steam and Epic. game_path
-/// already ends in PAYDAY3 (the Steam installdir name), and this is the inner project
-/// subfolder, not a second copy of it. PD3 has several independently maintained mod pages
-/// distributing UE4SS, each with its own proxy DLL: id 44048 (Narknon) uses dxgi.dll, and
-/// id 47771 (Shalashaska) uses xinput1_3.dll. Detection checks either, so which release a
-/// user installed does not matter. The Xbox and GamePass build uses a different destination
-/// (Binaries/WinGDK) and an unverified proxy DLL, so it is unsupported rather than guessed.
-struct Ue4ssDescriptor {
-    proxy_dlls: &'static [&'static str],
-    binaries_subpath: &'static [&'static str],
-}
-
-fn descriptor_for(game_id: &str, launcher: Option<&str>) -> Option<Ue4ssDescriptor> {
-    match (game_id, launcher) {
-        ("cb", Some("steam")) => Some(Ue4ssDescriptor {
-            proxy_dlls: &["dwmapi.dll"],
-            binaries_subpath: &["CrimeBoss", "Binaries", "Win64"],
-        }),
-        ("pd3", Some("steam")) | ("pd3", Some("epic")) => Some(Ue4ssDescriptor {
-            proxy_dlls: &["xinput1_3.dll", "dxgi.dll"],
-            // game_path already ends in .../PAYDAY3 (the Steam installdir name), so this
-            // adds the inner PAYDAY3 project subfolder, not a second copy of the installdir.
-            // Verified against a real install: <game_path>/PAYDAY3/Binaries/Win64/.
-            binaries_subpath: &["PAYDAY3", "Binaries", "Win64"],
-        }),
+fn storefront(launcher: Option<&str>) -> Option<Storefront> {
+    match launcher? {
+        "steam" => Some(Storefront::Steam),
+        "epic" => Some(Storefront::Epic),
+        "xbox" => Some(Storefront::Xbox),
         _ => None,
     }
 }
 
-fn binaries_dir(game_path: &str, descriptor: &Ue4ssDescriptor) -> PathBuf {
+/// The build this game ships for one storefront: where it installs and what proves it is
+/// already there.
+struct Ue4ssBuild {
+    proxy_dlls: &'static [String],
+    binaries: &'static [String],
+}
+
+fn descriptor_for(game_id: &str, launcher: Option<&str>) -> Option<Ue4ssBuild> {
+    let storefront = storefront(launcher)?;
+    let (_, pkg) = crate::games::discovered()
+        .iter()
+        .find(|(id, _)| *id == game_id)?;
+    pkg.loaders.iter().find_map(|binding| match binding {
+        LoaderBinding::Ue4ss {
+            storefronts,
+            proxy_dlls,
+            install_into,
+            ..
+        } if storefronts.contains(&storefront) => Some(Ue4ssBuild {
+            proxy_dlls,
+            binaries: install_into,
+        }),
+        _ => None,
+    })
+}
+
+fn binaries_dir(game_path: &str, descriptor: &Ue4ssBuild) -> PathBuf {
     descriptor
-        .binaries_subpath
+        .binaries
         .iter()
         .fold(Path::new(game_path).to_path_buf(), |acc, part| {
             acc.join(part)

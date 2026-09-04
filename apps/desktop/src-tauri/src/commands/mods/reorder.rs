@@ -1,4 +1,5 @@
 use super::engine::ModEngineConfig;
+use super::naming::log_name;
 use super::naming::{apply_priority_prefix, strip_priority_prefix};
 use super::paths::{active_mod_path, disabled_base, disabled_mod_path, mods_base};
 use super::state::{get_folder_path, read_state, save_state};
@@ -44,7 +45,7 @@ pub fn reorder_mods_in_folder_op(
             };
             if old.exists() {
                 if let Err(e) = fs::rename(&old, &new) {
-                    log::warn!("reorder: rename {old:?} -> {new:?}: {e}");
+                    log::warn!("reorder: rename {}: {e}", log_name(&old));
                 }
             }
             m.filename = new_filename;
@@ -130,7 +131,7 @@ pub fn move_mod_to_folder_op(
             };
             if old.exists() {
                 if let Err(e) = fs::rename(&old, &new) {
-                    log::warn!("move_to_folder: rename {old:?} -> {new:?}: {e}");
+                    log::warn!("move_to_folder: rename {}: {e}", log_name(&old));
                 }
             }
         }
@@ -274,7 +275,7 @@ pub fn reorder_children_op(
         };
         if old_path.exists() {
             if let Err(e) = fs::rename(&old_path, &new_path) {
-                log::warn!("reorder_children: mod rename {old_path:?} -> {new_path:?}: {e}");
+                log::warn!("reorder_children: mod rename {}: {e}", log_name(&old_path));
             }
         }
     }

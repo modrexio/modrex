@@ -16,6 +16,7 @@ const END_MARKER = '<!-- TRANSLATION_STATUS_END -->'
 const TRANSLATION_GUIDE =
     'To improve an existing language or add a new one, follow the\n[translation guide](TRANSLATING.md).'
 const GITHUB_USERNAME = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$/
+const PRETTIER_IGNORE = '<!-- prettier-ignore -->'
 
 function escapeMarkdownLinkText(value) {
     return String(value)
@@ -139,7 +140,21 @@ export function renderTranslationStatusReadme({ summaries, names, contributors }
             .sort((a, b) => a.locale.localeCompare(b.locale))
             .map((summary) => renderTargetRow(summary, metadata)),
     ]
-    return `${rows.join('\n')}\n\n${renderLegend()}\n\n${TRANSLATION_GUIDE}`
+    // GitHub centers a block-level child of an align="center" div, which text-align alone does
+    // not do for a table. The blank lines are what make the table inside parse as Markdown, and
+    // the ignore comment has to sit directly above the table or Prettier repads its columns and
+    // the generated block no longer matches this output.
+    const centered = [
+        '<div align="center">',
+        '',
+        PRETTIER_IGNORE,
+        rows.join('\n'),
+        '',
+        renderLegend(),
+        '',
+        '</div>',
+    ]
+    return `${centered.join('\n')}\n\n${TRANSLATION_GUIDE}`
 }
 
 export function buildTranslationTable(
@@ -160,7 +175,7 @@ export function replaceTranslationTable(readme, table) {
 
     const before = readme.slice(0, start + START_MARKER.length)
     const after = readme.slice(end).replace(`\n\n${TRANSLATION_GUIDE}`, '')
-    return `${before}\n\n<!-- prettier-ignore -->\n${table}\n\n${after}`
+    return `${before}\n\n${table}\n\n${after}`
 }
 
 export function expectedReadme(readme) {

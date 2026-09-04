@@ -1,4 +1,6 @@
 mod commands;
+mod game_package;
+mod games;
 
 #[cfg(windows)]
 mod windows_fullscreen;
@@ -69,7 +71,7 @@ fn ipc_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::mods::install_from_zip_entry,
             commands::mods::install_cb_flat_archive,
             commands::mods::install_host_pack,
-            commands::mods::delete_temp_file,
+            commands::mods::discard_staged_archive,
             commands::mods::uninstall_mod,
             commands::mods::enable_mod,
             commands::mods::disable_mod,
@@ -102,7 +104,7 @@ fn ipc_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::launchers::is_game_running,
             commands::launchers::stop_game,
             commands::launchers::shell_open_external,
-            commands::launchers::shell_open_path,
+            commands::launchers::open_game_folder,
             commands::launchers::open_log_file,
             commands::launchers::open_data_folder,
             commands::launchers::open_app_folder,
@@ -181,6 +183,9 @@ pub fn run() {
         )
         .setup(|app| {
             log::info!("Modrex started");
+            // The one staged-archive registry this application owns. Commands reach it
+            // through managed state, so nothing has to consult a process global.
+            app.manage(commands::mods::StagingRegistry::new());
             #[cfg(windows)]
             if let Some(window) = app.get_webview_window("main") {
                 windows_fullscreen::install(&window)?;
@@ -268,13 +273,25 @@ pub fn run() {
         });
     }
 
-    app.run(|_, _| {});
+    // Archives still waiting on a prompt when the app exits are removed through the plans
+    // the registry holds for them, so a closed window does not leave them behind. Nothing is
+    // recovered after a crash: an artifact whose ownership cannot be proven is left alone.
+    app.run(|app_handle, event| {
+        if matches!(event, tauri::RunEvent::Exit) {
+            commands::mods::discard_all_staged_archives(app_handle);
+        }
+    });
 }
 
 /// Regenerates src/shared/bindings.ts from the command registry. CI asserts the result
 /// matches the committed file. Driven by tests/export_bindings.rs, deliberately an
 /// integration test: referencing ipc_builder() links the whole command surface, including
 /// rfd's comctl32 v6 dialog imports, which need the manifest build.rs embeds only in tests.
+#[doc(hidden)]
+pub fn export_game_catalog() {
+    games::catalog::export_catalog();
+}
+
 #[doc(hidden)]
 pub fn export_typescript_bindings() {
     ipc_builder()

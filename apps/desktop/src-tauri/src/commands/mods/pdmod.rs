@@ -11,6 +11,10 @@ use std::path::{Component, Path, PathBuf};
 use std::sync::OnceLock;
 use zip::ZipArchive;
 
+/// The extension the format claims. A .pdmod is a ZIP by magic bytes, so nothing else
+/// distinguishes one from an ordinary archive.
+pub const EXTENSION: &str = "pdmod";
+
 const PDMOD_PASSWORD: &[u8] = b"0$45'5))66S2ixF51a<6}L2UK";
 
 // Bob Jenkins lookup8 hash, direct port of hash.cpp from PDModExtractor.
@@ -182,49 +186,53 @@ pub fn extract_pdmod(path: &Path, dest_dir: &Path) -> Result<(), String> {
     }
 
     log::info!(
-        "pdmod: extracted {extracted}/{} entries to {}",
-        manifest.item_queue.len(),
-        dest_dir.display()
+        "pdmod: extracted {extracted}/{} entries",
+        manifest.item_queue.len()
     );
     Ok(())
 }
 
 #[cfg(test)]
+use std::io::{Cursor, Write};
+#[cfg(test)]
+use zip::unstable::write::FileOptionsExt;
+#[cfg(test)]
+use zip::write::{SimpleFileOptions, ZipWriter};
+
+#[cfg(test)]
+pub(crate) fn build_pdmod(entries: &[(&str, &str, &[u8])]) -> Vec<u8> {
+    // entries: (bundle_path, bundle_ext, file_content)
+    let mut item_queue = Vec::new();
+    let mut files: Vec<(&str, Vec<u8>)> = Vec::new();
+    for (i, (path, ext, content)) in entries.iter().enumerate() {
+        let repl = format!("{:04}.repl", i);
+        item_queue.push(serde_json::json!({
+            "BundlePath": hash64(path),
+            "BundleExtension": hash64(ext),
+            "ReplacementFile": repl,
+        }));
+        files.push((Box::leak(repl.into_boxed_str()), content.to_vec()));
+    }
+    let manifest = serde_json::json!({"ItemQueue": item_queue}).to_string();
+
+    let buf = Vec::new();
+    let cursor = Cursor::new(buf);
+    let mut zip = ZipWriter::new(cursor);
+    let opts = SimpleFileOptions::default()
+        .compression_method(zip::CompressionMethod::Deflated)
+        .with_deprecated_encryption(PDMOD_PASSWORD);
+    zip.start_file("pdmod.json", opts).unwrap();
+    zip.write_all(manifest.as_bytes()).unwrap();
+    for (name, content) in &files {
+        zip.start_file(name, opts).unwrap();
+        zip.write_all(content).unwrap();
+    }
+    zip.finish().unwrap().into_inner()
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
-    use std::io::{Cursor, Write};
-    use zip::unstable::write::FileOptionsExt;
-    use zip::write::{SimpleFileOptions, ZipWriter};
-
-    fn build_pdmod(entries: &[(&str, &str, &[u8])]) -> Vec<u8> {
-        // entries: (bundle_path, bundle_ext, file_content)
-        let mut item_queue = Vec::new();
-        let mut files: Vec<(&str, Vec<u8>)> = Vec::new();
-        for (i, (path, ext, content)) in entries.iter().enumerate() {
-            let repl = format!("{:04}.repl", i);
-            item_queue.push(serde_json::json!({
-                "BundlePath": hash64(path),
-                "BundleExtension": hash64(ext),
-                "ReplacementFile": repl,
-            }));
-            files.push((Box::leak(repl.into_boxed_str()), content.to_vec()));
-        }
-        let manifest = serde_json::json!({"ItemQueue": item_queue}).to_string();
-
-        let buf = Vec::new();
-        let cursor = Cursor::new(buf);
-        let mut zip = ZipWriter::new(cursor);
-        let opts = SimpleFileOptions::default()
-            .compression_method(zip::CompressionMethod::Deflated)
-            .with_deprecated_encryption(PDMOD_PASSWORD);
-        zip.start_file("pdmod.json", opts).unwrap();
-        zip.write_all(manifest.as_bytes()).unwrap();
-        for (name, content) in &files {
-            zip.start_file(name, opts).unwrap();
-            zip.write_all(content).unwrap();
-        }
-        zip.finish().unwrap().into_inner()
-    }
 
     #[test]
     fn hash64_empty() {

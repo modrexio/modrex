@@ -1,4 +1,4 @@
-use super::crimeboss_settings::find_pak_in_dir;
+use super::crimeboss_settings::content_path_for_mod;
 use super::engine::{
     backup_dir as engine_backup_dir, disabled_dir, mods_dir, state_path as engine_state_path,
     ModEngineConfig, ModUnit, ScanTarget,
@@ -184,27 +184,17 @@ pub(crate) fn resolve_pak_path(
     }
 
     let target = cfg.target_for(location);
+    // The extension the target declares, so this never assumes a game packages as .pak.
+    let extension = target.content_extension()?;
     let folder = get_folder_path(folders, m.folder_id.as_deref());
-    if !target.is_directory_unit() {
-        let active = active_mod_path(game_path, &m.filename, folder.as_deref(), target);
-        if active.exists() {
-            return Some(active);
-        }
-        let disabled = disabled_mod_path(game_path, &m.filename, folder.as_deref(), target);
-        return disabled.exists().then_some(disabled);
-    }
-
     let active = active_mod_path(game_path, &m.filename, folder.as_deref(), target);
-    let mod_dir = if active.exists() {
+    let installed = if active.exists() {
         active
     } else {
         let disabled = disabled_mod_path(game_path, &m.filename, folder.as_deref(), target);
-        if !disabled.exists() {
-            return None;
-        }
-        disabled
+        disabled.exists().then_some(disabled)?
     };
-    find_pak_in_dir(&mod_dir.join("Content").join("Paks").join("WindowsNoEditor"))
+    content_path_for_mod(&installed, target.is_directory_unit(), extension)
 }
 
 pub async fn find_untracked_paks(
@@ -280,10 +270,10 @@ async fn scan_active(
             format!("{}/{}", prefix, name)
         };
         match &target.unit {
-            ModUnit::File { .. } => {
+            ModUnit::File { extension, .. } => {
                 if ft.is_dir() {
                     subdirs.push((entry.path(), rel));
-                } else if name.ends_with(".pak") && !known.contains(&rel) {
+                } else if name.ends_with(&format!(".{extension}")) && !known.contains(&rel) {
                     out.push((rel, true));
                 }
             }
@@ -340,15 +330,22 @@ async fn scan_disabled(
             format!("{}/{}", prefix, name)
         };
         match &target.unit {
-            ModUnit::File { .. } => {
+            ModUnit::File {
+                extension,
+                disabled_suffix,
+                ..
+            } => {
                 if ft.is_dir() {
                     subdirs.push((entry.path(), sub));
-                } else if name.ends_with(".pak.disabled") {
-                    let pak = name.trim_end_matches(".disabled").to_string();
+                } else if name.ends_with(&format!(".{extension}{disabled_suffix}")) {
+                    let active = name
+                        .strip_suffix(disabled_suffix)
+                        .expect("the suffix matched above")
+                        .to_string();
                     let rel = if prefix.is_empty() {
-                        pak.clone()
+                        active.clone()
                     } else {
-                        format!("{}/{}", prefix, pak)
+                        format!("{}/{}", prefix, active)
                     };
                     if !known.contains(&rel) {
                         out.push((rel, false));

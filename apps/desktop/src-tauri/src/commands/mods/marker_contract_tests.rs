@@ -36,7 +36,7 @@ fn the_representative_file_matches_the_shared_contract() {
             std::fs::write(&path, file.as_bytes()).unwrap();
         }
 
-        let relative = hashable_file_for_mod_dir(dir.path()).map(|chosen| {
+        let relative = hashable_file_for_mod_dir(dir.path(), Some("pak")).map(|chosen| {
             chosen
                 .strip_prefix(dir.path())
                 .unwrap()

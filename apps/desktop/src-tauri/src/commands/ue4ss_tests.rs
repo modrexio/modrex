@@ -85,3 +85,22 @@ fn directory_named_like_proxy_dll_does_not_count() {
     fs::create_dir(dir.join("dwmapi.dll")).unwrap();
     assert!(!is_installed("cb", &path_str(&tmp), Some("steam")));
 }
+
+/// A game that declares no UE4SS binding must resolve nothing, rather than inheriting
+/// another game's destination.
+#[test]
+fn a_game_without_a_ue4ss_binding_resolves_nothing() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().to_str().unwrap();
+    for game_id in ["raid", "pd2", "pdth"] {
+        assert!(!is_installed(game_id, path, Some("steam")), "{game_id}");
+    }
+}
+
+#[test]
+fn an_unrecognised_launcher_fails_closed() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().to_str().unwrap();
+    assert!(!is_installed("pd3", path, Some("gog")));
+    assert!(!is_installed("pd3", path, None));
+}

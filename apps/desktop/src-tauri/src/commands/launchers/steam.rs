@@ -57,7 +57,7 @@ impl Launcher for Steam {
             if let Err(e) =
                 super::outside_bundle(std::process::Command::new(&exe).args(&args)).spawn()
             {
-                log::warn!("steam launch: spawn {exe:?}: {e}");
+                log::warn!("steam launch: spawn failed: {e}");
             }
         } else {
             super::open_url(&format!("steam://rungameid/{}", def.app_id));
