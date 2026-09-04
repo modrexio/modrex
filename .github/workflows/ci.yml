@@ -96,7 +96,7 @@ jobs:
 
             # And the contributor reference, which is rendered from the package contract.
             - name: Fail if the generated package reference is stale
-              run: git diff --exit-code apps/desktop/docs/game-package.md
+              run: git diff --exit-code docs/reference/game-package.md
 
     check-licenses:
         runs-on: ubuntu-latest

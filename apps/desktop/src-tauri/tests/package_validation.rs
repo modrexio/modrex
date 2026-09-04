@@ -423,3 +423,16 @@ targets = [
     assert_eq!(pkg.targets.len(), 2);
     assert_eq!(pkg.primary_target().tag, "paks");
 }
+
+/// The starter manifest contributors copy. Read through CARGO_MANIFEST_DIR rather than a
+/// relative path, so the test does not depend on the working directory a runner chooses.
+#[test]
+fn the_documented_starter_manifest_is_valid() {
+    const PATH: &str = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../docs/reference/package.example.toml"
+    );
+    let text = std::fs::read_to_string(PATH).unwrap_or_else(|e| panic!("cannot read {PATH}: {e}"));
+    let package: GamePackage = toml::from_str(&text).expect("the starter manifest parses");
+    validate::check("example", &package).expect("the starter manifest validates");
+}

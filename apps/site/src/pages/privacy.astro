@@ -6,7 +6,7 @@ import { formatLastUpdated } from '../lib/legal'
 
 // Bump when the wording below changes in substance. `pnpm check-legal-dates` fails the
 // build if this page is committed with a date older than the commit touching it.
-const LAST_UPDATED = '2026-07-31'
+const LAST_UPDATED = '2026-09-04'
 ---
 
 <BaseLayout
@@ -63,6 +63,43 @@ const LAST_UPDATED = '2026-07-31'
                 <p>
                     If you opt out (or never opt in), the app sends no analytics at all, and no IP
                     address reaches modrex.net or Google from it.
+                </p>
+
+                <h2>Services Modrex contacts</h2>
+                <p>
+                    Modrex is a desktop app, so ordinary use means talking to a handful of services.
+                    Besides the mod sites you browse, ModWorkshop and Nexus Mods, a normal session
+                    reaches:
+                </p>
+                <ul>
+                    <li>
+                        <strong>GitHub</strong>, to check whether a newer Modrex release exists and
+                        to download it when you choose to update.
+                    </li>
+                    <li>
+                        <strong>index.modrex.net</strong>, to download the mod-identification index
+                        that lets Modrex recognize mods already in your game folder.
+                    </li>
+                    <li>
+                        <strong>Steam's public content network</strong>, for the cover art shown on
+                        the game picker.
+                    </li>
+                    <li>
+                        <strong>paydaythegame.com</strong>, for the in-app news tab, on the games
+                        that have one.
+                    </li>
+                    <li>
+                        <strong>The download host a mod loader is published on</strong>, when you
+                        install a loader, and <strong
+                            >the update address a mod itself declares</strong
+                        >, when Modrex checks that mod for a newer version. These hosts are chosen
+                        by the loader and mod authors, not by Modrex.
+                    </li>
+                </ul>
+                <p>
+                    None of these carry an account identifier or the anonymous analytics ID. Like
+                    any request your computer makes, each one reveals your IP address to the service
+                    it goes to, under that service's own privacy policy.
                 </p>
 
                 <h2>Nexus Mods sign-in (optional)</h2>

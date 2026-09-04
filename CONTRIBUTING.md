@@ -88,30 +88,28 @@ Common types: `feat`, `fix`, `perf`, `refactor`, `test`, `docs`, `chore`.
 
 Open a pull request against `main`. Run `pnpm checks` first, it runs the same gate CI does.
 
-Adding support for a new game, mod loader, or mod source is mostly a matter of adding an
-entry to the relevant registry rather than editing call sites:
+## Games, sources and loaders
 
-| What you're adding | Registry                                                            |
-| ------------------ | ------------------------------------------------------------------- |
-| Game               | one directory: `apps/desktop/src-tauri/src/games/<id>/package.toml` |
-| Mod loader         | `apps/desktop/src-tauri/src/commands/loaders.rs`                    |
-| Mod source         | `apps/desktop/src-tauri/src/commands/sources.rs`                    |
+A supported game is one directory holding a `package.toml` under
+`apps/desktop/src-tauri/src/games/`. The desktop build script reads every directory there, so
+nothing else lists the games and there is no registry to add one to. It parses and validates
+each manifest before the crate compiles, which makes `cargo test` inside `apps/desktop/src-tauri`
+the authoritative check. That same run rewrites the generated TypeScript catalog, and CI fails
+when the committed copy is stale.
 
-A game package is the one authority for its own facts: the TypeScript catalogue
-(`packages/games/catalog.generated.ts`) is generated from it, and CI fails if the committed
-copy is stale. See `CLAUDE.md` for how they fit together before starting.
+The manifests use TOML 1.1 multiline inline tables. Taplo 0.9 and other TOML 1.0 tools report
+false syntax errors on that syntax, so do not run an incompatible TOML formatter over
+`apps/desktop/src-tauri/src/games/*/package.toml`.
 
-`package.toml` is read by the desktop build script, which rejects an unknown key, a misspelled
-one, an unknown value, a missing required key, a duplicate provider and a contradictory
-discovery rule. A new game is that one file: nothing else lists the games, so there is no
-registry to add it to. Every section, value and default is listed in
-[apps/desktop/docs/game-package.md](apps/desktop/docs/game-package.md), which is generated from
-the contract, with two real manifests as worked examples.
+| What you are adding                                              | Start at                                                                 |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| A game that fits mechanisms Modrex already has                   | [docs/contributing/adding-a-game.md](docs/contributing/adding-a-game.md) |
+| A binding to an existing source, loader, storefront or decoder   | [docs/contributing/integrations.md](docs/contributing/integrations.md)   |
+| A source, loader, storefront or decoder Modrex does not have yet | [docs/contributing/integrations.md](docs/contributing/integrations.md)   |
+| A manifest field you need to look up                             | [docs/reference/game-package.md](docs/reference/game-package.md)         |
 
-These manifests use TOML 1.1 multiline inline tables. `cargo test` inside
-`apps/desktop/src-tauri` parses and validates them and is the authoritative check. Taplo 0.9 and
-other tools limited to TOML 1.0 report false syntax errors on this syntax, so do not run an
-incompatible TOML formatter over `apps/desktop/src-tauri/src/games/*/package.toml`.
+[docs/architecture/game-packages.md](docs/architecture/game-packages.md) explains how discovery,
+the typed contract and the generated artifacts fit together. `docs/README.md` routes the rest.
 
 ## Translations
 

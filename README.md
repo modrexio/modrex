@@ -4,76 +4,82 @@
 
 # Modrex
 
-[![Latest Release](https://img.shields.io/github/v/release/modrexio/modrex?style=flat-square&label=release)](https://github.com/modrexio/modrex/releases/latest)
+**Install and manage game mods without opening the game folder.**
+
+Modrex finds mods on ModWorkshop and Nexus Mods, installs them together with the loaders they
+need, keeps your load order where you put it, and launches the game modded or vanilla.
+Free and open source, for Windows and Linux.
+
+[Download](#download) - [Documentation](https://modrex.net/docs/) - [Discord](https://discord.gg/tenzpx8JRM) - [Contributing](CONTRIBUTING.md)
+
+[![Latest release](https://img.shields.io/github/v/release/modrexio/modrex?style=flat-square&label=release)](https://github.com/modrexio/modrex/releases/latest)
 [![Downloads](https://img.shields.io/endpoint?url=https%3A%2F%2Fmodrex.net%2Fapi%2Fdownloads&style=flat-square)](https://github.com/modrexio/modrex/releases)
-[![Windows](https://img.shields.io/badge/Windows-0078D4?style=flat-square&logo=data:image/svg+xml;base64,PHN2ZyBmaWxsPSJ3aGl0ZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB2aWV3Qm94PSIwIDAgNDQ4IDUxMiI+PCEtLSEgRm9udCBBd2Vzb21lIEZyZWUgNi43LjIgYnkgQGZvbnRhd2Vzb21lIC0gaHR0cHM6Ly9mb250YXdlc29tZS5jb20gTGljZW5zZSAtIGh0dHBzOi8vZm9udGF3ZXNvbWUuY29tL2xpY2Vuc2UvZnJlZSAoSWNvbnM6IENDIEJZIDQuMCwgRm9udHM6IFNJTCBPRkwgMS4xLCBDb2RlOiBNSVQgTGljZW5zZSkgQ29weXJpZ2h0IDIwMjQgRm9udGljb25zLCBJbmMuIC0tPjxwYXRoIGQ9Ik0wIDkzLjdsMTgzLjYtMjUuM3YxNzcuNEgwVjkzLjd6bTAgMzI0LjZsMTgzLjYgMjUuM1YyNjguNEgwdjE0OS45em0yMDMuOCAyOEw0NDggNDgwVjI2OC40SDIwMy44djE3Ny45em0wLTM4MC42djE4MC4xSDQ0OFYzMkwyMDMuOCA2NS43eiIvPjwvc3ZnPg==)](https://github.com/modrexio/modrex/releases/latest)
-[![Linux](https://img.shields.io/badge/Linux-FCC624?style=flat-square&logo=linux&logoColor=black)](https://github.com/modrexio/modrex/releases/latest)
+[![Windows and Linux](https://img.shields.io/badge/Windows%20%7C%20Linux-informational?style=flat-square)](#download)
 [![Discord](https://img.shields.io/badge/Discord-Join%20Community-5865F2?style=flat-square&logo=discord&logoColor=white)](https://discord.gg/tenzpx8JRM)
 
-A desktop mod manager for [PAYDAY 3](https://store.steampowered.com/app/1272080/PAYDAY_3/), [PAYDAY 2](https://store.steampowered.com/app/218620/PAYDAY_2/), [PAYDAY: The Heist](https://store.steampowered.com/app/24240/PAYDAY_The_Heist/), [Crime Boss: Rockay City](https://store.steampowered.com/app/2933080/Crime_Boss_Rockay_City/) and [RAID: World War II](https://store.steampowered.com/app/414740/RAID_World_War_II/) powered by [ModWorkshop](https://modworkshop.net) and [Nexus Mods](https://www.nexusmods.com).
+<img src="assets/example.png" width="900" alt="The Modrex mod library showing installed mods for a game, each with a switch to enable or disable it" />
 
-<img src="assets/example.png" width="900" alt="Modrex app screenshot" />
+Supported today: **PAYDAY 3**, **PAYDAY 2**, **PAYDAY: The Heist**, **Crime Boss: Rockay City**
+and **RAID: World War II**.
 
 </div>
 
-## Installation
+## What Modrex does
 
-Windows:
+**Find mods without leaving the app.** Browse ModWorkshop for any supported game, and sign in to
+Nexus Mods to browse that too wherever a game has both. Filter by category and tag, and read the
+whole mod page: description, images, changelog, license, dependencies and credits.
+
+**Install without unpacking anything.** Installing a mod is usually a single click. An archive
+that holds several mods or an asset pack asks which parts you want, and one Modrex cannot place
+on its own sends you to the mod page instead. When a mod needs a loader, such as SuperBLT or
+UE4SS, Modrex installs that first. Missing dependencies are named and offered rather than
+installed silently. You can drag archives from the file explorer onto the window, and Nexus
+downloads arrive over `nxm://` when you use that site's Mod Manager Download button.
+
+**Stay in control of your load order.** Group mods into nested folders, drag them into the order
+the game should load them, disable one without deleting it, and launch modded or vanilla per
+game.
+
+**Know what you have installed.** Mods you dropped into the folder by hand are matched by
+checksum against a mod index Modrex keeps current, so they show up with a real name and version
+instead of as unknown files. Health Check sweeps the library for missing files, broken archives,
+outdated installs, unrecognized mods and unmet dependencies, and can reinstall or fill in what it
+finds.
+
+Modrex keeps a separate game folder, launcher and launch options per game, and shows the active
+game on your Discord profile. The interface is available in six languages.
+
+## Download
+
+**Windows**
 
 ```pwsh
 winget install modrex
 ```
 
-Linux:
+**Linux**
 
 ```sh
 curl -fsSL https://modrex.net/install.sh | sh
 ```
 
-Or grab a specific package:
+Or take a specific package from the [latest release](https://github.com/modrexio/modrex/releases/latest):
 
-| Platform                                                                                                                                              | Download                                                                                                     |
-| ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| <img src="assets/icons/windows.svg#gh-light-mode-only" width="16"><img src="assets/icons/windows-white.svg#gh-dark-mode-only" width="16"> Windows     | [modrex_x86_64.exe](https://github.com/modrexio/modrex/releases/latest/download/modrex_x86_64.exe)           |
-| <img src="assets/icons/linux.svg#gh-light-mode-only" width="16"><img src="assets/icons/linux-white.svg#gh-dark-mode-only" width="16"> Linux .deb      | [modrex_x86_64.deb](https://github.com/modrexio/modrex/releases/latest/download/modrex_x86_64.deb)           |
-| <img src="assets/icons/linux.svg#gh-light-mode-only" width="16"><img src="assets/icons/linux-white.svg#gh-dark-mode-only" width="16"> Linux .rpm      | [modrex_x86_64.rpm](https://github.com/modrexio/modrex/releases/latest/download/modrex_x86_64.rpm)           |
-| <img src="assets/icons/linux.svg#gh-light-mode-only" width="16"><img src="assets/icons/linux-white.svg#gh-dark-mode-only" width="16"> Linux .AppImage | [modrex_x86_64.AppImage](https://github.com/modrexio/modrex/releases/latest/download/modrex_x86_64.AppImage) |
+| Platform       | Download                                                                                                     |
+| -------------- | ------------------------------------------------------------------------------------------------------------ |
+| Windows        | [modrex_x86_64.exe](https://github.com/modrexio/modrex/releases/latest/download/modrex_x86_64.exe)           |
+| Linux .deb     | [modrex_x86_64.deb](https://github.com/modrexio/modrex/releases/latest/download/modrex_x86_64.deb)           |
+| Linux .rpm     | [modrex_x86_64.rpm](https://github.com/modrexio/modrex/releases/latest/download/modrex_x86_64.rpm)           |
+| Linux AppImage | [modrex_x86_64.AppImage](https://github.com/modrexio/modrex/releases/latest/download/modrex_x86_64.AppImage) |
 
-## Features
+Modrex checks for updates and lets you install them from the app. An update installed that way is
+cryptographically verified first; a package you download by hand is not checked for you. The
+Windows installer is not Authenticode-signed, so SmartScreen may warn before it runs.
 
-### Browse
+## Supported games
 
-- Switch between ModWorkshop and Nexus Mods from the top of the Browse page, wherever a game has both
-- Filter by category and by tag, choosing tags to include or exclude
-- Full mod pages: description, images, downloads, changelog, license, dependencies, install instructions and contributor credits
-- Formatted descriptions with tables, collapsible sections, colored text and inline video embeds (YouTube, Streamable)
-- News tab with the latest posts for each game
-
-### Install
-
-- One-click install, uninstall, enable and disable for `.pak`, `.zip`, `.7z`, `.rar`, `.tar.gz`/`.tar.xz` and `.pdmod`
-- Drag archives from the file explorer into the window
-- Mod loaders installed for you when a mod needs one: SuperBLT, BeardLib, DAHM, PDTHModOverrides and UE4SS
-- Mods you placed by hand are identified by SHA256 against a live mod index, and unrecognized Nexus mods by matching them against Nexus's own listings
-
-### Stay in control
-
-- Organize mods into folders with arbitrary nesting depth and drag-and-drop reordering
-- Mods with several installed files grouped as one card, with per-file management
-- Update detection with selective per-mod updates
-- Health Check scans your entire library and bulk-repairs missing files, broken archives, outdated installs and missing dependencies
-
-### The app
-
-- Every supported game behind a searchable picker, with your install detected automatically (Steam, Epic Games Store, Xbox App)
-- Launch modded or vanilla, per game
-- Interface in multiple community-maintained languages
-- Discord Rich Presence shows the active game on your profile
-- Automatic update checks with one-click in-app updates
-
-## Requirements
-
-Steam works on Windows and Linux for every supported game. Epic Games Store and Xbox App are Windows-only.
+### Game support
 
 | Game                    | <img src="assets/icons/steam.svg#gh-light-mode-only" width="16"><img src="assets/icons/steam-white.svg#gh-dark-mode-only" width="16"> Steam | <img src="assets/icons/epicgames.svg#gh-light-mode-only" width="16"><img src="assets/icons/epicgames-white.svg#gh-dark-mode-only" width="16"> Epic Games | <img src="assets/icons/xbox.svg#gh-light-mode-only" width="16"><img src="assets/icons/xbox-white.svg#gh-dark-mode-only" width="16"> Xbox App |
 | ----------------------- | :-----------------------------------------------------------------------------------------------------------------------------------------: | :------------------------------------------------------------------------------------------------------------------------------------------------------: | :------------------------------------------------------------------------------------------------------------------------------------------: |
@@ -83,29 +89,63 @@ Steam works on Windows and Linux for every supported game. Epic Games Store and 
 | Crime Boss: Rockay City |                                            ![yes](https://img.shields.io/badge/Yes-brightgreen)                                             |                                                   ![yes](https://img.shields.io/badge/Yes-brightgreen)                                                   |                                                  ![no](https://img.shields.io/badge/No-red)                                                  |
 | RAID: World War II      |                                            ![yes](https://img.shields.io/badge/Yes-brightgreen)                                             |                                                        ![no](https://img.shields.io/badge/No-red)                                                        |                                                  ![no](https://img.shields.io/badge/No-red)                                                  |
 
+### Launcher support
+
+| Launcher                                                                                                                                                 | <img src="assets/icons/windows.svg#gh-light-mode-only" width="16"><img src="assets/icons/windows-white.svg#gh-dark-mode-only" width="16"> Windows | <img src="assets/icons/linux.svg#gh-light-mode-only" width="16"><img src="assets/icons/linux-white.svg#gh-dark-mode-only" width="16"> Linux |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------- | :-----------------------------------------------------------------------------------------------------------------------------------------------: | :-----------------------------------------------------------------------------------------------------------------------------------------: |
+| <img src="assets/icons/steam.svg#gh-light-mode-only" width="16"><img src="assets/icons/steam-white.svg#gh-dark-mode-only" width="16"> Steam              |                                               ![yes](https://img.shields.io/badge/Yes-brightgreen)                                                |                                            ![yes](https://img.shields.io/badge/Yes-brightgreen)                                             |
+| <img src="assets/icons/epicgames.svg#gh-light-mode-only" width="16"><img src="assets/icons/epicgames-white.svg#gh-dark-mode-only" width="16"> Epic Games |                                               ![yes](https://img.shields.io/badge/Yes-brightgreen)                                                |                                                 ![no](https://img.shields.io/badge/No-red)                                                  |
+| <img src="assets/icons/xbox.svg#gh-light-mode-only" width="16"><img src="assets/icons/xbox-white.svg#gh-dark-mode-only" width="16"> Xbox App             |                                               ![yes](https://img.shields.io/badge/Yes-brightgreen)                                                |                                                 ![no](https://img.shields.io/badge/No-red)                                                  |
+
+Adding a game is described in
+[docs/contributing/adding-a-game.md](docs/contributing/adding-a-game.md).
+
 ## Troubleshooting
 
-If something goes wrong, attach your log file to a [bug report](https://github.com/modrexio/modrex/issues). The easiest way to get it is from inside the app: **Settings > Logs > Open log file**. If the app won't start, grab it directly:
+The full guide is at
+[modrex.net/docs/troubleshooting](https://modrex.net/docs/troubleshooting/), covering game
+detection, failed installs, loader problems and mods the game does not pick up.
+
+If that does not solve it, open a
+[bug report](https://github.com/modrexio/modrex/issues/new?template=bug_report.yml) and attach
+your log. The log gives maintainers the details needed to diagnose the problem. Open it from
+**Settings > Logs > Open log file**, or take it from disk if Modrex will not start:
 
 | Platform | Path                                    |
 | -------- | --------------------------------------- |
 | Windows  | `%LOCALAPPDATA%\Modrex\logs\Modrex.log` |
 | Linux    | `~/.local/share/modrex/logs/Modrex.log` |
 
-## Contributing
+## Privacy
 
-Choose the guide that matches what you want to contribute:
+Usage analytics are off unless you turn them on in Settings. Your Nexus Mods credentials are
+stored on your device, in the operating system credential store where one is available.
 
-- [Translate Modrex or add a language](TRANSLATING.md)
+The [privacy policy](https://modrex.net/privacy) covers what analytics contain if you opt in,
+where credentials are stored on each platform and what happens when no credential store exists,
+and which services Modrex contacts while you use it.
+
+## Community and support
+
+Ask questions, share mods and follow development in the
+[Modrex Discord](https://discord.gg/tenzpx8JRM).
+
+- [Request a feature](https://github.com/modrexio/modrex/issues/new?template=feature_request.yml)
+- [Report a vulnerability](SECURITY.md), privately, never in an issue or in Discord
 - [Contribute code or documentation](CONTRIBUTING.md)
-- [Report a bug](https://github.com/modrexio/modrex/issues/new?template=bug_report.yml) or
-  [request a feature](https://github.com/modrexio/modrex/issues/new?template=feature_request.yml)
+- [Translate Modrex](TRANSLATING.md), which needs no development setup
+
+<a href="https://discord.gg/tenzpx8JRM"><img src="https://discord.com/api/guilds/1508553766025170986/widget.png?style=banner3" alt="Modrex Discord server, member count and join link" /></a>
 
 ## Translations
 
-Translation is the share of English source keys for which target-language text currently exists in each locale. It does not measure linguistic quality. Contributors are derived from locale history and are not ranked.
+Modrex is translated by the people who use it. The share below is the proportion of English
+source keys that have target-language text; it does not measure quality, and a missing key falls
+back to English in the app.
 
 <!-- TRANSLATION_STATUS_START -->
+
+<div align="center">
 
 <!-- prettier-ignore -->
 | Language | Translation | Contributors |
@@ -119,6 +159,8 @@ Translation is the share of English source keys for which target-language text c
 
 <div class="i18n-status-legend"><img src="assets/i18n/status/legend/accepted.svg" alt=""> Accepted <img src="assets/i18n/status/legend/review.svg" alt=""> Review <img src="assets/i18n/status/legend/missing.svg" alt=""> Missing</div>
 
+</div>
+
 To improve an existing language or add a new one, follow the
 [translation guide](TRANSLATING.md).
 
@@ -130,5 +172,5 @@ Modrex is open source under the [MIT License](LICENSE).
 
 ## Support
 
-[![GitHub Sponsors](https://img.shields.io/badge/GitHub-Sponsor-ea4aaa?style=flat-square&logo=githubsponsors&logoColor=white)](https://github.com/sponsors/modrexio)
-[![Ko-fi](https://img.shields.io/badge/Ko--fi-Donate-FF5E5B?style=flat-square&logo=ko-fi&logoColor=white)](https://ko-fi.com/bipolyarus)
+If Modrex is useful to you, you can [sponsor its development](https://github.com/sponsors/modrexio)
+or [buy a coffee](https://ko-fi.com/bipolyarus).

@@ -1,0 +1,55 @@
+# A starter game package. Copy it to apps/desktop/src-tauri/src/games/<id>/package.toml,
+# rename the directory to match id, and replace every value. The desktop test suite parses
+# and validates this file, so it stays a working manifest rather than an illustration.
+
+id = "example"
+name = "Example Game"
+short_name = "EXAMPLE"
+mod_metadata = "none"
+
+sources = [
+    {
+        provider = "modworkshop",
+        game_id = "0",
+    },
+]
+
+install = {
+    executables = ["ExampleGame.exe"],
+    processes = ["ExampleGame"],
+    stores = [
+        {
+            provider = "steam",
+            app_id = 0,
+            folder = "Example Game",
+        },
+    ],
+}
+
+targets = [
+    {
+        tag = "mods",
+        label = "mods",
+        primary = true,
+        path = ["mods"],
+        backup = ["mods.bak"],
+        activation = "filesystem",
+        load_order = "none",
+
+        unit = {
+            kind = "directory",
+
+            # A marker names the file every mod for this game ships. Games whose mods carry no
+            # such file use policy = "all_directories" instead.
+            discovery = {
+                policy = "markers",
+                markers = [
+                    {
+                        file = "mod.txt",
+                        modes = ["archive", "scan"],
+                    },
+                ],
+            },
+        },
+    },
+]

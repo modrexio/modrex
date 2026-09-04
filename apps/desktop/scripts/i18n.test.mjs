@@ -1098,6 +1098,9 @@ test('translation table renders compact deterministic coverage and contributors'
     assert.equal(
         table,
         [
+            '<div align="center">',
+            '',
+            '<!-- prettier-ignore -->',
             '| Language | Translation | Contributors |',
             '| --- | --- | --- |',
             '| [English (en)](apps/desktop/src/renderer/src/i18n/en.json) | <img src="assets/i18n/status/en.svg" alt="English source: 3 valid strings."> Complete | - |',
@@ -1105,6 +1108,8 @@ test('translation table renders compact deterministic coverage and contributors'
             '| [Русский (ru)](apps/desktop/src/renderer/src/i18n/ru.json) | <img src="assets/i18n/status/ru.svg" alt="Русский (ru): 3 accepted, 0 review, 0 missing; Complete."> Complete | [ShulhaOleh](https://github.com/ShulhaOleh) |',
             '',
             '<div class="i18n-status-legend"><img src="assets/i18n/status/legend/accepted.svg" alt=""> Accepted <img src="assets/i18n/status/legend/review.svg" alt=""> Review <img src="assets/i18n/status/legend/missing.svg" alt=""> Missing</div>',
+            '',
+            '</div>',
             '',
             'To improve an existing language or add a new one, follow the',
             '[translation guide](TRANSLATING.md).',
@@ -1120,7 +1125,7 @@ test('translation table renders compact deterministic coverage and contributors'
     ].join('\n')
     assert.match(
         replaceTranslationTable(readme, table),
-        /<!-- prettier-ignore -->\n\| Language \| Translation \| Contributors \|/
+        /<div align="center">\n\n<!-- prettier-ignore -->\n\| Language \| Translation \| Contributors \|/
     )
 })
 

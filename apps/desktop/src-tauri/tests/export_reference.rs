@@ -1,7 +1,7 @@
 //! Regenerates the contributor reference for package.toml from the contract. CI asserts the
 //! result matches the committed file, the same way it does for the game catalogue.
 
-const REFERENCE_PATH: &str = "../docs/game-package.md";
+const REFERENCE_PATH: &str = "../../../docs/reference/game-package.md";
 
 fn manifest(id: &str) -> String {
     let path = format!("src/games/{id}/package.toml");

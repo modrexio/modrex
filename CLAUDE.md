@@ -57,4 +57,6 @@ above.
 - Never run a git command that touches a remote. Write the command for the owner instead.
 - Never commit unless the owner explicitly approves the reviewed step.
 
-See docs/architecture/monorepo-migration.md for migration order and invariants.
+See docs/architecture/public-contracts.md for what each contract protects, and
+docs/architecture/game-packages.md for how game packages are discovered and loaded.
+docs/README.md routes the rest of the contributor documentation.

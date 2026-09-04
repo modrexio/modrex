@@ -83,8 +83,8 @@ then `[[targets]]`, where each target composes a `[targets.unit]` and, for direc
 list of multiline inline objects, so one target reads as one object. This is TOML 1.1, which the
 Rust `toml` crate implements; Taplo 0.9 and other TOML 1.0-only tools report false errors on it,
 so no TOML formatter runs over these files and `cargo test` is the authoritative check.
-`docs/game-package.md` is generated from the contract by `tests/export_reference.rs` and CI
-fails when it is stale.
+`docs/reference/game-package.md` at the repository root is generated from the contract by
+`tests/export_reference.rs` and CI fails when it is stale.
 
 The adapter is a real translation, not a copy: marker rules fan out into the flat per-mode
 lists the scan reads, `ignore_preset` expands to a host name list, the disabled folder is
