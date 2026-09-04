@@ -18,3 +18,13 @@ targets = [
     "x86_64-pc-windows-msvc",
     "x86_64-unknown-linux-gnu",
 ]
+
+# miniz_oxide ships the MIT text twice, as LICENSE and LICENSE-MIT.md, which differ only by a
+# blank line. cargo-about reads whichever the filesystem lists first, so pinning the file keeps
+# THIRD_PARTY_LICENSES.md identical on Windows and on the Linux CI runners.
+[miniz_oxide.clarify]
+license = "MIT"
+
+[[miniz_oxide.clarify.files]]
+path = "LICENSE"
+checksum = "4108245a1f2df9d4e94df8abed5b4ba0759bb2f9b40a6b939f1be141077ae50b"
