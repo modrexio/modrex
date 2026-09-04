@@ -92,7 +92,7 @@ Open a pull request against `main`. Run `pnpm checks` first, it runs the same ga
 
 A supported game is one directory holding a `package.toml` under
 `apps/desktop/src-tauri/src/games/`. The desktop build script reads every directory there, so
-nothing else lists the games and there is no registry to add one to. It parses and validates
+no other desktop file lists the games and there is no registry to add one to. It parses and validates
 each manifest before the crate compiles, which makes `cargo test` inside `apps/desktop/src-tauri`
 the authoritative check. That same run rewrites the generated TypeScript catalog, and CI fails
 when the committed copy is stale.

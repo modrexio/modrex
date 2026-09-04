@@ -23,6 +23,10 @@ TypeScript catalog. Changing it later is a data migration, so choose it once.
 The build script reads every directory under `src/games/`. Creating the directory is what adds
 the game.
 
+That covers the desktop application and the catalog the site reads. The mod-identification
+index is a separate pipeline: `apps/index` and the `*-postgres-index` workflows still name the
+games they build for, so a new game has no index until those are extended.
+
 ## 2. Write the manifest
 
 Copy [../reference/package.example.toml](../reference/package.example.toml) and replace the
