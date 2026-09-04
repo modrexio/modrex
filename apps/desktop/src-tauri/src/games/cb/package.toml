@@ -46,6 +46,11 @@ loaders = [
     },
 ]
 
+package_reader = {
+    format = "unreal",
+    aes_key = "40A34FBE5D5DC4BF94ECDCF042816C7C57AA11FAEE07FDB71E908E97A2F28FA6",
+}
+
 targets = [
     # The official ModKit installs here, and its UGC loader merges the Data Table Extensions of
     # the mods living here additively. The legacy paks target below is plain Unreal pak mounting

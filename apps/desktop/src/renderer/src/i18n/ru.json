@@ -63,6 +63,13 @@
             "bodyPre": "рекомендуется для корректной работы большинства модов. Добавьте его в",
             "location": "Настройки → Параметры запуска",
             "launchAnyway": "Запустить всё равно"
+        },
+        "sisr": {
+            "unsupported": "! SISR auto-launch is not supported on this operating system. The game was launched without it.",
+            "notInstalled": "! SISR was not found. The game was launched without it.",
+            "setupRequired": "! SISR needs its first-run setup before controller redirection will work. The game was launched anyway.",
+            "startFailed": "! SISR failed to start. The game was launched without it.",
+            "startUnconfirmed": "! Modrex could not confirm that SISR started. The game was launched anyway."
         }
     },
     "sidebar": {
@@ -179,6 +186,18 @@
             "updatingProgress": "Обновление {done} / {total}",
             "updateSelected": "Обновить выбранное ({count})",
             "error": "Не удалось обновить. Проверьте подключение и повторите попытку."
+        },
+        "pakViewer": {
+            "title": "! Pak contents",
+            "open": "! View pak contents",
+            "searchPlaceholder": "! Search assets",
+            "assetCount": "! {count} assets",
+            "matchCount": "! {count} of {total} assets",
+            "loading": "! Reading pak",
+            "empty": "! No assets found",
+            "noMatches": "! No assets match \"{query}\"",
+            "error": "! Couldn't read the pak.",
+            "aesHint": "! Encrypted paks need this game's AES key."
         },
         "modMenu": {
             "open": "Параметры",
@@ -368,6 +387,16 @@
             "title": "Язык",
             "description": "Язык, используемый во всём приложении."
         },
+        "accentColor": {
+            "title": "! Accent color",
+            "description": "! Accent color used throughout the app.",
+            "orange": "! Orange",
+            "purple": "! Purple",
+            "green": "! Green",
+            "blue": "! Blue",
+            "red": "! Red",
+            "gray": "! Gray"
+        },
         "gamePath": {
             "title": "Путь к игре",
             "description": "Путь к установленной {game}. Определяется автоматически по установленным лаунчерам, если не задан вручную.",
@@ -402,6 +431,17 @@
         "crashReporter": {
             "title": "Очистка окна сбоев",
             "description": "Устраняет проблему с пустым окном отчёта о сбое для игр с нестабильным механизмом отчётов, удаляя его файлы перед запуском. По умолчанию отключено и может не требоваться для каждой игры."
+        },
+        "sisr": {
+            "title": "! Auto-launch SISR",
+            "description": "! Start SISR (Steam Input System Redirector) before launching a game when it is not already running, so Steam Input controllers work with games launched outside Steam.",
+            "running": "! SISR is running.",
+            "notRunning": "! SISR is not running. It will start when you launch a game.",
+            "notInstalled": "! SISR was not found in its default installation location.",
+            "setupRequired": "! Complete SISR's first-run Steam setup before using auto-launch.",
+            "setup": "! Set up SISR",
+            "finishSetup": "! Finish setup",
+            "failed": "! SISR setting failed: {error}"
         },
         "updates": {
             "title": "Обновления",

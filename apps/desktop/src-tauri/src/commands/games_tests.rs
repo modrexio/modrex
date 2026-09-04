@@ -579,3 +579,56 @@ fn raid_recognises_an_install_by_its_executable() {
     assert_eq!(def.resolve_executable(game), Some("raid_win64_release.exe"));
     assert!(def.is_installation(game));
 }
+
+#[test]
+fn a_spec_borrows_the_package_reader_its_package_declares() {
+    for (_, pkg) in crate::games::discovered() {
+        let spec = game_spec(&pkg.id).expect("discovered package is registered");
+        match (spec.package_reader, pkg.package_reader.as_ref()) {
+            (Some(resolved), Some(declared)) => assert!(std::ptr::eq(resolved, declared)),
+            (None, None) => {}
+            _ => panic!("{} disagrees with its package about the viewer", pkg.id),
+        }
+    }
+}
+
+#[test]
+fn every_declared_package_key_is_aes_256_hex() {
+    for spec in GAME_REGISTRY.iter() {
+        let Some(package::PackageReaderBinding::Unreal { aes_key }) = spec.package_reader else {
+            continue;
+        };
+        assert_eq!(aes_key.len(), 64, "{}", spec.id);
+        assert!(
+            aes_key.bytes().all(|b| b.is_ascii_hexdigit()),
+            "{}",
+            spec.id
+        );
+    }
+}
+
+/// The viewer is offered exactly where a package declares a reader, so no game can reach
+/// another game's key and a game that declares none has nothing to fall back to.
+#[test]
+fn viewer_support_follows_the_declaration_rather_than_the_game_id() {
+    let declaring: Vec<&str> = crate::games::discovered()
+        .iter()
+        .filter(|(_, pkg)| pkg.package_reader.is_some())
+        .map(|(_, pkg)| pkg.id.as_str())
+        .collect();
+    let resolving: Vec<&str> = GAME_REGISTRY
+        .iter()
+        .filter(|spec| spec.package_reader.is_some())
+        .map(|spec| spec.id)
+        .collect();
+    assert_eq!(declaring, resolving);
+
+    let mut keys: Vec<&str> = GAME_REGISTRY
+        .iter()
+        .filter_map(|spec| spec.package_reader.map(|reader| reader.aes_key()))
+        .collect();
+    let total = keys.len();
+    keys.sort_unstable();
+    keys.dedup();
+    assert_eq!(keys.len(), total, "two games share one package key");
+}

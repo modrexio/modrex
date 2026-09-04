@@ -294,7 +294,7 @@ export function DepsWarningModal({
                             type="checkbox"
                             checked={dontShowAgain}
                             onChange={() => {}}
-                            className="accent-accent pointer-events-none"
+                            className="pointer-events-none"
                         />
                         <span className="text-xs text-text-muted">{t('common.dontShowAgain')}</span>
                     </div>

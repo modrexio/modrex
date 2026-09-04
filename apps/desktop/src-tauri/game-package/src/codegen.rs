@@ -6,8 +6,8 @@
 
 use crate::{
     Activation, DecoderBinding, Discovery, FileFamily, GamePackage, Install, LoadOrder,
-    LoaderBinding, MarkerMode, MarkerRule, ModMetadata, NamePreset, NewsBinding, SourceBinding,
-    StoreBinding, Storefront, Target, TargetLabel, Unit,
+    LoaderBinding, MarkerMode, MarkerRule, ModMetadata, NamePreset, NewsBinding,
+    PackageReaderBinding, SourceBinding, StoreBinding, Storefront, Target, TargetLabel, Unit,
 };
 
 const PATH: &str = "::modrex_game_package";
@@ -274,6 +274,15 @@ fn decoder(value: &DecoderBinding) -> String {
     }
 }
 
+fn package_reader(value: &PackageReaderBinding) -> String {
+    match value {
+        PackageReaderBinding::Unreal { aes_key } => format!(
+            "{PATH}::PackageReaderBinding::Unreal {{ aes_key: {} }}",
+            text(aes_key)
+        ),
+    }
+}
+
 impl GamePackage {
     /// The Rust expression that rebuilds this package exactly.
     pub fn rust_literal(&self) -> String {
@@ -287,10 +296,11 @@ impl GamePackage {
             install: installation,
             loaders,
             decoders,
+            package_reader: reader,
             targets,
         } = self;
         format!(
-            "{PATH}::GamePackage {{ id: {}, name: {}, short_name: {}, mod_metadata: {}, sources: {}, news: {}, install: {}, loaders: {}, decoders: {}, targets: {} }}",
+            "{PATH}::GamePackage {{ id: {}, name: {}, short_name: {}, mod_metadata: {}, sources: {}, news: {}, install: {}, loaders: {}, decoders: {}, package_reader: {}, targets: {} }}",
             text(id),
             text(name),
             text(short_name),
@@ -300,6 +310,7 @@ impl GamePackage {
             install(installation),
             list(loaders.iter().map(loader).collect()),
             list(decoders.iter().map(decoder).collect()),
+            optional(reader.as_ref().map(package_reader)),
             list(targets.iter().map(target).collect()),
         )
     }

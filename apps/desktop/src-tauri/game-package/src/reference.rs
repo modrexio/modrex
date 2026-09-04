@@ -167,6 +167,7 @@ pub fn markdown(examples: &[(&str, &str)]) -> String {
          | `install` | yes | how to find and launch the game |\n\
          | `loaders` | no | mod loaders Modrex can install |\n\
          | `decoders` | no | container formats to unpack before install |\n\
+         | `package_reader` | no | how to read the game's own packages so a mod's assets can be listed |\n\
          | `targets` | yes | the places mods are installed |\n\n\
          Components are values, not table headers. A repeated component is a list of objects,\n\
          each object is delimited by braces, and each field sits on its own line ending in a\n\
@@ -247,6 +248,18 @@ pub fn markdown(examples: &[(&str, &str)]) -> String {
     out.push_str(&row(
         "pdmod",
         "`target`, the tag of the target it unpacks into",
+    ));
+
+    out.push_str(
+        "\n## `package_reader`\n\n\
+         Declared by a game whose own packages are encrypted, so the interface can list what an\n\
+         installed mod contains. A game that omits it reports the viewer as unavailable rather\n\
+         than guessing a key.\n\n\
+         | Format | Fields |\n| --- | --- |\n",
+    );
+    out.push_str(&row(
+        "unreal",
+        "`aes_key`, 64 hexadecimal characters, covering both pak and IoStore containers",
     ));
 
     out.push_str(

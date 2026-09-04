@@ -58,6 +58,13 @@ pub fn catalog_typescript() -> String {
         }
         let _ = writeln!(out, "        storageKey: {},", quote(&pkg.id));
         let _ = writeln!(out, "        hasNews: {},", !pkg.news.is_empty());
+        // Whether the viewer is offered, never the key it would use. The key stays in
+        // the package, which the renderer never reads.
+        let _ = writeln!(
+            out,
+            "        supportsPackageViewer: {},",
+            pkg.package_reader.is_some()
+        );
         if let Some(flag) = pkg.install.launch_flag.as_ref() {
             let _ = writeln!(out, "        requiredLaunchFlag: {},", quote(flag));
         }

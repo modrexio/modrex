@@ -410,7 +410,7 @@ export function ZipPickerModal({
                     onChange={() => toggle(pos)}
                     disabled={isInstalled || isBusy}
                     onClick={(e) => e.stopPropagation()}
-                    className="accent-accent w-4 h-4 shrink-0"
+                    className="w-4 h-4 shrink-0"
                 />
                 <span className="text-sm font-medium truncate flex-1">{name}</span>
                 {isInstalling ? (
@@ -463,7 +463,7 @@ export function ZipPickerModal({
                         onChange={toggleAll}
                         disabled={isBusy || selectable.length === 0}
                         onClick={(e) => e.stopPropagation()}
-                        className="accent-accent w-4 h-4 shrink-0"
+                        className="w-4 h-4 shrink-0"
                     />
                     <span className="text-xs font-medium text-text-muted">
                         {selectable.length > 0 && selected.size === selectable.length
@@ -498,7 +498,7 @@ export function ZipPickerModal({
                                         onChange={() => toggleGroup(dirEntries)}
                                         disabled={isBusy || groupSelectable.length === 0}
                                         onClick={(e) => e.stopPropagation()}
-                                        className="accent-accent w-4 h-4 shrink-0"
+                                        className="w-4 h-4 shrink-0"
                                     />
                                     <Folder className="w-3.5 h-3.5 text-text-muted shrink-0" />
                                     <span className="text-xs font-medium text-text-muted">
@@ -544,7 +544,7 @@ export function ZipPickerModal({
                                             onChange={() => toggleGroup(dirEntries)}
                                             disabled={isBusy || groupSelectable.length === 0}
                                             onClick={(e) => e.stopPropagation()}
-                                            className="accent-accent w-4 h-4 shrink-0"
+                                            className="w-4 h-4 shrink-0"
                                         />
                                         <Folder className="w-3.5 h-3.5 text-text-muted shrink-0" />
                                         <span className="text-xs font-medium text-text-muted">

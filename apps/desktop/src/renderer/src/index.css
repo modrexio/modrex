@@ -43,6 +43,41 @@
     --color-warning: var(--modrex-warning);
 }
 
+:root[data-accent='purple'] {
+    --modrex-accent: #9770fa;
+    --modrex-accent-fill: #874cf9;
+    --modrex-accent-fill-hover: #8036f8;
+    --modrex-accent-bright: #a990fb;
+}
+
+:root[data-accent='green'] {
+    --modrex-accent: #1eaa53;
+    --modrex-accent-fill: #189346;
+    --modrex-accent-fill-hover: #168841;
+    --modrex-accent-bright: #24c460;
+}
+
+:root[data-accent='blue'] {
+    --modrex-accent: #498bfa;
+    --modrex-accent-fill: #1a71f9;
+    --modrex-accent-fill-hover: #1068ec;
+    --modrex-accent-bright: #70a4fb;
+}
+
+:root[data-accent='red'] {
+    --modrex-accent: #fa3d3a;
+    --modrex-accent-fill: #e21c23;
+    --modrex-accent-fill-hover: #d2191f;
+    --modrex-accent-bright: #fb766a;
+}
+
+:root[data-accent='gray'] {
+    --modrex-accent: #8f8f8f;
+    --modrex-accent-fill: #7b7b7b;
+    --modrex-accent-fill-hover: #727272;
+    --modrex-accent-bright: #a4a4a4;
+}
+
 @theme inline {
     --color-surface: var(--modrex-surface);
     --color-surface-raised: var(--modrex-surface-raised);
@@ -207,6 +242,11 @@ button:not(:disabled),
 input[type='checkbox']:not(:disabled) {
     cursor: pointer;
 }
+
+input[type='checkbox'] {
+    accent-color: var(--color-accent-fill);
+}
+
 ::-webkit-scrollbar {
     width: 8px;
     height: 8px;

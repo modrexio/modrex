@@ -63,6 +63,13 @@
             "bodyPre": "建议添加此选项，以确保大多数模组能够正确加载。请在以下位置添加：",
             "location": "设置 > 启动选项",
             "launchAnyway": "仍然启动"
+        },
+        "sisr": {
+            "unsupported": "! SISR auto-launch is not supported on this operating system. The game was launched without it.",
+            "notInstalled": "! SISR was not found. The game was launched without it.",
+            "setupRequired": "! SISR needs its first-run setup before controller redirection will work. The game was launched anyway.",
+            "startFailed": "! SISR failed to start. The game was launched without it.",
+            "startUnconfirmed": "! Modrex could not confirm that SISR started. The game was launched anyway."
         }
     },
     "sidebar": {
@@ -179,6 +186,18 @@
             "updatingProgress": "正在更新 {done} / {total}",
             "updateSelected": "更新所选项（{count}）",
             "error": "更新失败。请检查网络连接后重试。"
+        },
+        "pakViewer": {
+            "title": "! Pak contents",
+            "open": "! View pak contents",
+            "searchPlaceholder": "! Search assets",
+            "assetCount": "! {count} assets",
+            "matchCount": "! {count} of {total} assets",
+            "loading": "! Reading pak",
+            "empty": "! No assets found",
+            "noMatches": "! No assets match \"{query}\"",
+            "error": "! Couldn't read the pak.",
+            "aesHint": "! Encrypted paks need this game's AES key."
         },
         "modMenu": {
             "open": "选项",
@@ -368,6 +387,16 @@
             "title": "语言",
             "description": "应用中使用的语言。"
         },
+        "accentColor": {
+            "title": "! Accent color",
+            "description": "! Accent color used throughout the app.",
+            "orange": "! Orange",
+            "purple": "! Purple",
+            "green": "! Green",
+            "blue": "! Blue",
+            "red": "! Red",
+            "gray": "! Gray"
+        },
         "gamePath": {
             "title": "游戏路径",
             "description": "{game} 的安装路径。如果未手动设置，将根据已安装的启动器自动检测。",
@@ -402,6 +431,17 @@
         "crashReporter": {
             "title": "崩溃报告器清理",
             "description": "对于自带有问题的崩溃报告器的游戏，可在启动前移除其崩溃报告文件，以避免出现空白的崩溃报告窗口。此功能默认关闭，并非所有游戏都需要使用。"
+        },
+        "sisr": {
+            "title": "! Auto-launch SISR",
+            "description": "! Start SISR (Steam Input System Redirector) before launching a game when it is not already running, so Steam Input controllers work with games launched outside Steam.",
+            "running": "! SISR is running.",
+            "notRunning": "! SISR is not running. It will start when you launch a game.",
+            "notInstalled": "! SISR was not found in its default installation location.",
+            "setupRequired": "! Complete SISR's first-run Steam setup before using auto-launch.",
+            "setup": "! Set up SISR",
+            "finishSetup": "! Finish setup",
+            "failed": "! SISR setting failed: {error}"
         },
         "updates": {
             "title": "更新",

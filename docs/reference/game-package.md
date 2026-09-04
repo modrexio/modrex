@@ -20,6 +20,7 @@ missing game at runtime.
 | `install` | yes | how to find and launch the game |
 | `loaders` | no | mod loaders Modrex can install |
 | `decoders` | no | container formats to unpack before install |
+| `package_reader` | no | how to read the game's own packages so a mod's assets can be listed |
 | `targets` | yes | the places mods are installed |
 
 Components are values, not table headers. A repeated component is a list of objects,
@@ -101,6 +102,16 @@ installs the loader.
 | Format | Fields |
 | --- | --- |
 | `pdmod` | `target`, the tag of the target it unpacks into |
+
+## `package_reader`
+
+Declared by a game whose own packages are encrypted, so the interface can list what an
+installed mod contains. A game that omits it reports the viewer as unavailable rather
+than guessing a key.
+
+| Format | Fields |
+| --- | --- |
+| `unreal` | `aes_key`, 64 hexadecimal characters, covering both pak and IoStore containers |
 
 ## `targets`
 

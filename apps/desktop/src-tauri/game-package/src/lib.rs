@@ -248,6 +248,31 @@ impl DecoderBinding {
     }
 }
 
+/// How a game's own package files are decrypted so their contents can be listed. The key is
+/// published format data shipped with the game, not a user credential, and the host reads it
+/// only to enumerate an installed mod's assets.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[serde(tag = "format", rename_all = "snake_case", deny_unknown_fields)]
+pub enum PackageReaderBinding {
+    /// Unreal pak and IoStore containers. Both readers take one AES-256 key, and retoc binds
+    /// it to the default guid, which is the only one these games encrypt with.
+    Unreal { aes_key: String },
+}
+
+impl PackageReaderBinding {
+    pub fn format(&self) -> &'static str {
+        match self {
+            PackageReaderBinding::Unreal { .. } => "unreal",
+        }
+    }
+
+    pub fn aes_key(&self) -> &str {
+        match self {
+            PackageReaderBinding::Unreal { aes_key } => aes_key,
+        }
+    }
+}
+
 /// A primary mod file plus the files that travel with it because they share its stem.
 ///
 /// Unreal splits one mod across a pak holding loose files, a utoc indexing a container and a
@@ -393,6 +418,8 @@ pub struct GamePackage {
     pub loaders: Vec<LoaderBinding>,
     #[serde(default)]
     pub decoders: Vec<DecoderBinding>,
+    #[serde(default)]
+    pub package_reader: Option<PackageReaderBinding>,
     pub targets: Vec<Target>,
 }
 

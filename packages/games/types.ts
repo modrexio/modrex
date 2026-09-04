@@ -18,6 +18,7 @@ export interface GameSpec {
     nexusDomain?: string
     storageKey: string
     hasNews: boolean
+    supportsPackageViewer: boolean
     requiredLaunchFlag?: string
     launchers: readonly LauncherName[]
     modTargets: readonly ModTarget[]

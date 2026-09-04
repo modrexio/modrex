@@ -292,3 +292,40 @@ fn the_raid_package_has_one_blanket_accept_target() {
     assert_eq!(*ignore_preset, Some(NamePreset::DieselInfra));
     assert!(contains.is_none());
 }
+
+#[test]
+fn the_catalogue_reports_viewer_support_without_the_key_it_would_use() {
+    let catalogue = super::catalog::catalog_typescript();
+    for (_, pkg) in super::discovered() {
+        let entry = catalogue
+            .split(&format!("    {}: {{\n", pkg.id))
+            .nth(1)
+            .and_then(|rest| rest.split("\n    },").next())
+            .unwrap_or_else(|| panic!("{} is missing from the catalogue", pkg.id));
+        assert!(
+            entry.contains(&format!(
+                "supportsPackageViewer: {},",
+                pkg.package_reader.is_some()
+            )),
+            "{} reports the wrong viewer support",
+            pkg.id
+        );
+    }
+
+    // The key decrypts the game's own packages and the renderer never needs it, so the
+    // projection stops at the capability.
+    for (_, pkg) in super::discovered() {
+        let Some(reader) = pkg.package_reader.as_ref() else {
+            continue;
+        };
+        assert!(
+            !catalogue.contains(reader.aes_key()),
+            "{} leaked its package key into the catalogue",
+            pkg.id
+        );
+    }
+    assert!(
+        !catalogue.contains("aes"),
+        "the catalogue names a key field"
+    );
+}

@@ -1,4 +1,5 @@
-//! Resolves a game id to the engine config and storefront definition its package declares.
+//! Resolves a game id to the engine config, storefront definition and package reader its
+//! package declares.
 
 use crate::commands::launchers::{EpicDef, GameDef, SteamDef, XboxDef};
 use crate::commands::mods::{ModEngineConfig, ModUnit, ScanTarget};
@@ -9,6 +10,9 @@ pub struct GameSpec {
     pub id: &'static str,
     pub engine: &'static ModEngineConfig,
     pub def: &'static GameDef,
+    /// Borrowed from the package rather than copied, so the key has one home. None for a game
+    /// whose manifest declares no reader.
+    pub package_reader: Option<&'static package::PackageReaderBinding>,
 }
 
 pub static GAME_REGISTRY: LazyLock<Vec<GameSpec>> = LazyLock::new(|| {
@@ -61,6 +65,7 @@ fn spec_from(pkg: &'static GamePackage) -> GameSpec {
         id: &pkg.id,
         engine,
         def: Box::leak(Box::new(def)),
+        package_reader: pkg.package_reader.as_ref(),
     }
 }
 

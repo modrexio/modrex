@@ -61,17 +61,22 @@ fn mod_settings_dir(launcher: &str) -> Option<PathBuf> {
     )
 }
 
-/// Locates the pak belonging to a mod installed at mod_path. For a Directory-unit install
-/// (Mods/<name>/) it is nested under Content/Paks/WindowsNoEditor/. For the legacy File-unit
-/// install (~mods/<name>.pak) mod_path already is the pak.
-fn pak_path_for_mod(mod_path: &Path, is_directory_unit: bool) -> Option<PathBuf> {
+/// Locates the content file belonging to a mod installed at mod_path. For a Directory-unit
+/// install (Mods/<name>/) it is nested under the Content/Paks/WindowsNoEditor skeleton the
+/// ModKit synthesizes. For the legacy File-unit install (~mods/<name>.pak) mod_path already is
+/// the file.
+pub(crate) fn content_path_for_mod(
+    mod_path: &Path,
+    is_directory_unit: bool,
+    extension: &str,
+) -> Option<PathBuf> {
     if is_directory_unit {
         find_content_file_in_dir(
             &mod_path
                 .join("Content")
                 .join("Paks")
                 .join("WindowsNoEditor"),
-            "pak",
+            extension,
         )
     } else {
         Some(mod_path.to_path_buf())
@@ -111,7 +116,7 @@ fn settings_path_for_mod(
     launcher: &str,
 ) -> Option<PathBuf> {
     let dir = mod_settings_dir(launcher)?;
-    let pak = pak_path_for_mod(mod_path, is_directory_unit)?;
+    let pak = content_path_for_mod(mod_path, is_directory_unit, "pak")?;
     let filename = pak.file_name().and_then(|s| s.to_str())?;
     let id = settings_id_from_pak_filename(filename)?;
     Some(dir.join(format!("{id}.json")))

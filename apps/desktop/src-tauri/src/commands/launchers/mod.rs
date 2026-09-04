@@ -571,18 +571,22 @@ fn do_restore(game_path: &str, cfg: &crate::commands::mods::ModEngineConfig) -> 
 
 #[tauri::command]
 #[specta::specta]
-pub fn launch_game(app: AppHandle, game_id: String) -> Result<(), String> {
+pub async fn launch_game(
+    app: AppHandle,
+    game_id: String,
+) -> Result<Option<crate::commands::sisr::SisrLaunchIssue>, String> {
     let game_id = game_id.as_str();
     let s = read_settings(&app);
     let Some(gs) = game_settings(&s, game_id) else {
-        return Ok(());
+        return Ok(None);
     };
     let Some(ref game_path) = gs.game_path else {
-        return Ok(());
+        return Ok(None);
     };
     let cfg = engine_for_game(game_id)?;
     let _ = do_restore(game_path, cfg);
     maybe_suppress_crash_reporter(game_id, gs);
+    let sisr_issue = crate::commands::sisr::prepare_for_game_launch(s.auto_launch_sisr).await;
     crate::commands::analytics::track(
         &app,
         "game_launched",
@@ -594,19 +598,22 @@ pub fn launch_game(app: AppHandle, game_id: String) -> Result<(), String> {
         game_path,
         Some(gs.launch_options.as_str()),
     );
-    Ok(())
+    Ok(sisr_issue)
 }
 
 #[tauri::command]
 #[specta::specta]
-pub fn launch_without_mods(app: AppHandle, game_id: String) -> Result<(), String> {
+pub async fn launch_without_mods(
+    app: AppHandle,
+    game_id: String,
+) -> Result<Option<crate::commands::sisr::SisrLaunchIssue>, String> {
     let game_id = game_id.as_str();
     let s = read_settings(&app);
     let Some(gs) = game_settings(&s, game_id) else {
-        return Ok(());
+        return Ok(None);
     };
     let Some(ref game_path) = gs.game_path else {
-        return Ok(());
+        return Ok(None);
     };
 
     let cfg = engine_for_game(game_id)?;
@@ -666,13 +673,14 @@ pub fn launch_without_mods(app: AppHandle, game_id: String) -> Result<(), String
         serde_json::json!({ "game": game_id, "launcher": gs.launcher.as_deref().unwrap_or("steam") }),
     );
     maybe_suppress_crash_reporter(game_id, gs);
+    let sisr_issue = crate::commands::sisr::prepare_for_game_launch(s.auto_launch_sisr).await;
     launch_with(
         gs.launcher.as_deref().unwrap_or("steam"),
         game_def_for_id(game_id)?,
         game_path,
         Some(gs.launch_options.as_str()),
     );
-    Ok(())
+    Ok(sisr_issue)
 }
 
 #[tauri::command]

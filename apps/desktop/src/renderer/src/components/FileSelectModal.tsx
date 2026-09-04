@@ -201,7 +201,7 @@ export function FileSelectModal({
                                     disabled={isInstalled || isBusy}
                                     onChange={() => toggleFile(file.id)}
                                     onClick={(e) => e.stopPropagation()}
-                                    className="accent-accent w-4 h-4 shrink-0 cursor-pointer disabled:cursor-not-allowed"
+                                    className="w-4 h-4 shrink-0 cursor-pointer disabled:cursor-not-allowed"
                                 />
                                 <div className="min-w-0 flex-1">
                                     <div className="flex items-center gap-2">

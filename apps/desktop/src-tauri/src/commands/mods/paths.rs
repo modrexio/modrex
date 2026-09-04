@@ -1,3 +1,4 @@
+use super::crimeboss_settings::content_path_for_mod;
 use super::engine::{
     backup_dir as engine_backup_dir, disabled_dir, mods_dir, state_path as engine_state_path,
     ModEngineConfig, ModUnit, ScanTarget,
@@ -169,6 +170,31 @@ pub fn disabled_mod_path(
         } => base.join(format!("{}{}", filename, disabled_suffix)),
         ModUnit::Directory { .. } => base.join(filename),
     }
+}
+
+pub(crate) fn resolve_pak_path(
+    game_path: &str,
+    cfg: &ModEngineConfig,
+    folders: &[ModFolder],
+    m: &InstalledMod,
+) -> Option<PathBuf> {
+    let location = m.location.as_deref();
+    if location == Some("ue4ss_mods") || location.is_some_and(|value| value.starts_with("host:")) {
+        return None;
+    }
+
+    let target = cfg.target_for(location);
+    // The extension the target declares, so this never assumes a game packages as .pak.
+    let extension = target.content_extension()?;
+    let folder = get_folder_path(folders, m.folder_id.as_deref());
+    let active = active_mod_path(game_path, &m.filename, folder.as_deref(), target);
+    let installed = if active.exists() {
+        active
+    } else {
+        let disabled = disabled_mod_path(game_path, &m.filename, folder.as_deref(), target);
+        disabled.exists().then_some(disabled)?
+    };
+    content_path_for_mod(&installed, target.is_directory_unit(), extension)
 }
 
 pub async fn find_untracked_paks(

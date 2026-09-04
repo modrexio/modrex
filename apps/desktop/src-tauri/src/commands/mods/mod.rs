@@ -50,8 +50,8 @@ pub(crate) use self::install::{
     disable_mod_op, enable_mod_op, install_host_pack_op, move_crimeboss_mod_target_op,
     uninstall_mod_op,
 };
-pub(crate) use self::naming::{hash_filename, strip_priority_prefix, unit_filename};
-pub(crate) use self::paths::{active_mod_path, disabled_base, disabled_mod_path};
+pub(crate) use self::naming::{hash_filename, sidecar_path, strip_priority_prefix, unit_filename};
+pub(crate) use self::paths::{active_mod_path, disabled_base, disabled_mod_path, resolve_pak_path};
 pub(crate) use self::reorder::{
     move_mod_to_folder_op, reorder_children_op, reorder_mods_in_folder_op,
 };

@@ -5,8 +5,8 @@
 //! references between sections, and values that would build a path the scan cannot find.
 
 use crate::{
-    Discovery, FileFamily, GamePackage, LoaderBinding, MarkerMode, NewsBinding, SourceBinding,
-    StoreBinding, Target, Unit,
+    Discovery, FileFamily, GamePackage, LoaderBinding, MarkerMode, NewsBinding,
+    PackageReaderBinding, SourceBinding, StoreBinding, Target, Unit,
 };
 
 /// Rejects a manifest that parses but could not work, so a contributor sees the problem at
@@ -66,6 +66,10 @@ pub fn check(id: &str, package: &GamePackage) -> Result<(), String> {
         }
     }
 
+    if let Some(reader) = &package.package_reader {
+        check_package_reader(reader)?;
+    }
+
     if package.targets.is_empty() {
         return Err("declares no mod targets, so no mod could be installed".to_string());
     }
@@ -88,6 +92,18 @@ pub fn check(id: &str, package: &GamePackage) -> Result<(), String> {
     }
     for target in &package.targets {
         check_target(target).map_err(|problem| format!("target '{}' {problem}", target.tag))?;
+    }
+    Ok(())
+}
+
+/// The key is handed straight to the AES-256 readers, which reject anything else at runtime.
+/// Catching it here names the manifest instead of failing when a user opens a mod.
+fn check_package_reader(reader: &PackageReaderBinding) -> Result<(), String> {
+    let PackageReaderBinding::Unreal { aes_key } = reader;
+    if aes_key.len() != 64 || !aes_key.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return Err(format!(
+            "declares an unreal package reader whose aes_key is not 64 hexadecimal characters, so no pak could be read: '{aes_key}'"
+        ));
     }
     Ok(())
 }

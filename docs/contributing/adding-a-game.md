@@ -35,7 +35,7 @@ component reads as a list of multiline inline objects and one target reads as on
 real manifests under `src/games/` are the style reference. Taplo 0.9 and other TOML 1.0 tools
 report false syntax errors on this, so no TOML formatter runs over these files.
 
-Four decisions carry most of the work:
+Five decisions carry most of the work:
 
 **Stores.** Each store binding names the game the way that storefront names it: a Steam
 `app_id` and `installdir` folder, an Epic display name, an Xbox product id plus the executable
@@ -57,6 +57,10 @@ its modes: `archive` recognizes a mod folder inside a downloaded archive, `scan`
 installed one, and `index_gated` recognizes an installed one but keeps it only when the mod
 index knows its hash. Use `index_gated` when a marker is shared between a loader's own bundled
 modules and genuinely installable mods.
+
+**Package reader.** A game whose own packages are encrypted declares the key that reads them,
+and the interface then offers to list what an installed mod contains. Omit it and that game
+reports the viewer as unavailable; nothing falls back to another game's key.
 
 ## 3. Validate
 
@@ -106,6 +110,7 @@ runs. The validator then rejects the things serde cannot see:
   mode
 - a marker carrying both `scan` and `index_gated`, which contradict each other
 - a UE4SS loader missing a storefront, a proxy DLL or an `install_into` component
+- a package reader whose `aes_key` is not 64 hexadecimal characters
 
 ## When a manifest is not enough
 

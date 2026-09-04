@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { MoreVertical } from 'lucide-react'
 import { t } from '../i18n'
-import type { InstalledMod } from '../../../shared/types'
+import { GAMES, type InstalledMod } from '../../../shared/types'
 import { ModCard } from './ModCard'
 import { ModListRow } from './ModListRow'
 import { SkeletonCard } from './SkeletonCard'
@@ -9,7 +9,10 @@ import { SkeletonListRow } from './SkeletonListRow'
 import { syntheticMod, detailNavArgs, hasCatalogLink, identityKey } from '../hooks/installedUtils'
 import { useInstalledContext } from './InstalledContext'
 import { ManageFilesModal } from './ManageFilesModal'
+import { PakViewerModal } from './PakViewerModal'
 import { hasSource } from '../sources'
+import { Button } from './ui/Button'
+import { Tooltip } from './Tooltip'
 
 export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
     const {
@@ -35,6 +38,7 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
     } = useInstalledContext()
 
     const [menuOpen, setMenuOpen] = useState(false)
+    const [pakViewerKey, setPakViewerKey] = useState<string | null>(null)
     const menuRef = useRef<HTMLDivElement>(null)
 
     useEffect(() => {
@@ -54,6 +58,7 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
     // Stable across file deletions, unlike repUid, whose file can be the one deleted.
     const groupKey = identityKey(ins)
     const showManageFiles = manageFilesKey === groupKey
+    const showPakViewer = pakViewerKey === groupKey
     const apiMod = modData.get(id)
     const isBusy = mods.some((m) => loadingMod === m.uid)
     const isDragging = dragItem?.kind === 'mod' && dragItem.uid === repUid
@@ -85,63 +90,96 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
     const canIdentifyViaNexus =
         !hasCatalogLink(ins) && !combined.missing && hasSource(activeGame, 'nexus')
 
+    const canViewPak =
+        GAMES[activeGame].supportsPackageViewer &&
+        combined.location !== 'ue4ss_mods' &&
+        !combined.location?.startsWith('host:') &&
+        !combined.missing
+
     function renderMenuButton(dropdownSide: 'right' | 'left') {
         return (
             <div ref={menuRef} className="relative">
-                <button
-                    onClick={(e) => {
-                        e.stopPropagation()
-                        setMenuOpen((o) => !o)
-                    }}
-                    className="flex items-center justify-center w-6 h-6 rounded border border-border text-text-subtle hover:text-text hover:border-accent/60 transition-colors bg-surface-raised/80"
-                >
-                    <MoreVertical className="w-3.5 h-3.5" />
-                </button>
+                <Tooltip content={t('installed.modMenu.open')}>
+                    <Button
+                        variant="secondary"
+                        size="icon"
+                        onClick={(e) => {
+                            e.stopPropagation()
+                            setMenuOpen((o) => !o)
+                        }}
+                        className="w-6 h-6 bg-surface-raised/80 hover:border-accent/60"
+                    >
+                        <MoreVertical className="w-3.5 h-3.5" />
+                    </Button>
+                </Tooltip>
                 {menuOpen && (
                     <div
                         className={`absolute top-7 ${dropdownSide === 'right' ? 'right-0' : 'left-0'} min-w-40 bg-surface-raised border border-border rounded-lg shadow-xl overflow-hidden z-50`}
                     >
-                        <button
+                        <Button
+                            variant="ghost"
+                            size="sm"
                             onClick={(e) => {
                                 e.stopPropagation()
                                 setMenuOpen(false)
                                 setManageFilesKey(groupKey)
                             }}
-                            className="w-full text-left px-3 py-2 text-xs text-text hover:bg-surface-hover transition-colors"
+                            className="w-full justify-start rounded-none px-3 py-2 text-text"
                         >
                             {t('installed.modMenu.manageFiles')}
-                        </button>
+                        </Button>
+                        {canViewPak && (
+                            <>
+                                <div className="h-px bg-border" />
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={(e) => {
+                                        e.stopPropagation()
+                                        setMenuOpen(false)
+                                        setPakViewerKey(groupKey)
+                                    }}
+                                    className="w-full justify-start rounded-none px-3 py-2 text-text"
+                                >
+                                    {t('installed.pakViewer.open')}
+                                </Button>
+                            </>
+                        )}
                         {canIdentifyViaNexus && (
                             <>
                                 <div className="h-px bg-border" />
-                                <button
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
                                     onClick={(e) => {
                                         e.stopPropagation()
                                         setMenuOpen(false)
                                         void handleIdentifyViaNexus(ins)
                                     }}
                                     disabled={isBusy}
-                                    className="w-full text-left px-3 py-2 text-xs text-text hover:bg-surface-hover transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                    className="w-full justify-start rounded-none px-3 py-2 text-text"
                                 >
                                     {t('installed.modMenu.identify')}
-                                </button>
+                                </Button>
                             </>
                         )}
                         {canMoveCrimeBossTarget && (
                             <>
                                 <div className="h-px bg-border" />
-                                <button
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
                                     onClick={(e) => {
                                         e.stopPropagation()
                                         setMenuOpen(false)
                                         requestMoveCrimeBossTarget(ins)
                                     }}
-                                    className="w-full text-left px-3 py-2 text-xs text-text hover:bg-surface-hover transition-colors"
+                                    className="w-full justify-start rounded-none px-3 py-2 text-text"
                                 >
                                     {combined.location === 'paks'
                                         ? t('installed.crimeBossMove.toModKit')
                                         : t('installed.crimeBossMove.toLegacy')}
-                                </button>
+                                </Button>
                             </>
                         )}
                     </div>
@@ -182,6 +220,14 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
                         onClose={() => setManageFilesKey(null)}
                     />
                 )}
+                {showPakViewer && (
+                    <PakViewerModal
+                        modName={mod.name}
+                        uid={repUid}
+                        gameId={activeGame}
+                        onClose={() => setPakViewerKey(null)}
+                    />
+                )}
                 <ModListRow
                     mod={mod}
                     installed={combined}
@@ -212,69 +258,20 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
             {dropTarget?.kind === 'after-mod' && dropTarget.uid === repUid && (
                 <div className="absolute top-0 bottom-0 right-0 w-1 bg-accent z-10 pointer-events-none rounded-r-lg" />
             )}
-            <div ref={menuRef} className="absolute top-2 right-2 z-20">
-                <button
-                    onClick={(e) => {
-                        e.stopPropagation()
-                        setMenuOpen((o) => !o)
-                    }}
-                    className="flex items-center justify-center w-6 h-6 rounded border border-border text-text-subtle hover:text-text hover:border-accent/60 transition-colors bg-surface-raised/80"
-                >
-                    <MoreVertical className="w-3.5 h-3.5" />
-                </button>
-                {menuOpen && (
-                    <div className="absolute right-0 top-7 min-w-40 bg-surface-raised border border-border rounded-lg shadow-xl overflow-hidden z-50">
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation()
-                                setMenuOpen(false)
-                                setManageFilesKey(groupKey)
-                            }}
-                            className="w-full text-left px-3 py-2 text-xs text-text hover:bg-surface-hover transition-colors"
-                        >
-                            {t('installed.modMenu.manageFiles')}
-                        </button>
-                        {canIdentifyViaNexus && (
-                            <>
-                                <div className="h-px bg-border" />
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation()
-                                        setMenuOpen(false)
-                                        void handleIdentifyViaNexus(ins)
-                                    }}
-                                    disabled={isBusy}
-                                    className="w-full text-left px-3 py-2 text-xs text-text hover:bg-surface-hover transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                                >
-                                    {t('installed.modMenu.identify')}
-                                </button>
-                            </>
-                        )}
-                        {canMoveCrimeBossTarget && (
-                            <>
-                                <div className="h-px bg-border" />
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation()
-                                        setMenuOpen(false)
-                                        requestMoveCrimeBossTarget(ins)
-                                    }}
-                                    className="w-full text-left px-3 py-2 text-xs text-text hover:bg-surface-hover transition-colors"
-                                >
-                                    {combined.location === 'paks'
-                                        ? t('installed.crimeBossMove.toModKit')
-                                        : t('installed.crimeBossMove.toLegacy')}
-                                </button>
-                            </>
-                        )}
-                    </div>
-                )}
-            </div>
+            <div className="absolute top-2 right-2 z-20">{renderMenuButton('right')}</div>
             {showManageFiles && (
                 <ManageFilesModal
                     mods={mods}
                     modName={mod.name}
                     onClose={() => setManageFilesKey(null)}
+                />
+            )}
+            {showPakViewer && (
+                <PakViewerModal
+                    modName={mod.name}
+                    uid={repUid}
+                    gameId={activeGame}
+                    onClose={() => setPakViewerKey(null)}
                 />
             )}
             <ModCard

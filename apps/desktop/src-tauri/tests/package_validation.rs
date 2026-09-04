@@ -436,3 +436,78 @@ fn the_documented_starter_manifest_is_valid() {
     let package: GamePackage = toml::from_str(&text).expect("the starter manifest parses");
     validate::check("example", &package).expect("the starter manifest validates");
 }
+
+const KEY: &str = "27DFBADBB537388ACDE27A7C5F3EBC3721AF0AE0A7602D2D7F8A16548F37D394";
+
+/// package_reader is a root key, and BASE ends inside a nested table, so it has to go in
+/// before the first section header rather than being appended.
+fn with_reader(declaration: &str) -> String {
+    BASE.replacen(
+        "
+[install]",
+        &format!(
+            "
+{declaration}
+[install]"
+        ),
+        1,
+    )
+}
+
+#[test]
+fn a_package_reader_declaration_is_accepted_and_reaches_the_package() {
+    let text = with_reader(&format!(
+        "package_reader = {{ format = \"unreal\", aes_key = \"{KEY}\" }}"
+    ));
+    let package: GamePackage = toml::from_str(&text).expect("a declared reader parses");
+    validate::check("fixture", &package).expect("a declared reader validates");
+    let Some(modrex_game_package::PackageReaderBinding::Unreal { aes_key }) =
+        package.package_reader.as_ref()
+    else {
+        panic!("the reader did not survive parsing");
+    };
+    assert_eq!(aes_key, KEY);
+}
+
+#[test]
+fn a_package_without_a_reader_declares_none_rather_than_a_default() {
+    let package: GamePackage = toml::from_str(BASE).expect("the base fixture parses");
+    assert!(package.package_reader.is_none());
+}
+
+#[test]
+fn a_key_of_the_wrong_length_is_rejected() {
+    assert_rejected(
+        &with_reader("package_reader = { format = \"unreal\", aes_key = \"27DFBADB\" }"),
+        "64 hexadecimal characters",
+    );
+}
+
+#[test]
+fn a_key_that_is_not_hexadecimal_is_rejected() {
+    let key = format!("Z{}", &KEY[1..]);
+    assert_rejected(
+        &with_reader(&format!(
+            "package_reader = {{ format = \"unreal\", aes_key = \"{key}\" }}"
+        )),
+        "64 hexadecimal characters",
+    );
+}
+
+#[test]
+fn an_unknown_package_reader_format_is_rejected() {
+    assert_rejected(
+        &with_reader("package_reader = { format = \"zip\", aes_key = \"00\" }"),
+        "unreal",
+    );
+}
+
+#[test]
+fn an_unknown_field_on_a_package_reader_is_rejected() {
+    assert_rejected(
+        &with_reader(&format!(
+            "package_reader = {{ format = \"unreal\", aes_key = \"{KEY}\", nonce = \"1\" }}"
+        )),
+        "nonce",
+    );
+}

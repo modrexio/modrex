@@ -63,6 +63,13 @@
             "bodyPre": "È raccomandato per molte mod per caricarle correttamente. Aggiungilo",
             "location": "Impostazioni > Impostazioni di avvio",
             "launchAnyway": "Avvia comunque"
+        },
+        "sisr": {
+            "unsupported": "! SISR auto-launch is not supported on this operating system. The game was launched without it.",
+            "notInstalled": "! SISR was not found. The game was launched without it.",
+            "setupRequired": "! SISR needs its first-run setup before controller redirection will work. The game was launched anyway.",
+            "startFailed": "! SISR failed to start. The game was launched without it.",
+            "startUnconfirmed": "! Modrex could not confirm that SISR started. The game was launched anyway."
         }
     },
     "sidebar": {
@@ -179,6 +186,18 @@
             "updatingProgress": "Aggiornando {done} / {total}",
             "updateSelected": "Aggiornamenti selezionati ({count})",
             "error": "Aggiornamento fallito. Controlla la tua connessione e riprova."
+        },
+        "pakViewer": {
+            "title": "! Pak contents",
+            "open": "! View pak contents",
+            "searchPlaceholder": "! Search assets",
+            "assetCount": "! {count} assets",
+            "matchCount": "! {count} of {total} assets",
+            "loading": "! Reading pak",
+            "empty": "! No assets found",
+            "noMatches": "! No assets match \"{query}\"",
+            "error": "! Couldn't read the pak.",
+            "aesHint": "! Encrypted paks need this game's AES key."
         },
         "modMenu": {
             "open": "Opzioni",
@@ -368,6 +387,16 @@
             "title": "Lingua",
             "description": "Lingua usata all'interno dell'app."
         },
+        "accentColor": {
+            "title": "! Accent color",
+            "description": "! Accent color used throughout the app.",
+            "orange": "! Orange",
+            "purple": "! Purple",
+            "green": "! Green",
+            "blue": "! Blue",
+            "red": "! Red",
+            "gray": "! Gray"
+        },
         "gamePath": {
             "title": "Percorso del gioco",
             "description": "Percorso di installazione di {game}. Individuato automaticamente dalle tue app di lancio installate se non impostato manualmente.",
@@ -402,6 +431,17 @@
         "crashReporter": {
             "title": "Pulizia rapporto crash",
             "description": "Aggira il problema della finestra vuota di segnalazione crash nei giochi dotati di un sistema di segnalazione difettoso, rimuovendo i relativi file prima dell'avvio. È disattivato di predefinito e potrebbe non essere necessario per ogni gioco"
+        },
+        "sisr": {
+            "title": "! Auto-launch SISR",
+            "description": "! Start SISR (Steam Input System Redirector) before launching a game when it is not already running, so Steam Input controllers work with games launched outside Steam.",
+            "running": "! SISR is running.",
+            "notRunning": "! SISR is not running. It will start when you launch a game.",
+            "notInstalled": "! SISR was not found in its default installation location.",
+            "setupRequired": "! Complete SISR's first-run Steam setup before using auto-launch.",
+            "setup": "! Set up SISR",
+            "finishSetup": "! Finish setup",
+            "failed": "! SISR setting failed: {error}"
         },
         "updates": {
             "title": "Aggiornamenti",

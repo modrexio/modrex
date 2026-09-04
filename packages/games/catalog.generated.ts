@@ -10,6 +10,7 @@ export const GAME_SPECS = {
         nexusDomain: 'crimebossrockaycity',
         storageKey: 'cb',
         hasNews: false,
+        supportsPackageViewer: true,
         launchers: ['Steam', 'Epic Games'],
         modTargets: [
             { id: 'mods', path: 'CrimeBoss/Mods' },
@@ -24,6 +25,7 @@ export const GAME_SPECS = {
         nexusDomain: 'payday2',
         storageKey: 'pd2',
         hasNews: true,
+        supportsPackageViewer: false,
         launchers: ['Steam', 'Epic Games'],
         modTargets: [
             { id: 'mods', path: 'mods' },
@@ -37,6 +39,7 @@ export const GAME_SPECS = {
         nexusDomain: 'payday3',
         storageKey: 'pd3',
         hasNews: true,
+        supportsPackageViewer: true,
         requiredLaunchFlag: '-fileopenlog',
         launchers: ['Steam', 'Epic Games', 'Xbox App'],
         modTargets: [
@@ -51,6 +54,7 @@ export const GAME_SPECS = {
         nexusDomain: 'paydaytheheist',
         storageKey: 'pdth',
         hasNews: true,
+        supportsPackageViewer: false,
         launchers: ['Steam'],
         modTargets: [
             { id: 'mods', path: 'mods' },
@@ -63,6 +67,7 @@ export const GAME_SPECS = {
         workshopId: 543,
         storageKey: 'raid',
         hasNews: false,
+        supportsPackageViewer: false,
         launchers: ['Steam'],
         modTargets: [
             { id: 'mods', path: 'mods' },
