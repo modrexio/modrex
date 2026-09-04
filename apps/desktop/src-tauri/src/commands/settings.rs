@@ -202,7 +202,7 @@ pub fn read_settings(app: &AppHandle) -> Settings {
     let mut s: Settings = match serde_json::from_str(&content) {
         Ok(s) => s,
         Err(e) => {
-            log::warn!("read_settings: parse {path:?}: {e}; falling back to defaults");
+            log::warn!("read_settings: parse failed: {e}; falling back to defaults");
             Settings::default()
         }
     };
@@ -240,11 +240,11 @@ pub(crate) fn write_settings(app: &AppHandle, settings: &Settings) {
         &tmp,
         serde_json::to_string_pretty(settings).unwrap_or_default(),
     ) {
-        log::warn!("write_settings: write {tmp:?}: {e}");
+        log::warn!("write_settings: write failed: {e}");
         return;
     }
     if let Err(e) = std::fs::rename(&tmp, &path) {
-        log::warn!("write_settings: rename {tmp:?} -> {path:?}: {e}");
+        log::warn!("write_settings: rename failed: {e}");
     }
 }
 

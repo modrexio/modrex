@@ -1,4 +1,5 @@
 use super::engine::{backup_dir, ModEngineConfig, ModUnit};
+use super::naming::log_name;
 use super::naming::{apply_priority_prefix, make_uid, strip_priority_prefix};
 use super::paths::{
     active_mod_path, disabled_base, disabled_mod_path, host_pack_dir, host_pack_disabled_dir,
@@ -92,11 +93,11 @@ pub fn save_state(state_path: &Path, state: &ModsState) {
         &tmp,
         serde_json::to_string_pretty(state).unwrap_or_default(),
     ) {
-        log::warn!("save_state: write {tmp:?}: {e}");
+        log::warn!("save_state: write failed: {e}");
         return;
     }
     if let Err(e) = fs::rename(&tmp, state_path) {
-        log::warn!("save_state: rename {tmp:?} -> {state_path:?}: {e}");
+        log::warn!("save_state: rename failed: {e}");
         let _ = fs::remove_file(&tmp);
     }
 }
@@ -156,7 +157,10 @@ fn compact_folder_priorities(
 
             if old_active.exists() {
                 if let Err(e) = fs::rename(&old_active, &new_active) {
-                    log::warn!("compact_folder_priorities: rename {old_active:?}: {e}");
+                    log::warn!(
+                        "compact_folder_priorities: rename {}: {e}",
+                        log_name(&old_active)
+                    );
                     continue;
                 }
             }
@@ -170,7 +174,10 @@ fn compact_folder_priorities(
             };
             if old_dis.exists() {
                 if let Err(e) = fs::rename(&old_dis, &new_dis) {
-                    log::warn!("compact_folder_priorities: rename disabled {old_dis:?}: {e}");
+                    log::warn!(
+                        "compact_folder_priorities: rename disabled {}: {e}",
+                        log_name(&old_dis)
+                    );
                 }
             }
 
@@ -324,7 +331,7 @@ pub fn reconcile_state(game_path: &str, state_path: &Path, cfg: &ModEngineConfig
                 }
             }
             if let Err(e) = fs::rename(&legacy, &new_path) {
-                log::warn!("migrate legacy path {legacy:?} -> {new_path:?}: {e}");
+                log::warn!("migrate legacy path {}: {e}", log_name(&legacy));
             }
         }
     }

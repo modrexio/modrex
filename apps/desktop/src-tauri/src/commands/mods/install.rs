@@ -1,6 +1,7 @@
 use super::crimeboss_settings;
 use super::engine::{Activation, ModEngineConfig, ModUnit, ScanTarget};
 use super::host_mods::{host_target_by_id, parse_host_location};
+use super::naming::log_name;
 use super::naming::{apply_priority_prefix, mod_folder_name, sidecar_path, strip_priority_prefix};
 use super::paths::{
     active_mod_path, disabled_base, disabled_mod_path, host_pack_dir, host_pack_disabled_dir,
@@ -157,12 +158,12 @@ pub fn install_mod_from_path(
             match &target.unit {
                 ModUnit::File { extension, .. } => {
                     if let Err(e) = remove_file_with_sidecars(&old, extension, target.companions) {
-                        log::warn!("install: remove old pak {old:?}: {e}");
+                        log::warn!("install: remove old pak {}: {e}", log_name(&old));
                     }
                 }
                 ModUnit::Directory { .. } => {
                     if let Err(e) = fs::remove_dir_all(&old) {
-                        log::warn!("install: remove old mod dir {old:?}: {e}");
+                        log::warn!("install: remove old mod dir {}: {e}", log_name(&old));
                     }
                 }
             }
@@ -360,12 +361,12 @@ pub fn uninstall_mod_op(game_path: &str, state_path: &Path, uid: &str, cfg: &Mod
         match &target.unit {
             ModUnit::File { extension, .. } => {
                 if let Err(e) = remove_file_with_sidecars(&path, extension, target.companions) {
-                    log::warn!("uninstall: remove {path:?}: {e}");
+                    log::warn!("uninstall: remove {}: {e}", log_name(&path));
                 }
             }
             ModUnit::Directory { .. } => {
                 if let Err(e) = fs::remove_dir_all(&path) {
-                    log::warn!("uninstall: remove dir {path:?}: {e}");
+                    log::warn!("uninstall: remove dir {}: {e}", log_name(&path));
                 }
             }
         }
@@ -519,7 +520,7 @@ pub fn disable_mod_op(
         None => disabled_base(game_path, target),
     };
     if let Err(e) = fs::create_dir_all(&dis_dir) {
-        log::warn!("disable_mod: create_dir_all {dis_dir:?}: {e}");
+        log::warn!("disable_mod: create_dir_all failed: {e}");
     }
     let from = active_mod_path(game_path, &m.filename, rel.as_deref(), target);
     let to = disabled_mod_path(game_path, &m.filename, rel.as_deref(), target);

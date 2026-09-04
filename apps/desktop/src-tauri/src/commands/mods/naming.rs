@@ -2,6 +2,16 @@
 /// anything after it. Plain Path::with_extension is unsafe here: a disabled File-unit mod's
 /// filename is Foo.pak.disabled (disabled_suffix appended on top of the real extension), and
 /// with_extension would replace the trailing disabled component instead of pak.
+/// The final component of a path, for a log line. Modrex logs are attached to public bug
+/// reports, and every directory these paths sit in is either under the user's profile or a game
+/// folder the user chose, so only the mod or file name itself is safe to record.
+pub fn log_name(path: &std::path::Path) -> std::borrow::Cow<'_, str> {
+    match path.file_name() {
+        Some(name) => name.to_string_lossy(),
+        None => std::borrow::Cow::Borrowed("(unnamed)"),
+    }
+}
+
 pub fn sidecar_path(
     path: &std::path::Path,
     main_ext: &str,

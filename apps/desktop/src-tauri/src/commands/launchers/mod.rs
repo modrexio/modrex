@@ -35,16 +35,6 @@ fn game_def_for_id(game_id: &str) -> Result<&'static GameDef, String> {
         .ok_or_else(|| format!("unknown game id '{game_id}'"))
 }
 
-/// The install folder alone, which is the game's own directory name rather than anything about
-/// the user. Logs are attached to public bug reports, and a full game path carries the account
-/// name on Linux and on any relocated library.
-fn install_folder(path: &str) -> &str {
-    std::path::Path::new(path)
-        .file_name()
-        .and_then(|name| name.to_str())
-        .unwrap_or(path)
-}
-
 // A stalled find_game leaves no trace in Modrex.log without the probe line before it.
 fn probe_installs(game: &'static GameDef) -> Vec<DetectedInstall> {
     let mut found = Vec::new();
@@ -54,12 +44,7 @@ fn probe_installs(game: &'static GameDef) -> Vec<DetectedInstall> {
         }
         log::info!("probing {} for {}", launcher.id(), game.name);
         if let Some(game_path) = launcher.find_game(game) {
-            log::info!(
-                "found {} via {} in {}",
-                game.name,
-                launcher.id(),
-                install_folder(&game_path)
-            );
+            log::info!("found {} via {}", game.name, launcher.id());
             found.push(DetectedInstall {
                 launcher: launcher.id().to_string(),
                 game_path,
@@ -78,12 +63,7 @@ fn probe_one(game: &'static GameDef, launcher_id: &str) -> Option<String> {
     }
     log::info!("probing {} for {}", launcher.id(), game.name);
     let path = launcher.find_game(game)?;
-    log::info!(
-        "found {} via {} in {}",
-        game.name,
-        launcher.id(),
-        install_folder(&path)
-    );
+    log::info!("found {} via {}", game.name, launcher.id());
     Some(path)
 }
 
@@ -234,7 +214,7 @@ fn launch_with(launcher_id: &str, game: &'static GameDef, game_path: &str, opts:
             .map(|o| o.split_whitespace().collect())
             .unwrap_or_default();
         if let Err(e) = outside_bundle(std::process::Command::new(&exe).args(&args)).spawn() {
-            log::warn!("launch_game: spawn {exe:?}: {e}");
+            log::warn!("launch_game: spawn failed: {e}");
         }
     }
 }
@@ -253,8 +233,8 @@ fn remove_pd3_xbox_crash_reporter_files(game_path: &str) {
             continue;
         }
         match fs::remove_file(&file) {
-            Ok(()) => log::info!("removed PAYDAY 3 Xbox crash reporter file {file:?}"),
-            Err(e) => log::warn!("remove PAYDAY 3 Xbox crash reporter file {file:?}: {e}"),
+            Ok(()) => log::info!("removed a PAYDAY 3 Xbox crash reporter file"),
+            Err(e) => log::warn!("remove PAYDAY 3 Xbox crash reporter file: {e}"),
         }
     }
 }
@@ -811,7 +791,7 @@ pub fn open_game_folder(app: AppHandle, game_id: String) -> Result<(), String> {
     let dir = PathBuf::from(&game_path);
     match resolve_under(&dir, &dir, OpenKind::Directory) {
         Some(dir) => open_path_on_system(&dir.to_string_lossy()),
-        None => log::warn!("open_game_folder {gid}: {dir:?} is not a usable directory"),
+        None => log::warn!("open_game_folder {gid}: the configured path is not a usable directory"),
     }
     Ok(())
 }
@@ -832,7 +812,7 @@ pub fn open_log_file(app: AppHandle) {
         Some(file) => open_path_on_system(&file.to_string_lossy()),
         None => match resolve_under(&log_dir, &log_dir, OpenKind::Directory) {
             Some(dir) => open_path_on_system(&dir.to_string_lossy()),
-            None => log::warn!("open_log_file: no usable log directory at {log_dir:?}"),
+            None => log::warn!("open_log_file: no usable log directory"),
         },
     }
 }

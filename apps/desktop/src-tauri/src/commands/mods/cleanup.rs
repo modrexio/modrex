@@ -6,6 +6,7 @@
 //! a recursive target from tmp.parent() is how the OS temp root itself became a deletion
 //! target for .pdmod and loose-file installs.
 
+use super::naming::log_name;
 use std::path::{Path, PathBuf};
 
 // The shared Remove-Owned prefix is the point: a variant may only ever name an artifact this
@@ -114,11 +115,17 @@ pub async fn run_in(root: &Path, plan: &CleanupPlan) {
         CleanupPlan::RemoveOwnedDirectory(dir) => match owned_staging_dir(root, dir) {
             Ok(safe) => {
                 if let Err(e) = tokio::fs::remove_dir_all(&safe).await {
-                    log::warn!("install cleanup: remove staging dir {safe:?}: {e}");
+                    log::warn!(
+                        "install cleanup: remove staging dir {}: {e}",
+                        log_name(&safe)
+                    );
                 }
             }
             Err(Refusal::Unresolvable) => {}
-            Err(r) => log::warn!("install cleanup: refused to remove staging dir {dir:?}: {r:?}"),
+            Err(r) => log::warn!(
+                "install cleanup: refused to remove staging dir {}: {r:?}",
+                log_name(dir)
+            ),
         },
     }
 }
@@ -127,13 +134,16 @@ async fn remove_owned_file(root: &Path, path: &Path) {
     match owned_staging_file(root, path) {
         Ok(safe) => {
             if let Err(e) = tokio::fs::remove_file(&safe).await {
-                log::warn!("install cleanup: remove {safe:?}: {e}");
+                log::warn!("install cleanup: remove {}: {e}", log_name(&safe));
             }
         }
         // A staged file is normally gone only because it was moved into place, so a missing
         // one is not worth a warning; anything else is.
         Err(Refusal::Unresolvable) => {}
-        Err(r) => log::warn!("install cleanup: refused to remove {path:?}: {r:?}"),
+        Err(r) => log::warn!(
+            "install cleanup: refused to remove {}: {r:?}",
+            log_name(path)
+        ),
     }
 }
 
@@ -146,11 +156,14 @@ pub fn run_sync_in(root: &Path, plan: &CleanupPlan) {
     let remove_file = |path: &Path| match owned_staging_file(root, path) {
         Ok(safe) => {
             if let Err(e) = std::fs::remove_file(&safe) {
-                log::warn!("install cleanup: remove {safe:?}: {e}");
+                log::warn!("install cleanup: remove {}: {e}", log_name(&safe));
             }
         }
         Err(Refusal::Unresolvable) => {}
-        Err(r) => log::warn!("install cleanup: refused to remove {path:?}: {r:?}"),
+        Err(r) => log::warn!(
+            "install cleanup: refused to remove {}: {r:?}",
+            log_name(path)
+        ),
     };
     match plan {
         CleanupPlan::RemoveOwnedFile(path) => remove_file(path),
@@ -166,11 +179,17 @@ pub fn run_sync_in(root: &Path, plan: &CleanupPlan) {
         CleanupPlan::RemoveOwnedDirectory(dir) => match owned_staging_dir(root, dir) {
             Ok(safe) => {
                 if let Err(e) = std::fs::remove_dir_all(&safe) {
-                    log::warn!("install cleanup: remove staging dir {safe:?}: {e}");
+                    log::warn!(
+                        "install cleanup: remove staging dir {}: {e}",
+                        log_name(&safe)
+                    );
                 }
             }
             Err(Refusal::Unresolvable) => {}
-            Err(r) => log::warn!("install cleanup: refused to remove staging dir {dir:?}: {r:?}"),
+            Err(r) => log::warn!(
+                "install cleanup: refused to remove staging dir {}: {r:?}",
+                log_name(dir)
+            ),
         },
     }
 }

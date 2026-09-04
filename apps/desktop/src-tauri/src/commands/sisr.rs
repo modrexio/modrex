@@ -161,7 +161,7 @@ fn prepare_for_game_launch_blocking() -> Option<SisrLaunchIssue> {
     {
         Ok(child) => child,
         Err(error) => {
-            log::warn!("failed to start SISR from {executable:?}: {error}");
+            log::warn!("failed to start SISR: {error}");
             return Some(SisrLaunchIssue::StartFailed);
         }
     };
