@@ -388,6 +388,51 @@ pub fn uninstall_mod_op(
     Ok(())
 }
 
+/// Where a mod's primary object actually sits.
+///
+/// Each location is checked against the kind its target expects, because a bare exists() says
+/// only that the path is taken. A directory standing where a pak belongs is exactly what an
+/// interrupted move leaves behind, and reading that as "the mod is here" gets the answer
+/// backwards in the one case this check exists for.
+#[derive(Debug, PartialEq, Eq)]
+enum Placement {
+    Active,
+    Disabled,
+    /// Both locations hold it. The active copy is the one the game loads, but a duplicate is
+    /// reported rather than quietly resolved to a boolean.
+    Both,
+    /// Neither holds it, so nothing on disk says whether this mod is enabled.
+    Missing,
+}
+
+fn holds_mod(target: &ScanTarget, path: &Path) -> bool {
+    match &target.unit {
+        ModUnit::File { .. } => path.is_file(),
+        ModUnit::Directory { .. } => path.is_dir(),
+    }
+}
+
+fn observe_placement(active: &Path, disabled: &Path, target: &ScanTarget) -> Placement {
+    match (holds_mod(target, active), holds_mod(target, disabled)) {
+        (true, false) => Placement::Active,
+        (false, true) => Placement::Disabled,
+        (true, true) => Placement::Both,
+        (false, false) => Placement::Missing,
+    }
+}
+
+fn move_mod_object(from: &Path, to: &Path, target: &ScanTarget) -> Result<(), String> {
+    match &target.unit {
+        ModUnit::File { extension, .. } => {
+            rename_with_sidecars(from, to, extension, target.companions)
+        }
+        // A directory unit has no companions, so its move is the single rename.
+        ModUnit::Directory { .. } => {
+            fs::rename(from, to).map_err(|e| format!("could not move {}: {e}", log_name(from)))
+        }
+    }
+}
+
 pub fn enable_mod_op(
     game_path: &str,
     state_path: &Path,
@@ -395,67 +440,177 @@ pub fn enable_mod_op(
     cfg: &ModEngineConfig,
     launcher: Option<&str>,
 ) -> Result<(), String> {
+    set_activation(game_path, state_path, uid, cfg, launcher, true)
+}
+
+pub fn disable_mod_op(
+    game_path: &str,
+    state_path: &Path,
+    uid: &str,
+    cfg: &ModEngineConfig,
+    launcher: Option<&str>,
+) -> Result<(), String> {
+    set_activation(game_path, state_path, uid, cfg, launcher, false)
+}
+
+/// Moves a mod between the active and disabled locations and records the result, in that
+/// order.
+///
+/// The order is what makes the failure cases honest. A move that did not happen returns
+/// before the flag is touched, so nothing claims a change the disk does not show. A save that
+/// fails after a successful move puts the files back, because the record cannot describe them
+/// otherwise: the scan reads a mod as known wherever it sits, so a disagreement between the
+/// two would never be noticed again.
+fn set_activation(
+    game_path: &str,
+    state_path: &Path,
+    uid: &str,
+    cfg: &ModEngineConfig,
+    launcher: Option<&str>,
+    enable: bool,
+) -> Result<(), String> {
     let mut state = read_state(state_path).map_err(|e| e.to_string())?;
     let Some(m) = state
         .mods
         .iter()
-        .find(|m| m.uid == uid && !m.enabled)
+        .find(|m| m.uid == uid && m.enabled != enable)
         .cloned()
     else {
         return Ok(());
     };
-    log::info!("enable: {} ({})", m.name, m.uid);
-    // Host packs move back from our disabled area into the host mod's folder.
+    let action = if enable { "enable" } else { "disable" };
+    log::info!("{action}: {} ({})", m.name, m.uid);
+
+    // Host packs live inside another mod's folder rather than at a target root.
     if is_host_pack(&m) {
-        return move_host_pack(game_path, state_path, &mut state, &m, uid, cfg, true);
+        return move_host_pack(game_path, state_path, &mut state, &m, uid, cfg, enable);
     }
+
     let target = cfg.target_for(m.location.as_deref());
     if target.enabled_state == Activation::Ue4ssModsTxt {
-        let mods_txt = mods_base(game_path, target).join("mods.txt");
-        ue4ss_modstxt::sync_enabled(&mods_txt, &m.filename, true);
-        for m in state.mods.iter_mut() {
-            if m.uid == uid {
-                m.enabled = true;
-            }
-        }
-        save_state(state_path, &state).map_err(save_error)?;
-        return Ok(());
+        return set_activation_in_mods_txt(
+            game_path, state_path, &mut state, &m, uid, target, enable,
+        );
     }
+
     let rel = get_folder_path(&state.folders, m.folder_id.as_deref());
-    if let Some(r) = &rel {
-        if let Err(e) = fs::create_dir_all(mods_base(game_path, target).join(r)) {
-            log::warn!("enable_mod: create_dir_all: {e}");
+    let active = active_mod_path(game_path, &m.filename, rel.as_deref(), target);
+    let disabled = disabled_mod_path(game_path, &m.filename, rel.as_deref(), target);
+    let (from, to) = if enable {
+        (&disabled, &active)
+    } else {
+        (&active, &disabled)
+    };
+    let destination_parent = if enable {
+        match &rel {
+            Some(r) => mods_base(game_path, target).join(r),
+            None => mods_base(game_path, target),
         }
-    }
-    let from = disabled_mod_path(game_path, &m.filename, rel.as_deref(), target);
-    let to = active_mod_path(game_path, &m.filename, rel.as_deref(), target);
-    // The game's own UGC mod-loader, not this file move, is what actually controls whether a
-    // Crime Boss mod is active. See crimeboss_settings.rs.
-    // resync_crimeboss_enabled_flags flips m.enabled without moving files, so from may not
-    // exist. Fall back to to when deriving the settings path from the pak.
-    if cfg.game_id == "cb" {
-        let cb_path = if from.exists() { &from } else { &to };
-        crimeboss_settings::sync_enabled(cb_path, target.is_directory_unit(), launcher, true);
-    }
-    if from.exists() {
-        let renamed = match &target.unit {
-            ModUnit::File { extension, .. } => {
-                rename_with_sidecars(&from, &to, extension, target.companions)
-            }
-            ModUnit::Directory { .. } => fs::rename(&from, &to)
-                .map_err(|e| format!("could not move {}: {e}", log_name(&from))),
-        };
-        if let Err(e) = renamed {
-            log::warn!("enable_mod: rename {from:?} -> {to:?}: {e}");
+    } else {
+        match &rel {
+            Some(r) => disabled_base(game_path, target).join(r),
+            None => disabled_base(game_path, target),
         }
+    };
+    fs::create_dir_all(&destination_parent)
+        .map_err(|e| format!("could not prepare the destination folder: {e}"))?;
+
+    // Crime Boss's own mod loader reads activation from its settings file, not from where the
+    // files sit, so that write is the one that takes effect and the move below is bookkeeping.
+    // resync_crimeboss_enabled_flags also flips the tracked flag without moving anything, so a
+    // mod whose files are not where Modrex expects is normal here.
+    let activation_is_external = cfg.game_id == "cb";
+    if activation_is_external {
+        let cb_path = if from.exists() { from } else { to };
+        crimeboss_settings::sync_enabled(cb_path, target.is_directory_unit(), launcher, enable);
     }
+
+    match observe_placement(&active, &disabled, target) {
+        // Already where this operation wanted it. The record is what is out of step, so
+        // correct that and move nothing.
+        p if p == wanted_placement(enable) => {}
+        Placement::Both => {
+            return Err(format!(
+                "'{}' is in both the active and disabled folders, so Modrex will not guess which copy to keep",
+                m.name
+            ))
+        }
+        Placement::Missing if !activation_is_external => {
+            return Err(format!("'{}' is no longer where Modrex installed it", m.name))
+        }
+        Placement::Missing => {}
+        _ => move_mod_object(from, to, target)?,
+    }
+
     for m in state.mods.iter_mut() {
         if m.uid == uid {
-            m.enabled = true;
+            m.enabled = enable;
         }
     }
-    save_state(state_path, &state).map_err(save_error)?;
+    if let Err(e) = save_state(state_path, &state) {
+        return Err(undo_after_failed_save(to, from, target, save_error(e)));
+    }
     Ok(())
+}
+
+fn wanted_placement(enable: bool) -> Placement {
+    if enable {
+        Placement::Active
+    } else {
+        Placement::Disabled
+    }
+}
+
+/// Puts the files back after the record could not be written, and composes both failures.
+///
+/// No second save follows a complete reversal: the file on disk was never replaced, so it
+/// already describes the restored layout. A reversal that fails leaves the move standing and
+/// the record behind it, which the message has to say outright.
+fn undo_after_failed_save(
+    from: &Path,
+    to: &Path,
+    target: &ScanTarget,
+    save_failure: String,
+) -> String {
+    match move_mod_object(from, to, target) {
+        Ok(()) => save_failure,
+        Err(undo) => {
+            format!("{save_failure}; the files were moved and could not be put back either: {undo}")
+        }
+    }
+}
+
+/// UE4SS loads whichever folders its own mods.txt lists, so that file is the activation and
+/// the folder never moves. A record that cannot be written is put back the same way a file
+/// move is.
+fn set_activation_in_mods_txt(
+    game_path: &str,
+    state_path: &Path,
+    state: &mut ModsState,
+    m: &InstalledMod,
+    uid: &str,
+    target: &ScanTarget,
+    enable: bool,
+) -> Result<(), String> {
+    let mods_txt = mods_base(game_path, target).join("mods.txt");
+    ue4ss_modstxt::set_enabled(&mods_txt, &m.filename, enable)?;
+    for x in state.mods.iter_mut() {
+        if x.uid == uid {
+            x.enabled = enable;
+        }
+    }
+    let Err(e) = save_state(state_path, state) else {
+        return Ok(());
+    };
+    let failure = save_error(e);
+    Err(
+        match ue4ss_modstxt::set_enabled(&mods_txt, &m.filename, !enable) {
+            Ok(()) => failure,
+            Err(undo) => {
+                format!("{failure}; the loader's own list could not be put back either: {undo}")
+            }
+        },
+    )
 }
 
 /// Moves a host pack between the host mod's folder and Modrex's disabled area, then flips its
@@ -469,98 +624,55 @@ fn move_host_pack(
     cfg: &ModEngineConfig,
     enable: bool,
 ) -> Result<(), String> {
-    let active = host_pack_dir(game_path, cfg, &state.mods, &state.folders, m);
-    let disabled = host_pack_disabled_dir(game_path, cfg, m);
-    if let (Some(active), Some(disabled)) = (active, disabled) {
-        let (from, to) = if enable {
-            (disabled, active)
-        } else {
-            (active, disabled)
-        };
-        if from.exists() {
-            if let Some(parent) = to.parent() {
-                let _ = fs::create_dir_all(parent);
-            }
-            if let Err(e) = fs::rename(&from, &to) {
-                log::warn!("move host pack {from:?} -> {to:?}: {e}");
-            }
+    let (Some(active), Some(disabled)) = (
+        host_pack_dir(game_path, cfg, &state.mods, &state.folders, m),
+        host_pack_disabled_dir(game_path, cfg, m),
+    ) else {
+        return Err(format!(
+            "'{}' is a content pack for a mod that is no longer installed",
+            m.name
+        ));
+    };
+    let (from, to) = if enable {
+        (disabled, active)
+    } else {
+        (active, disabled)
+    };
+    // A pack that is already at the destination only needs its record corrected.
+    let moved = if from.is_dir() {
+        if let Some(parent) = to.parent() {
+            fs::create_dir_all(parent)
+                .map_err(|e| format!("could not prepare the destination folder: {e}"))?;
         }
-    }
+        fs::rename(&from, &to).map_err(|e| format!("could not move {}: {e}", log_name(&from)))?;
+        true
+    } else if !to.is_dir() {
+        return Err(format!(
+            "'{}' is no longer where Modrex installed it",
+            m.name
+        ));
+    } else {
+        false
+    };
+
     for x in state.mods.iter_mut() {
         if x.uid == uid {
             x.enabled = enable;
         }
     }
-    save_state(state_path, state).map_err(save_error)?;
-    Ok(())
-}
-
-pub fn disable_mod_op(
-    game_path: &str,
-    state_path: &Path,
-    uid: &str,
-    cfg: &ModEngineConfig,
-    launcher: Option<&str>,
-) -> Result<(), String> {
-    let mut state = read_state(state_path).map_err(|e| e.to_string())?;
-    let Some(m) = state
-        .mods
-        .iter()
-        .find(|m| m.uid == uid && m.enabled)
-        .cloned()
-    else {
+    let Err(e) = save_state(state_path, state) else {
         return Ok(());
     };
-    log::info!("disable: {} ({})", m.name, m.uid);
-    // Host packs move out of the host mod's folder into our disabled area.
-    if is_host_pack(&m) {
-        return move_host_pack(game_path, state_path, &mut state, &m, uid, cfg, false);
+    let failure = save_error(e);
+    if !moved {
+        return Err(failure);
     }
-    let target = cfg.target_for(m.location.as_deref());
-    if target.enabled_state == Activation::Ue4ssModsTxt {
-        let mods_txt = mods_base(game_path, target).join("mods.txt");
-        ue4ss_modstxt::sync_enabled(&mods_txt, &m.filename, false);
-        for m in state.mods.iter_mut() {
-            if m.uid == uid {
-                m.enabled = false;
-            }
+    Err(match fs::rename(&to, &from) {
+        Ok(()) => failure,
+        Err(undo) => {
+            format!("{failure}; the pack was moved and could not be put back either: {undo}")
         }
-        save_state(state_path, &state).map_err(save_error)?;
-        return Ok(());
-    }
-    let rel = get_folder_path(&state.folders, m.folder_id.as_deref());
-    let dis_dir = match &rel {
-        Some(r) => disabled_base(game_path, target).join(r),
-        None => disabled_base(game_path, target),
-    };
-    if let Err(e) = fs::create_dir_all(&dis_dir) {
-        log::warn!("disable_mod: create_dir_all failed: {e}");
-    }
-    let from = active_mod_path(game_path, &m.filename, rel.as_deref(), target);
-    let to = disabled_mod_path(game_path, &m.filename, rel.as_deref(), target);
-    if cfg.game_id == "cb" {
-        let cb_path = if from.exists() { &from } else { &to };
-        crimeboss_settings::sync_enabled(cb_path, target.is_directory_unit(), launcher, false);
-    }
-    if from.exists() {
-        let renamed = match &target.unit {
-            ModUnit::File { extension, .. } => {
-                rename_with_sidecars(&from, &to, extension, target.companions)
-            }
-            ModUnit::Directory { .. } => fs::rename(&from, &to)
-                .map_err(|e| format!("could not move {}: {e}", log_name(&from))),
-        };
-        if let Err(e) = renamed {
-            log::warn!("disable_mod: rename {from:?} -> {to:?}: {e}");
-        }
-    }
-    for m in state.mods.iter_mut() {
-        if m.uid == uid {
-            m.enabled = false;
-        }
-    }
-    save_state(state_path, &state).map_err(save_error)?;
-    Ok(())
+    })
 }
 
 /// Puts back the moves a failed group move already made, most recent first so each
