@@ -65,11 +65,11 @@
             "launchAnyway": "仍然启动"
         },
         "sisr": {
-            "unsupported": "! SISR auto-launch is not supported on this operating system. The game was launched without it.",
-            "notInstalled": "! SISR was not found. The game was launched without it.",
-            "setupRequired": "! SISR needs its first-run setup before controller redirection will work. The game was launched anyway.",
-            "startFailed": "! SISR failed to start. The game was launched without it.",
-            "startUnconfirmed": "! Modrex could not confirm that SISR started. The game was launched anyway."
+            "unsupported": "此操作系统不支持 SISR 自动启动。游戏已在未启动 SISR 的情况下启动。",
+            "notInstalled": "未找到 SISR。游戏已在未启动 SISR 的情况下启动。",
+            "setupRequired": "SISR 需要先完成首次运行设置，控制器重定向才能正常工作。游戏仍已启动。",
+            "startFailed": "SISR 启动失败。游戏已在未启动 SISR 的情况下启动。",
+            "startUnconfirmed": "Modrex 无法确认 SISR 是否已启动。游戏仍已启动。"
         }
     },
     "sidebar": {
@@ -188,16 +188,16 @@
             "error": "更新失败。请检查网络连接后重试。"
         },
         "pakViewer": {
-            "title": "! Pak contents",
-            "open": "! View pak contents",
-            "searchPlaceholder": "! Search assets",
-            "assetCount": "! {count} assets",
-            "matchCount": "! {count} of {total} assets",
-            "loading": "! Reading pak",
-            "empty": "! No assets found",
-            "noMatches": "! No assets match \"{query}\"",
-            "error": "! Couldn't read the pak.",
-            "aesHint": "! Encrypted paks need this game's AES key."
+            "title": "Pak 内容",
+            "open": "查看 Pak 内容",
+            "searchPlaceholder": "搜索资源",
+            "assetCount": "{count} 个资源",
+            "matchCount": "{total} 个资源中的 {count} 个",
+            "loading": "正在读取 Pak",
+            "empty": "未找到资源",
+            "noMatches": "没有与“{query}”匹配的资源",
+            "error": "无法读取 Pak。",
+            "aesHint": "加密的 Pak 需要此游戏的 AES 密钥。"
         },
         "modMenu": {
             "open": "选项",
@@ -388,14 +388,14 @@
             "description": "应用中使用的语言。"
         },
         "accentColor": {
-            "title": "! Accent color",
-            "description": "! Accent color used throughout the app.",
-            "orange": "! Orange",
-            "purple": "! Purple",
-            "green": "! Green",
-            "blue": "! Blue",
-            "red": "! Red",
-            "gray": "! Gray"
+            "title": "强调色",
+            "description": "应用全局使用的强调色。",
+            "orange": "橙色",
+            "purple": "紫色",
+            "green": "绿色",
+            "blue": "蓝色",
+            "red": "红色",
+            "gray": "灰色"
         },
         "gamePath": {
             "title": "游戏路径",
@@ -433,15 +433,15 @@
             "description": "对于自带有问题的崩溃报告器的游戏，可在启动前移除其崩溃报告文件，以避免出现空白的崩溃报告窗口。此功能默认关闭，并非所有游戏都需要使用。"
         },
         "sisr": {
-            "title": "! Auto-launch SISR",
-            "description": "! Start SISR (Steam Input System Redirector) before launching a game when it is not already running, so Steam Input controllers work with games launched outside Steam.",
-            "running": "! SISR is running.",
-            "notRunning": "! SISR is not running. It will start when you launch a game.",
-            "notInstalled": "! SISR was not found in its default installation location.",
-            "setupRequired": "! Complete SISR's first-run Steam setup before using auto-launch.",
-            "setup": "! Set up SISR",
-            "finishSetup": "! Finish setup",
-            "failed": "! SISR setting failed: {error}"
+            "title": "自动启动 SISR",
+            "description": "如果 SISR（Steam 输入系统重定向器）尚未运行，则在启动游戏前启动它，以便通过 Steam 以外方式启动游戏时也能使用 Steam Input 控制器。",
+            "running": "SISR 正在运行。",
+            "notRunning": "SISR 当前未运行。启动游戏时将自动启动。",
+            "notInstalled": "未在默认安装位置找到 SISR。",
+            "setupRequired": "使用自动启动前，请先完成 SISR 首次运行时的 Steam 设置。",
+            "setup": "设置 SISR",
+            "finishSetup": "完成设置",
+            "failed": "SISR 设置失败：{error}"
         },
         "updates": {
             "title": "更新",
