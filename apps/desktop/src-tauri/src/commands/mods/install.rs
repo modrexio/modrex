@@ -525,10 +525,12 @@ fn set_activation(
         crimeboss_settings::sync_enabled(cb_path, target.is_directory_unit(), launcher, enable);
     }
 
-    match observe_placement(&active, &disabled, target) {
+    // Only a move that actually happened can be put back, so the branches that move nothing
+    // say so rather than leaving a reversal to undo something this call never did.
+    let moved = match observe_placement(&active, &disabled, target) {
         // Already where this operation wanted it. The record is what is out of step, so
         // correct that and move nothing.
-        p if p == wanted_placement(enable) => {}
+        p if p == wanted_placement(enable) => false,
         Placement::Both => {
             return Err(format!(
                 "'{}' is in both the active and disabled folders, so Modrex will not guess which copy to keep",
@@ -538,19 +540,26 @@ fn set_activation(
         Placement::Missing if !activation_is_external => {
             return Err(format!("'{}' is no longer where Modrex installed it", m.name))
         }
-        Placement::Missing => {}
-        _ => move_mod_object(from, to, target)?,
-    }
+        Placement::Missing => false,
+        _ => {
+            move_mod_object(from, to, target)?;
+            true
+        }
+    };
 
     for m in state.mods.iter_mut() {
         if m.uid == uid {
             m.enabled = enable;
         }
     }
-    if let Err(e) = save_state(state_path, &state) {
-        return Err(undo_after_failed_save(to, from, target, save_error(e)));
+    let Err(e) = save_state(state_path, &state) else {
+        return Ok(());
+    };
+    let failure = save_error(e);
+    if !moved {
+        return Err(failure);
     }
-    Ok(())
+    Err(undo_after_failed_save(to, from, target, failure))
 }
 
 fn wanted_placement(enable: bool) -> Placement {

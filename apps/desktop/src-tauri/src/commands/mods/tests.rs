@@ -5152,6 +5152,38 @@ fn installed_dir_fixture() -> (
     (tmp, game, sp, cfg)
 }
 
+/// Nothing moved here, so there is nothing to put back. Reversing anyway would carry the mod
+/// out of the location it was already sitting in before the toggle was asked for.
+#[test]
+fn a_failed_save_moves_nothing_back_when_nothing_moved() {
+    let (tmp, sp, cfg) = installed_pak_fixture();
+    let game = tmp.path().to_str().unwrap().to_string();
+    disable_mod_op(&game, &sp, "1", cfg, None).unwrap();
+    let filename = read_state(&sp).unwrap().mods[0].filename.clone();
+    // The record disagrees with the disk, which is the state an interrupted toggle leaves.
+    let mut state = read_state(&sp).unwrap();
+    state.mods[0].enabled = true;
+    save_state(&sp, &state).unwrap();
+    let mut tmp_name = sp.file_name().unwrap().to_os_string();
+    tmp_name.push(".tmp");
+    fs::create_dir_all(sp.with_file_name(tmp_name)).unwrap();
+
+    let err = disable_mod_op(&game, &sp, "1", cfg, None).unwrap_err();
+
+    assert!(
+        err.contains("could not be saved"),
+        "unexpected message: {err}"
+    );
+    assert!(
+        paks_dir(&tmp)
+            .join("disabled")
+            .join(format!("{filename}.disabled"))
+            .is_file(),
+        "the pak must stay where it already was"
+    );
+    assert!(!paks_dir(&tmp).join(&filename).exists());
+}
+
 // ── Sidecar copy and remove ───────────────────────────────────────────────
 
 #[test]
