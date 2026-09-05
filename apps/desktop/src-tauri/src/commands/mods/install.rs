@@ -699,7 +699,7 @@ fn undo_moves(moved: &[(std::path::PathBuf, std::path::PathBuf)]) -> Result<(), 
 /// game loads and cannot read. The outputs this call created are removed, leaving a
 /// destination that already existed alone, since undoing an overwrite would need a copy of
 /// what was there.
-fn copy_file_with_sidecars(
+pub(super) fn copy_file_with_sidecars(
     src: &Path,
     dest: &Path,
     main_ext: &str,
@@ -753,7 +753,7 @@ fn copy_file_with_sidecars(
 /// Used by enable and disable, which move a mod between the active and disabled locations. A
 /// companion left behind would split the mod across both, so the moves already made are put
 /// back. The failure is reported either way: a move that had to be undone did not happen.
-fn rename_with_sidecars(
+pub(super) fn rename_with_sidecars(
     from: &Path,
     to: &Path,
     main_ext: &str,
@@ -787,7 +787,7 @@ fn rename_with_sidecars(
 ///
 /// Deletion has no counterpart to undo it, so a companion that will not go is reported and
 /// the caller decides what that means for the mod's record.
-fn remove_file_with_sidecars(
+pub(super) fn remove_file_with_sidecars(
     path: &Path,
     main_ext: &str,
     companions: &[&str],

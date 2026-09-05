@@ -4654,3 +4654,547 @@ async fn staged_content_sha256_reports_an_empty_directory() {
         Err("mod directory is empty".to_string())
     );
 }
+
+// ── State load and activation failure paths ───────────────────────────────
+//
+// Every construction below uses the real filesystem. Assertions are on failure and on the
+// resulting disk and state, never on a std::io::ErrorKind: Windows and Linux return
+// different kinds for the same construction (PermissionDenied vs IsADirectory).
+
+use super::state::StateLoadError;
+
+fn state_file_with(body: &[u8]) -> (TempDir, std::path::PathBuf) {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(".modrex.json");
+    fs::write(&path, body).unwrap();
+    (dir, path)
+}
+
+const TWO_MODS: &str = r#"{"folders":[{"id":"f1","diskName":"001_favs","displayName":"Favs","priority":1,"parentId":null}],
+"mods":[{"uid":"a","id":1,"name":"Alpha","version":"1","filename":"a.pak","enabled":true,"installedAt":"t"},
+        {"uid":"b","id":2,"name":"Beta","version":"2","filename":"b.pak","enabled":true,"installedAt":"t"}]}"#;
+
+#[test]
+fn read_state_rejects_invalid_utf8() {
+    let (_dir, path) = state_file_with(&[0x7b, 0xff, 0xfe, 0x7d]);
+    assert!(matches!(
+        read_state(&path),
+        Err(StateLoadError::Unreadable(_) | StateLoadError::Invalid(_))
+    ));
+}
+
+// Indexing a JSON array by a string key yields null, so the old reader saw a state with no
+// mods and no folders here and would have written that emptiness back.
+#[test]
+fn read_state_rejects_a_wrong_top_level_shape() {
+    let (_dir, path) = state_file_with(b"[1,2,3]");
+    assert!(matches!(read_state(&path), Err(StateLoadError::Invalid(_))));
+}
+
+#[test]
+fn read_state_rejects_an_empty_file() {
+    let (_dir, path) = state_file_with(b"");
+    assert!(matches!(read_state(&path), Err(StateLoadError::Invalid(_))));
+}
+
+// A dropped entry is invisible: the interface looks normal with one mod fewer, and the next
+// save makes the loss permanent.
+#[test]
+fn read_state_fails_rather_than_dropping_one_invalid_mod() {
+    let body = TWO_MODS.replace(r#""name":"Beta","#, "");
+    let (_dir, path) = state_file_with(body.as_bytes());
+    assert!(matches!(read_state(&path), Err(StateLoadError::Invalid(_))));
+}
+
+#[test]
+fn read_state_fails_rather_than_dropping_one_invalid_folder() {
+    let body = TWO_MODS.replace(r#""displayName":"Favs","#, "");
+    let (_dir, path) = state_file_with(body.as_bytes());
+    assert!(matches!(read_state(&path), Err(StateLoadError::Invalid(_))));
+}
+
+// A newer release adding a field must not make its files unreadable by an older one.
+#[test]
+fn read_state_still_accepts_unknown_future_fields() {
+    let body = TWO_MODS.replace(r#""uid":"b","#, r#""uid":"b","futureField":{"x":1},"#);
+    let (_dir, path) = state_file_with(body.as_bytes());
+    let state = read_state(&path).unwrap();
+    assert_eq!(state.mods.len(), 2);
+    assert_eq!(state.folders.len(), 1);
+}
+
+/// The guarantee behind all of this: whatever the operation, an unreadable file comes out
+/// byte for byte as it went in, and nothing new appears beside it.
+fn assert_untouched(path: &std::path::Path, before: &[u8]) {
+    assert_eq!(
+        fs::read(path).unwrap(),
+        before,
+        "the state file must come out byte-identical"
+    );
+    let siblings: Vec<String> = fs::read_dir(path.parent().unwrap())
+        .unwrap()
+        .filter_map(|e| e.ok())
+        .map(|e| e.file_name().to_string_lossy().into_owned())
+        .filter(|n| n != ".modrex.json")
+        .collect();
+    assert!(
+        siblings.is_empty(),
+        "no recovery or temporary file may be left behind, found {siblings:?}"
+    );
+}
+
+#[test]
+fn an_unreadable_state_file_is_not_overwritten_by_an_install() {
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let cfg = engine_for_game("cb").unwrap();
+    let sp = get_state_path(game, cfg);
+    fs::create_dir_all(sp.parent().unwrap()).unwrap();
+    fs::write(&sp, b"{ not json").unwrap();
+    let before = fs::read(&sp).unwrap();
+    let (_src, pak) = iostore_mod_source();
+
+    let err = install_mod_from_path(
+        game,
+        &sp,
+        iostore_mod_data(),
+        &pak,
+        None,
+        cfg,
+        cfg.target_for(Some("paks")),
+    )
+    .unwrap_err();
+
+    assert!(!err.is_empty());
+    assert_untouched(&sp, &before);
+    // The copy must not have run either: nothing may touch the game folder on a load failure.
+    assert!(
+        !tmp.path().join("CrimeBoss/Content/Paks/~mods").exists(),
+        "no mod files may be written before the state is known to be loadable"
+    );
+}
+
+#[test]
+fn an_unreadable_state_file_is_not_overwritten_by_creating_a_folder() {
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let cfg = engine_for_game("pd2").unwrap();
+    let sp = get_state_path(game, cfg);
+    fs::create_dir_all(sp.parent().unwrap()).unwrap();
+    fs::write(&sp, b"{ not json").unwrap();
+    let before = fs::read(&sp).unwrap();
+
+    assert!(create_folder_op(game, &sp, "New Folder", None, cfg).is_err());
+    assert_untouched(&sp, &before);
+}
+
+// The reorder ops held nothing back before: with an empty state they wrote that emptiness
+// over the file, erasing every record with nothing left to rebuild from.
+#[test]
+fn an_unreadable_state_file_is_not_overwritten_by_a_reorder() {
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let cfg = engine_for_game("pd2").unwrap();
+    let sp = get_state_path(game, cfg);
+    fs::create_dir_all(sp.parent().unwrap()).unwrap();
+    fs::write(&sp, b"{ not json").unwrap();
+    let before = fs::read(&sp).unwrap();
+
+    assert!(reorder_mods_in_folder_op(game, &sp, None, &["a".into()], cfg).is_err());
+    assert_untouched(&sp, &before);
+}
+
+#[test]
+fn an_unreadable_state_file_is_not_overwritten_by_a_toggle() {
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let cfg = engine_for_game("cb").unwrap();
+    let sp = get_state_path(game, cfg);
+    fs::create_dir_all(sp.parent().unwrap()).unwrap();
+    fs::write(&sp, b"{ not json").unwrap();
+    let before = fs::read(&sp).unwrap();
+
+    assert!(disable_mod_op(game, &sp, "1", cfg, None).is_err());
+    assert!(enable_mod_op(game, &sp, "1", cfg, None).is_err());
+    assert_untouched(&sp, &before);
+}
+
+// A locked file is intact and reads again as soon as the handle goes, so treating it as
+// corruption would throw away a perfectly good mod list. Windows is where a sharing denial
+// is reproducible: Unix lets a process read a file another one holds open.
+#[cfg(windows)]
+#[test]
+fn a_locked_state_file_is_left_alone_and_reads_again_once_released() {
+    use std::os::windows::fs::OpenOptionsExt;
+    let (_dir, path) = state_file_with(TWO_MODS.as_bytes());
+    let before = fs::read(&path).unwrap();
+
+    {
+        let _held = fs::OpenOptions::new()
+            .read(true)
+            .share_mode(0)
+            .open(&path)
+            .unwrap();
+        assert!(matches!(
+            read_state(&path),
+            Err(StateLoadError::Unreadable(_))
+        ));
+    }
+
+    assert_untouched(&path, &before);
+    assert_eq!(read_state(&path).unwrap().mods.len(), 2);
+}
+
+// ── Activation transitions ────────────────────────────────────────────────
+
+/// A PAYDAY 3 pak install with its iostore companions, ready to toggle. PD3 rather than
+/// Crime Boss because Crime Boss reads activation from the game's own settings file, so its
+/// toggles deliberately tolerate files that are not where Modrex expects.
+fn installed_pak_fixture() -> (TempDir, std::path::PathBuf, &'static ModEngineConfig) {
+    let tmp = TempDir::new().unwrap();
+    let cfg = engine_for_game("pd3").unwrap();
+    let game = tmp.path().to_str().unwrap().to_string();
+    let sp = get_state_path(&game, cfg);
+    let (_src, pak) = iostore_mod_source();
+    install_mod_from_path(
+        &game,
+        &sp,
+        iostore_mod_data(),
+        &pak,
+        None,
+        cfg,
+        cfg.primary(),
+    )
+    .unwrap();
+    (tmp, sp, cfg)
+}
+
+fn paks_dir(tmp: &TempDir) -> std::path::PathBuf {
+    tmp.path().join("PAYDAY3/Content/Paks/~mods")
+}
+
+/// The disabled name a companion takes, which is not the active name with a suffix appended:
+/// the extension is swapped inside the name and the disabled suffix stays last.
+fn disabled_companion(filename: &str, ext: &str) -> String {
+    format!("{}.{ext}.disabled", filename.trim_end_matches(".pak"))
+}
+
+#[test]
+fn disable_reports_a_blocked_destination_and_changes_nothing() {
+    let (tmp, sp, cfg) = installed_pak_fixture();
+    let filename = read_state(&sp).unwrap().mods[0].filename.clone();
+    // A directory standing where the disabled pak belongs; renaming onto it fails on both
+    // platforms, whereas an empty directory destination does not.
+    let blocker = paks_dir(&tmp)
+        .join("disabled")
+        .join(format!("{filename}.disabled"));
+    fs::create_dir_all(&blocker).unwrap();
+    fs::write(blocker.join("occupied"), b"x").unwrap();
+
+    let err = disable_mod_op(tmp.path().to_str().unwrap(), &sp, "1", cfg, None).unwrap_err();
+
+    assert!(err.contains("could not move"), "unexpected message: {err}");
+    assert!(
+        paks_dir(&tmp).join(&filename).is_file(),
+        "the pak must stay put"
+    );
+    assert!(
+        read_state(&sp).unwrap().mods[0].enabled,
+        "a move that did not happen must not be recorded"
+    );
+}
+
+#[test]
+fn enable_reports_a_blocked_destination_and_changes_nothing() {
+    let (tmp, sp, cfg) = installed_pak_fixture();
+    let game = tmp.path().to_str().unwrap().to_string();
+    disable_mod_op(&game, &sp, "1", cfg, None).unwrap();
+    let filename = read_state(&sp).unwrap().mods[0].filename.clone();
+
+    let blocker = paks_dir(&tmp).join(&filename);
+    fs::create_dir_all(&blocker).unwrap();
+    fs::write(blocker.join("occupied"), b"x").unwrap();
+
+    let err = enable_mod_op(&game, &sp, "1", cfg, None).unwrap_err();
+
+    assert!(err.contains("could not move"), "unexpected message: {err}");
+    assert!(!read_state(&sp).unwrap().mods[0].enabled);
+}
+
+// A directory sitting where the pak belongs is exactly what a blocked move leaves behind.
+// Reading the path as occupied would report the mod as active when it is not.
+#[test]
+fn a_directory_standing_in_for_the_mod_is_not_read_as_the_mod() {
+    let (tmp, sp, cfg) = installed_pak_fixture();
+    let game = tmp.path().to_str().unwrap().to_string();
+    disable_mod_op(&game, &sp, "1", cfg, None).unwrap();
+    let filename = read_state(&sp).unwrap().mods[0].filename.clone();
+    fs::create_dir_all(paks_dir(&tmp).join(&filename)).unwrap();
+
+    let err = enable_mod_op(&game, &sp, "1", cfg, None).unwrap_err();
+
+    // Had the check been a bare exists(), both locations would have looked occupied and this
+    // would have been reported as a duplicate instead of an attempted move.
+    assert!(
+        err.contains("could not move"),
+        "the blocking directory was mistaken for the mod: {err}"
+    );
+}
+
+#[test]
+fn a_mod_present_in_both_locations_is_reported_rather_than_guessed() {
+    let (tmp, sp, cfg) = installed_pak_fixture();
+    let filename = read_state(&sp).unwrap().mods[0].filename.clone();
+    let disabled = paks_dir(&tmp).join("disabled");
+    fs::create_dir_all(&disabled).unwrap();
+    fs::write(disabled.join(format!("{filename}.disabled")), b"pak header").unwrap();
+
+    let err = disable_mod_op(tmp.path().to_str().unwrap(), &sp, "1", cfg, None).unwrap_err();
+
+    assert!(err.contains("both"), "unexpected message: {err}");
+    assert!(read_state(&sp).unwrap().mods[0].enabled);
+}
+
+#[test]
+fn a_mod_that_is_no_longer_on_disk_is_reported() {
+    let (tmp, sp, cfg) = installed_pak_fixture();
+    let filename = read_state(&sp).unwrap().mods[0].filename.clone();
+    fs::remove_file(paks_dir(&tmp).join(&filename)).unwrap();
+
+    let err = disable_mod_op(tmp.path().to_str().unwrap(), &sp, "1", cfg, None).unwrap_err();
+
+    assert!(err.contains("no longer"), "unexpected message: {err}");
+    assert!(read_state(&sp).unwrap().mods[0].enabled);
+}
+
+// A pak that arrives without the container its ucas and utoc hold is a mod the game mounts
+// and cannot read, so the group goes back rather than landing half-moved.
+#[test]
+fn a_companion_that_cannot_move_puts_the_whole_group_back() {
+    let (tmp, sp, cfg) = installed_pak_fixture();
+    let filename = read_state(&sp).unwrap().mods[0].filename.clone();
+    let stem = std::path::Path::new(&filename)
+        .file_stem()
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_string();
+    let disabled = paks_dir(&tmp).join("disabled");
+    fs::create_dir_all(&disabled).unwrap();
+    let blocker = disabled.join(disabled_companion(&filename, "ucas"));
+    fs::create_dir_all(&blocker).unwrap();
+    fs::write(blocker.join("occupied"), b"x").unwrap();
+
+    let err = disable_mod_op(tmp.path().to_str().unwrap(), &sp, "1", cfg, None).unwrap_err();
+
+    assert!(err.contains("could not move"), "unexpected message: {err}");
+    let active = paks_dir(&tmp);
+    assert!(active.join(&filename).is_file(), "the pak must be back");
+    assert!(
+        active.join(format!("{stem}.utoc")).is_file(),
+        "the utoc must be back"
+    );
+    assert!(
+        active.join(format!("{stem}.ucas")).is_file(),
+        "the ucas never moved"
+    );
+    assert!(read_state(&sp).unwrap().mods[0].enabled);
+}
+
+// The record cannot describe a layout it was never written to, and the scan reads a mod as
+// known wherever it sits, so the files go back rather than drifting out of step silently.
+#[test]
+fn a_failed_save_after_a_successful_move_puts_the_files_back() {
+    let (tmp, sp, cfg) = installed_pak_fixture();
+    let filename = read_state(&sp).unwrap().mods[0].filename.clone();
+    let before = fs::read(&sp).unwrap();
+    // save_state writes its temporary file first; a directory in that name's place fails the
+    // write on both platforms while leaving the real file readable.
+    let mut tmp_name = sp.file_name().unwrap().to_os_string();
+    tmp_name.push(".tmp");
+    fs::create_dir_all(sp.with_file_name(tmp_name)).unwrap();
+
+    let err = disable_mod_op(tmp.path().to_str().unwrap(), &sp, "1", cfg, None).unwrap_err();
+
+    assert!(
+        err.contains("could not be saved"),
+        "unexpected message: {err}"
+    );
+    assert!(
+        paks_dir(&tmp).join(&filename).is_file(),
+        "the pak must be back at the active location"
+    );
+    assert_eq!(
+        fs::read(&sp).unwrap(),
+        before,
+        "a complete reversal needs no second write, so the file is untouched"
+    );
+    assert!(read_state(&sp).unwrap().mods[0].enabled);
+}
+
+// The record already said what the disk now shows, so this corrects the record and moves
+// nothing. It is what makes a toggle interrupted between the move and the save recoverable
+// by repeating it.
+#[test]
+fn a_mod_already_at_the_destination_only_has_its_record_corrected() {
+    let (tmp, sp, cfg) = installed_pak_fixture();
+    let game = tmp.path().to_str().unwrap().to_string();
+    disable_mod_op(&game, &sp, "1", cfg, None).unwrap();
+    let mut state = read_state(&sp).unwrap();
+    state.mods[0].enabled = true;
+    save_state(&sp, &state).unwrap();
+
+    disable_mod_op(&game, &sp, "1", cfg, None).unwrap();
+
+    assert!(!read_state(&sp).unwrap().mods[0].enabled);
+}
+
+#[test]
+fn a_mod_with_no_companions_still_toggles() {
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap().to_string();
+    let cfg = engine_for_game("cb").unwrap();
+    let sp = get_state_path(&game, cfg);
+    let src = TempDir::new().unwrap();
+    let pak = src.path().join("Bare.pak");
+    fs::write(&pak, b"pak header").unwrap();
+    install_mod_from_path(
+        &game,
+        &sp,
+        InstalledMod {
+            filename: "Bare.pak".into(),
+            ..iostore_mod_data()
+        },
+        &pak,
+        None,
+        cfg,
+        cfg.target_for(Some("paks")),
+    )
+    .unwrap();
+
+    disable_mod_op(&game, &sp, "1", cfg, None).unwrap();
+    assert!(!read_state(&sp).unwrap().mods[0].enabled);
+    enable_mod_op(&game, &sp, "1", cfg, None).unwrap();
+    assert!(read_state(&sp).unwrap().mods[0].enabled);
+}
+
+/// A directory unit is a folder in both locations, so a folder standing at the destination is
+/// indistinguishable from the mod already being there. Saying so beats picking one.
+#[test]
+fn a_directory_unit_in_both_locations_is_reported() {
+    let (tmp, game, sp, cfg) = installed_dir_fixture();
+    let blocker = tmp.path().join("mods/disabled/DirMod");
+    fs::create_dir_all(&blocker).unwrap();
+    fs::write(blocker.join("occupied"), b"x").unwrap();
+
+    let err = disable_mod_op(&game, &sp, "1", cfg, None).unwrap_err();
+
+    assert!(err.contains("both"), "unexpected message: {err}");
+    assert!(tmp.path().join("mods/DirMod/mod.txt").is_file());
+    assert!(read_state(&sp).unwrap().mods[0].enabled);
+}
+
+/// The whole-folder move has the same reversal as a file group: the record could not be
+/// written, so the folder goes back where it was.
+#[test]
+fn a_directory_unit_move_is_put_back_when_the_save_fails() {
+    let (tmp, game, sp, cfg) = installed_dir_fixture();
+    let before = fs::read(&sp).unwrap();
+    let mut tmp_name = sp.file_name().unwrap().to_os_string();
+    tmp_name.push(".tmp");
+    fs::create_dir_all(sp.with_file_name(tmp_name)).unwrap();
+
+    let err = disable_mod_op(&game, &sp, "1", cfg, None).unwrap_err();
+
+    assert!(
+        err.contains("could not be saved"),
+        "unexpected message: {err}"
+    );
+    assert!(
+        tmp.path().join("mods/DirMod/mod.txt").is_file(),
+        "the folder must be back at the active location"
+    );
+    assert!(!tmp.path().join("mods/disabled/DirMod").exists());
+    assert_eq!(fs::read(&sp).unwrap(), before);
+    assert!(read_state(&sp).unwrap().mods[0].enabled);
+}
+
+/// A PAYDAY 2 mod folder install, the directory-unit shape.
+fn installed_dir_fixture() -> (
+    TempDir,
+    String,
+    std::path::PathBuf,
+    &'static ModEngineConfig,
+) {
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap().to_string();
+    let cfg = engine_for_game("pd2").unwrap();
+    let sp = get_state_path(&game, cfg);
+    let src = TempDir::new().unwrap();
+    fs::write(src.path().join("mod.txt"), b"{}").unwrap();
+    install_mod_from_path(
+        &game,
+        &sp,
+        InstalledMod {
+            uid: "1".into(),
+            id: 1,
+            name: "Dir Mod".into(),
+            filename: "DirMod".into(),
+            enabled: true,
+            ..InstalledMod::default()
+        },
+        src.path(),
+        None,
+        cfg,
+        cfg.primary(),
+    )
+    .unwrap();
+    (tmp, game, sp, cfg)
+}
+
+// ── Sidecar copy and remove ───────────────────────────────────────────────
+
+#[test]
+fn a_failed_companion_copy_removes_only_what_that_attempt_created() {
+    let dir = TempDir::new().unwrap();
+    let (_src, pak) = iostore_mod_source();
+    let dest = dir.path().join("TestMod.pak");
+    // The ucas destination cannot be written, so the copy of the pak beside it must not be
+    // left behind reported as a complete mod.
+    fs::create_dir_all(dir.path().join("TestMod.ucas")).unwrap();
+
+    let err =
+        super::install::copy_file_with_sidecars(&pak, &dest, "pak", &["ucas", "utoc"]).unwrap_err();
+
+    assert!(err.contains("could not copy"), "unexpected message: {err}");
+    assert!(!dest.exists(), "the partial copy must be cleaned up");
+}
+
+// Nothing puts a deleted file back, so a companion that will not go is reported rather than
+// dressed up as a reversible failure.
+#[test]
+fn a_failed_companion_removal_is_reported() {
+    let dir = TempDir::new().unwrap();
+    let pak = dir.path().join("TestMod.pak");
+    fs::write(&pak, b"pak").unwrap();
+    let stuck = dir.path().join("TestMod.ucas");
+    fs::create_dir_all(&stuck).unwrap();
+    fs::write(stuck.join("occupied"), b"x").unwrap();
+
+    let err = super::install::remove_file_with_sidecars(&pak, "pak", &["ucas"]).unwrap_err();
+
+    assert!(err.contains("TestMod.ucas"), "unexpected message: {err}");
+    assert!(!pak.exists(), "the primary was removed and stays removed");
+}
+
+#[test]
+fn a_missing_optional_companion_is_not_a_failure() {
+    let dir = TempDir::new().unwrap();
+    let pak = dir.path().join("TestMod.pak");
+    fs::write(&pak, b"pak").unwrap();
+    let dest = dir.path().join("moved.pak");
+
+    super::install::rename_with_sidecars(&pak, &dest, "pak", &["ucas", "utoc"]).unwrap();
+
+    assert!(dest.is_file());
+}
