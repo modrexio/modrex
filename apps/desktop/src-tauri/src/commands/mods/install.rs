@@ -7,7 +7,7 @@ use super::paths::{
     active_mod_path, disabled_base, disabled_mod_path, host_pack_dir, host_pack_disabled_dir,
     mods_base, resolve_host_mod_dir,
 };
-use super::state::{get_folder_path, read_state, save_state};
+use super::state::{get_folder_path, read_state, save_error, save_state};
 use super::types::{InstalledMod, ModsState};
 use super::ue4ss_modstxt;
 use super::zip::extract_dir_entry;
@@ -38,7 +38,7 @@ pub fn install_host_pack_op(
         .as_deref()
         .and_then(parse_host_location)
         .ok_or("install_host_pack: mod_data.location is not a host location")?;
-    let mut state = read_state(state_path);
+    let mut state = read_state(state_path).map_err(|e| e.to_string())?;
     let host_dir = resolve_host_mod_dir(game_path, cfg, &state.mods, &state.folders, host_id)
         .ok_or_else(|| {
             let name = host_target_by_id(host_id)
@@ -82,7 +82,8 @@ pub fn install_host_pack_op(
             folders: state.folders,
             mods: state.mods,
         },
-    );
+    )
+    .map_err(save_error)?;
     Ok(())
 }
 
@@ -101,7 +102,7 @@ pub fn install_mod_from_path(
     } else {
         None
     };
-    let state = read_state(state_path);
+    let state = read_state(state_path).map_err(|e| e.to_string())?;
     let folder_rel = get_folder_path(&state.folders, folder_id.as_deref());
 
     let dest_dir = match &folder_rel {
@@ -202,7 +203,8 @@ pub fn install_mod_from_path(
             folders: state.folders,
             mods: new_mods,
         },
-    );
+    )
+    .map_err(save_error)?;
     Ok(())
 }
 
@@ -219,7 +221,7 @@ pub fn move_crimeboss_mod_target_op(
     cfg: &ModEngineConfig,
     launcher: Option<&str>,
 ) -> Result<(), String> {
-    let state = read_state(state_path);
+    let state = read_state(state_path).map_err(|e| e.to_string())?;
     let m = state
         .mods
         .iter()
@@ -307,7 +309,7 @@ pub fn move_crimeboss_mod_target_op(
     // install_mod_from_path always installs as enabled, being written for fresh installs, so
     // restore the disabled state here if the mod wasn't active before the move.
     if !m.enabled {
-        disable_mod_op(game_path, state_path, uid, cfg, launcher);
+        disable_mod_op(game_path, state_path, uid, cfg, launcher)?;
     }
 
     // install_mod_from_path's own "existing" cleanup computes the old path inside the new
@@ -325,10 +327,15 @@ pub fn move_crimeboss_mod_target_op(
     Ok(())
 }
 
-pub fn uninstall_mod_op(game_path: &str, state_path: &Path, uid: &str, cfg: &ModEngineConfig) {
-    let mut state = read_state(state_path);
+pub fn uninstall_mod_op(
+    game_path: &str,
+    state_path: &Path,
+    uid: &str,
+    cfg: &ModEngineConfig,
+) -> Result<(), String> {
+    let mut state = read_state(state_path).map_err(|e| e.to_string())?;
     let Some(m) = state.mods.iter().find(|m| m.uid == uid).cloned() else {
-        return;
+        return Ok(());
     };
     log::info!("uninstall: {} ({})", m.name, m.uid);
     // Host packs live inside another mod's folder or in the disabled area. Remove either.
@@ -347,8 +354,8 @@ pub fn uninstall_mod_op(game_path: &str, state_path: &Path, uid: &str, cfg: &Mod
             }
         }
         state.mods.retain(|x| x.uid != uid);
-        save_state(state_path, &state);
-        return;
+        save_state(state_path, &state).map_err(save_error)?;
+        return Ok(());
     }
     let target = cfg.target_for(m.location.as_deref());
     let rel = get_folder_path(&state.folders, m.folder_id.as_deref());
@@ -372,7 +379,8 @@ pub fn uninstall_mod_op(game_path: &str, state_path: &Path, uid: &str, cfg: &Mod
         }
     }
     state.mods.retain(|m| m.uid != uid);
-    save_state(state_path, &state);
+    save_state(state_path, &state).map_err(save_error)?;
+    Ok(())
 }
 
 pub fn enable_mod_op(
@@ -381,21 +389,20 @@ pub fn enable_mod_op(
     uid: &str,
     cfg: &ModEngineConfig,
     launcher: Option<&str>,
-) {
-    let mut state = read_state(state_path);
+) -> Result<(), String> {
+    let mut state = read_state(state_path).map_err(|e| e.to_string())?;
     let Some(m) = state
         .mods
         .iter()
         .find(|m| m.uid == uid && !m.enabled)
         .cloned()
     else {
-        return;
+        return Ok(());
     };
     log::info!("enable: {} ({})", m.name, m.uid);
     // Host packs move back from our disabled area into the host mod's folder.
     if is_host_pack(&m) {
-        move_host_pack(game_path, state_path, &mut state, &m, uid, cfg, true);
-        return;
+        return move_host_pack(game_path, state_path, &mut state, &m, uid, cfg, true);
     }
     let target = cfg.target_for(m.location.as_deref());
     if target.enabled_state == Activation::Ue4ssModsTxt {
@@ -406,8 +413,8 @@ pub fn enable_mod_op(
                 m.enabled = true;
             }
         }
-        save_state(state_path, &state);
-        return;
+        save_state(state_path, &state).map_err(save_error)?;
+        return Ok(());
     }
     let rel = get_folder_path(&state.folders, m.folder_id.as_deref());
     if let Some(r) = &rel {
@@ -441,7 +448,8 @@ pub fn enable_mod_op(
             m.enabled = true;
         }
     }
-    save_state(state_path, &state);
+    save_state(state_path, &state).map_err(save_error)?;
+    Ok(())
 }
 
 /// Moves a host pack between the host mod's folder and Modrex's disabled area, then flips its
@@ -454,7 +462,7 @@ fn move_host_pack(
     uid: &str,
     cfg: &ModEngineConfig,
     enable: bool,
-) {
+) -> Result<(), String> {
     let active = host_pack_dir(game_path, cfg, &state.mods, &state.folders, m);
     let disabled = host_pack_disabled_dir(game_path, cfg, m);
     if let (Some(active), Some(disabled)) = (active, disabled) {
@@ -477,7 +485,8 @@ fn move_host_pack(
             x.enabled = enable;
         }
     }
-    save_state(state_path, state);
+    save_state(state_path, state).map_err(save_error)?;
+    Ok(())
 }
 
 pub fn disable_mod_op(
@@ -486,21 +495,20 @@ pub fn disable_mod_op(
     uid: &str,
     cfg: &ModEngineConfig,
     launcher: Option<&str>,
-) {
-    let mut state = read_state(state_path);
+) -> Result<(), String> {
+    let mut state = read_state(state_path).map_err(|e| e.to_string())?;
     let Some(m) = state
         .mods
         .iter()
         .find(|m| m.uid == uid && m.enabled)
         .cloned()
     else {
-        return;
+        return Ok(());
     };
     log::info!("disable: {} ({})", m.name, m.uid);
     // Host packs move out of the host mod's folder into our disabled area.
     if is_host_pack(&m) {
-        move_host_pack(game_path, state_path, &mut state, &m, uid, cfg, false);
-        return;
+        return move_host_pack(game_path, state_path, &mut state, &m, uid, cfg, false);
     }
     let target = cfg.target_for(m.location.as_deref());
     if target.enabled_state == Activation::Ue4ssModsTxt {
@@ -511,8 +519,8 @@ pub fn disable_mod_op(
                 m.enabled = false;
             }
         }
-        save_state(state_path, &state);
-        return;
+        save_state(state_path, &state).map_err(save_error)?;
+        return Ok(());
     }
     let rel = get_folder_path(&state.folders, m.folder_id.as_deref());
     let dis_dir = match &rel {
@@ -544,7 +552,8 @@ pub fn disable_mod_op(
             m.enabled = false;
         }
     }
-    save_state(state_path, &state);
+    save_state(state_path, &state).map_err(save_error)?;
+    Ok(())
 }
 
 /// Copies src to dest, plus any companion siblings sharing src's stem, to the matching

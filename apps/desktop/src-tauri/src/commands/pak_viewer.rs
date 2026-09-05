@@ -111,7 +111,7 @@ pub async fn list_pak_assets(
     else {
         return Err(format!("{game_id} has no configured game path"));
     };
-    let state = read_state(&get_state_path(&game_path, cfg));
+    let state = read_state(&get_state_path(&game_path, cfg)).map_err(|e| e.to_string())?;
     let Some(m) = state.mods.iter().find(|m| m.uid == uid) else {
         return Err("installed mod not found".to_string());
     };

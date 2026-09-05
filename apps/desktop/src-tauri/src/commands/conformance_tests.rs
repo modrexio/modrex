@@ -223,8 +223,9 @@ fn state_round_trips_for_every_game_and_target() {
                 folders: vec![],
                 mods: mods.clone(),
             },
-        );
-        let read = read_state(&state_path);
+        )
+        .unwrap();
+        let read = read_state(&state_path).unwrap();
 
         assert_eq!(read.mods.len(), mods.len(), "{} mod count", spec.id);
         for (got, want) in read.mods.iter().zip(&mods) {

@@ -71,16 +71,43 @@ fn probe_one(game: &'static GameDef, launcher_id: &str) -> Option<String> {
 /// save_state creates that file in whichever copy is pointed at, even briefly and even when
 /// it finds nothing: a copy that was selected by mistake for one session comes out of that
 /// looking exactly like the one being modded.
-fn tracked_mod_count(game_path: &str, cfg: &ModEngineConfig) -> usize {
-    let live = read_state(&get_state_path(game_path, cfg)).mods.len();
+/// None when a copy's mod list exists but cannot be read. Counting that as zero would let a
+/// copy holding mods lose the comparison below and hand the game to another store for good.
+fn tracked_mod_count(game_path: &str, cfg: &ModEngineConfig) -> Option<usize> {
+    let count = |path: std::path::PathBuf| match read_state(&path) {
+        Ok(state) => Some(state.mods.len()),
+        Err(e) => {
+            log::warn!("tracked mod count for {}: {e}", cfg.game_id);
+            None
+        }
+    };
+    let live = count(get_state_path(game_path, cfg))?;
     if live > 0 {
-        return live;
+        return Some(live);
     }
     // Launching without mods renames the whole folder for pak games, so until the next
     // launch restores it the list lives inside the backup instead.
-    read_state(&backup_dir(game_path, cfg.primary()).join(crate::commands::mods::STATE_FILENAME))
-        .mods
-        .len()
+    count(backup_dir(game_path, cfg.primary()).join(crate::commands::mods::STATE_FILENAME))
+}
+
+/// What the tracked-mod comparison could conclude about which copy to settle on.
+enum Pick {
+    Chosen(DetectedInstall),
+    NoneFound,
+    /// A copy's mod list could not be read, so the comparison that decides between copies is
+    /// unsound. Settling now could pin the wrong copy permanently, so this run settles
+    /// nothing and the next one decides with a readable list.
+    Unknown,
+}
+
+impl Pick {
+    #[cfg(test)]
+    fn chosen(self) -> Option<DetectedInstall> {
+        match self {
+            Pick::Chosen(install) => Some(install),
+            Pick::NoneFound | Pick::Unknown => None,
+        }
+    }
 }
 
 /// The copy to settle on when nothing has been settled yet. Copies from two stores share no
@@ -92,11 +119,18 @@ fn pick_install(
     installs: &[DetectedInstall],
     cfg: &ModEngineConfig,
     recorded: Option<&str>,
-) -> Option<DetectedInstall> {
-    let counts: Vec<usize> = installs
+) -> Pick {
+    // One copy needs no comparison, so an unreadable mod list cannot mislead it.
+    if let [only] = installs {
+        return Pick::Chosen(only.clone());
+    }
+    let Some(counts) = installs
         .iter()
         .map(|install| tracked_mod_count(&install.game_path, cfg))
-        .collect();
+        .collect::<Option<Vec<usize>>>()
+    else {
+        return Pick::Unknown;
+    };
     let most = counts.iter().copied().max().unwrap_or(0);
     let candidates: Vec<&DetectedInstall> = installs
         .iter()
@@ -109,7 +143,8 @@ fn pick_install(
         .iter()
         .find(|install| Some(install.launcher.as_str()) == recorded)
         .or_else(|| candidates.first())
-        .map(|install| (*install).clone())
+        .map(|install| Pick::Chosen((*install).clone()))
+        .unwrap_or(Pick::NoneFound)
 }
 
 // ── OS helpers ────────────────────────────────────────────────────────────────
@@ -370,12 +405,14 @@ fn resolve_install(
         Resolution::Settle => {
             let installs = probe_installs(game_def);
             match pick_install(&installs, cfg, existing.launcher.as_deref()) {
-                Some(best) => (Some(best.game_path), Some(best.launcher), true),
+                Pick::Chosen(best) => (Some(best.game_path), Some(best.launcher), true),
                 // No store has it, but a folder picked by hand is still a usable copy.
-                None if saved_path_valid(game_def, existing) => {
+                Pick::NoneFound if saved_path_valid(game_def, existing) => {
                     (existing.game_path.clone(), existing.launcher.clone(), true)
                 }
-                None => (None, None, false),
+                Pick::NoneFound => (None, None, false),
+                // Keep what is saved and stay unsettled rather than pin a guess.
+                Pick::Unknown => (existing.game_path.clone(), existing.launcher.clone(), false),
             }
         }
     }

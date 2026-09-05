@@ -2,7 +2,7 @@ use super::engine::ModEngineConfig;
 use super::naming::log_name;
 use super::naming::{apply_priority_prefix, strip_priority_prefix};
 use super::paths::{active_mod_path, disabled_base, disabled_mod_path, mods_base};
-use super::state::{get_folder_path, read_state, save_state};
+use super::state::{get_folder_path, read_state, save_error, save_state};
 use super::types::ModFolder;
 use std::fs;
 use std::path::Path;
@@ -15,7 +15,7 @@ pub fn create_folder_op(
     parent_id: Option<String>,
     cfg: &ModEngineConfig,
 ) -> Result<ModFolder, String> {
-    let mut state = read_state(state_path);
+    let mut state = read_state(state_path).map_err(|e| e.to_string())?;
 
     if let Some(existing) = state
         .folders
@@ -66,7 +66,7 @@ pub fn create_folder_op(
         parent_id,
     };
     state.folders.push(folder.clone());
-    save_state(state_path, &state);
+    save_state(state_path, &state).map_err(save_error)?;
     Ok(folder)
 }
 
@@ -76,19 +76,19 @@ pub fn move_folder_op(
     folder_id: &str,
     target_parent_id: Option<String>,
     cfg: &ModEngineConfig,
-) {
-    let mut state = read_state(state_path);
+) -> Result<(), String> {
+    let mut state = read_state(state_path).map_err(|e| e.to_string())?;
     let Some(folder) = state.folders.iter().find(|f| f.id == folder_id).cloned() else {
-        return;
+        return Ok(());
     };
     if folder.parent_id == target_parent_id {
-        return;
+        return Ok(());
     }
 
     let mut cur = target_parent_id.clone();
     while let Some(ref cid) = cur {
         if cid == folder_id {
-            return;
+            return Ok(());
         }
         cur = state
             .folders
@@ -160,7 +160,8 @@ pub fn move_folder_op(
         }
     }
 
-    save_state(state_path, &state);
+    save_state(state_path, &state).map_err(save_error)?;
+    Ok(())
 }
 
 pub fn rename_folder_op(
@@ -169,10 +170,10 @@ pub fn rename_folder_op(
     folder_id: &str,
     display_name: &str,
     cfg: &ModEngineConfig,
-) {
-    let mut state = read_state(state_path);
+) -> Result<(), String> {
+    let mut state = read_state(state_path).map_err(|e| e.to_string())?;
     let Some(folder) = state.folders.iter().find(|f| f.id == folder_id).cloned() else {
-        return;
+        return Ok(());
     };
 
     let slug: String = display_name
@@ -229,7 +230,8 @@ pub fn rename_folder_op(
             f.disk_name = new_disk_name.clone();
         }
     }
-    save_state(state_path, &state);
+    save_state(state_path, &state).map_err(save_error)?;
+    Ok(())
 }
 
 pub fn delete_folder_op(
@@ -237,10 +239,10 @@ pub fn delete_folder_op(
     state_path: &Path,
     folder_id: &str,
     cfg: &ModEngineConfig,
-) {
-    let mut state = read_state(state_path);
+) -> Result<(), String> {
+    let mut state = read_state(state_path).map_err(|e| e.to_string())?;
     let Some(folder) = state.folders.iter().find(|f| f.id == folder_id).cloned() else {
-        return;
+        return Ok(());
     };
 
     let target_parent_id = folder.parent_id.clone();
@@ -388,5 +390,6 @@ pub fn delete_folder_op(
     }
 
     state.folders.retain(|f| f.id != folder_id);
-    save_state(state_path, &state);
+    save_state(state_path, &state).map_err(save_error)?;
+    Ok(())
 }

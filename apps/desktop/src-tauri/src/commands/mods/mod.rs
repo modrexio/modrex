@@ -26,6 +26,7 @@ pub use self::engine::{backup_dir, engine_for_game, ModEngineConfig, ModUnit, Sc
 pub use self::identity::IdentityEvidence;
 pub use self::install::install_mod_from_path;
 pub use self::paths::{find_untracked_host_packs, find_untracked_paks, get_state_path, mods_base};
+use self::state::save_error;
 pub use self::state::{get_folder_path, read_state, reconcile_state};
 pub use self::types::{
     InstalledMod, InstalledResponse, ModFolder, ModsState, TopLevelItem, UpdateStatus,
@@ -175,7 +176,7 @@ pub async fn get_installed(app: AppHandle, game_id: String) -> Result<InstalledR
     let state_path = get_state_path(&game_path, cfg);
     let mods_hidden = backup_dir(&game_path, cfg.primary()).exists();
 
-    let mut state = reconcile_state(&game_path, &state_path, cfg);
+    let mut state = reconcile_state(&game_path, &state_path, cfg).map_err(|e| e.to_string())?;
     let any_upgraded = upgrade_negative_ids(&app, &game_path, cfg, &state.folders, &mut state.mods);
     regroup_negative_ids_by_name_suffix(&mut state.mods);
 
@@ -254,7 +255,7 @@ pub async fn get_installed(app: AppHandle, game_id: String) -> Result<InstalledR
             index.as_ref(),
         );
         if any_upgraded || discovered_hosts || cb_resynced || identified {
-            save_state(&state_path, &state);
+            save_state(&state_path, &state).map_err(save_error)?;
         }
         return Ok(InstalledResponse {
             mods: state.mods,
@@ -288,13 +289,15 @@ pub async fn get_installed(app: AppHandle, game_id: String) -> Result<InstalledR
         );
         let (mods, any_checked) = mark_archive_files(&game_path, &state.folders, state.mods, cfg);
         if any_checked || any_upgraded || discovered_hosts || cb_resynced || identified {
-            save_state(
+            if let Err(e) = save_state(
                 &state_path,
                 &ModsState {
                     folders: state.folders.clone(),
                     mods: mods.clone(),
                 },
-            );
+            ) {
+                log::warn!("get_installed: could not persist refreshed identities: {e}");
+            }
         }
         return Ok(InstalledResponse {
             mods,
@@ -327,13 +330,15 @@ pub async fn get_installed(app: AppHandle, game_id: String) -> Result<InstalledR
     let mut mods = mods;
     identity::ensure_identities(&game_path, cfg, &folders, &mut mods, index.as_ref());
     let (mods, _) = mark_archive_files(&game_path, &folders, mods, cfg);
-    save_state(
+    if let Err(e) = save_state(
         &state_path,
         &ModsState {
             folders: folders.clone(),
             mods: mods.clone(),
         },
-    );
+    ) {
+        log::warn!("get_installed: could not persist the scanned state: {e}");
+    }
     Ok(InstalledResponse {
         mods,
         folders,
@@ -443,7 +448,10 @@ pub async fn install_mod(
         // sources::source_native_local_id) and is never compared against this directly.
         let remote_id_str = remote_id.to_string();
         let sp = get_state_path(&game_path, cfg);
-        let saved = read_state(&sp);
+        let saved = read_state(&sp).map_err(|e| {
+            log::warn!("install: {e}");
+            e.to_string()
+        })?;
         let existing_entry = saved.mods.iter().find(|m| m.uid == uid).or_else(|| {
             if remote_id <= 0 {
                 return None;
@@ -494,7 +502,7 @@ pub async fn install_mod(
                 .filter(|m| m.remote_id.as_deref() == Some(remote_id_str.as_str()))
                 .collect();
             if same.len() == 1 {
-                uninstall_mod_op(&game_path, &sp, &same[0].uid.clone(), cfg);
+                uninstall_mod_op(&game_path, &sp, &same[0].uid.clone(), cfg)?;
             }
         }
 
@@ -527,7 +535,7 @@ pub async fn install_mod(
             let settings = read_settings(&app);
             let launcher_str =
                 game_settings(&settings, cfg.game_id).and_then(|gs| gs.launcher.clone());
-            disable_mod_op(&game_path, &sp, &uid, cfg, launcher_str.as_deref());
+            disable_mod_op(&game_path, &sp, &uid, cfg, launcher_str.as_deref())?;
         }
 
         register_download(&app, file_id).await;
@@ -604,7 +612,10 @@ pub async fn install_file(
         let uid = file_id.to_string();
         let mod_id_str = mod_id.to_string();
         let sp = get_state_path(&game_path, cfg);
-        let saved = read_state(&sp);
+        let saved = read_state(&sp).map_err(|e| {
+            log::warn!("install: {e}");
+            e.to_string()
+        })?;
         let existing_entry = saved.mods.iter().find(|m| m.uid == uid).or_else(|| {
             if mod_id <= 0 {
                 return None;
@@ -751,7 +762,10 @@ pub(crate) async fn install_nexus_download(
         let sha256 = staged_content_sha256(target, &tmp).await?;
         let uid = format!("nexus:{nexus_mod_id}:{nexus_file_id}");
         let sp = get_state_path(game_path, cfg);
-        let saved = read_state(&sp);
+        let saved = read_state(&sp).map_err(|e| {
+            log::warn!("install: {e}");
+            e.to_string()
+        })?;
         let existing = saved.mods.iter().find(|m| m.uid == uid);
         let folder_id = existing.and_then(|e| e.folder_id.clone());
         let filename = existing.map(|m| m.filename.clone()).unwrap_or_else(|| {
@@ -1199,7 +1213,10 @@ pub async fn install_from_zip_entry(
         }
         let sha256 = staged_content_sha256(target, &ext).await?;
         let sp = get_state_path(&game_path, cfg);
-        let saved = read_state(&sp);
+        let saved = read_state(&sp).map_err(|e| {
+            log::warn!("install: {e}");
+            e.to_string()
+        })?;
         let mod_id_str = mod_id.to_string();
 
         // Reuse existing uid by SHA256 so a reinstall moves the entry in-place rather than duplicating.
@@ -1213,7 +1230,7 @@ pub async fn install_from_zip_entry(
             stale_entry_for_zip_install(&saved.mods, &uid, mod_id, &mod_id_str, file_id)
         {
             let stale_uid = stale.uid.clone();
-            uninstall_mod_op(&game_path, &sp, &stale_uid, cfg);
+            uninstall_mod_op(&game_path, &sp, &stale_uid, cfg)?;
         }
 
         // Never inherit folderId from existing entries; callers always supply the target folder.
@@ -1304,7 +1321,10 @@ pub async fn install_cb_flat_archive(
             .ok_or_else(|| "mod directory is empty".to_string())?;
         let sha256 = compute_sha256(&hash_path).await?;
         let sp = get_state_path(&game_path, cfg);
-        let saved = read_state(&sp);
+        let saved = read_state(&sp).map_err(|e| {
+            log::warn!("install: {e}");
+            e.to_string()
+        })?;
         let uid = format!("{}_flat", file_id);
         let sha256_match = saved
             .mods
@@ -1474,7 +1494,7 @@ pub async fn uninstall_mod(
 ) -> Result<(), String> {
     let _state_guard = lock_game_state(&app, game_id.as_str()).await;
     let cfg = engine_for_game(game_id.as_str())?;
-    uninstall_mod_op(&game_path, &get_state_path(&game_path, cfg), &uid, cfg);
+    uninstall_mod_op(&game_path, &get_state_path(&game_path, cfg), &uid, cfg)?;
     crate::commands::analytics::track(
         &app,
         "mod_uninstalled",
@@ -1501,7 +1521,7 @@ pub async fn enable_mod(
         &uid,
         cfg,
         launcher.as_deref(),
-    );
+    )?;
     crate::commands::analytics::track(
         &app,
         "mod_enabled",
@@ -1528,7 +1548,7 @@ pub async fn disable_mod(
         &uid,
         cfg,
         launcher.as_deref(),
-    );
+    )?;
     crate::commands::analytics::track(
         &app,
         "mod_disabled",
@@ -1553,7 +1573,7 @@ pub async fn identify_mod_via_nexus_content(
     let _state_guard = lock_game_state(&app, game_id.as_str()).await;
     let cfg = engine_for_game(game_id.as_str())?;
     let state_path = get_state_path(&game_path, cfg);
-    let mut state = read_state(&state_path);
+    let mut state = read_state(&state_path).map_err(|e| e.to_string())?;
 
     let Some(m) = state.mods.iter_mut().find(|m| m.uid == uid) else {
         return Err(format!(
@@ -1573,7 +1593,7 @@ pub async fn identify_mod_via_nexus_content(
     .await?;
 
     if outcome != nexus_content::NexusContentIdentifyOutcome::Skipped {
-        save_state(&state_path, &state);
+        save_state(&state_path, &state).map_err(save_error)?;
     }
     Ok(outcome)
 }
@@ -1623,7 +1643,7 @@ pub async fn reorder_in_folder(
         folder_id.as_deref(),
         &ordered_uids,
         cfg,
-    );
+    )?;
     Ok(())
 }
 
@@ -1646,7 +1666,7 @@ pub async fn move_to_folder(
         target_folder_id,
         target_position,
         cfg,
-    );
+    )?;
     Ok(())
 }
 
@@ -1667,7 +1687,7 @@ pub async fn reorder_children(
         parent_id.as_deref(),
         &items,
         cfg,
-    );
+    )?;
     Ok(())
 }
 
@@ -1688,7 +1708,7 @@ pub async fn move_folder(
         &folder_id,
         target_parent_id,
         cfg,
-    );
+    )?;
     Ok(())
 }
 
@@ -1729,7 +1749,7 @@ pub async fn rename_folder(
         &folder_id,
         &display_name,
         cfg,
-    );
+    )?;
     Ok(())
 }
 
@@ -1748,7 +1768,7 @@ pub async fn delete_folder(
         &get_state_path(&game_path, cfg),
         &folder_id,
         cfg,
-    );
+    )?;
     Ok(())
 }
 

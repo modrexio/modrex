@@ -37,69 +37,113 @@ fn migrate_version_sentinels(m: &mut InstalledMod) {
     m.version = String::new();
 }
 
-pub fn read_state(state_path: &Path) -> ModsState {
-    if !state_path.exists() {
-        return ModsState::default();
-    }
-    let content = fs::read_to_string(state_path).unwrap_or_default();
-    let parsed: serde_json::Value = match serde_json::from_str(&content) {
-        Ok(v) => v,
-        Err(_) => return ModsState::default(),
-    };
-
-    let folders = parsed["folders"]
-        .as_array()
-        .map(|arr| {
-            arr.iter()
-                .filter_map(|v| serde_json::from_value(v.clone()).ok())
-                .collect()
-        })
-        .unwrap_or_default();
-
-    let mods = parsed["mods"]
-        .as_array()
-        .map(|arr| {
-            arr.iter()
-                .filter_map(|v| {
-                    let mut m: InstalledMod = serde_json::from_value(v.clone()).ok()?;
-                    if m.uid.is_empty() {
-                        m.uid = make_uid(m.file_id, &m.filename);
-                    }
-                    migrate_version_sentinels(&mut m);
-                    Some(m)
-                })
-                .collect()
-        })
-        .unwrap_or_default();
-
-    ModsState { folders, mods }
+/// Why a state file could not be loaded.
+///
+/// The two cases need opposite handling and must not be collapsed. An unreadable file is
+/// intact and often readable again moments later (a virus scanner or another process holding
+/// it), so nothing may replace it and no recovery copy may be made. Invalid content will not
+/// repair itself, but replacing it with a reconstruction still loses the folders, ordering and
+/// per-mod metadata only that file holds. Either way the file stays exactly where it is.
+///
+/// Messages carry no path: they reach the interface through command errors.
+#[derive(Debug)]
+pub enum StateLoadError {
+    Unreadable(std::io::Error),
+    Invalid(String),
 }
 
-pub fn save_state(state_path: &Path, state: &ModsState) {
-    let Some(parent) = state_path.parent() else {
-        return;
-    };
-    if let Err(e) = fs::create_dir_all(parent) {
-        log::warn!("save_state: create_dir_all {parent:?}: {e}");
-        return;
+impl std::fmt::Display for StateLoadError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Unreadable(e) => write!(f, "the installed-mod list could not be read: {e}"),
+            Self::Invalid(reason) => write!(f, "the installed-mod list is not valid: {reason}"),
+        }
     }
+}
+
+/// Deserializes one declared collection, rejecting the whole load if any element fails.
+///
+/// An absent key stays an empty list because a state file has always been allowed to omit
+/// one. A present key that is not an array, or an element that does not fit the current
+/// schema, invalidates the load: dropping the element instead would silently discard a mod
+/// or a folder and the next save would persist that loss.
+fn read_collection<T: serde::de::DeserializeOwned>(
+    object: &serde_json::Map<String, serde_json::Value>,
+    key: &str,
+) -> Result<Vec<T>, StateLoadError> {
+    let Some(value) = object.get(key) else {
+        return Ok(Vec::new());
+    };
+    let Some(array) = value.as_array() else {
+        return Err(StateLoadError::Invalid(format!("'{key}' is not a list")));
+    };
+    array
+        .iter()
+        .enumerate()
+        .map(|(i, v)| {
+            serde_json::from_value(v.clone()).map_err(|e| {
+                StateLoadError::Invalid(format!("{key} entry {} is not valid: {e}", i + 1))
+            })
+        })
+        .collect()
+}
+
+pub fn read_state(state_path: &Path) -> Result<ModsState, StateLoadError> {
+    // Taken from the read itself rather than a separate exists() check, so a file appearing or
+    // vanishing between the two cannot be mistaken for the other case.
+    let content = match fs::read_to_string(state_path) {
+        Ok(content) => content,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(ModsState::default()),
+        Err(e) => return Err(StateLoadError::Unreadable(e)),
+    };
+    let parsed: serde_json::Value =
+        serde_json::from_str(&content).map_err(|e| StateLoadError::Invalid(e.to_string()))?;
+    let Some(object) = parsed.as_object() else {
+        return Err(StateLoadError::Invalid(
+            "the top level is not a JSON object".to_string(),
+        ));
+    };
+
+    let folders = read_collection(object, "folders")?;
+    let mut mods: Vec<InstalledMod> = read_collection(object, "mods")?;
+    for m in mods.iter_mut() {
+        if m.uid.is_empty() {
+            m.uid = make_uid(m.file_id, &m.filename);
+        }
+        migrate_version_sentinels(m);
+    }
+
+    Ok(ModsState { folders, mods })
+}
+
+/// One wording for a failed persist, so the interface reads the same wherever it surfaces.
+/// Carries no path, for the reason given on StateLoadError.
+pub fn save_error(e: std::io::Error) -> String {
+    format!("the installed-mod list could not be saved: {e}")
+}
+
+pub fn save_state(state_path: &Path, state: &ModsState) -> std::io::Result<()> {
+    let parent = state_path.parent().ok_or_else(|| {
+        std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "the mod list path has no parent directory",
+        )
+    })?;
+    fs::create_dir_all(parent)?;
+    let body = serde_json::to_string_pretty(state)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
     let mut tmp_name = state_path
         .file_name()
         .unwrap_or_else(|| std::ffi::OsStr::new("state"))
         .to_os_string();
     tmp_name.push(".tmp");
     let tmp = state_path.with_file_name(tmp_name);
-    if let Err(e) = fs::write(
-        &tmp,
-        serde_json::to_string_pretty(state).unwrap_or_default(),
-    ) {
-        log::warn!("save_state: write failed: {e}");
-        return;
-    }
+    fs::write(&tmp, body)?;
     if let Err(e) = fs::rename(&tmp, state_path) {
-        log::warn!("save_state: rename failed: {e}");
         let _ = fs::remove_file(&tmp);
+        return Err(e);
     }
+    Ok(())
 }
 
 fn compact_folder_priorities(
@@ -190,7 +234,11 @@ fn compact_folder_priorities(
     (compacted, any_changed)
 }
 
-pub fn reconcile_state(game_path: &str, state_path: &Path, cfg: &ModEngineConfig) -> ModsState {
+pub fn reconcile_state(
+    game_path: &str,
+    state_path: &Path,
+    cfg: &ModEngineConfig,
+) -> Result<ModsState, StateLoadError> {
     let bak = backup_dir(game_path, cfg.primary());
     if bak.exists() {
         if cfg.primary().is_directory_unit() {
@@ -207,7 +255,7 @@ pub fn reconcile_state(game_path: &str, state_path: &Path, cfg: &ModEngineConfig
         let _ = fs::rename(&legacy, state_path);
     }
 
-    let mut state = read_state(state_path);
+    let mut state = read_state(state_path)?;
 
     // Recover source-native identity for entries written before remote_id existed:
     // their uid already encodes it as {source}:{mod_id}:{file_id} (the nexus install
@@ -431,13 +479,19 @@ pub fn reconcile_state(game_path: &str, state_path: &Path, cfg: &ModEngineConfig
         || identity_migrated
         || identity_id_repaired
     {
-        save_state(
+        // Class C: everything written here is re-derived on the next load, and the folder
+        // renames compact_folder_priorities already performed converge to the same names on
+        // that load. Failing the whole read over a repeatable write would take the installed
+        // list down for a loss that costs nothing.
+        if let Err(e) = save_state(
             state_path,
             &ModsState {
                 folders: final_folders.clone(),
                 mods: reconciled.clone(),
             },
-        );
+        ) {
+            log::warn!("reconcile_state: could not persist the reconciled state: {e}");
+        }
     }
 
     if reconciled.iter().any(|m| m.priority.is_none()) {
@@ -463,21 +517,24 @@ pub fn reconcile_state(game_path: &str, state_path: &Path, cfg: &ModEngineConfig
                 m
             })
             .collect();
-        save_state(
+        // Class C: the priority backfill recomputes identically on the next load.
+        if let Err(e) = save_state(
             state_path,
             &ModsState {
                 folders: final_folders.clone(),
                 mods: migrated.clone(),
             },
-        );
-        return ModsState {
+        ) {
+            log::warn!("reconcile_state: could not persist the priority backfill: {e}");
+        }
+        return Ok(ModsState {
             folders: final_folders,
             mods: migrated,
-        };
+        });
     }
 
-    ModsState {
+    Ok(ModsState {
         folders: final_folders,
         mods: reconciled,
-    }
+    })
 }

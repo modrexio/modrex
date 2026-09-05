@@ -318,7 +318,7 @@ fn old_state_without_the_new_fields_loads_enriches_saves_and_reloads() {
             "sha256":"b021ffae","updateStatus":"unknown"}"#,
     );
 
-    let mut state = read_state(&state_path);
+    let mut state = read_state(&state_path).unwrap();
     assert_eq!(state.mods[0].identity, None);
 
     let cfg = engine_for_game("pd2").unwrap();
@@ -330,9 +330,9 @@ fn old_state_without_the_new_fields_loads_enriches_saves_and_reloads() {
         None,
     );
     assert!(changed);
-    save_state(&state_path, &state);
+    save_state(&state_path, &state).unwrap();
 
-    let reloaded = read_state(&state_path);
+    let reloaded = read_state(&state_path).unwrap();
     let identity = reloaded.mods[0].identity.as_ref().unwrap();
     assert_eq!(identity.namespace, "pd2mods.z77.fr");
     assert_eq!(identity.key, "Celer");
@@ -350,7 +350,10 @@ fn an_identity_whose_namespace_was_still_a_key_prefix_still_loads() {
             "identity":{"key":"github:vojin154/repo#Check For Wallbangs","evidence":"repository"}}"#,
     );
 
-    let identity = read_state(&state_path).mods[0].identity.clone().unwrap();
+    let identity = read_state(&state_path).unwrap().mods[0]
+        .identity
+        .clone()
+        .unwrap();
 
     assert_eq!(identity.namespace, "github");
     assert_eq!(identity.key, "vojin154/repo#Check For Wallbangs");
@@ -367,7 +370,10 @@ fn a_persisted_confidence_never_overrides_the_evidence_it_came_from() {
                         "evidence":"nameAuthor","confidence":"exact"}}"#,
     );
 
-    let identity = read_state(&state_path).mods[0].identity.clone().unwrap();
+    let identity = read_state(&state_path).unwrap().mods[0]
+        .identity
+        .clone()
+        .unwrap();
 
     assert_eq!(identity.confidence, IdentityConfidence::Candidate);
 }
