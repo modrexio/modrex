@@ -283,13 +283,17 @@ export const api = {
     },
 
     // ── Installed mods ─────────────────────────────────────────────────────────
-    getInstalled(
-        gameId: string
-    ): Promise<{ mods: InstalledMod[]; folders: ModFolder[]; modsHidden: boolean }> {
+    getInstalled(gameId: string): Promise<{
+        mods: InstalledMod[]
+        folders: ModFolder[]
+        modsHidden: boolean
+        stateUnreadable: boolean
+    }> {
         return commands.getInstalled(gameId) as unknown as Promise<{
             mods: InstalledMod[]
             folders: ModFolder[]
             modsHidden: boolean
+            stateUnreadable: boolean
         }>
     },
     async openModsFolder(gameId: string): Promise<void> {

@@ -112,6 +112,7 @@ export default function App() {
     const [readyGames, setReadyGames] = useState<ReadonlySet<GameId>>(new Set())
     const startupPending = useRef(true)
     const [modsHidden, setModsHidden] = useState(false)
+    const [stateUnreadable, setStateUnreadable] = useState(false)
     const [restoreError, setRestoreError] = useState<string | null>(null)
     const [update, setUpdate] = useState<{
         version: string
@@ -179,7 +180,17 @@ export default function App() {
 
     // undefined = not yet loaded.
     const installedCache = useRef<
-        Partial<Record<GameId, { mods: InstalledMod[]; folders: ModFolder[]; modsHidden: boolean }>>
+        Partial<
+            Record<
+                GameId,
+                {
+                    mods: InstalledMod[]
+                    folders: ModFolder[]
+                    modsHidden: boolean
+                    stateUnreadable: boolean
+                }
+            >
+        >
     >({})
 
     const refreshGamePath = useCallback(async () => {
@@ -239,10 +250,12 @@ export default function App() {
                 setInstalled(cachedInstalled.mods)
                 setFolders(cachedInstalled.folders)
                 setModsHidden(cachedInstalled.modsHidden)
+                setStateUnreadable(cachedInstalled.stateUnreadable)
             } else {
                 setInstalled([])
                 setFolders([])
                 setModsHidden(false)
+                setStateUnreadable(false)
             }
             setView(dest)
         })
@@ -265,6 +278,7 @@ export default function App() {
             setInstalled(result.mods)
             setFolders(result.folders)
             setModsHidden(result.modsHidden)
+            setStateUnreadable(result.stateUnreadable)
             setReadyGames((prev) => (prev.has(game) ? prev : new Set(prev).add(game)))
         } finally {
             isRefreshingInstalled.current = false
@@ -559,6 +573,11 @@ export default function App() {
                         onDismissUpdate={() => setUpdate(null)}
                         hideGameActions={!gameInScope}
                     />
+                    {gameInScope && stateUnreadable && (
+                        <div className="shrink-0 px-4 py-2 bg-warning/10 border-b border-warning/30 text-xs text-warning">
+                            {t('app.stateUnreadable')}
+                        </div>
+                    )}
                     {gameInScope && modsHidden && (
                         <div className="shrink-0 flex items-center justify-between gap-4 px-4 py-2 bg-warning/10 border-b border-warning/30 text-xs text-warning">
                             <span>{t('app.modsHidden')}</span>

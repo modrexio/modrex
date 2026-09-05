@@ -150,6 +150,8 @@ export function InstalledPage({
         reinstallProgress,
         reinstallError,
         clearReinstallError,
+        modActionError,
+        clearModActionError,
         refreshing,
         zipPickerData,
         clearZipPickerData,
@@ -443,6 +445,28 @@ export function InstalledPage({
                     )}
                 </div>
 
+                {modActionError && (
+                    <div className="px-6 py-2 shrink-0 flex items-center justify-between gap-3 bg-danger/10 border-b border-danger/30 text-danger text-xs">
+                        <span className="truncate">{modActionError}</span>
+                        <button
+                            onClick={clearModActionError}
+                            className="shrink-0 hover:opacity-70 transition-opacity"
+                        >
+                            <X className="w-3.5 h-3.5" />
+                        </button>
+                    </div>
+                )}
+                {folderActions.folderActionError && (
+                    <div className="px-6 py-2 shrink-0 flex items-center justify-between gap-3 bg-danger/10 border-b border-danger/30 text-danger text-xs">
+                        <span className="truncate">{folderActions.folderActionError}</span>
+                        <button
+                            onClick={folderActions.clearFolderActionError}
+                            className="shrink-0 hover:opacity-70 transition-opacity"
+                        >
+                            <X className="w-3.5 h-3.5" />
+                        </button>
+                    </div>
+                )}
                 {reinstallError && (
                     <div className="px-6 py-2 shrink-0 flex items-center justify-between gap-3 bg-danger/10 border-b border-danger/30 text-danger text-xs">
                         <span className="truncate">

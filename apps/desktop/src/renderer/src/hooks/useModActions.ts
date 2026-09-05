@@ -8,11 +8,14 @@ import { handleInstallOutcome } from '../installSentinels'
 import { entryFilename, stripPriorityPrefix } from './installedUtils'
 import { t } from '../i18n'
 import { api } from '../api'
+import { attemptAll, describeFailures } from '../bulkAction'
 
 export type IdentifyNexusResult = { kind: 'done' | 'error'; message: string }
 
 export interface ModActions {
     loadingMod: string | null
+    modActionError: string | null
+    clearModActionError: () => void
     reinstallProgress: { downloaded: number; total: number } | null
     reinstallError: string | null
     clearReinstallError: () => void
@@ -47,6 +50,7 @@ export function useModActions(
     activeGame: GameId
 ): ModActions {
     const [loadingMod, setLoadingMod] = useState<string | null>(null)
+    const [modActionError, setModActionError] = useState<string | null>(null)
     const [reinstallProgress, setReinstallProgress] = useState<{
         downloaded: number
         total: number
@@ -89,37 +93,31 @@ export function useModActions(
         }
     }
 
-    async function handleUninstall(mods: InstalledMod[]) {
+    // Every one of these attempts all of its mods, then refreshes once whether or not any
+    // failed, so the list shows what is actually on disk rather than what was asked for.
+    async function runOnEach(mods: InstalledMod[], run: (m: InstalledMod) => Promise<void>) {
         if (!gamePath) return
         setLoadingMod(mods[0].uid)
+        setModActionError(null)
         try {
-            for (const m of mods) await api.uninstallMod(m.uid, gamePath, activeGame)
-            await onRefreshInstalled()
+            const failures = await attemptAll(mods, (m) => m.name, run)
+            setModActionError(describeFailures(failures))
         } finally {
+            await onRefreshInstalled()
             setLoadingMod(null)
         }
+    }
+
+    async function handleUninstall(mods: InstalledMod[]) {
+        await runOnEach(mods, (m) => api.uninstallMod(m.uid, gamePath!, activeGame))
     }
 
     async function handleEnable(mods: InstalledMod[]) {
-        if (!gamePath) return
-        setLoadingMod(mods[0].uid)
-        try {
-            for (const m of mods) await api.enableMod(m.uid, gamePath, activeGame)
-            await onRefreshInstalled()
-        } finally {
-            setLoadingMod(null)
-        }
+        await runOnEach(mods, (m) => api.enableMod(m.uid, gamePath!, activeGame))
     }
 
     async function handleDisable(mods: InstalledMod[]) {
-        if (!gamePath) return
-        setLoadingMod(mods[0].uid)
-        try {
-            for (const m of mods) await api.disableMod(m.uid, gamePath, activeGame)
-            await onRefreshInstalled()
-        } finally {
-            setLoadingMod(null)
-        }
+        await runOnEach(mods, (m) => api.disableMod(m.uid, gamePath!, activeGame))
     }
 
     // Tier 3 identification (see nexus_content.rs): a miss or an ambiguous result is
@@ -277,6 +275,8 @@ export function useModActions(
 
     return {
         loadingMod,
+        modActionError,
+        clearModActionError: () => setModActionError(null),
         reinstallProgress,
         reinstallError,
         clearReinstallError: () => setReinstallError(null),
