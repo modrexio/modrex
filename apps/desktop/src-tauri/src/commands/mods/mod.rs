@@ -169,6 +169,7 @@ pub async fn get_installed(app: AppHandle, game_id: String) -> Result<InstalledR
             mods: vec![],
             folders: vec![],
             mods_hidden: false,
+            state_unreadable: false,
         });
     };
 
@@ -176,7 +177,16 @@ pub async fn get_installed(app: AppHandle, game_id: String) -> Result<InstalledR
     let state_path = get_state_path(&game_path, cfg);
     let mods_hidden = backup_dir(&game_path, cfg.primary()).exists();
 
-    let mut state = reconcile_state(&game_path, &state_path, cfg).map_err(|e| e.to_string())?;
+    let (mut state, state_unreadable) = match reconcile_state(&game_path, &state_path, cfg) {
+        Ok(state) => (state, false),
+        // Rebuilding from a scan is useful; writing that rebuild over a file Modrex could not
+        // read would replace the folders, ordering and per-mod metadata only that file holds.
+        // So the scan still runs and every save below is skipped until it loads again.
+        Err(e) => {
+            log::warn!("get_installed: {e}");
+            (ModsState::default(), true)
+        }
+    };
     let any_upgraded = upgrade_negative_ids(&app, &game_path, cfg, &state.folders, &mut state.mods);
     regroup_negative_ids_by_name_suffix(&mut state.mods);
 
@@ -254,13 +264,16 @@ pub async fn get_installed(app: AppHandle, game_id: String) -> Result<InstalledR
             &mut state.mods,
             index.as_ref(),
         );
-        if any_upgraded || discovered_hosts || cb_resynced || identified {
-            save_state(&state_path, &state).map_err(save_error)?;
+        if !state_unreadable && (any_upgraded || discovered_hosts || cb_resynced || identified) {
+            if let Err(e) = save_state(&state_path, &state) {
+                log::warn!("get_installed: could not persist refreshed identities: {e}");
+            }
         }
         return Ok(InstalledResponse {
             mods: state.mods,
             folders: state.folders,
             mods_hidden: true,
+            state_unreadable,
         });
     }
 
@@ -288,7 +301,9 @@ pub async fn get_installed(app: AppHandle, game_id: String) -> Result<InstalledR
             index.as_ref(),
         );
         let (mods, any_checked) = mark_archive_files(&game_path, &state.folders, state.mods, cfg);
-        if any_checked || any_upgraded || discovered_hosts || cb_resynced || identified {
+        if !state_unreadable
+            && (any_checked || any_upgraded || discovered_hosts || cb_resynced || identified)
+        {
             if let Err(e) = save_state(
                 &state_path,
                 &ModsState {
@@ -303,6 +318,7 @@ pub async fn get_installed(app: AppHandle, game_id: String) -> Result<InstalledR
             mods,
             folders: state.folders,
             mods_hidden: false,
+            state_unreadable,
         });
     }
 
@@ -330,19 +346,22 @@ pub async fn get_installed(app: AppHandle, game_id: String) -> Result<InstalledR
     let mut mods = mods;
     identity::ensure_identities(&game_path, cfg, &folders, &mut mods, index.as_ref());
     let (mods, _) = mark_archive_files(&game_path, &folders, mods, cfg);
-    if let Err(e) = save_state(
-        &state_path,
-        &ModsState {
-            folders: folders.clone(),
-            mods: mods.clone(),
-        },
-    ) {
-        log::warn!("get_installed: could not persist the scanned state: {e}");
+    if !state_unreadable {
+        if let Err(e) = save_state(
+            &state_path,
+            &ModsState {
+                folders: folders.clone(),
+                mods: mods.clone(),
+            },
+        ) {
+            log::warn!("get_installed: could not persist the scanned state: {e}");
+        }
     }
     Ok(InstalledResponse {
         mods,
         folders,
         mods_hidden: false,
+        state_unreadable,
     })
 }
 

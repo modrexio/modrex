@@ -520,12 +520,26 @@ export type InstalledResponse_Deserialize = {
 	mods: InstalledMod_Deserialize[],
 	folders: ModFolder[],
 	modsHidden: boolean,
+	/**
+	 *  The mod list on disk could not be loaded, so this response was rebuilt from a scan and
+	 *  nothing was written back. Everything shown is real, but Modrex's own record of folders,
+	 *  order and per-mod metadata is not in it, and no operation may replace that record until
+	 *  the file is readable again.
+	 */
+	stateUnreadable: boolean,
 };
 
 export type InstalledResponse_Serialize = {
 	mods: InstalledMod_Serialize[],
 	folders: ModFolder[],
 	modsHidden: boolean,
+	/**
+	 *  The mod list on disk could not be loaded, so this response was rebuilt from a scan and
+	 *  nothing was written back. Everything shown is real, but Modrex's own record of folders,
+	 *  order and per-mod metadata is not in it, and no operation may replace that record until
+	 *  the file is readable again.
+	 */
+	stateUnreadable: boolean,
 };
 
 export type InstructsTemplate = {

@@ -198,4 +198,9 @@ pub struct InstalledResponse {
     pub mods: Vec<InstalledMod>,
     pub folders: Vec<ModFolder>,
     pub mods_hidden: bool,
+    /// The mod list on disk could not be loaded, so this response was rebuilt from a scan and
+    /// nothing was written back. Everything shown is real, but Modrex's own record of folders,
+    /// order and per-mod metadata is not in it, and no operation may replace that record until
+    /// the file is readable again.
+    pub state_unreadable: bool,
 }
