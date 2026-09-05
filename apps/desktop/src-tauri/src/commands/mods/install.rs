@@ -315,14 +315,19 @@ pub fn move_crimeboss_mod_target_op(
     // install_mod_from_path's own "existing" cleanup computes the old path inside the new
     // target's directory using the old filename, which never matches a cross-target move. The
     // real old location, under the old target's directory, is removed here instead.
-    match &old_target.unit {
+    let removed = match &old_target.unit {
         ModUnit::File { extension, .. } => {
-            let _ = remove_file_with_sidecars(&old_path, extension, old_target.companions);
+            remove_file_with_sidecars(&old_path, extension, old_target.companions)
         }
-        ModUnit::Directory { .. } => {
-            let _ = fs::remove_dir_all(&old_path);
-        }
-    }
+        ModUnit::Directory { .. } => fs::remove_dir_all(&old_path)
+            .map_err(|e| format!("could not remove {}: {e}", log_name(&old_path))),
+    };
+    // The mod now exists under both targets and the game would load it twice, which is the
+    // one outcome this move exists to prevent. Nothing can undo the copy safely at this
+    // point, so say so instead of reporting a clean move.
+    removed.map_err(|e| {
+        format!("the mod was moved but its old copy is still in place, so the game may load it twice: {e}")
+    })?;
 
     Ok(())
 }
@@ -437,7 +442,8 @@ pub fn enable_mod_op(
             ModUnit::File { extension, .. } => {
                 rename_with_sidecars(&from, &to, extension, target.companions)
             }
-            ModUnit::Directory { .. } => fs::rename(&from, &to),
+            ModUnit::Directory { .. } => fs::rename(&from, &to)
+                .map_err(|e| format!("could not move {}: {e}", log_name(&from))),
         };
         if let Err(e) = renamed {
             log::warn!("enable_mod: rename {from:?} -> {to:?}: {e}");
@@ -541,7 +547,8 @@ pub fn disable_mod_op(
             ModUnit::File { extension, .. } => {
                 rename_with_sidecars(&from, &to, extension, target.companions)
             }
-            ModUnit::Directory { .. } => fs::rename(&from, &to),
+            ModUnit::Directory { .. } => fs::rename(&from, &to)
+                .map_err(|e| format!("could not move {}: {e}", log_name(&from))),
         };
         if let Err(e) = renamed {
             log::warn!("disable_mod: rename {from:?} -> {to:?}: {e}");
@@ -556,66 +563,138 @@ pub fn disable_mod_op(
     Ok(())
 }
 
-/// Copies src to dest, plus any companion siblings sharing src's stem, to the matching
-/// siblings of dest. A missing companion is not an error.
+/// Puts back the moves a failed group move already made, most recent first so each
+/// destination is free before the one before it is restored.
+fn undo_moves(moved: &[(std::path::PathBuf, std::path::PathBuf)]) -> Result<(), String> {
+    let problems: Vec<String> = moved
+        .iter()
+        .rev()
+        .filter_map(|(from, to)| match fs::rename(from, to) {
+            Ok(()) => None,
+            Err(e) => Some(format!("{}: {e}", log_name(to))),
+        })
+        .collect();
+    if problems.is_empty() {
+        return Ok(());
+    }
+    Err(problems.join("; "))
+}
+
+/// Copies src to dest, plus any companion sharing src's stem, as one unit.
+///
+/// A missing companion is normal. A companion that fails to copy is not: an Unreal pak
+/// mounts the container its ucas and utoc hold, so a pak installed without them is a mod the
+/// game loads and cannot read. The outputs this call created are removed, leaving a
+/// destination that already existed alone, since undoing an overwrite would need a copy of
+/// what was there.
 fn copy_file_with_sidecars(
     src: &Path,
     dest: &Path,
     main_ext: &str,
     companions: &[&str],
 ) -> Result<(), String> {
-    fs::copy(src, dest).map_err(|e| e.to_string())?;
+    let dest_existed = dest.exists();
+    fs::copy(src, dest).map_err(|e| format!("could not copy {}: {e}", log_name(src)))?;
+    let mut created: Vec<std::path::PathBuf> = Vec::new();
+    if !dest_existed {
+        created.push(dest.to_path_buf());
+    }
     for ext in companions {
         let Some(sidecar) = sidecar_path(src, main_ext, ext) else {
             continue;
         };
-        if sidecar.exists() {
-            if let Some(dest_sidecar) = sidecar_path(dest, main_ext, ext) {
-                let _ = fs::copy(&sidecar, dest_sidecar);
+        if !sidecar.exists() {
+            continue;
+        }
+        let Some(dest_sidecar) = sidecar_path(dest, main_ext, ext) else {
+            continue;
+        };
+        let sidecar_existed = dest_sidecar.exists();
+        if let Err(e) = fs::copy(&sidecar, &dest_sidecar) {
+            let failed = format!("could not copy {}: {e}", log_name(&sidecar));
+            let leftovers: Vec<String> = created
+                .iter()
+                .rev()
+                .filter_map(|p| {
+                    fs::remove_file(p)
+                        .err()
+                        .map(|e| format!("{}: {e}", log_name(p)))
+                })
+                .collect();
+            if leftovers.is_empty() {
+                return Err(failed);
             }
+            return Err(format!(
+                "{failed}; and the partial copy could not be cleaned up: {}",
+                leftovers.join("; ")
+            ));
+        }
+        if !sidecar_existed {
+            created.push(dest_sidecar);
         }
     }
     Ok(())
 }
 
-/// Renames from to to, plus any companion siblings of from to the matching siblings of to.
-/// Used for enable and disable, which move a mod between active and disabled directories.
+/// Renames from to to, plus any companion sharing from's stem, as one unit.
+///
+/// Used by enable and disable, which move a mod between the active and disabled locations. A
+/// companion left behind would split the mod across both, so the moves already made are put
+/// back. The failure is reported either way: a move that had to be undone did not happen.
 fn rename_with_sidecars(
     from: &Path,
     to: &Path,
     main_ext: &str,
     companions: &[&str],
-) -> std::io::Result<()> {
-    fs::rename(from, to)?;
+) -> Result<(), String> {
+    fs::rename(from, to).map_err(|e| format!("could not move {}: {e}", log_name(from)))?;
+    let mut moved = vec![(to.to_path_buf(), from.to_path_buf())];
     for ext in companions {
         let Some(sidecar) = sidecar_path(from, main_ext, ext) else {
             continue;
         };
-        if sidecar.exists() {
-            if let Some(to_sidecar) = sidecar_path(to, main_ext, ext) {
-                let _ = fs::rename(&sidecar, to_sidecar);
-            }
+        if !sidecar.exists() {
+            continue;
         }
+        let Some(to_sidecar) = sidecar_path(to, main_ext, ext) else {
+            continue;
+        };
+        if let Err(e) = fs::rename(&sidecar, &to_sidecar) {
+            let failed = format!("could not move {}: {e}", log_name(&sidecar));
+            return Err(match undo_moves(&moved) {
+                Ok(()) => failed,
+                Err(undo) => format!("{failed}; and putting the mod back failed: {undo}"),
+            });
+        }
+        moved.push((to_sidecar, sidecar));
     }
     Ok(())
 }
 
-/// Removes path, plus any companion siblings sharing its stem.
+/// Removes path, plus any companion sharing its stem.
+///
+/// Deletion has no counterpart to undo it, so a companion that will not go is reported and
+/// the caller decides what that means for the mod's record.
 fn remove_file_with_sidecars(
     path: &Path,
     main_ext: &str,
     companions: &[&str],
-) -> std::io::Result<()> {
-    fs::remove_file(path)?;
-    for ext in companions {
-        let Some(sidecar) = sidecar_path(path, main_ext, ext) else {
-            continue;
-        };
-        if sidecar.exists() {
-            let _ = fs::remove_file(&sidecar);
-        }
+) -> Result<(), String> {
+    fs::remove_file(path).map_err(|e| format!("could not remove {}: {e}", log_name(path)))?;
+    let problems: Vec<String> = companions
+        .iter()
+        .filter_map(|ext| sidecar_path(path, main_ext, ext))
+        .filter(|sidecar| sidecar.exists())
+        .filter_map(|sidecar| {
+            fs::remove_file(&sidecar)
+                .err()
+                .map(|e| format!("{}: {e}", log_name(&sidecar)))
+        })
+        .collect();
+    if problems.is_empty() {
+        return Ok(());
     }
-    Ok(())
+    Err(problems.join("; "))
 }
 
 fn copy_dir_all(src: &Path, dst: &Path) -> Result<(), String> {
