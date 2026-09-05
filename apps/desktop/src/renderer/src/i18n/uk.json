@@ -26,6 +26,7 @@
     },
     "app": {
         "modsHidden": "Моди приховано — гру було запущено без модів, і вона досі може працювати.",
+        "stateUnreadable": "! Modrex could not read its own mod list for this game, so the mods below were found by scanning the folder and no changes are being saved. Details are in the log.",
         "restoreMods": "Відновити моди",
         "updateAction": "Оновити",
         "updateInstall": "Перезапустити й установити",
@@ -151,6 +152,8 @@
         "filterPlaceholder": "Шукати моди…",
         "filterEmpty": "Жоден мод не відповідає запиту «{query}»",
         "reinstallFailed": "Не вдалося перевстановити: {error}",
+        "actionFailed": "! {name} could not be changed: {error}",
+        "actionFailedSome": "! {count} mods could not be changed ({names}): {error}",
         "updatesAvailable": "Можна оновити {count} модів",
         "updatesAvailableSingle": "Можна оновити {count} мод",
         "reviewUpdates": "Переглянути оновлення",

@@ -26,6 +26,7 @@
     },
     "app": {
         "modsHidden": "模组已隐藏；游戏以原版模式启动，并且可能仍在运行。",
+        "stateUnreadable": "! Modrex could not read its own mod list for this game, so the mods below were found by scanning the folder and no changes are being saved. Details are in the log.",
         "restoreMods": "恢复模组",
         "updateAction": "更新",
         "updateInstall": "重启并安装",
@@ -151,6 +152,8 @@
         "filterPlaceholder": "搜索模组...",
         "filterEmpty": "没有与“{query}”匹配的模组",
         "reinstallFailed": "重新安装失败：{error}",
+        "actionFailed": "! {name} could not be changed: {error}",
+        "actionFailedSome": "! {count} mods could not be changed ({names}): {error}",
         "updatesAvailable": "有 {count} 个模组可更新",
         "updatesAvailableSingle": "有 {count} 个模组可更新",
         "reviewUpdates": "查看更新",

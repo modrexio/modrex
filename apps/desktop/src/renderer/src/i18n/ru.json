@@ -26,6 +26,7 @@
     },
     "app": {
         "modsHidden": "Моды скрыты — игра была запущена без модов и, возможно, ещё работает.",
+        "stateUnreadable": "! Modrex could not read its own mod list for this game, so the mods below were found by scanning the folder and no changes are being saved. Details are in the log.",
         "restoreMods": "Восстановить моды",
         "updateAction": "Обновить",
         "updateInstall": "Перезапустить и установить",
@@ -151,6 +152,8 @@
         "filterPlaceholder": "Поиск модов…",
         "filterEmpty": "Нет модов, соответствующих запросу «{query}»",
         "reinstallFailed": "Не удалось переустановить: {error}",
+        "actionFailed": "! {name} could not be changed: {error}",
+        "actionFailedSome": "! {count} mods could not be changed ({names}): {error}",
         "updatesAvailable": "Доступны обновления для {count} модов",
         "updatesAvailableSingle": "Доступно обновление для {count} мода",
         "reviewUpdates": "Просмотреть обновления",

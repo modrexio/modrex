@@ -26,6 +26,7 @@
     },
     "app": {
         "modsHidden": "Mods sind versteckt — Das Spiel wurde unmodifiziert gestartet und läuft vielleicht noch.",
+        "stateUnreadable": "! Modrex could not read its own mod list for this game, so the mods below were found by scanning the folder and no changes are being saved. Details are in the log.",
         "restoreMods": "Mods wiederherstellen",
         "updateAction": "Aktualisieren",
         "updateInstall": "Neustart & Installation",
@@ -151,6 +152,8 @@
         "filterPlaceholder": "Mods durchsuchen…",
         "filterEmpty": "Keine Mods stimmen mit „{query}“ überein",
         "reinstallFailed": "Erneute Installation fehlgeschlagen: {error}",
+        "actionFailed": "! {name} could not be changed: {error}",
+        "actionFailedSome": "! {count} mods could not be changed ({names}): {error}",
         "updatesAvailable": "{count} Mods können aktualisiert werden",
         "updatesAvailableSingle": "{count} Mod kann aktualisiert werden",
         "reviewUpdates": "Updates überprüfen",
