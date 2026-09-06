@@ -26,7 +26,7 @@
     },
     "app": {
         "modsHidden": "Моди приховано — гру було запущено без модів, і вона досі може працювати.",
-        "stateUnreadable": "! Modrex could not read its own mod list for this game, so the mods below were found by scanning the folder and no changes are being saved. Details are in the log.",
+        "stateUnreadable": "Modrex не зміг прочитати власний список модів для цієї гри, тому наведені нижче моди знайдено шляхом сканування папки, а зміни не зберігаються. Докладніше — у журналі.",
         "restoreMods": "Відновити моди",
         "updateAction": "Оновити",
         "updateInstall": "Перезапустити й установити",
@@ -47,7 +47,7 @@
     },
     "errorBoundary": {
         "close": "Закрити",
-        "message": "АЙ.. Щось пішло не так."
+        "message": "Ой… Щось пішло не так."
     },
     "topBar": {
         "title": "Modrex",
@@ -66,11 +66,11 @@
             "launchAnyway": "Усе одно запустити"
         },
         "sisr": {
-            "unsupported": "! SISR auto-launch is not supported on this operating system. The game was launched without it.",
-            "notInstalled": "! SISR was not found. The game was launched without it.",
-            "setupRequired": "! SISR needs its first-run setup before controller redirection will work. The game was launched anyway.",
-            "startFailed": "! SISR failed to start. The game was launched without it.",
-            "startUnconfirmed": "! Modrex could not confirm that SISR started. The game was launched anyway."
+            "unsupported": "Автозапуск SISR не підтримується в цій операційній системі. Гру запущено без нього.",
+            "notInstalled": "SISR не знайдено. Гру запущено без нього.",
+            "setupRequired": "Перед перенаправленням контролера потрібно виконати початкове налаштування SISR. Гру все одно запущено.",
+            "startFailed": "Не вдалося запустити SISR. Гру запущено без нього.",
+            "startUnconfirmed": "Modrex не вдалося підтвердити запуск SISR. Гру все одно запущено."
         }
     },
     "sidebar": {
@@ -152,9 +152,9 @@
         "filterPlaceholder": "Шукати моди…",
         "filterEmpty": "Жоден мод не відповідає запиту «{query}»",
         "reinstallFailed": "Не вдалося перевстановити: {error}",
-        "actionFailed": "! {name} could not be changed: {error}",
-        "actionFailedSome": "! {count} mods could not be changed ({names}): {error}",
-        "refreshFailed": "! The installed mod list could not be refreshed: {error}",
+        "actionFailed": "Не вдалося змінити «{name}»: {error}",
+        "actionFailedSome": "Не вдалося змінити моди ({count}; {names}): {error}",
+        "refreshFailed": "Не вдалося оновити список встановлених модів: {error}",
         "updatesAvailable": "Можна оновити {count} модів",
         "updatesAvailableSingle": "Можна оновити {count} мод",
         "reviewUpdates": "Переглянути оновлення",
@@ -192,16 +192,16 @@
             "error": "Не вдалося оновити. Перевірте з’єднання та повторіть спробу."
         },
         "pakViewer": {
-            "title": "! Pak contents",
-            "open": "! View pak contents",
-            "searchPlaceholder": "! Search assets",
-            "assetCount": "! {count} assets",
-            "matchCount": "! {count} of {total} assets",
-            "loading": "! Reading pak",
-            "empty": "! No assets found",
-            "noMatches": "! No assets match \"{query}\"",
-            "error": "! Couldn't read the pak.",
-            "aesHint": "! Encrypted paks need this game's AES key."
+            "title": "Вміст pak-файлу",
+            "open": "Переглянути вміст pak-файлу",
+            "searchPlaceholder": "Шукати ресурси…",
+            "assetCount": "Ресурсів: {count}",
+            "matchCount": "Ресурсів: {count} із {total}",
+            "loading": "Читання pak-файлу…",
+            "empty": "Ресурсів не знайдено",
+            "noMatches": "Жоден ресурс не відповідає запиту «{query}»",
+            "error": "Не вдалося прочитати pak-файл.",
+            "aesHint": "Для зашифрованих pak-файлів потрібен AES-ключ цієї гри."
         },
         "modMenu": {
             "open": "Параметри",
@@ -392,14 +392,14 @@
             "description": "Мова інтерфейсу застосунку."
         },
         "accentColor": {
-            "title": "! Accent color",
-            "description": "! Accent color used throughout the app.",
-            "orange": "! Orange",
-            "purple": "! Purple",
-            "green": "! Green",
-            "blue": "! Blue",
-            "red": "! Red",
-            "gray": "! Gray"
+            "title": "Акцентний колір",
+            "description": "Акцентний колір, який використовується в інтерфейсі застосунку.",
+            "orange": "Помаранчевий",
+            "purple": "Фіолетовий",
+            "green": "Зелений",
+            "blue": "Синій",
+            "red": "Червоний",
+            "gray": "Сірий"
         },
         "gamePath": {
             "title": "Шлях до гри",
@@ -437,15 +437,15 @@
             "description": "Усуває проблему з порожнім вікном звіту про збій в іграх із несправним засобом звітування, видаляючи його файли перед запуском. За замовчуванням вимкнено; може бути непотрібним для деяких ігор."
         },
         "sisr": {
-            "title": "! Auto-launch SISR",
-            "description": "! Start SISR (Steam Input System Redirector) before launching a game when it is not already running, so Steam Input controllers work with games launched outside Steam.",
-            "running": "! SISR is running.",
-            "notRunning": "! SISR is not running. It will start when you launch a game.",
-            "notInstalled": "! SISR was not found in its default installation location.",
-            "setupRequired": "! Complete SISR's first-run Steam setup before using auto-launch.",
-            "setup": "! Set up SISR",
-            "finishSetup": "! Finish setup",
-            "failed": "! SISR setting failed: {error}"
+            "title": "Автозапуск SISR",
+            "description": "Запускати SISR (Steam Input System Redirector) перед запуском гри, якщо він ще не працює, щоб контролери Steam Input працювали в іграх, запущених поза Steam.",
+            "running": "SISR працює.",
+            "notRunning": "SISR не запущено. Його буде запущено під час запуску гри.",
+            "notInstalled": "SISR не знайдено в стандартному місці встановлення.",
+            "setupRequired": "Перед використанням автозапуску завершіть початкове налаштування Steam у SISR.",
+            "setup": "Налаштувати SISR",
+            "finishSetup": "Завершити налаштування",
+            "failed": "Не вдалося змінити налаштування SISR: {error}"
         },
         "updates": {
             "title": "Оновлення",
