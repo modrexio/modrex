@@ -104,6 +104,16 @@ export function inspectSourceBundle(bundle, id) {
     return { errors, issues, warnings, strings, keys }
 }
 
+// Issues the synchronizer resolves by itself. A scaffold quoting superseded English gets
+// refreshed and an obsolete key holding only a scaffold gets removed, so neither is a
+// contributor's problem. An obsolete key holding real translated text is not in this set:
+// nothing may delete a translation mechanically.
+export function isMechanicalSyncDebt(locale, issue) {
+    if (issue.type === 'stale-scaffold') return true
+    if (issue.type !== 'unknown-key') return false
+    return locale.targetValues[issue.key]?.kind === TARGET_VALUE_KIND.UNTRANSLATED_SCAFFOLD
+}
+
 export function singularPluralPairs(sourceKeys) {
     return sourceKeys
         .filter((key) => key.endsWith('Single'))
@@ -147,11 +157,10 @@ export function inspectTranslationBundle(id, bundle, sourceFlat, sourceKeys) {
     })
     const extraKeys = Object.keys(bundleFlat).filter((key) => !Object.hasOwn(sourceFlat, key))
 
-    if (extraKeys.length > 0) {
-        errors.push(`'${id}' has key(s) not present in en.json:\n  ${extraKeys.join('\n  ')}`)
-        for (const key of extraKeys) {
-            issues.push({ type: 'unknown-key', key, localeValue: bundleFlat[key] })
-        }
+    for (const key of extraKeys) {
+        const message = `'${id}' key '${key}' is not present in en.json`
+        errors.push(message)
+        issues.push({ type: 'unknown-key', key, localeValue: bundleFlat[key], message })
     }
 
     const pendingPlaceholderIncompatibleKeys = []
@@ -163,12 +172,14 @@ export function inspectTranslationBundle(id, bundle, sourceFlat, sourceKeys) {
 
         if (targetValue.kind === TARGET_VALUE_KIND.UNTRANSLATED_SCAFFOLD) {
             if (targetValue.sourceText === sourceValue.sourceText) continue
-            errors.push(`'${id}' key '${key}' has a stale untranslated scaffold`)
+            const message = `'${id}' key '${key}' has a stale untranslated scaffold`
+            errors.push(message)
             issues.push({
                 type: 'stale-scaffold',
                 key,
                 sourceValue: sourceValue.sourceText,
                 localeValue: targetValue.sourceText,
+                message,
             })
             continue
         }
@@ -195,10 +206,9 @@ export function inspectTranslationBundle(id, bundle, sourceFlat, sourceKeys) {
             continue
         }
 
-        errors.push(
-            `'${id}' key '${key}' has interpolation vars [${targetValue.placeholderContract.join(',')}], expected [${sourceValue.placeholderContract.join(',')}]`
-        )
-        issues.push({ type: 'placeholder', ...placeholder })
+        const message = `'${id}' key '${key}' has interpolation vars [${targetValue.placeholderContract.join(',')}], expected [${sourceValue.placeholderContract.join(',')}]`
+        errors.push(message)
+        issues.push({ type: 'placeholder', ...placeholder, message })
     }
 
     const translatedKeys = sourceKeys.filter((key) => {

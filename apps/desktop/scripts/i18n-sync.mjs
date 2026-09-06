@@ -16,6 +16,7 @@ import {
     analyzeCommittedHistory,
     analyzeProspective,
     analyzeRepairableProspective,
+    EFFECTIVE_STATE,
     I18N_HISTORY_BASELINE,
     I18N_LOCALE_DIR,
     snapshotFromBundles,
@@ -160,8 +161,10 @@ function currentInputErrors(inspection, history) {
         for (const issue of locale.issues) {
             if (issue.type === 'stale-scaffold' || issue.type === 'unknown-key') continue
             if (issue.type === 'placeholder') {
+                // Placeholders that disagree with English are an error against a translation
+                // still accepted, and expected debt against one whose English has moved.
                 const entry = summary.locales.get(locale.id)?.entries.get(issue.key)
-                if (entry?.state === 'accepted' && !entry.sourceMatchesCheckpoint) continue
+                if (entry?.effectiveState === EFFECTIVE_STATE.REVIEW) continue
             }
             const key = issue.key ? ` key '${issue.key}'` : ''
             errors.push(`'${locale.id}'${key}: ${issue.detail ?? issue.type}`)
@@ -212,7 +215,7 @@ function validateAuthoritativePlan(committedHistory, plan) {
     const errors = []
     for (const locale of summary.locales.values()) {
         for (const entry of locale.entries.values()) {
-            if (entry.state === 'accepted' && !entry.sourceMatchesCheckpoint) {
+            if (entry.state === 'accepted' && entry.effectiveState === EFFECTIVE_STATE.REVIEW) {
                 errors.push(`'${entry.locale}' key '${entry.key}' still requires Review`)
             }
             const clearablePending =
