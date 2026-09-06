@@ -14,6 +14,7 @@ export const HISTORY_EVENT = Object.freeze({
     EDIT_FROM_PENDING: 'edit-from-pending',
     SOURCE_TRIGGERED_PENDING: 'source-triggered-pending',
     EXPLICIT_REVIEW_REQUESTED: 'explicit-review-requested',
+    REVIEW_MARKER_MATERIALIZED: 'review-marker-materialized',
     PENDING_EDIT: 'pending-edit',
     PENDING_CREATED: 'pending-created',
     SOURCE_RETURN_CLEARED: 'source-return-cleared',
@@ -222,7 +223,18 @@ export function analyzeTransition(previous, next, revision) {
 }
 
 export function createHistoryState() {
-    return { entries: new Map() }
+    return { entries: new Map(), byKey: new Map() }
+}
+
+// A source change invalidates every locale's acceptance of that key at once, so the reducer
+// needs the entries for a key without scanning the whole table on each source event.
+function indexEntry(state, entry) {
+    let siblings = state.byKey.get(entry.key)
+    if (!siblings) {
+        siblings = []
+        state.byKey.set(entry.key, siblings)
+    }
+    siblings.push(entry)
 }
 
 function entryFor(state, localeId, key) {
@@ -231,8 +243,25 @@ function entryFor(state, localeId, key) {
     if (!entry) {
         entry = { locale: localeId, key, checkpoint: null, pending: null, acceptedPairs: new Map() }
         state.entries.set(id, entry)
+        indexEntry(state, entry)
     }
     return entry
+}
+
+export function cloneHistoryState(state) {
+    const copy = createHistoryState()
+    for (const [id, entry] of state.entries) {
+        const clone = {
+            locale: entry.locale,
+            key: entry.key,
+            checkpoint: entry.checkpoint,
+            pending: entry.pending,
+            acceptedPairs: new Map(entry.acceptedPairs),
+        }
+        copy.entries.set(id, clone)
+        indexEntry(copy, clone)
+    }
+    return copy
 }
 
 // A withdrawal clears the active checkpoint but never the pair index: a later source return
@@ -266,15 +295,56 @@ function recordPending(entry, event, provenance) {
     }
 }
 
+// English moving away from what a translation was accepted against is what creates review
+// debt. Recording it when the source changes, rather than when a marker is finally written,
+// is what lets a later mechanical marker be recognized as materializing this debt instead of
+// being mistaken for somebody asking for review.
+function recordSourceTriggeredDebt(state, event) {
+    for (const entry of state.byKey.get(event.key) ?? []) {
+        if (!entry.checkpoint) continue
+        if (entry.pending) continue
+        if (sameText(entry.checkpoint.sourceText, event.sourceText)) continue
+        recordPending(
+            entry,
+            {
+                revision: event.revision,
+                sourceText: event.sourceText,
+                targetText: entry.checkpoint.targetText,
+            },
+            PENDING_PROVENANCE.SOURCE_CHANGE
+        )
+    }
+}
+
+// The bot writes '? existing target' onto a translation whose English already moved. The
+// payload is unchanged and no new decision was made, so this must not be read as a human
+// review request: that would give the marker its own provenance and block the source-return
+// clearing the entry is still entitled to.
+function isMarkerMaterialization(entry, event) {
+    if (event.kind !== HISTORY_EVENT.EXPLICIT_REVIEW_REQUESTED) return false
+    if (!entry.checkpoint) return false
+    if (sameText(entry.checkpoint.sourceText, event.sourceText)) return false
+    return sameText(entry.checkpoint.targetText, event.targetText)
+}
+
 export function applyEvents(state, events) {
     const applied = []
     for (const originalEvent of events) {
         if (originalEvent.locale === undefined) {
+            if (originalEvent.kind === HISTORY_EVENT.SOURCE_CHANGED) {
+                recordSourceTriggeredDebt(state, originalEvent)
+            }
             applied.push(originalEvent)
             continue
         }
         let event = originalEvent
         const entry = entryFor(state, event.locale, event.key)
+
+        if (isMarkerMaterialization(entry, event)) {
+            if (!entry.pending) recordPending(entry, event, PENDING_PROVENANCE.SOURCE_CHANGE)
+            applied.push({ ...event, kind: HISTORY_EVENT.REVIEW_MARKER_MATERIALIZED })
+            continue
+        }
 
         const sourceReturnCheckpoint =
             event.kind === HISTORY_EVENT.KEEP &&
