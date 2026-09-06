@@ -49,7 +49,7 @@ import { useLoaderState } from '../hooks/useLoaderState'
 import { resolveDepCheck } from '../installDepCheck'
 import { t } from '../i18n'
 import { api } from '../api'
-import { attemptAll, describeFailures } from '../bulkAction'
+import { runBulkAction } from '../bulkAction'
 import { trackSearch } from '../lib/analytics/events'
 import { markForegroundActivity, waitForForegroundClear } from '../requestPriority'
 
@@ -614,14 +614,15 @@ export function BrowsePage({
             if (uids.length === 0) return
             addInstalling(modId)
             try {
-                const failures = await attemptAll(
-                    uids,
-                    () => installed.find((m) => uids.includes(m.uid))?.name ?? '',
-                    (uid) => api.enableMod(uid, gamePath, activeGame)
+                setActionError(
+                    await runBulkAction(
+                        uids,
+                        (uid) => installed.find((m) => m.uid === uid)?.name ?? '',
+                        (uid) => api.enableMod(uid, gamePath, activeGame),
+                        onRefreshInstalled
+                    )
                 )
-                setActionError(describeFailures(failures))
             } finally {
-                await onRefreshInstalled()
                 removeInstalling(modId)
             }
         },
@@ -640,14 +641,15 @@ export function BrowsePage({
             if (uids.length === 0) return
             addInstalling(modId)
             try {
-                const failures = await attemptAll(
-                    uids,
-                    () => installed.find((m) => uids.includes(m.uid))?.name ?? '',
-                    (uid) => api.disableMod(uid, gamePath, activeGame)
+                setActionError(
+                    await runBulkAction(
+                        uids,
+                        (uid) => installed.find((m) => m.uid === uid)?.name ?? '',
+                        (uid) => api.disableMod(uid, gamePath, activeGame),
+                        onRefreshInstalled
+                    )
                 )
-                setActionError(describeFailures(failures))
             } finally {
-                await onRefreshInstalled()
                 removeInstalling(modId)
             }
         },

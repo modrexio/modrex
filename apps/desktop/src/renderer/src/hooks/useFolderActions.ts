@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { GameId, InstalledMod, ModFolder } from '../../../shared/types'
 import { GAME_STORAGE_KEY } from '../../../shared/types'
 import { api } from '../api'
-import { attemptAll, describeFailures } from '../bulkAction'
+import { runBulkAction } from '../bulkAction'
 
 export interface FolderActions {
     collapsedFolders: Set<string>
@@ -132,17 +132,18 @@ export function useFolderActions(
         setLoadingFolderId(folderId)
         setFolderActionError(null)
         try {
-            const failures = await attemptAll(
-                mods,
-                (m) => m.name,
-                (m) =>
-                    anyEnabled
-                        ? api.disableMod(m.uid, gamePath, activeGame)
-                        : api.enableMod(m.uid, gamePath, activeGame)
+            setFolderActionError(
+                await runBulkAction(
+                    mods,
+                    (m) => m.name,
+                    (m) =>
+                        anyEnabled
+                            ? api.disableMod(m.uid, gamePath, activeGame)
+                            : api.enableMod(m.uid, gamePath, activeGame),
+                    onRefreshInstalled
+                )
             )
-            setFolderActionError(describeFailures(failures))
         } finally {
-            await onRefreshInstalled()
             setLoadingFolderId(null)
         }
     }

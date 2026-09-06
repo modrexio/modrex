@@ -154,6 +154,7 @@
         "reinstallFailed": "Reinstallazione fallita: {error}",
         "actionFailed": "! {name} could not be changed: {error}",
         "actionFailedSome": "! {count} mods could not be changed ({names}): {error}",
+        "refreshFailed": "! The installed mod list could not be refreshed: {error}",
         "updatesAvailable": "{count} mod possono essere aggiornate",
         "updatesAvailableSingle": "{count} mod può essere aggiornata",
         "reviewUpdates": "Visualizza gli aggiornamenti",

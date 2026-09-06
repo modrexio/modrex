@@ -154,6 +154,7 @@
         "reinstallFailed": "Не удалось переустановить: {error}",
         "actionFailed": "! {name} could not be changed: {error}",
         "actionFailedSome": "! {count} mods could not be changed ({names}): {error}",
+        "refreshFailed": "! The installed mod list could not be refreshed: {error}",
         "updatesAvailable": "Доступны обновления для {count} модов",
         "updatesAvailableSingle": "Доступно обновление для {count} мода",
         "reviewUpdates": "Просмотреть обновления",

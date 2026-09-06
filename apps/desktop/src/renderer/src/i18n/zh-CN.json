@@ -154,6 +154,7 @@
         "reinstallFailed": "重新安装失败：{error}",
         "actionFailed": "! {name} could not be changed: {error}",
         "actionFailedSome": "! {count} mods could not be changed ({names}): {error}",
+        "refreshFailed": "! The installed mod list could not be refreshed: {error}",
         "updatesAvailable": "有 {count} 个模组可更新",
         "updatesAvailableSingle": "有 {count} 个模组可更新",
         "reviewUpdates": "查看更新",

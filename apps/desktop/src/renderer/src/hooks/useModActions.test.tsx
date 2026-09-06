@@ -86,6 +86,36 @@ describe('useModActions bulk behaviour', () => {
         expect(result.current.modActionError).toBeNull()
     })
 
+    // The refresh runs in the action's own cleanup, so a rejection there used to skip the
+    // loading reset and escape as an unhandled rejection, leaving the row spinning for good.
+    it('clears the loading state and reports when the refresh fails', async () => {
+        const onRefresh = vi.fn().mockRejectedValue(new Error('the list could not be read'))
+        const useModActions = await loadHook()
+        const { result } = renderHook(() => useModActions('C:/game', onRefresh, 'pd3'))
+
+        await result.current.handleDisable([mod('a', 'Alpha')])
+
+        await waitFor(() => expect(result.current.modActionError).not.toBeNull())
+        expect(result.current.loadingMod).toBeNull()
+        expect(result.current.modActionError).toContain('the list could not be read')
+        expect(onRefresh).toHaveBeenCalledTimes(1)
+        expect(disableMod).toHaveBeenCalledTimes(1)
+    })
+
+    it('keeps the mod failure when the refresh fails as well', async () => {
+        disableMod.mockRejectedValue(new Error('the file is in use'))
+        const onRefresh = vi.fn().mockRejectedValue(new Error('the list could not be read'))
+        const useModActions = await loadHook()
+        const { result } = renderHook(() => useModActions('C:/game', onRefresh, 'pd3'))
+
+        await result.current.handleDisable([mod('a', 'Alpha')])
+
+        await waitFor(() => expect(result.current.modActionError).not.toBeNull())
+        expect(result.current.loadingMod).toBeNull()
+        expect(result.current.modActionError).toContain('Alpha')
+        expect(result.current.modActionError).toContain('the file is in use')
+    })
+
     // A stale message from the previous attempt would read as a fresh failure.
     it('clears a previous failure when the next attempt succeeds', async () => {
         disableMod.mockRejectedValueOnce(new Error('the file is in use'))

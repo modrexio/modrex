@@ -69,7 +69,7 @@ import { useLoaderState } from '../hooks/useLoaderState'
 import { resolveDepCheck } from '../installDepCheck'
 import { useThumbnail } from '../hooks/useThumbnail'
 import { api } from '../api'
-import { attemptAll, describeFailures } from '../bulkAction'
+import { runBulkAction } from '../bulkAction'
 import { markForegroundActivity } from '../requestPriority'
 import { DescriptionTab, ChangelogTab, LicenseTab } from './modDetail/textTabs'
 import { LightboxImage, ImagesTab } from './modDetail/ImagesTab'
@@ -546,14 +546,15 @@ export function ModDetailPage({
         setActionLoading(true)
         setInstallError(null)
         try {
-            const failures = await attemptAll(
-                installedFiles,
-                (m) => m.name,
-                (m) => api.enableMod(m.uid, gamePath, activeGame)
+            setInstallError(
+                await runBulkAction(
+                    installedFiles,
+                    (m) => m.name,
+                    (m) => api.enableMod(m.uid, gamePath, activeGame),
+                    onRefreshInstalled
+                )
             )
-            setInstallError(describeFailures(failures))
         } finally {
-            await onRefreshInstalled()
             setActionLoading(false)
         }
     }
@@ -563,14 +564,15 @@ export function ModDetailPage({
         setActionLoading(true)
         setInstallError(null)
         try {
-            const failures = await attemptAll(
-                installedFiles,
-                (m) => m.name,
-                (m) => api.disableMod(m.uid, gamePath, activeGame)
+            setInstallError(
+                await runBulkAction(
+                    installedFiles,
+                    (m) => m.name,
+                    (m) => api.disableMod(m.uid, gamePath, activeGame),
+                    onRefreshInstalled
+                )
             )
-            setInstallError(describeFailures(failures))
         } finally {
-            await onRefreshInstalled()
             setActionLoading(false)
         }
     }

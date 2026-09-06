@@ -8,7 +8,7 @@ import { handleInstallOutcome } from '../installSentinels'
 import { entryFilename, stripPriorityPrefix } from './installedUtils'
 import { t } from '../i18n'
 import { api } from '../api'
-import { attemptAll, describeFailures } from '../bulkAction'
+import { runBulkAction } from '../bulkAction'
 
 export type IdentifyNexusResult = { kind: 'done' | 'error'; message: string }
 
@@ -100,10 +100,8 @@ export function useModActions(
         setLoadingMod(mods[0].uid)
         setModActionError(null)
         try {
-            const failures = await attemptAll(mods, (m) => m.name, run)
-            setModActionError(describeFailures(failures))
+            setModActionError(await runBulkAction(mods, (m) => m.name, run, onRefreshInstalled))
         } finally {
-            await onRefreshInstalled()
             setLoadingMod(null)
         }
     }

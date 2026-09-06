@@ -29,6 +29,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - A pak and its accompanying .ucas and .utoc files are now moved and copied as one; if any of them cannot be moved, the mod is put back rather than left split between folders.
 - Modrex no longer rebuilds its mod list over a mod list it could not read. Your mods are still listed, folders and load order are left untouched, and a notice explains why nothing is being saved.
 - Enabling or disabling several mods at once now tries all of them and reports which ones failed, instead of stopping silently at the first problem.
+- Fixed a mod or folder being left spinning, and unusable until restart, when the installed list could not be reloaded after enabling or disabling it.
 
 ## 0.14.0
 

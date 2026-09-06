@@ -46,3 +46,27 @@ export function describeFailures(failures: ActionFailure[]): string | null {
         error: failures[0].error,
     })
 }
+
+/**
+ * Runs an action over every item and then refreshes once, returning the message to show.
+ *
+ * The refresh is what makes the list show what is on disk rather than what was asked for, so it
+ * runs whether or not the action failed. Its own failure is returned rather than thrown: the
+ * callers are click handlers that nobody awaits, so a rejection escaping here would leave their
+ * loading flag set and reach the global unhandledrejection handler instead of the banner.
+ */
+export async function runBulkAction<T>(
+    items: T[],
+    nameOf: (item: T) => string,
+    run: (item: T) => Promise<void>,
+    refresh: () => Promise<void>
+): Promise<string | null> {
+    const actionError = describeFailures(await attemptAll(items, nameOf, run))
+    try {
+        await refresh()
+    } catch (e) {
+        // The action's own failure is the more specific one, so it keeps the single banner.
+        return actionError ?? t('installed.refreshFailed', { error: String(e) })
+    }
+    return actionError
+}
