@@ -25,13 +25,9 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - Opening the log from Settings now opens the log file itself instead of writing a copy to a predictable name in the system temporary folder, which another program could have redirected at one of your own files.
 - Fixed cleanup after installing a .pdmod file or a loose non-archive file being able to target the system temporary folder instead of only the files Modrex had staged there.
 - Fixed Nexus Mods sign-in and website mod downloads not reaching Modrex on Linux.
-- Enabling or disabling a mod that could not be moved, for example while the game is running or a file is locked, now reports the failure instead of showing the mod as changed while the game still loads it as before.
-- Enabling or disabling a mod whose files are no longer on disk now reports that, instead of only changing the mod's recorded state.
+- Enabling or disabling a mod now reports when it did not work, whether the file is locked, its files are no longer on disk, or one mod fails inside a folder or multi-select action, instead of showing the mod as changed while the game still loads it as before.
 - A pak and its accompanying .ucas and .utoc files are now moved and copied as one; if any of them cannot be moved, the mod is put back rather than left split between folders.
 - Modrex no longer rebuilds its mod list over a mod list it could not read. Your mods are still listed, folders and load order are left untouched, and a notice explains why nothing is being saved.
-- Enabling or disabling several mods at once now tries all of them and reports which ones failed, instead of stopping silently at the first problem.
-- Fixed a mod or folder being left spinning, and unusable until restart, when the installed list could not be reloaded after enabling or disabling it.
-- Fixed a Crime Boss mod being switched on or off in the game itself when Modrex refused the change, such as when a copy of the mod sits in both the active and disabled folders.
 
 ## 0.14.0
 
