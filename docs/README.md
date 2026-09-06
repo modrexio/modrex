@@ -12,6 +12,7 @@ This directory is for people working on Modrex. User instructions live on
 | Start from a working manifest                                              | [reference/package.example.toml](reference/package.example.toml)             |
 | Understand how game packages are loaded                                    | [architecture/game-packages.md](architecture/game-packages.md)               |
 | Know which URLs and artifacts outside clients depend on                    | [architecture/public-contracts.md](architecture/public-contracts.md)         |
+| Know who may change a translation file, and which check enforces it        | [architecture/i18n-ownership.md](architecture/i18n-ownership.md)             |
 | Set up the repository and run the checks                                   | [../CONTRIBUTING.md](../CONTRIBUTING.md)                                     |
 | Translate Modrex                                                           | [../TRANSLATING.md](../TRANSLATING.md)                                       |
 | Report a vulnerability                                                     | [../SECURITY.md](../SECURITY.md)                                             |

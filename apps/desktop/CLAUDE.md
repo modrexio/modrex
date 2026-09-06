@@ -194,9 +194,12 @@ Its display name comes from `Intl.DisplayNames` (a language's name in its own la
 **exactly one new file** — see `CONTRIBUTING.md` for the contributor-facing steps.
 
 The root `CLAUDE.md` owns the AI translation policy. Missing keys are valid and use the English
-fallback. `pnpm check-i18n` rejects unknown keys, empty or non-string values, incomplete
-singular/plural pairs, and mismatched `{var}` interpolation, then reports each locale's key
-coverage. `pnpm i18n:missing <locale>` lists untranslated keys with their English source text.
+fallback, and so is a translation awaiting review after an English change. `pnpm check-i18n`
+rejects unknown keys, empty or non-string values, incomplete singular/plural pairs, and
+mismatched `{var}` interpolation, then reports each locale's Accepted/Review/Missing counts
+from Git history rather than from whichever marker is currently stored. It never fails because
+the bot has not written a marker yet; when history is unavailable it says which strings it
+could not judge instead of assuming they are fine. `pnpm i18n:missing <locale>` lists untranslated keys with their English source text.
 `pnpm i18n:fill <locale>` writes missing keys as `! `-prefixed English fallbacks into the locale
 file for IDE editing; marked values remain untranslated and fall back to English at runtime.
 `pnpm i18n:translate <locale>` continues an existing locale interactively.
@@ -204,9 +207,12 @@ file for IDE editing; marked values remain untranslated and fall back to English
 `pnpm i18n:fill <locale>` adds or refreshes marked text only in an existing locale. `pnpm
 i18n:presentation-check` reports whether the README translation table and per-locale status SVGs
 (`assets/i18n/status/`) still match current locale state without writing anything; `pnpm
-i18n:presentation-write` materializes them. The `translation-status` workflow runs the writer
-after locale changes reach `main`, so manual edits inside the generated README block or to a
-status SVG are overwritten on the next run.
+i18n:presentation-write` materializes them. `pnpm i18n:check-sync` is the equivalent for locale
+markers. All three are the bot's checks: they answer "has the writer caught up", which is never
+a contributor's problem. The `translation-status` workflow runs the writer after locale or
+English changes reach `main`, verifies its own output with those commands plus
+`scripts/i18n-writer-guard.mjs`, and only then commits, so manual edits inside the generated
+README block or to a status SVG are overwritten on the next run.
 
 ## Testing
 

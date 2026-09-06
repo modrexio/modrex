@@ -29,8 +29,8 @@ responsibilities removed, and the places future changes must touch. Count implem
 growth separately from tests/generated files; do not delete regression coverage to meet
 a line-count target. Moving the same responsibilities into more files is not success.
 
-Recommended order: mod-operation-failure-contract, i18n-english-only-enforcement,
-i18n-maintenance-audit, shared-install-prompt-flow. Treat these as separate tasks.
+Recommended order: mod-operation-failure-contract, i18n-maintenance-audit,
+shared-install-prompt-flow. Treat these as separate tasks.
 Keep #65's game declarations and validation. Expand their schema, generators, adapters
 or hooks only for a current game requirement or demonstrated duplication to remove.
 Older architecture proposals below remain conditional, not a mandate for a rewrite.
@@ -65,55 +65,42 @@ belong only in en.json.
 
 ---
 
-## TODO: i18n-english-only-enforcement
-
-Resolve the mismatch between CLAUDE.md's translation ownership policy and CI. Product
-work may edit en.json only and must not require synchronizing other locales. At d71d343,
-an in-memory checkI18nSnapshot passed for the current tree but failed after adding one
-English key alone, demanding scaffold-added operations in all five target locales.
-Inspect scripts/i18n-enforcement.mjs, i18n-sync.mjs, i18n-history.mjs, the staged hook
-and repository-root .github/workflows/ci.yml.
-
-NON-NEGOTIABLE: Git remains authoritative evidence for acceptance and the three states:
-Accepted, Missing, Review (pending in code). When English changes since acceptance,
-an existing translation needs Review; its presence is not approval of the new meaning.
-Missing translations remain valid and fall back to English. The owner explicitly
-rejected replacing history with hashes, a metadata file, coverage percentages or
-current-tree-only heuristics. Never auto-accept review debt.
-
-Trace derived historical state versus stored ! / ? markers first. English-only changes
-should pass while consumers recognize Missing and Review without mandatory target-file
-writes. Check runtime behavior too: permitting unmaterialized Review in CI must not
-silently change pending-value or incompatible-placeholder fallback rules. Retain explicit
-translator fill/sync/review operations, structural validation and honest reporting when
-history is unavailable. If marker materialization prevents this, document the exact
-dependency before proposing a semantic change; preserving three-state truth comes first.
-
-Verify with fixtures: English additions, changed English with accepted translations,
-explicit Keep/Edit, source reversion, committed/staged/working-tree snapshots and
-read-only commands that mutate no files. Preserve existing historical acceptance and
-provenance semantics. Do not edit actual non-English locales during this task.
-
----
-
 ## TODO: i18n-maintenance-audit
 
-Audit implementation overhead without simplifying translation behavior. At d71d343,
-desktop i18n scripts contain 4,612 implementation lines in 17 files and 7,679 test lines
-in 12 files, excluding locale JSON/runtime code. Size is not proof of redundancy.
+Translation ownership itself is finished: ownership is documented in
+docs/architecture/i18n-ownership.md and regressions live in scripts/i18n-ownership.test.mjs.
 
-Map ownership across i18n-current, i18n-history-events, i18n-history, i18n-inspection,
-i18n-enforcement, i18n-sync, i18n-review and presentation/contributor scripts, plus
-src/shared/i18n-values.js and renderer i18n.ts/locales.ts. Look for duplicated
-classification, validation, snapshot conversion or reporting. Keep classification
-authoritative in one place without forcing unlike concerns into a generic helper.
+The audit itself is only partly done. Four demonstrated duplications were
+consolidated there, each deleting the replaced path in the same change:
 
-First deliver exact duplication findings and bounded removal candidates. Do not assume
-a rewrite or a particular line reduction is warranted. Any later consolidation must
-delete replaced paths and preserve Git baseline, acceptance, provenance, normalization,
-source-reversion, explicit-review and history-availability behavior. Retain tests that
-distinguish Accepted, Missing and Review. No replacement CLI, translation service or
-new metadata source of truth. Coordinate with i18n-english-only-enforcement.
+- state interpretation: three sites open-coded "accepted but English moved"
+  (i18n-sync planLocale, currentInputErrors, validateAuthoritativePlan). They now read
+  summarizeHistory's effectiveState, which is the single authoritative reading shared
+  with the gates, i18n:review and the CLI summaries.
+- validation severity: i18n-review's isReviewSafeSyncDebt was a copy of the rule for
+  which structural issues are the bot's mechanical debt. Now i18n-current's
+  isMechanicalSyncDebt, used by review and by check-i18n.
+- gate setup: checkI18nSnapshot rebuilt history, snapshot, plan and workflow summary
+  inline. Now one analyzeSnapshot, judged twice by checkI18nSemantics and
+  checkI18nSnapshot.
+- state cloning: i18n-history's private cloneState duplicated entry construction from
+  i18n-history-events. Now cloneHistoryState, next to createHistoryState, which also
+  keeps the new per-key index consistent.
+
+Deliberately not consolidated, with reasons:
+
+- planFilledLocale's blocking-issue filter looks like isMechanicalSyncDebt but pairs it
+  with a distinct obsolete-target message that reads better than the generic issue text.
+  Adjacent, not duplicated; folding them would lose the message and risks i18n:fill's
+  history independence for no gain.
+- summarizeWorkflow and formatSyncSummary both report operations, from events and from
+  plan operations respectively. Different inputs, different consumers.
+- snapshotBundles and buildOrderedLocale both build bundles, for a snapshot and for a
+  plan. Different shapes.
+
+Remaining scope: the presentation and contributor scripts were not mapped for duplication,
+only decoupled from committed freshness. Renderer i18n.ts/locales.ts were not examined at
+all. Size is still not proof of redundancy; do not chase a line count.
 
 ---
 

@@ -131,12 +131,26 @@ The translator-focused workflow, optional commands, locale rules, and new-langua
 [TRANSLATING.md](TRANSLATING.md). Local tooling is optional; CI can perform validation without
 pnpm, application dependencies, Rust, Tauri, or launching Modrex.
 
+### Who owns what
+
+| Actor                | Owns                                                                                          |
+| -------------------- | --------------------------------------------------------------------------------------------- |
+| Product contributor  | English source strings in `en.json`, and nothing else about translation                       |
+| Language contributor | Translated text and explicit review decisions                                                 |
+| CI                   | Whether the tree is valid translation data, judged against Git history                        |
+| Bot                  | Mechanical `!` and `?` markers, contributor attribution, the README table and the status SVGs |
+
+Changing English alone is a complete change. CI does not ask a product contributor to touch
+another locale, and it does not ask a language contributor to regenerate a badge. The
+translation-status workflow performs every mechanical update after the change reaches `main`,
+and verifies its own output before committing, so derived files may lag briefly in between.
+
 Maintainers can verify or regenerate the README translation table and per-locale status SVGs:
 
 | Command                        | Description                                                                                |
 | ------------------------------ | ------------------------------------------------------------------------------------------ |
 | `pnpm i18n:presentation-check` | Exit non-zero when the README translation table or a status SVG is stale, without writing. |
 | `pnpm i18n:presentation-write` | Materialize the README translation table and status SVGs from current locale state.        |
+| `pnpm i18n:check-sync`         | Exit non-zero when derived locale markers are stale. The bot's check, not a contributor's. |
 
-After locale changes reach `main`, GitHub Actions regenerates contributor attribution and the
-README table. Locale files remain the source for language discovery and coverage.
+Locale files remain the source for language discovery and coverage.
