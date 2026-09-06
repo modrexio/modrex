@@ -140,7 +140,10 @@ export function stagedI18nPaths({ cwd = process.cwd(), localeDir = I18N_LOCALE_D
     return adapter.stagedChangedPaths().filter((path) => relevantPath(path, localeDir))
 }
 
-export function checkI18nSnapshot({
+// Both gates need the same reconstruction: committed history, the candidate tree read as one
+// further transition, and the synchronization plan that tree implies. They differ only in what
+// they conclude from it, so the analysis is built once here and judged twice below.
+function analyzeSnapshot({
     cwd = REPOSITORY_ROOT,
     localeDir = I18N_LOCALE_DIR,
     baseline = I18N_HISTORY_BASELINE,
@@ -161,23 +164,54 @@ export function checkI18nSnapshot({
     }
     const prospective = analyzeRepairableProspective(committed, currentSnapshot)
     const { sourceBundle, locales } = snapshotBundles(currentSnapshot)
-    const current = { sourceBundle, locales }
+
+    // The plan is what the tree means once derived markers are resolved, so validating it is
+    // what separates a real translation error from marker work the bot has not done yet. A
+    // wrong placeholder against unchanged English stays accepted in the plan and fails here;
+    // the same wrong placeholder after an English change becomes Review and does not.
     const plan = planI18nSync({ history: prospective, sourceBundle })
     validatePlannedBundles(plan)
-    const comparison = comparePlan(plan, current)
-    const workflowSummary = summarizeWorkflow({
-        history: prospective,
-        baseSnapshot: committed.snapshot,
-        currentSnapshot,
-    })
+
     return {
-        pass: comparison.differences.length === 0,
-        skipped: false,
         history: prospective,
         plan,
-        operations: comparison.differences,
-        allOperations: comparison.operations,
-        workflowSummary,
+        comparison: comparePlan(plan, { sourceBundle, locales }),
+        workflowSummary: summarizeWorkflow({
+            history: prospective,
+            baseSnapshot: committed.snapshot,
+            currentSnapshot,
+        }),
+    }
+}
+
+// Is this tree valid translation data? A source-only change is, and so is a translation whose
+// English moved before the bot wrote its marker. Reaching this return means the plan validated.
+export function checkI18nSemantics(options = {}) {
+    const analysis = analyzeSnapshot(options)
+    return {
+        pass: true,
+        skipped: false,
+        history: analysis.history,
+        plan: analysis.plan,
+        operations: [],
+        allOperations: analysis.comparison.operations,
+        unsynchronized: analysis.comparison.differences,
+        workflowSummary: analysis.workflowSummary,
+    }
+}
+
+// Has the bot caught up? Only the writer's own post-generation check and an explicit local
+// run ask this. It must never gate a contributor's commit.
+export function checkI18nSnapshot(options = {}) {
+    const analysis = analyzeSnapshot(options)
+    return {
+        pass: analysis.comparison.differences.length === 0,
+        skipped: false,
+        history: analysis.history,
+        plan: analysis.plan,
+        operations: analysis.comparison.differences,
+        allOperations: analysis.comparison.operations,
+        workflowSummary: analysis.workflowSummary,
     }
 }
 
@@ -188,7 +222,7 @@ export function checkStagedI18n(options = {}) {
     if (stagedI18nPaths({ cwd, localeDir, git }).length === 0) {
         return { pass: true, skipped: true, operations: [], allOperations: [] }
     }
-    return checkI18nSnapshot({
+    return checkI18nSemantics({
         ...options,
         cwd,
         localeDir,
@@ -198,7 +232,7 @@ export function checkStagedI18n(options = {}) {
 }
 
 export function formatEnforcementFailure(result) {
-    const lines = ['Canonical i18n state is out of sync.', '']
+    const lines = ['Derived i18n markers are not synchronized.', '']
     if (result.operations.length > 0) {
         lines.push('Planned operations:')
         for (const operation of result.operations) {
@@ -210,19 +244,26 @@ export function formatEnforcementFailure(result) {
     return lines.join('\n')
 }
 
+const MODES = new Set(['--staged', '--synchronized'])
+
 export function runI18nEnforcement(
     args,
     { stdout = process.stdout, stderr = process.stderr, ...options } = {}
 ) {
-    if (args.length > 1 || (args.length === 1 && args[0] !== '--staged')) {
-        stderr.write('Usage: node scripts/i18n-enforcement.mjs [--staged]\n')
+    if (args.length > 1 || (args.length === 1 && !MODES.has(args[0]))) {
+        stderr.write('Usage: node scripts/i18n-enforcement.mjs [--staged|--synchronized]\n')
         return 2
     }
+    const synchronized = args[0] === '--synchronized'
+    const label = synchronized ? 'synchronization check' : 'semantic check'
     try {
-        const result =
-            args[0] === '--staged' ? checkStagedI18n(options) : checkI18nSnapshot(options)
+        const result = synchronized
+            ? checkI18nSnapshot(options)
+            : args[0] === '--staged'
+              ? checkStagedI18n(options)
+              : checkI18nSemantics(options)
         if (result.skipped) {
-            stdout.write('i18n: read-only check skipped (no staged locale/source files).\n')
+            stdout.write(`i18n: ${label} skipped (no staged locale/source files).\n`)
             return 0
         }
         if (!result.pass) {
@@ -233,12 +274,16 @@ export function runI18nEnforcement(
             result.allOperations.length ? summarizeEnforcementOperations(result.allOperations) : '',
             result.workflowSummary ? formatWorkflowSummary(result.workflowSummary) : '',
         ].filter(Boolean)
-        stdout.write(
-            `i18n: read-only check passed${details.length ? ` (${details.join('; ')})` : ''}.\n`
-        )
+        stdout.write(`i18n: ${label} passed${details.length ? ` (${details.join('; ')})` : ''}.\n`)
+        // Marker work the bot still owes is reported, never charged to this tree.
+        if (result.unsynchronized?.length > 0) {
+            stdout.write(
+                `i18n: ${result.unsynchronized.length} derived marker update(s) pending; the translation-status workflow writes them.\n`
+            )
+        }
         return 0
     } catch (error) {
-        stderr.write(`i18n: read-only check: ${error.message}\n`)
+        stderr.write(`i18n: ${label}: ${error.message}\n`)
         return 1
     }
 }

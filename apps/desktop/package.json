@@ -30,6 +30,7 @@
         "i18n:status-svg": "node scripts/i18n-presentation-svg.mjs",
         "i18n:check-readonly": "node scripts/i18n-enforcement.mjs",
         "i18n:check-staged": "node scripts/i18n-enforcement.mjs --staged",
+        "i18n:check-sync": "node scripts/i18n-enforcement.mjs --synchronized",
         "i18n:presentation-check": "node scripts/i18n-presentation-lifecycle.mjs --check",
         "i18n:presentation-write": "node scripts/i18n-presentation-lifecycle.mjs --write",
         "update-i18n-readme": "node scripts/update-i18n-readme.mjs",
