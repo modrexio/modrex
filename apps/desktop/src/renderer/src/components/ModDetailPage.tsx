@@ -69,6 +69,7 @@ import { useLoaderState } from '../hooks/useLoaderState'
 import { resolveDepCheck } from '../installDepCheck'
 import { useThumbnail } from '../hooks/useThumbnail'
 import { api } from '../api'
+import { runBulkAction } from '../bulkAction'
 import { markForegroundActivity } from '../requestPriority'
 import { DescriptionTab, ChangelogTab, LicenseTab } from './modDetail/textTabs'
 import { LightboxImage, ImagesTab } from './modDetail/ImagesTab'
@@ -543,9 +544,16 @@ export function ModDetailPage({
     async function handleEnable() {
         if (!gamePath || installedFiles.length === 0) return
         setActionLoading(true)
+        setInstallError(null)
         try {
-            for (const m of installedFiles) await api.enableMod(m.uid, gamePath, activeGame)
-            await onRefreshInstalled()
+            setInstallError(
+                await runBulkAction(
+                    installedFiles,
+                    (m) => m.name,
+                    (m) => api.enableMod(m.uid, gamePath, activeGame),
+                    onRefreshInstalled
+                )
+            )
         } finally {
             setActionLoading(false)
         }
@@ -554,9 +562,16 @@ export function ModDetailPage({
     async function handleDisable() {
         if (!gamePath || installedFiles.length === 0) return
         setActionLoading(true)
+        setInstallError(null)
         try {
-            for (const m of installedFiles) await api.disableMod(m.uid, gamePath, activeGame)
-            await onRefreshInstalled()
+            setInstallError(
+                await runBulkAction(
+                    installedFiles,
+                    (m) => m.name,
+                    (m) => api.disableMod(m.uid, gamePath, activeGame),
+                    onRefreshInstalled
+                )
+            )
         } finally {
             setActionLoading(false)
         }

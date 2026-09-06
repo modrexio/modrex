@@ -505,7 +505,8 @@ fn make_pd3_copy(root: &Path, mod_count: usize) -> String {
             mods,
             folders: vec![],
         },
-    );
+    )
+    .unwrap();
     game_path
 }
 
@@ -532,7 +533,9 @@ fn pick_prefers_the_copy_tracking_the_most_mods() {
     let xbox_path = make_pd3_copy(xbox.path(), 142);
     let installs = vec![install("steam", &steam_path), install("xbox", &xbox_path)];
 
-    let picked = pick_install(&installs, pd3_engine(), None).unwrap();
+    let picked = pick_install(&installs, pd3_engine(), None)
+        .chosen()
+        .unwrap();
     assert_eq!(picked.launcher, "xbox");
     assert_eq!(picked.game_path, xbox_path);
 }
@@ -549,7 +552,9 @@ fn pick_ignores_a_mod_list_left_behind_by_a_copy_that_was_only_pointed_at() {
         install("xbox", &make_pd3_copy(xbox.path(), 142)),
     ];
 
-    let picked = pick_install(&installs, pd3_engine(), None).unwrap();
+    let picked = pick_install(&installs, pd3_engine(), None)
+        .chosen()
+        .unwrap();
     assert_eq!(picked.launcher, "xbox");
 }
 
@@ -571,10 +576,13 @@ fn pick_counts_mods_hidden_in_a_backup() {
             mods: vec![InstalledMod::default()],
             folders: vec![],
         },
-    );
+    )
+    .unwrap();
 
     let installs = vec![install("steam", &steam_path), install("xbox", &xbox_path)];
-    let picked = pick_install(&installs, pd3_engine(), None).unwrap();
+    let picked = pick_install(&installs, pd3_engine(), None)
+        .chosen()
+        .unwrap();
     assert_eq!(picked.launcher, "xbox");
 }
 
@@ -587,7 +595,9 @@ fn pick_falls_back_to_the_recorded_launcher_when_no_copy_has_mods() {
         install("xbox", &make_bare_pd3_copy(xbox.path())),
     ];
 
-    let picked = pick_install(&installs, pd3_engine(), Some("xbox")).unwrap();
+    let picked = pick_install(&installs, pd3_engine(), Some("xbox"))
+        .chosen()
+        .unwrap();
     assert_eq!(picked.launcher, "xbox");
 }
 
@@ -601,7 +611,9 @@ fn pick_keeps_the_recorded_launcher_when_both_copies_are_equally_modded() {
         install("xbox", &make_pd3_copy(xbox.path(), 3)),
     ];
 
-    let picked = pick_install(&installs, pd3_engine(), Some("xbox")).unwrap();
+    let picked = pick_install(&installs, pd3_engine(), Some("xbox"))
+        .chosen()
+        .unwrap();
     assert_eq!(picked.launcher, "xbox");
 }
 
@@ -614,9 +626,49 @@ fn pick_falls_back_to_the_first_copy_when_nothing_else_decides() {
         install("xbox", &make_bare_pd3_copy(xbox.path())),
     ];
 
-    let picked = pick_install(&installs, pd3_engine(), None).unwrap();
+    let picked = pick_install(&installs, pd3_engine(), None)
+        .chosen()
+        .unwrap();
     assert_eq!(picked.launcher, "steam");
-    assert!(pick_install(&[], pd3_engine(), None).is_none());
+    assert!(pick_install(&[], pd3_engine(), None).chosen().is_none());
+}
+
+// Counting an unreadable mod list as zero is how the copy holding the mods loses this
+// comparison and the game gets handed to the other store for good. Nothing is settled until
+// the list can be read.
+#[test]
+fn pick_settles_nothing_when_a_copy_s_mod_list_cannot_be_read() {
+    let steam = TempDir::new().unwrap();
+    let xbox = TempDir::new().unwrap();
+    let steam_path = make_pd3_copy(steam.path(), 0);
+    let xbox_path = make_pd3_copy(xbox.path(), 142);
+    let state = get_state_path(&xbox_path, pd3_engine());
+    std::fs::write(&state, b"{ not json").unwrap();
+
+    let picked = pick_install(
+        &[install("steam", &steam_path), install("xbox", &xbox_path)],
+        pd3_engine(),
+        None,
+    );
+
+    assert!(
+        matches!(picked, Pick::Unknown),
+        "an unreadable mod list must not resolve to a choice"
+    );
+}
+
+// One copy needs no comparison at all, so an unreadable list there changes nothing.
+#[test]
+fn pick_still_settles_on_a_single_copy_with_an_unreadable_mod_list() {
+    let only = TempDir::new().unwrap();
+    let path = make_pd3_copy(only.path(), 3);
+    std::fs::write(get_state_path(&path, pd3_engine()), b"{ not json").unwrap();
+
+    let picked = pick_install(&[install("steam", &path)], pd3_engine(), None)
+        .chosen()
+        .unwrap();
+
+    assert_eq!(picked.launcher, "steam");
 }
 
 fn settled_on(path: &str, launcher: &str) -> GameSettings {

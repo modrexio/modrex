@@ -78,13 +78,13 @@ pub(crate) fn read_enabled_from_mods_txt(path: &Path, mod_name: &str) -> Option<
     })
 }
 
-/// Syncs a UE4SS Lua sub-mod's enabled state into mods.txt to match a Modrex enable or
-/// disable action. UE4SS reads this file on launch to decide which Mods/ folders load,
-/// independent of where the folder physically sits, so this and not a file move is what
-/// takes effect in-game. Silently no-ops on any I/O failure, the same tolerance
-/// crimeboss_settings::sync_enabled has, since the Modrex-tracked flag is what the UI shows.
-pub fn sync_enabled(mods_txt_path: &Path, mod_name: &str, enabled: bool) {
-    let _ = set_enabled_in_mods_txt(mods_txt_path, mod_name, enabled);
+/// Sets a UE4SS Lua sub-mod's enabled state in mods.txt to match a Modrex enable or disable
+/// action. UE4SS reads this file on launch to decide which Mods/ folders load, independent of
+/// where the folder physically sits, so this write and not a file move is what takes effect
+/// in-game. A failure therefore means the mod did not change state, and the caller has to
+/// hear about it rather than record a change the loader will not honour.
+pub fn set_enabled(mods_txt_path: &Path, mod_name: &str, enabled: bool) -> Result<(), String> {
+    set_enabled_in_mods_txt(mods_txt_path, mod_name, enabled)
 }
 
 /// Reads the real enabled value back from mods.txt. The player, or UE4SS's own in-game UI,

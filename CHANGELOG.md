@@ -25,6 +25,9 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - Opening the log from Settings now opens the log file itself instead of writing a copy to a predictable name in the system temporary folder, which another program could have redirected at one of your own files.
 - Fixed cleanup after installing a .pdmod file or a loose non-archive file being able to target the system temporary folder instead of only the files Modrex had staged there.
 - Fixed Nexus Mods sign-in and website mod downloads not reaching Modrex on Linux.
+- Fixed enabling or disabling a mod being reported as done when its files could not be moved, such as while the game is running.
+- Fixed a mod being left split between folders when its .ucas or .utoc file could not be moved with its pak.
+- Fixed mod folders and load order being lost when Modrex could not read its saved mod list.
 
 ## 0.14.0
 

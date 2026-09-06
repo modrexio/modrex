@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { GameId, InstalledMod, ModFolder } from '../../../shared/types'
 import { GAME_STORAGE_KEY } from '../../../shared/types'
 import { api } from '../api'
+import { runBulkAction } from '../bulkAction'
 
 export interface FolderActions {
     collapsedFolders: Set<string>
@@ -11,6 +12,8 @@ export interface FolderActions {
     creatingFolderParentId: string | null | undefined
     newFolderName: string
     loadingFolderId: string | null
+    folderActionError: string | null
+    clearFolderActionError: () => void
     startRename: (folder: ModFolder) => void
     commitRename: (folderId: string) => Promise<void>
     cancelRename: () => void
@@ -47,6 +50,7 @@ export function useFolderActions(
     )
     const [newFolderName, setNewFolderName] = useState('')
     const [loadingFolderId, setLoadingFolderId] = useState<string | null>(null)
+    const [folderActionError, setFolderActionError] = useState<string | null>(null)
 
     function startRename(folder: ModFolder) {
         setRenamingFolderId(folder.id)
@@ -121,18 +125,24 @@ export function useFolderActions(
         })
     }
 
+    // A folder toggle is a batch: one mod that will not move must not decide the rest, and the
+    // refresh afterwards is what shows which ones actually changed.
     async function handleToggleFolder(folderId: string, mods: InstalledMod[], anyEnabled: boolean) {
         if (!gamePath) return
         setLoadingFolderId(folderId)
+        setFolderActionError(null)
         try {
-            for (const mod of mods) {
-                if (anyEnabled) {
-                    await api.disableMod(mod.uid, gamePath, activeGame)
-                } else {
-                    await api.enableMod(mod.uid, gamePath, activeGame)
-                }
-            }
-            await onRefreshInstalled()
+            setFolderActionError(
+                await runBulkAction(
+                    mods,
+                    (m) => m.name,
+                    (m) =>
+                        anyEnabled
+                            ? api.disableMod(m.uid, gamePath, activeGame)
+                            : api.enableMod(m.uid, gamePath, activeGame),
+                    onRefreshInstalled
+                )
+            )
         } finally {
             setLoadingFolderId(null)
         }
@@ -146,6 +156,8 @@ export function useFolderActions(
         creatingFolderParentId,
         newFolderName,
         loadingFolderId,
+        folderActionError,
+        clearFolderActionError: () => setFolderActionError(null),
         startRename,
         commitRename,
         cancelRename,

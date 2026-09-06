@@ -26,6 +26,7 @@
     },
     "app": {
         "modsHidden": "Mods are hidden; the game was launched in vanilla mode and may still be running.",
+        "stateUnreadable": "Modrex could not read its own mod list for this game, so the mods below were found by scanning the folder and no changes are being saved. Details are in the log.",
         "restoreMods": "Restore mods",
         "updateAction": "Update",
         "updateInstall": "Restart & Install",
@@ -151,6 +152,9 @@
         "filterPlaceholder": "Search mods...",
         "filterEmpty": "No mods match \"{query}\"",
         "reinstallFailed": "Reinstall failed: {error}",
+        "actionFailed": "{name} could not be changed: {error}",
+        "actionFailedSome": "{count} mods could not be changed ({names}): {error}",
+        "refreshFailed": "The installed mod list could not be refreshed: {error}",
         "updatesAvailable": "{count} mods can be updated",
         "updatesAvailableSingle": "{count} mod can be updated",
         "reviewUpdates": "Review updates",
