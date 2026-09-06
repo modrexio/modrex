@@ -4,8 +4,9 @@ IMPORTANT FOR AI AGENTS: Do NOT execute, implement, or act on anything in this f
 without the user explicitly saying "do the TODO: <item name>". These are intentionally
 deferred tasks that require human judgement on timing. Treat this file as read-only notes.
 
-Desktop paths written as src/, src-tauri/, assets/, scripts/, CHANGELOG.md, or
-THIRD_PARTY_LICENSES.md are relative to apps/desktop after the monorepo migration.
+Desktop paths written as src/, src-tauri/, scripts/ or THIRD_PARTY_LICENSES.md are
+relative to apps/desktop. CHANGELOG.md, .github/, docs/ and assets/i18n/status/ are
+repository-root paths.
 
 Index work happens in apps/index/, never in the standalone modrex-index repository at
 C:\local\modrexio\modrex-index. That checkout is the frozen legacy producer for desktop
@@ -16,6 +17,129 @@ Two index paths coexist inside apps/index/, and entries below name which one the
   snapshots exported by postgres/export-sqlite.ts and published to R2 at index.modrex.net.
 - The LEGACY builder: build-index.ts, which still writes a single monolithic index.db for
   the frozen release. Do not extend it.
+
+---
+
+## Maintenance plan boundaries
+
+Reviewed against d71d343 (#67). The owner wants smaller, independently reviewable
+changes that reduce duplicated responsibilities. This does not authorize executing
+the backlog. Each maintenance task should name the behavior preserved, the code or
+responsibilities removed, and the places future changes must touch. Count implementation
+growth separately from tests/generated files; do not delete regression coverage to meet
+a line-count target. Moving the same responsibilities into more files is not success.
+
+Recommended order: mod-operation-failure-contract, i18n-english-only-enforcement,
+i18n-maintenance-audit, shared-install-prompt-flow. Treat these as separate tasks.
+Keep #65's game declarations and validation. Expand their schema, generators, adapters
+or hooks only for a current game requirement or demonstrated duplication to remove.
+Older architecture proposals below remain conditional, not a mandate for a rewrite.
+
+---
+
+## TODO: mod-operation-failure-contract
+
+Finish remaining failure propagation gaps; do not repeat #67's state-load/save,
+activation rollback, companion-move or renderer bulk-action work. Recheck these
+d71d343 findings against the checkout before implementation. Rust paths below are
+relative to src-tauri/src/commands/:
+
+- mods/install.rs::uninstall_mod_op logs removal failures, then removes the saved
+  record and can return success, including for host packs. Preserve tracking when
+  removal fails and report partial deletion honestly. The previous implementation
+  deliberately used best-effort uninstall, so this changes that behavior, not just
+  a function signature. Do not describe deletion as reversible.
+- mods/crimeboss_settings.rs::sync_enabled discards set_enabled_in_file's Result.
+  Propagate real read/parse/write errors through activation and rollback. Preserve
+  legitimate no-ops: a fresh mod may have no game-created settings file, and an
+  unverified launcher path must not be guessed. Missing optional state differs from
+  failure to update existing state.
+
+Contract: success means the requested change happened. Failure preserves tracking or
+explicitly reports what changed and what remains. Use existing operation functions and
+rollback helpers; no generic transaction framework or broad engine rewrite.
+Verify failed uninstall with files still present, partial companion deletion, Crime
+Boss settings failures and failed rollback. Check command results, UI feedback/refresh
+and success analytics together. Preserve #67's regression tests. New product strings
+belong only in en.json.
+
+---
+
+## TODO: i18n-english-only-enforcement
+
+Resolve the mismatch between CLAUDE.md's translation ownership policy and CI. Product
+work may edit en.json only and must not require synchronizing other locales. At d71d343,
+an in-memory checkI18nSnapshot passed for the current tree but failed after adding one
+English key alone, demanding scaffold-added operations in all five target locales.
+Inspect scripts/i18n-enforcement.mjs, i18n-sync.mjs, i18n-history.mjs, the staged hook
+and repository-root .github/workflows/ci.yml.
+
+NON-NEGOTIABLE: Git remains authoritative evidence for acceptance and the three states:
+Accepted, Missing, Review (pending in code). When English changes since acceptance,
+an existing translation needs Review; its presence is not approval of the new meaning.
+Missing translations remain valid and fall back to English. The owner explicitly
+rejected replacing history with hashes, a metadata file, coverage percentages or
+current-tree-only heuristics. Never auto-accept review debt.
+
+Trace derived historical state versus stored ! / ? markers first. English-only changes
+should pass while consumers recognize Missing and Review without mandatory target-file
+writes. Check runtime behavior too: permitting unmaterialized Review in CI must not
+silently change pending-value or incompatible-placeholder fallback rules. Retain explicit
+translator fill/sync/review operations, structural validation and honest reporting when
+history is unavailable. If marker materialization prevents this, document the exact
+dependency before proposing a semantic change; preserving three-state truth comes first.
+
+Verify with fixtures: English additions, changed English with accepted translations,
+explicit Keep/Edit, source reversion, committed/staged/working-tree snapshots and
+read-only commands that mutate no files. Preserve existing historical acceptance and
+provenance semantics. Do not edit actual non-English locales during this task.
+
+---
+
+## TODO: i18n-maintenance-audit
+
+Audit implementation overhead without simplifying translation behavior. At d71d343,
+desktop i18n scripts contain 4,612 implementation lines in 17 files and 7,679 test lines
+in 12 files, excluding locale JSON/runtime code. Size is not proof of redundancy.
+
+Map ownership across i18n-current, i18n-history-events, i18n-history, i18n-inspection,
+i18n-enforcement, i18n-sync, i18n-review and presentation/contributor scripts, plus
+src/shared/i18n-values.js and renderer i18n.ts/locales.ts. Look for duplicated
+classification, validation, snapshot conversion or reporting. Keep classification
+authoritative in one place without forcing unlike concerns into a generic helper.
+
+First deliver exact duplication findings and bounded removal candidates. Do not assume
+a rewrite or a particular line reduction is warranted. Any later consolidation must
+delete replaced paths and preserve Git baseline, acceptance, provenance, normalization,
+source-reversion, explicit-review and history-availability behavior. Retain tests that
+distinguish Accepted, Missing and Review. No replacement CLI, translation service or
+new metadata source of truth. Coordinate with i18n-english-only-enforcement.
+
+---
+
+## TODO: shared-install-prompt-flow
+
+BrowsePage, ModDetailPage, modDetail/DownloadsTab, hooks/useModActions and UpdatesModal
+repeat archive-picker, host-pack, Crime Boss flat-confirmation and unrecognized-archive
+state/wiring. installSentinels.ts dispatches outcomes but does not own their lifecycle.
+Inspect FileSelectModal's paused loop and drag/drop entry points before setting scope.
+
+Proposed shape: one shared hook for an active installation conversation and one component
+rendering its prompt. Callers supply existing installation work/context; the shared flow
+owns prompt resolution, cancellation and completion. Batch updates retain their queue
+and await the same interaction. Choose placement from actual concurrency/navigation
+needs, not a process-global single-install lock or generic workflow registry.
+
+Preserve source acquisition (including free Nexus nxm handoff), loader routing, Crime
+Boss target/skeleton rules, host packs, automatic update variant matching, secondary
+targets, progress, partial failure reporting and installed-list refresh. Staged handles
+retain backend authorization/ownership and cleanup on completion/cancel. Cancellation
+must not leave a queue or Promise stuck. No new sources or Rust install redesign here.
+
+Migrate in reviewable slices and delete each caller's replaced state, handlers and modal
+wiring in that slice. Done means a new prompt needs one owner changed, not every entry
+point. Verify single/reinstall/per-file installs, batch pause/resume/cancel, navigation
+and concurrent requests, preserving domain-specific tests.
 
 ---
 
@@ -33,40 +157,23 @@ compatibility warning added in the Diesel 3.0 detection work.
 ### src/renderer/src/api.ts
 - Remove the `isPd2Diesel3` wrapper
 
-### src/renderer/src/installDepCheck.ts
-- Remove the `isPd2Diesel3` guard (the one-liner that forces `bltOk = false` on Diesel 3.0)
-
-### src/renderer/src/App.tsx
-- Remove `showDiesel3Notice` and `diesel3NoticeDontShow` useState declarations
-- Remove the `useEffect` that calls `isPd2Diesel3`
-- Remove the `<Dialog>` block for the notice (search for `diesel3Notice.title`)
+### src-tauri/src/commands/loaders.rs
+- Remove the SuperBLT Diesel 3.0 carve-out in check_loader after verifying replacement
+  loader support. The old installDepCheck.ts no longer exists.
 
 ### src/renderer/src/components/DepsWarningModal.tsx
 - Remove `isBltUnsupported` useState and its useEffect
 - Revert the button section back to the two-branch form (Install | Open Link)
 
+### src/renderer/src/components/modDetail/DepsTab.tsx
+- Remove bltDiesel3 detection and the unsupported-loader link/button branches.
+
 ### src/renderer/src/i18n/en.json
-- Remove the `"diesel3Notice"` namespace
 - Remove `"bltDiesel3Note"` and `"bltDiesel3GitHub"` from `"depsWarning"`
 
-At the same time, update `LOADER_DOWNLOAD_URL` in `superblt.rs` to the new loader's
-download endpoint (modworkshop or whatever the Diesel 3.0 port uses), and update
-`pd2.rs` `executables`/`process_names` if the stable branch is fully retired.
-
----
-
-## TODO: search-state-persistence
-
-When a user opens a mod from the Browse page and navigates back (back arrow or ESC),
-they are returned to the initial Browse page state instead of their previous search results.
-Sort selection (e.g. "updated date") also resets on each visit.
-
-Root cause: `BrowsePage` unmounts on tab switch (intentional, for fresh data), which discards
-all local search/sort/scroll state. Fix would require lifting search state up to `App.tsx`
-or preserving it with CSS-hidden approach (same as `InstalledPage` / `SettingsPage`).
-
-Note: the fresh-fetch-on-visit behavior is desirable - only the search/sort *inputs* need
-to survive navigation, not the results themselves.
+Update the SuperBLT download in commands/loaders.rs and executables/processes in
+src-tauri/src/games/pd2/package.toml only if verified release changes require them.
+The App.tsx startup notice and English diesel3Notice namespace are already removed.
 
 ---
 
@@ -89,6 +196,11 @@ waiting until the Tauri build has been stable for several releases), remove the 
 ---
 
 ## TODO: pak-analyzer
+
+The desktop's commands/pak_viewer.rs already reads pak/IoStore paths locally. This
+does not complete the indexer task: apps/index has no asset-manifest parser/schema/
+export pipeline. Assess reuse of the existing parser libraries before writing another
+binary parser; retain the hash/size/status contract and real-file verification below.
 
 Phase 1 of the pak content manifest feature. The work happens in apps/index/. Phases must
 land in order: pak-analyzer -> pak-entries-schema -> manifest-backfill-and-size ->
@@ -277,17 +389,6 @@ Boss only; both are UE 4.27.2, so one format generation.
 Nexus works but is narrower than ModWorkshop. This is the FUNCTIONAL gap list, separate
 from the architecture work (which is done): the domain model, typed IPC and the shared
 Browse page all landed 2026-07-20.
-
-REDUCED 2026-08-01. Three of the original four gaps shipped in the unreleased 0.13.0 work
-and were verified gone before this entry was trimmed:
-
-- Update detection for installed Nexus mods: nexusModCache plus the Nexus branch of
-  useModData now pre-populate from cache and refresh per mod, keyed off the mod's own
-  positive remoteId. The old "useModData skips id < 0" cause no longer exists at all;
-  routing is on m.source now (see the deleted source-remote-ids-as-strings entry).
-- Mod detail page: nexus_get_mod_detail is registered in lib.rs and ModDetailPage renders
-  Nexus mods.
-- File list: nexus_list_mod_files is registered and DownloadsTab serves both sources.
 
 VERIFIED 2026-08-07 by live GraphQL introspection plus targeted data queries
 (unauthenticated but app-identified, the mode the 2026-07-29 research validated; this
@@ -525,10 +626,6 @@ users.nexusmods.com/.well-known/openid-configuration.
   refresh token, per RFC 7009 token_type_hint) before local deletion. Failure to
   revoke must not block sign-out. There is NO end_session endpoint - nothing else to
   call.
-- Plaintext fallback visibility: when store_tokens falls back to settings.json
-  (credential store unavailable), the user is never told. Show a one-line notice in
-  the Settings Nexus section while the fallback is active (secret_store_available
-  already exists as a command).
 - Refresh rotation: UNRESOLVED - discovery metadata does not say whether refresh
   tokens rotate. Keep REFRESH_LOCK's conservative serialize-everything behavior, and
   NEVER refresh the app's grant from outside the app (a rotated token persisted
@@ -589,7 +686,10 @@ QUESTIONS for Nexus support (owner sends manually; registered-app channel):
 
 ## TODO: sources-module-restructure
 
-Phase 4 of the multi-source expansion. Largely mechanical after phase 3.
+Deferred source architecture proposal. Revalidate its scope against the maintenance
+boundaries above: do not introduce the full trait or move both clients merely to make
+the directories symmetrical. Implement only boundaries a current source feature needs
+or that demonstrably eliminate repeated behavior.
 
 ### Context
 
@@ -616,10 +716,8 @@ one file per implementation).
   shared rate-limited pipe; make it per-source. Still true as of 2026-08-01: the
   file's own header comment says "rate-limited connection to modworkshop" and it
   has no notion of a source.
-- Credential storage: DONE, do not redo. `commands/secrets.rs` wraps the OS
-  credential store (Windows Credential Manager, Linux Secret Service over D-Bus)
-  and the Nexus token lives there, not in settings.json. mod.io and Steam Web API
-  keys should reuse it rather than inventing a second mechanism.
+- New source credentials must reuse commands/secrets.rs, including the existing
+  explicitly surfaced settings.json fallback when the credential store is unavailable.
 - Thumbnails: `thumbnails.rs` hardcodes storage.modworkshop.net and keys the disk
   cache by CDN filename (unique only within that CDN). Key by full-URL hash
   instead; every new source's image CDN origin must be added to BOTH `csp` and
@@ -733,7 +831,7 @@ saying so.
 - Sources: the existing Nexus integration plus local archive install and
   drag-and-drop. No mod.io and no Steam Workshop in v1. Registry facts verified live
   2026-08-07: domain stalker2heartofchornobyl, numeric gameId 6944 (for the
-  SOURCE_REGISTRY numeric_id field), 1,552 published Nexus mods (modCount - lower
+  package's Nexus source binding numeric_id field), 1,552 published Nexus mods (modCount - lower
   than raw mod-id evidence suggests, since ids run past 2,300 with hidden/removed
   listings). S2 has adult-flagged mods (12 live), so nexus-detail-parity's adult
   handling should land with or before this game; its mods also lean on requirements
@@ -776,69 +874,54 @@ saying so.
 
 ## TODO: game-registry-behavior-hooks
 
-Scalability. Medium. Stages 1 and 3 of the original game-registry entry landed on
-2026-07-19 (GAME_REGISTRY in commands/games.rs, GAME_SPECS in src/shared/types.ts,
-pnpm check-games diffing the two, kill-pd3-fallback folded in). Stage 2 (loader list
-as a GameSpec field) was superseded by the loader registry, which owns loaders in its
-own table instead. This is the remaining stage.
+Deferred behavior-isolation proposal. #65 already implements built-in game packages
+in src-tauri/src/games/<id>/package.toml, the game-package contract/validator/codegen,
+and the generated packages/games catalog. Do not recreate GAME_SPECS, check-games,
+another registry or a parallel manifest layer. commands/games.rs adapts packages into
+the existing engine; mods/decisions.rs isolates several choices, and package activation
+and metadata policies already select some behavior.
 
 ### The problem
 
-The registries fixed game IDENTITY, so adding a family-conforming game no longer touches
-~15 wiring files. They did not fix the novel 20%: game-specific BEHAVIOR still lives as
-`game_id == "x"` branches inside big shared files, which grow with every game added.
-
-The trend is measurable and going the wrong way: zip.rs was ~1176 lines when this entry was
-written and is ~1474 as of 2026-08-01, with 21 `game_id ==` branches across the Rust tree.
-Every Crime Boss special case still lands in zip.rs.
+Novel game behavior still crosses shared installation/archive code. Explicit game
+branches are not inherently wrong: they preserve real loader and filesystem differences.
+Determine whether a concrete change duplicates behavior or needs a new domain operation
+before extracting anything. Historical branch/line counts are not implementation targets.
 
 ### The fix
 
-Add optional hook fields to `GameSpec` so game-specific logic lives in that game's own
-module instead of a branch in a shared file:
+When a current game feature requires it, evaluate these boundaries against the existing
+package policies and domain modules. Optional GameSpec hooks are a proposal, not a
+requirement to create every field now:
 - `archive_resolver` - Crime Boss skeleton synthesis in zip.rs (highest structural value)
 - `enabled_sync` - Crime Boss ModSettings (crimeboss_settings.rs), UE4SS mods.txt
   (ue4ss_modstxt.rs)
 - `embedded_id_parser` - BeardLib main.xml, RAID supermod.xml + mod.xml (identify.rs)
 - Priority naming is about to join this list: stalker2-support brings the first game
   whose load order is a filename SUFFIX (_{N}_P, higher loads later) rather than the
-  NNN_ prefix naming.rs assumes for File units - a per-game naming behavior, same
-  migration rule as the rest (opportunistic, when touched).
+  NNN_ prefix naming.rs assumes for File units. Address that policy when implementing
+  STALKER 2, with its actual load-order requirements and regression cases.
 
-Migrate OPPORTUNISTICALLY, whenever a `game_id ==` branch is touched, not big-bang. The
-conformance suite (commands/conformance_tests.rs) covers the uniform contract, so a hook
-migration that changes routing shows up there.
-
----
-
-## TODO: shell-open-path-validation
-
-CI hygiene leftover. Small. The other three bullets of the original
-ci-security-and-invariant-checks entry are DONE: the cargo/pnpm audit job, the CSP
-dual-list sync check (pnpm check-csp), and the updater-manifest shape assertion
-(pnpm check-updater) all run in CI. The Nexus branch separately fixed the open_url
-cmd-metacharacter finding by switching to rundll32 - do not re-address that.
-
-Remaining, low priority: add scheme/shape validation to `shell_open_path`
-(launchers/mod.rs). Its only caller passes the settings-derived gamePath so it is safe
-today, but it is an unguarded command handing its argument to explorer.exe.
+Touching a branch is not itself a reason to migrate it. Keep changes bounded to the
+current requirement, delete replaced paths, and verify both cross-game conformance
+and the specific game's routing/activation/archive tests. No big-bang hook conversion.
 
 ---
 
 ## TODO: modrex-core-crate
 
-Far-future architecture. Large. Blocked on: nexus-prototype-merge AND a concrete second
-consumer existing (a CLI, automation, or the first plugin experiment). Do NOT do
+Far-future architecture. Large. Blocked on a concrete second consumer existing
+(a CLI, automation, or the first plugin experiment). Do NOT do
 preemptively - an extracted core with no second consumer is dead weight, the exact failure
 mode visible in the neighboring Refract_MC repo whose packages/core is Electron-era code
 the app only imports for types.
 
 ### Goal
 
-Make the mod engine host-independent so it can back more than the Tauri app (a headless
-CLI, automation, or plugins). Today the ops in commands/mods/ thread `AppHandle` through
-everything, coupling the domain logic to Tauri and the renderer IPC lifecycle, and making
-core logic untestable without Tauri machinery.
+Make the mod engine host-independent for a concrete headless CLI, automation or plugin
+consumer. Command orchestration still depends on AppHandle, but many operations and
+decision helpers already accept plain paths/data and have unit tests. Do not extract
+a crate just to make those already-testable functions testable again.
 
 ### Approach when the trigger fires
 
@@ -851,16 +934,14 @@ core logic untestable without Tauri machinery.
   a thin adapter implementing the traits over `AppHandle`.
 - Payoff: core tests run without Tauri; a CLI or plugin host drives the same engine; the
   "its own API" idea (programmatic/headless modrex) falls out nearly for free.
-- Prerequisite ordering: SATISFIED as of 2026-07-20. typed-ipc-codegen and the domain
-  model both landed, so the crate's public types would be the neutral domain types in
-  commands/domain.rs rather than ModWorkshop wire shapes. The remaining blocker is the
-  one that always mattered: a concrete second consumer.
+- Reuse the existing typed IPC/domain model rather than defining parallel public shapes.
 
 ---
 
 ## TODO: plugin-system
 
-Far-future ecosystem. Large. Blocked on: modrex-core-crate AND real ecosystem demand.
+Far-future ecosystem. Large. All tiers wait for real ecosystem demand; executable
+hooks additionally wait for modrex-core-crate. Built-in packages do not satisfy demand.
 Security-critical: Modrex's core job is extracting attacker-controlled archives into game
 directories, so plugin isolation matters unusually much.
 
@@ -871,12 +952,12 @@ and sources. Build in escalating capability, cheapest and safest first, and only
 tier that demand actually requires.
 
 - Tier 1 - declarative manifest plugins (do first): a game or loader definition shipped as
-  DATA (a manifest conforming to the GameSpec/LoaderSpec shape), loaded at runtime. Covers
+  DATA (starting from the existing GamePackage contract), loaded at runtime. Covers
   the most likely community contribution (a new family-conforming game or a loader),
   executes NO third-party code, minimal security surface. Direct continuation of
   game-registry/loader-registry: once those are data-driven, "shippable as a manifest
   between releases" is a small step. The cross-repo duplication this used to relieve is
-  already gone: packages/games is that shared manifest, and all three apps consume it.
+  already gone: built-in package declarations generate the catalog consumed by the apps.
 - Tier 2 - sandboxed logic hooks (only if real ones are demanded): for behavior a manifest
   cannot express (a novel archive_resolver / enabled_sync / embedded_id_parser). Use WASM
   (wasmtime or extism), NOT webview-JS (UI access = weak isolation) and NOT native dylibs
@@ -886,23 +967,14 @@ tier that demand actually requires.
 - The public plugin-api surface (cf. Refract_MC's packages/plugin-api) should be EXTRACTED
   from a working core when Tier 2 is real, never declared up front.
 
-### The monorepo landed, so Tier 1 is now cheaper (resolved 2026-08-01)
+### Remaining boundary after built-in packages
 
-This section used to be conditional on the ecosystem-monorepo entry. That migration was
-delivered 2026-07-23, so the condition is now a fact.
-
-`packages/games` IS the manifest this tier would load: a neutral game shape, single source
-of truth, proven sufficient by three consumers (the app, the indexer, the site's docs).
-What remains for Tier 1 is making that data readable from disk at runtime rather than only
-as a compile-time import, plus validation. That is mostly a loader.
-
-Caveat that survived the migration: packages/games carries game IDENTITY, not game
-BEHAVIOR. A community game that needs a novel archive_resolver still cannot be expressed as
-Tier 1 data until game-registry-behavior-hooks defines those hook fields, so that entry is a
-soft prerequisite for Tier 1 covering anything beyond family-conforming games.
-
-This does not change the trigger. Tier 1 still waits on real ecosystem demand, and Tier 2
-still waits on modrex-core-crate, whose own trigger (a concrete second consumer of the mod
-engine) the monorepo does NOT satisfy.
+src-tauri/src/games/<id>/package.toml is the authored source; game-package owns its
+contract/validation and packages/games is a generated catalog, not the runtime plugin
+manifest. #65 completes built-in declarations, not externally installed plugins.
+Only when Tier 1 demand exists, design runtime loading, validation and lifecycle around
+that contract. A new behavior outside the host's implemented policies still needs host
+code or a separately justified Tier 2 capability. Do not add hooks speculatively to
+make every hypothetical community game expressible.
 
 ---
