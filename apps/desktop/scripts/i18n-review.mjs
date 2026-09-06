@@ -3,6 +3,7 @@ import { dirname, relative, resolve } from 'node:path'
 import { createInterface } from 'node:readline/promises'
 import { fileURLToPath } from 'node:url'
 import {
+    formatTargetValue,
     parseTargetValue,
     placeholderContract,
     placeholderDifferences,
@@ -16,9 +17,11 @@ import {
     detectCliCapabilities,
     renderPlaceholderText,
 } from './i18n-presentation-cli.mjs'
+import { isMechanicalSyncDebt } from './i18n-current.mjs'
 import {
     analyzeCommittedHistory,
     analyzeRepairableProspective,
+    EFFECTIVE_STATE,
     I18nHistoryUnavailableError,
     I18N_HISTORY_BASELINE,
     I18N_LOCALE_DIR,
@@ -73,16 +76,22 @@ function placeholderStatus(sourceText, targetText) {
     }
 }
 
-export function buildReviewCandidates(history, localeId) {
+// Acceptance is evidence in Git, so what the committed tree holds decides whether a decision
+// can be recorded at all. Reading that from the working tree instead would let an uncommitted
+// marker make a Keep look real when committing it would produce an empty diff.
+export function buildReviewCandidates(history, localeId, committedSnapshot = history.snapshot) {
     const locale = summarizeHistory(history).locales.get(localeId)
     if (!locale) throw new Error(`Authoritative history has no target locale '${localeId}'`)
+    const committedTargets = committedSnapshot.locales.get(localeId)?.targets
 
     const candidates = []
     for (const key of history.snapshot.source.keys()) {
         const entry = locale.entries.get(key)
-        if (entry?.state !== 'pending') continue
+        // A translation whose English moved needs review whether or not the bot has written
+        // its marker yet, so the review list is built from the effective state.
+        if (entry?.effectiveState !== EFFECTIVE_STATE.REVIEW) continue
         if (!entry.lineageCheckpoint) {
-            throw new Error(`Pending '${localeId}' key '${key}' has no accepted lineage`)
+            throw new Error(`Review '${localeId}' key '${key}' has no accepted lineage`)
         }
 
         const placeholders = placeholderStatus(entry.sourceText, entry.canonicalTarget)
@@ -94,13 +103,25 @@ export function buildReviewCandidates(history, localeId) {
             checkpointRevision: entry.lineageCheckpoint.revision,
             currentSourceText: entry.sourceText,
             currentTargetText: entry.canonicalTarget,
-            pendingProvenance: entry.pendingProvenance,
+            pendingProvenance: entry.effectiveProvenance,
+            committedValue: committedTargets?.has(key)
+                ? formatTargetValue(committedTargets.get(key))
+                : undefined,
+            materialized: committedTargets?.get(key)?.kind === TARGET_VALUE_KIND.PENDING,
             placeholderCompatible: placeholders.compatible,
             missingPlaceholders: placeholders.missing,
             unexpectedPlaceholders: placeholders.unexpected,
         })
     }
     return candidates
+}
+
+// A decision only exists if it changes the committed file. Writing back exactly what is
+// already committed leaves no diff, so Git would record no acceptance and the reviewer would
+// report work that did not happen.
+function wouldRecordAcceptance(candidate, storedValue) {
+    if (candidate.committedValue === undefined) return true
+    return storedValue !== candidate.committedValue
 }
 
 export function reviewEditProblems(candidate, targetText) {
@@ -133,6 +154,11 @@ export function reviewEditProblems(candidate, targetText) {
             `Unsafe Unicode: ${finding.codePoint ?? finding.description}${finding.name ? ` (${finding.name})` : ''}`
         )
     }
+    if (!wouldRecordAcceptance(candidate, targetText)) {
+        problems.push(
+            'This is identical to the committed value, so Git would record no acceptance.'
+        )
+    }
     return problems
 }
 
@@ -146,6 +172,12 @@ export function applyReviewAction(candidate, action, editedTarget) {
                 'Keep is unavailable because the current target has incompatible placeholders'
             )
         }
+        if (!wouldRecordAcceptance(candidate, candidate.currentTargetText)) {
+            throw new Error(
+                'Keep would not change the committed file, so no acceptance could be recorded. ' +
+                    'Run pnpm i18n:sync and commit the review marker first.'
+            )
+        }
         return { changed: true, storedValue: candidate.currentTargetText }
     }
     if (action !== REVIEW_ACTION.EDIT) throw new Error(`Unknown review action '${action}'`)
@@ -155,6 +187,27 @@ export function applyReviewAction(candidate, action, editedTarget) {
     return { changed: true, storedValue: editedTarget }
 }
 
+// Structural inspection cannot tell a broken translation from one whose English moved: both
+// look like an accepted value whose placeholders disagree. The second case is the whole reason
+// this command exists, so it must not block review. Keep stays unavailable there instead, and
+// the runtime already falls back to English.
+function blockingReviewIssues(locale, summary) {
+    const entries = summary.locales.get(locale.id)?.entries
+    const problems = []
+    for (const issue of locale.issues) {
+        if (isMechanicalSyncDebt(locale, issue)) continue
+        if (
+            issue.type === 'placeholder' &&
+            entries?.get(issue.key)?.effectiveState === EFFECTIVE_STATE.REVIEW
+        ) {
+            continue
+        }
+        const key = issue.key ? ` key '${issue.key}'` : ''
+        problems.push(issue.message ?? `'${locale.id}'${key}: ${issue.detail ?? issue.type}`)
+    }
+    return problems
+}
+
 function targetLocale(inspection, localeId) {
     const locale = inspection.locales.find(({ id }) => id === localeId)
     if (!locale) {
@@ -162,12 +215,6 @@ function targetLocale(inspection, localeId) {
         throw new Error(`Unknown translation locale '${localeId}'. Available locales: ${available}`)
     }
     return locale
-}
-
-function isReviewSafeSyncDebt(locale, issue) {
-    if (issue.type === 'stale-scaffold') return true
-    if (issue.type !== 'unknown-key') return false
-    return locale.targetValues[issue.key]?.kind === TARGET_VALUE_KIND.UNTRANSLATED_SCAFFOLD
 }
 
 function replaceTargetLeaf(bundle, targetKey, storedValue) {
@@ -205,8 +252,6 @@ export function prepareI18nReview(options) {
     }
 
     const locale = targetLocale(inspection, options.localeId)
-    const blockingIssues = locale.issues.filter((issue) => !isReviewSafeSyncDebt(locale, issue))
-    if (blockingIssues.length > 0) throw new I18nReviewValidationError(locale.errors)
 
     const committedHistory = analyzeCommittedHistory({
         cwd,
@@ -218,8 +263,12 @@ export function prepareI18nReview(options) {
         committedHistory,
         workingTreeSnapshot(cwd, localeDir)
     )
+
+    const blocking = blockingReviewIssues(locale, summarizeHistory(history))
+    if (blocking.length > 0) throw new I18nReviewValidationError(blocking)
+
     return {
-        candidates: buildReviewCandidates(history, options.localeId),
+        candidates: buildReviewCandidates(history, options.localeId, committedHistory.snapshot),
         history,
         inspection,
         locale,
@@ -247,18 +296,33 @@ function formatCandidate(candidate, position, total, styles) {
     ].join('\n')
 }
 
+const KEEP_UNRECORDABLE = 'the committed file already holds this text, so nothing would be recorded'
+
+function keepBlockedReason(candidate) {
+    if (!candidate.placeholderCompatible) return 'runtime currently uses English'
+    if (!wouldRecordAcceptance(candidate, candidate.currentTargetText)) return KEEP_UNRECORDABLE
+    return undefined
+}
+
 async function promptAction(candidate, ask, stdout) {
-    const choices = candidate.placeholderCompatible
-        ? '[e] Edit, [k] Keep, [s] Skip'
-        : '[e] Edit, [s] Skip (Keep unavailable: incompatible placeholders)'
+    const blocked = keepBlockedReason(candidate)
+    const choices = blocked
+        ? `[e] Edit, [s] Skip (Keep unavailable: ${blocked})`
+        : '[e] Edit, [k] Keep, [s] Skip'
     while (true) {
         stdout.write(`${choices}\n`)
         const answer = (await ask('> ')).trim().toLowerCase()
         if (answer === 'e' || answer === 'edit') return REVIEW_ACTION.EDIT
         if (answer === 's' || answer === 'skip' || answer === '') return REVIEW_ACTION.SKIP
         if (answer === 'k' || answer === 'keep') {
-            if (candidate.placeholderCompatible) return REVIEW_ACTION.KEEP
-            stdout.write('Keep is unavailable because runtime currently uses English.\n\n')
+            if (!blocked) return REVIEW_ACTION.KEEP
+            stdout.write(
+                `Keep is unavailable because ${blocked}.` +
+                    (blocked === KEEP_UNRECORDABLE
+                        ? ' Run pnpm i18n:sync and commit the review marker first.'
+                        : '') +
+                    '\n\n'
+            )
             continue
         }
         stdout.write('Choose Edit, Keep, or Skip.\n\n')
