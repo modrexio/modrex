@@ -3742,6 +3742,70 @@ fn enable_mod_op_syncs_settings_when_files_are_at_active_path_but_state_says_dis
     );
 }
 
+// Crime Boss activation is the settings file, not the folder, so writing it before the copies
+// on disk are understood meant a refused operation had already switched the mod on in-game.
+#[test]
+fn a_duplicated_crimeboss_mod_is_refused_before_the_game_is_switched() {
+    let game_tmp = TempDir::new().unwrap();
+    let game = game_tmp.path().to_str().unwrap();
+    let cfg = engine_for_game("cb").unwrap();
+    let sp = get_state_path(game, cfg);
+
+    for base in [
+        "CrimeBoss/Mods/M40_Dallas_Payday",
+        "CrimeBoss/Mods/disabled/M40_Dallas_Payday",
+    ] {
+        let pak_dir = game_tmp
+            .path()
+            .join(base)
+            .join("Content/Paks/WindowsNoEditor");
+        fs::create_dir_all(&pak_dir).unwrap();
+        fs::write(
+            pak_dir.join("M40DallasPDCrimeBoss-WindowsNoEditor.pak"),
+            b"pak",
+        )
+        .unwrap();
+    }
+
+    let mut state = read_state(&sp).unwrap();
+    state.mods.push(InstalledMod {
+        uid: "1".into(),
+        id: 1,
+        name: "M40 Dallas Payday".into(),
+        filename: "M40_Dallas_Payday".into(),
+        enabled: true,
+        ..InstalledMod::default()
+    });
+    save_state(&sp, &state).unwrap();
+
+    let profile_tmp = TempDir::new().unwrap();
+    let settings_dir = profile_tmp
+        .path()
+        .join("Saved Games/CrimeBoss/Steam/Saved/ModSettings");
+    fs::create_dir_all(&settings_dir).unwrap();
+    let settings_file = settings_dir.join("m40dallaspd.json");
+    let before = r#"[{"name":"enabled","value":"true"},{"name":"volume","value":"0.8"}]"#;
+    fs::write(&settings_file, before).unwrap();
+
+    std::env::set_var("USERPROFILE", profile_tmp.path());
+    let err = disable_mod_op(game, &sp, "1", cfg, Some("steam")).unwrap_err();
+    std::env::remove_var("USERPROFILE");
+
+    assert!(
+        err.contains("both the active and disabled folders"),
+        "unexpected error: {err}"
+    );
+    assert_eq!(
+        fs::read_to_string(&settings_file).unwrap(),
+        before,
+        "a refused disable must leave the game's own activation switch alone"
+    );
+    assert!(
+        read_state(&sp).unwrap().mods[0].enabled,
+        "the record must still say enabled"
+    );
+}
+
 // ── ue4ss_modstxt: UE4SS mods.txt sync ────────────────────────────────────────
 // Fixture matches the real UE4SS-CB mods.txt byte-for-byte (BOM, CRLF, blank lines, comment,
 // trailing "do not move up" warning), verified against the actual downloaded release.

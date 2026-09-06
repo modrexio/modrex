@@ -515,35 +515,44 @@ fn set_activation(
     fs::create_dir_all(&destination_parent)
         .map_err(|e| format!("could not prepare the destination folder: {e}"))?;
 
+    let activation_is_external = cfg.game_id == "cb";
+    let placement = observe_placement(&active, &disabled, target);
+    if placement == Placement::Both {
+        return Err(format!(
+            "'{}' is in both the active and disabled folders, so Modrex will not guess which copy to keep",
+            m.name
+        ));
+    }
+    if placement == Placement::Missing && !activation_is_external {
+        return Err(format!(
+            "'{}' is no longer where Modrex installed it",
+            m.name
+        ));
+    }
+
     // Crime Boss's own mod loader reads activation from its settings file, not from where the
     // files sit, so that write is the one that takes effect and the move below is bookkeeping.
     // resync_crimeboss_enabled_flags also flips the tracked flag without moving anything, so a
-    // mod whose files are not where Modrex expects is normal here.
-    let activation_is_external = cfg.game_id == "cb";
+    // mod whose files are not where Modrex expects is normal here. Every failure past this
+    // point puts the file back, because the game reads it the moment it is written and a
+    // command that returned an error would have activated the mod anyway.
     if activation_is_external {
         let cb_path = if from.exists() { from } else { to };
         crimeboss_settings::sync_enabled(cb_path, target.is_directory_unit(), launcher, enable);
     }
 
     // Only a move that actually happened can be put back, so the branches that move nothing
-    // say so rather than leaving a reversal to undo something this call never did.
-    let moved = match observe_placement(&active, &disabled, target) {
-        // Already where this operation wanted it. The record is what is out of step, so
-        // correct that and move nothing.
-        p if p == wanted_placement(enable) => false,
-        Placement::Both => {
-            return Err(format!(
-                "'{}' is in both the active and disabled folders, so Modrex will not guess which copy to keep",
-                m.name
-            ))
-        }
-        Placement::Missing if !activation_is_external => {
-            return Err(format!("'{}' is no longer where Modrex installed it", m.name))
-        }
-        Placement::Missing => false,
-        _ => {
-            move_mod_object(from, to, target)?;
-            true
+    // say so rather than leaving a reversal to undo something this call never did. Already
+    // being where this operation wanted it leaves the record as the only thing out of step.
+    let moved = if placement == wanted_placement(enable) || placement == Placement::Missing {
+        false
+    } else {
+        match move_mod_object(from, to, target) {
+            Ok(()) => true,
+            Err(e) => {
+                undo_external_activation(&active, &disabled, target, launcher, enable, cfg);
+                return Err(e);
+            }
         }
     };
 
@@ -557,9 +566,33 @@ fn set_activation(
     };
     let failure = save_error(e);
     if !moved {
+        undo_external_activation(&active, &disabled, target, launcher, enable, cfg);
         return Err(failure);
     }
-    Err(undo_after_failed_save(to, from, target, failure))
+    let failure = undo_after_failed_save(to, from, target, failure);
+    undo_external_activation(&active, &disabled, target, launcher, enable, cfg);
+    Err(failure)
+}
+
+/// Puts Crime Boss's own activation switch back after the rest of the operation failed.
+///
+/// That settings file, not the folder the files sit in, is what the game reads, so leaving it
+/// flipped would activate a mod the command has just reported as unchanged. Runs after any file
+/// reversal so it reads whichever copy is on disk by then. Does nothing for every other game,
+/// where the move itself is the activation.
+fn undo_external_activation(
+    active: &Path,
+    disabled: &Path,
+    target: &ScanTarget,
+    launcher: Option<&str>,
+    enable: bool,
+    cfg: &ModEngineConfig,
+) {
+    if cfg.game_id != "cb" {
+        return;
+    }
+    let path = if active.exists() { active } else { disabled };
+    crimeboss_settings::sync_enabled(path, target.is_directory_unit(), launcher, !enable);
 }
 
 fn wanted_placement(enable: bool) -> Placement {

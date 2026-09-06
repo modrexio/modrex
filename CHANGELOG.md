@@ -30,6 +30,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - Modrex no longer rebuilds its mod list over a mod list it could not read. Your mods are still listed, folders and load order are left untouched, and a notice explains why nothing is being saved.
 - Enabling or disabling several mods at once now tries all of them and reports which ones failed, instead of stopping silently at the first problem.
 - Fixed a mod or folder being left spinning, and unusable until restart, when the installed list could not be reloaded after enabling or disabling it.
+- Fixed a Crime Boss mod being switched on or off in the game itself when Modrex refused the change, such as when a copy of the mod sits in both the active and disabled folders.
 
 ## 0.14.0
 
