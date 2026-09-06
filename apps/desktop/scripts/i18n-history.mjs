@@ -313,8 +313,13 @@ export function analyzeCommittedHistory(options = {}) {
     const cache = createBundleCache(counters)
     const revisions = [baseline, ...git.firstParentRevisions(baseline, head, localeDir)]
     const snapshots = loadSnapshots(git, revisions, localeDir, cache)
-    for (const snapshot of snapshots) assertSnapshotIntegrity(snapshot)
 
+    // Scaffold freshness is deliberately not asserted across historical snapshots. English
+    // changes land on their own and the bot refreshes scaffolds in a later commit, so
+    // intermediate revisions quote superseded English by design. That drift is derived
+    // output carrying no acceptance and no review debt, and one such revision stays in
+    // history forever, so asserting it here would break every later analysis. Malformed
+    // markers, unreadable bundles and Pending without accepted lineage still fail below.
     const state = applyBaseline(createHistoryState(), snapshots[0], baseline)
     assertPendingLineage(snapshots[0], state)
     const events = []

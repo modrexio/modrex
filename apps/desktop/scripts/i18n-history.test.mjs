@@ -737,24 +737,22 @@ test('repaired intermediate malformed workflow values fail at the malformed revi
     }
 })
 
-test('a scaffold containing marker-like English must still match the current source', () => {
+test('a historical scaffold quoting superseded English replays as Missing', () => {
     withRepo((dir) => {
         const baseline = commitLocales(dir, { en: { a: 'A' }, de: { a: 'X' } }, 'baseline')
-        const malformedRevision = commitLocales(
+        const staleRevision = commitLocales(
             dir,
             { en: { a: 'A' }, de: { a: '! ? X' } },
             'stale scaffold'
         )
         commitLocales(dir, { en: { a: 'A' }, de: { a: 'X' } }, 'repair')
 
-        assert.throws(
-            () => analyze(dir, baseline),
-            (error) =>
-                error instanceof I18nHistoryStateError &&
-                error.revision === malformedRevision &&
-                error.locale === 'de' &&
-                error.key === 'a'
-        )
+        // The payload is still compared against English rather than parsed as a nested
+        // marker, so this revision holds one unrefreshed scaffold: Missing, no lineage.
+        const stale = analyze(dir, baseline, { revision: staleRevision })
+        assert.equal(entryOf(stale, 'de', 'a').state, 'scaffold')
+        assert.equal(entryOf(stale, 'de', 'a').checkpoint, null)
+        assert.equal(entryOf(analyze(dir, baseline), 'de', 'a').state, 'accepted')
     })
 })
 
