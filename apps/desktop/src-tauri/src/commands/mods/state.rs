@@ -234,6 +234,50 @@ fn compact_folder_priorities(
     (compacted, any_changed)
 }
 
+/// Permission to write the state file back, held only when it could be read.
+///
+/// A scan can always rebuild a mod list, but writing that rebuild over a file Modrex failed to
+/// read would replace the folders, ordering and per-mod metadata that live only in the file.
+/// Every writeback in get_installed goes through this rather than through a flag each exit has
+/// to remember to check, so a new exit cannot persist a rebuild by omission.
+#[derive(Clone, Copy, Debug)]
+pub struct Writeback(bool);
+
+impl Writeback {
+    /// True when the state was unreadable, which is what get_installed reports to the interface.
+    pub fn blocked(self) -> bool {
+        !self.0
+    }
+
+    /// Saves unless the state this was derived from could not be read.
+    ///
+    /// A failed save is logged and swallowed: the scan result is still correct to show, and the
+    /// next call reaches the same point again.
+    pub fn save(self, state_path: &Path, state: &ModsState, what: &str) {
+        if !self.0 {
+            return;
+        }
+        if let Err(e) = save_state(state_path, state) {
+            log::warn!("get_installed: could not persist {what}: {e}");
+        }
+    }
+}
+
+/// Loads the state a scan starts from, degrading to an empty one that must not be written back.
+pub fn load_for_scan(
+    game_path: &str,
+    state_path: &Path,
+    cfg: &ModEngineConfig,
+) -> (ModsState, Writeback) {
+    match reconcile_state(game_path, state_path, cfg) {
+        Ok(state) => (state, Writeback(true)),
+        Err(e) => {
+            log::warn!("get_installed: {e}");
+            (ModsState::default(), Writeback(false))
+        }
+    }
+}
+
 pub fn reconcile_state(
     game_path: &str,
     state_path: &Path,

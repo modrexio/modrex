@@ -1342,7 +1342,7 @@ fn reconcile_state_purges_already_tracked_bundled_ue4ss_submods() {
     )
     .unwrap();
 
-    let state = reconcile_state(game, &sp, cfg).unwrap();
+    let state = super::state::reconcile_state(game, &sp, cfg).unwrap();
     let names: Vec<&str> = state.mods.iter().map(|m| m.filename.as_str()).collect();
     assert_eq!(names, vec!["CoolMod"]);
 }
@@ -1384,7 +1384,7 @@ fn reconcile_state_recovers_source_identity_from_uid() {
     )
     .unwrap();
 
-    let state = reconcile_state(game, &sp, cfg).unwrap();
+    let state = super::state::reconcile_state(game, &sp, cfg).unwrap();
     let nexus = state.mods.iter().find(|m| m.source == "nexus").unwrap();
     assert_eq!(nexus.remote_id.as_deref(), Some("123"));
     assert_eq!(nexus.file_remote_id.as_deref(), Some("456"));
@@ -1429,7 +1429,7 @@ fn reconcile_state_leaves_unparsable_source_uid_alone() {
     )
     .unwrap();
 
-    let state = reconcile_state(game, &sp, cfg).unwrap();
+    let state = super::state::reconcile_state(game, &sp, cfg).unwrap();
     assert_eq!(state.mods[0].remote_id, None);
     assert_eq!(state.mods[0].file_remote_id, None);
 }
@@ -1467,7 +1467,7 @@ fn reconcile_state_backfills_remote_id_for_a_legacy_modworkshop_entry_without_to
     )
     .unwrap();
 
-    let mut state = reconcile_state(game, &sp, cfg).unwrap();
+    let mut state = super::state::reconcile_state(game, &sp, cfg).unwrap();
     let expected_id = crate::commands::sources::source_native_local_id("modworkshop", "58065");
     assert_eq!(state.mods[0].remote_id.as_deref(), Some("58065"));
     assert_eq!(state.mods[0].id, expected_id);
@@ -1526,7 +1526,7 @@ fn reconcile_state_repairs_a_source_native_id_wrongly_promoted_to_modworkshop() 
     )
     .unwrap();
 
-    let state = reconcile_state(game, &sp, cfg).unwrap();
+    let state = super::state::reconcile_state(game, &sp, cfg).unwrap();
     assert_eq!(state.mods[0].id, expected_id);
     assert_eq!(state.mods[0].name, "RinoHud", "only id is repaired");
 
@@ -1563,7 +1563,7 @@ fn reconcile_state_leaves_a_correct_source_native_id_alone() {
     )
     .unwrap();
 
-    let state = reconcile_state(game, &sp, cfg).unwrap();
+    let state = super::state::reconcile_state(game, &sp, cfg).unwrap();
     assert_eq!(state.mods[0].id, expected_id);
 }
 
@@ -1977,7 +1977,7 @@ fn reconcile_keeps_installed_host_pack() {
     let cfg = engine_for_game("pd2").unwrap();
     install_host_pack_op(game, &sp, zip.path(), "My Set", bg_mod_data(), cfg).unwrap();
 
-    let state = reconcile_state(game, &sp, cfg).unwrap();
+    let state = super::state::reconcile_state(game, &sp, cfg).unwrap();
     let rec = state.mods.iter().find(|m| m.name == "BG Mod").unwrap();
     assert_eq!(
         rec.missing, None,
@@ -2134,7 +2134,7 @@ fn reconcile_keeps_disabled_host_pack() {
     install_host_pack_op(game, &sp, zip.path(), "My Set", bg_mod_data(), cfg).unwrap();
     disable_mod_op(game, &sp, "999_My Set", cfg, None).unwrap();
 
-    let state = reconcile_state(game, &sp, cfg).unwrap();
+    let state = super::state::reconcile_state(game, &sp, cfg).unwrap();
     let rec = state.mods.iter().find(|m| m.name == "BG Mod").unwrap();
     assert_eq!(
         rec.missing, None,
@@ -4843,6 +4843,100 @@ fn a_locked_state_file_is_left_alone_and_reads_again_once_released() {
 
     assert_untouched(&path, &before);
     assert_eq!(read_state(&path).unwrap().mods.len(), 2);
+}
+
+/// A game folder whose state file holds the given bytes, ready for a scan.
+fn scan_fixture(body: &[u8]) -> (TempDir, std::path::PathBuf, &'static ModEngineConfig) {
+    let tmp = TempDir::new().unwrap();
+    let cfg = engine_for_game("pd3").unwrap();
+    let sp = get_state_path(tmp.path().to_str().unwrap(), cfg);
+    fs::create_dir_all(sp.parent().unwrap()).unwrap();
+    fs::write(&sp, body).unwrap();
+    (tmp, sp, cfg)
+}
+
+/// The state a scan would have rebuilt, which is exactly what must not be written back.
+fn rebuilt_state() -> ModsState {
+    ModsState {
+        folders: vec![],
+        mods: vec![InstalledMod {
+            uid: "scanned".into(),
+            name: "Scanned".into(),
+            filename: "scanned.pak".into(),
+            ..Default::default()
+        }],
+    }
+}
+
+// get_installed keeps working when the state file will not load: the scan still describes the
+// mods on disk. What it must never do is save that description, because the folders, ordering
+// and per-mod metadata exist only in the file it could not read.
+#[test]
+fn a_scan_over_an_unreadable_state_file_may_not_write_it_back() {
+    let (tmp, sp, cfg) = scan_fixture(b"{ not json");
+    let before = fs::read(&sp).unwrap();
+
+    let (state, writeback) = load_for_scan(tmp.path().to_str().unwrap(), &sp, cfg);
+
+    assert!(
+        writeback.blocked(),
+        "an unreadable state must block the save"
+    );
+    assert!(state.mods.is_empty(), "the scan starts from an empty state");
+    assert!(state.folders.is_empty());
+
+    writeback.save(&sp, &rebuilt_state(), "the scanned state");
+    assert_untouched(&sp, &before);
+}
+
+// A file that parses as JSON but not as a state is the more dangerous case: the old reader
+// accepted it and silently dropped whatever did not fit.
+#[test]
+fn a_scan_over_an_invalid_state_file_may_not_write_it_back() {
+    let body = TWO_MODS.replace(r#""name":"Beta","#, "");
+    let (tmp, sp, cfg) = scan_fixture(body.as_bytes());
+    let before = fs::read(&sp).unwrap();
+
+    let (_state, writeback) = load_for_scan(tmp.path().to_str().unwrap(), &sp, cfg);
+
+    assert!(writeback.blocked());
+    writeback.save(&sp, &rebuilt_state(), "refreshed identities");
+    assert_untouched(&sp, &before);
+}
+
+#[test]
+fn a_scan_over_a_readable_state_file_writes_back_normally() {
+    let (tmp, sp, cfg) = scan_fixture(TWO_MODS.as_bytes());
+
+    let (state, writeback) = load_for_scan(tmp.path().to_str().unwrap(), &sp, cfg);
+
+    assert!(!writeback.blocked());
+    assert_eq!(state.mods.len(), 2);
+
+    writeback.save(&sp, &rebuilt_state(), "the scanned state");
+    let saved = read_state(&sp).unwrap();
+    assert_eq!(saved.mods.len(), 1);
+    assert_eq!(saved.mods[0].uid, "scanned");
+}
+
+// Degraded mode is a state of the file, not of the session: repairing the file must restore
+// saving without a restart, or a user who fixes their mod list stays stuck read-only.
+#[test]
+fn persistence_resumes_once_the_state_file_reads_again() {
+    let (tmp, sp, cfg) = scan_fixture(b"{ not json");
+    let game = tmp.path().to_str().unwrap();
+    let before = fs::read(&sp).unwrap();
+
+    let (_state, blocked) = load_for_scan(game, &sp, cfg);
+    blocked.save(&sp, &rebuilt_state(), "the scanned state");
+    assert_untouched(&sp, &before);
+
+    fs::write(&sp, TWO_MODS.as_bytes()).unwrap();
+    let (_state, allowed) = load_for_scan(game, &sp, cfg);
+
+    assert!(!allowed.blocked());
+    allowed.save(&sp, &rebuilt_state(), "the scanned state");
+    assert_eq!(read_state(&sp).unwrap().mods[0].uid, "scanned");
 }
 
 // ── Activation transitions ────────────────────────────────────────────────
