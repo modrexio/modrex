@@ -7,7 +7,6 @@ import {
     calculateSvgGeometry,
     generateStatusAssets,
     renderStatusSvg,
-    STATUS_ASSET_DIR,
 } from './i18n-presentation-svg.mjs'
 import { buildStatusSummaries } from './i18n-presentation.mjs'
 import { inspectLocales, validateLocaleId } from './i18n-inspection.mjs'
@@ -173,6 +172,10 @@ test('XML values are escaped and SVG contains no visible text or external resour
     )
 })
 
+// Generation is asserted here. Whether the committed assets have caught up is a different
+// question with a different owner: the bot writes them, and pnpm i18n:presentation-check
+// verifies them afterwards. Asserting it here would require a contributor's locale commit to
+// already contain the bot's later output.
 test('current summaries render byte-consistent simple assets', () => {
     const summaries = buildStatusSummaries(inspectLocales())
     const directory = mkdtempSync(join(tmpdir(), 'modrex-svg-'))
@@ -190,10 +193,4 @@ test('current summaries render byte-consistent simple assets', () => {
     assert.equal(result.written.length, expectedAssets.length)
     const second = generateStatusAssets({ outputDir: directory })
     assert.deepEqual(second.written, [])
-    for (const summary of [summaries.source, ...summaries.targets]) {
-        assert.equal(
-            readFileSync(join(STATUS_ASSET_DIR, `${summary.locale}.svg`), 'utf8'),
-            renderStatusSvg(summary)
-        )
-    }
 })

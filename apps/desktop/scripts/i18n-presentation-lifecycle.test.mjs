@@ -524,10 +524,18 @@ test('planning failure via CLI reports exit 1 with a descriptive message and no 
     })
 })
 
-test('current real presentation lifecycle is clean on the committed repository', () => {
+// Planning over the real repository has to keep working: a missing README, an unrenderable
+// locale or a broken contributors file must fail loudly here. Whether the committed outputs
+// are current is asked by pnpm i18n:presentation-check, which the writer runs on its own
+// output, because between a locale commit and the bot's run they are expected to lag.
+test('the real repository still produces a complete presentation plan', () => {
     const plan = buildI18nPresentationPlan()
-    assert.equal(plan.clean, true)
-    assert.deepEqual(plan.operations, [])
+    assert.equal(plan.readme.expected.includes('<!-- TRANSLATION_STATUS_START -->'), true)
+    assert.deepEqual(
+        plan.assets.map((asset) => asset.locale).sort(),
+        [plan.summaries.source, ...plan.summaries.targets].map((item) => item.locale).sort()
+    )
+    for (const asset of plan.assets) assert.match(asset.expected, /^<svg /u)
     assert.deepEqual(plan.obsolete, [])
 })
 
