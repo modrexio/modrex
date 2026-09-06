@@ -77,6 +77,17 @@ export function parseTargetValue(storedValue) {
     }
 }
 
+// The inverse of parseTargetValue: the exact string this value is stored as. An absent target
+// has no stored form, which is why it maps to undefined rather than to an empty string.
+export function formatTargetValue(value) {
+    if (value.kind === TARGET_VALUE_KIND.ACCEPTED) return value.targetText
+    if (value.kind === TARGET_VALUE_KIND.PENDING) return `${PENDING_PREFIX}${value.targetText}`
+    if (value.kind === TARGET_VALUE_KIND.UNTRANSLATED_SCAFFOLD) {
+        return `${UNTRANSLATED_PREFIX}${value.sourceText}`
+    }
+    return undefined
+}
+
 export function resolveTargetValue(sourceValue, targetValue) {
     if (
         targetValue.kind === TARGET_VALUE_KIND.ABSENT ||

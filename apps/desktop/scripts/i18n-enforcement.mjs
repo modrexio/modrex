@@ -2,7 +2,7 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { serializeLocale } from './i18n-files.mjs'
-import { TARGET_VALUE_KIND } from '../src/shared/i18n-values.js'
+import { formatTargetValue, TARGET_VALUE_KIND } from '../src/shared/i18n-values.js'
 import { HISTORY_EVENT } from './i18n-history-events.mjs'
 import {
     analyzeCommittedHistory,
@@ -35,11 +35,8 @@ function snapshotBundles(snapshot) {
     for (const [localeId, locale] of snapshot.locales) {
         const bundle = {}
         for (const [key, value] of locale.targets) {
-            if (value.kind === TARGET_VALUE_KIND.ACCEPTED) setPath(bundle, key, value.targetText)
-            else if (value.kind === TARGET_VALUE_KIND.PENDING)
-                setPath(bundle, key, `? ${value.targetText}`)
-            else if (value.kind === TARGET_VALUE_KIND.UNTRANSLATED_SCAFFOLD)
-                setPath(bundle, key, `! ${value.sourceText}`)
+            const stored = formatTargetValue(value)
+            if (stored !== undefined) setPath(bundle, key, stored)
         }
         locales.set(localeId, bundle)
     }
