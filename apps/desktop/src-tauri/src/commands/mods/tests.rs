@@ -3677,6 +3677,11 @@ fn read_enabled_from_file_none_when_missing_or_malformed() {
     assert_eq!(read_enabled_from_file(&no_enabled_entry), None);
 }
 
+/// USERPROFILE is process-wide and cargo runs tests in parallel, so two tests pointing it at
+/// their own temporary profile would send one of them to the other's ModSettings folder. Every
+/// test that sets it takes this first.
+static USERPROFILE_GUARD: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 // ── enable after in-game disable (M40 / resync bug) ──────────────────────────
 // resync_crimeboss_enabled_flags sets m.enabled=false without moving files, leaving them at the
 // active path. enable_mod_op must still sync the settings file in that state.
@@ -3719,6 +3724,7 @@ fn enable_mod_op_syncs_settings_when_files_are_at_active_path_but_state_says_dis
     let settings_file = settings_dir.join("m40dallaspd.json");
     fs::write(&settings_file, r#"[{"name":"enabled","value":"false"}]"#).unwrap();
 
+    let _profile = USERPROFILE_GUARD.lock().unwrap_or_else(|e| e.into_inner());
     std::env::set_var("USERPROFILE", profile_tmp.path());
 
     enable_mod_op(game, &sp, "1", cfg, Some("steam")).unwrap();
@@ -3787,6 +3793,7 @@ fn a_duplicated_crimeboss_mod_is_refused_before_the_game_is_switched() {
     let before = r#"[{"name":"enabled","value":"true"},{"name":"volume","value":"0.8"}]"#;
     fs::write(&settings_file, before).unwrap();
 
+    let _profile = USERPROFILE_GUARD.lock().unwrap_or_else(|e| e.into_inner());
     std::env::set_var("USERPROFILE", profile_tmp.path());
     let err = disable_mod_op(game, &sp, "1", cfg, Some("steam")).unwrap_err();
     std::env::remove_var("USERPROFILE");
