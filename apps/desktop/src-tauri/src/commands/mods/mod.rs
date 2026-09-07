@@ -878,6 +878,22 @@ fn recover_dropped_mod_stem(
         .unwrap_or_else(|| fallback.to_string())
 }
 
+/// The folder a dropped install lands in. A drop carries no folder of its own, so an
+/// archive that replaces an entry already filed in one has to stay there; without this it
+/// would be rewritten to the mods root and the copy inside the folder deleted, while the
+/// same mod reinstalled from its page keeps its folder (see install_mod's effective_folder_id).
+fn dropped_install_folder_id(
+    folder_id: Option<String>,
+    mods: &[InstalledMod],
+    uid: &str,
+) -> Option<String> {
+    folder_id.or_else(|| {
+        mods.iter()
+            .find(|m| m.uid == uid)
+            .and_then(|m| m.folder_id.clone())
+    })
+}
+
 /// Overwrites the generic unidentified fields on a freshly built InstalledMod with a
 /// confirmed Nexus identity. uid switches to Tier 1's own "nexus:{mod_id}:{file_id}"
 /// scheme so a later nxm:// install of the same file reconciles onto this entry
@@ -1059,7 +1075,21 @@ pub async fn install_dropped_file(
             apply_nexus_archive_identity(&mut mod_entry, m, detail);
         }
 
-        install_mod_from_path(&game_path, &sp, mod_entry, &tmp, folder_id, cfg, target)?;
+        let saved = read_state(&sp).map_err(|e| {
+            log::warn!("install: {e}");
+            e.to_string()
+        })?;
+        let effective_folder_id = dropped_install_folder_id(folder_id, &saved.mods, &mod_entry.uid);
+
+        install_mod_from_path(
+            &game_path,
+            &sp,
+            mod_entry,
+            &tmp,
+            effective_folder_id,
+            cfg,
+            target,
+        )?;
         Ok::<(), String>(())
     }
     .await;
