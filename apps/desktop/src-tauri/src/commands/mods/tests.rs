@@ -5395,3 +5395,157 @@ fn a_missing_optional_companion_is_not_a_failure() {
 
     assert!(dest.is_file());
 }
+
+// ── dropped_install_folder_id ────────────────────────────────────────────────
+// PD3 mods are commonly filed into Modrex folders for load order, and a drop carries no
+// folder of its own. Both install routes have to leave an updated mod in the folder it is
+// already filed in, so the pair below pins the same destination from each side.
+
+fn pd3_pak(dir: &Path, name: &str, bytes: &[u8]) -> PathBuf {
+    let p = dir.join(name);
+    fs::write(&p, bytes).unwrap();
+    p
+}
+
+fn pd3_dropped_entry(filename: &str) -> InstalledMod {
+    InstalledMod {
+        uid: strip_priority_prefix(filename).to_string(),
+        id: hash_filename(filename),
+        name: "MyHud_P".to_string(),
+        filename: filename.to_string(),
+        enabled: true,
+        ..InstalledMod::default()
+    }
+}
+
+#[test]
+fn a_dropped_archive_stays_in_the_folder_its_entry_is_filed_in() {
+    let cfg = engine_for_game("pd3").unwrap();
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let sp = get_state_path(game, cfg);
+    let folder = create_folder_op(game, &sp, "HUD", None, cfg).unwrap();
+
+    install_mod_from_path(
+        game,
+        &sp,
+        pd3_dropped_entry("MyHud_P.pak"),
+        &pd3_pak(tmp.path(), "v1.pak", b"v1"),
+        Some(folder.id.clone()),
+        cfg,
+        cfg.primary(),
+    )
+    .unwrap();
+
+    // The drop route supplies no folder of its own, so it has to resolve the one already
+    // recorded for this uid.
+    let saved = read_state(&sp).unwrap();
+    let entry = pd3_dropped_entry("MyHud_P.pak");
+    let effective = dropped_install_folder_id(None, &saved.mods, &entry.uid);
+    install_mod_from_path(
+        game,
+        &sp,
+        entry,
+        &pd3_pak(tmp.path(), "v2.pak", b"v2"),
+        effective,
+        cfg,
+        cfg.primary(),
+    )
+    .unwrap();
+
+    let state = read_state(&sp).unwrap();
+    let m = state.mods.iter().find(|m| m.uid == "MyHud_P.pak").unwrap();
+    assert_eq!(m.folder_id.as_deref(), Some(folder.id.as_str()));
+    let in_folder = mods_base(game, cfg.primary())
+        .join(&folder.disk_name)
+        .join(&m.filename);
+    assert_eq!(fs::read(&in_folder).unwrap(), b"v2");
+    assert!(
+        !mods_base(game, cfg.primary()).join(&m.filename).exists(),
+        "the update must not be written to the mods root as well"
+    );
+}
+
+#[test]
+fn a_reinstall_from_the_mod_page_stays_in_the_same_folder() {
+    // The install-button route computes its folder from the existing entry before calling
+    // install_mod_from_path (install_mod / install_file's effective_folder_id); this pins the
+    // destination the drop route above has to agree with.
+    let cfg = engine_for_game("pd3").unwrap();
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let sp = get_state_path(game, cfg);
+    let folder = create_folder_op(game, &sp, "HUD", None, cfg).unwrap();
+
+    let page_entry = || InstalledMod {
+        uid: "9001".to_string(),
+        name: "My HUD".to_string(),
+        filename: "My HUD.pak".to_string(),
+        enabled: true,
+        file_id: Some(9001),
+        ..InstalledMod::from_catalog(
+            "modworkshop",
+            "555".to_string(),
+            IdentityEvidence::InstallProvenance,
+        )
+    };
+
+    install_mod_from_path(
+        game,
+        &sp,
+        page_entry(),
+        &pd3_pak(tmp.path(), "v1.pak", b"v1"),
+        Some(folder.id.clone()),
+        cfg,
+        cfg.primary(),
+    )
+    .unwrap();
+
+    let saved = read_state(&sp).unwrap();
+    let inherited = saved
+        .mods
+        .iter()
+        .find(|m| m.uid == "9001")
+        .and_then(|m| m.folder_id.clone());
+    install_mod_from_path(
+        game,
+        &sp,
+        page_entry(),
+        &pd3_pak(tmp.path(), "v2.pak", b"v2"),
+        inherited,
+        cfg,
+        cfg.primary(),
+    )
+    .unwrap();
+
+    let state = read_state(&sp).unwrap();
+    let m = state.mods.iter().find(|m| m.uid == "9001").unwrap();
+    assert_eq!(m.folder_id.as_deref(), Some(folder.id.as_str()));
+    let in_folder = mods_base(game, cfg.primary())
+        .join(&folder.disk_name)
+        .join(&m.filename);
+    assert_eq!(fs::read(&in_folder).unwrap(), b"v2");
+}
+
+#[test]
+fn an_explicit_drop_folder_wins_over_the_entrys_current_one() {
+    let mods = vec![InstalledMod {
+        uid: "MyHud_P.pak".to_string(),
+        folder_id: Some("current".to_string()),
+        ..InstalledMod::default()
+    }];
+    assert_eq!(
+        dropped_install_folder_id(Some("chosen".to_string()), &mods, "MyHud_P.pak"),
+        Some("chosen".to_string())
+    );
+}
+
+#[test]
+fn a_first_time_drop_lands_in_no_folder() {
+    let mods = vec![InstalledMod {
+        uid: "Other_P.pak".to_string(),
+        folder_id: Some("current".to_string()),
+        ..InstalledMod::default()
+    }];
+    assert_eq!(dropped_install_folder_id(None, &mods, "MyHud_P.pak"), None);
+}
