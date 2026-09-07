@@ -12,7 +12,22 @@ import {
     runI18nEnforcement,
     summarizeWorkflow,
 } from './i18n-enforcement.mjs'
+import { createGitAdapter } from './i18n-git.mjs'
 import { HISTORY_EVENT } from './i18n-history-events.mjs'
+import { stagedSnapshot } from './i18n-history.mjs'
+
+// Whether the bot has caught up is asked of the staged index the same way the semantic gate
+// reads it, so the two gates never disagree about which tree they are judging.
+function stagedSynchronization(cwd, baseline) {
+    const git = createGitAdapter({ cwd })
+    return checkI18nSnapshot({
+        cwd,
+        baseline,
+        localeDir: 'i18n',
+        git,
+        snapshot: stagedSnapshot(git, 'i18n'),
+    })
+}
 
 const REPOSITORY_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../..')
 
@@ -81,14 +96,19 @@ test('unrelated staged paths skip history analysis', async () => {
     })
 })
 
-test('staged English drift fails and ignores an unstaged synchronized fix', async () => {
+test('staged English alone is valid, unsynchronized, and writes nothing', async () => {
     await withFixture(({ cwd, baseline, write }) => {
         write('B', 'X')
         git(cwd, ['add', 'i18n/en.json'])
         write('B', '? X')
         const before = readFileSync(join(cwd, 'i18n', 'de.json'))
+
         const result = checkStagedI18n({ cwd, baseline, localeDir: 'i18n' })
-        assert.equal(result.pass, false)
+        assert.equal(result.pass, true)
+        assert.equal(result.unsynchronized.length, 1)
+
+        // The index is what both gates judge; a synchronized worktree does not rescue it.
+        assert.equal(stagedSynchronization(cwd, baseline).pass, false)
         assert.deepEqual(readFileSync(join(cwd, 'i18n', 'de.json')), before)
     })
 })
@@ -103,13 +123,15 @@ test('canonical index passes despite a broken unstaged worktree file', async () 
     })
 })
 
-test('same-file staged blob purity rejects a stale indexed target', async () => {
+test('same-file staged blob purity reads the index, not the worktree', async () => {
     await withFixture(({ cwd, baseline }) => {
         writeFileSync(join(cwd, 'i18n', 'de.json'), JSON.stringify({ key: '! Old' }))
         git(cwd, ['add', 'i18n/de.json'])
         writeFileSync(join(cwd, 'i18n', 'de.json'), JSON.stringify({ key: 'X' }))
-        const result = checkStagedI18n({ cwd, baseline, localeDir: 'i18n' })
-        assert.equal(result.pass, false)
+
+        // The indexed scaffold quotes superseded English: bot debt, so still valid data.
+        assert.equal(checkStagedI18n({ cwd, baseline, localeDir: 'i18n' }).pass, true)
+        assert.equal(stagedSynchronization(cwd, baseline).pass, false)
     })
 })
 
@@ -122,14 +144,17 @@ test('complete staged source and marker transition passes', async () => {
     })
 })
 
-test('staged new source keys require exact scaffolds', async () => {
+test('a staged new source key is valid alone and the scaffold settles synchronization', async () => {
     await withFixture(({ cwd, baseline }) => {
         writeFileSync(join(cwd, 'i18n', 'en.json'), JSON.stringify({ key: 'A', added: 'New' }))
         git(cwd, ['add', 'i18n/en.json'])
-        assert.equal(checkStagedI18n({ cwd, baseline, localeDir: 'i18n' }).pass, false)
+        assert.equal(checkStagedI18n({ cwd, baseline, localeDir: 'i18n' }).pass, true)
+        assert.equal(stagedSynchronization(cwd, baseline).pass, false)
+
         writeFileSync(join(cwd, 'i18n', 'de.json'), JSON.stringify({ key: 'X', added: '! New' }))
         git(cwd, ['add', 'i18n/de.json'])
         assert.equal(checkStagedI18n({ cwd, baseline, localeDir: 'i18n' }).pass, true)
+        assert.equal(stagedSynchronization(cwd, baseline).pass, true)
     })
 })
 
@@ -147,15 +172,9 @@ test('partial multi-locale staging cannot be rescued by a synchronized worktree'
         value.write('B', { de: '? X', ru: 'X', uk: 'X' })
         git(value.cwd, ['add', 'i18n/en.json', 'i18n/de.json'])
         value.write('B', { de: '? X', ru: '? X', uk: '? X' })
-        assert.equal(
-            checkStagedI18n({ cwd: value.cwd, baseline: value.baseline, localeDir: 'i18n' }).pass,
-            false
-        )
+        assert.equal(stagedSynchronization(value.cwd, value.baseline).pass, false)
         git(value.cwd, ['add', 'i18n/ru.json', 'i18n/uk.json'])
-        assert.equal(
-            checkStagedI18n({ cwd: value.cwd, baseline: value.baseline, localeDir: 'i18n' }).pass,
-            true
-        )
+        assert.equal(stagedSynchronization(value.cwd, value.baseline).pass, true)
     } finally {
         rmSync(value.cwd, { recursive: true, force: true })
     }
@@ -190,12 +209,12 @@ test('source-return clear requires the staged marker to be removed', async () =>
         git(cwd, ['commit', '-qm', 'source returned'])
         writeFileSync(join(cwd, 'i18n', 'en.json'), JSON.stringify({ key: 'A' }))
         git(cwd, ['add', 'i18n/en.json'])
-        const retained = checkStagedI18n({ cwd, baseline, localeDir: 'i18n' })
-        assert.equal(retained.pass, false)
+        assert.equal(stagedSynchronization(cwd, baseline).pass, false)
         writeFileSync(join(cwd, 'i18n', 'de.json'), JSON.stringify({ key: 'X' }))
         git(cwd, ['add', 'i18n/de.json'])
         const cleared = checkStagedI18n({ cwd, baseline, localeDir: 'i18n' })
         assert.equal(cleared.pass, true)
+        assert.equal(stagedSynchronization(cwd, baseline).pass, true)
         assert.equal(cleared.workflowSummary.sourceReturnClears.length, 1)
         assert.equal(cleared.workflowSummary.keeps.length, 0)
     })
@@ -381,25 +400,17 @@ test('workflow summary classifies base-to-prospective events independently of va
     assert.match(formatWorkflowSummary(summary), /accepted unchanged \/ Keeps: 10/u)
 })
 
-test('direct checker commands remain strict while integrations are advisory', async () => {
+test('an English-only change passes both contributor gates and fails only the writer gate', async () => {
     await withFixture(({ cwd, baseline, write }) => {
         write('B', 'X')
         const stdout = { write() {} }
         const stderr = { write() {} }
-        assert.equal(
-            runI18nEnforcement([], { cwd, baseline, localeDir: 'i18n', stdout, stderr }),
-            1
-        )
+        const run = (args) =>
+            runI18nEnforcement(args, { cwd, baseline, localeDir: 'i18n', stdout, stderr })
+
+        assert.equal(run([]), 0)
+        assert.equal(run(['--synchronized']), 1)
         git(cwd, ['add', 'i18n/en.json'])
-        assert.equal(
-            runI18nEnforcement(['--staged'], {
-                cwd,
-                baseline,
-                localeDir: 'i18n',
-                stdout,
-                stderr,
-            }),
-            1
-        )
+        assert.equal(run(['--staged']), 0)
     })
 })

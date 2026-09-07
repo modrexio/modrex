@@ -191,6 +191,20 @@ export function createGitAdapter({ cwd, run = createGitRunner(cwd) } = {}) {
             return splitNulTerminated(result.stdout)
         },
 
+        // Working tree against a recorded commit, including files that are not staged and
+        // files Git is not tracking at all. An untracked locale file is invisible to diff, but
+        // staging an owned directory would sweep it into the commit, so it counts as changed.
+        changedPathsSince(revision) {
+            const tracked = call(['diff', '--name-only', '-z', revision])
+            const untracked = call(['ls-files', '--others', '--exclude-standard', '-z'])
+            return [
+                ...new Set([
+                    ...splitNulTerminated(tracked.stdout),
+                    ...splitNulTerminated(untracked.stdout),
+                ]),
+            ].sort()
+        },
+
         readBlobs(ids) {
             if (ids.length === 0) return new Map()
             const result = call(['cat-file', '--batch'], { input: `${ids.join('\n')}\n` })

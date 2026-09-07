@@ -182,6 +182,8 @@ function reviewCandidate(key, target = 'X', compatible = true) {
         currentSourceText: 'Current {name}',
         currentTargetText: target,
         placeholderCompatible: compatible,
+        // reviewFixture stores every candidate with its marker, so Keep is available.
+        materialized: true,
     }
 }
 

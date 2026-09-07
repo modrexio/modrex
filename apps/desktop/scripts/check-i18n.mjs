@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs'
-import { relative, resolve } from 'node:path'
+import { dirname, relative, resolve } from 'node:path'
 import { createInterface } from 'node:readline/promises'
-import { pathToFileURL } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import {
     parseTargetValue,
     placeholderContract,
@@ -9,7 +9,12 @@ import {
     TARGET_VALUE_KIND,
     UNTRANSLATED_PREFIX,
 } from '../src/shared/i18n-values.js'
-import { buildOrderedLocale, inspectTranslationBundle, planFilledLocale } from './i18n-current.mjs'
+import {
+    buildOrderedLocale,
+    inspectTranslationBundle,
+    isMechanicalSyncDebt,
+    planFilledLocale,
+} from './i18n-current.mjs'
 import { inspectUnicode } from './i18n-diagnostics.mjs'
 import { writeLocaleAtomically } from './i18n-files.mjs'
 import { buildStatusSummaries } from './i18n-presentation.mjs'
@@ -30,6 +35,8 @@ import {
 
 export { I18N_DIR, inspectLocales, localeNativeName } from './i18n-inspection.mjs'
 
+const REPOSITORY_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../..')
+
 export function isUntranslatedValue(value) {
     return parseTargetValue(value).kind === TARGET_VALUE_KIND.UNTRANSLATED_SCAFFOLD
 }
@@ -45,25 +52,54 @@ function validationErrors(inspection) {
     )
 }
 
-export function formatInspection(inspection) {
+// Stored markers lag behind meaning between a source change and the bot's next run, so the
+// counts come from the history summary whenever one is available.
+//
+// unwrittenFallback carries the entries that are effectively Review with placeholders that
+// disagree with English, but whose '? ' the bot has not written yet. Those render English at
+// runtime exactly like a written one, so the fallback notice has to include them: it describes
+// what the app shows now, not what the locale files have caught up to.
+function localeCounts(locale, summary, unwrittenFallback) {
+    const fallback =
+        locale.pendingPlaceholderIncompatibleCount + (unwrittenFallback.get(locale.id) ?? 0)
+    const effective = summary?.locales.get(locale.id)?.effective
+    if (!effective) {
+        return {
+            accepted: locale.acceptedCount,
+            review: locale.pendingCount,
+            missing: locale.missingCount,
+            translated: locale.translatedCount,
+            fallback,
+        }
+    }
+    return {
+        accepted: effective.accepted,
+        review: effective.review,
+        missing: effective.missing,
+        translated: effective.accepted + effective.review,
+        fallback,
+    }
+}
+
+export function formatInspection(inspection, summary, unwrittenFallback = new Map()) {
     const lines = [`check-i18n: ${inspection.totalCount} source keys`]
     if (inspection.sourceWarnings.length > 0) {
         lines.push(`  en: ${inspection.sourceWarnings.length} warning(s)`)
     }
     for (const locale of inspection.locales) {
-        const percentage = formatPercentage(locale.translatedCount, locale.totalCount)
+        const counts = localeCounts(locale, summary, unwrittenFallback)
+        const percentage = formatPercentage(counts.translated, locale.totalCount)
         lines.push(
-            `  ${locale.id}: ${locale.translatedCount}/${locale.totalCount} (${percentage}), ${locale.acceptedCount} accepted, ${locale.pendingCount} review, ${locale.missingCount} missing`
+            `  ${locale.id}: ${counts.translated}/${locale.totalCount} (${percentage}), ${counts.accepted} accepted, ${counts.review} review, ${counts.missing} missing`
         )
-        if (locale.pendingPlaceholderIncompatibleCount > 0) {
-            const fallbackCount = locale.pendingPlaceholderIncompatibleCount
+        if (counts.fallback > 0) {
             lines.push(
-                `    ${fallbackCount} review-pending ${fallbackCount === 1 ? 'translation uses' : 'translations use'} English fallback`
+                `    ${counts.fallback} review-pending ${counts.fallback === 1 ? 'translation uses' : 'translations use'} English fallback`
             )
         }
         if (locale.warnings.length > 0) lines.push(`    ${locale.warnings.length} warning(s)`)
-        if (locale.missingCount > 0) lines.push(`    Next: pnpm i18n:translate ${locale.id}`)
-        if (locale.pendingCount > 0) lines.push(`    Next: pnpm i18n:review ${locale.id}`)
+        if (counts.missing > 0) lines.push(`    Next: pnpm i18n:translate ${locale.id}`)
+        if (counts.review > 0) lines.push(`    Next: pnpm i18n:review ${locale.id}`)
     }
 
     const diagnostics = [
@@ -822,6 +858,110 @@ async function runInteractiveI18n(
     }
 }
 
+// Structural inspection sees that a translation's placeholders disagree with English. It
+// cannot see whether that is a broken translation or a translation whose English moved and
+// whose Review marker the bot has not written yet. Only Git separates those.
+const HISTORY_DEPENDENT_ISSUE = 'placeholder'
+
+function deferrableIssues(inspection) {
+    const mechanical = []
+    const historyDependent = []
+    for (const locale of inspection.locales) {
+        for (const issue of locale.issues) {
+            if (!issue.message) continue
+            if (isMechanicalSyncDebt(locale, issue)) {
+                mechanical.push({ locale: locale.id, issue })
+                continue
+            }
+            if (issue.type !== HISTORY_DEPENDENT_ISSUE) continue
+            historyDependent.push({ locale: locale.id, issue })
+        }
+    }
+    return { mechanical, historyDependent }
+}
+
+// The history module is loaded here rather than at the top of the file so every other command,
+// including the history-independent scaffolding ones, keeps working with no Git at all.
+async function resolveWithHistory(candidates, options) {
+    const history = await import('./i18n-history.mjs')
+    const cwd = options.cwd ?? REPOSITORY_ROOT
+    const localeDir = options.localeDir ?? history.I18N_LOCALE_DIR
+    try {
+        const committed = history.analyzeCommittedHistory({
+            cwd,
+            localeDir,
+            baseline: options.baseline,
+        })
+        const summary = history.summarizeHistory(
+            history.analyzeRepairableProspective(
+                committed,
+                history.workingTreeSnapshot(cwd, localeDir)
+            )
+        )
+        const review = candidates.filter(
+            ({ locale, issue }) =>
+                summary.locales.get(locale)?.entries.get(issue.key)?.effectiveState ===
+                history.EFFECTIVE_STATE.REVIEW
+        )
+        return { summary, review }
+    } catch (error) {
+        if (!(error instanceof history.I18nHistoryUnavailableError)) throw error
+        return { unavailable: error.message.split('\n')[0] }
+    }
+}
+
+export async function runI18nValidation(options = {}) {
+    const { i18nDir = I18N_DIR, stdout = process.stdout, stderr = process.stderr } = options
+    let inspection
+    try {
+        inspection = inspectLocales(i18nDir)
+    } catch (error) {
+        stderr.write(`check-i18n: ${error.message}\n`)
+        return 1
+    }
+
+    const { mechanical, historyDependent } = deferrableIssues(inspection)
+    const deferred = new Set(mechanical.map(({ issue }) => issue.message))
+    const { summary, review, unavailable } = await resolveWithHistory(historyDependent, options)
+    const unwrittenFallback = new Map()
+    for (const { locale, issue } of review ?? []) {
+        deferred.add(issue.message)
+        unwrittenFallback.set(locale, (unwrittenFallback.get(locale) ?? 0) + 1)
+    }
+
+    const errors = inspection.errors.filter((error) => !deferred.has(error))
+    if (errors.length > 0) {
+        stderr.write(`${validationErrors({ errors })}\n`)
+        return 1
+    }
+
+    // Guessing here would either reject a valid tree awaiting Review or accept a broken
+    // translation. Neither is acceptable, so the command says what it could not determine.
+    if (!summary && historyDependent.length > 0) {
+        stderr.write(
+            [
+                'check-i18n: semantic validity is unverified.',
+                ...historyDependent.map(({ issue }) => `  ${issue.message}`),
+                '',
+                'Each of these is either a broken translation or a translation awaiting Review',
+                'after an English change. Full i18n history is required to tell them apart.',
+                unavailable,
+                '',
+            ].join('\n')
+        )
+        return 1
+    }
+
+    if (deferred.size > 0) {
+        stdout.write(
+            `check-i18n: ${deferred.size} derived marker update(s) pending; the translation-status workflow writes them.\n`
+        )
+    }
+    stdout.write(`${formatInspection(inspection, summary, unwrittenFallback)}\n`)
+    if (!summary) stdout.write(`check-i18n: effective state unverified (${unavailable})\n`)
+    return 0
+}
+
 export async function runI18nCli(args, options = {}) {
     const localeCheck = args.length === 1 && !args[0].startsWith('-')
     if (localeCheck) return runCheckI18n(['--locale', args[0]], options)
@@ -843,6 +983,7 @@ export async function runI18nCli(args, options = {}) {
     if (args.length === 2 && args[0] === '--translate') {
         return runInteractiveI18n(args[1], options)
     }
+    if (args.length === 0) return runI18nValidation(options)
     return runCheckI18n(args, options)
 }
 

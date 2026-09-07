@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
-import { readdirSync, readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join, resolve } from 'node:path'
 import test from 'node:test'
 import { inspectLocales, SOURCE_LOCALE } from './i18n-inspection.mjs'
 import {
@@ -36,9 +37,11 @@ test('legend assets are canonical solid, secure, and newline-stable SVGs', () =>
     }
 })
 
-test('materialized README owns the generated block and resolves every local status image', () => {
-    const readme = readFileSync(README_PATH, 'utf8')
-    assert.equal(readme, expectedReadme(readme))
+// These assert the shape of the block the generator produces from current locale state.
+// Whether README.md has caught up with that is the bot's business, checked by
+// pnpm i18n:presentation-check rather than by a unit test over the committed file.
+test('the generated README block owns its markers and resolves every legend image', () => {
+    const readme = expectedReadme(readFileSync(README_PATH, 'utf8'))
     assert.equal((readme.match(/\[translation guide\]\(TRANSLATING\.md\)/gu) ?? []).length, 1)
     assert.equal((readme.match(/<!-- TRANSLATION_STATUS_START -->/gu) ?? []).length, 1)
     assert.equal((readme.match(/<!-- TRANSLATION_STATUS_END -->/gu) ?? []).length, 1)
@@ -60,7 +63,11 @@ test('materialized README owns the generated block and resolves every local stat
             'assets/i18n/status/legend/review.svg',
         ].sort()
     )
-    for (const path of imagePaths) assert.ok(readFileSync(resolve(ROOT, path)))
+    // Legend images are hand-maintained and must exist. Per-locale status images are bot
+    // output and may not exist yet for a locale added in the commit being tested.
+    for (const path of imagePaths.filter((item) => item.includes('/legend/'))) {
+        assert.ok(readFileSync(resolve(ROOT, path)))
+    }
     assert.match(generated, /\| Language \| Translation \| Contributors \|/u)
     assert.match(generated, new RegExp(`${SOURCE_LOCALE}\\.svg[^\\n]*> Complete`, 'u'))
 
@@ -93,19 +100,26 @@ test('materialized README owns the generated block and resolves every local stat
 
 test('README materialization is idempotent and current contributors remain linked', () => {
     const before = readFileSync(README_PATH, 'utf8')
-    const first = materializeReadme(README_PATH)
-    const second = materializeReadme(README_PATH)
-    assert.equal(first, before)
+    // Materialize a copy: this suite must never write a tracked file, and the committed
+    // README is allowed to lag until the bot runs.
+    const directory = mkdtempSync(join(tmpdir(), 'modrex-readme-'))
+    const path = join(directory, 'README.md')
+    writeFileSync(path, before)
+    const first = materializeReadme(path)
+    const second = materializeReadme(path)
+    assert.equal(first, expectedReadme(before))
     assert.equal(second, first)
+    assert.equal(readFileSync(path, 'utf8'), first)
     assert.equal(readFileSync(README_PATH, 'utf8'), before)
+    rmSync(directory, { recursive: true, force: true })
     const contributors = readTranslationContributors()
     for (const [locale, usernames] of Object.entries(contributors)) {
         for (const username of usernames) {
             assert.match(
-                before,
+                first,
                 new RegExp(`\\[${username}\\]\\(https://github\\.com/${username}\\)`)
             )
         }
-        assert.match(before, new RegExp(`status/${locale}\\.svg`))
+        assert.match(first, new RegExp(`status/${locale}\\.svg`))
     }
 })

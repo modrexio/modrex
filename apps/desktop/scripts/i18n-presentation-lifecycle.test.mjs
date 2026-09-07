@@ -524,10 +524,18 @@ test('planning failure via CLI reports exit 1 with a descriptive message and no 
     })
 })
 
-test('current real presentation lifecycle is clean on the committed repository', () => {
+// Planning over the real repository has to keep working: a missing README, an unrenderable
+// locale or a broken contributors file must fail loudly here. Whether the committed outputs
+// are current is asked by pnpm i18n:presentation-check, which the writer runs on its own
+// output, because between a locale commit and the bot's run they are expected to lag.
+test('the real repository still produces a complete presentation plan', () => {
     const plan = buildI18nPresentationPlan()
-    assert.equal(plan.clean, true)
-    assert.deepEqual(plan.operations, [])
+    assert.equal(plan.readme.expected.includes('<!-- TRANSLATION_STATUS_START -->'), true)
+    assert.deepEqual(
+        plan.assets.map((asset) => asset.locale).sort(),
+        [plan.summaries.source, ...plan.summaries.targets].map((item) => item.locale).sort()
+    )
+    for (const asset of plan.assets) assert.match(asset.expected, /^<svg /u)
     assert.deepEqual(plan.obsolete, [])
 })
 
@@ -538,17 +546,32 @@ test('the documentation workflow materializes presentation outputs and stages on
     )
     assert.match(workflow, /i18n-presentation-lifecycle\.mjs --write/u)
     assert.doesNotMatch(workflow, /update-i18n-readme\.mjs\s*$/mu)
-    assert.doesNotMatch(workflow, /i18n-presentation-lifecycle\.mjs --check/u)
 
     const contributorsIndex = workflow.indexOf('update-i18n-contributors.mjs')
     const writeIndex = workflow.indexOf('i18n-presentation-lifecycle.mjs --write')
     assert.ok(contributorsIndex >= 0 && writeIndex > contributorsIndex)
 
+    // The writer checks its own output: nobody else will. Its push does not start a CI run,
+    // so every verification this commit gets has to happen in this job before the push.
+    const checkIndex = workflow.indexOf('i18n-presentation-lifecycle.mjs --check')
+    const guardIndex = workflow.indexOf('i18n-writer-guard.mjs')
+    const commitIndex = workflow.indexOf('git commit')
+    assert.ok(checkIndex > writeIndex)
+    assert.ok(guardIndex > checkIndex)
+    assert.ok(commitIndex > guardIndex)
+    assert.match(workflow, /i18n-enforcement\.mjs --synchronized/u)
+
+    // The fixed-point proof compares content, so a generator that rewrites a file it just
+    // created cannot pass by leaving the set of changed paths unchanged.
+    assert.equal((workflow.match(/i18n-tree-state\.mjs/gu) ?? []).length, 2)
+    assert.ok(workflow.indexOf('i18n-tree-state.mjs') < guardIndex)
+
     assert.match(
         workflow,
-        /git add README\.md apps\/desktop\/translation-contributors\.generated\.json assets\/i18n\/status/u
+        /git add README\.md apps\/desktop\/translation-contributors\.generated\.json assets\/i18n\/status apps\/desktop\/src\/renderer\/src\/i18n/u
     )
     assert.doesNotMatch(workflow, /git add \.\s|git add -A/u)
     assert.match(workflow, /git diff --cached --quiet/u)
+    assert.doesNotMatch(workflow, /push[^\n]*--force|push[^\n]*\+refs/u)
     assert.match(workflow, /docs: update translation status/u)
 })

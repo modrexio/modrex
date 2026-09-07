@@ -8,9 +8,11 @@ import {
     entryId,
     applyBaseline,
     applyEvents,
+    cloneHistoryState,
     createHistoryState,
     HISTORY_EVENT,
     normalize,
+    PENDING_PROVENANCE,
 } from './i18n-history-events.mjs'
 
 // The audited migration commit on main. Every accepted checkpoint is reconstructed from
@@ -313,8 +315,13 @@ export function analyzeCommittedHistory(options = {}) {
     const cache = createBundleCache(counters)
     const revisions = [baseline, ...git.firstParentRevisions(baseline, head, localeDir)]
     const snapshots = loadSnapshots(git, revisions, localeDir, cache)
-    for (const snapshot of snapshots) assertSnapshotIntegrity(snapshot)
 
+    // Scaffold freshness is deliberately not asserted across historical snapshots. English
+    // changes land on their own and the bot refreshes scaffolds in a later commit, so
+    // intermediate revisions quote superseded English by design. That drift is derived
+    // output carrying no acceptance and no review debt, and one such revision stays in
+    // history forever, so asserting it here would break every later analysis. Malformed
+    // markers, unreadable bundles and Pending without accepted lineage still fail below.
     const state = applyBaseline(createHistoryState(), snapshots[0], baseline)
     assertPendingLineage(snapshots[0], state)
     const events = []
@@ -344,20 +351,6 @@ export function analyzeCommittedHistory(options = {}) {
             bundleParses: counters.bundleParses,
         },
     }
-}
-
-function cloneState(state) {
-    const copy = createHistoryState()
-    for (const [id, entry] of state.entries) {
-        copy.entries.set(id, {
-            locale: entry.locale,
-            key: entry.key,
-            checkpoint: entry.checkpoint,
-            pending: entry.pending,
-            acceptedPairs: new Map(entry.acceptedPairs),
-        })
-    }
-    return copy
 }
 
 export function workingTreeSnapshot(cwd, localeDir = I18N_LOCALE_DIR) {
@@ -392,7 +385,7 @@ export function stagedSnapshot(git, localeDir = I18N_LOCALE_DIR) {
 function reduceProspective(history, snapshot, validateScaffolds) {
     if (validateScaffolds) assertSnapshotIntegrity(snapshot)
     const transition = analyzeTransition(history.snapshot, snapshot, snapshot.revision)
-    const state = cloneState(history.state)
+    const state = cloneHistoryState(history.state)
     const prospectiveEvents = applyEvents(state, transition)
     assertPendingLineage(snapshot, state)
     const committedEvents = history.committedEvents ?? history.events
@@ -439,6 +432,22 @@ function entryState(value) {
     return 'absent'
 }
 
+// The three states the translation workflow actually has. They are derived from Git
+// evidence, not from whichever marker happens to be stored: a translation whose English
+// moved needs Review whether or not the bot has written its '? ' yet, and an English
+// scaffold is Missing whether or not it still quotes the current English.
+export const EFFECTIVE_STATE = Object.freeze({
+    ACCEPTED: 'accepted',
+    REVIEW: 'review',
+    MISSING: 'missing',
+})
+
+function effectiveStateOf(storedState, sourceMatchesCheckpoint) {
+    if (storedState === 'pending') return EFFECTIVE_STATE.REVIEW
+    if (storedState !== 'accepted') return EFFECTIVE_STATE.MISSING
+    return sourceMatchesCheckpoint ? EFFECTIVE_STATE.ACCEPTED : EFFECTIVE_STATE.REVIEW
+}
+
 // Everything Stage 7 and Stage 8 need to decide an action, without either of them having to
 // reread Git: current text, the checkpoint it was accepted against, why a marker is there,
 // and whether this exact pair was ever accepted before.
@@ -449,22 +458,38 @@ export function summarizeHistory(history) {
         const entries = new Map()
         let accepted = 0
         let pending = 0
-        for (const [key, value] of locale.targets) {
+        const effective = { accepted: 0, review: 0, missing: 0 }
+        // Keys English declares but this locale has not stored are Missing, so the summary
+        // has to cover the source key set rather than only what the bundle happens to hold.
+        const keys = new Set([...snapshot.source.keys(), ...locale.targets.keys()])
+        for (const key of keys) {
+            const value = locale.targets.get(key)
             const entry = state.entries.get(entryId(localeId, key))
             const sourceText = snapshot.source.get(key)
             const canonicalTarget =
-                value.kind === TARGET_VALUE_KIND.ACCEPTED ||
-                value.kind === TARGET_VALUE_KIND.PENDING
+                value?.kind === TARGET_VALUE_KIND.ACCEPTED ||
+                value?.kind === TARGET_VALUE_KIND.PENDING
                     ? value.targetText
                     : undefined
             const status = entryState(value)
             if (status === 'accepted') accepted += 1
             if (status === 'pending') pending += 1
 
+            const sourceMatchesCheckpoint = Boolean(
+                entry?.checkpoint && sameSource(entry.checkpoint.sourceText, sourceText)
+            )
+            const effectiveState = effectiveStateOf(status, sourceMatchesCheckpoint)
+            effective[effectiveState] += 1
+
             entries.set(key, {
                 locale: localeId,
                 key,
                 state: status,
+                effectiveState,
+                effectiveProvenance:
+                    effectiveState === EFFECTIVE_STATE.REVIEW
+                        ? (entry?.pending?.provenance ?? PENDING_PROVENANCE.SOURCE_CHANGE)
+                        : null,
                 sourceText,
                 canonicalTarget,
                 checkpoint: entry?.checkpoint ?? null,
@@ -474,13 +499,11 @@ export function summarizeHistory(history) {
                     status === 'pending'
                         ? Boolean(entry?.pending?.lineageCheckpoint)
                         : Boolean(entry?.checkpoint),
-                sourceMatchesCheckpoint: Boolean(
-                    entry?.checkpoint && sameSource(entry.checkpoint.sourceText, sourceText)
-                ),
+                sourceMatchesCheckpoint,
                 acceptedPairSeen: acceptedPairExists(entry, sourceText, canonicalTarget),
             })
         }
-        locales.set(localeId, { id: localeId, accepted, pending, entries })
+        locales.set(localeId, { id: localeId, accepted, pending, effective, entries })
     }
     return { baseline: history.baseline, revision: history.revision, locales }
 }

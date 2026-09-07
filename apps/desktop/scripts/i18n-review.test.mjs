@@ -505,25 +505,31 @@ test('review preserves unrelated repairable sync debt exactly', async () => {
             },
             'baseline'
         )
-        writeLocales(directory, {
-            en: {
-                review: 'B',
-                missing: 'Missing',
-                stale: 'New scaffold',
-                drift: 'New accepted source',
+        commitLocales(
+            directory,
+            {
+                en: {
+                    review: 'B',
+                    missing: 'Missing',
+                    stale: 'New scaffold',
+                    drift: 'New accepted source',
+                },
+                de: {
+                    review: '? X',
+                    stale: '! Old scaffold',
+                    drift: 'Accepted target',
+                    obsolete: '! Obsolete source',
+                },
             },
-            de: {
-                review: '? X',
-                stale: '! Old scaffold',
-                drift: 'Accepted target',
-                obsolete: '! Obsolete source',
-            },
-        })
+            'source change with its review marker'
+        )
 
+        // 'drift' is a review too: its English moved and no marker has been written yet.
+        // Keep is unavailable there until the marker exists, so it is skipped and left alone.
         assert.equal(
             await runI18nReview(['de'], {
                 ...reviewOptions(directory, baseline),
-                ask: scriptedAnswers(['k']),
+                ask: scriptedAnswers(['k', 's']),
                 stdout: captureStream().stream,
                 stderr: captureStream().stream,
             }),

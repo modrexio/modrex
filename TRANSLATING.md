@@ -61,9 +61,10 @@ current string without adding an English placeholder.
 2. Edit translated values. Do not rename the English keys.
 3. Leave untranslated keys out, or keep the marked values created by `i18n:fill`. Partial
    translations are welcome, and untranslated text falls back to English in the app.
-4. Run `pnpm i18n:sync` before committing. It restores English key order and other workflow
-   details a manual edit can leave out of sync, without changing any translated text. If you
-   skip this step, the sync check described below may report your commit as out of sync.
+4. Optionally run `pnpm i18n:sync` before committing. It restores English key order and other
+   workflow details a manual edit can leave out of sync, without changing any translated text.
+   Skipping it is fine: the translation-status bot performs the same mechanical updates after
+   your change reaches `main`.
 
 ## Add a language
 
@@ -108,19 +109,22 @@ uses the platform's native language name.
   one.
 - Key coverage measures whether translated keys exist, not translation quality or freshness.
 
-## Sync checks
+## Validation checks
 
-Two checks compare your locale changes against Modrex's translation history to make sure they
-match the expected workflow (for example, that key order and markers weren't disturbed by a
-manual edit):
+Two checks read your locale changes against Modrex's translation history and ask one question:
+is this valid translation data?
 
 - `pnpm i18n:check-staged` runs automatically before each commit and looks only at the locale
   files you have staged.
 - `pnpm i18n:check-readonly` runs the same check in CI against your full pull request.
 
-If either reports that a locale is out of sync, run `pnpm i18n:sync` to reconcile your locale
-files, then re-stage and commit again. This does not change your translated text, only its
-formatting and workflow markers.
+They fail on real problems: a translation whose `{placeholders}` disagree with English that has
+not changed, an unknown key, invalid marker syntax, empty values. They do not fail because
+markers or badges are not up to date. Missing translations are valid, and so is a translation
+waiting for review after an English change.
+
+Those mechanical updates belong to the translation-status bot, which writes them after your
+change reaches `main`. You never have to run `pnpm i18n:sync` to make CI pass.
 
 ## Contributor credit
 
