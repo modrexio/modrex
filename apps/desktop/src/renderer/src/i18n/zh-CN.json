@@ -362,15 +362,6 @@
         "install": "安装",
         "installing": "正在安装..."
     },
-    "depsWarning": {
-        "title": "缺少必需的依赖项",
-        "body": "此模组需要安装以下模组：",
-        "gotIt": "知道了",
-        "installAll": "全部安装",
-        "installFailed": "安装失败",
-        "bltDiesel3Note": "官方版 SuperBLT 暂不支持 Diesel 3.0。",
-        "bltDiesel3GitHub": "从 GitHub 获取"
-    },
     "ue4ssReplace": {
         "title": "替换已安装的 UE4SS？",
         "body": "{name} 将替换已安装的 UE4SS。系统会先移除当前安装的版本：两者的引擎文件和设置存放在不同位置，因此如果保留原版本，两者都会被加载。",
@@ -388,6 +379,15 @@
         "kept": "已保留",
         "nothingOfYours": "加载器的 Mods 文件夹中没有你自己的模组。",
         "removing": "正在移除…"
+    },
+    "depsWarning": {
+        "title": "缺少必需的依赖项",
+        "body": "此模组需要安装以下模组：",
+        "gotIt": "知道了",
+        "installAll": "全部安装",
+        "installFailed": "安装失败",
+        "bltDiesel3Note": "官方版 SuperBLT 暂不支持 Diesel 3.0。",
+        "bltDiesel3GitHub": "从 GitHub 获取"
     },
     "crimeBossInstallChoice": {
         "title": "“{name}”应安装到哪里？",
