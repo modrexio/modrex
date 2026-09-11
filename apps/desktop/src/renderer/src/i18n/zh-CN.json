@@ -362,24 +362,6 @@
         "install": "安装",
         "installing": "正在安装..."
     },
-    "ue4ssReplace": {
-        "title": "! Replace the installed UE4SS?",
-        "body": "! {name} replaces the UE4SS that is already installed. The installed release is removed first: the two put their engine and settings in different places, so leaving it in place would load both.",
-        "removed": "! Removed",
-        "kept": "! Kept",
-        "nothingOfYours": "! You have no mods of your own in the loader's Mods folder.",
-        "modsListNote": "! Your own mods keep their entries in the loader's mod list.",
-        "replace": "! Replace",
-        "replacing": "! Replacing..."
-    },
-    "ue4ssRemove": {
-        "title": "! Remove UE4SS?",
-        "body": "! UE4SS is what loads Lua mods, so removing it stops them running until you install it again. Only the files it installed are deleted.",
-        "removed": "! Removed",
-        "kept": "! Kept",
-        "nothingOfYours": "! You have no mods of your own in the loader's Mods folder.",
-        "removing": "! Removing..."
-    },
     "depsWarning": {
         "title": "缺少必需的依赖项",
         "body": "此模组需要安装以下模组：",
@@ -388,6 +370,24 @@
         "installFailed": "安装失败",
         "bltDiesel3Note": "官方版 SuperBLT 暂不支持 Diesel 3.0。",
         "bltDiesel3GitHub": "从 GitHub 获取"
+    },
+    "ue4ssReplace": {
+        "title": "替换已安装的 UE4SS？",
+        "body": "{name} 将替换已安装的 UE4SS。系统会先移除当前安装的版本：两者的引擎文件和设置存放在不同位置，因此如果保留原版本，两者都会被加载。",
+        "removed": "已移除",
+        "kept": "已保留",
+        "nothingOfYours": "加载器的 Mods 文件夹中没有你自己的模组。",
+        "modsListNote": "你自己的模组在加载器的模组列表中的条目会被保留。",
+        "replace": "替换",
+        "replacing": "正在替换…"
+    },
+    "ue4ssRemove": {
+        "title": "移除 UE4SS？",
+        "body": "UE4SS 用于加载 Lua 模组，因此移除后，这些模组将停止运行，直到你重新安装 UE4SS。只有由 UE4SS 安装的文件会被删除。",
+        "removed": "已移除",
+        "kept": "已保留",
+        "nothingOfYours": "加载器的 Mods 文件夹中没有你自己的模组。",
+        "removing": "正在移除…"
     },
     "crimeBossInstallChoice": {
         "title": "“{name}”应安装到哪里？",
@@ -439,8 +439,8 @@
         },
         "launchOptions": {
             "title": "启动选项",
-            "description": "! {flag} is needed for most of this game's mods to load correctly.",
-            "xboxNote": "! Launch options are not supported on Microsoft Store."
+            "description": "大多数此游戏的模组都需要 {flag} 才能正确加载。",
+            "xboxNote": "Microsoft Store 版不支持启动选项。"
         },
         "crashReporter": {
             "title": "崩溃报告器清理",
