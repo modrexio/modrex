@@ -13,6 +13,14 @@ on:
             - '**.md'
             - '.gitignore'
             - 'LICENSE'
+    workflow_dispatch:
+
+permissions:
+    contents: read
+
+concurrency:
+    group: ci-${{ github.ref }}
+    cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
     index:
@@ -81,8 +89,20 @@ jobs:
             - name: i18n read-only check
               run: pnpm i18n:check-readonly
             - run: pnpm typecheck
+
+            - uses: dtolnay/rust-toolchain@stable
+            - uses: swatinem/rust-cache@v2
+              with:
+                  workspaces: apps/desktop/src-tauri
+                  shared-key: rust-linux-dev
+                  cache-on-failure: true
+
             - run: cargo clippy --workspace --all-targets -- -D warnings
               working-directory: apps/desktop/src-tauri
+
+            - run: cargo check --release --workspace --all-targets
+              working-directory: apps/desktop/src-tauri
+
             - run: pnpm test
 
             # cargo test just regenerated apps/desktop/src/shared/bindings.ts from the command
@@ -97,6 +117,23 @@ jobs:
             # And the contributor reference, which is rendered from the package contract.
             - name: Fail if the generated package reference is stale
               run: git diff --exit-code docs/reference/game-package.md
+
+    rust-windows:
+        runs-on: windows-latest
+        steps:
+            - uses: actions/checkout@v7
+
+            - uses: dtolnay/rust-toolchain@stable
+            - uses: swatinem/rust-cache@v2
+              with:
+                  workspaces: apps/desktop/src-tauri
+                  shared-key: rust-windows-dev
+                  cache-on-failure: true
+
+            - run: cargo clippy --workspace --all-targets -- -D warnings
+              working-directory: apps/desktop/src-tauri
+            - run: cargo test
+              working-directory: apps/desktop/src-tauri
 
     check-licenses:
         runs-on: ubuntu-latest
