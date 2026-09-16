@@ -381,10 +381,14 @@ export function BrowsePage({
             setCategories(cached)
             return
         }
-        api.listCategories(workshopId).then((r) => {
-            setCategoriesCache(workshopId, r.data)
-            setCategories(r.data)
-        })
+        // A failure here reaches the user through the listing request, which fails the
+        // same way and renders the error, so the filter lists stay quiet like the tags below.
+        api.listCategories(workshopId)
+            .then((r) => {
+                setCategoriesCache(workshopId, r.data)
+                setCategories(r.data)
+            })
+            .catch(() => {})
     }, [workshopId]) // stable per mount, BrowsePage remounts via key={activeGame}
 
     useEffect(() => {
