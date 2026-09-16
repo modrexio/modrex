@@ -1,9 +1,12 @@
 import { commands as real } from '../../shared/bindings'
 import type {
+    FilePage,
     GameSettings_Serialize,
     InstalledResponse_Serialize,
     LoaderInfo,
+    LinkPage,
     LoaderPresence,
+    ModDetail,
     ModFolderInfo,
     ModPage,
     SourceInfo,
@@ -11,6 +14,7 @@ import type {
 import loaders from './fixtures/loaders.json'
 import sources from './fixtures/sources.json'
 import pd3ModFolders from './fixtures/pd3/mod-folders.json'
+import pd3ModRecords from './fixtures/pd3/mod-records.json'
 import pd3Mods from './fixtures/pd3/mods.json'
 import pd3Categories from './fixtures/pd3/categories.json'
 import pd3Tags from './fixtures/pd3/tags.json'
@@ -36,6 +40,8 @@ const installed: InstalledResponse_Serialize = {
     stateUnreadable: false,
 }
 
+type ModRecord = { detail: ModDetail; files: FilePage; links: LinkPage }
+
 const noLoader: LoaderPresence = {
     installed: false,
     modworkshopId: null,
@@ -48,6 +54,7 @@ const games = {
         workshopId: 853,
         modFolders: pd3ModFolders as ModFolderInfo[],
         mods: pd3Mods as ModPage,
+        modRecords: pd3ModRecords as unknown as Record<string, ModRecord>,
         categories: pd3Categories,
         tags: pd3Tags,
     },
@@ -63,6 +70,14 @@ function workshop(workshopId: number) {
     const entry = Object.values(games).find((g) => g.workshopId === workshopId)
     if (!entry) throw new Error(`preview: no fixtures for modworkshop game ${workshopId}`)
     return entry
+}
+
+function modRecord(modId: number) {
+    for (const entry of Object.values(games)) {
+        const record = entry.modRecords[modId]
+        if (record) return record
+    }
+    throw new Error(`preview: no fixture for mod ${modId}`)
 }
 
 const handlers = {
@@ -91,10 +106,17 @@ const handlers = {
     listMods: async (gameId, params) => {
         const page = workshop(gameId).mods
         const query = params?.query?.toLowerCase()
-        if (!query) return page
-        const data = page.data.filter((mod) => mod.name.toLowerCase().includes(query))
+        const ids = params?.ids
+        if (!query && !ids) return page
+        const data = page.data.filter(
+            (mod) =>
+                (!query || mod.name.toLowerCase().includes(query)) && (!ids || ids.includes(mod.id))
+        )
         return { data, meta: { ...page.meta, total: data.length, last_page: 1 } }
     },
+    getMod: async (id) => modRecord(id).detail,
+    listModFiles: async (modId) => modRecord(modId).files,
+    listModLinks: async (modId) => modRecord(modId).links,
     getThumbnail: async (filename, full) => (full ? filename : `thumbnail_${filename}`),
 } satisfies Partial<Commands>
 
