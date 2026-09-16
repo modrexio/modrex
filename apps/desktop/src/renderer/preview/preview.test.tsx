@@ -55,3 +55,17 @@ test('another game loads its own fixtures', async () => {
     render(<App />)
     expect(await found(pd2Mods.data[0].name)).toBeTruthy()
 })
+
+test('installing from a card lands the mod in the library', async () => {
+    render(<App />)
+    const first = pd3Mods.data[0]
+    await found(first.name)
+    fireEvent.click((await screen.findAllByText('Install'))[0])
+    expect(await screen.findByText(/^\d+%$/)).toBeTruthy()
+    const toggle = await screen.findByRole('switch', {}, { timeout: 5000 })
+    expect(toggle.getAttribute('aria-checked')).toBe('true')
+    fireEvent.click(toggle)
+    await vi.waitFor(() => expect(toggle.getAttribute('aria-checked')).toBe('false'))
+    fireEvent.click(await found('Installed'))
+    expect(await found('1 mod')).toBeTruthy()
+}, 15000)

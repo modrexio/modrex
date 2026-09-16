@@ -3,7 +3,6 @@ import { commands as real } from '../../shared/bindings'
 import type {
     FilePage,
     GameSettings_Serialize,
-    InstalledResponse_Serialize,
     LinkPage,
     LoaderInfo,
     LoaderPresence,
@@ -14,6 +13,7 @@ import type {
     SisrStatus,
     SourceInfo,
 } from '../../shared/bindings'
+import { installedFromWorkshop, library, simulateDownload } from './library'
 import loaders from './fixtures/loaders.json'
 import sources from './fixtures/sources.json'
 
@@ -124,13 +124,6 @@ const sisr: SisrStatus = {
     autoLaunch: false,
 }
 
-const installed: InstalledResponse_Serialize = {
-    mods: [],
-    folders: [],
-    modsHidden: false,
-    stateUnreadable: false,
-}
-
 const noLoader: LoaderPresence = {
     installed: false,
     modworkshopId: null,
@@ -173,7 +166,75 @@ const handlers = {
         { launcher: 'steam', gamePath: settings(gameId).gamePath ?? '' },
     ],
     detectInstalledGames: async () => Object.keys(GAMES),
-    getInstalled: async () => installed,
+    getInstalled: async (gameId) => library(game(gameId)).response(),
+    installMod: async (modId, _gamePath, folderId, gameId) => {
+        const { detail, files } = await modRecord(modId)
+        const file = detail.download ?? files.data[0]
+        if (!file) throw new Error(`preview: mod ${modId} has no download`)
+        await simulateDownload(`mod:${modId}`, file.size)
+        library(game(gameId)).install(installedFromWorkshop(detail, file, folderId))
+        return 'installed'
+    },
+    installFile: async (
+        modId,
+        _modName,
+        fileId,
+        _downloadUrl,
+        fileType,
+        modVersion,
+        _gamePath,
+        gameId
+    ) => {
+        const { detail } = await modRecord(modId)
+        const file = { id: fileId, version: modVersion, type: fileType, size: null }
+        await simulateDownload(`file:${modId}:${fileId}`, file.size)
+        library(game(gameId)).install(installedFromWorkshop(detail, file, null))
+        return 'installed'
+    },
+    recordSuccessfulInstall: async () => {},
+    uninstallMod: async (_gamePath, uid, gameId) => {
+        library(game(gameId)).uninstall(uid)
+        return null
+    },
+    enableMod: async (_gamePath, uid, gameId) => {
+        library(game(gameId)).setEnabled(uid, true)
+        return null
+    },
+    disableMod: async (_gamePath, uid, gameId) => {
+        library(game(gameId)).setEnabled(uid, false)
+        return null
+    },
+    moveCrimebossModTarget: async (_gamePath, uid) => {
+        library('cb').toggleCrimeBossTarget(uid)
+        return null
+    },
+    createFolder: async (_gamePath, displayName, parentId, gameId) =>
+        library(game(gameId)).createFolder(displayName, parentId),
+    renameFolder: async (_gamePath, folderId, displayName, gameId) => {
+        library(game(gameId)).renameFolder(folderId, displayName)
+        return null
+    },
+    deleteFolder: async (_gamePath, folderId, gameId) => {
+        library(game(gameId)).deleteFolder(folderId)
+        return null
+    },
+    moveFolder: async (_gamePath, folderId, targetParentId, gameId) => {
+        library(game(gameId)).moveFolder(folderId, targetParentId)
+        return null
+    },
+    moveToFolder: async (_gamePath, uid, targetFolderId, targetPosition, gameId) => {
+        library(game(gameId)).moveToFolder(uid, targetFolderId, targetPosition)
+        return null
+    },
+    reorderInFolder: async (_gamePath, folderId, orderedUids, gameId) => {
+        library(game(gameId)).reorderInFolder(folderId, orderedUids)
+        return null
+    },
+    reorderChildren: async (_gamePath, _parentId, items, gameId) => {
+        library(game(gameId)).reorderChildren(items)
+        return null
+    },
+    restoreMods: async () => null,
     listLoaders: async () => loaders as LoaderInfo[],
     listSources: async () => sources as SourceInfo[],
     checkLoader: async () => false,
