@@ -41,8 +41,8 @@
         "test:renderer": "vitest run",
         "format": "prettier --write .",
         "format:check": "prettier --check .",
-        "lint": "eslint src/renderer/src",
-        "lint:fix": "eslint src/renderer/src --fix",
+        "lint": "eslint src/renderer/src src/renderer/preview",
+        "lint:fix": "eslint src/renderer/src src/renderer/preview --fix",
         "generate-licenses": "node scripts/generate-licenses.mjs"
     },
     "repository": {
