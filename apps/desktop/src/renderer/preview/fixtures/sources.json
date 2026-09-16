@@ -1,0 +1,48 @@
+[
+    {
+        "id": "modworkshop",
+        "games": [
+            {
+                "gameId": "cb",
+                "nativeId": "857"
+            },
+            {
+                "gameId": "pd2",
+                "nativeId": "1"
+            },
+            {
+                "gameId": "pd3",
+                "nativeId": "853"
+            },
+            {
+                "gameId": "pdth",
+                "nativeId": "2"
+            },
+            {
+                "gameId": "raid",
+                "nativeId": "543"
+            }
+        ]
+    },
+    {
+        "id": "nexus",
+        "games": [
+            {
+                "gameId": "cb",
+                "nativeId": "crimebossrockaycity"
+            },
+            {
+                "gameId": "pd2",
+                "nativeId": "payday2"
+            },
+            {
+                "gameId": "pd3",
+                "nativeId": "payday3"
+            },
+            {
+                "gameId": "pdth",
+                "nativeId": "paydaytheheist"
+            }
+        ]
+    }
+]
