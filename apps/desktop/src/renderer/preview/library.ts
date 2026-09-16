@@ -7,6 +7,7 @@ import type {
     TopLevelItem,
 } from '../../shared/bindings'
 import { emit } from './tauri/event'
+import { scenario } from './scenario'
 
 type Mod = InstalledMod_Serialize
 
@@ -14,9 +15,10 @@ const DOWNLOAD_STEPS = 12
 const DOWNLOAD_STEP_MS = 120
 const DEFAULT_SIZE = 2_500_000
 
-class Library {
+export class Library {
     mods: Mod[] = []
     folders: ModFolder[] = []
+    seeded = false
     private nextFolder = 1
 
     response(): InstalledResponse_Serialize {
@@ -110,6 +112,25 @@ class Library {
         })
     }
 
+    seed(records: Record<string, { detail: ModDetail; files: { data: WorkshopFile[] } }>) {
+        this.seeded = true
+        const details = Object.values(records)
+            .map(({ detail, files }) => ({ detail, file: detail.download ?? files.data[0] }))
+            .filter((entry) => entry.file)
+            .slice(0, 6)
+        const folder = this.createFolder('Cosmetics', null)
+        details.forEach(({ detail, file }, index) => {
+            const mod = installedFromWorkshop(detail, file, index < 2 ? folder.id : null)
+            if (index === 2) mod.enabled = false
+            if (index === 3) mod.missing = true
+            if (index === 4) {
+                mod.version = '0.9'
+                mod.updateStatus = 'outdated'
+            }
+            this.install(mod)
+        })
+    }
+
     private scopedMods(folderId: string | null): Mod[] {
         return this.mods
             .filter((m) => (m.folderId ?? null) === folderId)
@@ -135,8 +156,9 @@ export function library(gameId: GameId): Library {
 
 export async function simulateDownload(downloadId: string, size: number | null) {
     const total = size ?? DEFAULT_SIZE
+    const stepMs = scenario() === 'slow' ? DOWNLOAD_STEP_MS * 8 : DOWNLOAD_STEP_MS
     for (let step = 1; step <= DOWNLOAD_STEPS; step++) {
-        await new Promise((resolve) => setTimeout(resolve, DOWNLOAD_STEP_MS))
+        await new Promise((resolve) => setTimeout(resolve, stepMs))
         const downloaded = Math.round((total * step) / DOWNLOAD_STEPS)
         await emit('download:progress', { download_id: downloadId, downloaded, total })
     }

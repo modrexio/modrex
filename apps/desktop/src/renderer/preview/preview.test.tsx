@@ -1,6 +1,5 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
-import App from '../src/App'
 import pd3Mods from './fixtures/pd3/mods.json'
 import pd3ModRecords from './fixtures/pd3/mod-records.json'
 import pd3News from './fixtures/pd3/news.json'
@@ -9,6 +8,7 @@ import pd2Mods from './fixtures/pd2/mods.json'
 const store = new Map<string, string>()
 
 beforeEach(() => {
+    window.history.replaceState({}, '', '/')
     store.clear()
     store.set('modrex:active-game', 'pd3')
     store.set('modrex:active-view', 'browse')
@@ -21,15 +21,23 @@ beforeEach(() => {
 
 afterEach(cleanup)
 
+// Every scenario is a fresh page load, so each test gets fresh module state on both
+// sides: the renderer's session caches and the preview's in-memory library.
+async function mount() {
+    vi.resetModules()
+    const { default: App } = await import('../src/App')
+    render(<App />)
+}
+
 const found = (text: string) => screen.findByText(text, {}, { timeout: 5000 })
 
 test('browse page renders the fixture listing without a backend', async () => {
-    render(<App />)
+    await mount()
     for (const mod of pd3Mods.data.slice(0, 3)) expect(await found(mod.name)).toBeTruthy()
 })
 
 test('opening a card renders the mod detail page', async () => {
-    render(<App />)
+    await mount()
     const first = pd3Mods.data[0]
     fireEvent.click(await found(first.name))
     const record = pd3ModRecords[String(first.id) as keyof typeof pd3ModRecords]
@@ -40,24 +48,24 @@ test('opening a card renders the mod detail page', async () => {
 
 test('news page renders the snapshot feed', async () => {
     store.set('modrex:active-view', 'news')
-    render(<App />)
+    await mount()
     expect(await found(pd3News.items[0].title)).toBeTruthy()
 })
 
 test('settings page renders the game path', async () => {
     store.set('modrex:active-view', 'settings')
-    render(<App />)
+    await mount()
     expect(await found('C:\\Program Files (x86)\\Steam\\steamapps\\common\\PAYDAY 3')).toBeTruthy()
 })
 
 test('another game loads its own fixtures', async () => {
     store.set('modrex:active-game', 'pd2')
-    render(<App />)
+    await mount()
     expect(await found(pd2Mods.data[0].name)).toBeTruthy()
 })
 
 test('installing from a card lands the mod in the library', async () => {
-    render(<App />)
+    await mount()
     const first = pd3Mods.data[0]
     await found(first.name)
     fireEvent.click((await screen.findAllByText('Install'))[0])
@@ -69,3 +77,29 @@ test('installing from a card lands the mod in the library', async () => {
     fireEvent.click(await found('Installed'))
     expect(await found('1 mod')).toBeTruthy()
 }, 15000)
+
+test('the library scenario seeds installed mods', async () => {
+    window.history.replaceState({}, '', '/?scenario=library')
+    store.set('modrex:active-view', 'installed')
+    await mount()
+    expect(await found('6 mods')).toBeTruthy()
+    expect(await found('Cosmetics')).toBeTruthy()
+})
+
+test('the no-game scenario shows the missing installation state', async () => {
+    window.history.replaceState({}, '', '/?scenario=no-game')
+    await mount()
+    expect(await found('Game not found: install disabled')).toBeTruthy()
+})
+
+test('the offline scenario surfaces the request failure', async () => {
+    window.history.replaceState({}, '', '/?scenario=offline')
+    await mount()
+    expect(await found("Couldn't load mods")).toBeTruthy()
+})
+
+test('the first-run scenario asks for telemetry consent', async () => {
+    window.history.replaceState({}, '', '/?scenario=first-run')
+    await mount()
+    expect((await screen.findAllByText('Help improve Modrex')).length).toBeGreaterThan(0)
+})

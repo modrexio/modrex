@@ -14,6 +14,7 @@ import type {
     SourceInfo,
 } from '../../shared/bindings'
 import { installedFromWorkshop, library, simulateDownload } from './library'
+import { remote, scenario } from './scenario'
 import loaders from './fixtures/loaders.json'
 import sources from './fixtures/sources.json'
 
@@ -111,6 +112,10 @@ function settings(gameId: string): GameSettings_Serialize {
     return created
 }
 
+function gamePath(gameId: string): string | null {
+    return scenario() === 'no-game' ? null : settings(gameId).gamePath
+}
+
 const flatSettings = {
     dismissedDepsWarnings: [] as number[],
     skipFileopenlogWarning: false,
@@ -133,14 +138,14 @@ const noLoader: LoaderPresence = {
 
 const handlers = {
     reportStartupPhase: async () => null,
-    getAnalyticsConsent: async () => true,
+    getAnalyticsConsent: async () => (scenario() === 'first-run' ? null : true),
     setAnalyticsConsent: async () => {},
     trackEvent: async () => {},
     setDiscordPresenceEnabled: async () => {},
     updateDiscordPresence: async () => {},
     checkForUpdate: async () => null,
     configureGamePath: async () => null,
-    getGameSettings: async (gameId) => settings(gameId),
+    getGameSettings: async (gameId) => ({ ...settings(gameId), gamePath: gamePath(gameId) }),
     getSettings: async () => flatSettings,
     setLaunchOptions: async (gameId, launchOptions) => {
         settings(gameId).launchOptions = launchOptions
@@ -162,12 +167,19 @@ const handlers = {
         sisr.autoLaunch = enabled
         return null
     },
-    detectedInstalls: async (gameId) => [
-        { launcher: 'steam', gamePath: settings(gameId).gamePath ?? '' },
-    ],
-    detectInstalledGames: async () => Object.keys(GAMES),
-    getInstalled: async (gameId) => library(game(gameId)).response(),
+    detectedInstalls: async (gameId) => {
+        const path = gamePath(gameId)
+        return path ? [{ launcher: 'steam', gamePath: path }] : []
+    },
+    detectInstalledGames: async () => (scenario() === 'no-game' ? [] : Object.keys(GAMES)),
+    getInstalled: async (gameId) => {
+        const id = game(gameId)
+        const lib = library(id)
+        if (scenario() === 'library' && !lib.seeded) lib.seed((await load(id)).modRecords)
+        return lib.response()
+    },
     installMod: async (modId, _gamePath, folderId, gameId) => {
+        await remote(`/mods/${modId}`)
         const { detail, files } = await modRecord(modId)
         const file = detail.download ?? files.data[0]
         if (!file) throw new Error(`preview: mod ${modId} has no download`)
@@ -243,9 +255,16 @@ const handlers = {
     secretStoreAvailable: async () => true,
     nexusOauthSignedIn: async () => false,
     isGameRunning: async () => false,
-    listCategories: async (workshopId) => (await load(gameForWorkshop(workshopId))).categories,
-    listTags: async (workshopId) => (await load(gameForWorkshop(workshopId))).tags,
+    listCategories: async (workshopId) => {
+        await remote(`/games/${workshopId}/categories`)
+        return (await load(gameForWorkshop(workshopId))).categories
+    },
+    listTags: async (workshopId) => {
+        await remote(`/games/${workshopId}/tags`)
+        return (await load(gameForWorkshop(workshopId))).tags
+    },
     listMods: async (workshopId, params) => {
+        await remote(`/games/${workshopId}/mods`)
         const page = (await load(gameForWorkshop(workshopId))).mods
         const query = params?.query?.toLowerCase()
         const ids = params?.ids
@@ -256,12 +275,30 @@ const handlers = {
         )
         return { data, meta: { ...page.meta, total: data.length, last_page: 1 } }
     },
-    getMod: async (id) => (await modRecord(id)).detail,
-    listModFiles: async (modId) => (await modRecord(modId)).files,
-    listModLinks: async (modId) => (await modRecord(modId)).links,
-    fetchNews: async (gameId) => news(gameId, 1),
-    refreshNews: async (gameId) => news(gameId, 1),
-    fetchNewsPage: async (gameId, page) => news(gameId, page),
+    getMod: async (id) => {
+        await remote(`/mods/${id}`)
+        return (await modRecord(id)).detail
+    },
+    listModFiles: async (modId) => {
+        await remote(`/mods/${modId}/files`)
+        return (await modRecord(modId)).files
+    },
+    listModLinks: async (modId) => {
+        await remote(`/mods/${modId}/links`)
+        return (await modRecord(modId)).links
+    },
+    fetchNews: async (gameId) => {
+        await remote(`/news/${gameId}`)
+        return news(gameId, 1)
+    },
+    refreshNews: async (gameId) => {
+        await remote(`/news/${gameId}`)
+        return news(gameId, 1)
+    },
+    fetchNewsPage: async (gameId, page) => {
+        await remote(`/news/${gameId}/${page}`)
+        return news(gameId, page)
+    },
     getStorageUsage: async () => ({ thumbnails: 48_300_000, indexDb: 12_900_000, news: 210_000 }),
     getThumbnail: async (filename, full) => (full ? filename : `thumbnail_${filename}`),
     shellOpenExternal: async (url) => {

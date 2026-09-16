@@ -28,6 +28,16 @@ function previewBackend(): Plugin {
     return {
         name: 'preview-backend',
         enforce: 'pre',
+        transformIndexHtml: {
+            order: 'pre',
+            handler(html, context) {
+                if (!context.filename.endsWith('index.html')) return html
+                return html.replace(
+                    '<script type="module"',
+                    '<script type="module" src="/preview/boot.ts"></script>\n        <script type="module"'
+                )
+            },
+        },
         async resolveId(source, importer, options) {
             const shim = previewShims[source]
             if (shim) return resolve(previewDir, shim)
