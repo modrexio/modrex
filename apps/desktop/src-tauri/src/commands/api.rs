@@ -21,7 +21,7 @@ impl specta::Type for Json {
     }
 }
 
-pub(crate) const BASE: &str = "https://api.modworkshop.net";
+const BASE: &str = "https://api.modworkshop.net";
 const MAX_CONCURRENT: usize = 3;
 // modworkshop enforces 90 req/min per IP, shared across every endpoint
 // (confirmed live via the x-ratelimit-limit response header, which modworkshop
@@ -127,6 +127,14 @@ pub(crate) async fn api_get(
     path: &str,
     params: Vec<(&str, String)>,
 ) -> Result<Value, String> {
+    api_get_as(&user_agent(app), path, params).await
+}
+
+pub(crate) async fn api_get_as(
+    ua: &str,
+    path: &str,
+    params: Vec<(&str, String)>,
+) -> Result<Value, String> {
     let mut url = reqwest::Url::parse(&format!("{}{}", BASE, path)).map_err(|e| e.to_string())?;
     {
         let mut pairs = url.query_pairs_mut();
@@ -135,7 +143,6 @@ pub(crate) async fn api_get(
         }
     }
     let client = http_client();
-    let ua = user_agent(app);
 
     for attempt in 0u64..3 {
         // Bucket refills during backoff sleep, so this is usually instant on retry.
@@ -159,7 +166,7 @@ pub(crate) async fn api_get(
         let res = client
             .get(url.clone())
             .header("Accept", "application/json")
-            .header("User-Agent", &ua)
+            .header("User-Agent", ua)
             .timeout(Duration::from_secs(15))
             .send()
             .await
