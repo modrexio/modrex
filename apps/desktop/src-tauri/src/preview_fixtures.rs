@@ -22,34 +22,49 @@ struct ModRecord {
     links: LinkPage,
 }
 
-const SNAPSHOTS: &[Snapshot] = &[Snapshot {
-    game_id: "pd3",
-    workshop_id: 853,
-}];
+const SNAPSHOTS: &[Snapshot] = &[
+    Snapshot {
+        game_id: "pd3",
+        workshop_id: 853,
+    },
+    Snapshot {
+        game_id: "pd2",
+        workshop_id: 1,
+    },
+    Snapshot {
+        game_id: "pdth",
+        workshop_id: 2,
+    },
+    Snapshot {
+        game_id: "cb",
+        workshop_id: 857,
+    },
+    Snapshot {
+        game_id: "raid",
+        workshop_id: 543,
+    },
+];
 
 async fn get(path: &str, query: &[(&str, &str)]) -> Value {
-    let url =
-        reqwest::Url::parse_with_params(&format!("{}{path}", crate::commands::api::BASE), query)
-            .unwrap_or_else(|e| panic!("bad fixture url {path}: {e}"));
-    crate::commands::api::http_client()
-        .get(url.clone())
-        .header("User-Agent", "modrex-preview-fixtures")
-        .send()
+    let params = query.iter().map(|(k, v)| (*k, v.to_string())).collect();
+    crate::commands::api::api_get_as("modrex-preview-fixtures", path, params)
         .await
-        .and_then(|r| r.error_for_status())
-        .unwrap_or_else(|e| panic!("fixture request {url} failed: {e}"))
-        .json()
-        .await
-        .unwrap_or_else(|e| panic!("fixture response {url} is not json: {e}"))
+        .unwrap_or_else(|e| panic!("fixture request {path} failed: {e}"))
 }
 
 fn write<T: Serialize>(name: &str, value: &T) {
     let path = std::path::PathBuf::from(format!("{FIXTURES_DIR}/{name}.json"));
     let dir = path.parent().expect("fixture path has a parent");
     std::fs::create_dir_all(dir).unwrap_or_else(|e| panic!("cannot create {}: {e}", dir.display()));
-    let text = serde_json::to_string_pretty(value).expect("fixture serializes");
-    std::fs::write(&path, text + "\n")
-        .unwrap_or_else(|e| panic!("cannot write {}: {e}", path.display()));
+    let mut text = Vec::new();
+    let formatter = serde_json::ser::PrettyFormatter::with_indent(b"    ");
+    value
+        .serialize(&mut serde_json::Serializer::with_formatter(
+            &mut text, formatter,
+        ))
+        .expect("fixture serializes");
+    text.push(b'\n');
+    std::fs::write(&path, text).unwrap_or_else(|e| panic!("cannot write {}: {e}", path.display()));
 }
 
 #[doc(hidden)]
@@ -99,6 +114,15 @@ pub fn export_preview_fixtures() {
             }
             write(&format!("{}/mods", snapshot.game_id), &page);
             write(&format!("{}/mod-records", snapshot.game_id), &records);
+            if crate::games::discovered()
+                .iter()
+                .any(|(id, def)| *id == snapshot.game_id && !def.news.is_empty())
+            {
+                let news = crate::commands::news::fetch_news_page(snapshot.game_id.to_string(), 1)
+                    .await
+                    .unwrap_or_else(|e| panic!("{} news: {e}", snapshot.game_id));
+                write(&format!("{}/news", snapshot.game_id), &news);
+            }
             write(
                 &format!("{}/categories", snapshot.game_id),
                 &get(&format!("{game}/categories"), &[]).await,

@@ -12,6 +12,7 @@ AGENTS.md
 .agents/
 src/shared/bindings.ts
 apps/desktop/src/shared/bindings.ts
+apps/desktop/src/renderer/preview/fixtures/
 packages/games/catalog.generated.ts
 docs/reference/game-package.md
 apps/desktop/translation-contributors.generated.json

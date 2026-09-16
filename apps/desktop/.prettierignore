@@ -10,3 +10,4 @@ CLAUDE.md
 AGENTS.md
 .agents/
 src/shared/bindings.ts
+src/renderer/preview/fixtures/
