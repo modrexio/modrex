@@ -1,0 +1,658 @@
+{
+    "data": [
+        {
+            "id": 55340,
+            "name": "More subtitles",
+            "desc": "# More Subtitles\n\nProject to add more subtitles to RAID: World War II.\n\nYou ever play a raid but you can't hear any dialogue because of the action, and it doesn't even have subtitles? This project aims to add all those missing subtitles into the game.\n\n## Currently finished\n\n* Strongpoint\n    * Firestarter\n* Gold Rush\n    * Enigmatic\n* Wiretap\n    * London Calling\n* Amber Train\n    * Rolling stock\n* Currently working camp banter (most of it is broken as of latest update)\n    * Skill table\n    * Shooting range\n    * Card table\n    * Bombers flying above\n    * Maps\n    * Taking too long to start a raid\n\n## Plans\n\nAdd subtitles for\n\n* All raids\n* All operations\n* Potentially figure out a way to add subtitles for Mrs. White briefings for operations\n\n# Contribute\n\nGithub: https://github.com/suhankins/More-subtitles",
+            "short_desc": "Project to add more subtitles to RAID: World War II.",
+            "version": "1.3.2",
+            "downloads": 46,
+            "likes": 9,
+            "views": 287,
+            "published_at": "2026-02-17T14:27:05.000000Z",
+            "bumped_at": "2026-07-30T19:25:40.000000Z",
+            "category_id": 573,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": {
+                "file": "Fh3TkReC0VzRr3J1jxWpMZiAwPae73VlXPV2eyus.webp",
+                "has_thumb": true
+            },
+            "download": null,
+            "user": {
+                "id": 93957,
+                "name": "Punished Bernadetta",
+                "donation_url": "",
+                "avatar": "avatar_93957.png",
+                "avatar_has_thumb": false
+            }
+        },
+        {
+            "id": 58231,
+            "name": "Rotate on Character Customization",
+            "desc": "Rotate your character on the character customization screen",
+            "short_desc": "",
+            "version": "0.2",
+            "downloads": 7,
+            "likes": 4,
+            "views": 42,
+            "published_at": "2026-07-30T13:38:39.000000Z",
+            "bumped_at": "2026-07-30T14:04:25.000000Z",
+            "category_id": 580,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": {
+                "file": "2cOS7bgOXrEa6MSQtxnPFk5Lfw2nwjisthySy4h3.webp",
+                "has_thumb": true
+            },
+            "download": null,
+            "user": {
+                "id": 36559,
+                "name": "shinrax2",
+                "donation_url": "",
+                "avatar": "https://avatars.akamai.steamstatic.com/d001d77000792f5b2728b4f6436847e558e5c960_full.jpg",
+                "avatar_has_thumb": false
+            }
+        },
+        {
+            "id": 55513,
+            "name": "Record Player for Degtyaryov DP-28 (SkinLib)",
+            "desc": "Record Player for Degtyaryov DP-28 for SkinLib",
+            "short_desc": "",
+            "version": "0.2",
+            "downloads": 11,
+            "likes": 3,
+            "views": 132,
+            "published_at": "2026-03-01T13:48:11.000000Z",
+            "bumped_at": "2026-07-24T15:19:18.000000Z",
+            "category_id": 582,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": {
+                "file": "sb41yYkSz5IiIFubzevEoGvFrqjaOciU2L2Ft08r.webp",
+                "has_thumb": true
+            },
+            "download": null,
+            "user": {
+                "id": 93957,
+                "name": "Punished Bernadetta",
+                "donation_url": "",
+                "avatar": "avatar_93957.png",
+                "avatar_has_thumb": false
+            }
+        },
+        {
+            "id": 49744,
+            "name": "RAID-SuperBLT",
+            "desc": "RAID compatible port of https://superblt.znix.xyz/\n\n## what?\n\nFor those who don't know what this is: basically RaidBLT, but far more extended.\n\nIt has the same roots as RaidBLT, but instead was always designed for Payday2.\nWhen Raid came it out, it was too complicated to port the whole SuperBLT package, with all it's extra features.\n\nInstead an earlier base (just BLT, by James W.) was taken, with basically just the lua-hook framework, and there we had atleast something.\nBut now, it is finally time to say hello to an even better RaidBLT!\n\n\n## So what does that mean for existing RaidBLT mods, are they compatible?\n\nNo, but Yes!\nSuperBLT uses a slightly different xml format for mods, and its name is supermod.xml, instead of mod.xml.\n(note for pd2-mod devs: mod.txt, as in pd2's sblt version, is not required in the raid fork!)\n\n..but [RAIDWW2-BeardLib](https://modworkshop.net/mod/49760) *(which requires SuperBLT's extra features, and therefore could never be ported, until now)* can handle mod.xml files!\n*(who like to know side-facts: RaidBLT's mod loading was actually based on BeardLib's code)*\n\nThis should make it even possible to seamlessly switch to SuperBLT right now, with your whole mod collection! (if everything goes well, lol)\n\n\n## so, how to switch from RaidBLT, without losing mods?\n\nfirst you want remove the components of RaidBLT, which conflict with RAID-SuperBLT, that being:\n1. Delete `IPHLPAPI.dll`\n2. Delete `mods/base/`\nIt is NOT be required to delete the entire mods folder! you can just keep `saves`, `downloads`, `logs` and all your mods (other than `base`).)\n3. install [RAID-SuperBLT](https://api.modworkshop.net/mods/49744/download)\n4. install [RAIDWW2-BeardLib](https://modworkshop.net/mod/49760)\n\n## How to install RAID-SuperBLT?\n\nExtract the `mods` directory, and one dll of your choice to your `steamapps/common/RAID World War II/` directory\n(should be safe to overwrite everything, if asked. however: if you had RBLT before, you might wanna delete `/mods/base` first, to be clean.)\nRaidBLT users: make sure to delete the RaidBLT `IPHLPAPI.dll` at this point!\n\njust to be super clear: the Raid-BLT `IPHLPAPI.dll` is not the same as the Raid-SuperBLT `IPHLPAPI.dll`, even if you wanna still use `IPHLPAPI.dll` with SBLT, you need to replace it.\n\n## Linux\n\nTo have the game load SuperBLT on Linux you will have to moddify your launch options in steam, add `WINEDLLOVERRIDES=\"WSOCK32,IPHLPAPI=n,b\"` to it.\nExample of full launch arguments: `WINEDLLOVERRIDES=\"WSOCK32,IPHLPAPI=n,b\" %command%`\n\n### Wait what? One dll of my choice?\n\nOne dll of your choice!\njust as SuperBLT for PD2, we release our hook with a choice: `IPHLPAPI.dll` OR `WSOCK32.dll` (preferred)\nif both are installed, IPHLPAPI.dll takes over, and WSOCK32.dll deactivated itself.\n\nbackstory: there have been cases where IPHLPAPI.dll didnt work well on some systems, which lead ZNix (original dev of SBLT) to switch the hooking mechanism over to WSOCK32.dll, which delivered better results for those cases. for maximum compat, both have been kept.\n\n## Great, but what are those 'extra features'?\n\n- asset db: https://superblt.znix.xyz/doc/assets/asset_db/\n- xml tweaker: https://superblt.znix.xyz/doc/assets/tweaker/\n- Wren: https://superblt.znix.xyz/doc/wren/core_sblt_api/\n- lots of blt core improvements\n- custom auto update servers (with meta data): https://superblt.znix.xyz/doc/mod_definition/updates/\n- a dependency system: https://superblt.znix.xyz/doc/mod_definition/dependencies/\n- modern https! - the backend of dohttpreq() uses latest libcurl, using Schannel for SSH, with alt-svc, IPv6, Largefile, HSTS, libz, etc\n- the ability to use BeardLib, which opens even more possibilities!\n\nfor more details (especially for mod devs), just check the \"Developer Documentation\" dropdown on https://superblt.znix.xyz/, there is more. However: ignore everything that has to with XAudio! we don't have that in RAID!\n\n## Mod-Devs: How to port my RBLT mod to SBLT?\n\nFor most mods, it should be sufficent to just add a supermod.xml, with a slightly different structure than RBLT's mod.xml.\nFor examples, you can check my mods, as those are all sblt ready now: \nhttps://modworkshop.net/user/bangl?game=543&category=567\n\nthe rblt-xml modules for options and menus are not backported, if you used them you gotta reimplemented them yourself, or become a BeardLib mod, which those original modules originally stem from.\n\nmore beardlib rblt/sblt notes:\n- if you dont require beardlib, you can have a mod.xml and supermod.xml at the same time. beardlib will ignore mod.xml files, when supermod.xml files are present, and only provide compat for rblt-only mods. that way we are able to have rblt + sblt compat at the same time, without getting loaded 2x when using sblt and beardlib.\n- if you do require beardlib, and want rblt backwards compat, you can have mod.xml for rblt, supermod.xml for sblt and then main.xml for beardlib.\n\n## Source\n\nDLL: https://github.com/RAIDModding/RAID-SuperBLT\nLua (base): https://github.com/RAIDModding/RAID-SuperBLT-Lua\nthumbnail image by Dribbleondo",
+            "short_desc": "",
+            "version": "2.0.3",
+            "downloads": 2448,
+            "likes": 28,
+            "views": 6333,
+            "published_at": "2024-11-02T01:14:02.000000Z",
+            "bumped_at": "2026-07-24T10:22:55.000000Z",
+            "category_id": 567,
+            "has_download": true,
+            "disable_mod_managers": true,
+            "thumbnail": {
+                "file": "UyhX5oVdsMZsnLnWWZeySpukn6BSMlZ3ebiKUn3R.webp",
+                "has_thumb": true
+            },
+            "download": null,
+            "user": {
+                "id": 1934,
+                "name": "BangL",
+                "donation_url": "",
+                "avatar": "https://avatars.akamai.steamstatic.com/360236e555049f204b12d3a8685a3b9b9764ebfe_full.jpg",
+                "avatar_has_thumb": false
+            }
+        },
+        {
+            "id": 57645,
+            "name": "des' collectable contours",
+            "desc": "[this mod](https://modworkshop.net/mod/50458) but fixed. kinda. I couldn't fix the outlaw raid doc outlines but the rest works. might look into that later. dogtag and loot outlines appear slightly further away than the crowbar outlines.\n\nv1.1: removed outline for desk book loot because it froze rogue gallery during loading. oops.",
+            "short_desc": "dogtags and loot pickups get outlines",
+            "version": "v1.1",
+            "downloads": 59,
+            "likes": 3,
+            "views": 179,
+            "published_at": "2026-06-21T19:32:14.000000Z",
+            "bumped_at": "2026-06-21T20:15:49.000000Z",
+            "category_id": 620,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": {
+                "file": "Xg9lhnBQ3jrkKRMNjWI5RwVssp1CTgVAWOOr3l9J.webp",
+                "has_thumb": true
+            },
+            "download": null,
+            "user": {
+                "id": 48157,
+                "name": "Desfail",
+                "donation_url": null,
+                "avatar": "https://avatars.steamstatic.com/c2660cada28496803e80e281ed7383e596abbb2d_full.jpg",
+                "avatar_has_thumb": false
+            }
+        },
+        {
+            "id": 55400,
+            "name": "SkinLib",
+            "desc": "Libary to easily add weapon skins to the game\n\n(currently incomplete) Skin creation guide: https://github.com/shinrax2/skinlib/blob/main/doc/guide.md\nExample Mods:\n- https://github.com/shinrax2/skinlib/tree/main/doc/examples/timelines_skinlib_fluent (simple texture replacement skin)\n- https://github.com/shinrax2/skinlib/tree/main/doc/examples/m1garbine_skinlib (texture and model replacement skin)\n- https://github.com/shinrax2/skinlib/tree/main/doc/examples/koishi343d_skinlib (throwable skin)\n\nTHIS MOD DOES NOTHING ON IT'S OWN!\n\nKnown Issues:\n- skins arent synced to peers in any way but will show the base_part to peers\n- throwable skins arent applied to thrown grenades when playing as client\n\nContributors:\n- BangL: feedback for API improvements & fixes\n- PunishedBernadetta: help with testing, russian translation for config menu\n- SideTrackGames: explaining me stuff\n- BeardLib: code for cleaning weapon blueprints for peers\n- Dribbleondo: textures for timelines example mod\n- sherbetjutsu: textures & model for m1 garbine example mod\n- Woulds: textures & model for koishi d343 example mod",
+            "short_desc": "",
+            "version": "0.3.0",
+            "downloads": 31,
+            "likes": 3,
+            "views": 322,
+            "published_at": "2026-02-18T15:52:59.000000Z",
+            "bumped_at": "2026-05-07T16:48:46.000000Z",
+            "category_id": 575,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": {
+                "file": "s6WFV8iNwFmIpXTrNXYohPzwiFqOmFnw1qLkYibl.webp",
+                "has_thumb": true
+            },
+            "download": null,
+            "user": {
+                "id": 36559,
+                "name": "shinrax2",
+                "donation_url": "",
+                "avatar": "https://avatars.akamai.steamstatic.com/d001d77000792f5b2728b4f6436847e558e5c960_full.jpg",
+                "avatar_has_thumb": false
+            }
+        },
+        {
+            "id": 55739,
+            "name": "Koishi plush over 343d Hand Grenade (SkinLib)",
+            "desc": "SkinLib version of [Woulds'](https://modworkshop.net/user/woulds) [Koishi plush over 343d Hand Grenade](https://modworkshop.net/mod/55208)\n\nthe model is made by 203Null on sketchfab! https://sketchfab.com/3d-models/project-koishi-komeiji-fumo-37a56b489b5c4440bbabb7b7777036f6",
+            "short_desc": "",
+            "version": "2",
+            "downloads": 10,
+            "likes": 1,
+            "views": 90,
+            "published_at": "2026-03-22T16:37:23.000000Z",
+            "bumped_at": "2026-04-18T13:04:13.000000Z",
+            "category_id": 648,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": {
+                "file": "f5pEjK4fTFNe17AYiHGPpQg0otPFdb6zJSsqDJu7.webp",
+                "has_thumb": true
+            },
+            "download": null,
+            "user": {
+                "id": 36559,
+                "name": "shinrax2",
+                "donation_url": "",
+                "avatar": "https://avatars.akamai.steamstatic.com/d001d77000792f5b2728b4f6436847e558e5c960_full.jpg",
+                "avatar_has_thumb": false
+            }
+        },
+        {
+            "id": 55898,
+            "name": "Toy Sawn-Off (Buff) (Skinlib)",
+            "desc": "Here at Lucious Zero Arms, we have invented TIME TRAVEL (yes, really). We traveled to the far off future year of 2018 and met a weapons designer named \"Soosh\", whom we immediately captured and questioned. They revealed they were working on a revolutionary and very serious weapon design called BUFF. Apparently we couldnt bring the exact blueprint back with us, something about the spacetime continuum blah blah blah, but we worked hard to bring you this close approximation to what we saw. The BUFF sawn off shotgun. More plastic, but just as lethal!\n\n![](https://i.imgur.com/3KDDwvt.png)\n![](https://i.imgur.com/1h3M91l.png)\n\nSkin made by [Lucious](https://modworkshop.net/user/luciousp226)\n\nCode assembled by [Zero](https://modworkshop.net/user/zerozm) with the help of [SkinLib](https://modworkshop.net/mod/55400)\n\nDesign inspired by [Akimbo Judge | BUFF](https://steamcommunity.com/sharedfiles/filedetails/?id=1378227282)",
+            "short_desc": "",
+            "version": "",
+            "downloads": 10,
+            "likes": 0,
+            "views": 89,
+            "published_at": "2026-04-05T11:47:16.000000Z",
+            "bumped_at": "2026-04-05T11:47:16.000000Z",
+            "category_id": 662,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": {
+                "file": "8vAPm3HSmKN7eecgC60XN4YLkG61bQOtYinqhCJr.webp",
+                "has_thumb": true
+            },
+            "download": null,
+            "user": {
+                "id": 156769,
+                "name": "Kieran (Lucious) Pallister",
+                "donation_url": "",
+                "avatar": "CIEpoFoeP0H32qOZijErlz60h4ERg959omNAFWhS.webp",
+                "avatar_has_thumb": true
+            }
+        },
+        {
+            "id": 55799,
+            "name": "Golden Webley (SkinLib)",
+            "desc": "The RND department were hard at work for this new Lucious Zero Arms product (the RND department consisting of just Lucious, Zero, and absolutely no one else). We wanted something striking, unique, and bespoke, something that screams I have more money than sense but I'm tasteful in how I waste it. That's why we brought you the gold plated Webley. Now at least when you touch something British (which no one REALLY wants to do unless they absolutely have to), you'll look damn fine doing it. Just remember to look at the Nazis you're supposed to be shooting, and not the meticulously crafted engravings!\n\nSkin made by [Lucious](https://modworkshop.net/user/luciousp226)\n\nCode assembled by [Zero](https://modworkshop.net/user/zerozm) with the help of [SkinLib](https://modworkshop.net/mod/55400)\n\n![](https://i.imgur.com/GiN8cn5.png)\n![](https://i.imgur.com/rO4FhSn.png)",
+            "short_desc": "",
+            "version": "1.1",
+            "downloads": 11,
+            "likes": 2,
+            "views": 78,
+            "published_at": "2026-03-30T10:47:34.000000Z",
+            "bumped_at": "2026-04-01T00:48:54.000000Z",
+            "category_id": 549,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": {
+                "file": "AIFWyWnFmVOuE3K7K3chJMnkpOcm9XjD7Fihe5tP.webp",
+                "has_thumb": true
+            },
+            "download": null,
+            "user": {
+                "id": 156769,
+                "name": "Kieran (Lucious) Pallister",
+                "donation_url": "",
+                "avatar": "CIEpoFoeP0H32qOZijErlz60h4ERg959omNAFWhS.webp",
+                "avatar_has_thumb": true
+            }
+        },
+        {
+            "id": 55784,
+            "name": "Golden TT-33 (SkinLib)",
+            "desc": "You consider yourself a cut above the average soldier, and you need something that celebrates that, something that's shiny and gaudy and will definitely get you spotted and swiftly killed on the battlefield.\n\nThat's why we here at Lucious-Zero Arms™ are delighted to bring you the new gold plated TT-33, complete with slide skull engravings (that give you no tactical advantage whatsoever), a stock white grip with the option of an upgraded pearl grip at a later date, and a few other details you'll have to spot for yourself when you get your hands on this beautiful and completely excessive piece of Russian engineering.\n\nSkin made by [Lucious](https://modworkshop.net/user/luciousp226)\n\nCode assembled by [Zero](https://modworkshop.net/user/zerozm) with the help of [SkinLib](https://modworkshop.net/mod/55400)\n\n![](https://i.imgur.com/zv5KyYE.png)\n![](https://i.imgur.com/hRjOobQ.png)\n\n*(Ingame previews on images tab)*",
+            "short_desc": "",
+            "version": "1.1.1",
+            "downloads": 15,
+            "likes": 3,
+            "views": 87,
+            "published_at": "2026-03-28T04:30:59.000000Z",
+            "bumped_at": "2026-04-01T00:47:39.000000Z",
+            "category_id": 552,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": {
+                "file": "3eOBES9rYH1bpvDFltySZJDLbX8y7j29aRjoDuHv.webp",
+                "has_thumb": true
+            },
+            "download": null,
+            "user": {
+                "id": 156769,
+                "name": "Kieran (Lucious) Pallister",
+                "donation_url": "",
+                "avatar": "CIEpoFoeP0H32qOZijErlz60h4ERg959omNAFWhS.webp",
+                "avatar_has_thumb": true
+            }
+        },
+        {
+            "id": 55510,
+            "name": "BART (SkinLib)",
+            "desc": "[sherbetjutsu](https://modworkshop.net/user/sherbetjutsu)'s [BART](https://modworkshop.net/mod/51897) (the T stands for The Simpsons) but as SkinLib skin\n\nFeatures:\n\n- Rad sights\n- Upgraded carrying handle\n\ntextures & models by sherbetjutsu",
+            "short_desc": "",
+            "version": "0.1",
+            "downloads": 10,
+            "likes": 2,
+            "views": 98,
+            "published_at": "2026-03-01T02:35:38.000000Z",
+            "bumped_at": "2026-03-01T02:35:38.000000Z",
+            "category_id": 564,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": {
+                "file": "RYAwPn7byRdmOSNAD2rEzYcd5jBJFRIslXGh1kQD.webp",
+                "has_thumb": true
+            },
+            "download": null,
+            "user": {
+                "id": 36559,
+                "name": "shinrax2",
+                "donation_url": "",
+                "avatar": "https://avatars.akamai.steamstatic.com/d001d77000792f5b2728b4f6436847e558e5c960_full.jpg",
+                "avatar_has_thumb": false
+            }
+        },
+        {
+            "id": 55507,
+            "name": "M1 Garbine (SkinLib)",
+            "desc": "adds [sherbetjutsu](https://modworkshop.net/user/sherbetjutsu)'s [M1 Garbine](https://modworkshop.net/mod/50382) as a SkinLib skin\n\nfeatures:\n- Garfield sights increases accuracy and efficiency\n- Strong against lasagna\n- Weak against Mondays\n\n\ntextures and models by sherbetjutsu",
+            "short_desc": "",
+            "version": "0.1",
+            "downloads": 10,
+            "likes": 2,
+            "views": 119,
+            "published_at": "2026-03-01T01:13:21.000000Z",
+            "bumped_at": "2026-03-01T01:13:21.000000Z",
+            "category_id": 576,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": {
+                "file": "uNmcw2FQSTlmDJkkbvV5KntNIzAfDxnnk05ycJ2l.webp",
+                "has_thumb": true
+            },
+            "download": null,
+            "user": {
+                "id": 36559,
+                "name": "shinrax2",
+                "donation_url": "",
+                "avatar": "https://avatars.akamai.steamstatic.com/d001d77000792f5b2728b4f6436847e558e5c960_full.jpg",
+                "avatar_has_thumb": false
+            }
+        },
+        {
+            "id": 55413,
+            "name": "Beta Jacket",
+            "desc": "In the game files, there's an unused Beta Jacket. It has all the files and text and everything, it's just not implemented.\n\nThis mod implements it.\n\n> **Note**\n> Only people with this mod will see you wear this jacket. Everyone else will see you as wearing default outfit.\n\nCosts 1 gold bar (expensive!)",
+            "short_desc": "",
+            "version": "",
+            "downloads": 5,
+            "likes": 2,
+            "views": 190,
+            "published_at": "2026-02-19T13:06:03.000000Z",
+            "bumped_at": "2026-02-19T13:06:03.000000Z",
+            "category_id": 617,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": {
+                "file": "TFCsDsSV6pFvtyzGSyCnF1zt9c9xVA68Q6iTw5pS.webp",
+                "has_thumb": true
+            },
+            "download": null,
+            "user": {
+                "id": 93957,
+                "name": "Punished Bernadetta",
+                "donation_url": "",
+                "avatar": "avatar_93957.png",
+                "avatar_has_thumb": false
+            }
+        },
+        {
+            "id": 55412,
+            "name": "Bad Apple for Intel Desk (Example for adding custom videos)",
+            "desc": "# With subtitles! (for the first half of the video, they get desynced later)\n\nAn experiment for adding videos to Intel Desk. I thought Bad Apple would be a cute example project.",
+            "short_desc": "With subtitles!",
+            "version": "",
+            "downloads": 5,
+            "likes": 3,
+            "views": 72,
+            "published_at": "2026-02-19T12:52:30.000000Z",
+            "bumped_at": "2026-02-19T12:52:30.000000Z",
+            "category_id": 572,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": {
+                "file": "haFaFXyocl5Fvdh8YgKefxhRy4KTm5SZ0Am5YClL.webp",
+                "has_thumb": true
+            },
+            "download": null,
+            "user": {
+                "id": 93957,
+                "name": "Punished Bernadetta",
+                "donation_url": "",
+                "avatar": "avatar_93957.png",
+                "avatar_has_thumb": false
+            }
+        },
+        {
+            "id": 55401,
+            "name": "Timelines Welrod (SkinLib)",
+            "desc": "Extra Skin for the Welrod\nTexture by dribbleondo",
+            "short_desc": "",
+            "version": "0.1",
+            "downloads": 5,
+            "likes": 2,
+            "views": 82,
+            "published_at": "2026-02-18T15:53:03.000000Z",
+            "bumped_at": "2026-02-18T15:53:03.000000Z",
+            "category_id": 672,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": {
+                "file": "kxN1qULxnoSw0J2S2hFQgmgHVEZBJuWs5TgprtJj.webp",
+                "has_thumb": true
+            },
+            "download": null,
+            "user": {
+                "id": 36559,
+                "name": "shinrax2",
+                "donation_url": "",
+                "avatar": "https://avatars.akamai.steamstatic.com/d001d77000792f5b2728b4f6436847e558e5c960_full.jpg",
+                "avatar_has_thumb": false
+            }
+        },
+        {
+            "id": 55399,
+            "name": "RAID+ Reshade",
+            "desc": "little reshade i made to lessen aliasing and sharpen the visuals",
+            "short_desc": "",
+            "version": "1.0",
+            "downloads": 18,
+            "likes": 0,
+            "views": 197,
+            "published_at": "2026-02-18T15:28:39.000000Z",
+            "bumped_at": "2026-02-18T15:28:39.000000Z",
+            "category_id": 620,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": {
+                "file": "awmohEjc1TtPf8vidVsh0rmXLWReztYXwzn6rqcm.webp",
+                "has_thumb": true
+            },
+            "download": null,
+            "user": {
+                "id": 220205,
+                "name": "deviousraptor74",
+                "donation_url": null,
+                "avatar": "Xg0vQKY0sjkOd3rHbfG8Jaafcra6sqDpEvzD3StG.webp",
+                "avatar_has_thumb": false
+            }
+        },
+        {
+            "id": 55314,
+            "name": "Folded Bipods on all LMGs",
+            "desc": "I have always hated how the bipod visual upgrades just hang there and do nothing, so I went ahead and folded them to where they should realistically be.\n\nFolder goes in the mods folder that you get with SuperBLT\n(Version 2 added third person folded bipods as well as first person)",
+            "short_desc": "",
+            "version": "2",
+            "downloads": 23,
+            "likes": 3,
+            "views": 126,
+            "published_at": "2026-02-09T07:27:37.000000Z",
+            "bumped_at": "2026-02-10T17:42:16.000000Z",
+            "category_id": 562,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": {
+                "file": "Kr5zMgqclhXaO4gYbUYTjZGQYHTwNXA11APGjmqt.webp",
+                "has_thumb": true
+            },
+            "download": null,
+            "user": {
+                "id": 219689,
+                "name": "Serfinboard",
+                "donation_url": null,
+                "avatar": "X9U3FT6swJuipzqdTNaQJJejjE7TOtjYcOkYLsvx.webp",
+                "avatar_has_thumb": true
+            }
+        },
+        {
+            "id": 54369,
+            "name": "Acts of War - Intel Reducer",
+            "desc": "## TL;DR: When a mission is selected, the objective and description will give you hints and flavor text, instead of telling you exactly what level you're playing. This makes Blitzes truly randomized!\n### The closest thing RAID will get to rogue-lite mode!\n\nAre you tired of starting a Blitz, seeing a map you don't like, and instantly resetting? Want a little more variety in play, and to not spend so much time worrying about over-optimizing for the level you've been served?\n\nWith the power of [Dynamic Localization](https://modworkshop.net/mod/52551), now instead of being told to \"Proceed to (map)\", you'll be given a hint to the objective by Mrs. White, from a pool of many relevant hints, many of which get reused between different levels. The idea being, instead of seeing \"Tiger Trap\", you might see \"Our intel suggests tanks may be nearby\". or \"Infiltrate the enemy depot.\". Pulling up the tab-screen gives you some extra flavor text, sometimes another clue as to the location or objectives, and will always clue you in if the mission is stealthable, loud-only, or somewhere in-between.\n\nI like to imagine it's Mrs. White's comments lining the notes of your dossier. There's her full debriefs on the table, and then the handwritten notes she's left you. Now, the only way to know for *certain* which map you're headed to next is to pay attention to voice cues, or read the mission intel on the desk yourself. Otherwise, you'll just have to prepare for the OBJECTIVES, rather than the MAP. For players who want the Blitzes to feel a little closer to the [random RPG-style vision Ilija Petrusic originally had for the game](https://sherishaw.net/transcripts/interview-with-ilija-petrusic), this might just help.\n\n*No more missions! Only objectives!!*\n\nWould recommend pairing with my [Varied Flavor Text](https://modworkshop.net/mod/54369) mod, to make the game's various system text all worth reading after enough hours in this game.\n\n{#FF8D42}(HELP! THE MOD ISN'T WORKING FOR ME!\nMake sure you manually update to the newest versions of both [SuperBLT](https://modworkshop.net/mod/49744) (I use Wsock version) and [Dynamic Localization](https://modworkshop.net/mod/52551) (2.0 or later). Then, go into your list of SuperBLT mods in-game and make sure it's enabled.)\n\n\n**Q: So all this does is rename missions?**\n\nA: No! Mission names are not changed, so you can still choose whichever map you fancy directly from the list.\n\n\n**Q: So, what does this mod change?**\n\nA: The \"Proceed to X\" objective text that appears and holds in the top-right in the player's camp after a stage is selected. It also changes description text on those objectives, seen by holding Tab in the camp with a map queued.\n\n\n**Q: Does this mod sync between clients?**\n\nA: No. Other players who have the mod will get a different hint than you will, but will still be map-relevant.\n\n\n**Q: What does the mod require to work?**\n\nA: [SuperBLT](https://modworkshop.net/mod/49744) and [Dynamic Localization.](https://modworkshop.net/mod/52551)",
+            "short_desc": "",
+            "version": "2.1",
+            "downloads": 18,
+            "likes": 3,
+            "views": 307,
+            "published_at": "2025-11-11T18:09:51.000000Z",
+            "bumped_at": "2026-02-09T17:41:36.000000Z",
+            "category_id": 571,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": {
+                "file": "gMai5xKBISrxgeVSnqoJvHVpi5KKkR5fnw8FNbnd.webp",
+                "has_thumb": true
+            },
+            "download": null,
+            "user": {
+                "id": 1006,
+                "name": "sheri/shaw",
+                "donation_url": "https://ko-fi.com/connorshawva",
+                "avatar": "ayuiivg7igWf3ZZDU7tV19HTgsNmu74oergrnEyn.webp",
+                "avatar_has_thumb": true
+            }
+        },
+        {
+            "id": 55307,
+            "name": "Custom Server Name",
+            "desc": "I always dreamed of hosting `pl_countdown 24/7` server and now I can do it.\n\n**To change server name**, open `networkmatchmakingsteam.lua` in notepad, and change text inside of quotation marks to whatever text you want.\ni.e. to change text to `cp_strongpoint 24/7`, line starting with `self._lobby_attributes.owner_name` should look like this\n```lua\nself._lobby_attributes.owner_name = \"cp_strongpoint 24/7\"\n```",
+            "short_desc": "I always dreamed of hosting \"pl_countdown 24/7\" server and now I can do it.",
+            "version": "08.02.2026",
+            "downloads": 2,
+            "likes": 2,
+            "views": 78,
+            "published_at": "2026-02-08T11:41:06.000000Z",
+            "bumped_at": "2026-02-08T11:41:06.000000Z",
+            "category_id": 621,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": {
+                "file": "txl4esxTO3xZbnKfLAFRuSpwHMD9vL1tvZFzRiCH.webp",
+                "has_thumb": true
+            },
+            "download": null,
+            "user": {
+                "id": 93957,
+                "name": "Punished Bernadetta",
+                "donation_url": "",
+                "avatar": "avatar_93957.png",
+                "avatar_has_thumb": false
+            }
+        },
+        {
+            "id": 51497,
+            "name": "RAID: World War II Tradução PT-BR [Brazilian Portuguese Localization]",
+            "desc": "Este mod traduz o RAID: World War II para Português do Brasil.\n\nIncluindo o mod [Accent Actualizer](https://modworkshop.net/mod/52512) para corrigir alguns textos não tendo os acentos exibidos corretamente, obrigado Parasocial Catgirl!\n\nA seguir é uma tabela que mostra o progresso da tradução.\n\n|Raids | Traduzido?\n| -------- | -------- \n|Odin's Fall |**{#13fc03}(Sim)**\n|Hunters |**{#13fc03}(Sim)**\n|Trainwreck|**{#fc0303}(Não)**\n|Tiger Trap|**{#fc0303}(Não)**\n|The Amber Train|**{#fc0303}(Não)**\n|Countdown|**{#13fc03}(Sim)**\n|Full Stop|**{#fc0303}(Não)**\n|Last Orders|**{#fc0303}(Não)**\n|Bunker Busters|**{#fc0303}(Não)**\n|Strongpoint|**{#fc0303}(Não)**\n|Gold Rush|**{#13fc03}(Sim)**\n|Kelly|**{#fc0303}(Não)**\n|Wiretap|**{#13fc03}(Sim)**\n|Extraction|**{#fc0303}(Não)**\n\n|Outlaw Raids|Traduzido?\n| -------- | -------- \n|Rogues Gallery|**{#fc0303}(Não)**\n|Forest Convoy|**{#fc0303}(Não)**\n|Gold Diggers|**{#fc0303}(Não)**\n\n|Operations|Traduzido?\n| -------- | -------- \n|Rhinegold|**{#fc0303}(Não)**\n|Clear Skies|**{#ffff00}(Parcial)**",
+            "short_desc": "",
+            "version": "0.82",
+            "downloads": 34,
+            "likes": 3,
+            "views": 194,
+            "published_at": "2025-03-18T17:01:33.000000Z",
+            "bumped_at": "2026-02-02T16:37:04.000000Z",
+            "category_id": 573,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": {
+                "file": "IyGGFHotWBEr1zj8Vk7n3SbwEuSSsj8W716fiVI0.webp",
+                "has_thumb": true
+            },
+            "download": null,
+            "user": {
+                "id": 46901,
+                "name": "gabsF",
+                "donation_url": "",
+                "avatar": "5pHfnw5nnxhlYCDCoGFaNggdvX9vB5q4Co96TOVi.webp",
+                "avatar_has_thumb": true
+            }
+        },
+        {
+            "id": 55256,
+            "name": "Better Bren Sights",
+            "desc": "The vanilla Bren's front sight post is barely visible, this mod makes it to where you can actually see the front sight post now.",
+            "short_desc": "",
+            "version": "",
+            "downloads": 19,
+            "likes": 2,
+            "views": 153,
+            "published_at": "2026-02-02T00:15:31.000000Z",
+            "bumped_at": "2026-02-02T00:15:31.000000Z",
+            "category_id": 652,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": {
+                "file": "id3Mq3paxkWlgBoBDeVdFrnIrAJD7Cp2VOdKh4pU.webp",
+                "has_thumb": true
+            },
+            "download": null,
+            "user": {
+                "id": 219689,
+                "name": "Serfinboard",
+                "donation_url": null,
+                "avatar": "X9U3FT6swJuipzqdTNaQJJejjE7TOtjYcOkYLsvx.webp",
+                "avatar_has_thumb": true
+            }
+        },
+        {
+            "id": 55208,
+            "name": "Koishi plush over 343d Hand Grenade",
+            "desc": "this mod will turn the 343d hand grenade into a koishi plush.\n\nkeep in mind that this mod will also add a custom icon and therefor uses the texture atlas so if any other mod is using the texture atlas either disable it or modify the icon into the other one.\n\nthe model is made by 203Null on sketchfab! https://sketchfab.com/3d-models/project-koishi-komeiji-fumo-37a56b489b5c4440bbabb7b7777036f6",
+            "short_desc": "",
+            "version": "",
+            "downloads": 11,
+            "likes": 6,
+            "views": 105,
+            "published_at": "2026-01-29T21:59:56.000000Z",
+            "bumped_at": "2026-01-30T10:20:41.000000Z",
+            "category_id": 648,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": {
+                "file": "4xxR1ivFhlHnaun1BjM62SRDfjmbiJT24RaFci2k.webp",
+                "has_thumb": true
+            },
+            "download": null,
+            "user": {
+                "id": 219575,
+                "name": "Woulds",
+                "donation_url": null,
+                "avatar": "6QFYwearDRHovjPNXwwKkaLP45O9mumFEAIZbolY.webp",
+                "avatar_has_thumb": true
+            }
+        },
+        {
+            "id": 52551,
+            "name": "DLC - Dynamic Localization",
+            "desc": "# **DLC** - **D**ynamic **L**o**c**alization for _RAID: World War II_\n\nHave you ever been making a mod for _RAID: World War II_ and found yourself wanting to change your custom localisation strings at runtime without needing to rely on macros or swapping out the string IDs? If so, your mod needs some **DLC** *(Dynamic Localization)*!\n\n## What is *Dynamic Localization*?\n\n### It is *Dynamic*\n* Instead of the existing static localization system, in which every localised string is only initialized with a single, unchanging string, _DLC_ rejects this rigid structure, in favour of a flexible, _dynamic_ system of allowing multiple possibilities!\n### It is *Local*\n* Instead of requiring all mod authors to reimplement the _DLC_ functionality in all their mods (with lots of overhead from all the identical overrides), _DLC_ is intended to be used as a dependency. This allows other mods to make use of it, whilst the busywork of _DLC_ is contained locally.\n* _DLC_ is also Local in the sense that it is entirely clientside!\n* Furthermore, as _DLC_ is still very niche functionality (for now), containing the functionality of _DLC_ locally within this mod instead of adding it via a PR to SuperBLT prevents it from impacting those who do not want it.\n  * That said, _DLC_ will soon enough take the world by storm, and, give or take a few years, every game will proudly announce that it has _DLC_!\n### And, but most importantly, it is *Ization*\n* For it is the act, the process, and the result of both doing the dynamic and local thing, and of making something dynamically and locally!\n\n## Technical info for mod authors\n\n### What exactly does _DLC_ do?\n\n#### The background context (_RAID-SuperBLT_'s localization system)\n!!!\n_RAID-SuperBLT_ itself has a custom `LocalizationManager` class (overriding the base game's instance of it), allowing it to use localization data defined by mod authors (said data is all loaded and added to a `_custom_localization` table, containing key-value pairs of `<string ID (string), localized text (string)>`). So, when a string needs to be localized, it first checks if there's an entry for the ID in the `_custom_localization` table, returning the localized string from there if present (after applying macros on the placeholders in that string) - otherwise, it will fall back on the base game's localization manager (loading the default localization string).\n\nThis system works, but it has its drawbacks. Firstly, there is no easy way to change the value of an entry in the `_custom_localization` table - meaning that whatever string was passed to the table upon initialization usually cannot be changed later on without manually re-running a function to replace an entry in the table. Secondly, whilst you *could* try to change strings at runtime via writing a custom macro, it appears that nested macros may not be supported by RAID's internal macro system, and attempting to implement something Wacky™️ like _DLC_ via that system would not be very user-friendly.\n!!!\n\n#### Okay, so what does _DLC_ do differently?\n\nThe default system only allows one to use Strings as values in the localization table. _DLC_ extends this by allowing the values to be one of *three* datatypes! You can use:\n\n* Strings\n  * Same behaviour as in vanilla _RAID-SuperBLT_\n* Tables/arrays\n  * _DLC_ will pick a value at random from the table, and perform the appropriate action on that value.\n  * However, if you specify a `fstring=` value in your table, you can use DLC for string formatting.\n    * the `fstring` value will be treated as the format string (containing placeholders), the rest of the table will be used to generate the values inserted into it (see https://www.luadocs.com/docs/functions/string/format)\n* Zero/One-argument functions\n  * _DLC_ will run that function each time the localized string needs localization, and will perform the appropriate action on the returned value.\n  * (it will pass the original string ID as an argument to that function)\n\n\nAnd yes, _DLC_ supports comically-excessive nesting of these datatypes!\n* Tables may contain Strings, zero-argument functions, or more tables!\n* Zero/One-argument functions may return Strings, tables, or other zero/one-argument functions!\n* Any combo works, as long as it eventually returns a String.\n\n#### And how does that benefit mod authors?\n\nVariety is the spice of life. Add some more variety to the UX of your mod via the magic of _DLC_!\n\n### How would one use _DLC_ in their _RAID-SuperBLT_ mod?\n\n**Check out _[Woher kommt Wolfgang?](https://modworkshop.net/mod/51306)_ for an example of DLC in action!**\n\nYou can add some DLC functionality to your mod like so:\n```lua\n\nlocal function _someExampleDLCFunction()\n  if math.random() > 0.75 then\n    return \"raid deez nutz lmao gottem\"\n  end\n  return \"raid ww2 my beloved\"\nend\n\nlocal function _otherExampleDLCFunction(original_id)\n  return \"I love to \".. original_id .. \" in raid ww2!\"\nend\n\nHooks:Add(\"LocalizationManagerPostInit\", \"Example_DLC_Localization\", function(loc)\n  LocalizationManager:add_localized_strings({\n    menu_main_title = _someExampleDLCFunction,\n    footer_back = {\"My $BTN_CANCEL key broke\", \"take me home\", \"no thanks\"},\n    menu_play = _otherExampleDLCFunction,\n    menu_options = {{\"bruh\",\"woah\",\"wow\"},\"cool\",{\"jank\",\"malarkey\",\"hax\"},fstring={\"%s %s %s\",\"%s, %s %s!\",\"%s! %s %s.\"}},\n  })\nend)\n```\n\n\nOf course, you still need to add DLC as a dependency to your mod (otherwise things will end badly!)\n\n### How do I add _DLC_ as a dependency to my _RAID-SuperBLT_ mod?\n\nAdd this to your mod's `supermod.xml`:\n\n```xml\n<dependencies>\n  <dependency\n    name=\"DLC - Dynamic Localization\"\n    meta=\"https://github.com/11BelowStudio/RAID-DynamicLocalization/releases/latest/download/meta.json\"\n    download_url=\"https://github.com/11BelowStudio/RAID-DynamicLocalization/releases/latest/download/RAID-DynamicLocalization.zip\"\n  /> \n</dependencies>\n```\n\n### Do I need to give credit or anything if I make a mod which uses DLC as a dependency?\n\n**DLC - Dynamic Localization** *(DLC)* is released under the MIT license - so you don't _need_ to faff around with credit or license malarkey if you just add *DLC* as a dependency to your mod (the malarkey only happens if you were to directly include *DLC*'s functionality within your mod).\n\nThat said, you are encouraged to take pride in your choice of dependencies, and announce to the whole world that your mod contains **DLC**!",
+            "short_desc": "The latest and greatest innovation in the wild and wacky world of localization! Add DLC to your mods today!",
+            "version": "2.0.0",
+            "downloads": 32,
+            "likes": 1,
+            "views": 685,
+            "published_at": "2025-07-01T22:59:25.000000Z",
+            "bumped_at": "2026-01-05T12:47:39.000000Z",
+            "category_id": 575,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": {
+                "file": "HfExM5vPL0pfk6BLrDZfftjLV1WHmEZUKosYAqTq.webp",
+                "has_thumb": true
+            },
+            "download": null,
+            "user": {
+                "id": 7,
+                "name": "Parasocial Catgirl 🏳️‍⚧️",
+                "donation_url": "",
+                "avatar": "LtZuwipHmVIbkOW5Wym6fUtm0vPkrRNbiP9WqZRb.webp",
+                "avatar_has_thumb": true
+            }
+        },
+        {
+            "id": 54484,
+            "name": "Varied Flavor Text",
+            "desc": "Using [Dynamic Localization](https://modworkshop.net/mod/52551). Replaces several strings of general UI text with a pool of varied lines themed for the era. I've replaced labels, generic camp objectives, pickup, down, warcry, loading screen- all lorefriendly. Having some fun trying out different phrasing for similar ideas, but I haven't replaced anything that might be confusing with other players. (Mission objectives are unchanged.)\n\nI could list all the specific lines I've changed, but the point is to read them yourself for the first time while playing. This just adds some spice and personality to RAID's UI, hope you like it. Cross-compatible with my [Acts of War - Intel Reducer mod!](https://modworkshop.net/mod/54369)\n\nRequires [SuperBLT](https://modworkshop.net/mod/49744). Requires [Dynamic Localization](https://modworkshop.net/mod/52551)",
+            "short_desc": "",
+            "version": "1.1",
+            "downloads": 12,
+            "likes": 3,
+            "views": 182,
+            "published_at": "2025-11-25T17:18:38.000000Z",
+            "bumped_at": "2025-11-26T04:49:35.000000Z",
+            "category_id": 571,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": {
+                "file": "0smjU6JZFyKOKQZq5yLONJS03qKGy5QDIX5jJOJO.webp",
+                "has_thumb": true
+            },
+            "download": null,
+            "user": {
+                "id": 1006,
+                "name": "sheri/shaw",
+                "donation_url": "https://ko-fi.com/connorshawva",
+                "avatar": "ayuiivg7igWf3ZZDU7tV19HTgsNmu74oergrnEyn.webp",
+                "avatar_has_thumb": true
+            }
+        }
+    ],
+    "meta": {
+        "current_page": 1,
+        "last_page": 16,
+        "per_page": 24,
+        "total": 370
+    }
+}

@@ -1,0 +1,637 @@
+{
+    "data": [
+        {
+            "id": 58353,
+            "name": "Phase Connect Vtubers Paintings",
+            "desc": "Changes the majority of paintings in the game to vtubers from Phase Connect (including local fox woman Kirsche Verstahl), I don't own a single piece of art used in this mod\n\nThe original artists are credited on the license tab\n\nsome of the paintings are gonna be upside down/sideways due to how the game places the assets, ~~can't really do anything about that sadly~~ use [this](https://modworkshop.net/mod/58401) to fix it\n\n\nThis mod is not associated with Phase Connect, the original artists or Kirsche.",
+            "short_desc": "Mod made for the 3 Phase fans that play PAYDAY The Heist",
+            "version": "3.1",
+            "downloads": 13,
+            "likes": 0,
+            "views": 130,
+            "published_at": "2026-08-09T00:29:58.000000Z",
+            "bumped_at": "2026-09-13T23:53:30.000000Z",
+            "category_id": 258,
+            "has_download": true,
+            "disable_mod_managers": true,
+            "thumbnail": {
+                "file": "Rqy737yTGC1DoRF88K3Eh5Eh80lZHh4lcEI1idzv.webp",
+                "has_thumb": true
+            },
+            "download": null,
+            "user": {
+                "id": 211738,
+                "name": "Sopmod",
+                "donation_url": "",
+                "avatar": "quA8ywm8uQCg5U064lK0qZI8alg3FPeNmWjMx7JG.webp",
+                "avatar_has_thumb": true
+            }
+        },
+        {
+            "id": 58857,
+            "name": "Default suits replaced with suits from other heists",
+            "desc": "mod replaces default suits\n\nyou can choose **only one** of them\n\nWhen I try to transfer the suit from No Mercy, it doesn’t change, so it’s not in the mod",
+            "short_desc": "",
+            "version": "",
+            "downloads": 5,
+            "likes": 4,
+            "views": 95,
+            "published_at": "2026-09-12T12:47:04.000000Z",
+            "bumped_at": "2026-09-12T12:47:04.000000Z",
+            "category_id": 795,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": {
+                "file": "hjVYZbmGeyXkyHlGxggDKZiDtmTeHL4EYuX9LNJy.webp",
+                "has_thumb": true
+            },
+            "download": null,
+            "user": {
+                "id": 229191,
+                "name": "Sportsrobot32",
+                "donation_url": "",
+                "avatar": "vo1i9HPlitTEWS6sxycnA7OD2cIYWMYLdrg6GaZo.webp",
+                "avatar_has_thumb": true
+            }
+        },
+        {
+            "id": 58710,
+            "name": "The Take 2016 (Replaces The Take)",
+            "desc": "Made due to a request\n\nSources:\n\nhttps://youtu.be/h8UZRLXbhrU?si=i9UOHWBeO_43x8H1\n\nhttps://youtu.be/IGuxTs9h3a0?si=Xy7d0PW4aNf-L7Ky\n\nNot perfect but its pretty good.",
+            "short_desc": "",
+            "version": "1",
+            "downloads": 7,
+            "likes": 1,
+            "views": 72,
+            "published_at": "2026-09-05T00:18:15.000000Z",
+            "bumped_at": "2026-09-05T00:18:15.000000Z",
+            "category_id": 255,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": {
+                "file": "nAER7oFjePOIjwEiQiczyUiYtFcj6NHtG4z4qumM.webp",
+                "has_thumb": true
+            },
+            "download": null,
+            "user": {
+                "id": 220131,
+                "name": "Adam",
+                "donation_url": "",
+                "avatar": "oTecxmfo8R1ufReoNwDROICqwJl8CpVBEJMtaTiu.webp",
+                "avatar_has_thumb": true
+            }
+        },
+        {
+            "id": 58691,
+            "name": "Diamond Heist Vault Code Always Works",
+            "desc": "Makes the Diamond Heist vault code always work except for on Overkill 145+, where the code is intended to never work anyways.\n\nThis mod does not change how the big red diamond spawns. It remains at a 75% chance and only spawns on Overkill and Overkill 145+.\n\nDisclaimer: I have no idea if this works in multiplayer and I have no desire to test and make changes if it doesn't. Use at your own risk.\nRequires DAHM\nFeel free to modify/reupload if this ever stops working for some reason.",
+            "short_desc": "",
+            "version": "",
+            "downloads": 32,
+            "likes": 1,
+            "views": 160,
+            "published_at": "2026-09-04T01:30:15.000000Z",
+            "bumped_at": "2026-09-04T01:30:15.000000Z",
+            "category_id": 256,
+            "has_download": true,
+            "disable_mod_managers": true,
+            "thumbnail": {
+                "file": "AwYMxCqqrogBF1YRit1dT235MCPuArPcdoueZJdT.webp",
+                "has_thumb": true
+            },
+            "download": null,
+            "user": {
+                "id": 230473,
+                "name": "shrimp2515",
+                "donation_url": null,
+                "avatar": "pHzTKRxsEJfNX5VLBNdzWChCNso2o346jN8K82xv.webp",
+                "avatar_has_thumb": true
+            }
+        },
+        {
+            "id": 56073,
+            "name": "NYPD Cruisers",
+            "desc": "because \"NPD\" doesn't have quite the same ring.\n\n2 versions\n- Version 1 is vanilla texture edited to say NYPD instead of NPD\n- Version 2 is ported textures from PD2, cleaned up for PDTH's texture atlas and slightly redone text proportion wise (but still close to the original)\n(version 2 is the screenshots where i'm getting lit up like a dutch brothel)\n\nrequires PD:TH mod_overrides",
+            "short_desc": "",
+            "version": "1.0",
+            "downloads": 43,
+            "likes": 1,
+            "views": 325,
+            "published_at": "2026-04-13T01:47:13.000000Z",
+            "bumped_at": "2026-08-31T01:26:54.000000Z",
+            "category_id": 258,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": {
+                "file": "LN02dDAJMki9dHClxfL85H2DU7ea6jJs8ydkksqy.webp",
+                "has_thumb": true
+            },
+            "download": null,
+            "user": {
+                "id": 158672,
+                "name": "Shydun24",
+                "donation_url": "",
+                "avatar": "v1CHrURu3FaxT6LT6NVv67NPRfxox01FkmLVRUys.webp",
+                "avatar_has_thumb": true
+            }
+        },
+        {
+            "id": 58528,
+            "name": "aspect ratio",
+            "desc": "port of https://modworkshop.net/mod/52575, uploaded with their permission",
+            "short_desc": "",
+            "version": "",
+            "downloads": 22,
+            "likes": 0,
+            "views": 248,
+            "published_at": "2026-08-24T00:57:20.000000Z",
+            "bumped_at": "2026-08-24T00:57:20.000000Z",
+            "category_id": 0,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": null,
+            "download": null,
+            "user": {
+                "id": 229914,
+                "name": "yousef157",
+                "donation_url": null,
+                "avatar": "",
+                "avatar_has_thumb": false
+            }
+        },
+        {
+            "id": 58525,
+            "name": "fullbright",
+            "desc": "Makes the map slightly brighter than usual. It's a bit washed compared to PD2's version\nYou can also toggle it with a keybind\n\nIt's recommended to disable Light Adaption in video settings",
+            "short_desc": "",
+            "version": "",
+            "downloads": 125,
+            "likes": 3,
+            "views": 445,
+            "published_at": "2026-08-24T00:38:19.000000Z",
+            "bumped_at": "2026-08-24T00:38:19.000000Z",
+            "category_id": 0,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": {
+                "file": "IQkBI1RbhGN1A1XhFHNgsGW8ZQjgO6EA3masuACO.webp",
+                "has_thumb": true
+            },
+            "download": null,
+            "user": {
+                "id": 229914,
+                "name": "yousef157",
+                "donation_url": null,
+                "avatar": "",
+                "avatar_has_thumb": false
+            }
+        },
+        {
+            "id": 58344,
+            "name": "HQ Weapons",
+            "desc": "HQ Weapons for all third-person  weapons for players / bots and cops.\nThis mod requires the use of  [mod_overrides](https://modworkshop.net/mod/53474)\n\n\n![](https://storage.modworkshop.net/mods/images/WCAjDa7Hc9fwlD2zk6gyypcY3vMzfEUi24OANc8R.webp)\n\nEdit:\nNow textures are separate from the first-person view. skin mods dont break",
+            "short_desc": "",
+            "version": "1.1.0",
+            "downloads": 81,
+            "likes": 3,
+            "views": 483,
+            "published_at": "2026-08-08T17:42:21.000000Z",
+            "bumped_at": "2026-08-18T17:46:20.000000Z",
+            "category_id": 661,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": {
+                "file": "WCAjDa7Hc9fwlD2zk6gyypcY3vMzfEUi24OANc8R.webp",
+                "has_thumb": true
+            },
+            "download": null,
+            "user": {
+                "id": 127815,
+                "name": "ADEXO",
+                "donation_url": "",
+                "avatar": "4XzdQbDqhOw3AOwKIP4oyA28z5xoerPn2wpWq3Jx.webp",
+                "avatar_has_thumb": true
+            }
+        },
+        {
+            "id": 58468,
+            "name": "Lone Collector",
+            "desc": "Apparently this mod wasn't posted to MWS. So here it is.\n\nThis mod lets you do some of the challenges solo. I've limited it to the ones that really cannot be done without a team and where a proper solo version is feasible. Everything that's somewhat doable you should just do normally. So here's a mod that will let you do Overdrill and Quick Hands. I may change it later to simplify the conditions for other non-solo achievements that really precise timing things like being in custody right before the game ends.",
+            "short_desc": "",
+            "version": "",
+            "downloads": 33,
+            "likes": 2,
+            "views": 279,
+            "published_at": "2026-08-17T11:40:30.000000Z",
+            "bumped_at": "2026-08-17T11:40:30.000000Z",
+            "category_id": 259,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": null,
+            "download": null,
+            "user": {
+                "id": 10733,
+                "name": "DorentuZ`",
+                "donation_url": "https://ko-fi.com/dorentuz",
+                "avatar": "https://avatars.akamai.steamstatic.com/dc16daca89c0b4a4947b94caf157e37c504ed864_full.jpg",
+                "avatar_has_thumb": false
+            }
+        },
+        {
+            "id": 58463,
+            "name": "Overdrill solo - but cooler",
+            "desc": "This mod allows players to trigger overdrill while playing solo - but instead of being linked to a keybind or being always active, it requires the player to get into all the 4 positions one by one\n\nThe mod works by disabling the checks for player leaving a position required to activate it so theres no way of 'failing' it, if you didn't get it working just retry.",
+            "short_desc": "",
+            "version": "1.0.0",
+            "downloads": 82,
+            "likes": 0,
+            "views": 368,
+            "published_at": "2026-08-17T03:55:59.000000Z",
+            "bumped_at": "2026-08-17T03:55:59.000000Z",
+            "category_id": 259,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": null,
+            "download": null,
+            "user": {
+                "id": 227601,
+                "name": "LittleBroomstic",
+                "donation_url": "",
+                "avatar": "6tolZ0Aw3CucSngLhGCM1HWMJMdvtmqijs7AKDr7.webp",
+                "avatar_has_thumb": false
+            }
+        },
+        {
+            "id": 58462,
+            "name": "Counterfeit Trap chance tweak",
+            "desc": "This mod allows for easy tweaking of the counterfeit chance tweaking based on difficulty. Right now its set to:\n\n* easy = 10\n* normal = 20\n* hard = 30\n* overkill = 50\n* overkill_145 = 100\n\nTo tweak those just edit the table in base.lua",
+            "short_desc": "",
+            "version": "1.0.0",
+            "downloads": 17,
+            "likes": 1,
+            "views": 102,
+            "published_at": "2026-08-17T03:44:44.000000Z",
+            "bumped_at": "2026-08-17T03:44:53.000000Z",
+            "category_id": 259,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": null,
+            "download": null,
+            "user": {
+                "id": 227601,
+                "name": "LittleBroomstic",
+                "donation_url": "",
+                "avatar": "6tolZ0Aw3CucSngLhGCM1HWMJMdvtmqijs7AKDr7.webp",
+                "avatar_has_thumb": false
+            }
+        },
+        {
+            "id": 58461,
+            "name": "Counterfeit trap timer extension",
+            "desc": "This mod makes the C4 in the basement explode depending on the number of players in the heist\n\nBy default its 40 seconds divided by the number of players but this can be tweaked by simply editing proper fields in the base.lua",
+            "short_desc": "",
+            "version": "1.0.0",
+            "downloads": 20,
+            "likes": 1,
+            "views": 92,
+            "published_at": "2026-08-17T03:41:51.000000Z",
+            "bumped_at": "2026-08-17T03:41:51.000000Z",
+            "category_id": 259,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": null,
+            "download": null,
+            "user": {
+                "id": 227601,
+                "name": "LittleBroomstic",
+                "donation_url": "",
+                "avatar": "6tolZ0Aw3CucSngLhGCM1HWMJMdvtmqijs7AKDr7.webp",
+                "avatar_has_thumb": false
+            }
+        },
+        {
+            "id": 58288,
+            "name": "HUD Clock",
+            "desc": "Adds a simple clock to the in-game HUD. There are settings for american date format and the 12-hour format. Also compatible with _atom's _hud.",
+            "short_desc": "",
+            "version": "1.1",
+            "downloads": 22,
+            "likes": 1,
+            "views": 176,
+            "published_at": "2026-08-04T00:07:59.000000Z",
+            "bumped_at": "2026-08-15T02:52:24.000000Z",
+            "category_id": 256,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": {
+                "file": "kT9ZjRIYsOCDugVtUZatvvbFEvPjxnhiU3vLGmqh.webp",
+                "has_thumb": true
+            },
+            "download": null,
+            "user": {
+                "id": 120611,
+                "name": "neonsynth",
+                "donation_url": "https://paypal.me/neonsynthosc",
+                "avatar": "qrhQhSHndMyxhrn7WNYeWInZzhriqrtifAkMnnD9.webp",
+                "avatar_has_thumb": true
+            }
+        },
+        {
+            "id": 58401,
+            "name": "Fix painting rotations",
+            "desc": "Fix the orientation of some of the paintings to ensure your modded paintings are always upright.\n\n\nRequires the `scriman` module to be enabled.",
+            "short_desc": "",
+            "version": "1.0",
+            "downloads": 16,
+            "likes": 2,
+            "views": 201,
+            "published_at": "2026-08-11T14:42:05.000000Z",
+            "bumped_at": "2026-08-11T14:42:05.000000Z",
+            "category_id": 257,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": {
+                "file": "eOhg9NeNK41WtZSVtVOxYYP2dB2V2xjG4neiLKg7.webp",
+                "has_thumb": true
+            },
+            "download": null,
+            "user": {
+                "id": 56033,
+                "name": "_atom",
+                "donation_url": "",
+                "avatar": "42dKLbzvIqbscQZHK85gK3H0xq0LBveBtpc7RtTP.webp",
+                "avatar_has_thumb": true
+            }
+        },
+        {
+            "id": 58402,
+            "name": "Posters On The Loading Screen",
+            "desc": "Changes the loading screen",
+            "short_desc": "",
+            "version": "",
+            "downloads": 29,
+            "likes": 2,
+            "views": 256,
+            "published_at": "2026-08-11T14:11:23.000000Z",
+            "bumped_at": "2026-08-11T14:11:23.000000Z",
+            "category_id": 258,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": {
+                "file": "bNQniDOYpS0dTTTGPlxsuQ3Cs4QevbdzUeTNW8Ht.webp",
+                "has_thumb": true
+            },
+            "download": null,
+            "user": {
+                "id": 229191,
+                "name": "Sportsrobot32",
+                "donation_url": "",
+                "avatar": "vo1i9HPlitTEWS6sxycnA7OD2cIYWMYLdrg6GaZo.webp",
+                "avatar_has_thumb": true
+            }
+        },
+        {
+            "id": 55848,
+            "name": "Environment Selector",
+            "desc": "Allows you to change the level environment and weather.\n\n# Features\n* Random environment and weather options, cantidates for environments can be chosen per-level.\n* Custom environments ported from PAYDAY 2, the mod also scans for environments inside the `custom environments/` directory in the game root folder, must be manually created.\n\n# Notes\n* An example custom environment can be found in the downloads tab for this mod.\n* The sky in undercover and counterfeit will not be affected as they use sky dome models, to fix that install [this mod](https://modworkshop.net/mod/53748).\n* Not every environment from payday 2 will work, the pdth branch of the engine lacks support for skydomes which are set as an underlay in most of payday 2 environments, trying to use said environments will result in the game crashing.\n\n# Credits\n* [Dr_Newbie](https://modworkshop.net/user/7573/) - for the [Day Night Changer](https://modworkshop.net/mod/25740/) mod that served as a base for the original concept of this mod.\n* [Whurr](https://modworkshop.net/user/whurr/) - NM and UC cubemap fixes, HS and PR v1 environments, PD2 Bank Trailer and Alpha Ukrainian Job environments.\n* [Little Jimmy](https://steamcommunity.com/profiles/76561198151485865/) - Testing and French localization\n* [Sergeant Panda](https://steamcommunity.com/profiles/76561198051599750/) - Testing\n* [neonsynth](https://steamcommunity.com/profiles/76561198844370238/) - German localization",
+            "short_desc": "",
+            "version": "3.3",
+            "downloads": 149,
+            "likes": 6,
+            "views": 646,
+            "published_at": "2026-04-02T02:10:35.000000Z",
+            "bumped_at": "2026-08-11T01:59:35.000000Z",
+            "category_id": 0,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": {
+                "file": "jnP3XxmnU42HOauTZ9fhxnGo0MwWkUIUNiLd4K0S.webp",
+                "has_thumb": true
+            },
+            "download": null,
+            "user": {
+                "id": 56033,
+                "name": "_atom",
+                "donation_url": "",
+                "avatar": "42dKLbzvIqbscQZHK85gK3H0xq0LBveBtpc7RtTP.webp",
+                "avatar_has_thumb": true
+            }
+        },
+        {
+            "id": 58330,
+            "name": "Short Barrelled AMCAR",
+            "desc": "Quick edit of the AMCAR to shorten the barrel closer to the length of a MK18 (~10.5 inches) so it's more reasonable that the gang can slip it under a suit jacket.",
+            "short_desc": "",
+            "version": "Version 1",
+            "downloads": 21,
+            "likes": 5,
+            "views": 193,
+            "published_at": "2026-08-06T20:20:20.000000Z",
+            "bumped_at": "2026-08-06T20:20:20.000000Z",
+            "category_id": 661,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": {
+                "file": "ryNABIkxH0H0IuuaAvh9m2rWVzS4fTHP5qkKJzVM.webp",
+                "has_thumb": true
+            },
+            "download": null,
+            "user": {
+                "id": 125196,
+                "name": "Snake Foolery",
+                "donation_url": "",
+                "avatar": "9d6Eiw6pJyLmozHZMF5sKsbubRnqjEhaNpWF6E6a.webp",
+                "avatar_has_thumb": true
+            }
+        },
+        {
+            "id": 58320,
+            "name": "Beta M308",
+            "desc": "As a standalone mod, ported over from [Pre-Release Overhaul](https://modworkshop.net/mod/53671).\n\n\nCredit goes to [SomebodyAnonymous](https://modworkshop.net/user/somebodyanonymous).\n\n**REQURES MOD OVERRIDES**: [https://modworkshop.net/mod/53474](https://modworkshop.net/mod/53474)\n\n\n**PLACE IT INTO THE MODS FOLDER, NOT IN MOD OVERRIDES FOLDER.**",
+            "short_desc": "",
+            "version": "",
+            "downloads": 35,
+            "likes": 1,
+            "views": 264,
+            "published_at": "2026-08-05T22:54:16.000000Z",
+            "bumped_at": "2026-08-05T22:54:16.000000Z",
+            "category_id": 661,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": {
+                "file": "echdoYbUYIaUJqgM8FtqyNFjfWPqRzN2evcOQTXo.webp",
+                "has_thumb": true
+            },
+            "download": null,
+            "user": {
+                "id": 120611,
+                "name": "neonsynth",
+                "donation_url": "https://paypal.me/neonsynthosc",
+                "avatar": "qrhQhSHndMyxhrn7WNYeWInZzhriqrtifAkMnnD9.webp",
+                "avatar_has_thumb": true
+            }
+        },
+        {
+            "id": 38124,
+            "name": "[PAYDAY: The Heist] Shadow casters for Third Person weapons and Shields",
+            "desc": "gives cops, and other players' guns shadow casters. also gives the shield's shield a shadow caster.",
+            "short_desc": "",
+            "version": "1.4",
+            "downloads": 785,
+            "likes": 18,
+            "views": 3806,
+            "published_at": "2022-06-20T02:19:29.000000Z",
+            "bumped_at": "2026-08-02T08:58:21.000000Z",
+            "category_id": 661,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": {
+                "file": "20635_1655691503_418ab05d83e6349625e5517c3cf6da7a.webp",
+                "has_thumb": true
+            },
+            "download": null,
+            "user": {
+                "id": 20635,
+                "name": "Cranky's Mod Emporium",
+                "donation_url": "",
+                "avatar": "kwYoqJOZbrbRSwEu5zLb0NdO966VmBcuGIeeI1pd.webp",
+                "avatar_has_thumb": true
+            }
+        },
+        {
+            "id": 58235,
+            "name": "Stockless Locomotive 12G",
+            "desc": "Quick and lazy model edit to remove the stock from the Locomotive 12G.\nReload will look a bit funky because I can't be fucked to edit animations.",
+            "short_desc": "",
+            "version": "Version 1.1",
+            "downloads": 20,
+            "likes": 2,
+            "views": 229,
+            "published_at": "2026-07-30T17:33:24.000000Z",
+            "bumped_at": "2026-08-01T19:49:17.000000Z",
+            "category_id": 661,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": {
+                "file": "cb9ueUtjOagGZ1myrWeRQ3kgGo2UCunqUZXhfg3W.webp",
+                "has_thumb": true
+            },
+            "download": null,
+            "user": {
+                "id": 125196,
+                "name": "Snake Foolery",
+                "donation_url": "",
+                "avatar": "9d6Eiw6pJyLmozHZMF5sKsbubRnqjEhaNpWF6E6a.webp",
+                "avatar_has_thumb": true
+            }
+        },
+        {
+            "id": 58215,
+            "name": "Foolery's Black Suits",
+            "desc": "Sloppily hacked together black suits that aren't just flat black (no shade to meme.daddy's mod but jesus).\nMade to match (most of) the menu art/imagery of the gang.\n\nAlso slight issue that I don't really feel like fixing is that Chains' hands (well wrists really) will be white, because his skintone is vertex coloured because Overkill just wanted to do that I guess.",
+            "short_desc": "",
+            "version": "Version 1.2",
+            "downloads": 31,
+            "likes": 6,
+            "views": 193,
+            "published_at": "2026-07-29T18:19:42.000000Z",
+            "bumped_at": "2026-07-31T21:07:52.000000Z",
+            "category_id": 258,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": {
+                "file": "UiuLEbAlbPsXMr4tTGCcQGGNAZTnzzsMHcqVMeSo.webp",
+                "has_thumb": true
+            },
+            "download": null,
+            "user": {
+                "id": 125196,
+                "name": "Snake Foolery",
+                "donation_url": "",
+                "avatar": "9d6Eiw6pJyLmozHZMF5sKsbubRnqjEhaNpWF6E6a.webp",
+                "avatar_has_thumb": true
+            }
+        },
+        {
+            "id": 48690,
+            "name": "neons' spice",
+            "desc": "This is my mutator, spicing things up a little. Overkill 145+ and 193+ only.\n\n______________________________________________________\n\n[Changelog](https://mods.neonsynth.de/mutators/neons_spice/changelog.txt)\n\n______________________________________________________\n\n\n* Added spawns\n* Changed spawns\n* Blocked some paths\n* Removed some units\n* Changes some chances for events\n\n______________________________________________\n\nCredits:\n\n* _atom: For reworking the whole mutator setup (v1.1)",
+            "short_desc": "This is my mutator, spicing things up a little.",
+            "version": "1.1.7",
+            "downloads": 72,
+            "likes": 2,
+            "views": 773,
+            "published_at": "2024-07-23T16:28:30.000000Z",
+            "bumped_at": "2026-07-27T17:20:28.000000Z",
+            "category_id": 259,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": null,
+            "download": null,
+            "user": {
+                "id": 120611,
+                "name": "neonsynth",
+                "donation_url": "https://paypal.me/neonsynthosc",
+                "avatar": "qrhQhSHndMyxhrn7WNYeWInZzhriqrtifAkMnnD9.webp",
+                "avatar_has_thumb": true
+            }
+        },
+        {
+            "id": 49577,
+            "name": "PDTH++ --An another overhaul mod for PD:TH",
+            "desc": "# Please read dependencies & instructions tab before installing this mod.\n# 请先阅读依赖&说明标签栏再下载该模组。\n\n> # Discord server/联系我\n\nThe Discord server is [here](https://discord.gg/KANs9nArea). Join this server to have further communication with other players and the author.\n\n-----\n\nDiscord服务器链接在[这里](https://discord.gg/KANs9nArea)。加入以后即可与玩家和作者交流。\n\n\n> # Credits/特别鸣谢\n[LR_Daring](https://modworkshop.net/user/lr_daring) and [Vinight](https://modworkshop.net/user/110923) for lua-support.\n[Vinight](https://modworkshop.net/user/110923) for trip-mine pickup function and unused sentry-pickup function.\nModified Shield penetration from [B Dawg](https://modworkshop.net/user/bdawg) and [_atom](https://modworkshop.net/user/_atom)'s [Full Game overhaul](https://modworkshop.net/mod/42754).(The original function by [Dr.Newbie](https://modworkshop.net/user/dr_newbie))\nStatic recoil, Bulldozer visor Health values, matchmaking sandbox, cloaker drop smoke while kicking down a player, DH escort being scared by climbing cops fix, lose remaining ammo in clip while reloading and separate save file are all from [Full Game Overhaul](https://modworkshop.net/mod/42754).\n[DorentuZ`](https://modworkshop.net/user/dorentuz) For the template of enemy loadout, helping with the mutator conflict function and the platform of [DAHM](https://modworkshop.net/mod/14267).\nThe fix of the problem of explosion damage would be applied multiple times against enemies is from [Redflame](https://github.com/RedFlamer).\n\nSpecial thanks to [HONOUR](https://steamcommunity.com/profiles/76561198361478094/), [Je-y](https://modworkshop.net/user/je-y), [Hecu1775](https://modworkshop.net/user/hecu1775), [NTF-水冰子](https://modworkshop.net/user/104656), [CFXING](https://steamcommunity.com/profiles/76561199343710529/), and other players who played my mod before this mod comes out on MWS. \n\nAnd Special thanks to [MurshK](https://modworkshop.net/user/90236) for Spanish localizations.\n\nAnd especially you, the player who play my mod and give me feedbacks!\n尤其是你，游玩我模组，给予反馈的玩家！\n\n> # Overall/总知\nPDTH++ aims to improve the things that the vanilla game already has, and trying to add something that the vanilla game currently not have.\n\nThe changes are mainly around weapons, enemies, deployables, equipments.\n\nThe description will be written in English and Chinese due to this mod is originally released only in Chinese PD:TH Community.\n\n------------------------------------------------------------------------------------------------\n\nPDTH++ 致力于改善原版收获日：掠夺游戏内已有内容，并对加入原版游戏并不存在的机制做出尝试。\n\n这些改变主要围绕武器，敌人，放置物，装备技能。\n\n简介将以中英双语的形式呈现，毕竟最初这个模组只面向中国国内的收获日：掠夺玩家发布。\n\n> # Weapons/武器\n\n***Fire sound fix/枪声修复***\n\n!!!\n[Auto fire sound fix](https://modworkshop.net/mod/45848) is applied to this mod in order to customize all weapon's fire rate.\n\n该模组自带[自动武器枪声修复](https://modworkshop.net/mod/45848)，以便于自定义武器的射速。\n\n!!!\n\n\n-----\n\n***Weapon Rework/武器重做***\n\n!!!\nPDTH++ has reworked every single weapon, makes all of them unique to play with and worth using.\n\nThis mod added 5 new parameters: headshot multiplier, extra body shot damage, movement speed, extra pickup and can't pick ammo for the variety of gun plays.\n\nShotguns now do per-pellet damage, and has pellet_amount parameter for rebalancing purpose.\n\n[Static recoil.](https://modworkshop.net/mod/19411)(With side effect fixed)\n\nThe melee damage and damage effect are reworked, hope they will be better than before.\n\nThe weapons are now full-upgraded at default.\n\nI won't list detailed weapon stats because there's still lots of things to tell you, but I will still let you know how these new weapons work.\n\n\n**1. Pistols: B9-S pistol, CROSSKILL .45 MK II pistol, BRONCO .44 revolver pistol, and STRYK pistol.**\n\nPistols does 70 melee damage and 2 knock back effect.\n\n\n* For B9-S, it's now being really accurate and has almost no recoil. Good head shot multiplier and a bit low of base damage makes it good for headshots. Highest ammo pickup among pistols makes it the best choice for long-period combat.\n\n* For CROSSKILL .45 MK II, it deals lots of bodyshot damage and great for headshotting.  However it has only 8 rounds per mag, and a bit bad recoil and accuracy. Ammo pickup is a bit low.\n\n* For BRONCO .44, It can instant kill a light swat, and can one shot a heavy swat as it in the vanilla game. It's as accurate as B9-S, but has much, much higher recoil that is almost uncontrollable. Ammo pickup is extremely low.\n\n* For STRYK, It has the best suppression ability among all the 4 pistols. However it has the worst accuracy among the pistols. Ammo pickup is okay.\n\n**2.Primaries: AMCAR-4 Carbine, AK Rifle, Reinbeck Shotgun, Brenner-21 Machinegun, and M308 Rifle.**\n\nPrimaries does 50 melee damage and 6 knock back effect. In exception for Brenner-21, it does 25 melee damage and 15 knock back effect.\n\n* For AMCAR-4, it's fire rate and accuracy is increased, what's more, it even becomes the most handling weapon among all primaries, sadly it's reload speed is bit slower. Has a not bad ammo pickup.\n\n* For AK, it's an alternative version of AMCAR-4. Not bad accuracy, good base damage and ability to one-shot a light swat makes it looks stronger than AMCAR-4. But in other hand, the higher recoil and lower ammo pickup rate sometimes makes you willing to take other weapons to shoot. Ammo pickup is low.\n\n* For Reinbeck, you can deal with lots of damage if you hit all pellets, and it works well on medium range. Just go shooting and don't care about it's Ammo pickup, pickup is enough for this weapon.\n\n* For Brenner-21, It's a strong powerhouse in mid-close range, which has the biggest mag size and the best total ammo among all weapons, but for penalty, it has 20% movement speed penalty on wielded, and you gonna move even slower while shooting with it. Ammo pickup is low.\n\n* For M308, best accuracy and best headshot multiplier makes it strong, and as the only shield penetrating weapon, it will be carried in most situations, but the lack of ability of dealing with dozers and low ammo pickup makes you really need good sidearms and ammo bags. Ammo pickup is extremely low.\n\n* M308 can zoom now.\n\n**3. Secondaries: Compact-5 Submachinegun, Locomotive 12 G Shotgun, Mark 11 Submachinegun, GL40 Grenade launcher.**\n\nSecondaries does the same damage and knock back effect as primaries, but GL40 does the same like Brenner-21.\n\n* For Compact-5, the fire rate is massively increased, the base damage is still really weak, but it will kill fast when you aiming for heads. Good handling makes it a very good choice for a secondary. Ammo pickup is good.\n\n* For Locomotive 12 G, the fire rate is also massively increased and can deal more bodyshot damage than Reinbeck. It can burst damage compared to Reinbeck, but low accuracy and harsh falloff makes it a close ranged weapon only, so it got a little movement speed multiplier on wielded, and better knockback effect than Reinbeck. Ammo pickup is low.\n\n* For Mark 11, It has a mag that is big enough, very good base damage, and moster-like fire rate. It's really like a lighter version of Brenner-21, a bulldozer's real nightmare, but with low Ammo pickup compared it's ability of spraying ammo.\n\n* For GL40, It's no longer the only weapon that you will always take like vanilla. It cannot pickup any ammo unlike other weapons, but it has ability to literally erase most of your enemies in a certain area. \n\n-----\n\nPDTH++重做了每一把武器，让它们游玩体验相当独特且不至于存在下水道武器。\n\n这个模组增加了五个用以增加武器多样性的参数：爆头倍率，打身体额外加伤，手持时移速，额外捡弹与无法捡弹。\n\n霰弹枪现在按照命中弹丸数目计算伤害，且获得弹丸数目参数以便平衡。\n\n[射击结束后，枪口不再回弹。](https://modworkshop.net/mod/19411)（已修复泰瑟电击过度拉低枪口的问题）\n\n近战伤害与击倒指数已重做，希望它们比之前好。\n\n武器无需再升级，它们的数据就是满级数据。\n\n介绍页面不会直接写明武器数据，毕竟武器数据仅仅是这个模组的冰山一角。不过我会简要说明这些武器的特点。\n\n**1.手枪位：B9-S，狂杀.45 MK II，野马.44，STRYK**\n\n手枪会造成70点近战伤害，只有2点击倒指数。\n\n* B9-S准度极高，基本无后座，优秀的爆头倍率和较低的基础伤害决定了它就是爆头利器。手枪中最高捡弹率让它成为了续航必备。\n\n* 狂杀.45 MK II基础伤害高，爆头也很不错，但比较差的精准度和后坐力，还有八发稀烂弹匣让它比较受限。捡弹率较低。\n\n* 野马.44可以一枪身子秒杀轻甲水军，也能一枪爆头重甲水军。它射的和B9-S一样准，但是后坐力不大好控制。捡弹率极低。\n\n* STRYK在四把手枪当中有着最强压制力。可惜的是它精准在手枪当中最烂。捡弹还行。\n\n**2.主武器位：AMCAR-4，AK，雷因贝克，布伦纳-21，M308**\n\n大多数主武器会造成50点近战伤害和6点击倒指数。不过布伦纳-21则会造成25点伤害和15点击倒指数。\n\n* AMCAR-4更加精准，射速提高，而且可控性是最高的。只可惜它的换弹速度相比原版慢了些。捡弹很不错。\n\n* AK定位和AMCAR-4类似，打得比较准，高基础伤害和一枪头轻甲水军的能力让它看上去比它的美国竞争者更强，不过它特有的高后座和低捡弹有时候让你不得不选择其他武器。捡弹低。\n\n* 雷因贝克大喷现在只要全中就能造成可观伤害。而且在中距离表现也优异。拿它射就完事了，捡弹完全够用。\n\n* 布伦纳-21轻机枪在中近距离有着极强的火力，弹匣最大备弹也是最多的。不过手持时移速会减少20%，射击时会更慢。捡弹较低。\n\n* M308有着最强精准度和最强的爆头倍率，而且作为唯一可穿盾射线武器，在绝大多数情况下都要带一把，不过它对防爆特警的处理能力低下，且捡弹又低的缺陷让它对副手与弹药包的需求很大。捡弹极低。\n\n* M308可以更改开镜倍率。\n\n**3.副武器位：紧凑型-5，火车头 12G， 马克11，GL40**\n\n副武器的近战效果和主武器相同，但GL40的近战效果则与布伦纳-21相同。\n\n* 紧凑型-5的射速极大提升，基础伤害虽然较弱，但瞄着头打便会好得多。良好的操控性让它成为副武器的不二之选。捡弹还行。\n\n* 火车头 12G的射速同样大幅度增加，且基础伤害比雷因贝克更高。它在近距离爆发力比雷因贝克更强，但更低的精准和更烂的衰减注定它只能用来近战。所以它在手持时会给予玩家较小速度加成，以及更高的击退效力。\n\n* 马克11的弹匣够大，射速极快，还有强大的威力。它就是布伦纳-21的青春版，也是防爆特警的究极克星，捡弹比起弹药消耗量有点不够看。\n\n* GL40不再是必带武器。它不能从弹药盒中获取弹药，但是却能一键清场，至少大多数敌人都会死掉。\n\n!!!\n> # Enemies/敌人调整\n\n***Stats tweak/敌人数据调整***\n\n!!!\nIn order to make enemies being adapt to newer weapons, equipments and spawn groups, adding some adjustments is very important.\n\n**Light swat**\n\n* Base Health set to 45 (90 on Overkill and Overkill 145+).\n\n* Adjusted dodge preset to expert.\n\n* Headshot multiplier set to 1.5.\n\n* Now unable to rescue hostage.\n\n**Heavy swat**\n\n* Increased M4 damage to 20.\n\n* Increased R870 damage to 90.\n\n* Adjusted dodge preset to normal.\n\n* Now unable to rescue hostage.\n\n**FBI Agent**\n\n* Base Health set to 40 (80 on Overkill and Overkill 145+).\n\n* Headshot multiplier set to 2.15.\n\n* Adjusted dodge and weapon preset to expert.\n\n* Increased Loco damage to 90.\n\n* Increased MP5 damage to 18.\n\n**Murkywater Mercenary**\n\n* Now harder to surrender.\n\n* Adjusted dodge preset to ninja.\n\n* Increased MP5 damage to 18.\n\n* Increased AK damage to 25.\n\n* Increased R870 damage to 90.\n\n* Increased M4 damage to 20.\n\n**Bulldozer**\n\n* Base Health set to 7500 (15000 on Overkill and Overkill 145+).\n\n* Visor health now based on difficulty.\n\n* Headshot multiplier set to 80.\n\n* Increased R870's maximum damage to 300.\n\n* Increased Loco's maximum damage to 240.\n\n**Plain Cop**\n\n* Adjusted dodge preset to good. ~~This is pointless to be honest~~\n\n\n**Team AI**\n\n* Slightly lowered Health.\n\n* Massively decreased Auto Regen delay.\n\n* Increased Grace Period.\n\n* Increased movement speed.\n\n-----\n\n对敌人的调整相当重要，毕竟武器，装备，放置物都被大幅度调整了，原版的敌人强度不一定能适配该模组的玩家强度。\n\n**轻甲水军**\n\n* 基础血量设为45（枪林弹雨与枪林弹雨145+为90）。\n\n* 躲避预设更改为专家级。\n\n* 爆头倍率设置为1.5。\n\n* 不再救援人质。\n\n**重甲水军**\n\n* 提升M4伤害至20。\n\n* 提升R870伤害至90。\n\n* 躲避预设调整为普通。\n\n* 不再救援人质。\n\n**联邦调查局探员**\n\n* 基础血量设为40（枪林弹雨与枪林弹雨145+为80）。\n\n* 爆头倍率设置为2.15。\n\n* 躲避预设调整为专家级。\n\n* 提高火车头伤害至90。\n\n**莫奇沃特雇佣兵**\n\n* 投降难度提高。\n\n* 躲避预设调整至忍者级。\n\n* 提升MP5伤害至18。\n\n* 提升AK伤害至25。\n\n* 提升R870伤害至90。\n\n* 提升M4伤害至20。\n\n**防爆特警**\n\n* 基础血量设为7500（枪林弹雨与枪林弹雨145+为15000）。\n\n* 调整面甲血量为540。\n\n* 爆头倍率设为80。\n\n* 提升R870的最大伤害至300。\n\n* 提升火车头的最大伤害至240。\n\n**一般警察**\n\n* 躲避预设调整至优秀。~~这真的有用吗~~\n\n**AI队友**\n\n* 略微降低血量。\n\n* 极大程度降低自动回血间隔。\n\n* 提升无敌帧。\n\n* 加强移速\n\n!!!\n\n***Weapon tweak/武器调整***\n\n!!! \n\nSome NPC-weapon's Base stats has been adjusted.\n\n**GLOCK for NPCs**\n\n* Adjusted usage to mp5.\n\n* Adjusted fire rate.\n\n* Damage set to 10.\n\n**Raging-Bull for NPCs**\n\n* Damage set to 30.\n\n**Crosskill for NPCs**\n\n* Damage set to 17.\n\n**LMG for NPCs**\n\n* Damage set to 20.\n\n* Lowered fire rate.\n\n**Shield-pistol for NPCs**\n\n* Damage set to 12.\n\n**MP5 for NPCs**\n\n* Damage set to 12.\n\n**Beretta92 for NPCs**\n\n* Damage set to 12.\n\n**AK for NPCs**\n\n* Damage set to 20.\n\n**Sentry guns**\n\n* Damage set to 17.\n\n* Increased accuracy.\n\n**All shotguns**\n\n* Nerfed reaction time due to some shotguns can deal 90 damage.\n\n-----\n\n对一些敌人手持武器的基础数据做出了调整。\n\n**格洛克**\n\n* Usage 参数调整为mp5。\n\n* 调整射速。\n\n* 伤害设置为10。\n\n**左轮**\n\n* 伤害设置为30。\n\n**狂杀.45**\n\n* 伤害设置为17。\n\n**轻机枪**\n\n* 伤害设置为20。\n\n* 降低射速。\n\n**盾牌上的那把手枪**\n\n* 伤害调整为12。\n\n**MP5**\n\n* 伤害调整为12。\n\n**消音手枪**\n\n* 伤害调整为12。\n\n**AK**\n\n* 伤害调整为20。\n\n**步哨机枪**\n\n* 伤害调整为17。\n\n* 加强精准度。\n\n**全体霰弹枪**\n\n* 削弱了霰弹枪手的反应时间，因为有些兵种可以用霰弹枪造成90点伤害。\n\n!!!\n\n***Loadout changes/装备替换***\n\n!!!\n**Cloaker**\n\n* Now able to obtain M4 or mp5.\n\n**Gangster**\n\n* Now able to obtain Glock or Mark11.\n\n* The dealer will always take a revolver.\n\n**Murkywater Mercenaries**\n\n* Now able to obtain MP5, M4, AK or R870.\n\n**FBI Agent**\n\n* Now able to obtain Bronco, Crosskill, MP5 or Loco.\n\n**Security Guard**\n\n* Now able to obtain revolver, Crosskill or B9-S.\n\n* On Slaughterhouse, they will obtain M4, R870, revolver, or MP5.\n\n**Patrol Guard**\n\n* Now able to obtain MP5 or M4 on diamond heist.\n\n**Bulldozer**\n\n* Now able to obtain R870, Loco or Brenner.\n\n**Plain Cop**\n\n* Now able to obtain M4, R870, B9-S, Crosskill, Loco or revolver.\n\n-----\n\n**幻影特工**\n\n* 现在可使用M4或MP5。\n\n**帮派分子**\n\n* 现在可使用格洛克或者马克11。\n\n* 交易者永远都会拿着一把左轮。\n\n**莫奇沃特雇佣兵**\n\n* 现在可使用MP5，M4，AK或者R870。\n\n**联邦调查局探员**\n\n* 现在可使用左轮，狂杀.45，MP5或者火车头。\n\n**站岗保安**\n\n* 现在可使用左轮，狂杀.45或B9-S。\n\n* 在大闹屠宰场，他们会使用M4或者MP5。\n\n**巡逻保安**\n\n* 现在于宝钻劫掠中可使用MP5，M4或者R870。\n\n**防爆特警**\n\n* 现在可使用R870，火车头或者轻机枪。\n\n**一般警察**\n\n* 现在可使用M4，R870，B9-S，狂杀.45，火车头或者左轮。\n!!!\n\n> # Equipments and Crew bonuses/装备技能与小组加成\n\n***Equipments/装备技能***\n\n!!!\n* Tollkit reduces interaction timer by 45%.\n\n* Extra start ammo has been reworked. It now will add a extra mag per weapon (In exception of GL40).\n\n* Thick skin changed name to Heavy armor, and has been reworked. Now it will not only give you extra 100 HP, but also 30 AP bonus. However it will reduce your walking speed by 15% and running speed by 10%. And armor regen timer is increased by 1 second.\n\n* Extra cable tie changed name to Fake surrender, and has been reworked. Now it will reduce your cable tie amount to 3, but you are being able to tie your self when you press [Tie/Untie yourself with skill] (You need to set it to a certain key manually) key. And once you press it when you got cuffed you can uncuff yourself. You can prevent a down caused by falling off by using this skill.\n\n* Player base cable tie quantity set to 5.\n\n-----\n\n* 工具箱的互动时长减少45%。\n\n* 初始携弹增加已重做，现在它会直接给玩家每把武器各增加一个弹匣。（除去GL40）\n\n* 皮糙肉厚改名重型护甲，且已重做。现在它会给予玩家100HP和30AP。但会减少15%走路速度与10%跑步速度。并且护甲恢复间隔延长一秒。\n\n* 额外绑带改名为诈降专家，且已重做。现在它会锁定玩家的绑带数目至3，但你可以通过按下【用技能把自己绑起来/解绑】按钮（需要自行设置）把自己绑起来，或立刻将自己解拷。你可以通过这种方式避免一次摔落造成的倒地。\n\n* 玩家绑带数目调整为5。\n!!!\n\n***Crew bonuses/小组加成***\n\n!!!\n* Sharpshooters now provides extra 0.25 headshot multiplier to team's weapon, and still increases your weapon's accuracy.\n\n* Aggressor Changed name to AP rounds and has been reworked. Now it no longer provide actual damage multiplier, but will cause some extra damage on bodyshot when using specific weapon instead. It will not affect your damage towards Bulldozer's visor.\n\n* Protector just provides 9 Extra AP.\n\n* Speed reloaders provides 15% reload speed increase.\n\n* More blood to bleed Provides 100% longer down time, lowest down time possible (Excluding Overkill 145+ difficulty which is 0), and health on downed.\n\n* Big game hunter will gain players just more ammo pickup instead of more max ammo.\n\n-----\n\n* 神射手提供0.25点额外武器爆头倍率，且仍然增加武器精准度。\n\n* 侵略者更名穿甲子弹，且已重做。现在它不再直接提供伤害增加，而是会在使用特定武器命中身体的时候造成特定额外伤害。不会影响对熊面甲的伤害。\n\n* 保护者直接提供额外9点护甲。\n\n* 极速装填提供15%换弹速度加成。\n\n* 坚韧不屈提供比原先长100%的倒地援助时间，和长了50%的最低倒地时间（除了枪林弹雨145+，因为其最小倒地时间为0），还有多了100%的倒地血量。\n\n* 疯狂猎人给玩家提供更高的捡弹率，而不是最大弹药量。\n\n!!!\n\n> # Deployables/放置物\n\n!!!\n* Now you can carry 2 ammo bags and have 750% ammo charges per bag.\n\n* Now you can carry 2 medic bags and have 3 charges per bag.\n\n* Now you can carry 3 sentry guns, They are tougher than vanilla.\n\n* Trip mines' damage reduced to 600, but you are being able to pick it up while picking up an ammoclip (1/4 chance), or you can refill 5 trip mines after interacting with the ammo bag.\n\n-----\n\n* 弹药包数目设置为2，且一个弹药包可补充750%的弹药量。\n\n* 医疗包数目设置为2，且一个医疗包可使用3次。\n\n* 可携带3台步哨机枪，增强了步哨机枪的耐打性能。\n\n* 诡雷伤害减少至600，但玩家有四分之一的概率在捡弹时补充一个诡雷。且也可以从弹药包里获取五个诡雷。\n!!!\n\n> # Difficulties/难度设置\n\n***Spawngroups/刷兵***\n\n!!!\n* Light swat will be the most common enemy unlike the vanilla. But the spawn rate of Heavy swat will be increased as long as the difficulty increases.\n\n* Cops will be the most spawned enemies when the first assault wave just begins in any difficulty, but they will slowly quit the assault wave and finally will not spawn anymore.\n\n* There will be less special amount and types in lower difficulty.\n\n-----\n\n* 轻甲水军在该模组将会是最常见的敌人。但重甲水军的刷新率会随着难度提高而提高。\n\n* 一般警察将会在第一波突击的前期大量刷新，但刷新量会逐渐变少直到不再刷新为止。\n\n* 低难度特种刷新率与种类数量降低。\n\n!!!\n\n***Enemy health/敌人血量***\n\n!!!\n* On easy, normal and hard difficulty, enemy health is multiplied by 1.5. (The same as Overkill difficulty health preset on vanilla)\n\n* On Overkill and Overkill 145+ difficulty, enemy health is multiplied by 2.\n\n-----\n\n* 在简单，普通与困难难度下，敌人血量乘以1.5倍（原版OVK难度血量倍率）。\n\n* 在枪林弹雨和枪林弹雨145+难度下，敌人血量乘以2。\n!!!\n\n***Enemy speed/敌人移速***\n\n!!!\n\n* On Overkill 145+, the enemy walk speed is multiplied by 1.1 and running speed is multiplied by 1.15.\n\n-----\n\n* 枪林弹雨145+难度下，敌军走路速度为原版1.1倍，跑步速度为原版1.15倍。\n!!!\n\n***Armor values/护甲量***\n\n!!!\n* On easy and normal, the armor value is set to 80.\n\n* On hard, the armor value is set to 70.\n\n* On Overkill and Overkill 145+, the armor value is set to 60.\n\n-----\n\n* 简单与普通难度下的护甲值为80。\n\n* 困难难度下的护甲值为70。\n\n* 枪林弹雨与枪林弹雨145+难度下的护甲值为60。\n!!!\n\n***Grace period/无敌帧***\n\n!!!\n* On easy and normal , the grace period is set to 0.5 second.\n\n* On hard, the grace period is set to 0.3 second.\n\n* On Overkill, the grace period is set to 0.2 second.\n\n* On Overkill 145+, the grace period is set to 0.15 second.\n\n-----\n\n* 简单与普通的无敌帧为0.5秒。\n\n* 困难的无敌帧为0.3秒。\n\n* 枪林弹雨的无敌帧为0.2秒。\n\n* 枪林弹雨145+的无敌帧为0.15秒。\n!!!\n\n***Down timer/倒地倒计时***\n\n!!!\n* On normal, hard and Overkill, down timer decay is set to 10 seconds.\n\n* On Overkill 145+, down timer decay is set to 20 seconds.\n\n* On hard and Overkill, the lowest down time possible is 5 seconds.\n\n* On Overkill 145+, the lowest down time possible is 0 second which means you will instantly go to jail when you downed 3 times without healing up.\n\n-----\n\n* 普通，困难与枪林弹雨的倒地救援时间衰减设置为10秒。\n\n* 枪林弹雨145+的倒地救援时间衰减设置为20秒。\n\n* 困难与枪林弹雨难度的最低倒地救援时间为5秒。\n\n* 枪林弹雨145+的最低倒地救援时间为0秒，也就是说你只要连倒三次还不吃包就会直接进局子。\n!!!\n\n***Health on revived/被救起来时的血量***\n\n!!!\n\n* On easy and normal, the health step is 1, 0.75, 0.5.\n\n* On hard and Overkill, the health step is 0.75, 0.5.\n\n* On Overkill 145+, the health step is 0.5, 0.25.\n\n-----\n\n* 简单和普通难度下的起身剩余血量阶段惩罚为1倍，0.75倍直到0.5倍。\n\n* 困难和枪林弹雨难度下的起身剩余血量阶段惩罚为0.75倍直到0.5倍。\n\n* 枪林弹雨145+难度下的起身剩余血量阶段惩罚为0.5倍直到0.25倍。\n!!!\n\n> # Others/其他\n\n!!!\n\n* Matchmaking is sandboxed and disabled achievements.\n\n* Changed to another save slot (save021).\n\n* Fixed the issue where the escort will be scared by climbing cops.\n\n* Added new descriptions to weapons, crew bonuses, deployables, and equipments in both English and Chinese.\n\n* Now bundled with 11 Mutators.(Requires overkill 193+ mod)\n\n* Now the weapon's visual upgrades will be refreshed once you put mask on.\n\n* Supports spanish localization now. (Thanks to [MurshK](https://modworkshop.net/user/90236) again.)\n\n* Unlocks all weapons, crew bonuses and equipments by default.\n\n------\n\n* 只能与该模组玩家游玩，禁用steam成就。\n\n* 存档为save021，与原版不同。\n\n* 修复运送目标会被正在爬墙的警察吓到的bug。\n\n* 给武器，小组加成，放置物，和装备技能添加中英双语描述文本。\n\n* 附带十一个突变模式。（需要枪林弹雨193+支持）\n\n* 武器的视觉升级在戴上面具时会刷新。\n\n* 现已支持西班牙语。（感谢[MurshK](https://modworkshop.net/user/90236)的支持！）\n\n* 所有武器，装备，小组加成默认解锁。\n!!!\n\n-----\n-----",
+            "short_desc": "An Overhaul that mainly improves combat experience.",
+            "version": "V1.36",
+            "downloads": 414,
+            "likes": 13,
+            "views": 3576,
+            "published_at": "2024-09-27T06:43:47.000000Z",
+            "bumped_at": "2026-07-25T05:22:43.000000Z",
+            "category_id": 259,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": null,
+            "download": null,
+            "user": {
+                "id": 137103,
+                "name": "kfcdragon756",
+                "donation_url": "",
+                "avatar": "https://avatars.akamai.steamstatic.com/c90dca023366c34f1ce1cfe045d0f25ad521aaa8_full.jpg",
+                "avatar_has_thumb": false
+            }
+        },
+        {
+            "id": 50179,
+            "name": "Live-Action Clown Masks + Hoxton Reborn Mask and Bigger Raincoat Hoods, for clipping issues",
+            "desc": "*{dodgerblue}(Bain: )\"Alright, I'd say it's time to get blasting. Put your masks on.\"*\n-----\nThis is a port of my [Live-Action Inspired Mask Shapes](https://modworkshop.net/mod/49681) mod. If I was to give something back to PDTH for giving me countless hours of pure, adrenaline filled fun, it would be this mod at the very least. The Clown HUD portraits finally match closely with the in-game mask models thanks to this mod.\n\n-----\nHere are your options:\n-----\n\n**Visible Eyes** - The masks have no eye covers, just like the original ones.\n\n**Hidden Eyes** - The masks have eye covers.\n\n**Visible Eyes with {magenta}(Hoxton Reborn) Mask** - The masks have no eye covers, just like the original ones and Hoxton wears his Reborn mask.\n\n**Hidden Eyes with {magenta}(Hoxton Reborn) Mask** - The masks have eye covers and Hoxton wears his Reborn mask.\n\nIf you decide to use {magenta}(Hoxton's Reborn) Mask Mask, I suggest using [this mod](https://modworkshop.net/mod/49688) with it, to have the Hoxton Reborn mask show up in the HUD as well.\n\n-----\n{red}(NOTICE:) Remember to download my Bigger Raincoat Hoods as well, to fix the clipping issues with custom masks under raincoat hoods.\n-----\n{lime}(INSTALLATION:) Extract the contents of the downloaded archives into your {lime}(mod_overrides) folder, which is located in {red}(assets) at the game's main directory. If you don't have the support for {lime}(mod_overrides) then you can get it right [here.](https://modworkshop.net/mod/53474) Salute to @HW12Dev\n-----\nIf you're still sticking with the .PDMOD files, you will need the [Bundle Modder](https://modworkshop.net/mod/22724) to install them.\n-----\n{gold}(Golden masks )and {red}(Secret masks) are __not planned__, as their HUD portraits resemble their in-game models, and I wanna leave it at that.\n\n**PAYDAY {dodgerblue}(2)** port is __not planned__, use [this mod](https://modworkshop.net/mod/942) instead for Live-Action masks in **PD{dodgerblue}(2)**. The author of that mod has an update planned for it, and I don't want to rain on that parade in any way.",
+            "short_desc": "Live-Action Clown Masks + Hoxton Reborn Mask and Bigger Raincoat Hoods, for clipping issues",
+            "version": "1.1",
+            "downloads": 629,
+            "likes": 37,
+            "views": 3071,
+            "published_at": "2024-11-06T20:44:10.000000Z",
+            "bumped_at": "2026-07-23T15:27:10.000000Z",
+            "category_id": 228,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": {
+                "file": "v4znrC4Ye9muelsu8zNPsBwrcMW2b8bNX5qr5SVE.webp",
+                "has_thumb": true
+            },
+            "download": null,
+            "user": {
+                "id": 172626,
+                "name": "ShayoX",
+                "donation_url": "",
+                "avatar": "kuhKPLdx5SXevuAXzw3UU50SYWyBzQuHdjkcyukd.webp",
+                "avatar_has_thumb": true
+            }
+        }
+    ],
+    "meta": {
+        "current_page": 1,
+        "last_page": 22,
+        "per_page": 24,
+        "total": 519
+    }
+}

@@ -1,0 +1,10 @@
+[
+    {
+        "tag": "mods",
+        "labelKey": "mods"
+    },
+    {
+        "tag": "mod_overrides",
+        "labelKey": "overrides"
+    }
+]

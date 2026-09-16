@@ -2,37 +2,60 @@
     {
         "id": "superblt",
         "modworkshopIds": [],
-        "games": ["pd2"],
+        "games": [
+            "pd2"
+        ],
         "viaModFlow": false
     },
     {
         "id": "pdth_overrides",
-        "modworkshopIds": [53474],
-        "games": ["pdth"],
+        "modworkshopIds": [
+            53474
+        ],
+        "games": [
+            "pdth"
+        ],
         "viaModFlow": false
     },
     {
         "id": "dahm",
-        "modworkshopIds": [14267],
-        "games": ["pdth"],
+        "modworkshopIds": [
+            14267
+        ],
+        "games": [
+            "pdth"
+        ],
         "viaModFlow": false
     },
     {
         "id": "raid_superblt",
-        "modworkshopIds": [49744],
-        "games": ["raid"],
+        "modworkshopIds": [
+            49744
+        ],
+        "games": [
+            "raid"
+        ],
         "viaModFlow": false
     },
     {
         "id": "ue4ss",
-        "modworkshopIds": [47749],
-        "games": ["cb"],
+        "modworkshopIds": [
+            47749
+        ],
+        "games": [
+            "cb"
+        ],
         "viaModFlow": true
     },
     {
         "id": "ue4ss",
-        "modworkshopIds": [47771, 44048],
-        "games": ["pd3"],
+        "modworkshopIds": [
+            47771,
+            44048
+        ],
+        "games": [
+            "pd3"
+        ],
         "viaModFlow": true
     }
 ]

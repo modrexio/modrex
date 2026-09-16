@@ -1,0 +1,658 @@
+{
+    "data": [
+        {
+            "id": 58926,
+            "name": "DSODChecklist",
+            "desc": "Adds a DSOD tab to the contract broker, splitting heists into done and not done on Death Sentence with One Down, by difficulty tier.\n\nBased on this checklist [https://www.reddit.com/r/paydaytheheist/comments/17k4xs4/all_heist_dsod_difficulty_tier_list/](https://www.reddit.com/r/paydaytheheist/comments/17k4xs4/all_heist_dsod_difficulty_tier_list/)",
+            "short_desc": "",
+            "version": "",
+            "downloads": 0,
+            "likes": 0,
+            "views": 4,
+            "published_at": "2026-09-16T22:25:33.000000Z",
+            "bumped_at": "2026-09-16T22:25:33.000000Z",
+            "category_id": 0,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": {
+                "file": "kQmm6XQ5uXf4pJGRJ0bwzQJALheYd4xnYdsyPpCg.webp",
+                "has_thumb": true
+            },
+            "download": null,
+            "user": {
+                "id": 230909,
+                "name": "methamphetaminelab",
+                "donation_url": null,
+                "avatar": "QqnG22eXO5c3kaPrNN8rECJIeH5ahR0kXXUgTRXk.webp",
+                "avatar_has_thumb": false
+            }
+        },
+        {
+            "id": 58811,
+            "name": "Toaru Series (Index/Railgun/Accelerator) Original Soundtracks as Menu Musics",
+            "desc": "This mod allows you to chose the openings and plenty of OSTs from the Toaru series animes as menu musics.\n\nEvery soundtracks of this mod has been taken from **Kakine Teitoku**'s \"[***A Certain Playlist***](https://www.youtube.com/playlist?list=PLlURqA7x10UjN3r2HZaaLXb-cx-xmOXcN)\" playlist, which contains the whole Toaru universe OSTs, huge thanks to him for listing every of those OSTs.\n\nI tried to choose the best soundtracks that fit into the 5 (actually 6) different menus which are :\n1. Main screen \n2. Loadout screen\n3. Heist Result screen\n4. Heist Failure screen\n5. Card Picking screen\n6. (and Credits screen but let's be for real who will even modify it ?) \n\nI could add other ones if needed.\n\nThis is my **first mod** so any positive or negative critics would be very welcomed !",
+            "short_desc": "",
+            "version": "1.0",
+            "downloads": 7,
+            "likes": 0,
+            "views": 77,
+            "published_at": "2026-09-10T14:59:51.000000Z",
+            "bumped_at": "2026-09-16T22:17:47.000000Z",
+            "category_id": 205,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": {
+                "file": "71HfhrDloPAWex3CE1TOuWnvQl3TIA9Lyr9Kf19X.webp",
+                "has_thumb": true
+            },
+            "download": null,
+            "user": {
+                "id": 230235,
+                "name": "Miyuki",
+                "donation_url": null,
+                "avatar": "1tt9n9EbLKKduluevwbTbZ5lc4NZJ3WZJqssrdep.webp",
+                "avatar_has_thumb": true
+            }
+        },
+        {
+            "id": 58117,
+            "name": "Gage: Future Heisters weapon pack",
+            "desc": "This mod just aims to put guns Payday 3 guns in Payday 2, by rebalancing! This also puts some weapons in their proper category or the next best thing, and for some weapons they have been switched to primaries! Such as the SMGs and the Brothers Grim Shotgun, so be sure to unequip those guns from your secondary it WILL crash you. Same applies when playing without this mod if you have equipped the guns they will crash your game so beware\n\nGeneral Notes:\nThis was not made with proper payday 2 weapons in mind, if it wasn't in payday 3 it wasn't changed here\nThese weapons are made with only stock play in mind, modding the guns will yield different results than intended\nOverkill weapons have zero ammo pick up to mimic the 1 time use feel of one\nI do not know if this works in pubs, I did not test it\nThis was also made to be used with a modpack in mind trying to mimic payday 3\n\n\"Why would you use this over full custom weapons?\"\nNot every Payday 3 gun exists as a mod and this can be turned off unlike most modded guns so you can have profiles \n\nNote: Not all guns are perfect, but close enough\n\nThis is my first gameplay changing mod so there is bound to be bugs\n\nThe weapon converts are:\n\nPrimary weapons:\n\nCar-4 Rifle -> Car-4\nAK Rifle -> KU-59\nFalcon Rifle -> Northwest B-9\nEagle Heavy Rifle -> VF-7s\nGewehr 3 Rifle -> Adelig Rg5\nClarion Rifle -> Chanit S3\nAK5 Rifle -> Skogskrigare AG-9\n\nM60 Light Machine Gun-> Blyspruta MX69\nRPK Light Machine Gun -> Zokas-17\n\nR700 Sniper Rifle -> Reinfeld 900S\nM308 Rifle -> SA A144\nBernetti Rangehitter Sniper Rifle -> Spearfish 1895\nAK17 Rifle -> Fik-22 TLR\n\nReinfeld 880 Shotgun -> Reinfeld 880\nMosconi 12G Shotgun ->Mosconi 12G Classic\nIzhma 12G Shotgun -> FSA-12G\nGrimm 12G shotgun -> M7 Pursuivant\nPredator 12G shotgun -> TAS-12\n\nSignature Submachine gun -> FIK PC9\nSpecOps Submachine Gun -> SG Compact-7\nMicro Uzi Submachine Gun ->Ziv Commando\nCompact-5 Submachine Gun -> ATK-7\nJackal Submachine Gun -> WAR-45\n\nSecondaries:\n\nSignature .40 Pistol -> Signature .40\nChimano 88 Pistol -> Signature 403\nCrosskill Pistol -> SP Model 11\nSTRYK 18C Pistol -> Stryk 7\nJacket's piece -> Tribune 32\nDeagle -> Garstini Viper .50AE\nStryx Pistol -> Jackknife SE5\nBernettie Auto Pistol ->  Picchio Duro 5\nCastigo .44 Revolver -> J&M Castigo 44\nMatever .357 Revolver -> Sforza Bison\nBronco .44 Revolver -> Bullkick 500\nThe Judge Shotgun -> Justicar\nBlaster 9mm Submachine gun -> Russell JB-9\n\nOverkill weapons:\n\nPiglet Grenade Launcher -> Marcom Mamba MGL\nHRL-7 Rocket Launcher -> Karl Alfred M606\nThanatos .50 Cal Sniper Rifle -> HET-5 Redfox\nVulcan Minigun -> M135 Agres\nFlintlock Freddy -> Bessy\n\nAny questions? Feel free to ask",
+            "short_desc": "",
+            "version": "1.5",
+            "downloads": 35,
+            "likes": 3,
+            "views": 1845,
+            "published_at": "2026-07-23T01:33:21.000000Z",
+            "bumped_at": "2026-09-16T21:45:14.000000Z",
+            "category_id": 798,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": {
+                "file": "9TiSQ6DnjtweuplEBstm9Y4LSaJazi1KipOU0Shb.webp",
+                "has_thumb": true
+            },
+            "download": null,
+            "user": {
+                "id": 219429,
+                "name": "RanoutofNames",
+                "donation_url": "",
+                "avatar": "b2hQH5QAC1u2hBAUlI4Yokg0Hpc9VV8F0z1YNG45.webp",
+                "avatar_has_thumb": true
+            }
+        },
+        {
+            "id": 58657,
+            "name": "Casing Movement (+Interactions & Instant Mask)",
+            "desc": "Dont know if this is considered \"cheats\" but its here and made, Allows Sprinting, Crouching, and Jumping in casing mode, please report any issues, just drag into \"PAYDAY 2\\mods\", \n\nThanks to \"joaozebriel\" to leaving the request for this newest version, bringing almost all interactions to your grasp whilst being in casing mode, allowing locking picking, fence cutting, and drill placement\n\n1.75× detection/suspicion multiplier while sprinting in casing. \n1.25× detection/suspicion multiplier while crouching in casing. \nAutomatic reset of those modifiers when leaving casing mode.",
+            "short_desc": "",
+            "version": "",
+            "downloads": 183,
+            "likes": 6,
+            "views": 1053,
+            "published_at": "2026-09-01T22:29:14.000000Z",
+            "bumped_at": "2026-09-16T21:31:46.000000Z",
+            "category_id": 10,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": {
+                "file": "shJV0OTRvmE9RSRSedaiXh6NdLheobyvvEfy8Hce.webp",
+                "has_thumb": true
+            },
+            "download": null,
+            "user": {
+                "id": 230345,
+                "name": "Jugger",
+                "donation_url": "",
+                "avatar": "xS09gyH5dC5cxQh6KY39qzlrerXDNX7PMm028Jr0.webp",
+                "avatar_has_thumb": true
+            }
+        },
+        {
+            "id": 58924,
+            "name": "Emma: Tactical Upgrade NIKKE Battle Announcer",
+            "desc": "With a team, there's usually 3 roles you can take on. Attacker, defender, or supporter. Out of those 3, being a supporter doesn't have a straightforward way to grow further. An attacker can deal more damage, attack faster/more frequently, or find an alternate source of damage. A defender can strengthen defenses, provide counter attacks, or work in tandem with the attacker. A supporter can focus on other objectives for the team or provide additional firepower, but that seems to be it on the surface. However, with a tactical upgrade, Emma can now disperse special liquids in her outfit for specific situations. One of these liquids can act as a disruptor for communication devices and doubles as they relay information back to Emma. Certainly, an underrated feature for a support role.\n\n-----\nWhen an enemy is killed (10 sec cooldown):\n\"Well then, shall we face it together?\"\n\"I'll make sure they don't move an inch.\"\n\"Alright everyone, let's relax and get started.\"\n\"That was great. Hehe.\"\n\"It's done.\"\n\"Nothing to worry about.\"\n\"Liquid solution at the ready.\"\n\"Here you go! A little therapy for everyone.\"\n\"C'mon, everyone, let's all attack together!\"\n\"If you need cover fire during battle, leave it to me.\"\n\"Enemy spotted. Should we engage?\"\n\"If you need anything, just let me know, okay?\"\n\n-----\nWhen the player takes damage (15 sec cooldown):\n\"Hang on just a sec.\"\n\"Sorry, this is taking a while, isn't it?\"\n\"I just need a short break to reload.\"\n\"Ahh!\"\n\"Oh my!\"\n\"Eek!\"\n\n-----\nWhen a heist ends in success:\n\"You did great, Commander. Did you like the new scent?\"\n\"You seem a bit worn out, Commander. Here, lay your head on my lap. I've been studying a new kind of therapy.\"\n\"Anytime you want to relax, you can always come to me.\"\n\"Vesti, Eunhwa, and you are all precious to me, Commander. But with you, it feels a little more special somehow.\"\n\n-----\nWhen a heist ends in failure:\n\"I'm sorry, Commander... I might have overdone it...\"\n\n-----\nIn game demo: ![](https://youtu.be/zPxaQZAxVn8)\n\nFail line (short): ![](https://youtu.be/uQ5L72lkSmM)",
+            "short_desc": "",
+            "version": "",
+            "downloads": 3,
+            "likes": 0,
+            "views": 21,
+            "published_at": "2026-09-16T20:47:37.000000Z",
+            "bumped_at": "2026-09-16T20:47:37.000000Z",
+            "category_id": 6,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": {
+                "file": "bwaPMSH4b7jyUZcTN4nbN5UEivEwOhXggBBRVtUm.webp",
+                "has_thumb": true
+            },
+            "download": null,
+            "user": {
+                "id": 226050,
+                "name": "FeaRLess",
+                "donation_url": "",
+                "avatar": "0rraLwFfEQ5KcTaszAIKoZ3mj1cY2mtKxcgCrUsB.webp",
+                "avatar_has_thumb": true
+            }
+        },
+        {
+            "id": 35165,
+            "name": "Highlighter",
+            "desc": "# What is this?\nThis is a pack that includes all my highlight mods and a few more created by other modders on the internet and here on MWS.\n\nThe .zip file contains 5 folders:\n- Important Enemies\n\t- Will highlight security cameras, flashbangs and any enemy considered necessary for the heist to progress.\n- Important NPC\n\t- Will highlight civilians carrying important items and considered necessary for the heist to progress.\n- Loot\n\t- Will highlight most types of loot, including loose loot, money, gold, coke, weapons, ATM, etc.\n- Misc Items\n\t- Will highlight items required for completing achievements, safe house trophies or that might be considered very useful during the heist.\n- Mission Items\n\t- Will highlight important items considered necessary for the heist to progress.\n\nYou can extract all folders and have all highlights enabled or extract only the ones you want.\n\n# What does it highlight?\nThis mod will highlight the following stuff:\n\nBain Contracts\n!!!\n| Heists | Loot | Civilian | Enemy | Security | Special/Mission |\n| -------- | -------- | -------- | -------- | -------- | -------- |\n| Art Gallery | Paintings | --- | --- | Cameras | --- |\n| Bank Heist | Money, Gold, Loose Loot, ATM | Bank Manager, Dog Abusers | --- | Cameras | Keycard, Enter The Gungeon Statues, 8th Anniversary Statues, Planks, Gage Packs |\n| Car Shop | --- | Shop Manager | --- | Cameras | Keycard, Gage Packs|\n| Cook Off | --- | --- | --- | --- | Meth Ingredients, Planks, Gage Packs |\n| Diamond Store | Jewelry, Loose Loot, Money, ATM, Cash Register | Store Manager | --- | Cameras | Keycard, Enter The Gungeon Statues, Gage Packs |\n| Go Bank | Money, Loose Loot, ATM, Cash Register | Bank Manager | --- | Cameras | Keycard, Enter The Gungeon, Planks, Gage Packs |\n| Jewelry Store | Jewelry, Loose Loot | --- | --- | --- | Enter The Gungeon Statues, 8th Anniversary Statues, Gage Packs |\n| Reservoir Dogs | Jewelry, Loose Loot, Money, Diamonds | --- | --- | --- | Planks, Gage Packs |\n| Shadow Raid | Money, Gold, Server, Artifact, Coke, Painting, Samurai Armor | Worker | --- | Cameras | Keycard, Crowbar, Shipping Crates, Enter The Gungeon Statues, The Lost Tapes, Gage Packs |\n| The Alesso Heist | Money, Loose Loot, ATM, Cash Register | --- | --- | Cameras | Marked Doors, Gage Packs |\n| Transport: Crossroads | Money, Jewelry, Gold, Loose Loot, ATM, Cash Register | --- | --- | --- | Confidential Folder, War Documents, Gage Packs |\n| Transport: Downtown | Money, Jewelry, Gold, Loose Loot | --- | --- | --- | Confidential Folder, War Documents, Gage Packs |\n| Transport: Harbor | Money, Jewelry, Gold, Loose Loot | --- | --- | --- | Confidential Folder, War Documents, Gage Packs |\n| Transport: Park | Money, Jewelry, Gold, Loose Loot | --- | --- | --- | Confidential Folder, War Documents, Gage Packs |\n| Transport: Train Heist | Turret, Turret Ammo | Worker | --- | --- | Keycard, Gage Packs |\n| Transport: Underpass | Money, Jewelry, Gold, Loose Loot | --- | --- | --- | Confidential Folder, War Documents, Gage Packs |\n| Under The Hammer | Auction Items | Lead Curator | Auctioneer | Cameras | Clue Folders, Clue Kiosks, Antique Car Keys, C4, RFID Tag, Gage Packs |\n!!!\nBlaine Keegan Contracts\n!!!\n| Heists | Loot | Civilian | Enemy | Security | Special/Mission |\n| -------- | -------- | -------- | -------- | -------- | -------- |\n| Crude Awakening | Money, Loose Loot | --- | Gabriel | Cameras, SERA Helicopter | Keycard, Texas Treasure, Gage Packs |\n| Hostile Takeover  | Money, Paintings, Old Wine | Lead Scientist, Marketing Director | --- | Cameras | Code Notebook, Keycard, Code Laptops, Voicemail Phone, Laboratory Equipment, Gage Packs |\n!!!\nClassic Contracts\n!!!\n| Heists | Loot | Civilian | Enemy | Security | Special/Mission |\n| -------- | -------- | -------- | -------- | -------- | -------- |\n| Counterfeit | Loose Loot | --- | --- | --- | Shipping Crates, Crowbar, Ink, Paper, Gage Packs |\n| Diamond Heist | Diamonds, Red Diamond, Loose Loot, Saphires | Ralph | --- | Cameras | Keycard, The Lost Tapes, Gage Packs |\n| First World Bank | Money, Gold, Loose Loot, ATM | Bank Manager | --- | Cameras | Thermite Cans, Keycard, Enter The Gungeon Statues, Gage Packs |\n| Green Bridge | Money, Gold, Jewelry, Loose Loot | --- | --- | --- | Handcuffs, Gage Packs |\n| Heat Street | Loose Loot | --- | --- | --- | Animal Posters, Turtle, Gage Packs |\n| No Mercy | --- | --- | --- | Cameras | Infected Patient, Vial Centrifuges |\n| Panic Room | Coke, Loose Loot, Giant Toothbrush | --- | Chavez | --- | Planks, Gage Packs |\n| Slaughterhouse | Gold, Pig, Loose Loot | --- | --- | --- | Keycard, Gas Can, Gage Packs |\n| Undercover | --- | --- | --- | --- | Planks, Crowbar, Gage Packs |\n!!!\nEvents Contracts\n!!!\n| Heists | Loot | Civilian | Enemy | Security | Special/Mission |\n| -------- | -------- | -------- | -------- | -------- | -------- |\n| Cursed Kill Room | --- | --- | --- | --- | Pumpkin |\n| Lab Rats | --- | --- | Giant Spider | --- | Gage Packs |\n| Prison Nightmare | Giant Almir Toast, Warhead | --- | --- | --- | Keycard, Pumpkin, Gage Packs |\n| Safe House Nightmare | Money | --- | --- | --- | --- |\n| Safe House Raid | Loose Loot | --- | --- | --- | --- |\n!!!\nGemma McShay Contracts\n!!!\n| Heists | Loot | Civilian | Enemy | Security | Special/Mission |\n| -------- | -------- | -------- | -------- | -------- | -------- |\n| Lost In Transit | Money, Printing Plates | --- | --- | Cameras, Drones | Keycard, Blow Torch, Mounted Turret, Fence Circuit Box, Gage Packs |\n| Midland Ranch | Weapons | --- | Esteban | Cameras | Tape Holder, Weapon Parts, Clipboard, Crowbar, Shipping Crates, Texas Treasure, Horseshoes, Mounted Turret, Gage Packs |\n!!!\nHector Contracts\n!!!\n| Heists | Loot | Civilian | Enemy | Security | Special/Mission |\n| -------- | -------- | -------- | -------- | -------- | -------- |\n| Firestarter | Weapons, Money, Coke, Gold, Loose Loot, ATM | Bank Manager, Dog Abusers | --- | Cameras | Keycard, Arbiter Parts, Planks, Briefcase, Hockey Poster, Enter The Gungeon, 8th Anniversary Statues, Gage Packs |\n| Rats | Money, Loose Loot | --- | --- | --- | Money Luggage, Confidential Folder, Arbiter Parts, 8th Anniversary Statues, Gage Packs |\n| Watchdogs | Loose Loot | --- | --- | --- | 8th Anniversary Statues, Planks, Gage Packs |\n!!!\nJimmy Contracts\n!!!\n| Heists | Loot | Civilian | Enemy | Security | Special/Mission |\n| -------- | -------- | -------- | -------- | -------- | -------- |\n| Boiling Point | --- | --- | --- | --- | Test Subjects, Briefcase, Dead Lead Scientist, Keycard, Gage Packs |\n| Murky Station | EMP Bomb Parts, Weapons | Workers | --- | Cameras, Drones | Hard Drive, Train Hack Panels, Gage Packs |\n!!!\nJiu Feng Contracts\n!!!\n| Heists | Loot | Civilian | Enemy | Security | Special/Mission |\n| -------- | -------- | -------- | -------- | -------- | -------- |\n| Dragon Heist | Tea Set, Artifacts, Loose Loot, Paintings, Gold, ATM, Dragon Statue | Auctioneer | --- | Cameras | Keycard, Crowbar, Shipping Crates, Key Chain, Gage Packs |\n| The Ukrainian Prisoner | Tea Set, Loose Loot, Gold, Coke | --- | --- | Cameras, Drones | Code Clipboard, Documents, USB Stick, Dragon Vases, Fireworks, Shipping Crates, Gas Can, Fireworks, Secret Red Buttons, Gage Packs |\n!!!\nLocke Contracts\n!!!\n| Heists | Loot | Civilian | Enemy | Security | Special/Mission |\n| -------- | -------- | -------- | -------- | -------- | -------- |\n| Alaskan Deal | Money, Weapons | --- | --- | --- | Gage Packs, Snowmen |\n| Beneath The Mountain | Server, Money, Gold, Artifact, Painting, Prototype | --- | --- | --- | Keycard, Blowtorch, Shipping Crates, Gage Packs |\n| Birth OF Sky | Loose Loot, Rings | --- | --- | --- | Gage Packs |\n| Border Crossing | Money, Coke, Meth, Weapons, Roman Armor | --- | --- | Cameras | Murky Uniforms, Keycard, Keys, Breaching Charges Mega Mask Box, The Lost Tapes, Crowbar, Gage Packs |\n| Border Crystals | --- | --- | --- | --- | Crowbar, Meth Ingredients, Shipping Crates, Gage Packs |\n| Breakfast In Tijuana | Coke, Weapons, Medals | --- | --- | Cameras | Blender, Paper Shredder, Toilet, Cop Uniform, Bolt Cutter, Door Breaker, RFID Tag, RFID Reader, Lighter Fluid Bottle, Mega Mask Box, Gage Packs |\n| Breakin' Feds | Money, Coke | --- | Garret | Cameras | Stapler, Keycard, Gage Packs |\n| Brooklyn Bank | Money, Gold, Loose Loot, ATM | --- | --- | --- | Keycard, Gage Packs |\n| Hell's Island | --- | Locke | --- | --- | Key Chain, Gage Packs |\n| Henry's Rock | Artifacts | --- | --- | --- | Ark Documents, Battery, Shipping Crates, Crowbar, Gage Packs |\n| Shacklethorne Auction | Artifacts, Loose Loot | Auctioneer, Worker | --- | Cameras | Blowtorch, Keycard, Mummy, Gage Packs |\n| The White House | --- | --- | The Dentist, Shadow Cloakers | Cameras | Keycard, Mayan Gold Bag, Presidential Pardons, Gage Packs |\n!!!\nShayu Contracts\n!!!\n| Heists | Loot | Civilian | Enemy | Security | Special/Mission |\n| -------- | -------- | -------- | -------- | -------- | -------- |\n| Mountain Master | Gold, Gnome, Tea Set, Loose Loot, ATM | --- | Yufu Wang | Cameras | Keycard, Clipboard, Gage Packs |\n!!!\nThe Butcher Contracts\n!!!\n| Heists | Loot | Civilian | Enemy | Security | Special/Mission |\n| -------- | -------- | -------- | -------- | -------- | -------- |\n| Scarface Mansion | Coke, Money, Loose Money | --- | Ernesto Sosa, Head Guard | Cameras, Friendly Drones | Gas Can, Flamingos, Paintings, Gage Packs |\n| The Bomb: Dockyard | Bomb Parts, Coke, Money, Gold, Weapons, Loose Loot | --- | --- | Cameras | Keycards, Meth Ingredients, Crowbar, Shipping Crates, Gage Packs |\n| The Bomb: Forest | Bomb Parts, Gold, Money | --- | --- | --- | Crowbar, Shipping Crates, Gage Packs |\n!!!\nThe Continental Contracts\n!!!\n| Heists | Loot | Civilian | Enemy | Security | Special/Mission |\n| -------- | -------- | -------- | -------- | -------- | -------- |\n| Brooklyn 10-10 | Weapons, Loose Loot | --- | --- | --- | Crowbar, Briefcase, Gage Packs |\n| The Yacht Heist | Money, Artifacts | --- | --- | Friendly Drones | Stickers, Gage Packs |\n!!!\nThe Dentist Contracts\n!!!\n| Heists | Loot | Civilian | Enemy | Security | Special/Mission |\n| -------- | -------- | -------- | -------- | -------- | -------- |\n| Golden Grin Casino | Money, Painting, Loose Loot | Elvis | --- | Cameras | Fireworks, Code Laptops, Gage Packs |\n| Hotline Miami | Money, Coke, Weapons, Loose Loot | --- | The Commissar, Russian Mobsters | Money Luggage, Planks, Crowbar, Shipping Crates, Gage Packs |\n| Hoxton Breakout | ATM | --- | --- | --- | The Lost Tapes, Enter The Gungeon Statues, Gage Packs |\n| Hoxton Revenge | Evidence | FBI Boss | Hector | Cameras, Friendly Drones | Keycard, Planks, Gage Packs |\n| The Big Bank | Money, Gold, Loose Loot | Bank Manager | --- | Cameras | Keycard, War Documents, Gage Packs |\n| The Diamond | Artifacts, The Diamond, Paintings | Curators | --- | Cameras | Keycard, Gage Packs |\n!!!\nThe Elephant Contracts\n!!!\n| Heists | Loot | Civilian | Enemy | Security | Special/Mission |\n| -------- | -------- | -------- | -------- | -------- | -------- |\n| Big Oil | Weapons, Money, ATM, Loose Loot | --- | --- | Cameras | Confidential Folder, Blueprints, Keycard, Key Chain, Arbiter Parts, Clipboard, Notebook, Gage Packs |\n| Election Day | Money, Loose Loot | --- | --- | Cameras | Keycard, Crowbar, Shipping Crates, Gage Packs |\n| Framing Frame | Money, Paintings, Gold, Old Wine | --- | --- | Cameras | Keycard, Laptop, Phone, Tablet, Hard Drive, Arbiter Parts, Gage Packs |\n| The Biker Heist | Weapons, Coke, Loose Loot | --- | Biker Boss | --- | Giant Whiskey Bottle, Shipping Crates, Gage Packs |\n!!!\nVlad Contracts\n!!!\n| Heists | Loot | Civilian | Enemy | Security | Special/Mission |\n| -------- | -------- | -------- | -------- | -------- | -------- |\n| Aftershock | Safes | Hobo | --- | --- | Trucks, Gage Packs |\n| Black Cat | Tea Set, Money, Coke, Weapons, Loose Loot | --- | --- | Cameras | Keycard, Business Card, Diesel Can, Gage Packs |\n| Buluc's Mansion | Money, Coke, Weapons | --- | Buluc, Masked Guards | Cameras | Clue Folders, Wires, Globe, Scythe, Keycard, Gas Can, Diesel Can, Fertilizer, Alarm Clock, Churro, Mega Mask Box, Gage Packs |\n| Four Stores | Jewelry, Cash Register, Loose Loot, ATM | --- | --- | Cameras | 8th Anniversary Statues, Enter The Gungeon Statues, Gage Packs |\n| Goat Simulator | Cash Register, ATM | --- | --- | --- | Planks, Gage Packs |\n| Mall Crasher | Money, Jelwery, Loose Loot | --- | --- | --- | 8th Anniversary Statues, Gage Packs |\n| Meltdown | Money, Gold, Coke, Warhead, Weapons | --- | --- | --- | Keycard, Crowbar, Shipping Crates, Gage Packs |\n| Nightclub | Money, Coke, Cash Register, Loose Loot | DJ, Dimitri | --- | Cameras | Keycard, 8th Anniversary States, Gage Packs |\n| San Martín Bank | Romanov Treasure, Loose Loot, ATM | Bank Manager | --- | Cameras | Tape Holder, Cassette Tape, Mega Mask Box, Gage Packs |\n| Santa's Workshop | --- | Elves | --- | --- | Gage Packs |\n| Stealing Xmas | Jelwelry, Money, Loose Loot, Cash Register, ATM | Santa Claus | --- | --- | Presents, Shipping Crates, Gage Packs |\n| Ukrainian Job | Tiara, Jewelry, Loose Loot | --- | --- | Cameras | Gage Packs |\n| White Xmas | Giant Almir Toast, Coke, Loose Loot | Santa Claus | --- | --- | Presents, Gage Packs |\n!!!\n\n# Known bugs:\n- Alesso heist is stuck at 99% on loading screen.\n\t- Reason: You don't have BeardLib installed or it's outdated. This happens because the marked doors highlights requires beardlib in order to work.\n- Marking cameras disables their highlights.\n\t- Reason: Unlike enemies and civilians, cameras doesn't have a function to turn low quality when seen from afar, which is what Highlighter requires for working with markable stuff.\n- Dragon Heist and Crude Awakening crowbars won't get highlighted unless you get near one.\n\t- Reason: The game highlights it automatically when you get close to it.\n- Prison Nightmare hidden pumpkin will also highlight the trophy in your safehouse.\n\t- Reason: The files are the same.\n- ATMs will stay highlighted even after they're open.\n\t- Reason: The files are the same.\n- Enter The Gungeon statues will also highlight the trophies in your safehouse.\n\t- Reason: The files are the same.\n- The vial centrifuges are not getting highlighted from the start of the heist\n\t- It only gets highlighted after you trigger the blood samples validation objective and after you get near it for the first time.\n- Buluc's Mansion churro will also highlight the churro asset in Breakfast In Tijuana.\n\t- Reason: The files are the same.\n- The White House secret will have your murky uniforms highlighted when you get out of the elevator.\n\t- Reason: The files are the same.\n- The important NPC highlights also adds contour to some useless civilians in a few other heists.\n\t- Reason: The files are the same.\n- The infected patient in No Mercy has only his tattoo highlighted.\n\t- Reason: Highlighting the patient's whole body would affect all 3 patients. Highlighting only the tattoo points which one is the correct patient.\n- Goat Simulator planks won't have the white color.\n\t- Reason: Only way I've found to make the highlight work with those planks.\n- 8th anniversary statue for Rats will only highlight it's base.\n\t- Reason: Highlighting the whole object would cause texture glitches and keep it unhighlighted.\n- A mega sangres mask gift box is not getting highlighted on San Martín Bank.\n\t- Reason: It spawns inside a white van on the street and will only get highlighted once you open it.\n- Some highlights suddenly stops working with items behind walls or at a far distance.\n\t- Reason: The game either reduces the item resolution or simply despawns it until you're close enough or if it's not obstructed. Despawned items cannot be highlighted.\n\n# FAQ\n**Q: Is this mod still getting updated?**\nA: Yes. This mod will get updated whenever a new item worth of being highlighted is released. I accept feedback and ideas for new highlights too.\n\n**Q: Does it trigger the cheater tag on me or can I get banned by using it?**\nA: No. Comments related to this will be ignored and deleted.\n\n**Q: Can you highlight:**\n- safes\n- diamond heist saphires display cases\n- birth of sky money bundles\n- circuit boxes\n- goats\n\nA: No. Those items can't get highlighted with the methods I use and each has their own reasons so don't bother asking. Comments related to this will be ignored and deleted.\n\n**Q: Where should I install it?**\nA: Read the install instructions tab. Comments related to this will be ignored and deleted.\n\n**Q: Can you make a function to toggle highlights on and off?**\nA: No. Comments related to this will be ignored and deleted.\n\n**Q: Can anyone see the highlights?**\nA: No. This mod is client sided and will work regardless if you're the host or if you join someone who doesn't have it installed. Comments related to this will be ignored and deleted.\n\n**Q: The mod doesn't work.**\nA: The mod works just fine. Comments related to this will be ignored and deleted.\nIf it doesn't work for you then:\n- You installed in the wrong folder.\n- You extracted the folders from the .zip file into one folder.\n- You didn't read the install instructions tab.",
+            "short_desc": "A mod pack full of highlight stuff.",
+            "version": "4.7",
+            "downloads": 45571,
+            "likes": 405,
+            "views": 104615,
+            "published_at": "2021-11-19T19:25:50.000000Z",
+            "bumped_at": "2026-09-16T18:38:59.000000Z",
+            "category_id": 11,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": {
+                "file": "TkHEOufZ2JcJmhJHeRHO1K7UixWXPwlzWXetHwxW.webp",
+                "has_thumb": true
+            },
+            "download": null,
+            "user": {
+                "id": 28908,
+                "name": "Berk Rider",
+                "donation_url": "Berk_Rider@hotmail.com",
+                "avatar": "https://avatars.akamai.steamstatic.com/6ef045932c4650c53a87818ea97cb45095ee0f61_full.jpg",
+                "avatar_has_thumb": false
+            }
+        },
+        {
+            "id": 26131,
+            "name": "WolfHUD TabStats and Enhanced Crew Loadout Standalone",
+            "desc": "This is a standalone version of TabStats from WolfHUD\r\n\r\nIf you're using Void UI, you need to disable the stat screen scorecard to use this  \r\nIf you're using Hotline Miami HUD tab stats, you need to disable WolfHUD Tabstats\r\n\r\nExtract into the Payday 2 directory",
+            "short_desc": "",
+            "version": "",
+            "downloads": 10771,
+            "likes": 50,
+            "views": 43503,
+            "published_at": "2019-12-09T20:20:00.000000Z",
+            "bumped_at": "2026-09-16T17:00:36.000000Z",
+            "category_id": 4,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": {
+                "file": "preview_16567_1575922757_9b871dd3472f02000dfe30f504f4b1da.png",
+                "has_thumb": true
+            },
+            "download": null,
+            "user": {
+                "id": 16567,
+                "name": "test1",
+                "donation_url": null,
+                "avatar": "https://avatars.akamai.steamstatic.com/fef49e7fa7e1997310d705b2a6158ff8dc1cdfeb_full.jpg",
+                "avatar_has_thumb": false
+            }
+        },
+        {
+            "id": 39854,
+            "name": "Gilza - Weapon and skill rebalance",
+            "desc": ":::\n\n### Originally inspired by [IREnFIST](https://modworkshop.net/mod/28585) \n\n:::\n\nPayday 2 is one of my favorite games, despite how poorly balanced it is. I have accumulated over 6k hours at this point, and this mod in particular i have started working on all the way back at ~3k hour mark.\n\nThis ~~small~~ rebalance is what i have come up with, to make a game that i already enjoy, even more enjoyable. At least for me.\n\n\n-----\n\n:::\n### Welcome to Gilza\n:::\n\n:::\nA Payday 2 weapons/skills/perks rebalance/overhaul. \n(FYI - \"Gilza\" is a Russian word for \"Bullet casing\")\n:::\n\n#### What is this mod about?\n\nAs the title suggests - it changes most skills, perks and all weapons of Payday 2. All changes made by this mod are only available to the player who has it installed, without affecting gameplay for other players. It works in online lobbies regardless of if you are client or host.\n\n#### How difficult is this mod?\nThis rebalance is {#eb4034}(not trying) to make the game easy. It was made by me - for me, and i consider myself a pretty decent FPS player. If you think of yourself as an average/casual player, you may find some (mostly weapon) tweaks too difficult for you.\n\n#### Main goals of this mod:\n* Make **__ALL__** weapons equally viable across all difficulties - this includes nerfing over-performing weapons.\n* Update damage altering skills to make players rely on damage buffs less often.\n* Provide players with more fun skill/perk combinations for improved build variety.\n* Make every skill and perk useful/less situational.\n\n-----\n\n\n:::\n### {#00CCC1}(Rebalance info summary)\n:::\n\nDetailed information on [skill](https://github.com/irbizzelus/random-noncode-stuff/blob/main/Gilza%20txts/General_and_Skills.md), [perk](https://github.com/irbizzelus/random-noncode-stuff/blob/main/Gilza%20txts/Perks.md) and [weapon](https://github.com/irbizzelus/random-noncode-stuff/blob/main/Gilza%20txts/Weapons.md) changes can be found on pages dedicated to them. (Perk page includes recommended builds)  \nOn this page you may find a short summary for some of the rebalance changes of this mod.\n\n\n#### Stealth\n99% of the rebalance changes of this mod are focused on loud gameplay, and the perk page does not provide any examples for stealth builds. If you are planning on playing in stealth, there are only a few things to note, compared to vanilla:\n!!!\n* Basic \"Stockholm Syndrome\"'s civilian intimidation bonus was moved to tier 2 skill \"Confident\" in the same tree, making it 1 point more expensive\n* Tier 1 and 2 skills in Shinobi sub tree of Ghost were shuffled around a little. Keep these changes in mind if your Shinobi sub-tree is usually not maxed out\n* Consider running new \"Parkour\" aced skill on some maps, and maybe even a doctor bag along with it.\n* \"Burglar\" perk deck's stealth bonuses were buffed from 10-20% to 25%\n* \"Hacker\"s PECM cooldown was increased from 100 to 150 seconds (Hacker is still better than Burglar, since it can help clear up mistakes, but the choice is a little bit less one sided now)\n!!!\n\n\n#### Enemy changes\nAll enemies now have same amount of health on all difficulties, with values being similar to vanilla Death Wish difficulty.  \nHeadshot multipliers are now set to 2x for most enemies, with exceptions for some special enemies.\n\n#### Melee rework\nMelee weapons now deal % damage - if your melee has 35 damage, it will deal 35% of enemy's total health in one hit. Some enemies take reduced damage, to avoid melee weapons one-shot'ing everything.\n\n#### Skills/Perks\nDetailed skills info page can be found [here](https://github.com/irbizzelus/random-noncode-stuff/blob/main/Gilza%20txts/General_and_Skills.md).\nDetailed perks info page can be found [here](https://github.com/irbizzelus/random-noncode-stuff/blob/main/Gilza%20txts/Perks.md). This page includes at least 1 recommended build for every perk deck for loud gameplay, in case you don't want to go through all the changes Gilza makes in one go.\n\n__Default upgrades/changes__ \n- By default, regardless of equipped skills, perks and weapons, all weapon swap speeds are sped up by 50%. This is done to incentivize players to use both of their weapons proactively more often, as Gilza's ammo economy is extremely harsh if played otherwise.\n- Ammo pick up rates for standard and throwable weapons now scale with equipped armor (suit/ictv etc), with bigger armors providing more ammo per pickup. This should help low movement armors with ammo pickups.\n- While hosting a lobby (either online or offline) Team AI bots will now drop less ammo boxes from their kills. Every kill they get now has a 25% chance to drop ammo whenever you have 3 bots, 50% at 2 bots, and 75% at 1 bot. This only affects Team AI, and does not affect converts and sentries. This should make ammo accessibility in offline games feel close to online games, so that the disparity between the 2 would not be as drastic.\n\n__Global - damage resistance__ \nAll damage resistance upgrades are now additive instead of multiplicative. For more info you can go to the skills info page, under general section.\n\n__Skills__\nExtent of skill changes is too vast to sum up, so you should check the \"Skills Legend\" picture bellow, which summarizes skill rework information - if a skill was updated or not, and how significantly. Check out whatever you think might be interesting on the skills info page :)\n\n![](https://raw.githubusercontent.com/irbizzelus/random-noncode-stuff/refs/heads/main/Gilza_pics/Skill_Images/Skills%20legend.jpg)\n\n__Perks__\nMost perks received minor updates to improve their design (mostly for DS difficulty), with only 3 perks gaining \"major\" reworks. Don't forget to go over general (or \"neutral\") perk deck cards on the perk page, since they apply to all perks, and by extension to all builds.  \nAdditionally, 3 new custom perks were added - \"Brawler\", \"Speed Junkie\" and \"Guardian\".\n\n#### Weapon Changes\n\nDetailed weapon info page can be found [here](https://github.com/irbizzelus/random-noncode-stuff/blob/main/Gilza%20txts/Weapons.md).\n\n__Damage and ammo:__\nAll guns are now categorized under a \"damage class\" - all weapons have a strict starting damage value, which are all based around specific breakpoints (aka amount of bullets to kill certain enemy types). This makes both balancing and gun building easier to manage.  \nAmmo pick up is now dependent only on weapon damage class, and it is __much much__ worse (roughly 65% of what you would have in vanilla). You **HAVE** to use both of your weapons, and *even then* you can still run out, especially on lengthy heists. Using melee and throwable weapons is somewhat mandatory, to avoid running out of ammo quickly.\n\nFor example, Galil (\"Gecko 7.62\" in game) deals 67 damage in vanilla. If you take into account a maxed out perk deck, you will deal ~70.3 damage on a bodyshot and ~263.8 on a headshot with it in vanilla (based on Death wish difficulty health/headshot multipliers), which means this weapon will kill a light swat in 2 headshots and a heavy swat in 4 headshots, while having an average ammo pick up of ~10.04 (with any maxed out perk deck).\nIn Gilza a similar damage class exists - 125. With it, you will also kill a light swat in 2 headshots and a heavy swat in 4 headshots, but this damage class has ~6.44 ammo pick up on average, forcing you to be more accurate with it and to use your other weapons.\n\n__Recoil:__\nMost guns have more recoil.\nRecoil camera compensation is almost completely removed.\nWeapon recoil now depends on your base stability: weapons with low base stability will have extremely high recoil, and vice versa.\n\n__Handling:__\nWeapon accuracy and stability are no longer affected if you: crouch, jump, walk or sprint. However, both accuracy and stability have a penalty if you are firing from the hip. Aiming down sights removes this penalty.\nAll weapons have an accuracy penalty if used in full-auto and burst fire modes. If you use the select fire keybind to switch weapon to single-fire mode, you weapon will gain it's full accuracy.\n\n__Bipods:__\nImplemented \"Battlefield 5 style\" bipod mounting system where the bipod is automatically placed when player is close enough to a valid surface. To reduce frustrations this deployment method prevents certain limitations that bipods normally have in vanilla, like camera limits, ability to interact with items, and moving.\n\nBipods video preview:\n!!!\n![](https://www.youtube.com/watch?v=y8_BJ50YIng)\n!!!\n\n{#eb4034}(__**IMPORTANT**__): for your first try of the mod make a backup of your save files.  \nIf you dislike the mod and choose to remove it, it will __not__ have any issues, and it will __not__ corrupt your save files, BUT you might lose some weapons from your inventory, due to updates in their attachment data.\nAlso your perks can get reset. Perk reset DOES NOT remove how many perk points you have (points you use to unlock perks), but it might remove your progression, and leave you with all perks at 0/9, forcing you to go through all of them while holding the + button. (use R (default keybind) while on the perks screen to max out a perk quickly).\n\n{#eb4034}(__**EVEN MORE IMPORTANT**__): if you are going to give Gilza a try, check all mods that Gilza requires to function, under \"Dependencies and Instructions\". All mods that are tagged as \"optional\" are sorted in order of importance, from highest at the top to lowest at the bottom. I recommend getting everything before (but preferably also including) FrenchyAu's weapon attachment packs.\n\n\n{#eb4034}(__**Last thing**__): don't immediately try to play this mod on whatever difficulty you usually prefer, maybe try to play it on a difficulty bellow that for a game or two, as some aspects of Gilza could be a bit too difficult initially.\n\nP.S Gambler rework is the most fun one in my opinion :D\n\n# Custom Weapons Support\n\nThis mod will automatically search for custom weapons and convert their damage stats to work with Gilza's health changes. Beware: some custom weapons may have attachments that change damage/ammo pick up/total max ammo, or other stats in such a way that it will not match Gilza's values well, making them either too good, or bad. I can't do anything about that, other than __manually__ adding support for __every gun individually__, and that will take time. You may find a list of weapons that are currently supported on the [weapon info page.](https://github.com/irbizzelus/random-noncode-stuff/blob/main/Gilza%20txts/Weapons.md#custom-weapons-support)\n\nCustom \"special\" category weapons are not supported by the automatic stat adjustment system, but may be added later individually, check the currently supported list to see if they are already supported.\n\n# Additional QOL features\n\n* VanillaHud+'s buff list is supported for all major skill updates that Gilza makes, allowing for easy tracking of new skills' cooldowns and such.\n* While charging your melee weapons new melee UI will appear showing your charge amount and damage in %. This can be tweaked or disabled in Gilza's mod options.\n* You can set up a keybind in Gilza's mod options for a \"melee only\" toggle mode. While in this mode the game automatically charges melee weapons for you, and makes primary attack button the trigger for melee swings. You can cancel this mode by using the same keybind or melee attack button. Additional options, like position of this mode's HUD indicator, it's size and location are also accessible in Gilza's mod options.\n* You can disable camera tilt while charging melee weapons to reduce motion sickness if you extensively use melee (like with the new Brawler perk deck). This can be tweaked or disabled in Gilza's mod options.\n* You can reset your perk progression to re-acquire perk decks, allowing you to try new custom perk decks without grinding XP to unlock them. This option does not reset amount of perk points you have already earned.\n* Vehicle FOV was changed from base 75 to 90 - you can change it in mod options in game.\n* While purchasing weapons on the blackmarket, they can now be sorted by their damage classes, either in ascending or descending order. This option can be disabled.\n* You can spoof Gilza's custom perks, to avoid getting auto kicked in higher difficulty public lobbies, since some players are purists and can not comprehend any rebalance mods. This option can be disabled in Gilza's mod options.\n\n# Known issue:\nYou can crash when entering a heist, while using Jackal SMG or one of the Chimano pistols, with certain attachment combos, or while using the Kang arms model 54 pistol. This can only happen with weapons that you have modified/purchased before installing Gilza, due to updates in their attachments data. Simply re-purchase them if you run into this issue.\n\n# Included mods\n* [Auto Fire Sound Fix](https://modworkshop.net/mod/20403) - needed for rate of fire adjustments for some weapons, and for some new skills. Thanks to [Offyerrocker](https://modworkshop.net/user/offyerrocker) for allowing this.\n* Various WeaponLib crashes and bugs (like shotgun damage) are fixed by Gilza.\n* [Akron HC set sound fix](https://modworkshop.net/mod/41269) - Another mod of mine that fixes sounds for this weapon if you have Auto Fire Sound Fix, and since Gilza comes with AFSF it only makes sense to add this too. \n\n\n# Compatibility\nGilza can detect *some* mods that it may conflict with on it's own, and will give you a warning pop up after loading into the main menu. Otherwise:\n* Payday 2 VR is __not__ supported.\n* Custom perks are __not__ supported as they will conflict with existing neutral perk card changes.\n* Any other skill/perk/weapon changing mods will either break the balance, won't work correctly or straight up crash your game, so avoid those.\n* Custom weapons are supported, but aren't perfect unless weapon was manually altered by me to work with Gilza's stats. For list of those go to the [weapon](https://github.com/irbizzelus/random-noncode-stuff/blob/main/Gilza%20txts/Weapons.md) page.\n\n# Supported languages (depends on your SuperBLT's language):\n- English\n- Russian - а именно описания всех навыков, перков, оружий, элементы HUD'а и меню. Некоторые элементы могут быть на английском - если найдете что-нибудь не переведенное, пишите в комменты.\n\nEnjoy figuring out your new META and please provide feedback if something feels way too powerful or underwhelming.\nGood luck and have fun! :D",
+            "short_desc": "Rebalance that makes ALL weapons viable, while making most skills more balanced. Sometimes even makes skills more fun :D",
+            "version": "2.8.12",
+            "downloads": 2201,
+            "likes": 55,
+            "views": 18772,
+            "published_at": "2022-10-10T19:29:14.000000Z",
+            "bumped_at": "2026-09-16T16:43:37.000000Z",
+            "category_id": 798,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": {
+                "file": "127748_1682163065_3368b0d58a2b132b51481a14960bd053.webp",
+                "has_thumb": true
+            },
+            "download": null,
+            "user": {
+                "id": 127748,
+                "name": "irbizzelus",
+                "donation_url": "",
+                "avatar": "https://avatars.steamstatic.com/059c75f7417b5572de0e3a27d326744b12d52b1c_full.jpg",
+                "avatar_has_thumb": false
+            }
+        },
+        {
+            "id": 58907,
+            "name": "PiP Scopes v1.3",
+            "desc": "**Thanks to Diesel 3.0/64bit update, the previsouly VR-exclusive feature of PiP (Picture-in-Picture) scopes can now be ported into the flatscreen game without much hassle.**\n\n---\n\n### What the mod does:\n - Makes every \"scope\" in the game Picture-in-Picture - drawing a separately rendered zoomed image inside the scope\n - Lowers the standard camera-FOV-zoom when entering ADS to the default vanilla minimal (same as angled sights, etc)\n - Removes the Y-axis of the so-called \"stance_mod\" for \"Sniper Scopes\" - when removing the camera-FOV-zoom, it is noticeable that the gun shifts dramatically backwards with those, so that the camera sits inside the scope\n - Implements PiP for some newer scopes that were lacking it (Z5 Owl Glass, CASSIAN Sharp, CASSIAN Elite) - for both VR and non-VR\n - Falls back to regular behavior for Custom Scopes that don't support PiP\n---\n\n###  Mod Options:\n - **Scope Resolution:** resolution scaling of the in-scope picture\n - **Anti-Aliasing:** use anti-aliasing (smooth out pixelated edges) for the in-scope picture\n - **Zoom Multiplier:** global multiplier of the scopes' zoom level\n - **Keep \"FOV Relative Sensitivity\":** makes the ''FOV Relative Sensitivity'' setting still think your FOV is zoomed in when using a scope\n - **PiP \"Combat Sight\":** toggle this OFF if you want a bit of realism for the ''Combat Sight'' that shouldn't have optical magnification. Works in VR too\n---\n\n### Some notes/issues:\n - Unavoidably performance-heavi**er**, primarily GPU-wise. On an RTX3060 at 1080p I get 300+ FPS with my settings - when ADS-ing with a PiP scope with the default **Scope Resolution**, I only see an increase in GPU load from 45% to 60%, and no noticeable difference in FPS. Consider lowering the **Scope resolution** in the **Mod Options** if you notice significant degradation\n - Reticles inside PiP scopes aren't affected by the breath camera shaker, making reticles fully stable, which causes a slight desync between what you see and what the gun is actually aimed at. Further investigation pending\n - ~~Some scopes on some guns may be placed too far backward, so that the PiP lens will be behind the view. Will have to either go through every single gun+scope combination in the game to make manual adjustments, or put some time into coming up with an automatic solution.~~ - pretty much resolved in v1.3\n - The zoom values of PiP scopes aren't the same as their regular zoom level - one is an FOV value, and another is a convoluted FOV multiplier\n - ~~The **FOV Relative Sensitivity** breaks~~ - fixed in v1.1\n - DOF doesn't go well with this\n - Doesn't affect the Blackmarket menu\n - [NQR](https://modworkshop.net/mod/54318) will have this built-in, later. It is incompatible with this for now\n - I don't play vanilla, so please report any unmentioned general issues if you find any",
+            "short_desc": "",
+            "version": "v1.3",
+            "downloads": 361,
+            "likes": 25,
+            "views": 1113,
+            "published_at": "2026-09-15T19:22:34.000000Z",
+            "bumped_at": "2026-09-16T16:21:09.000000Z",
+            "category_id": 200,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": {
+                "file": "2pViwfwT2jqjxMRFnPf04ggWJOyLwGG4MCwwEKil.webp",
+                "has_thumb": true
+            },
+            "download": null,
+            "user": {
+                "id": 4945,
+                "name": "DR01D_Qs",
+                "donation_url": "",
+                "avatar": "https://avatars.akamai.steamstatic.com/d0ce639b285621d4da9a6ec386874fd20eb69bb3_full.jpg",
+                "avatar_has_thumb": false
+            }
+        },
+        {
+            "id": 23831,
+            "name": "SydneyHud (Fixed)",
+            "desc": "{#00ff00}(Autoupdates have been changed from Dropbox to MWS in 4.2.9 - If you are having issues downloading updates in-game, please reinstall SydneyHud)\n\nFixed version of SydneyHUD.\nYou can read all fixed issues in the \"Changelog\" tab.\n\nSydneyHud also supports syncing data to other players if you are host or reading synced data from these mods:\n[Extra Heist Info](https://modworkshop.net/mod/31915) - Assault Info and active Team AI buffs\n[PocoHud3](https://modworkshop.net/mod/40870) - Active Team AI buffs\n\nScreenshots can be found [here](https://modworkshop.net/mod/18716?tab=images)\n\n**Feature Requests / Bug Reports:**\nPlease create issues [here](https://docs.google.com/forms/d/e/1FAIpQLSdE2ciCKNroP0o_-SEZWNGhoZNQu8RNRnj45yq0d4a8dwVaDg/viewform)",
+            "short_desc": "Fixed version of SydneyHUD",
+            "version": "4.2.14",
+            "downloads": 56715,
+            "likes": 193,
+            "views": 178785,
+            "published_at": "2018-11-03T23:09:41.000000Z",
+            "bumped_at": "2026-09-16T14:29:36.000000Z",
+            "category_id": 253,
+            "has_download": true,
+            "disable_mod_managers": true,
+            "thumbnail": {
+                "file": "preview_52338_1546278412_92018fb8f2166d5a03f5ab42e3850854.png",
+                "has_thumb": true
+            },
+            "download": null,
+            "user": {
+                "id": 52338,
+                "name": "Dom",
+                "donation_url": "",
+                "avatar": "j9GkGUeRxVihZwTs31Me9poCS4fEUudELWrhlVWC.webp",
+                "avatar_has_thumb": true
+            }
+        },
+        {
+            "id": 58917,
+            "name": "AK17 looks like a Lion's Roar Rifle",
+            "desc": "Changes the Ak 17's stats to match those of the Lion's Roar Rifle.",
+            "short_desc": "",
+            "version": "",
+            "downloads": 3,
+            "likes": 0,
+            "views": 225,
+            "published_at": "2026-09-16T14:10:40.000000Z",
+            "bumped_at": "2026-09-16T14:10:40.000000Z",
+            "category_id": 3,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": {
+                "file": "gqjP1XnkUAHH2dCU5gMA1JwrG3yma8lhez4YzgWT.webp",
+                "has_thumb": true
+            },
+            "download": null,
+            "user": {
+                "id": 60137,
+                "name": "Crazy Ivan",
+                "donation_url": "",
+                "avatar": "https://avatars.steamstatic.com/085c3a1339f23f53b5cdcdef03f1cdd43563d021_full.jpg",
+                "avatar_has_thumb": false
+            }
+        },
+        {
+            "id": 31915,
+            "name": "Extra Heist Info",
+            "desc": "{#00ff00}(Autoupdates have been changed from Dropbox to MWS in r424 - If you are having issues downloading updates in-game, please reinstall EHI)\n\n**Minimum game version required: 1.0.0-158409 (Update 247)\nMinimum SuperBLT version required: v1.5.0 (Lua) and [4.0.1-beta](https://modworkshop.net/mod/58342) (DLL)\nMinimum EHI version to sync data to other EHI players: r427**\n**!!! Failing to meet the minimum requirements will cause crashes in-game !!!**\n\nShows trackers for various heist related gameplay elements\n- Waiting for a van/heli/boat\n- Waiting for a C4\n- Waiting for a thermite to finish\n- Achievements*\n- Achievements with progress (e.g.: \"Another Way Out\" achievement in Hell's Island)\n- A chance for something to happen (e.g.: teargas, cooking chance)\n- Mission XP Overview\n- Buffs (skill or perk) and color them based on their action in-game\n- Filter achievements tracked in EHI or for **The Secret** -> See progress filter in Achievements Page\n- Damage hit markers or Floating health bars\n- Hudlist\n- etc...\n\nSee screenshots in the \"Images\" tab for more info and how it looks in-game.\n\nEHI is using in-game panels and should be compatible with all HUD mods.\nYou can change x, y position in options to move it on the screen. The mod supports Ultra-Wide monitors.\n\n**Accuracy**\nAlways accurate on host.\nClients should stay accurate within 1-3s range. It is recommended to install (on both host and client side players) [Slowmotion Manager](https://modworkshop.net/mod/18128) mod and remove all slowmotion effects that slows down time calculation.\nDesync can also disallow some trackers to show up/update. There is nothing to prevent it.\nIf you drop-in to a heist, some trackers related to elements may not appear. This is because they are not synced when you drop-in. It can be improved, but it is unfixable.\n\n**Trackers**\nSome trackers are inaccurate and have orange color. These trackers can prematurely expire or expire late when an element (van, heli, ...) is interactable.\n\n**Supported heists**\nAll vanilla heists are supported (Under the Hammer Heist (Update 248) is the latest vanilla heist). Custom heists are not supported due to I have to look into the map scripts and find elements that can be tracked. However, support for them may come at later date.\n**Currently supported custom heists**:\n| Heist | Trackers | Overlapping Waypoints Removed | Achievements | Snipers | Loot Counter | XP Breakdown | Additional Notes:\n|--------|--------| -------- | -------- | -------- | -------- | -------- | -------- |\n| [Triad Takedown (Yacht Heist)](https://modworkshop.net/mod/31930) |✔|❌|✔ (No achievements)|❌|❌|❌| |\n| [Triad Takedown Remastered](https://modworkshop.net/mod/34781) |✔|❌|✔ (No achievements)|❌|❌|❌| |\n| [Scorched Earth](https://modworkshop.net/mod/32550) |✔|✔|✔ (No achievements)|✔ (No snipers) |❌|❌| |\n| [Cold Stones](https://modworkshop.net/mod/32670) |✔|✔|✔ (No achievements)|✔ (No snipers)|✔|❌| |\n| [Crime and Punishment](https://modworkshop.net/mod/33260) |✔|❌|❌|❌|❌|❌| |\n| [Yaeger - Rogue Company](https://modworkshop.net/mod/32301) 1.0.1 Day 1 Patch |✔|❌|❌|❌|❌|❌| |\n| [Harboring a Grudge](https://modworkshop.net/mod/35089) |✔|❌|❌|❌|❌|❌| |\n| [Constantine Scores](https://modworkshop.net/mod/37297) |||| ||| |\n| * Smackdown |✔|❌|❌|❌|❌|❌| |\n| * Truck Hustle |✔|✔|❌|❌|✔|❌| |\n| * On Display |✔|❌|❌|❌|✔|❌| |\n| * Concrete Jungle |✔|❌|❌|❌|❌|❌| |\n| * Butcher's Bay |✔|✔|✔ (No achievements)|✔|✔|✔| |\n| * Precinct Raid |✔|✔|✔ (No achievements)|✔(No snipers)|✔|✔| |\n| [Heat Street Rework](https://modworkshop.net/mod/22904) 2.3 |✔|✔|✔|✔|✔|✔| Loads and edits configuration for Vanilla **Heat Street** Heist |\n| [Office Strike](https://modworkshop.net/mod/21032) 1.7 |✔|✔|✔|✔|✔|✔| |\n| [Hard Cash](https://modworkshop.net/mod/41204) 1.1 |✔|✔|✔(No achievements)|✔(No snipers)|❌|✔| |\n| [Branch Bank Initiative](https://modworkshop.net/mod/42921) 1.3 |✔|✔|✔(No achievements)|✔(No snipers)|✔|✔| |\n| [GO Bank Remaster](https://modworkshop.net/mod/25495) 1.3 |✔|✔|✔|✔|✔|✔| Loads configuration for Vanilla **GO Bank** Heist |\n| [Cook Off (Daylight)](https://modworkshop.net/mod/27373) 1.1 |✔|✔|✔|✔|✔|✔| Loads configuration for Vanilla **Cook Off** Heist |\n| [Cook Off: Meth Slaves](https://modworkshop.net/mod/43335) 1.1 |✔|✔|✔|✔|✔|✔| Loads configuration for Vanilla **Cook Off** Heist |\n| [Crashing Capitol - Return to Shield Mall](https://modworkshop.net/mod/44630) 1.0.2.3 |✔|✔|✔|❌|❌|✔| |\n| [Henry's Rock (but Better Spawns & Cover)](https://modworkshop.net/mod/39781) 1.03 |✔|✔|✔|✔|✔|✔| Loads configuration for Vanilla **Henry's Rock** Heist |\n| [Shacklethorne Auction (Better Spawns + No Rain)](https://modworkshop.net/mod/24584) 2.1 |✔|✔|✔|✔|✔|✔| Loads configuration for Vanilla **Shacklethorne Auction** Heist |\n| [Buluc's Mansion (but Better Spawns)](https://modworkshop.net/mod/39875) 1.1 |✔|✔|✔|✔|✔|✔| Loads configuration for Vanilla **Buluc's Mansion** Heist |\n| [Slaughterhouse Edit](https://modworkshop.net/mod/49757) 1.0 |✔|✔|✔|✔|✔|✔| Loads configuration for Vanilla **Slaughterhouse** Heist |\n| [Scarface's Mansion Reimagined](https://modworkshop.net/mod/53614) 1.0 |✔|✔|✔|✔|✔|✔| Loads configuration for Vanilla **Scarface Mansion** Heist |\n\n**Not supported mods**\nIf you have mods that modifies vanilla heists by either:\n- adding more elements\n- modifying existing elements (for example: shortening wait etc...)\n\nEHI fails to recognize these changes and because of that, some trackers may not be accurate as they are in vanilla.\nExample mods:\n[Cook Faster](https://modworkshop.net/mod/16161)\n\n**Compatible mods**\n[Custom Name Color (HUD-compatible)](https://modworkshop.net/mod/22935) - your custom color shows up in trackers/waypoints/buffs that track peer related info (if enabled)\nAll HUD mods should be compatible\n-> Tested WolfHUD, VanillaHUD Plus, CS HUD, MUI, Void UI and PocoHud3\n[Any Day Any Heist](https://modworkshop.net/mod/43232)\n[Hostages Extend Break Time](https://modworkshop.net/mod/50420)\n[Classic Heisting](https://modworkshop.net/mod/33768)\n-> XP Tracker is not visible - XP worked a bit differently in Update 24\n-> Marshal tracker is not visible - Marshal groups did not exist in Update 24\n-> Gage Mod Courier tracker is not visible - Gage packages were added **after** Update 24; in Update 26 to be precise\n\n**Incompatible mods**\n[Tweakdata Fixed](https://modworkshop.net/mod/21098) - EHI won't show up in-game (Press **0** twice to force refresh) or may randomly crash in Berserker buff when this mod installed.\n\n**Languages**\n- English\n- Czech (Has to be manually selected in the mod options)\n- French\n- Thai (Recommended mod: [PAYDAY 2 THAI LANGUAGE](https://modworkshop.net/mod/17176)); **Looking for translator**\n- Brazilian Portuguese\n- Simplified Chinese\n- Russian\n- Italian\n- Japanese\n\n**How to install**\nPlease see \"Dependecies & Instructions\" tab.\n\n**Important:**\nIf you are crashing, always post a crashlog. I'm not a psychic nor I can read your mind and posting similar comments like \"EHI is crashing my game, fix it asap\" is not helping either.\nWithout crashlog I cannot help you.\n\n**Feedback**\nIf the mod is crashing or you have an suggestion, please use the link to my Google Forms [here](https://docs.google.com/forms/d/e/1FAIpQLSdE2ciCKNroP0o_-SEZWNGhoZNQu8RNRnj45yq0d4a8dwVaDg/viewform)",
+            "short_desc": "Shows hidden info",
+            "version": "r434",
+            "downloads": 136240,
+            "likes": 892,
+            "views": 329784,
+            "published_at": "2021-05-01T10:28:54.000000Z",
+            "bumped_at": "2026-09-16T12:01:16.000000Z",
+            "category_id": 4,
+            "has_download": true,
+            "disable_mod_managers": true,
+            "thumbnail": {
+                "file": "52338_1621850890_5729051508c30c6f3ef6606e7a0a928f.png",
+                "has_thumb": true
+            },
+            "download": null,
+            "user": {
+                "id": 52338,
+                "name": "Dom",
+                "donation_url": "",
+                "avatar": "j9GkGUeRxVihZwTs31Me9poCS4fEUudELWrhlVWC.webp",
+                "avatar_has_thumb": true
+            }
+        },
+        {
+            "id": 37161,
+            "name": "Visual Fixes & Tweaks",
+            "desc": "Visual Fixes & Tweaks aims to be the visual counterpart to [The Fixes](https://modworkshop.net/mod/23732). Instead of fixing Lua files, this mod focuses on correcting errors in the game's various textures, materials, and models, with some minor code edits included purely for visual purposes. There are so many fixes packed into this mod that the 20 image limit isn't even enough to showcase them all!\n\nBecause this mod aims to improve the entire game, it edits a wide variety of things. Please be cautious, as this mod may conflict with other mods that modify similar files.\n\n\nShowcase below: *Work In Progress...*\n\n!!!\n\n| Without Visual Fixes | With Visual Fixes | \n| -------- | -------- | \nFixed the Cavity 9mm equip animation\n| ![](https://i.imgur.com/t2TjmvD.gif) | ![](https://i.imgur.com/z5zmaM6.gif) | \nRestored lootbags to how they looked in older versions\n| ![](https://i.imgur.com/YzIuF8d.png) | ![](https://i.imgur.com/YhSn51N.png) | \nFixed security doors missing their material (**GSMA**) texture\n| ![](https://i.imgur.com/66mVx3t.png) | ![](https://i.imgur.com/P3pv2TN.png) | \nFixed the pre-planning icon for Big Bank showing Branch Bank's icon instead\n| ![](https://i.imgur.com/1Z7w73f.png) | ![](https://i.imgur.com/X9R6tnI.png) | \nFixed weapons being absurdly shiny in third person\n| ![](https://i.imgur.com/6e6qOpM.png) | ![](https://i.imgur.com/gQnMURT.png) | \n| ![](https://i.imgur.com/isBuM2d.png) | ![](https://i.imgur.com/RtWs9CN.png) | \nFixed missing materials on weapons\n| ![](https://i.imgur.com/F26tBXF.png) | ![](https://i.imgur.com/wb1mfY3.png) | \nFixed errors and mistakes with cubelights\n| ![](https://i.imgur.com/7nc2emA.jpeg) | ![](https://i.imgur.com/0neJnu0.jpeg) | \n| ![](https://i.imgur.com/qjG7iSg.png) | ![](https://i.imgur.com/Ti9GbEE.png) | \n!!!\n\n\n**Known conflicts:**\n* [No Forced Mip Values](https://modworkshop.net/mod/34949) - This mod edits a bunch of material_config files that Visual Fixes also touches, so conflicts are bound to happen. I'd recommend checking which files conflict and deleting the duplicates from either Visual Fixes or No Forced Mip Values.\n\n* Optimized World - This mod was removed from ModWorkshop, but please be wary if you still have it installed. (I'd recommend uninstalling it regardless.)\n\n* Mods that change map environments - A bit of a no-brainer, but just be safe!\n\n* [Correct/Fixed Normal maps](https://modworkshop.net/mod/24922) - This mod fixes some of the same issues Visual Fixes does, and also makes a lot of normal maps more apparent by giving them actual depth rather than leaving them flat. I'd recommend handling it the same way as in the section below!\n\n* [Stop Painting My Stuff](https://modworkshop.net/mod/36338) - Touches up weapon material_configs to stop custom colour skins from being applied to certain parts, many of which Visual Fixes also covers. Should be pretty safe to install alongside, though!\n\n* [HD Money, Loot, & Pickups Mod](https://modworkshop.net/mod/19997) - Causes infinite loading errors due to conflicts with some jewelry material_configs. Aside from that issue, I'd actually recommend this mod!\n\n* [Restoration Mod](https://modworkshop.net/mod/428) - Has some conflicting files with Visual Fixes, but I haven't heard of any infinite loading issues or crashes. Just be cautious.\n\n**Already included in Visual Fixes:**\n\n* [Post-Anniversary Fixed Lootbag](https://modworkshop.net/mod/35431)\n\n* [Better-er Orthogon Parts](https://modworkshop.net/mod/41663)\n\n\nIf you think something is conflicting with this mod, please double-check both mods' files to see if they overlap. **__And PLEASE let me know what mod is conflicting!!!__**\n\n\n\n**Highly Recommended Mods alongside Visual Fixes:**\n\n* [The Fixes](https://modworkshop.net/mod/23732) by **andole** & **Dom** - Corrects a lot of base game bugs and crashes. A must-have, think of it as the unofficial patch for PAYDAY 2.\n\n* [Old Deferred Lighting Style Restoration](https://modworkshop.net/mod/32981) by **test1** - Restores the way PAYDAY 2 used to render specular prior to Update 79.\n\n* [Tailor Pack 2 Optimisations](https://modworkshop.net/mod/26764) by **Jarey_** - Downsizes the textures used for Tailor Pack 2 and Pool Repair outfits. The textures alone normally take up 1.3GB, but this reduces them to just 173MB.\n\n* [Stop Painting My Stuff](https://modworkshop.net/mod/36338) by **MrVavlo** - Same reasons as stated in the section above.\n\n* [Correct/Fixed Normal maps](https://modworkshop.net/mod/24922) by **Columbus** - Same reasons as stated in the section above.\n\n* [Weapon Shadows](https://modworkshop.net/mod/38712) by **Hoppip** - Adds shadows to a bunch of weapons that were missing them.\n\n* [AK Correct Magpul Assist (Speed Pull) Mags](https://modworkshop.net/mod/19777) by **>:3** - Makes the speedpull magazine match the corresponding AK variant. For example, you'll keep the waffle magazine if you use the speedpull on a waffle-mag AK, rather than being defaulted to the standard AK Rifle's magazine.\n\n* [Original Bipods](https://modworkshop.net/mod/28543) by **>:3** - Restores some LMGs' original bipods from before Starbreeze forced all LMGs to share the same bipod model.\n\n* [Vanilla Heister Improvement Project](https://modworkshop.net/mod/40378) by **HedyL** - Replaces the dated 2013-era gloves seen in third person on the default suit with the much higher quality first-person gloves. Also includes head mesh tweaks, armour refits, and weighting fixes.\n\n* [Default Gloves Replace Wrinkle Gloves](https://modworkshop.net/mod/32514) by **Nelson01023** & **Dorpenka** - Replaces the \"Wrinkled Gloves\" with the Criminal Gloves used in first person.\n\n* [Better Sleeves & Fixes](https://modworkshop.net/mod/34542) by **Dorpenka** - Makes first-person sleeves from outfits a consistent length, and fixes a lot of weighting issues with them.\n\n* [Glove Tweaks](https://modworkshop.net/mod/38976) by **Dorpenka** - Fixes various glove issues, including model corrections and texture tweaks for a nicer overall look.\n\n* [MSFE - Mask Straps Fit Everyone](https://modworkshop.net/mod/52592) by **White_3Designer** - A neat mod that gives each heister a unique mask strap model to fit their head shape.\n\n* [Extended Para Foregrips](https://modworkshop.net/mod/48604) by **linuskall01** - Extends the rails on Para SMG foregrips so your hands aren't floating while holding the weapon.\n\n* [3D Weapon Rails](https://modworkshop.net/mod/53714) by **linuskall01** - Gives some weapons actual 3D rails rather than relying on normal map trickery.\n\n* [Weapon Texture Reworks](https://modworkshop.net/mod/36505) by **Gambyt** - Improves the visuals of various weapons, including fixes for 2020 to 2024 era weapons.\n\n\n# Requires SuperBLT and Beardlib. Extract into mod_overrides. Works on 64-bit.",
+            "short_desc": "Attempts to fix a bunch of the games visual problems. Textures. Materials. Objects. You name it.",
+            "version": "v1.7.8",
+            "downloads": 42543,
+            "likes": 467,
+            "views": 130585,
+            "published_at": "2022-04-20T13:28:32.000000Z",
+            "bumped_at": "2026-09-16T09:53:41.000000Z",
+            "category_id": 11,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": {
+                "file": "x5lFCuC997qy14fJRJmMP0dW8TFbMiei00b8uZDE.webp",
+                "has_thumb": true
+            },
+            "download": null,
+            "user": {
+                "id": 38327,
+                "name": "Dorpenka",
+                "donation_url": "",
+                "avatar": "https://avatars.akamai.steamstatic.com/9bb6c2ea3ff49c5159e0a723b52e40f334860bba_full.jpg",
+                "avatar_has_thumb": false
+            }
+        },
+        {
+            "id": 58915,
+            "name": "PDTH Style Detection Icons",
+            "desc": "this is a supplement for [this mod](https://modworkshop.net/mod/19900) that \"backports\" (scratch) the icons, % and sounds from [this mod](https://modworkshop.net/mod/34123) as close as i could. if anyone can tell me how to move the text to the top that'd be neat thanks. it also removes the arrow because it's frickin annoying and i HATE IT.\n\ni also included the raw click in there in case u want it for some reason\n\nthanks to offyerocker for the template and Renox for [this one](https://modworkshop.net/mod/24032)\n\n![here](https://www.youtube.com/watch?v=xVOSOAjxJSY)",
+            "short_desc": "",
+            "version": "",
+            "downloads": 17,
+            "likes": 2,
+            "views": 198,
+            "published_at": "2026-09-16T09:47:20.000000Z",
+            "bumped_at": "2026-09-16T09:47:20.000000Z",
+            "category_id": 5,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": {
+                "file": "EaOfAoAhZiBIyBZbD9O7xa1Uk2FM333Fz022PF5M.webp",
+                "has_thumb": true
+            },
+            "download": null,
+            "user": {
+                "id": 158672,
+                "name": "Shydun24",
+                "donation_url": "",
+                "avatar": "v1CHrURu3FaxT6LT6NVv67NPRfxox01FkmLVRUys.webp",
+                "avatar_has_thumb": true
+            }
+        },
+        {
+            "id": 58914,
+            "name": "Hammer Heist All Loot Achievement Outlines / 全包高亮即刻落槌成就",
+            "desc": "Highlights all extra loots in Hammer Heist (includes car key).\nRequires **Beardlib**, install to **mod_overrides**.\n\n高亮即刻落槌劫案中的所有额外战利品，包括车钥匙，以便你完成全包成就。\n需要 **Beardlib** 作为前置，将mod装至 **mod_overrides** 内。",
+            "short_desc": "",
+            "version": "1",
+            "downloads": 115,
+            "likes": 6,
+            "views": 366,
+            "published_at": "2026-09-16T09:32:07.000000Z",
+            "bumped_at": "2026-09-16T09:32:07.000000Z",
+            "category_id": 38,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": {
+                "file": "Oo7bInOfnP0bN7WFzY29OGnsqexDISNVN0Eivj8J.webp",
+                "has_thumb": true
+            },
+            "download": null,
+            "user": {
+                "id": 20587,
+                "name": "LR_Daring",
+                "donation_url": "",
+                "avatar": "https://avatars.akamai.steamstatic.com/165cab64d8c38385f557856888a9d50508052beb_full.jpg",
+                "avatar_has_thumb": false
+            }
+        },
+        {
+            "id": 58282,
+            "name": "Applied Outfits",
+            "desc": "Assigns a default outfit to every heist in the game, including the default one.\n\nWhat this basically means is you'll be seeing a lot more legacy tactical on a lot more people with default outfits. If you want my outfits to be [forced](https://modworkshop.net/mod/26037), read the bottom of the description.\n\n**Default outfit**\nHeists with casing. Examples include Bank Heists, Alesso ect\n\n**Legacy Tactical**\nStealth optional heists or ones where casing isn't really needed. Diamond Heist, Watchdogs ect.\n\n**Winter Camo Parka**\nCold Heists. Use your imagination. there's only a few.\n\n**Tactical BDU**\nStealth only heists with the exception of yacht. I like this suit but i feel like it's out of place in diamond heist and fits with stealth only heists.\n\n**Raincoat**\nAdded to Crude Awakening and Meltdown. can you imagine getting in the longfellow with them wet ass jackets lol soggin up all the seats just fucking up the interior\n\n**Tuxedo**\nFancier heists like GGC, Shacklethorne, Yacht Heist, Black Cat ect.\n\n**The Classic** \nAll transport heists with the exception of Underpass, which uses\n\n**Scrubs** \nOn by default for No Mercy and added to Transport: Underpass because trailer or something\n\n**Casual Formal**\nBrooklyn Bank. C'mon it's a little chilly.\n\n**Pool Repair**\ndon't even have to say it\n\nThis mod pairs very well with [this one](https://modworkshop.net/mod/26037) as this mod forces everyone to be in the same outfit... which just so happens to be the assigned heist outfit :) crazy how that works, this mod works extra well with this one because this mod assigns the \"none\" or \"suitphy\" outfit as the default. 2 and 2. for people who despite the tailor system but love alternate outfits.\n\n\n[click RIGHT here](https://modworkshop.net/mod/46230) for the suit you **NEED** for the physics version. and heart it while you're there. show some love",
+            "short_desc": "",
+            "version": "1.7",
+            "downloads": 91,
+            "likes": 8,
+            "views": 1560,
+            "published_at": "2026-08-03T02:44:37.000000Z",
+            "bumped_at": "2026-09-16T08:25:38.000000Z",
+            "category_id": 4,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": {
+                "file": "mbeyPpn2Bfg5urr5u5QHu7MCURmYfYc1QyBRwflW.webp",
+                "has_thumb": true
+            },
+            "download": null,
+            "user": {
+                "id": 158672,
+                "name": "Shydun24",
+                "donation_url": "",
+                "avatar": "v1CHrURu3FaxT6LT6NVv67NPRfxox01FkmLVRUys.webp",
+                "avatar_has_thumb": true
+            }
+        },
+        {
+            "id": 58913,
+            "name": "Sonic Riders Intro Replacement",
+            "desc": "Uses one of the greatest gaming intros of all time for the intro to Payday2.",
+            "short_desc": "",
+            "version": "",
+            "downloads": 7,
+            "likes": 1,
+            "views": 57,
+            "published_at": "2026-09-16T05:40:46.000000Z",
+            "bumped_at": "2026-09-16T05:40:46.000000Z",
+            "category_id": 5,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": {
+                "file": "qDcMwJVe8SWsVL1pMQhWPO79k1d4HL3JXFMiXMpL.webp",
+                "has_thumb": true
+            },
+            "download": null,
+            "user": {
+                "id": 149615,
+                "name": "Ghosters",
+                "donation_url": null,
+                "avatar": "e9dxlE4rmIS4DEH3EIR2rp3MLiT4RiIgIBJDvRM9.jpg",
+                "avatar_has_thumb": false
+            }
+        },
+        {
+            "id": 58900,
+            "name": "LUBBYCHUDDER",
+            "desc": "I LOOOOOOOVVVEEEEE....RESHIRAAAAAMMMMMMM\n\n[I AM...MARRIED TO...RESHIRAAAAAAAAM](https://www.youtube.com/watch?v=lPyhlybViJw)",
+            "short_desc": "",
+            "version": "",
+            "downloads": 5,
+            "likes": 0,
+            "views": 91,
+            "published_at": "2026-09-16T04:58:07.000000Z",
+            "bumped_at": "2026-09-16T04:58:07.000000Z",
+            "category_id": 347,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": {
+                "file": "Dg6PrzbJSUlMtPzXfCpo7JEubckOfZEi6NZOZxQo.webp",
+                "has_thumb": true
+            },
+            "download": null,
+            "user": {
+                "id": 218748,
+                "name": "Unkn-0wn",
+                "donation_url": "",
+                "avatar": "yZuc69rKh2WzwaeGNFj8Mh5BCZQec3Ibvl34ulbG.webp",
+                "avatar_has_thumb": true
+            }
+        },
+        {
+            "id": 22147,
+            "name": "VR Inventory Icons",
+            "desc": "This replaces the inventory icons for weapons, melee weapons, and throwables with the outlines seen in the VR version of the game. Check the pictures for a preview!\n\nUnzip into mod_overrides to install. Optionally uses BeardLib for auto updates.\n\n**Note**\nThe following icons are custom made, because they either didn't ship them or used the wrong one:\n* Uzi\n* Airbow\n* Miyaka 10 Special\n* Káng Arms X1\n* RUS-12 Angry Tiger \n* Adhesive Grenade\n* Shock Baton\n\nThey will be replaced with the official icons if they are ever added.",
+            "short_desc": "This replaces the inventory icons for weapons, melee weapons, and throwables with the outlines seen in the VR version of the game.",
+            "version": "4.0",
+            "downloads": 4992,
+            "likes": 73,
+            "views": 27465,
+            "published_at": "2018-03-21T03:53:24.000000Z",
+            "bumped_at": "2026-09-16T04:34:02.000000Z",
+            "category_id": 5,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": {
+                "file": "preview_1076_1521604351_a8f76b108430e2c11f6acff5b94d52df.png",
+                "has_thumb": true
+            },
+            "download": null,
+            "user": {
+                "id": 1076,
+                "name": "Zdann",
+                "donation_url": "https://ko-fi.com/zdann",
+                "avatar": "https://avatars.akamai.steamstatic.com/a0d99f06f45b6509cb93b191fa2ee1a29cb344b9_full.jpg",
+                "avatar_has_thumb": false
+            }
+        },
+        {
+            "id": 58911,
+            "name": "Emma NIKKE Battle Announcer",
+            "desc": "Tell me, what ties a squad of 3 elite military personnel together? Is it the fearless leader that rallies them to certain victory or the silent one that has a fetish for killing literally everything that moves? You'd be surprised to know that it's neither of them. It's the one that looks out for the others' health with a good heart. Her name is Emma. She doesn't restrict her aid to her squad, she's about willing to help with anything whether it's giving a message that melts fatigue away or using oils to keep stamina up. There is one thing she loves doing that no one else can bring up about her. She loves cooking, despite her dishes being something that came from aliens. Best to keep her away from the crystal lab too, lord knows she'd blow it up instantly. She has 46 voicelines she can say, each having an equal chance of being played. Some lines are taken from her Color Me Red costume. Those are indicated with a (C), respectively. Specifically, \n\n-----\nWhen an enemy is killed (10 sec cooldown):\n\"Let's fight together.\"\n\"Get serious, OK?\"\n\"I ought to punish you, heeheehee!\"\n\"Nice.\"\n\"Neat.\"\n\"Done.\"\n\"Now Commander!\"\n\"I'll give you my full attention. Heehee!\"\n\"All together now!\"\n\"Let's give it everything we got.\"\n\"On my way!\"\n\"Battle engaged.\"\n\"Let's have a good time while we're out there, okay?\" (C)\n\"Let's score another one for the good guys.\" (C)\n\"Let's finish quickly so we can get back to the party.\" (C)\n\"Hahahahaha.\" (C)\n\"We did it!\" (C)\n\"I'll keep doing my best!\" (C)\n\"All set, Commander.\" (C)\n\"Everyone, hang in there!\" (C)\n\"Shall we get started?\" (C)\n\"Off to battle we go!\" (C)\n\"I'll try my best and work just as hard as you.\" (C)\n\n-----\nWhen the player takes damage (15 sec cooldown):\n\"Cover me!\"\n\"I'll take my chance.\"\n\"Reloading as soon as I can.\"\n\"Ugh!\"\n\"Gah!\"\n\"Uh...\"\n\"Do you need... some therapy?\"\n\"Come over here. I'll keep you warm.\" (C)\n\"My outfit is too short... it's a bit inconvenient.\" (C)\n\"Hang in there, Commander.\" (C)\n\"Aghh!\" (C)\n\"Ack!\" (C)\n\"My hat!\" (C)\n\n-----\nWhen a heist ends in success:\n\"If we work together, this'll be a walk in the park.\"\n\"We're getting closer don't you think? I feel it too.\"\n\"Everyone in the squad is precious to me, but you're the most special of all. Wait, why do I think that?\"\n\"I'll make you feel better... Every part of you.\"\n\"Whoo, it's over! Now we can go party!\" (C)\n\"Now that we've changed into something more comfortable, would you like to go on a date?\" (C)\n\"It's a little cold in here... Can I sit beside you?\" (C)\n\"I don't know why, but I feel like spending this Christmas with you and nobody else. Do you feel that way too?\" (C)\n\n-----\nWhen a heist ends in failure:\n\"Sorry... I need to take a rest.\"\n\"Sorry Commander, but I'm going to go rest for a while...\" (C)\n\n-----\nIn game demo: ![](https://youtu.be/4ARRRidDA_4)\n\nFail line (short): ![](https://youtu.be/cOgOurYAk7k)",
+            "short_desc": "",
+            "version": "",
+            "downloads": 10,
+            "likes": 0,
+            "views": 92,
+            "published_at": "2026-09-16T02:52:28.000000Z",
+            "bumped_at": "2026-09-16T02:52:28.000000Z",
+            "category_id": 6,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": {
+                "file": "k0D91GoSyTiQTGCFahGfUUeZJOIUZak6gD9XWWaV.webp",
+                "has_thumb": true
+            },
+            "download": null,
+            "user": {
+                "id": 226050,
+                "name": "FeaRLess",
+                "donation_url": "",
+                "avatar": "0rraLwFfEQ5KcTaszAIKoZ3mj1cY2mtKxcgCrUsB.webp",
+                "avatar_has_thumb": true
+            }
+        },
+        {
+            "id": 26654,
+            "name": "It's Just Tony - Scarface Name Replacer",
+            "desc": "We all know that in-game, nobody calls him Scarface. I've also seen a few of these mods around the place, but I'd notice that none of them could work with WolfHUD or anything similar, so I decided to make my own that:\r\n1) Replaced as many mentions of \"Scarface\" with \"Tony\" as I could find (excluding loading screen tips/trivia)\r\n2) Is able to work in mod_overrides format\r\n3) Hopefully is future-proof (as I highly doubt Overkill is going to add new strings related to Tony; if they do, well fuck me)\r\n\r\nThanks to the creators of [Rust Nukem Megaton New Year Edition 2019](https://modworkshop.net/mod/23435) for using a similar mod_overrides format and allowing me to have a proper file structure for this mod, as before hand I had no idea of what I was doing.\r\n||~~damn 200 downloads, nice~~||",
+            "short_desc": "tl;dr I changed as many instances of \"Scarface\" i could find and put it into the mod_overrides format",
+            "version": "1.8",
+            "downloads": 940,
+            "likes": 16,
+            "views": 6994,
+            "published_at": "2020-02-22T20:28:30.000000Z",
+            "bumped_at": "2026-09-16T01:13:24.000000Z",
+            "category_id": 247,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": {
+                "file": "50258_1582403310_2823c73d1e62795ecffe5f0117e50432.jpg",
+                "has_thumb": true
+            },
+            "download": null,
+            "user": {
+                "id": 50258,
+                "name": "O🅱ER🅱ILL_🅱inierAardvark1",
+                "donation_url": "",
+                "avatar": "https://avatars.akamai.steamstatic.com/a4e57991699f4b2502339f4d69953d9194461ee1_full.jpg",
+                "avatar_has_thumb": false
+            }
+        },
+        {
+            "id": 27618,
+            "name": "Heisters Rename",
+            "desc": "Got bored waiting for a friend to get back from a meeting to do Overdrill, so I made this.\r\nRenames every Heister to their full name + nickname, with exceptions for those that dont have one or the other.\r\n\r\nDallas - Nathan \"Dallas\" Steele\r\nChains - Nicolas \"Chains\"\r\nWolf - Ulf \"Wolf\" Andersson\r\nHoxton - James \"Hoxton\" Hoxworth\r\netc, etc\r\n\r\nDo be warned, this will change the names in game as well, so all heisters that are bots and on HUDs that show the name will be rather long, depending on who is played.",
+            "short_desc": "Changes Heister's names to their full name+nickname",
+            "version": "3",
+            "downloads": 300,
+            "likes": 5,
+            "views": 3538,
+            "published_at": "2020-05-14T03:36:56.000000Z",
+            "bumped_at": "2026-09-16T01:07:10.000000Z",
+            "category_id": 247,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": {
+                "file": "50258_1589427432_bb677b7fd0630909229eed7d57bfda04.png",
+                "has_thumb": true
+            },
+            "download": null,
+            "user": {
+                "id": 50258,
+                "name": "O🅱ER🅱ILL_🅱inierAardvark1",
+                "donation_url": "",
+                "avatar": "https://avatars.akamai.steamstatic.com/a4e57991699f4b2502339f4d69953d9194461ee1_full.jpg",
+                "avatar_has_thumb": false
+            }
+        },
+        {
+            "id": 58858,
+            "name": "Bullet Offset",
+            "desc": "Adds bullet offset so that bullets actually come from your gun instead of your face. \nYes, the Payday gang have been spitting bullets at their enemies all this time. (They have been shot enough times to canonically do this)\n\n**Preview gifs available under images!**\nThe bullet offset is dynamic with the weapon viewmodel using the fire_obj marker to position and rotate bullets. \nForward offset is disabled, since it could cause you to shoot through walls if you are too close.\n\n-Bullets actually follow weapon lasers!\n-Height over bore is a thing now! No more pixel peeking over obstacles with high mounted optics. \n-Left side peeking is disadvantageous! Unless you've flipped your viewmodel or are dual wielding!\n-Weapons shoot where they are actually pointing! Cancel-shooting an inspect animation will shoot wherever the gun is pointed.\n-Shooting around corners is possible!\n\nThe bullet offset is only really noticeable for around 5-10ish meters, then bullets generally follow their normal trajectory.\n\nPossible problem with akimbo offset: the left gun does not posses a fire_obj marker, to get around this we just flip the offset of the right gun, this might lead to problems with unsymmetrical weapon animations(vanilla ones are all symmetrical)  \n\nI highly recommend [Tactical Leaning](https://modworkshop.net/mod/22254) by [Offyerrocker](https://modworkshop.net/user/offyerrocker) to go with this mod, as they compliment eachother quite well.\n\nI made this because all my other  favorite shooter games have this feature and it absolutely ruined my aim without it.\n\nMod is at a minimal setup loading directly from main.xml instead of a mod.txt, this makes the mod a bit smaller, and also allows you to either put the mod in the mods folder or the mod_overrides folder.\n\n**Note about WeaponLib and broken akimbo weapons**: Current WeaponLib has broken akimbo weapons. Both guns are supposed to shoot one after another once per click but with the current WeaponLib, only the right gun shoots once per click. v1.1 of my mod is compatible with this and makes the bullet spawn alternate between right and left gun. \nIf you want akimbo weapons to work properly you need [Weapon Lib Akimbo one bullet fix + Improved Single/Burst Fire input](https://modworkshop.net/mod/58880) by [I AM GREEN](https://modworkshop.net/user/iamgreen) and v1.2 of my mod.",
+            "short_desc": "",
+            "version": "",
+            "downloads": 158,
+            "likes": 14,
+            "views": 1064,
+            "published_at": "2026-09-12T14:08:45.000000Z",
+            "bumped_at": "2026-09-15T23:36:31.000000Z",
+            "category_id": 200,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": {
+                "file": "yLPWTywere4SYeOIoBzZH2PzmxKgZTysd8F6Zic8.webp",
+                "has_thumb": true
+            },
+            "download": null,
+            "user": {
+                "id": 65365,
+                "name": "TammoTaco",
+                "donation_url": "",
+                "avatar": "https://avatars.akamai.steamstatic.com/581473295ab2c30c4d4e26dee409fa39077d373b_full.jpg",
+                "avatar_has_thumb": false
+            }
+        },
+        {
+            "id": 58904,
+            "name": "Teddy Moo Drill Replacement",
+            "desc": "Just a cosmetic change, Drilling behaviour stays unchanged.\n\nRequires SuperBLT + Beardlib.\n\n~~Download the mod and choose ONE version to install:~~ Now an All in One with toggles, Install to your mods folder & delete the old version if you have it.\n\nChoose from:\n\n- Normal version (Replaces Thermal Lance & The Beast too)\n- \"Cursed\" version (see images)\n- Small Drills Only version",
+            "short_desc": "",
+            "version": "3",
+            "downloads": 42,
+            "likes": 6,
+            "views": 236,
+            "published_at": "2026-09-15T11:57:00.000000Z",
+            "bumped_at": "2026-09-15T20:48:21.000000Z",
+            "category_id": 343,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "thumbnail": {
+                "file": "7P7WGAZmXAkOJKvQ04tfoPtsgR7bIQqWYoLFkhLh.webp",
+                "has_thumb": true
+            },
+            "download": null,
+            "user": {
+                "id": 230759,
+                "name": "ruinfox",
+                "donation_url": null,
+                "avatar": "NiEvxpKKrXssOVz1TpiNSRiqKQZtbVOKborjUg2s.webp",
+                "avatar_has_thumb": false
+            }
+        }
+    ],
+    "meta": {
+        "current_page": 1,
+        "last_page": 1067,
+        "per_page": 24,
+        "total": 25588
+    }
+}
