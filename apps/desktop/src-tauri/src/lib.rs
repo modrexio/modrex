@@ -1,6 +1,7 @@
 mod commands;
 mod game_package;
 mod games;
+mod preview_fixtures;
 
 #[cfg(windows)]
 mod windows_fullscreen;
@@ -303,6 +304,11 @@ pub fn run() {
 #[doc(hidden)]
 pub fn export_game_catalog() {
     games::catalog::export_catalog();
+}
+
+#[doc(hidden)]
+pub fn export_preview_fixtures() {
+    preview_fixtures::export_preview_fixtures();
 }
 
 #[doc(hidden)]

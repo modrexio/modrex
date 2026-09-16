@@ -21,7 +21,7 @@ impl specta::Type for Json {
     }
 }
 
-const BASE: &str = "https://api.modworkshop.net";
+pub(crate) const BASE: &str = "https://api.modworkshop.net";
 const MAX_CONCURRENT: usize = 3;
 // modworkshop enforces 90 req/min per IP, shared across every endpoint
 // (confirmed live via the x-ratelimit-limit response header, which modworkshop
