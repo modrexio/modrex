@@ -1,0 +1,61 @@
+name: Preview Fixtures
+
+on:
+    schedule:
+        - cron: '41 4 * * 1'
+    workflow_dispatch:
+
+permissions:
+    contents: write
+
+concurrency:
+    group: preview-fixtures
+    cancel-in-progress: true
+
+jobs:
+    refresh:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v7
+              with:
+                  ref: main
+
+            - name: Install system dependencies
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install -y \
+                    libwebkit2gtk-4.1-dev \
+                    libappindicator3-dev \
+                    librsvg2-dev \
+                    patchelf
+
+            - uses: pnpm/action-setup@v6
+            - uses: actions/setup-node@v7
+              with:
+                  node-version: 22
+                  cache: pnpm
+            - run: pnpm install --frozen-lockfile
+
+            # Live modworkshop data at the app's own rate limit: five games take a few minutes.
+            - name: Snapshot fixtures
+              run: cargo test --test export_preview_fixtures -- --ignored
+              working-directory: apps/desktop/src-tauri
+
+            # The preview must still render from what was just written before it is published.
+            - run: pnpm test:preview
+              working-directory: apps/desktop
+
+            - name: Publish
+              run: |
+                  set -euo pipefail
+                  git config user.name "github-actions[bot]"
+                  git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+                  git add apps/desktop/src/renderer/preview/fixtures
+                  if git diff --cached --quiet; then
+                    echo "Fixtures are already current."
+                    exit 0
+                  fi
+                  git commit -m "chore(desktop): refresh preview fixtures"
+                  # Never force: whoever pushed meanwhile keeps their commit, and the next
+                  # scheduled run snapshots again on top of it.
+                  git push origin HEAD:main
