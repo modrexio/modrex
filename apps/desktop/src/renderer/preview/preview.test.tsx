@@ -4,6 +4,7 @@ import pd3Mods from './fixtures/pd3/mods.json'
 import pd3ModRecords from './fixtures/pd3/mod-records.json'
 import pd3News from './fixtures/pd3/news.json'
 import pd2Mods from './fixtures/pd2/mods.json'
+import pd2ModRecords from './fixtures/pd2/mod-records.json'
 
 const store = new Map<string, string>()
 
@@ -76,7 +77,7 @@ test('installing from a card lands the mod in the library', async () => {
     await vi.waitFor(() => expect(toggle.getAttribute('aria-checked')).toBe('false'))
     fireEvent.click(await found('Installed'))
     expect(await found('1 mod')).toBeTruthy()
-}, 15000)
+})
 
 test('the library scenario seeds installed mods', async () => {
     window.history.replaceState({}, '', '/?scenario=library')
@@ -102,4 +103,16 @@ test('the first-run scenario asks for telemetry consent', async () => {
     window.history.replaceState({}, '', '/?scenario=first-run')
     await mount()
     expect((await screen.findAllByText('Help improve Modrex')).length).toBeGreaterThan(0)
+})
+
+test('thumbnails fall back to the original when the catalog has no small variant', async () => {
+    vi.resetModules()
+    const { commands } = await import('./commands')
+    await commands.listMods(1, null)
+    const images = Object.values(pd2ModRecords).flatMap((record) => record.detail.images)
+    const withSmall = images.find((image) => image.has_thumb)!
+    const withoutSmall = images.find((image) => !image.has_thumb)!
+    expect(await commands.getThumbnail(withSmall.file, false)).toBe(`thumbnail_${withSmall.file}`)
+    expect(await commands.getThumbnail(withoutSmall.file, false)).toBe(withoutSmall.file)
+    expect(await commands.getThumbnail(withoutSmall.file, true)).toBe(withoutSmall.file)
 })

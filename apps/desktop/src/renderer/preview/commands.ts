@@ -29,6 +29,23 @@ type GameFixtures = {
     categories: unknown
     tags: unknown
     news: NewsResult | null
+    withoutSmallVariant: Set<string>
+}
+
+// Rust's get_thumbnail falls back to the original when the CDN has no thumbnail_ file;
+// the browser can only know that from what the catalog says about each image.
+function withoutSmallVariant(mods: ModPage, records: Record<string, ModRecord>): Set<string> {
+    const files = new Set<string>()
+    const note = (image: { file: string; has_thumb: boolean | null } | null) => {
+        if (image && image.has_thumb !== true) files.add(image.file)
+    }
+    for (const mod of mods.data) note(mod.thumbnail)
+    for (const { detail } of Object.values(records)) {
+        note(detail.thumbnail)
+        note(detail.banner)
+        detail.images.forEach(note)
+    }
+    return files
 }
 
 const STEAM_COMMON = 'C:\\Program Files (x86)\\Steam\\steamapps\\common'
@@ -71,6 +88,7 @@ function load(gameId: GameId): Promise<GameFixtures> {
         categories: categories.default,
         tags: tags.default,
         news: news?.default ?? null,
+        withoutSmallVariant: withoutSmallVariant(mods.default, modRecords.default),
     }))
     fixtures.set(gameId, loading)
     return loading
@@ -300,7 +318,13 @@ const handlers = {
         return news(gameId, page)
     },
     getStorageUsage: async () => ({ thumbnails: 48_300_000, indexDb: 12_900_000, news: 210_000 }),
-    getThumbnail: async (filename, full) => (full ? filename : `thumbnail_${filename}`),
+    getThumbnail: async (filename, full) => {
+        if (full) return filename
+        for (const loaded of await Promise.all(fixtures.values())) {
+            if (loaded.withoutSmallVariant.has(filename)) return filename
+        }
+        return `thumbnail_${filename}`
+    },
     shellOpenExternal: async (url) => {
         window.open(url, '_blank', 'noopener')
     },
