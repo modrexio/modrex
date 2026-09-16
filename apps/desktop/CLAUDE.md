@@ -6,6 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 pnpm dev          # Start Tauri app (launches Vite dev server then Tauri)
+pnpm dev-preview  # Renderer in a plain browser against fixtures, no Rust backend (src/renderer/preview/)
+pnpm build-preview # Static build of the same into out/preview/
+pnpm test:preview # Mount the app through the preview backend in jsdom and assert the browse grid renders
 pnpm build        # Local production build, unsigned (tauri.local.conf.json disables updater artifacts) — exits 0, installer in src-tauri/target/release/bundle/nsis/
 pnpm build:signed # CI production build with updater artifacts — requires TAURI_SIGNING_PRIVATE_KEY (release.yml only; exits 1 without the key)
 pnpm dist:win     # Same as build but with explicit --target x86_64-pc-windows-msvc
@@ -31,6 +34,7 @@ pnpm lint         # ESLint on renderer source (src/renderer/src/)
 pnpm lint:fix     # ESLint with auto-fix
 pnpm test         # Run all tests: Rust (cargo test) then renderer (vitest)
 pnpm test:renderer # Run only renderer TypeScript tests (vitest)
+cd src-tauri && cargo test --test export_preview_fixtures -- --ignored # Refresh preview fixtures from live modworkshop
 pnpm generate-licenses # Regenerate THIRD_PARTY_LICENSES.md (run after adding/updating deps)
 cargo clippy      # Rust lints (run from src-tauri/); the tree is clippy-clean and CI enforces it with -D warnings — any warning is signal. Deliberate exceptions carry #[allow] at the site (too_many_arguments on the four archive-install commands, dead_code on the unwired ue4ss_modstxt read helpers)
 cargo fmt         # Format Rust code (run from src-tauri/)
