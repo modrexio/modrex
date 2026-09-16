@@ -1,36 +1,127 @@
+import { GAMES, isGameId, type GameId } from '@modrex/games'
 import { commands as real } from '../../shared/bindings'
 import type {
     FilePage,
     GameSettings_Serialize,
     InstalledResponse_Serialize,
-    LoaderInfo,
     LinkPage,
+    LoaderInfo,
     LoaderPresence,
     ModDetail,
     ModFolderInfo,
     ModPage,
+    NewsResult,
+    SisrStatus,
     SourceInfo,
 } from '../../shared/bindings'
 import loaders from './fixtures/loaders.json'
 import sources from './fixtures/sources.json'
-import pd3ModFolders from './fixtures/pd3/mod-folders.json'
-import pd3ModRecords from './fixtures/pd3/mod-records.json'
-import pd3Mods from './fixtures/pd3/mods.json'
-import pd3Categories from './fixtures/pd3/categories.json'
-import pd3Tags from './fixtures/pd3/tags.json'
 
 type Commands = typeof real
 
-const GAME_PATH = 'C:\\Program Files (x86)\\Steam\\steamapps\\common\\PAYDAY 3'
+type ModRecord = { detail: ModDetail; files: FilePage; links: LinkPage }
 
-const gameSettings: GameSettings_Serialize = {
-    gamePath: GAME_PATH,
-    launcher: 'steam',
-    installPinned: false,
-    launchOptions: '',
-    suppressCrashReporter: false,
-    crimebossInstallMode: 'auto',
-    loaders: {},
+type GameFixtures = {
+    modFolders: ModFolderInfo[]
+    mods: ModPage
+    modRecords: Record<string, ModRecord>
+    categories: unknown
+    tags: unknown
+    news: NewsResult | null
+}
+
+const STEAM_COMMON = 'C:\\Program Files (x86)\\Steam\\steamapps\\common'
+
+const steamFolders: Record<GameId, string> = {
+    pd3: 'PAYDAY 3',
+    pd2: 'PAYDAY 2',
+    pdth: 'PAYDAY The Heist',
+    cb: 'Crime Boss Rockay City',
+    raid: 'RAID World War II',
+}
+
+const fixtures = new Map<GameId, Promise<GameFixtures>>()
+
+function game(gameId: string): GameId {
+    if (!isGameId(gameId)) throw new Error(`preview: unknown game ${gameId}`)
+    return gameId
+}
+
+function gameForWorkshop(workshopId: number): GameId {
+    const entry = Object.entries(GAMES).find(([, spec]) => spec.workshopId === workshopId)
+    if (!entry) throw new Error(`preview: no game for modworkshop id ${workshopId}`)
+    return entry[0] as GameId
+}
+
+function load(gameId: GameId): Promise<GameFixtures> {
+    const cached = fixtures.get(gameId)
+    if (cached) return cached
+    const loading = Promise.all([
+        import(`./fixtures/${gameId}/mod-folders.json`),
+        import(`./fixtures/${gameId}/mods.json`),
+        import(`./fixtures/${gameId}/mod-records.json`),
+        import(`./fixtures/${gameId}/categories.json`),
+        import(`./fixtures/${gameId}/tags.json`),
+        GAMES[gameId].hasNews ? import(`./fixtures/${gameId}/news.json`) : null,
+    ]).then(([modFolders, mods, modRecords, categories, tags, news]) => ({
+        modFolders: modFolders.default,
+        mods: mods.default,
+        modRecords: modRecords.default,
+        categories: categories.default,
+        tags: tags.default,
+        news: news?.default ?? null,
+    }))
+    fixtures.set(gameId, loading)
+    return loading
+}
+
+async function modRecord(modId: number): Promise<ModRecord> {
+    const loaded = [...fixtures.keys()]
+    const rest = (Object.keys(GAMES) as GameId[]).filter((id) => !fixtures.has(id))
+    for (const gameId of [...loaded, ...rest]) {
+        const record = (await load(gameId)).modRecords[modId]
+        if (record) return record
+    }
+    throw new Error(`preview: no fixture for mod ${modId}`)
+}
+
+async function news(gameId: string, page: number): Promise<NewsResult> {
+    const result = (await load(game(gameId))).news
+    if (!result) throw new Error(`preview: ${gameId} has no news feed`)
+    if (page > 1) throw new Error(`preview: news page ${page} is not snapshotted`)
+    return result
+}
+
+const gameSettings = new Map<GameId, GameSettings_Serialize>()
+
+function settings(gameId: string): GameSettings_Serialize {
+    const id = game(gameId)
+    const existing = gameSettings.get(id)
+    if (existing) return existing
+    const created: GameSettings_Serialize = {
+        gamePath: `${STEAM_COMMON}\\${steamFolders[id]}`,
+        launcher: 'steam',
+        installPinned: false,
+        launchOptions: '',
+        suppressCrashReporter: false,
+        crimebossInstallMode: 'auto',
+        loaders: {},
+    }
+    gameSettings.set(id, created)
+    return created
+}
+
+const flatSettings = {
+    dismissedDepsWarnings: [] as number[],
+    skipFileopenlogWarning: false,
+}
+
+const sisr: SisrStatus = {
+    supported: true,
+    installed: false,
+    running: false,
+    setupComplete: false,
+    autoLaunch: false,
 }
 
 const installed: InstalledResponse_Serialize = {
@@ -40,44 +131,11 @@ const installed: InstalledResponse_Serialize = {
     stateUnreadable: false,
 }
 
-type ModRecord = { detail: ModDetail; files: FilePage; links: LinkPage }
-
 const noLoader: LoaderPresence = {
     installed: false,
     modworkshopId: null,
     version: null,
     unrecognized: [],
-}
-
-const games = {
-    pd3: {
-        workshopId: 853,
-        modFolders: pd3ModFolders as ModFolderInfo[],
-        mods: pd3Mods as ModPage,
-        modRecords: pd3ModRecords as unknown as Record<string, ModRecord>,
-        categories: pd3Categories,
-        tags: pd3Tags,
-    },
-}
-
-function game(gameId: string) {
-    const entry = games[gameId as keyof typeof games]
-    if (!entry) throw new Error(`preview: no fixtures for game ${gameId}`)
-    return entry
-}
-
-function workshop(workshopId: number) {
-    const entry = Object.values(games).find((g) => g.workshopId === workshopId)
-    if (!entry) throw new Error(`preview: no fixtures for modworkshop game ${workshopId}`)
-    return entry
-}
-
-function modRecord(modId: number) {
-    for (const entry of Object.values(games)) {
-        const record = entry.modRecords[modId]
-        if (record) return record
-    }
-    throw new Error(`preview: no fixture for mod ${modId}`)
 }
 
 const handlers = {
@@ -89,22 +147,45 @@ const handlers = {
     updateDiscordPresence: async () => {},
     checkForUpdate: async () => null,
     configureGamePath: async () => null,
-    getGameSettings: async () => gameSettings,
-    detectedInstalls: async () => [{ launcher: 'steam', gamePath: GAME_PATH }],
-    detectInstalledGames: async () => ['pd3'],
+    getGameSettings: async (gameId) => settings(gameId),
+    getSettings: async () => flatSettings,
+    setLaunchOptions: async (gameId, launchOptions) => {
+        settings(gameId).launchOptions = launchOptions
+    },
+    setSuppressCrashReporter: async (gameId, suppress) => {
+        settings(gameId).suppressCrashReporter = suppress
+    },
+    setCrimebossInstallMode: async (mode) => {
+        settings('cb').crimebossInstallMode = mode
+    },
+    setSkipFileopenlogWarning: async (skip) => {
+        flatSettings.skipFileopenlogWarning = skip
+    },
+    dismissDepsWarning: async (modId) => {
+        flatSettings.dismissedDepsWarnings.push(modId)
+    },
+    getSisrStatus: async () => sisr,
+    setAutoLaunchSisr: async (enabled) => {
+        sisr.autoLaunch = enabled
+        return null
+    },
+    detectedInstalls: async (gameId) => [
+        { launcher: 'steam', gamePath: settings(gameId).gamePath ?? '' },
+    ],
+    detectInstalledGames: async () => Object.keys(GAMES),
     getInstalled: async () => installed,
     listLoaders: async () => loaders as LoaderInfo[],
     listSources: async () => sources as SourceInfo[],
     checkLoader: async () => false,
     ue4ssPresence: async () => noLoader,
-    listModFolders: async (gameId) => game(gameId).modFolders,
+    listModFolders: async (gameId) => (await load(game(gameId))).modFolders,
     secretStoreAvailable: async () => true,
     nexusOauthSignedIn: async () => false,
     isGameRunning: async () => false,
-    listCategories: async (gameId) => workshop(gameId).categories,
-    listTags: async (gameId) => workshop(gameId).tags,
-    listMods: async (gameId, params) => {
-        const page = workshop(gameId).mods
+    listCategories: async (workshopId) => (await load(gameForWorkshop(workshopId))).categories,
+    listTags: async (workshopId) => (await load(gameForWorkshop(workshopId))).tags,
+    listMods: async (workshopId, params) => {
+        const page = (await load(gameForWorkshop(workshopId))).mods
         const query = params?.query?.toLowerCase()
         const ids = params?.ids
         if (!query && !ids) return page
@@ -114,10 +195,17 @@ const handlers = {
         )
         return { data, meta: { ...page.meta, total: data.length, last_page: 1 } }
     },
-    getMod: async (id) => modRecord(id).detail,
-    listModFiles: async (modId) => modRecord(modId).files,
-    listModLinks: async (modId) => modRecord(modId).links,
+    getMod: async (id) => (await modRecord(id)).detail,
+    listModFiles: async (modId) => (await modRecord(modId)).files,
+    listModLinks: async (modId) => (await modRecord(modId)).links,
+    fetchNews: async (gameId) => news(gameId, 1),
+    refreshNews: async (gameId) => news(gameId, 1),
+    fetchNewsPage: async (gameId, page) => news(gameId, page),
+    getStorageUsage: async () => ({ thumbnails: 48_300_000, indexDb: 12_900_000, news: 210_000 }),
     getThumbnail: async (filename, full) => (full ? filename : `thumbnail_${filename}`),
+    shellOpenExternal: async (url) => {
+        window.open(url, '_blank', 'noopener')
+    },
 } satisfies Partial<Commands>
 
 const unhandled = Object.fromEntries(
