@@ -3,6 +3,9 @@
 
 use serde::Serialize;
 use serde_json::Value;
+use std::collections::BTreeMap;
+
+use crate::commands::domain::{FilePage, LinkPage, ModDetail};
 
 const FIXTURES_DIR: &str = "../src/renderer/preview/fixtures";
 const LISTING_LIMIT: u32 = 24;
@@ -10,6 +13,13 @@ const LISTING_LIMIT: u32 = 24;
 struct Snapshot {
     game_id: &'static str,
     workshop_id: u32,
+}
+
+#[derive(Serialize)]
+struct ModRecord {
+    detail: ModDetail,
+    files: FilePage,
+    links: LinkPage,
 }
 
 const SNAPSHOTS: &[Snapshot] = &[Snapshot {
@@ -63,7 +73,32 @@ pub fn export_preview_fixtures() {
             .await;
             let page = crate::commands::domain::parse_mod_page(listing)
                 .unwrap_or_else(|e| panic!("{} listing: {e}", snapshot.game_id));
+            let mut records = BTreeMap::new();
+            for summary in &page.data {
+                let id = summary.id;
+                let detail = crate::commands::domain::parse_mod_detail(
+                    get(&format!("/mods/{id}"), &[]).await,
+                )
+                .unwrap_or_else(|e| panic!("mod {id} detail: {e}"));
+                let files = crate::commands::domain::parse_file_page(
+                    get(&format!("/mods/{id}/files"), &[]).await,
+                )
+                .unwrap_or_else(|e| panic!("mod {id} files: {e}"));
+                let links = crate::commands::domain::parse_link_page(
+                    get(&format!("/mods/{id}/links"), &[]).await,
+                )
+                .unwrap_or_else(|e| panic!("mod {id} links: {e}"));
+                records.insert(
+                    id,
+                    ModRecord {
+                        detail,
+                        files,
+                        links,
+                    },
+                );
+            }
             write(&format!("{}/mods", snapshot.game_id), &page);
+            write(&format!("{}/mod-records", snapshot.game_id), &records);
             write(
                 &format!("{}/categories", snapshot.game_id),
                 &get(&format!("{game}/categories"), &[]).await,
