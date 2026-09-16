@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 pnpm dev          # Start Tauri app (launches Vite dev server then Tauri)
-pnpm dev-preview  # Renderer in a plain browser against fixtures, no Rust backend (src/renderer/preview/)
+pnpm dev-preview  # Renderer in a plain browser against fixtures, no Rust backend (src/renderer/preview/); ?scenario= forces a state, see preview/scenario.ts
 pnpm build-preview # Static build of the same into out/preview/
 pnpm test:preview # Mount the app through the preview backend in jsdom and assert the browse grid renders
 pnpm build        # Local production build, unsigned (tauri.local.conf.json disables updater artifacts) — exits 0, installer in src-tauri/target/release/bundle/nsis/
