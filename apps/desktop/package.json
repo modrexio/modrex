@@ -6,9 +6,11 @@
     "scripts": {
         "dev": "tauri dev",
         "dev-renderer": "vite",
+        "dev-preview": "vite --mode preview",
         "build": "tauri build --config src-tauri/tauri.local.conf.json",
         "build:signed": "tauri build",
         "build-renderer": "vite build",
+        "build-preview": "vite build --mode preview",
         "dist": "tauri build --config src-tauri/tauri.local.conf.json",
         "dist:win": "tauri build --target x86_64-pc-windows-msvc --config src-tauri/tauri.local.conf.json",
         "dist:linux": "tauri build --target x86_64-unknown-linux-gnu --config src-tauri/tauri.local.conf.json",

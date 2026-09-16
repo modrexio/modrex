@@ -4,6 +4,7 @@ import tailwindcss from '@tailwindcss/vite'
 import svgr from 'vite-plugin-svgr'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import type { Plugin } from 'vite'
 import pkg from './package.json'
 
 const startupIconPath = fileURLToPath(new URL('./assets/icon.png', import.meta.url)).replaceAll(
@@ -11,7 +12,34 @@ const startupIconPath = fileURLToPath(new URL('./assets/icon.png', import.meta.u
     '/'
 )
 
-export default defineConfig({
+const previewDir = resolve(import.meta.dirname, 'src/renderer/preview')
+const bindingsPath = resolve(import.meta.dirname, 'src/shared/bindings.ts')
+
+const previewShims: Record<string, string> = {
+    '@tauri-apps/api/core': 'tauri/core.ts',
+    '@tauri-apps/api/event': 'tauri/event.ts',
+    '@tauri-apps/api/window': 'tauri/window.ts',
+    '@tauri-apps/api/webview': 'tauri/webview.ts',
+    '@tauri-apps/plugin-log': 'tauri/log.ts',
+}
+
+// The preview's own files keep the real bindings, since the mock command table wraps them.
+function previewBackend(): Plugin {
+    return {
+        name: 'preview-backend',
+        enforce: 'pre',
+        async resolveId(source, importer, options) {
+            const shim = previewShims[source]
+            if (shim) return resolve(previewDir, shim)
+            if (importer?.startsWith(previewDir)) return null
+            const resolved = await this.resolve(source, importer, { ...options, skipSelf: true })
+            if (resolved?.id === bindingsPath) return resolve(previewDir, 'bindings.ts')
+            return resolved
+        },
+    }
+}
+
+export default defineConfig(({ mode }) => ({
     root: 'src/renderer',
     clearScreen: false,
     server: {
@@ -23,6 +51,7 @@ export default defineConfig({
         'import.meta.env.VITE_APP_VERSION': JSON.stringify(pkg.version),
     },
     plugins: [
+        ...(mode === 'preview' ? [previewBackend()] : []),
         {
             name: 'startup-icon-dev-path',
             transformIndexHtml: {
@@ -38,7 +67,7 @@ export default defineConfig({
         tailwindcss(),
     ],
     build: {
-        outDir: '../../out/renderer',
+        outDir: mode === 'preview' ? '../../out/preview' : '../../out/renderer',
         emptyOutDir: true,
         target: 'chrome105',
         minify: true,
@@ -50,4 +79,4 @@ export default defineConfig({
             },
         },
     },
-})
+}))
