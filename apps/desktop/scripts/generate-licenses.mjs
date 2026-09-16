@@ -49,17 +49,21 @@ for (const packages of Object.values(npmData)) {
     }
 }
 
+// The pre-commit hook stages whatever this writes, so a missing tool must stop the
+// commit rather than produce a file with the Rust section gone.
 const rustTmp = join(rootDir, 'src-tauri', '_rust-licenses.tmp.md')
 let rustLines = []
 try {
     execSync(`cargo about generate about.hbs -o "${rustTmp}"`, {
         cwd: join(rootDir, 'src-tauri'),
+        stdio: 'pipe',
     })
     rustLines = readFileSync(rustTmp, 'utf-8').split('\n')
     unlinkSync(rustTmp)
 } catch (e) {
-    console.warn('cargo-about failed — skipping Rust section:', e.message)
-    rustLines = ['> Run `cargo install cargo-about --features=cli` then re-run this script.']
+    console.error('cargo-about failed, THIRD_PARTY_LICENSES.md left unchanged:', e.message)
+    console.error('Install it with: cargo install cargo-about --features=cli')
+    process.exit(1)
 }
 
 const header = [
