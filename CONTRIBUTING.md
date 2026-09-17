@@ -5,6 +5,8 @@ Thanks for taking the time to contribute! Every bug report, suggestion, and pull
 If you want to improve an existing translation or add a language, use the dedicated
 [translation guide](TRANSLATING.md). It does not require the development setup below.
 
+To review the desktop interface in a browser, use the [app preview guide](PREVIEW.md).
+
 ## Development setup
 
 | Command                  | Description                                     |
