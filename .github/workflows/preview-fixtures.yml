@@ -19,6 +19,7 @@ jobs:
             - uses: actions/checkout@v7
               with:
                   ref: main
+                  fetch-depth: 0
 
             - name: Install system dependencies
               run: |
@@ -36,26 +37,60 @@ jobs:
                   cache: pnpm
             - run: pnpm install --frozen-lockfile
 
-            # Live modworkshop data at the app's own rate limit: five games take a few minutes.
-            - name: Snapshot fixtures
-              run: cargo test --test export_preview_fixtures -- --ignored
-              working-directory: apps/desktop/src-tauri
-
-            # The preview must still render from what was just written before it is published.
-            - run: pnpm test:preview
-              working-directory: apps/desktop
-
-            - name: Publish
+            - name: Snapshot, verify and publish
+              env:
+                  GITHUB_TOKEN: ${{ github.token }}
               run: |
                   set -euo pipefail
+
                   git config user.name "github-actions[bot]"
                   git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-                  git add apps/desktop/src/renderer/preview/fixtures
-                  if git diff --cached --quiet; then
-                    echo "Fixtures are already current."
-                    exit 0
-                  fi
-                  git commit -m "chore(desktop): refresh preview fixtures"
-                  # Never force: whoever pushed meanwhile keeps their commit, and the next
-                  # scheduled run snapshots again on top of it.
-                  git push origin HEAD:main
+
+                  must() {
+                    "$@" || { echo "::error::preview fixture step failed: $*"; exit 1; }
+                  }
+
+                  must_in() {
+                    local directory="$1"
+                    shift
+                    (cd "$directory" && "$@") ||
+                      { echo "::error::preview fixture step failed in $directory: $*"; exit 1; }
+                  }
+
+                  attempt_publish() {
+                    must git fetch origin main
+                    must git reset --hard origin/main
+
+                    # Live ModWorkshop data at the app's own rate limit: five games take a few minutes.
+                    must_in apps/desktop/src-tauri cargo test --test export_preview_fixtures -- --ignored
+
+                    # Publish only a snapshot that the browser preview can render.
+                    must_in apps/desktop pnpm test:preview
+
+                    must git add apps/desktop/src/renderer/preview/fixtures
+                    if git diff --cached --quiet; then
+                      echo "Fixtures are already current."
+                      return 0
+                    fi
+                    must git commit -m "chore(desktop): refresh preview fixtures"
+
+                    # Never force: a concurrent main update keeps its commit, and the next
+                    # attempt rebuilds the fixtures and tests them on that new revision.
+                    if git push origin HEAD:main; then
+                      return 0
+                    fi
+                    echo "main advanced during this run; recomputing from fresh main."
+                    return 1
+                  }
+
+                  for attempt in 1 2 3; do
+                    echo "::group::Attempt $attempt"
+                    if attempt_publish; then
+                      echo "::endgroup::"
+                      exit 0
+                    fi
+                    echo "::endgroup::"
+                  done
+
+                  echo "main kept advancing; leaving the next scheduled run to publish."
+                  exit 1
