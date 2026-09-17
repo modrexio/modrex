@@ -7145,7 +7145,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 ## ISC License
 
-Used by: rustls-webpki 0.103.13
+Used by: rustls-webpki 0.103.15
 
 ```
 Except as otherwise noted, this project is licensed under the following
@@ -8598,7 +8598,7 @@ DEALINGS IN THE SOFTWARE.
 
 ## MIT License
 
-Used by: hyper-rustls 0.27.9, rustls-native-certs 0.8.3, rustls 0.23.43
+Used by: hyper-rustls 0.27.9, rustls-native-certs 0.8.3, rustls 0.23.45
 
 ```
 Copyright (c) 2016 Joseph Birr-Pixton <jpixton@gmail.com>
