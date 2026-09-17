@@ -47,10 +47,9 @@ export async function onRequestGet({ request, params }: PagesContext): Promise<R
         const sha = pull.head?.sha
         if (!sha) throw new Error('GitHub pull request response has no head commit')
 
-        const checksResponse = await fetch(
-            `${GITHUB_API}/commits/${sha}/check-runs?check_name=Cloudflare%20Pages`,
-            { headers: githubHeaders }
-        )
+        const checksResponse = await fetch(`${GITHUB_API}/commits/${sha}/check-runs?per_page=100`, {
+            headers: githubHeaders,
+        })
         if (!checksResponse.ok) {
             throw new Error(`GitHub checks request failed with ${checksResponse.status}`)
         }

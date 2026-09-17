@@ -53,7 +53,7 @@ describe('/pr/:number', () => {
     })
 
     it('redirects to the app branch preview and keeps the selected state', async () => {
-        globalThis.fetch = vi
+        const fetch = vi
             .fn()
             .mockResolvedValueOnce(response({ head: { sha: 'abc123' } }))
             .mockResolvedValueOnce(
@@ -83,9 +83,15 @@ describe('/pr/:number', () => {
                     ],
                 })
             )
+        globalThis.fetch = fetch
 
         const result = await onRequestGet(context('42', '?library=large&network=offline'))
 
+        expect(fetch).toHaveBeenNthCalledWith(
+            2,
+            'https://api.github.com/repos/modrexio/modrex/commits/abc123/check-runs?per_page=100',
+            expect.anything()
+        )
         expect(result.status).toBe(302)
         expect(result.headers.get('Location')).toBe(
             'https://feature.modrex-app-preview.pages.dev/?library=large&network=offline'
