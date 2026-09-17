@@ -3,13 +3,15 @@ import { fileURLToPath } from 'node:url'
 
 import { serializeLocale } from './i18n-files.mjs'
 import { formatTargetValue, TARGET_VALUE_KIND } from '../src/shared/i18n-values.js'
-import { HISTORY_EVENT } from './i18n-history-events.mjs'
+import { entryId, HISTORY_EVENT, PENDING_PROVENANCE } from './i18n-history-events.mjs'
 import {
     analyzeCommittedHistory,
     analyzeRepairableProspective,
+    explicitReviewRequests,
     I18N_HISTORY_BASELINE,
     I18N_LOCALE_DIR,
     stagedSnapshot,
+    summarizeHistory,
     workingTreeSnapshot,
 } from './i18n-history.mjs'
 import { createGitAdapter } from './i18n-git.mjs'
@@ -135,6 +137,75 @@ export function summarizeEnforcementOperations(operations) {
     return [...counts.entries()].map(([kind, count]) => `${kind}: ${count}`).join(', ')
 }
 
+export function validateHistoryInvariants(history) {
+    const summary = summarizeHistory(history)
+    const requests = explicitReviewRequests(history)
+    const requested = new Set(requests.map((event) => entryId(event.locale, event.key)))
+
+    for (const event of requests) {
+        const id = `${event.locale}.${event.key}`
+        const entry = summary.locales.get(event.locale)?.entries.get(event.key)
+        if (event.sourceChanged || event.canonicalChanged) {
+            throw new Error(
+                `Committed i18n history is inconsistent: ${id} review request changed text`
+            )
+        }
+        if (!entry?.hasAcceptedLineage || !entry.acceptedPairSeen) {
+            throw new Error(
+                `Committed i18n history is inconsistent: ${id} review request has no accepted lineage`
+            )
+        }
+        if (
+            entry.state === 'pending' &&
+            entry.pendingProvenance !== PENDING_PROVENANCE.EXPLICIT_REQUEST
+        ) {
+            throw new Error(
+                `Committed i18n history is inconsistent: ${id} review request has ${entry.pendingProvenance} provenance`
+            )
+        }
+    }
+
+    const sourceKeys = history.snapshot.source.size
+    if (sourceKeys === 0) {
+        throw new Error('Committed i18n history is inconsistent: English source has no keys')
+    }
+    if (summary.locales.size === 0) {
+        throw new Error('Committed i18n history is inconsistent: no target locales were found')
+    }
+
+    for (const [localeId, locale] of summary.locales) {
+        let accepted = 0
+        let pending = 0
+        for (const [key, entry] of locale.entries) {
+            if (entry.state === 'accepted') accepted += 1
+            if (entry.state === 'pending') pending += 1
+            if (
+                entry.pendingProvenance === PENDING_PROVENANCE.EXPLICIT_REQUEST &&
+                !requested.has(entryId(localeId, key))
+            ) {
+                throw new Error(
+                    `Committed i18n history is inconsistent: ${localeId}.${key} has explicit-review provenance without a request`
+                )
+            }
+        }
+        if (locale.accepted !== accepted) {
+            throw new Error(
+                `Committed i18n history is inconsistent: ${localeId} accepted total is ${locale.accepted}, expected ${accepted}`
+            )
+        }
+        if (locale.pending !== pending) {
+            throw new Error(
+                `Committed i18n history is inconsistent: ${localeId} pending total is ${locale.pending}, expected ${pending}`
+            )
+        }
+        if (locale.accepted + locale.pending > sourceKeys) {
+            throw new Error(
+                `Committed i18n history is inconsistent: ${localeId} has more entries than English`
+            )
+        }
+    }
+}
+
 export function stagedI18nPaths({ cwd = process.cwd(), localeDir = I18N_LOCALE_DIR, git } = {}) {
     const adapter = git ?? createGitAdapter({ cwd })
     return adapter.stagedChangedPaths().filter((path) => relevantPath(path, localeDir))
@@ -152,6 +223,7 @@ function analyzeSnapshot({
 } = {}) {
     const adapter = git ?? createGitAdapter({ cwd })
     const committed = analyzeCommittedHistory({ cwd, localeDir, baseline, git: adapter })
+    validateHistoryInvariants(committed)
     const currentSnapshot = snapshot ?? workingTreeSnapshot(cwd, localeDir)
     if (currentSnapshot.source.size === 0) {
         throw new Error('Staged/current English source locale is missing')

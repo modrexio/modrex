@@ -193,8 +193,7 @@ jobs:
             - uses: actions/setup-node@v7
               with:
                   node-version: 22
-            - run: node --test scripts/*.test.mjs
-              working-directory: apps/desktop
+            - run: pnpm --dir apps/desktop test:tooling
 
     site:
         needs: changes

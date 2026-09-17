@@ -11,6 +11,7 @@ import {
     formatWorkflowSummary,
     runI18nEnforcement,
     summarizeWorkflow,
+    validateHistoryInvariants,
 } from './i18n-enforcement.mjs'
 import { createGitAdapter } from './i18n-git.mjs'
 import { HISTORY_EVENT } from './i18n-history-events.mjs'
@@ -336,6 +337,29 @@ test('working-tree checker is read-only and reports canonical drift', async () =
         const result = checkI18nSnapshot({ cwd, baseline, localeDir: 'i18n' })
         assert.equal(result.pass, false)
         assert.deepEqual(readFileSync(join(cwd, 'i18n', 'de.json')), before)
+    })
+})
+
+test('committed history invariants reject review requests that changed text', async () => {
+    await withFixture(({ cwd, baseline }) => {
+        const history = checkI18nSnapshot({ cwd, baseline, localeDir: 'i18n' }).history
+        const invalid = {
+            ...history,
+            events: [
+                ...history.events,
+                {
+                    kind: HISTORY_EVENT.EXPLICIT_REVIEW_REQUESTED,
+                    locale: 'de',
+                    key: 'key',
+                    sourceChanged: true,
+                    canonicalChanged: false,
+                },
+            ],
+        }
+        assert.throws(
+            () => validateHistoryInvariants(invalid),
+            /Committed i18n history is inconsistent: .* review request changed text/u
+        )
     })
 })
 

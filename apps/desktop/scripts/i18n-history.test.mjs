@@ -16,12 +16,10 @@ import {
     I18nHistoryDataError,
     I18nHistoryStateError,
     I18nHistoryUnavailableError,
-    I18N_HISTORY_BASELINE,
     summarizeHistory,
 } from './i18n-history.mjs'
 
 const LOCALE_DIR = 'i18n'
-const REPO_ROOT = join(import.meta.dirname, '../../..')
 
 function git(cwd, args) {
     return execFileSync('git', args, { cwd, encoding: 'utf8' }).trim()
@@ -1191,84 +1189,3 @@ test('git work scales with revisions, never with keys', () => {
         assert.ok(history.events.length >= 1)
     })
 })
-
-// A shallow checkout cannot prove the baseline path, which is the refusal the engine is
-// specified to produce. These two assert against real history, so they run wherever it
-// exists and report why they cannot run where it does not.
-const realHistory = describeHistoryAvailability({ cwd: REPO_ROOT })
-const withoutRealHistory = realHistory.available
-    ? false
-    : `authoritative history through ${I18N_HISTORY_BASELINE} is unavailable here`
-
-// Which keys are translated, and how many, changes with every contribution, so these assert
-// invariants that hold at any revision rather than today's content. Exact reconstruction is
-// proven against the synthetic repositories above, where the content is fixed.
-test(
-    'the real repository agrees between its review-request events and its entry states',
-    {
-        skip: withoutRealHistory,
-    },
-    () => {
-        const history = analyzeCommittedHistory({ cwd: REPO_ROOT })
-        assert.equal(history.baseline, I18N_HISTORY_BASELINE)
-
-        // Resolving a review accepts the entry, so a requested entry is pending or accepted
-        // depending on the revision. Only the lineage a request proves holds in both states.
-        const requests = explicitReviewRequests(history)
-        for (const event of requests) {
-            assert.equal(event.sourceChanged, false)
-            assert.equal(event.canonicalChanged, false)
-            const entry = entryOf(history, event.locale, event.key)
-            assert.equal(entry.hasAcceptedLineage, true)
-            assert.equal(entry.acceptedPairSeen, true)
-            if (entry.state !== 'pending') continue
-            assert.equal(entry.pendingProvenance, PENDING_PROVENANCE.EXPLICIT_REQUEST)
-        }
-
-        // Containment runs one way only. A resolved request stays in the log while its entry
-        // stops being flagged, so equality between the two sets breaks on the first review.
-        const summary = summarizeHistory(history)
-        const requested = new Set(requests.map((event) => entryId(event.locale, event.key)))
-        for (const [localeId, locale] of summary.locales) {
-            for (const [key, entry] of locale.entries) {
-                if (entry.pendingProvenance !== PENDING_PROVENANCE.EXPLICIT_REQUEST) continue
-                assert.ok(
-                    requested.has(entryId(localeId, key)),
-                    `${entryId(localeId, key)} is flagged as an explicit request with no logged request`
-                )
-            }
-        }
-    }
-)
-
-test(
-    'the real repository reports totals that match its per-entry states',
-    {
-        skip: withoutRealHistory,
-    },
-    () => {
-        const history = analyzeCommittedHistory({ cwd: REPO_ROOT })
-        const summary = summarizeHistory(history)
-        const sourceKeys = history.snapshot.source.size
-
-        assert.ok(sourceKeys > 0)
-        assert.ok(summary.locales.size > 0)
-        for (const [localeId, locale] of summary.locales) {
-            const states = [...locale.entries.values()].map((entry) => entry.state)
-            assert.equal(
-                locale.accepted,
-                states.filter((state) => state === 'accepted').length,
-                `${localeId} accepted total`
-            )
-            assert.equal(
-                locale.pending,
-                states.filter((state) => state === 'pending').length,
-                `${localeId} pending total`
-            )
-            assert.ok(
-                locale.accepted + locale.pending <= sourceKeys,
-                `${localeId} counts no more entries than the source has keys`
-            )
-        }
-    }
-)

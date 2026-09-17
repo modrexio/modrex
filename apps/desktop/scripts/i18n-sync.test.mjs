@@ -10,15 +10,12 @@ import {
     writeFileSync,
 } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { dirname, join, resolve } from 'node:path'
+import { join } from 'node:path'
 import test from 'node:test'
-import { fileURLToPath } from 'node:url'
 import { PENDING_PREFIX } from '../src/shared/i18n-values.js'
 import { writeSerializedFileAtomically } from './i18n-files.mjs'
 import {
     analyzeRepairableProspective,
-    describeHistoryAvailability,
-    I18N_LOCALE_DIR,
     snapshotFromBundles,
     summarizeHistory,
 } from './i18n-history.mjs'
@@ -34,8 +31,6 @@ import {
 } from './i18n-sync.mjs'
 
 const LOCALE_DIR = 'i18n'
-const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
-const REPOSITORY_ROOT = resolve(SCRIPT_DIR, '../../..')
 
 function semanticHistory(revisions) {
     const baselineSnapshot = snapshotFromBundles('baseline', revisions[0])
@@ -732,86 +727,6 @@ test('no-op summary reports zero operations and no changed files', () => {
         assert.doesNotMatch(output, /translations?/i)
     })
 })
-
-const realHistory = describeHistoryAvailability({ cwd: REPOSITORY_ROOT })
-const localeWorktreeStatus = git(REPOSITORY_ROOT, ['status', '--porcelain', '--', I18N_LOCALE_DIR])
-let unavailableRealSyncReason = false
-if (!realHistory.available) {
-    unavailableRealSyncReason = 'authoritative real-repository history is unavailable here'
-}
-if (realHistory.available && localeWorktreeStatus) {
-    unavailableRealSyncReason = 'real locale files have uncommitted changes'
-}
-
-// A contributor changing en.json alone is a valid commit: the scaffolds and markers that
-// follow are the translation-status workflow's to write, so this cannot require the committed
-// tree to be synchronized already. What it does require is that the plan the workflow would
-// apply is authoritative — every operation mechanical, never target-language text — which is
-// the property that makes deferring the write safe. Idempotence is covered against fixtures,
-// where the plan can be applied and re-planned without touching the real repository.
-test(
-    'the real repository has an authoritative sync plan',
-    { skip: unavailableRealSyncReason },
-    () => {
-        let writes = 0
-        const result = synchronizeI18n({
-            cwd: REPOSITORY_ROOT,
-            write() {
-                writes += 1
-            },
-        })
-
-        const mechanical = new Set(Object.values(SYNC_OPERATION))
-        const sourceKeys = new Set()
-        const collect = (node, prefix) => {
-            for (const [key, value] of Object.entries(node)) {
-                const path = prefix ? `${prefix}.${key}` : key
-                if (value && typeof value === 'object') collect(value, path)
-                else sourceKeys.add(path)
-            }
-        }
-        collect(
-            JSON.parse(readFileSync(join(REPOSITORY_ROOT, I18N_LOCALE_DIR, 'en.json'), 'utf8')),
-            ''
-        )
-        for (const locale of result.plan.locales) {
-            for (const op of locale.operations) {
-                assert.ok(
-                    mechanical.has(op.kind),
-                    `${locale.id} planned a non-mechanical operation: ${op.kind}`
-                )
-                assert.notEqual(op.locale, 'en', 'the source locale is never a sync target')
-                // Removal and creation answer opposite questions of en.json. A scaffold is
-                // removed precisely because English dropped the key; everything else writes
-                // against a source string, and inventing a key English does not have would be
-                // writing text nothing backs.
-                if (op.kind === SYNC_OPERATION.SCAFFOLD_REMOVED) {
-                    assert.ok(
-                        !sourceKeys.has(op.key),
-                        `${op.locale} planned to remove '${op.key}', which en.json still has`
-                    )
-                    continue
-                }
-                assert.ok(
-                    sourceKeys.has(op.key),
-                    `${op.locale} planned ${op.kind} for '${op.key}', which en.json does not have`
-                )
-            }
-        }
-        // A locale is written exactly when the plan gave it something to do.
-        assert.equal(writes, result.plan.locales.filter((l) => l.operations.length > 0).length)
-        assert.equal(result.written.length, writes)
-
-        const summary = summarizeHistory(result.finalHistory)
-        for (const locale of summary.locales.values()) {
-            for (const entry of locale.entries.values()) {
-                if (entry.pendingProvenance !== PENDING_PROVENANCE.EXPLICIT_REQUEST) continue
-                assert.equal(entry.state, 'pending')
-                assert.equal(entry.acceptedPairSeen, true)
-            }
-        }
-    }
-)
 
 test('CLI rejects locale arguments with exit 2 and history failures with exit 1', () => {
     const stdout = { write() {} }

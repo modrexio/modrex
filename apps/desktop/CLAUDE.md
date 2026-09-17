@@ -24,12 +24,13 @@ pnpm i18n:check de # Validate one locale with actionable translator-facing error
 pnpm i18n:fill de # Fill missing keys with marked English fallbacks for IDE editing
 pnpm i18n:translate de # Interactively continue an existing locale
 pnpm i18n:create uk # Create an IDE-ready locale with marked English text
-pnpm checks       # Run the full CI gate locally: all check-* scripts, format:check, lint, typecheck, tests
+pnpm checks       # Run the product CI gates locally: all check-* scripts, format:check, lint, typecheck, product tests
 pnpm format       # Format all files with prettier
 pnpm format:check # Check formatting without writing
 pnpm lint         # ESLint on renderer source (src/renderer/src/)
 pnpm lint:fix     # ESLint with auto-fix
-pnpm test         # Run all tests: Rust (cargo test) then renderer (vitest)
+pnpm test         # Run product tests: Rust (cargo test) then renderer (vitest)
+pnpm test:tooling # Run the Node tooling tests in parallel
 pnpm test:renderer # Run only renderer TypeScript tests (vitest)
 pnpm generate-licenses # Regenerate THIRD_PARTY_LICENSES.md (run after adding/updating deps)
 cargo clippy      # Rust lints (run from src-tauri/); the tree is clippy-clean and CI enforces it with -D warnings — any warning is signal. Deliberate exceptions carry #[allow] at the site (too_many_arguments on the four archive-install commands, dead_code on the unwired ue4ss_modstxt read helpers)
@@ -216,7 +217,10 @@ README block or to a status SVG are overwritten on the next run.
 
 ## Testing
 
-Rust unit tests live in separate test files referenced from the module via `#[cfg(test)] mod tests;`, or inline in the module file itself. 332 tests across 14 modules — run with `cargo test` inside `src-tauri/`. `tempfile` and `filetime` crates are in `[dev-dependencies]` for filesystem tests; `tokio = { version = "1", features = ["rt", "macros"] }` is in `[dev-dependencies]` (in addition to the production dep) to enable `#[tokio::test]` for async filesystem tests.
+`pnpm test` runs product tests only. `pnpm test:tooling` runs the 14 Node tooling test files
+in parallel.
+
+Rust unit tests live in separate test files referenced from the module via `#[cfg(test)] mod tests;`, or inline in the module file itself. 733 tests — run with `cargo test` inside `src-tauri/`. `tempfile` and `filetime` crates are in `[dev-dependencies]` for filesystem tests; `tokio = { version = "1", features = ["rt", "macros"] }` is in `[dev-dependencies]` (in addition to the production dep) to enable `#[tokio::test]` for async filesystem tests.
 
 - `commands/domain.rs` (inline `#[cfg(test)] mod tests`) — the external-API parsers, which are the one place a bad response can empty a whole page. Covers a real ModWorkshop listing shape, a link-type download carrying no `download_url`/`type`/`size`, a mod missing nearly every field, an empty page, unknown fields being ignored, file and link listings, mod details (including that `serde(flatten)` still merges the summary half, and that a dependency keeps its nested summary and its offsite form), and the Nexus mapping plus its offset-to-page-count conversion. Four tests specifically assert that **explicit nulls** fall back to defaults: `serde(default)` covers an absent field but not a present `null`, and a live response with `"category_id": null` used to fail the entire request.
 - `commands/conformance_tests.rs` — the cross-game conformance suite: every check is written once and run for **every** entry in `GAME_REGISTRY`, so a family-conforming new game gets coverage by existing in the registry. Covers engine/def completeness (index game name, state filename, at least one executable/process/store), target-tag uniqueness, `target_for` routing (untagged → primary, every tag → its own target, unknown → primary), `disabled_suffix` consistency with the `ModUnit` kind, the disabled-dir-inside / backup-dir-outside path invariants, per-target mods/backup dir distinctness, and a state save/read round trip per game and target. Game-specific behaviour tests stay in their own files, and the loader registry's own invariants stay in `loaders.rs` — this suite covers the uniform contract, not the novel 20%.
@@ -231,7 +235,7 @@ Rust unit tests live in separate test files referenced from the module via `#[cf
 - `ue4ss_tests.rs` — loader presence detection per game/launcher (including both PD3 proxy DLL variants), unverified-launcher no-ops, directory-named-like-the-proxy-file edge case
 - `commands/mods/pdmod.rs` (inline `#[cfg(test)] mod tests`) — `hash64` determinism and known-value round-trip against the embedded hashlist, `safe_output` path-traversal rejection and backslash normalisation, `extract_pdmod` full ZipCrypto round-trip (builds a real encrypted archive in memory, extracts, verifies output path and bytes), unknown-hash skip returning the correct error string
 
-Renderer tests use Vitest (`pnpm test:renderer`). The default environment is `node` (`vitest.config.ts`, matching `src/**/*.test.{ts,tsx}`) — pure-logic test files need no browser APIs. Eleven test files, 193 tests:
+Renderer tests use Vitest (`pnpm test:renderer`). The default environment is `node` (`vitest.config.ts`, matching `src/**/*.test.{ts,tsx}`) — pure-logic test files need no browser APIs. Twenty-two test files, 324 tests:
 
 - `src/renderer/src/formatCheck.test.ts` — `isUnsupportedFormat`: type field, URL extension fallback, tar double-extensions, invalid URLs
 - `src/renderer/src/installSentinels.test.ts` — `handleInstallOutcome` routing: each of the four prompt outcomes reaches only its own handler and returns true; a completed install returns false and calls nothing

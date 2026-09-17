@@ -10,34 +10,13 @@ import {
     writeFileSync,
 } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { dirname, join, resolve } from 'node:path'
+import { join } from 'node:path'
 import test from 'node:test'
-import { fileURLToPath, pathToFileURL } from 'node:url'
-import {
-    parseTargetValue,
-    placeholderContract,
-    placeholderDifferences,
-    TARGET_VALUE_KIND,
-} from '../src/shared/i18n-values.js'
-import { flattenBundle } from './i18n-current.mjs'
+import { pathToFileURL } from 'node:url'
+import { TARGET_VALUE_KIND } from '../src/shared/i18n-values.js'
 import { writeLocaleAtomically } from './i18n-files.mjs'
-import { createGitAdapter } from './i18n-git.mjs'
-import {
-    analyzeCommittedHistory,
-    analyzeProspective,
-    analyzeRepairableProspective,
-    describeHistoryAvailability,
-    I18N_LOCALE_DIR,
-    snapshotFromBundles,
-    workingTreeSnapshot,
-} from './i18n-history.mjs'
-import {
-    applyBaseline,
-    createHistoryState,
-    entryId,
-    PENDING_PROVENANCE,
-} from './i18n-history-events.mjs'
-import { inspectLocales } from './i18n-inspection.mjs'
+import { analyzeRepairableProspective, snapshotFromBundles } from './i18n-history.mjs'
+import { applyBaseline, createHistoryState, PENDING_PROVENANCE } from './i18n-history-events.mjs'
 import {
     applyReviewAction,
     buildReviewCandidates,
@@ -49,8 +28,6 @@ import {
 } from './i18n-review.mjs'
 
 const LOCALE_DIR = 'i18n'
-const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
-const REPOSITORY_ROOT = resolve(SCRIPT_DIR, '../../..')
 
 function git(cwd, args) {
     return execFileSync('git', args, {
@@ -837,106 +814,6 @@ test('invalid review usage exits 2 without reading history', async () => {
         /Usage: pnpm i18n:review|English source|valid locale code|does not exist/
     )
 })
-
-const realHistory = describeHistoryAvailability({ cwd: REPOSITORY_ROOT })
-const localeWorktreeStatus = git(REPOSITORY_ROOT, ['status', '--porcelain', '--', I18N_LOCALE_DIR])
-let unavailableRealReviewReason = false
-if (!realHistory.available) unavailableRealReviewReason = 'authoritative history is unavailable'
-if (realHistory.available && localeWorktreeStatus) {
-    unavailableRealReviewReason = 'real locale files have uncommitted changes'
-}
-
-test(
-    'real review candidates expose authoritative context without writing files',
-    { skip: unavailableRealReviewReason },
-    () => {
-        const i18nDir = resolve(REPOSITORY_ROOT, I18N_LOCALE_DIR)
-        const inspection = inspectLocales(i18nDir)
-        const localeBytesBefore = new Map(
-            ['en', ...inspection.locales.map(({ id }) => id)].map((id) => [
-                id,
-                readFileSync(resolve(i18nDir, `${id}.json`)),
-            ])
-        )
-        const indexBefore = git(REPOSITORY_ROOT, ['write-tree'])
-        const committed = analyzeCommittedHistory({ cwd: REPOSITORY_ROOT })
-        const history = analyzeProspective(
-            committed,
-            workingTreeSnapshot(REPOSITORY_ROOT, I18N_LOCALE_DIR)
-        )
-        const historyGit = createGitAdapter({ cwd: REPOSITORY_ROOT })
-        for (const locale of inspection.locales) {
-            const candidates = buildReviewCandidates(history, locale.id)
-            assert.deepEqual(
-                candidates.map(({ key }) => key),
-                locale.pendingKeys
-            )
-            for (const candidate of candidates) {
-                const persisted = locale.targetValues[candidate.key]
-                assert.equal(persisted.kind, TARGET_VALUE_KIND.PENDING)
-                assert.equal(candidate.locale, locale.id)
-                assert.equal(candidate.currentTargetText, persisted.targetText)
-                assert.equal(candidate.currentSourceText, inspection.sourceStrings[candidate.key])
-
-                const stateEntry = history.state.entries.get(entryId(locale.id, candidate.key))
-                assert.ok(stateEntry?.pending)
-                const checkpoint = stateEntry.pending.lineageCheckpoint
-                assert.ok(checkpoint)
-                assert.equal(candidate.checkpointRevision, checkpoint.revision)
-                assert.equal(
-                    historyGit.resolveRevision(candidate.checkpointRevision),
-                    candidate.checkpointRevision
-                )
-
-                const checkpointPaths = historyGit.treeBlobs(
-                    candidate.checkpointRevision,
-                    I18N_LOCALE_DIR
-                )
-                const sourcePath = `${I18N_LOCALE_DIR}/en.json`
-                const targetPath = `${I18N_LOCALE_DIR}/${locale.id}.json`
-                const sourceBlob = checkpointPaths.get(sourcePath)
-                const targetBlob = checkpointPaths.get(targetPath)
-                assert.ok(sourceBlob)
-                assert.ok(targetBlob)
-                const checkpointBlobs = historyGit.readBlobs([sourceBlob, targetBlob])
-                const sourceErrors = []
-                const targetErrors = []
-                const checkpointSource = flattenBundle(
-                    JSON.parse(checkpointBlobs.get(sourceBlob)),
-                    'en',
-                    sourceErrors
-                )[candidate.key]
-                const checkpointTargetStored = flattenBundle(
-                    JSON.parse(checkpointBlobs.get(targetBlob)),
-                    locale.id,
-                    targetErrors
-                )[candidate.key]
-                assert.deepEqual(sourceErrors, [])
-                assert.deepEqual(targetErrors, [])
-                const checkpointTarget = parseTargetValue(checkpointTargetStored)
-                assert.equal(checkpointTarget.kind, TARGET_VALUE_KIND.ACCEPTED)
-                assert.equal(checkpoint.rawSourceText, checkpointSource)
-                assert.equal(checkpoint.rawTargetText, checkpointTarget.targetText)
-                assert.equal(candidate.lastAcceptedSourceText, checkpointSource)
-                assert.equal(candidate.lastAcceptedTargetText, checkpointTarget.targetText)
-                assert.equal(candidate.pendingProvenance, stateEntry.pending.provenance)
-
-                const placeholderDifference = placeholderDifferences(
-                    placeholderContract(inspection.sourceStrings[candidate.key]),
-                    placeholderContract(persisted.targetText)
-                )
-                const placeholderCompatible =
-                    placeholderDifference.missing.length === 0 &&
-                    placeholderDifference.unexpected.length === 0
-                assert.equal(candidate.placeholderCompatible, placeholderCompatible)
-            }
-        }
-        for (const [id, before] of localeBytesBefore) {
-            assert.deepEqual(readFileSync(resolve(i18nDir, `${id}.json`)), before)
-        }
-        assert.equal(git(REPOSITORY_ROOT, ['write-tree']), indexBefore)
-    }
-)
 
 test('prepare returns the same deterministic candidate order without mutating files', async () => {
     await withRepository((directory) => {

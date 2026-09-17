@@ -15,12 +15,14 @@ If you want to improve an existing translation or add a language, use the dedica
 | `pnpm typecheck`         | Type-check renderer                             |
 | `pnpm format`            | Format all files with Prettier                  |
 | `pnpm lint`              | Lint renderer source                            |
-| `pnpm test`              | Run all tests (Rust + renderer)                 |
-| `pnpm checks`            | Run the full CI gate locally                    |
+| `pnpm test`              | Run product tests                               |
+| `pnpm test:tooling`      | Run desktop tooling tests                       |
+| `pnpm checks`            | Run product CI gates locally                    |
 | `pnpm generate-licenses` | Regenerate apps/desktop/THIRD_PARTY_LICENSES.md |
 
-`pnpm checks` is the one to run before opening a pull request: it runs everything CI does
-(formatting, lint, typecheck, tests, and the consistency checks below) in one pass.
+`pnpm checks` runs the product gates before opening a pull request: formatting, lint,
+typecheck, product tests, builds, and the consistency checks below. Run `pnpm test:tooling`
+for the desktop tooling suite; CI runs it in a separate job.
 
 ## Tech stack
 
