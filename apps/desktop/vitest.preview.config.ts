@@ -1,4 +1,4 @@
-import { defineConfig, mergeConfig } from 'vitest/config'
+import { mergeConfig } from 'vitest/config'
 import viteConfig from './vite.config.ts'
 
 export default mergeConfig(viteConfig({ mode: 'preview', command: 'serve' }), {
