@@ -14,7 +14,7 @@ import type {
     SourceInfo,
 } from '../../shared/bindings'
 import { installedFromWorkshop, library, simulateDownload } from './library'
-import { remote, scenario } from './scenario'
+import { previewState, remote } from './previewState'
 import loaders from './fixtures/loaders.json'
 import sources from './fixtures/sources.json'
 
@@ -131,7 +131,7 @@ function settings(gameId: string): GameSettings_Serialize {
 }
 
 function gamePath(gameId: string): string | null {
-    return scenario() === 'no-game' ? null : settings(gameId).gamePath
+    return previewState.games === 'missing' ? null : settings(gameId).gamePath
 }
 
 const flatSettings = {
@@ -156,7 +156,7 @@ const noLoader: LoaderPresence = {
 
 const handlers = {
     reportStartupPhase: async () => null,
-    getAnalyticsConsent: async () => (scenario() === 'first-run' ? null : true),
+    getAnalyticsConsent: async () => (previewState.onboarding === 'first-run' ? null : true),
     setAnalyticsConsent: async () => {},
     trackEvent: async () => {},
     setDiscordPresenceEnabled: async () => {},
@@ -189,11 +189,13 @@ const handlers = {
         const path = gamePath(gameId)
         return path ? [{ launcher: 'steam', gamePath: path }] : []
     },
-    detectInstalledGames: async () => (scenario() === 'no-game' ? [] : Object.keys(GAMES)),
+    detectInstalledGames: async () => (previewState.games === 'missing' ? [] : Object.keys(GAMES)),
     getInstalled: async (gameId) => {
         const id = game(gameId)
         const lib = library(id)
-        if (scenario() === 'library' && !lib.seeded) lib.seed((await load(id)).modRecords)
+        if (previewState.library !== 'empty' && !lib.seeded) {
+            lib.seed((await load(id)).modRecords, previewState.library)
+        }
         return lib.response()
     },
     installMod: async (modId, _gamePath, folderId, gameId) => {
@@ -283,15 +285,55 @@ const handlers = {
     },
     listMods: async (workshopId, params) => {
         await remote(`/games/${workshopId}/mods`)
-        const page = (await load(gameForWorkshop(workshopId))).mods
+        const fixture = await load(gameForWorkshop(workshopId))
+        const page = fixture.mods
+        const requestedPage = params?.page ?? 1
+        if (requestedPage !== 1) {
+            throw new Error(`preview: no fixture for mods page ${requestedPage}`)
+        }
         const query = params?.query?.toLowerCase()
         const ids = params?.ids
-        if (!query && !ids) return page
-        const data = page.data.filter(
-            (mod) =>
-                (!query || mod.name.toLowerCase().includes(query)) && (!ids || ids.includes(mod.id))
-        )
-        return { data, meta: { ...page.meta, total: data.length, last_page: 1 } }
+        const categoryId = params?.category_id
+        const includedTags = params?.tags
+        const blockedTags = params?.block_tags
+        const data = page.data.filter((mod) => {
+            if (query && !mod.name.toLowerCase().includes(query)) return false
+            if (ids && !ids.includes(mod.id)) return false
+            if (categoryId != null && mod.category_id !== categoryId) return false
+            if (!includedTags?.length && !blockedTags?.length) return true
+
+            const record = fixture.modRecords[String(mod.id)]
+            if (!record) throw new Error(`preview: no mod record for ${mod.id}`)
+            const tags = new Set(record.detail.tags.map((tag) => tag.id))
+            if (includedTags?.length && !includedTags.some((tag) => tags.has(tag))) return false
+            if (blockedTags?.some((tag) => tags.has(tag))) return false
+            return true
+        })
+
+        switch (params?.sort ?? 'bumped_at') {
+            case 'bumped_at':
+                data.sort((a, b) => Date.parse(b.bumped_at) - Date.parse(a.bumped_at))
+                break
+            case 'published_at':
+                data.sort((a, b) => Date.parse(b.published_at) - Date.parse(a.published_at))
+                break
+            case 'downloads':
+                data.sort((a, b) => b.downloads - a.downloads)
+                break
+            case 'likes':
+                data.sort((a, b) => b.likes - a.likes)
+                break
+            case 'name':
+                data.sort((a, b) => a.name.localeCompare(b.name))
+                break
+            default:
+                throw new Error(`preview: unsupported mods sort ${params?.sort}`)
+        }
+
+        return {
+            data,
+            meta: { ...page.meta, current_page: 1, last_page: 1, total: data.length },
+        }
     },
     getMod: async (id) => {
         await remote(`/mods/${id}`)

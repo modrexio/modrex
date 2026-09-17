@@ -7,13 +7,16 @@ import type {
     TopLevelItem,
 } from '../../shared/bindings'
 import { emit } from './tauri/event'
-import { scenario } from './scenario'
+import { previewState, type LibraryProfile } from './previewState'
 
 type Mod = InstalledMod_Serialize
+export type WorkshopFile = { id: number; version: string; type: string | null }
+type InstallTemplate = { detail: ModDetail; file: WorkshopFile }
 
 const DOWNLOAD_STEPS = 12
 const DOWNLOAD_STEP_MS = 120
 const DEFAULT_SIZE = 2_500_000
+export const LARGE_LIBRARY_SIZE = 120
 
 export class Library {
     mods: Mod[] = []
@@ -112,14 +115,34 @@ export class Library {
         })
     }
 
-    seed(records: Record<string, { detail: ModDetail; files: { data: WorkshopFile[] } }>) {
+    seed(
+        records: Record<string, { detail: ModDetail; files: { data: WorkshopFile[] } }>,
+        profile: Exclude<LibraryProfile, 'empty'>
+    ) {
+        const templates = Object.values(records).flatMap(({ detail, files }) => {
+            const file = detail.download ?? files.data[0]
+            return file ? [{ detail, file }] : []
+        })
+        if (templates.length === 0)
+            throw new Error('preview: library fixture has no installable mods')
+
+        switch (profile) {
+            case 'demo':
+                this.seedDemo(templates)
+                break
+            case 'large':
+                this.seedLarge(templates)
+                break
+        }
         this.seeded = true
-        const details = Object.values(records)
-            .map(({ detail, files }) => ({ detail, file: detail.download ?? files.data[0] }))
-            .filter((entry) => entry.file)
-            .slice(0, 6)
+    }
+
+    private seedDemo(templates: InstallTemplate[]) {
+        if (templates.length < 6) {
+            throw new Error('preview: demo library fixture requires six installable mods')
+        }
         const folder = this.createFolder('Cosmetics', null)
-        details.forEach(({ detail, file }, index) => {
+        templates.slice(0, 6).forEach(({ detail, file }, index) => {
             const mod = installedFromWorkshop(detail, file, index < 2 ? folder.id : null)
             if (index === 2) mod.enabled = false
             if (index === 3) mod.missing = true
@@ -129,6 +152,30 @@ export class Library {
             }
             this.install(mod)
         })
+    }
+
+    private seedLarge(templates: InstallTemplate[]) {
+        const folders = ['Cosmetics', 'Gameplay', 'Audio', 'Interface', 'Utilities'].map((name) =>
+            this.createFolder(name, null)
+        )
+        for (let index = 0; index < LARGE_LIBRARY_SIZE; index++) {
+            const { detail, file } = templates[index % templates.length]
+            const variant = Math.floor(index / templates.length) + 1
+            const folderId =
+                index % (folders.length + 1) === 0 ? null : folders[index % folders.length].id
+            const mod = installedFromWorkshop(detail, file, folderId)
+            mod.uid = `preview-large-${index + 1}`
+            // The volume profile represents separate projects. Unique identities prevent the
+            // installed page from folding repeated fixture templates into one multi-file card.
+            mod.identity = {
+                namespace: 'preview-volume',
+                key: String(index + 1),
+                evidence: 'installProvenance',
+                confidence: 'exact',
+            }
+            if (variant > 1) mod.name = `${mod.name} Variant ${variant}`
+            this.install(mod)
+        }
     }
 
     private scopedMods(folderId: string | null): Mod[] {
@@ -156,7 +203,7 @@ export function library(gameId: GameId): Library {
 
 export async function simulateDownload(downloadId: string, size: number | null) {
     const total = size ?? DEFAULT_SIZE
-    const stepMs = scenario() === 'slow' ? DOWNLOAD_STEP_MS * 8 : DOWNLOAD_STEP_MS
+    const stepMs = previewState.network === 'slow' ? DOWNLOAD_STEP_MS * 8 : DOWNLOAD_STEP_MS
     for (let step = 1; step <= DOWNLOAD_STEPS; step++) {
         await new Promise((resolve) => setTimeout(resolve, stepMs))
         const downloaded = Math.round((total * step) / DOWNLOAD_STEPS)
@@ -166,8 +213,6 @@ export async function simulateDownload(downloadId: string, size: number | null) 
 
 // InstalledMod.id is an opaque source-scoped key (sources::source_native_local_id in Rust)
 // and is never compared with the modworkshop id, so any unique negative number serves.
-export type WorkshopFile = { id: number; version: string; type: string | null }
-
 export function installedFromWorkshop(
     detail: ModDetail,
     file: WorkshopFile,

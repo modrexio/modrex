@@ -1,19 +1,19 @@
-import { defineConfig } from 'vite'
+import { defineConfig, normalizePath } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import svgr from 'vite-plugin-svgr'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { Plugin } from 'vite'
-import pkg from './package.json'
+import pkg from './package.json' with { type: 'json' }
 
 const startupIconPath = fileURLToPath(new URL('./assets/icon.png', import.meta.url)).replaceAll(
     '\\',
     '/'
 )
 
-const previewDir = resolve(import.meta.dirname, 'src/renderer/preview')
-const bindingsPath = resolve(import.meta.dirname, 'src/shared/bindings.ts')
+const previewDir = normalizePath(resolve(import.meta.dirname, 'src/renderer/preview'))
+const bindingsPath = normalizePath(resolve(import.meta.dirname, 'src/shared/bindings.ts'))
 
 const previewShims: Record<string, string> = {
     '@tauri-apps/api/core': 'tauri/core.ts',
@@ -40,10 +40,12 @@ function previewBackend(): Plugin {
         },
         async resolveId(source, importer, options) {
             const shim = previewShims[source]
-            if (shim) return resolve(previewDir, shim)
-            if (importer?.startsWith(previewDir)) return null
+            if (shim) return normalizePath(resolve(previewDir, shim))
+            if (importer && normalizePath(importer).startsWith(previewDir)) return null
             const resolved = await this.resolve(source, importer, { ...options, skipSelf: true })
-            if (resolved?.id === bindingsPath) return resolve(previewDir, 'bindings.ts')
+            if (resolved && normalizePath(resolved.id) === bindingsPath) {
+                return normalizePath(resolve(previewDir, 'bindings.ts'))
+            }
             return resolved
         },
     }
