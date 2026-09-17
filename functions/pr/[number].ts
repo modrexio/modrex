@@ -22,6 +22,7 @@ const BRANCH_URL =
     /Branch Preview URL:[\s\S]*?href=['"](https:\/\/[^'"]+\.modrex-app-preview\.pages\.dev)['"]/
 const PREVIEW_URL =
     /(?:^|>)Preview URL:(?:<\/strong>)?[\s\S]*?href=['"](https:\/\/[^'"]+\.modrex-app-preview\.pages\.dev)['"]/
+const ROOT_ASSET_URL = /((?:src|href)=["'])\/(?!\/)/g
 
 const githubHeaders = {
     Accept: 'application/vnd.github+json',
@@ -76,11 +77,21 @@ export async function onRequestGet({ request, params }: PagesContext): Promise<R
 
         const target = new URL(targetUrl)
         target.search = new URL(request.url).search
-        return new Response(null, {
-            status: 302,
+        const previewResponse = await fetch(target.toString())
+        if (!previewResponse.ok) {
+            throw new Error(`Cloudflare preview request failed with ${previewResponse.status}`)
+        }
+
+        const contentType = previewResponse.headers.get('Content-Type')
+        if (!contentType?.startsWith('text/html')) {
+            throw new Error('Cloudflare preview response is not HTML')
+        }
+
+        const html = (await previewResponse.text()).replace(ROOT_ASSET_URL, `$1${target.origin}/`)
+        return new Response(html, {
             headers: {
-                'Cache-Control': 'public, max-age=300',
-                Location: target.toString(),
+                'Cache-Control': 'no-store',
+                'Content-Type': contentType,
             },
         })
     } catch (error) {

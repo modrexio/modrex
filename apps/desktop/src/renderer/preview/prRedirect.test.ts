@@ -52,7 +52,7 @@ describe('/pr/:number', () => {
         expect(result.headers.get('Retry-After')).toBe('30')
     })
 
-    it('redirects to the app branch preview and keeps the selected state', async () => {
+    it('serves the app branch preview without replacing the public URL', async () => {
         const fetch = vi
             .fn()
             .mockResolvedValueOnce(response({ head: { sha: 'abc123' } }))
@@ -83,6 +83,12 @@ describe('/pr/:number', () => {
                     ],
                 })
             )
+            .mockResolvedValueOnce(
+                new Response(
+                    '<script type="module" src="/assets/app.js"></script><link href="/assets/app.css">',
+                    { headers: { 'Content-Type': 'text/html; charset=utf-8' } }
+                )
+            )
         globalThis.fetch = fetch
 
         const result = await onRequestGet(context('42', '?library=large&network=offline'))
@@ -92,9 +98,15 @@ describe('/pr/:number', () => {
             'https://api.github.com/repos/modrexio/modrex/commits/abc123/check-runs?per_page=100',
             expect.anything()
         )
-        expect(result.status).toBe(302)
-        expect(result.headers.get('Location')).toBe(
+        expect(fetch).toHaveBeenNthCalledWith(
+            3,
             'https://feature.modrex-app-preview.pages.dev/?library=large&network=offline'
+        )
+        expect(result.status).toBe(200)
+        expect(result.headers.get('Location')).toBeNull()
+        expect(result.headers.get('Cache-Control')).toBe('no-store')
+        await expect(result.text()).resolves.toBe(
+            '<script type="module" src="https://feature.modrex-app-preview.pages.dev/assets/app.js"></script><link href="https://feature.modrex-app-preview.pages.dev/assets/app.css">'
         )
     })
 
@@ -116,10 +128,18 @@ describe('/pr/:number', () => {
                     ],
                 })
             )
+            .mockResolvedValueOnce(
+                new Response('<script src="/assets/app.js"></script>', {
+                    headers: { 'Content-Type': 'text/html' },
+                })
+            )
 
         const result = await onRequestGet(context('42'))
 
-        expect(result.status).toBe(302)
-        expect(result.headers.get('Location')).toBe('https://commit.modrex-app-preview.pages.dev/')
+        expect(result.status).toBe(200)
+        expect(result.headers.get('Location')).toBeNull()
+        await expect(result.text()).resolves.toContain(
+            'src="https://commit.modrex-app-preview.pages.dev/assets/app.js"'
+        )
     })
 })
