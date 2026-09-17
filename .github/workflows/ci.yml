@@ -3,17 +3,14 @@ name: CI
 on:
     push:
         branches: [main]
-        paths-ignore:
-            - '**.md'
-            - '.gitignore'
-            - 'LICENSE'
     pull_request:
         branches: [main]
-        paths-ignore:
-            - '**.md'
-            - '.gitignore'
-            - 'LICENSE'
     workflow_dispatch:
+    workflow_call:
+        inputs:
+            all:
+                type: boolean
+                default: false
 
 permissions:
     contents: read
@@ -23,57 +20,71 @@ concurrency:
     cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-    index:
+    changes:
         runs-on: ubuntu-latest
+        permissions:
+            contents: read
+            pull-requests: read
+        outputs:
+            rust: ${{ steps.all.outputs.all == 'true' || steps.filter.outputs.workflows == 'true' || steps.filter.outputs.rust == 'true' }}
+            renderer: ${{ steps.all.outputs.all == 'true' || steps.filter.outputs.workflows == 'true' || steps.filter.outputs.renderer == 'true' }}
+            tooling: ${{ steps.all.outputs.all == 'true' || steps.filter.outputs.workflows == 'true' || steps.filter.outputs.tooling == 'true' }}
+            site: ${{ steps.all.outputs.all == 'true' || steps.filter.outputs.workflows == 'true' || steps.filter.outputs.site == 'true' }}
+            index: ${{ steps.all.outputs.all == 'true' || steps.filter.outputs.workflows == 'true' || steps.filter.outputs.index == 'true' }}
+            deps: ${{ steps.all.outputs.all == 'true' || steps.filter.outputs.workflows == 'true' || steps.filter.outputs.deps == 'true' }}
         steps:
+            - id: all
+              run: echo "all=${{ inputs.all == true || (github.event_name != 'push' && github.event_name != 'pull_request') }}" >> "$GITHUB_OUTPUT"
+
             - uses: actions/checkout@v7
+              if: steps.all.outputs.all != 'true'
 
-            - uses: pnpm/action-setup@v6
-            - uses: actions/setup-node@v7
+            - uses: dorny/paths-filter@v4
+              if: steps.all.outputs.all != 'true'
+              id: filter
               with:
-                  node-version: 22
-                  cache: pnpm
-            - run: pnpm install --frozen-lockfile
-            - run: pnpm index:test
+                  base: ${{ github.event_name == 'push' && github.ref || '' }}
+                  filters: |
+                      workflows:
+                          - '.github/workflows/**'
+                      rust:
+                          - 'apps/desktop/src-tauri/**'
+                          - 'apps/desktop/src/shared/bindings.ts'
+                          - 'packages/games/**'
+                          - 'docs/reference/**'
+                      renderer:
+                          - 'apps/desktop/src/**'
+                          - 'apps/desktop/package.json'
+                          - 'apps/desktop/tsconfig.json'
+                          - 'apps/desktop/vite.config.ts'
+                          - 'apps/desktop/vitest.config.ts'
+                          - 'apps/desktop/eslint.config.js'
+                          - 'packages/games/**'
+                      tooling:
+                          - 'apps/desktop/scripts/**'
+                          - 'apps/desktop/src/renderer/src/i18n/**'
+                          - 'apps/desktop/src/shared/i18n-values.js'
+                          - 'apps/desktop/translation-contributors.generated.json'
+                          - 'assets/i18n/**'
+                          - '.husky/**'
+                      site:
+                          - 'apps/site/**'
+                          - 'packages/games/**'
+                      index:
+                          - 'apps/index/**'
+                          - 'packages/games/**'
+                      deps:
+                          - '**/package.json'
+                          - 'pnpm-lock.yaml'
+                          - 'apps/desktop/src-tauri/Cargo.toml'
+                          - 'apps/desktop/src-tauri/Cargo.lock'
 
-    site:
+    checks:
         runs-on: ubuntu-latest
         steps:
-            # Full history: check-legal-dates compares each legal page against the commit
-            # that last touched it, which a shallow clone cannot answer.
             - uses: actions/checkout@v7
               with:
                   fetch-depth: 0
-
-            - uses: pnpm/action-setup@v6
-            - uses: actions/setup-node@v7
-              with:
-                  node-version: 22
-                  cache: pnpm
-            - run: pnpm install --frozen-lockfile
-            - run: pnpm site:typecheck
-            - run: pnpm site:typecheck:functions
-            - run: pnpm site:check-legal-dates
-            - run: pnpm site:lint
-            - run: pnpm site:format:check
-            - run: pnpm site:test
-            - run: pnpm site:build
-
-    test:
-        runs-on: ubuntu-latest
-        steps:
-            - uses: actions/checkout@v7
-              with:
-                  fetch-depth: 0
-
-            - name: Install system dependencies
-              run: |
-                  sudo apt-get update
-                  sudo apt-get install -y \
-                    libwebkit2gtk-4.1-dev \
-                    libappindicator3-dev \
-                    librsvg2-dev \
-                    patchelf
 
             - uses: pnpm/action-setup@v6
             - uses: actions/setup-node@v7
@@ -88,7 +99,25 @@ jobs:
             - run: pnpm check-i18n
             - name: i18n read-only check
               run: pnpm i18n:check-readonly
+            - run: pnpm format:check
+            - run: pnpm lint
             - run: pnpm typecheck
+
+    rust-linux:
+        needs: changes
+        if: needs.changes.outputs.rust == 'true' || needs.changes.outputs.deps == 'true'
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v7
+
+            - name: Install system dependencies
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install -y \
+                    libwebkit2gtk-4.1-dev \
+                    libappindicator3-dev \
+                    librsvg2-dev \
+                    patchelf
 
             - uses: dtolnay/rust-toolchain@stable
             - uses: swatinem/rust-cache@v2
@@ -96,14 +125,14 @@ jobs:
                   workspaces: apps/desktop/src-tauri
                   shared-key: rust-linux-dev
                   cache-on-failure: true
+                  save-if: ${{ github.ref == 'refs/heads/main' }}
 
             - run: cargo clippy --workspace --all-targets -- -D warnings
               working-directory: apps/desktop/src-tauri
-
             - run: cargo check --release --workspace --all-targets
               working-directory: apps/desktop/src-tauri
-
-            - run: pnpm test
+            - run: cargo test
+              working-directory: apps/desktop/src-tauri
 
             # cargo test just regenerated apps/desktop/src/shared/bindings.ts from the command
             # registry; a diff means the committed bindings are stale.
@@ -119,6 +148,8 @@ jobs:
               run: git diff --exit-code docs/reference/game-package.md
 
     rust-windows:
+        needs: changes
+        if: needs.changes.outputs.rust == 'true' || needs.changes.outputs.deps == 'true'
         runs-on: windows-latest
         steps:
             - uses: actions/checkout@v7
@@ -135,7 +166,75 @@ jobs:
             - run: cargo test
               working-directory: apps/desktop/src-tauri
 
+    renderer:
+        needs: changes
+        if: needs.changes.outputs.renderer == 'true' || needs.changes.outputs.deps == 'true'
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v7
+
+            - uses: pnpm/action-setup@v6
+            - uses: actions/setup-node@v7
+              with:
+                  node-version: 22
+                  cache: pnpm
+            - run: pnpm install --frozen-lockfile
+            - run: pnpm test:renderer
+
+    tooling:
+        needs: changes
+        if: needs.changes.outputs.tooling == 'true'
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v7
+              with:
+                  fetch-depth: 0
+
+            - uses: actions/setup-node@v7
+              with:
+                  node-version: 22
+            - run: node --test scripts/*.test.mjs
+              working-directory: apps/desktop
+
+    site:
+        needs: changes
+        if: needs.changes.outputs.site == 'true' || needs.changes.outputs.deps == 'true'
+        runs-on: ubuntu-latest
+        steps:
+            # Full history: check-legal-dates compares each legal page against the commit
+            # that last touched it, which a shallow clone cannot answer.
+            - uses: actions/checkout@v7
+              with:
+                  fetch-depth: 0
+
+            - uses: pnpm/action-setup@v6
+            - uses: actions/setup-node@v7
+              with:
+                  node-version: 22
+                  cache: pnpm
+            - run: pnpm install --frozen-lockfile
+            - run: pnpm site:check-legal-dates
+            - run: pnpm site:test
+            - run: pnpm site:build
+
+    index:
+        needs: changes
+        if: needs.changes.outputs.index == 'true' || needs.changes.outputs.deps == 'true'
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v7
+
+            - uses: pnpm/action-setup@v6
+            - uses: actions/setup-node@v7
+              with:
+                  node-version: 22
+                  cache: pnpm
+            - run: pnpm install --frozen-lockfile
+            - run: pnpm index:test
+
     check-licenses:
+        needs: changes
+        if: needs.changes.outputs.deps == 'true'
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v7
@@ -163,32 +262,18 @@ jobs:
             - name: Fail if desktop third-party licenses are stale
               run: git diff --exit-code apps/desktop/THIRD_PARTY_LICENSES.md
 
-    security-audit:
+    ci-summary:
+        needs:
+            - changes
+            - checks
+            - rust-linux
+            - renderer
+            - tooling
+            - site
+            - index
+            - check-licenses
+        if: always()
         runs-on: ubuntu-latest
         steps:
-            - uses: actions/checkout@v7
-
-            - uses: pnpm/action-setup@v6
-            - uses: actions/setup-node@v7
-              with:
-                  node-version: 22
-                  cache: pnpm
-            - run: pnpm install --frozen-lockfile
-
-            - name: Audit npm dependencies
-              run: pnpm audit
-
-            - name: Cache cargo-audit
-              id: cache-cargo-audit
-              uses: actions/cache@v6
-              with:
-                  path: ~/.cargo/bin/cargo-audit
-                  key: cargo-audit-${{ runner.os }}
-
-            - name: Install cargo-audit
-              if: steps.cache-cargo-audit.outputs.cache-hit != 'true'
-              run: cargo install cargo-audit --locked
-
-            - name: Audit Rust dependencies
-              working-directory: apps/desktop/src-tauri
-              run: cargo audit
+            - if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+              run: exit 1

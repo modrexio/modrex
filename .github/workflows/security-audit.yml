@@ -1,0 +1,45 @@
+name: Security audit
+
+on:
+    schedule:
+        - cron: '0 6 * * 1'
+    workflow_dispatch:
+
+permissions:
+    contents: read
+
+jobs:
+    audit-npm:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v7
+
+            - uses: pnpm/action-setup@v6
+            - uses: actions/setup-node@v7
+              with:
+                  node-version: 22
+                  cache: pnpm
+            - run: pnpm install --frozen-lockfile
+
+            - name: Audit npm dependencies
+              run: pnpm audit
+
+    audit-rust:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v7
+
+            - name: Cache cargo-audit
+              id: cache-cargo-audit
+              uses: actions/cache@v6
+              with:
+                  path: ~/.cargo/bin/cargo-audit
+                  key: cargo-audit-${{ runner.os }}
+
+            - name: Install cargo-audit
+              if: steps.cache-cargo-audit.outputs.cache-hit != 'true'
+              run: cargo install cargo-audit --locked
+
+            - name: Audit Rust dependencies
+              working-directory: apps/desktop/src-tauri
+              run: cargo audit
