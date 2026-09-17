@@ -20,6 +20,8 @@ const GITHUB_API = 'https://api.github.com/repos/modrexio/modrex'
 const PROJECT_PATH = '/pages/view/modrex-app-preview/'
 const BRANCH_URL =
     /Branch Preview URL:[\s\S]*?href=['"](https:\/\/[^'"]+\.modrex-app-preview\.pages\.dev)['"]/
+const PREVIEW_URL =
+    /(?:^|>)Preview URL:(?:<\/strong>)?[\s\S]*?href=['"](https:\/\/[^'"]+\.modrex-app-preview\.pages\.dev)['"]/
 
 const githubHeaders = {
     Accept: 'application/vnd.github+json',
@@ -56,19 +58,23 @@ export async function onRequestGet({ request, params }: PagesContext): Promise<R
 
         const checks = (await checksResponse.json()) as ChecksResponse
         let branchUrl: string | undefined
+        let previewUrl: string | undefined
         for (const check of checks.check_runs ?? []) {
             if (!check.details_url?.includes(PROJECT_PATH)) continue
-            branchUrl = check.output?.summary?.match(BRANCH_URL)?.[1]
+            const summary = check.output?.summary
+            branchUrl = summary?.match(BRANCH_URL)?.[1]
             if (branchUrl) break
+            previewUrl ??= summary?.match(PREVIEW_URL)?.[1]
         }
-        if (!branchUrl) {
+        const targetUrl = branchUrl ?? previewUrl
+        if (!targetUrl) {
             return new Response('Pull request preview is not ready', {
                 status: 503,
                 headers: { 'Retry-After': '30' },
             })
         }
 
-        const target = new URL(branchUrl)
+        const target = new URL(targetUrl)
         target.search = new URL(request.url).search
         return new Response(null, {
             status: 302,

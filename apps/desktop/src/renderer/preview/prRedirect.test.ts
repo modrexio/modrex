@@ -97,4 +97,29 @@ describe('/pr/:number', () => {
             'https://feature.modrex-app-preview.pages.dev/?library=large&network=offline'
         )
     })
+
+    it('uses the commit preview when Cloudflare has no branch preview', async () => {
+        globalThis.fetch = vi
+            .fn()
+            .mockResolvedValueOnce(response({ head: { sha: 'abc123' } }))
+            .mockResolvedValueOnce(
+                response({
+                    check_runs: [
+                        {
+                            details_url:
+                                'https://dash.cloudflare.com/pages/view/modrex-app-preview/deployments/two',
+                            output: {
+                                summary:
+                                    "<strong>Preview URL:</strong> <a href='https://commit.modrex-app-preview.pages.dev'>commit</a>",
+                            },
+                        },
+                    ],
+                })
+            )
+
+        const result = await onRequestGet(context('42'))
+
+        expect(result.status).toBe(302)
+        expect(result.headers.get('Location')).toBe('https://commit.modrex-app-preview.pages.dev/')
+    })
 })
