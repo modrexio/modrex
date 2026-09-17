@@ -9,6 +9,10 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - ModWorkshop mod links inside a mod's description, changelog, file notes and instructions now open that mod's page in Modrex instead of the browser.
 - The back mouse button, Alt+Left and the keyboard Back key now leave a mod's page.
 
+### Fixed
+
+- Fixed Browse hiding category and tag filter loading failures when a request fails.
+
 ## 0.15.0
 
 ### Added

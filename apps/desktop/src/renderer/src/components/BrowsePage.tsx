@@ -241,6 +241,8 @@ export function BrowsePage({
         ReadonlyMap<string, { downloaded: number; total: number }>
     >(new Map())
     const [error, setError] = useState<string | null>(null)
+    const [categoryError, setCategoryError] = useState<string | null>(null)
+    const [tagError, setTagError] = useState<string | null>(null)
     // Enable, disable and uninstall report separately from a failed listing fetch: the grid
     // stays usable, so hiding it behind the fetch error would be wrong.
     const [actionError, setActionError] = useState<string | null>(null)
@@ -378,31 +380,33 @@ export function BrowsePage({
     useEffect(() => {
         const cached = getCategoriesCache(workshopId)
         if (cached) {
+            setCategoryError(null)
             setCategories(cached)
             return
         }
-        // A failure here reaches the user through the listing request, which fails the
-        // same way and renders the error, so the filter lists stay quiet like the tags below.
+        setCategoryError(null)
         api.listCategories(workshopId)
             .then((r) => {
                 setCategoriesCache(workshopId, r.data)
                 setCategories(r.data)
             })
-            .catch(() => {})
+            .catch((e) => setCategoryError(String(e)))
     }, [workshopId]) // stable per mount, BrowsePage remounts via key={activeGame}
 
     useEffect(() => {
         const cached = getTagsCache(workshopId)
         if (cached) {
+            setTagError(null)
             setTags(cached)
             return
         }
+        setTagError(null)
         api.listTags(workshopId)
             .then((r) => {
                 setTagsCache(workshopId, r.data)
                 setTags(r.data)
             })
-            .catch(() => {})
+            .catch((e) => setTagError(String(e)))
     }, [workshopId]) // stable per mount, BrowsePage remounts via key={activeGame}
 
     // Fetches only while the page is visible. Re-runs on activation (isActive
@@ -705,6 +709,10 @@ export function BrowsePage({
               loaderModIds
           )
         : []
+    const filterError = categoryError ?? tagError
+    const visibleError = error ?? filterError
+    const visibleErrorMessage =
+        error ?? (filterError ? t('browse.filterLoadFailed', { error: filterError }) : null)
 
     return (
         <div className="h-full flex flex-col">
@@ -901,14 +909,14 @@ export function BrowsePage({
                 </div>
             )}
 
-            {error &&
-                (isRateLimitError(error) ? (
+            {visibleError &&
+                (isRateLimitError(visibleError) ? (
                     <div className="mx-6 mt-4 px-4 py-3 bg-warning/10 border border-warning/30 rounded text-sm text-warning">
                         {t('browse.rateLimited')}
                     </div>
                 ) : (
                     <div className="mx-6 mt-4 px-4 py-3 bg-danger/30 border border-danger-hover rounded text-sm text-danger-text">
-                        {error}
+                        {visibleErrorMessage}
                     </div>
                 ))}
 
