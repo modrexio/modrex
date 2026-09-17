@@ -32,8 +32,8 @@ type GameFixtures = {
     withoutSmallVariant: Set<string>
 }
 
-// Rust's get_thumbnail falls back to the original when the CDN has no thumbnail_ file;
-// the browser can only know that from what the catalog says about each image.
+// Rust's get_thumbnail falls back to the original when the CDN has no thumbnail_ file.
+// The browser can only know that from what the catalog says about each image.
 function withoutSmallVariant(mods: ModPage, records: Record<string, ModRecord>): Set<string> {
     const files = new Set<string>()
     const note = (image: { file: string; has_thumb: boolean | null } | null) => {
