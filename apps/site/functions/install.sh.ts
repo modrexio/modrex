@@ -60,23 +60,7 @@ export async function resolveEngineTag(pin: string): Promise<string> {
     return `v${best.major}.${best.minor}.${best.patch}`
 }
 
-export interface InstallConfig {
-    schema_version: number
-    project_name: string
-    github_repo?: string
-    manifest_url: string
-    pubkey?: string
-    preferred_variant?: Record<string, string>
-    macos_bundle_name?: string
-    macos_executable_name?: string
-    deb_package_name?: string
-    rpm_package_name?: string
-    install_dir: string
-    add_to_path?: boolean
-    post_install_cmd?: string
-    uninstall_manifest?: string
-    install_url?: string
-}
+export type InstallConfig = Record<string, unknown>
 
 // Single-quoted shell literal, the only form mget's engine ever needs to
 // parse: embedded single quotes are the one character that has to be escaped
@@ -87,32 +71,22 @@ export function shellQuote(value: unknown): string {
     return `'${String(value ?? '').replaceAll("'", `'"'"'`)}'`
 }
 
-function flattenPreferredVariant(variant: Record<string, string> | undefined): string {
-    return Object.entries(variant ?? {})
-        .map(([os, v]) => `${os}:${v}`)
+function flattenPreferredVariant(variant: unknown): unknown {
+    if (variant === null || typeof variant !== 'object') return variant
+    return Object.entries(variant as Record<string, unknown>)
+        .map(([os, v]) => `${os}:${String(v)}`)
         .join(' ')
 }
 
 export function buildPrelude(config: InstallConfig): string {
-    const flat: Record<string, unknown> = {
-        schema_version: config.schema_version,
-        project_name: config.project_name,
-        github_repo: config.github_repo ?? '',
-        manifest_url: config.manifest_url,
-        pubkey: config.pubkey ?? '',
-        preferred_variant: flattenPreferredVariant(config.preferred_variant),
-        macos_bundle_name: config.macos_bundle_name ?? '',
-        macos_executable_name: config.macos_executable_name ?? '',
-        deb_package_name: config.deb_package_name ?? '',
-        rpm_package_name: config.rpm_package_name ?? '',
-        install_dir: config.install_dir,
-        add_to_path: config.add_to_path ?? true,
-        post_install_cmd: config.post_install_cmd ?? '',
-        uninstall_manifest: config.uninstall_manifest ?? '',
-        install_url: config.install_url ?? '',
-    }
-    return Object.entries(flat)
-        .map(([key, value]) => `CFG_${key.toUpperCase()}=${shellQuote(value)}`)
+    return Object.entries(config)
+        .filter(([key]) => /^[a-z][a-z0-9_]*$/.test(key))
+        .map(([key, value]) => [
+            key,
+            key === 'preferred_variant' ? flattenPreferredVariant(value) : value,
+        ])
+        .filter(([, value]) => ['string', 'number', 'boolean'].includes(typeof value))
+        .map(([key, value]) => `CFG_${String(key).toUpperCase()}=${shellQuote(value)}`)
         .join('\n')
 }
 

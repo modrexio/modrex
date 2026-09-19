@@ -108,10 +108,32 @@ describe('buildPrelude', () => {
         expect(buildPrelude(config)).toContain("CFG_PREFERRED_VARIANT='linux:appimage macos:dmg'")
     })
 
-    it('defaults add_to_path to true and omitted strings to empty', () => {
-        const prelude = buildPrelude(config)
-        expect(prelude).toContain("CFG_ADD_TO_PATH='true'")
-        expect(prelude).toContain("CFG_PUBKEY=''")
+    it('forwards keys it has never heard of, so the schema lives in mget alone', () => {
+        expect(buildPrelude({ ...config, command_name: 'modrex' })).toContain(
+            "CFG_COMMAND_NAME='modrex'"
+        )
+    })
+
+    it('omits keys the config does not set instead of inventing defaults', () => {
+        expect(buildPrelude(config)).not.toContain('CFG_PUBKEY')
+    })
+
+    it('preserves boolean false', () => {
+        expect(buildPrelude({ ...config, add_to_path: false })).toContain("CFG_ADD_TO_PATH='false'")
+    })
+
+    it('skips nested values and keys that cannot form a shell variable name', () => {
+        const prelude = buildPrelude({
+            ...config,
+            nested: { a: 1 },
+            list: [1],
+            'bad-key': 'x',
+            Upper: 'x',
+        })
+        expect(prelude).not.toContain('CFG_NESTED')
+        expect(prelude).not.toContain('CFG_LIST')
+        expect(prelude).not.toContain('BAD')
+        expect(prelude).not.toContain('CFG_UPPER')
     })
 
     it('quotes a malicious config value instead of letting it become shell code', () => {
