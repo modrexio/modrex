@@ -1,6 +1,7 @@
 use reqwest::header::HeaderMap;
 use reqwest::Client;
-use serde::Deserialize;
+use reqwest::StatusCode;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::sync::atomic::{AtomicI64, Ordering};
 use std::sync::{Mutex, OnceLock};
@@ -122,6 +123,28 @@ pub(crate) fn describe_request_error(error: &reqwest::Error) -> String {
     description
 }
 
+fn retryable_status(status: StatusCode) -> bool {
+    status == StatusCode::REQUEST_TIMEOUT
+        || status == StatusCode::TOO_MANY_REQUESTS
+        || status.is_server_error()
+}
+
+fn retry_delay(headers: &HeaderMap, attempt: u64) -> Duration {
+    if let Some(seconds) = headers
+        .get("retry-after")
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.parse::<u64>().ok())
+    {
+        return Duration::from_secs(seconds.min(60));
+    }
+    let jitter = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .subsec_nanos() as u64
+        % 1000;
+    Duration::from_millis((1000u64 << attempt.min(3)) + jitter)
+}
+
 pub(crate) async fn api_get(
     app: &AppHandle,
     path: &str,
@@ -163,37 +186,36 @@ pub(crate) async fn api_get_as(
         }
 
         let _permit = semaphore().acquire().await.map_err(|e| e.to_string())?;
-        let res = client
+        let response = client
             .get(url.clone())
             .header("Accept", "application/json")
             .header("User-Agent", ua)
             .timeout(Duration::from_secs(15))
             .send()
-            .await
-            .map_err(|e| describe_request_error(&e))?;
+            .await;
+        let res = match response {
+            Ok(response) => response,
+            Err(error) if attempt < 2 => {
+                let error = describe_request_error(&error);
+                log::warn!("ModWorkshop request failed, retrying: {error}");
+                drop(_permit);
+                tokio::time::sleep(retry_delay(&HeaderMap::new(), attempt)).await;
+                continue;
+            }
+            Err(error) => return Err(describe_request_error(&error)),
+        };
 
         if let Some(remaining) = parse_rate_limit_remaining(res.headers()) {
             RATE_REMAINING.store(remaining, Ordering::Relaxed);
         }
 
-        if res.status() == 429 {
+        if retryable_status(res.status()) {
+            if attempt == 2 {
+                return Err(format!("modworkshop API {}: {}", res.status(), path));
+            }
+            let delay = retry_delay(res.headers(), attempt);
             drop(_permit);
-            let retry_ms = res
-                .headers()
-                .get("retry-after")
-                .and_then(|v| v.to_str().ok())
-                .and_then(|v| v.parse::<u64>().ok())
-                .map(|s| s * 1000)
-                .unwrap_or_else(|| {
-                    let base_ms = 1000u64 << attempt.min(3);
-                    let jitter = std::time::SystemTime::now()
-                        .duration_since(std::time::UNIX_EPOCH)
-                        .unwrap_or_default()
-                        .subsec_nanos() as u64
-                        % 1000;
-                    base_ms + jitter
-                });
-            tokio::time::sleep(Duration::from_millis(retry_ms)).await;
+            tokio::time::sleep(delay).await;
             continue;
         }
 
@@ -203,7 +225,7 @@ pub(crate) async fn api_get_as(
         return res.json().await.map_err(|e| e.to_string());
     }
 
-    Err(format!("modworkshop API 429: {}", path))
+    Err(format!("modworkshop API retry limit reached: {}", path))
 }
 
 #[derive(Debug, Deserialize, specta::Type)]
@@ -220,6 +242,85 @@ pub struct ListModsParams {
     pub ids: Option<Vec<u32>>,
     pub tags: Option<Vec<u32>>,
     pub block_tags: Option<Vec<u32>>,
+}
+
+pub(crate) fn version_batches(ids: Vec<u32>) -> Result<Vec<Vec<u32>>, String> {
+    let mut ids = ids;
+    if ids.contains(&0) {
+        return Err("ModWorkshop IDs must be positive".into());
+    }
+    ids.sort_unstable();
+    ids.dedup();
+    Ok(ids.chunks(100).map(<[u32]>::to_vec).collect())
+}
+
+#[derive(Debug, Serialize, specta::Type)]
+#[serde(tag = "status", rename_all = "camelCase")]
+pub enum ModVersionResult {
+    Known { id: u32, version: String },
+    Unversioned { id: u32 },
+    Missing { id: u32 },
+    Failed { id: u32, error: String },
+}
+
+pub(crate) fn parse_versions(value: Value, ids: &[u32]) -> Result<Vec<ModVersionResult>, String> {
+    // PHP serializes an empty associative array as [], not {}.
+    let versions = match value {
+        Value::Array(a) if a.is_empty() => serde_json::Map::new(),
+        Value::Object(map) => map,
+        _ => return Err("ModWorkshop versions must be an object or empty array".into()),
+    };
+    for (key, value) in &versions {
+        let id = key
+            .parse::<u32>()
+            .map_err(|_| "Invalid version response ID")?;
+        if !ids.contains(&id) || !value.is_string() {
+            return Err("Unexpected ID or non-string ModWorkshop version".into());
+        }
+    }
+    Ok(ids
+        .iter()
+        .map(
+            |&id| match versions.get(&id.to_string()).and_then(Value::as_str) {
+                Some("") => ModVersionResult::Unversioned { id },
+                Some(version) => ModVersionResult::Known {
+                    id,
+                    version: version.into(),
+                },
+                None => ModVersionResult::Missing { id },
+            },
+        )
+        .collect())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn get_mod_versions(
+    app: AppHandle,
+    ids: Vec<u32>,
+) -> Result<Vec<ModVersionResult>, String> {
+    let mut results = Vec::new();
+    for chunk in version_batches(ids)? {
+        let query = chunk
+            .iter()
+            .map(|id| ("mod_ids[]", id.to_string()))
+            .collect();
+        let response = match api_get(&app, "/mods/versions", query).await {
+            Ok(value) => parse_versions(value, &chunk),
+            Err(error) => Err(error),
+        };
+        match response {
+            Ok(batch) => results.extend(batch),
+            Err(error) => {
+                log::warn!("ModWorkshop version batch failed: {error}");
+                results.extend(chunk.into_iter().map(|id| ModVersionResult::Failed {
+                    id,
+                    error: error.clone(),
+                }));
+            }
+        }
+    }
+    Ok(results)
 }
 
 #[tauri::command]

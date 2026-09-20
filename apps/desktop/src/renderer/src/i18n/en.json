@@ -179,6 +179,8 @@
             "staleDuplicateHint": "This is a leftover from before this file's download was repackaged (safe to remove)."
         },
         "updatesModal": {
+            "versionChange": "{from} to {to}",
+            "versionAvailable": "{version} available",
             "title": "Available updates ({count})",
             "update": "Update",
             "updating": "Updating...",

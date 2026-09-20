@@ -14,6 +14,7 @@ import { useThumbnail } from '../../hooks/useThumbnail'
 import { isLoaderDep, offsiteDepHost } from '../../deps'
 import { uninstallablePromptMessage } from '../../installSentinels'
 import { api } from '../../api'
+import { useModVersions } from '../../hooks/useModVersions'
 
 export function DepsTab({
     instructions,
@@ -43,6 +44,12 @@ export function DepsTab({
     onOpenDetail?: (modId: number) => void
 }) {
     const hasInstructions = !!(instructsTemplate?.instructions || instructions)
+    const versions = useModVersions(deps.flatMap((dep) => (dep.mod ? [dep.mod.id] : [])))
+    const knownVersion = (id: number | undefined) => {
+        if (id === undefined) return undefined
+        const state = versions.get(id)
+        return state?.status === 'known' ? state.version : undefined
+    }
     // Checked once for the whole list rather than per row.
     const [bltDiesel3, setBltDiesel3] = useState(false)
     useEffect(() => {
@@ -60,6 +67,7 @@ export function DepsTab({
                     <div className="flex flex-col gap-2">
                         {deps.map((dep, i) => (
                             <DepRow
+                                version={knownVersion(dep.mod?.id)}
                                 key={dep.id}
                                 dep={dep}
                                 position={deps.length > 1 ? i + 1 : undefined}
@@ -101,6 +109,7 @@ export function DepsTab({
 }
 
 function DepRow({
+    version,
     dep,
     position,
     installed,
@@ -113,6 +122,7 @@ function DepRow({
     onRefreshInstalled,
     onOpenDetail,
 }: {
+    version: string | undefined
     dep: ModDependency
     position?: number
     installed: InstalledMod[]
@@ -299,7 +309,8 @@ function DepRow({
             <div className="min-w-0 flex-1">
                 <div className="text-sm font-medium truncate">{mod.name}</div>
                 <div className="text-xs text-text-subtle mt-0.5">
-                    {t('common.by', { name: mod.user.name })} · {mod.version} ·{' '}
+                    {t('common.by', { name: mod.user.name })}
+                    {version && <> · {version}</>} ·{' '}
                     <span className={isInstalled ? 'text-success-text' : 'text-danger-text'}>
                         {isInstalled
                             ? t('detail.deps.statusInstalled')

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Button } from './ui/Button'
 import { Tag, Download, Clock, AlertTriangle } from 'lucide-react'
-import type { ModFile, InstalledMod, ModSummary } from '../../../shared/types'
+import type { ModFile, InstalledMod, Mod } from '../../../shared/types'
 import { Dialog, DialogHeader } from './Dialog'
 import { t } from '../i18n'
 import { MarkdownContent } from './MarkdownContent'
@@ -17,7 +17,7 @@ function formatBytes(bytes: number): string {
 }
 
 interface Props {
-    mod: ModSummary
+    mod: Mod
     files: ModFile[]
     gamePath: string | null
     installedFiles: InstalledMod[]

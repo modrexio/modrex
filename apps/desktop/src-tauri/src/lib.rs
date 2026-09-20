@@ -31,6 +31,7 @@ fn ipc_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::startup::finish_startup,
             // api
             commands::api::list_mods,
+            commands::api::get_mod_versions,
             commands::api::get_mod,
             commands::api::list_mod_files,
             commands::api::list_mod_links,

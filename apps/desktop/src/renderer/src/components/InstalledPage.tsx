@@ -79,7 +79,7 @@ export function InstalledPage({
     const installed = useMemo(() => tracked.map(withDeclaredMetadata), [tracked])
     const [viewMode, setViewMode] = useState<ViewMode>(getSavedViewMode)
     const [scanPhase, setScanPhase] = useState<{ phase: string; total: number } | null>(null)
-    const { modData, failedIds, updatable } = useModData(
+    const { modData, failedIds, updatable, updateVersions } = useModData(
         installed,
         GAMES[activeGame].workshopId,
         activeGame
@@ -621,6 +621,7 @@ export function InstalledPage({
 
                 {showUpdates && (
                     <UpdatesModal
+                        updateVersions={updateVersions}
                         updatable={updatable}
                         modData={modData}
                         installed={installed}
@@ -635,6 +636,7 @@ export function InstalledPage({
 
                 {showHealth && (
                     <HealthCheckModal
+                        updateVersions={updateVersions}
                         installed={installed}
                         updatable={updatable}
                         modData={modData}

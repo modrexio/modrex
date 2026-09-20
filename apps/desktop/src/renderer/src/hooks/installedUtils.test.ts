@@ -152,7 +152,6 @@ describe('syntheticMod', () => {
         const result = syntheticMod(ins)
         expect(result.id).toBe(42)
         expect(result.name).toBe('Cool Mod')
-        expect(result.version).toBe('2.5')
     })
 
     it('sets fixed fallback values for all remote-only fields', () => {
@@ -165,7 +164,6 @@ describe('syntheticMod', () => {
         expect(result.views).toBe(0)
         expect(result.has_download).toBe(false)
         expect(result.thumbnail).toBeNull()
-        expect(result.download).toBeNull()
         expect(result.user).toEqual({
             id: null,
             name: 'Unknown',

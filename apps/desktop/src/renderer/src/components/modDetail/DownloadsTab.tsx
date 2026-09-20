@@ -103,6 +103,7 @@ function DownloadsSkeleton() {
 }
 
 export function DownloadsTab({
+    modVersion,
     files,
     links,
     loading,
@@ -121,6 +122,7 @@ export function DownloadsTab({
     files: ModFile[]
     links: ModLink[]
     loading: boolean
+    modVersion: string | undefined
     mod: ModSummary
     images: ModImage[]
     gamePath: string | null
@@ -198,7 +200,7 @@ export function DownloadsTab({
     }
 
     async function doInstallFile(file: ModFile) {
-        if (!gamePath) return
+        if (!gamePath || modVersion === undefined) return
         setInstallingId(file.id)
         setInstallError(null)
         try {
@@ -208,7 +210,7 @@ export function DownloadsTab({
                 file.id,
                 file.download_url,
                 file.type ?? '',
-                mod.version,
+                modVersion,
                 gamePath,
                 activeGame
             )
@@ -352,6 +354,7 @@ export function DownloadsTab({
                             <button
                                 disabled={
                                     !gamePath ||
+                                    modVersion === undefined ||
                                     isInstalling ||
                                     isInstalled ||
                                     !!mod.disable_mod_managers

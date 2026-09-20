@@ -20,7 +20,7 @@ const CACHE_STORAGE_KEYS = [
 // Freshness window for bulk installed-mod metadata (see fetchInstalledModsMeta).
 // Exported so useModData's own staleness check stays in lockstep with what
 // this cache actually serves. Longer than the 5-min mod/files/links TTL above
-// on purpose: name, version and thumbnail rarely change minute to minute, and a short
+// on purpose: names and thumbnails rarely change minute to minute, and a short
 // window re-triggers a full batch refresh on every game switch once it lapses.
 export const INSTALLED_META_TTL_MS = 30 * 60 * 1000
 
@@ -52,6 +52,7 @@ const modCache = new Map<number, ModCacheEntry>()
 const filesCache = new Map<number, FilesCacheEntry>()
 const linksCache = new Map<number, LinksCacheEntry>()
 const installedMetaCache = new Map<number, InstalledMetaCacheEntry>()
+const installedRequests = new Map<number, Promise<ModSummary | null>>()
 
 function loadFromStorage(): void {
     const now = Date.now()
@@ -195,10 +196,24 @@ export function clearModCache(): number {
 export async function getCachedMod(id: number): Promise<Mod> {
     const entry = modCache.get(id)
     if (entry && Date.now() - entry.fetchedAt < TTL_MS) return entry.mod
-    const mod = await api.getMod(id)
-    modCache.set(id, { mod, fetchedAt: Date.now() })
-    scheduleStorage()
-    return mod
+    return refreshModDetail(id)
+}
+
+const detailRequests = new Map<number, Promise<Mod>>()
+
+export async function refreshModDetail(id: number): Promise<Mod> {
+    const running = detailRequests.get(id)
+    if (running) return running
+    const request = api
+        .getMod(id)
+        .then((mod) => {
+            modCache.set(id, { mod, fetchedAt: Date.now() })
+            scheduleStorage()
+            return mod
+        })
+        .finally(() => detailRequests.delete(id))
+    detailRequests.set(id, request)
+    return request
 }
 
 export async function getCachedModFiles(id: number): Promise<ModFile[]> {
@@ -230,14 +245,36 @@ export async function fetchInstalledModsMeta(
 ): Promise<{ mods: Map<number, ModSummary>; failedIds: number[] }> {
     const mods = new Map<number, ModSummary>()
     const failedIds: number[] = []
-    for (let i = 0; i < ids.length; i += INSTALLED_META_CHUNK_SIZE) {
-        const chunk = ids.slice(i, i + INSTALLED_META_CHUNK_SIZE)
+    const needed: number[] = []
+    const waits: Promise<void>[] = []
+    for (const id of new Set(ids)) {
+        const entry = installedMetaCache.get(id)
+        if (entry && Date.now() - entry.fetchedAt < INSTALLED_META_TTL_MS) {
+            mods.set(id, entry.mod)
+            continue
+        }
+        const request = installedRequests.get(id)
+        if (request) {
+            waits.push(
+                request.then((mod) => {
+                    if (mod) mods.set(id, mod)
+                    else failedIds.push(id)
+                })
+            )
+        } else needed.push(id)
+    }
+    const complete = new Map<number, (mod: ModSummary | null) => void>()
+    for (const id of needed)
+        installedRequests.set(id, new Promise((resolve) => complete.set(id, resolve)))
+    for (let i = 0; i < needed.length; i += INSTALLED_META_CHUNK_SIZE) {
+        const chunk = needed.slice(i, i + INSTALLED_META_CHUNK_SIZE)
         await waitForForegroundClear()
         try {
             const { data } = await api.listMods(workshopId, { ids: chunk, limit: chunk.length })
             const fetchedAt = Date.now()
             const got = new Set<number>()
             for (const mod of data) {
+                if (!chunk.includes(mod.id)) continue
                 installedMetaCache.set(mod.id, { mod, fetchedAt })
                 mods.set(mod.id, mod)
                 got.add(mod.id)
@@ -247,8 +284,14 @@ export async function fetchInstalledModsMeta(
             }
         } catch {
             failedIds.push(...chunk)
+        } finally {
+            for (const id of chunk) {
+                complete.get(id)!(mods.get(id) ?? null)
+                installedRequests.delete(id)
+            }
         }
     }
+    await Promise.all(waits)
     if (ids.length > 0) scheduleStorage()
     return { mods, failedIds }
 }

@@ -254,6 +254,7 @@ export function ModDetailPage({
             null
     )
     const mod: ModSummary | null = detail ?? initialMod ?? null
+    const externalDownloadUrl = detail?.download?.download_url ? null : detail?.download?.url
     const [files, setFiles] = useState<ModFile[]>(
         () =>
             (isNexus
@@ -479,7 +480,8 @@ export function ModDetailPage({
     }, [isActive, lightboxIndex, images.length, onBack])
 
     async function handleInstall() {
-        if (!gamePath || !mod) return
+        if (!gamePath || !mod || !detail) return
+        const download = detail.download
         // No in-app install trigger for Nexus. The free-tier flow is the site's own
         // "Mod Manager Download" button, which hands back an nxm:// link Modrex
         // registers and handles. Matches NexusBrowsePage's openOnNexus.
@@ -491,8 +493,8 @@ export function ModDetailPage({
             }
             return
         }
-        if (mod.download?.url && !mod.download.download_url) {
-            api.openExternal(mod.download.url)
+        if (download?.url && !download.download_url) {
+            api.openExternal(download.url)
             return
         }
         // Dep check runs here, before FileSelectModal, because multi-file mods
@@ -517,13 +519,13 @@ export function ModDetailPage({
             setShowDepsWarning(true)
             return
         }
-        if (mod.download === null && files.length > 1) {
+        if (download === null && files.length > 1) {
             setShowFileSelect(true)
             return
         }
-        const checkType = mod.download?.type ?? (files.length === 1 ? files[0].type : undefined)
+        const checkType = download?.type ?? (files.length === 1 ? files[0].type : undefined)
         const checkUrl =
-            mod.download?.download_url ?? (files.length === 1 ? files[0].download_url : undefined)
+            download?.download_url ?? (files.length === 1 ? files[0].download_url : undefined)
         if (isUnsupportedFormat(checkType, checkUrl)) {
             setShowHeaderFormatWarning(true)
             return
@@ -776,9 +778,9 @@ export function ModDetailPage({
                     onClose={() => setUnrecognizedModId(null)}
                 />
             )}
-            {showFileSelect && mod && (
+            {showFileSelect && detail && (
                 <FileSelectModal
-                    mod={mod}
+                    mod={detail}
                     files={files}
                     gamePath={gamePath}
                     installedFiles={installedFiles}
@@ -887,11 +889,11 @@ export function ModDetailPage({
                                 </span>
                             ) : mod.has_download ? (
                                 <>
-                                    {mod.download?.url && !mod.download.download_url ? (
+                                    {externalDownloadUrl ? (
                                         <Button
                                             variant="accent"
                                             size="lg"
-                                            onClick={() => api.openExternal(mod.download!.url!)}
+                                            onClick={() => api.openExternal(externalDownloadUrl)}
                                         >
                                             <ExternalLink className="w-3.5 h-3.5" />
                                             {t('common.openLink')}
@@ -917,8 +919,8 @@ export function ModDetailPage({
                                         </Button>
                                     )}
                                     {isUnsupportedFormat(
-                                        mod.download?.type ?? undefined,
-                                        mod.download?.download_url ?? undefined
+                                        detail?.download?.type ?? undefined,
+                                        detail?.download?.download_url ?? undefined
                                     ) && (
                                         <span className="flex items-center gap-1 text-xs text-warning">
                                             <AlertTriangle className="w-3 h-3 shrink-0" />
@@ -1054,6 +1056,7 @@ export function ModDetailPage({
                                 </Tabs.Content>
                                 <Tabs.Content value="downloads" className="py-5 focus:outline-none">
                                     <DownloadsTab
+                                        modVersion={detail?.version}
                                         files={files}
                                         links={links}
                                         loading={filesLoading}
@@ -1115,7 +1118,7 @@ export function ModDetailPage({
                             <InfoRow
                                 icon={<TagIcon className="w-3.5 h-3.5" />}
                                 label={t('detail.info.version')}
-                                value={installedMod?.version ?? mod.version}
+                                value={installedMod?.version ?? detail?.version}
                             />
                             <InfoRow
                                 icon={<CalendarDays className="w-3.5 h-3.5" />}

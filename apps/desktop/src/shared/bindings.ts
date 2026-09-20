@@ -17,6 +17,7 @@ export const commands = {
 	tags: number[] | null,
 	block_tags: number[] | null,
 } | null) => __TAURI_INVOKE<ModPage>("list_mods", { gameId, params }),
+	getModVersions: (ids: number[]) => __TAURI_INVOKE<ModVersionResult[]>("get_mod_versions", { ids }),
 	getMod: (id: number) => __TAURI_INVOKE<ModDetail>("get_mod", { id }),
 	listModFiles: (modId: number) => __TAURI_INVOKE<FilePage>("list_mod_files", { modId }),
 	listModLinks: (modId: number) => __TAURI_INVOKE<LinkPage>("list_mod_links", { modId }),
@@ -753,7 +754,7 @@ export type ModDetail = {
 };
 
 /**
- *  The default download attached to a listing. modworkshop has two shapes here:
+ *  The default download attached to a detail response. modworkshop has two shapes here:
  *  file-hosted mods carry download_url/type/size, external-link mods carry only url.
  */
 export type ModDownload = {
@@ -856,15 +857,14 @@ export type ModPage = {
 };
 
 /**
- *  A mod as a listing returns it. The detail call adds images, banner, dependencies,
- *  instructs_template and tags, which is why those are deliberately absent here.
+ *  A mod as a listing returns it. Version/default-download and the richer detail fields
+ *  are deliberately absent because the listing endpoint does not guarantee them.
  */
 export type ModSummary = {
 	id: number,
 	name: string,
 	desc: string,
 	short_desc: string,
-	version: string,
 	downloads: number,
 	likes: number,
 	views: number,
@@ -874,7 +874,6 @@ export type ModSummary = {
 	has_download: boolean,
 	disable_mod_managers: boolean | null,
 	thumbnail: ModThumbnail | null,
-	download: ModDownload | null,
 	user: ModUser,
 };
 
@@ -896,6 +895,8 @@ export type ModUser = {
 	avatar: string | null,
 	avatar_has_thumb: boolean | null,
 };
+
+export type ModVersionResult = { status: "known"; id: number; version: string } | { status: "unversioned"; id: number } | { status: "missing"; id: number } | { status: "failed"; id: number; error: string };
 
 export type NewsItem = {
 	title: string,

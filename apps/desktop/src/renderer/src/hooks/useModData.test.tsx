@@ -8,6 +8,7 @@ const mockGetMod = vi.fn()
 const mockListModFiles = vi.fn()
 const mockListModLinks = vi.fn()
 const mockListMods = vi.fn()
+const mockVersions = vi.fn()
 
 // nexusModCache subscribes to this at module load to track Nexus sign-ins. Capturing the
 // callback is what lets the re-authorization test below fire a real sign-in. Hoisted
@@ -26,6 +27,7 @@ vi.mock('../api', () => ({
         listModFiles: (...args: unknown[]) => mockListModFiles(...args),
         listModLinks: (...args: unknown[]) => mockListModLinks(...args),
         listMods: (...args: unknown[]) => mockListMods(...args),
+        getModVersions: (...args: unknown[]) => mockVersions(...args),
         onNexusOAuthSignedIn: (callback: () => void) => {
             signedInListeners.push(callback)
             return () => {}
@@ -99,13 +101,12 @@ function makeNexusDetail(id: number, version: string): Mod {
     }
 }
 
-function makeWorkshopSummary(id: number, version: string): ModSummary {
+function makeWorkshopSummary(id: number): ModSummary {
     return {
         id,
         name: 'Workshop Mod',
         desc: '',
         short_desc: '',
-        version,
         downloads: 0,
         likes: 0,
         views: 0,
@@ -115,7 +116,6 @@ function makeWorkshopSummary(id: number, version: string): ModSummary {
         has_download: true,
         disable_mod_managers: null,
         thumbnail: null,
-        download: null,
         user: { id: null, name: '', donation_url: null, avatar: null, avatar_has_thumb: null },
     }
 }
@@ -126,6 +126,9 @@ beforeEach(() => {
     mockListModFiles.mockReset()
     mockListModLinks.mockReset()
     mockListMods.mockReset()
+    mockVersions.mockImplementation(async (ids: number[]) =>
+        ids.map((id) => ({ id, status: 'known', version: '3.0' }))
+    )
 })
 
 describe('useModData end-to-end with a real installed Nexus mod', () => {
@@ -139,7 +142,7 @@ describe('useModData end-to-end with a real installed Nexus mod', () => {
         expect(mockNexusGetModDetail).toHaveBeenCalledWith('pd3', 216)
         expect(mockListMods).not.toHaveBeenCalled()
         expect(result.current.updatable[0]).toBe(installed[0])
-        expect(result.current.modData.get(-216)?.version).toBe('1.1.0')
+        expect(result.current.updateVersions.get(-216)).toBe('1.1.0')
     })
 
     it('does not flag an installed Nexus mod as updatable when the version already matches', async () => {
@@ -156,13 +159,26 @@ describe('useModData end-to-end with a real installed Nexus mod', () => {
         expect(result.current.updatable).toEqual([])
     })
 
+    it('uses a fresh cached Nexus detail as update authority', async () => {
+        const first = [makeNexusInstall(-700, '700', '1.0.0')]
+        mockNexusGetModDetail.mockResolvedValue(makeNexusDetail(700, '1.1.0'))
+        const initial = renderHook(() => useModData(first, 853, 'pd3'))
+        await waitFor(() => expect(initial.result.current.updatable).toHaveLength(1))
+        initial.unmount()
+
+        mockNexusGetModDetail.mockClear()
+        const cached = renderHook(() => useModData(first, 853, 'pd3'))
+        await waitFor(() => expect(cached.result.current.updatable).toHaveLength(1))
+        expect(mockNexusGetModDetail).not.toHaveBeenCalled()
+    })
+
     it('checks a modworkshop mod and a Nexus mod through their own separate paths at once', async () => {
         const installed = [
             makeWorkshopInstall(58065, '2.11'),
             makeNexusInstall(-400, '400', '1.0.0'),
         ]
         mockListMods.mockResolvedValue({
-            data: [makeWorkshopSummary(58065, '3.0')],
+            data: [makeWorkshopSummary(58065)],
             meta: {},
         })
         mockNexusGetModDetail.mockResolvedValue(makeNexusDetail(400, '1.1.0'))
@@ -203,7 +219,7 @@ describe('useModData end-to-end with a real installed Nexus mod', () => {
         // Same installed array reference, so nothing but the new session can drive this.
         emitNexusSignedIn()
 
-        await waitFor(() => expect(result.current.modData.get(-600)?.version).toBe('1.1.0'))
+        await waitFor(() => expect(result.current.updateVersions.get(-600)).toBe('1.1.0'))
         expect(mockNexusGetModDetail).toHaveBeenCalledWith('pd3', 600)
         expect(result.current.failedIds.has(-600)).toBe(false)
         expect(result.current.updatable).toHaveLength(1)

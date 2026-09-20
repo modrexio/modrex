@@ -21,10 +21,14 @@ import type { CbFlatArchivePayload } from './CrimeBossFlatArchiveModal'
 import { Ue4ssReplaceModal } from './Ue4ssReplaceModal'
 import type { LoaderReplacePayload } from './Ue4ssReplaceModal'
 import { UnrecognizedArchiveModal } from './UnrecognizedArchiveModal'
-import { detailNavArgs } from '../hooks/installedUtils'
+import { detailNavArgs, syntheticMod } from '../hooks/installedUtils'
 import { nativeIdFor } from '../sources'
+import { refreshModDetail } from '../modCache'
+import { resolveUpdateTarget } from '../updatePolicy'
+import { modVersions } from '../modVersions'
 
 interface Props {
+    updateVersions: ReadonlyMap<number, string>
     updatable: InstalledMod[]
     modData: Map<number, ModSummary>
     installed: InstalledMod[]
@@ -48,6 +52,7 @@ function nexusUpdateUrl(ins: InstalledMod, gameId: string): string | null {
 }
 
 function UpdateModalRow({
+    version,
     ins,
     mod,
     checked,
@@ -57,6 +62,7 @@ function UpdateModalRow({
     onOpenDetail,
     onUpdate,
 }: {
+    version: string
     ins: InstalledMod
     mod: ModSummary
     checked: boolean
@@ -97,7 +103,12 @@ function UpdateModalRow({
                 <div className="min-w-0">
                     <div className="text-sm font-medium truncate">{mod.name}</div>
                     <div className="text-xs text-text-subtle">
-                        {ins.version} to {mod.version}
+                        {ins.version
+                            ? t('installed.updatesModal.versionChange', {
+                                  from: ins.version,
+                                  to: version,
+                              })
+                            : t('installed.updatesModal.versionAvailable', { version })}
                     </div>
                 </div>
             </button>
@@ -117,6 +128,7 @@ function UpdateModalRow({
 }
 
 export function UpdatesModal({
+    updateVersions,
     updatable,
     modData,
     installed,
@@ -155,9 +167,7 @@ export function UpdatesModal({
         })
     }
 
-    // The user already decided to update, so never re-prompt for file selection: re-apply
-    // the prior selection when filenames match, otherwise install all entries.
-    // 'resolved' = handled silently; 'manual' = picker open, caller must pause.
+    // Only an exact prior archive-entry selection can be reapplied without review.
     async function resolveInstallPrompt(
         outcome: Exclude<InstallOutcome, 'installed'>,
         modId: number
@@ -170,7 +180,11 @@ export function UpdatesModal({
             const zipData = outcome.needsPicker as unknown as ZipMultiPakPayload
             if (gamePath) {
                 const autoEntries = computeAutoUpdateSelection(zipData, installed)
-                const entriesToInstall = autoEntries ?? zipData.entries.map((_, pos) => pos)
+                if (!autoEntries) {
+                    setZipPickerData(zipData)
+                    return 'manual'
+                }
+                const entriesToInstall = autoEntries
                 try {
                     await installZipPickerEntries(
                         zipData,
@@ -181,8 +195,8 @@ export function UpdatesModal({
                         onRefreshInstalled
                     )
                     return 'resolved'
-                } catch {
-                    // fall back to the picker if the install fails
+                } catch (error) {
+                    setUpdateError(String(error))
                 }
             }
             setZipPickerData(zipData)
@@ -200,6 +214,32 @@ export function UpdatesModal({
         return 'manual'
     }
 
+    async function installUpdate(
+        ins: InstalledMod,
+        installPath: string
+    ): Promise<InstallOutcome | 'unchanged' | 'review'> {
+        const detail = await refreshModDetail(Number(ins.remoteId))
+        const target = resolveUpdateTarget(
+            installed.filter((mod) => mod.id === ins.id),
+            detail
+        )
+        if (target.status === 'unchanged') {
+            modVersions.record(detail.id, detail.version)
+            return 'unchanged'
+        }
+        if (target.status === 'review') return 'review'
+        return api.installModFile(
+            detail.id,
+            detail.name,
+            target.download.id,
+            target.download.download_url,
+            target.download.type ?? '',
+            detail.version,
+            installPath,
+            gameId
+        )
+    }
+
     async function handleUpdate(ins: InstalledMod) {
         if (!gamePath) return
         const nexusUrl = nexusUpdateUrl(ins, gameId)
@@ -215,12 +255,18 @@ export function UpdatesModal({
         setLoadingMod(ins.uid)
         setUpdateError(null)
         try {
-            const outcome = await api.installMod(remoteId, gamePath, gameId)
+            const outcome = await installUpdate(ins, gamePath)
             if (outcome === 'installed') {
                 await onRefreshInstalled()
-            } else {
-                await resolveInstallPrompt(outcome, remoteId)
+                return
             }
+            if (outcome === 'review') {
+                onClose()
+                onOpenDetail(remoteId)
+                return
+            }
+            if (outcome === 'unchanged') return
+            await resolveInstallPrompt(outcome, remoteId)
         } catch {
             setUpdateError(t('installed.updatesModal.error'))
         } finally {
@@ -244,9 +290,17 @@ export function UpdatesModal({
             const remoteId = Number(ins.remoteId)
             if (!Number.isFinite(remoteId) || remoteId <= 0) continue
             try {
-                const outcome = await api.installMod(remoteId, gamePath, gameId)
+                const outcome = await installUpdate(ins, gamePath)
                 setUpdateProgress((prev) => prev && { done: prev.done + 1, total: prev.total })
-                if (outcome !== 'installed') {
+                if (outcome === 'review') {
+                    queueRef.current = []
+                    setUpdatingAll(false)
+                    setUpdateProgress(null)
+                    onClose()
+                    onOpenDetail(remoteId)
+                    return
+                }
+                if (outcome !== 'installed' && outcome !== 'unchanged') {
                     const resolution = await resolveInstallPrompt(outcome, remoteId)
                     // 'resolved' = auto-applied silently, continue with the next mod;
                     // 'manual' = picker handles this mod, pause until its onClose resumes.
@@ -297,9 +351,10 @@ export function UpdatesModal({
                 <div className="overflow-y-auto flex-1">
                     {updatable.map((ins) => (
                         <UpdateModalRow
+                            version={updateVersions.get(ins.id)!}
                             key={ins.uid}
                             ins={ins}
-                            mod={modData.get(ins.id)!}
+                            mod={modData.get(ins.id) ?? syntheticMod(ins)}
                             checked={selectedIds.has(ins.id)}
                             isLoading={loadingMod === ins.uid || updatingAll}
                             gamePath={gamePath}

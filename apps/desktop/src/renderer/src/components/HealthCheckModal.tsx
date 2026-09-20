@@ -4,7 +4,12 @@ import { Button } from './ui/Button'
 import * as Tabs from '@radix-ui/react-tabs'
 import { Dialog, DialogHeader } from './Dialog'
 import { t } from '../i18n'
-import { computeHealthSummary, detailNavArgs, hasCatalogLink } from '../hooks/installedUtils'
+import {
+    computeHealthSummary,
+    detailNavArgs,
+    hasCatalogLink,
+    syntheticMod,
+} from '../hooks/installedUtils'
 import type { InstalledGroup } from '../hooks/installedUtils'
 import type { HealthItem, MissingDepRef } from '../hooks/healthCheck'
 import type { InstalledMod, ModSummary } from '../../../shared/types'
@@ -21,6 +26,7 @@ interface LocalHealthItem {
 }
 
 interface Props {
+    updateVersions: ReadonlyMap<number, string>
     installed: InstalledMod[]
     updatable: InstalledMod[]
     modData: Map<number, ModSummary>
@@ -80,10 +86,12 @@ function HealthRow({
 }
 
 function UpdateRow({
+    version,
     ins,
     apiMod,
     onOpenDetail,
 }: {
+    version: string
     ins: InstalledMod
     apiMod: ModSummary
     onOpenDetail: (id: number, source?: 'nexus') => void
@@ -91,8 +99,8 @@ function UpdateRow({
     const thumbSrc = useThumbnail(apiMod.thumbnail?.file)
     const hasVersion = !!ins.version
     const versionLine = hasVersion
-        ? `${ins.version} to ${apiMod.version}`
-        : `${apiMod.version} available`
+        ? t('installed.updatesModal.versionChange', { from: ins.version, to: version })
+        : t('installed.updatesModal.versionAvailable', { version })
     return (
         <button
             onClick={() => onOpenDetail(...detailNavArgs(ins))}
@@ -120,6 +128,7 @@ function EmptyTab({ children }: { children: string }) {
 }
 
 export function HealthCheckModal({
+    updateVersions,
     installed,
     updatable,
     modData,
@@ -465,15 +474,16 @@ export function HealthCheckModal({
                             <EmptyTab>{t('installed.health.noUpdates')}</EmptyTab>
                         ) : (
                             updatable.map((ins) => {
-                                const apiMod = modData.get(ins.id)
-                                return apiMod ? (
+                                const apiMod = modData.get(ins.id) ?? syntheticMod(ins)
+                                return (
                                     <UpdateRow
+                                        version={updateVersions.get(ins.id)!}
                                         key={ins.uid}
                                         ins={ins}
                                         apiMod={apiMod}
                                         onOpenDetail={onOpenDetail}
                                     />
-                                ) : null
+                                )
                             })
                         )}
                     </Tabs.Content>

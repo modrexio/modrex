@@ -130,6 +130,10 @@ export const api = {
     },
 
     // ── Browse / API ───────────────────────────────────────────────────────────
+    getModVersions(ids: number[]) {
+        return commands.getModVersions(ids)
+    },
+
     listMods(gameId: number, params?: ListModsParams): Promise<Paginated<ModSummary>> {
         const p = params ?? {}
         return commands.listMods(gameId, {

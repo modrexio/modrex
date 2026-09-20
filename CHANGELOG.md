@@ -12,6 +12,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 ### Fixed
 
 - Fixed Browse hiding category and tag filter loading failures when a request fails.
+- Fixed every installed ModWorkshop mod appearing to have an update when ModWorkshop version data is temporarily unavailable, and made updates recheck the selected downloadable before replacing it.
 
 ## 0.15.0
 
