@@ -1,0 +1,126 @@
+name: Preview deploy
+
+# Runs default-branch code with the deploy token; the CI artifacts are the only PR input.
+on:
+    workflow_run:
+        workflows: [CI]
+        types: [requested, completed]
+
+permissions: {}
+
+concurrency:
+    group: preview-${{ github.event.workflow_run.head_sha }}
+
+jobs:
+    preview:
+        if: github.event.workflow_run.event == 'pull_request'
+        runs-on: ubuntu-latest
+        timeout-minutes: 15
+        permissions:
+            actions: read
+            pull-requests: write
+            statuses: write
+        env:
+            GH_TOKEN: ${{ github.token }}
+            GH_REPO: ${{ github.repository }}
+            SHA: ${{ github.event.workflow_run.head_sha }}
+            CI_URL: ${{ github.event.workflow_run.html_url }}
+        steps:
+            - name: Resolve pull request
+              id: pr
+              run: |
+                  number=$(gh api "repos/$GITHUB_REPOSITORY/commits/$SHA/pulls" \
+                    --jq "[.[] | select(.state == \"open\" and .head.sha == \"$SHA\")][0].number // empty")
+                  echo "number=$number" >> "$GITHUB_OUTPUT"
+                  [ -n "$number" ] || echo "$SHA is not the head of an open pull request; nothing to do."
+
+            - name: Mark previews pending
+              if: steps.pr.outputs.number && github.event.action == 'requested'
+              env:
+                  PR: ${{ steps.pr.outputs.number }}
+              run: |
+                  for name in app site; do
+                    gh api "repos/$GITHUB_REPOSITORY/statuses/$SHA" --silent \
+                      -f context="preview/$name" -f state=pending -f description=Building -f target_url="$CI_URL"
+                  done
+
+                  marker='<!-- modrex-preview -->'
+                  found=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments?per_page=100" \
+                    --jq "[.[] | select(.body | startswith(\"$marker\"))] | length")
+                  [ "$found" = 0 ] || exit 0
+                  gh pr comment "$PR" --body-file - <<EOF
+                  $marker
+                  ## Deploying Modrex previews with &nbsp;<a href="https://pages.dev"><img alt="Cloudflare Pages" src="https://user-images.githubusercontent.com/23264/106598434-9e719e00-654f-11eb-9e59-6167043cfa01.png" width="16"></a> &nbsp;Cloudflare Pages
+
+                  <table>
+                  <tr><td><strong>App preview:</strong></td><td><a href="https://app-preview.modrex.net/pr/$PR">https://app-preview.modrex.net/pr/$PR</a></td></tr>
+                  <tr><td><strong>Site preview:</strong></td><td><a href="https://site-preview.modrex.net/pr/$PR">https://site-preview.modrex.net/pr/$PR</a></td></tr>
+                  </table>
+
+                  View logs: [app](https://dash.cloudflare.com/?to=/:account/pages/view/modrex-app-pr) | [site](https://dash.cloudflare.com/?to=/:account/pages/view/modrex-site-pr)
+                  EOF
+
+            - uses: actions/download-artifact@v8
+              if: steps.pr.outputs.number && github.event.action == 'completed'
+              id: app
+              continue-on-error: true
+              with:
+                  name: app-preview
+                  path: app
+                  run-id: ${{ github.event.workflow_run.id }}
+                  github-token: ${{ github.token }}
+
+            - uses: actions/download-artifact@v8
+              if: steps.pr.outputs.number && github.event.action == 'completed'
+              id: site
+              continue-on-error: true
+              with:
+                  name: site-preview
+                  path: site
+                  run-id: ${{ github.event.workflow_run.id }}
+                  github-token: ${{ github.token }}
+
+            - name: Deploy previews
+              if: steps.pr.outputs.number && github.event.action == 'completed'
+              env:
+                  PR: ${{ steps.pr.outputs.number }}
+                  CI_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+                  APP_ARTIFACT: ${{ steps.app.outcome }}
+                  SITE_ARTIFACT: ${{ steps.site.outcome }}
+                  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+                  CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+              run: |
+                  run_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+                  status() {
+                    gh api "repos/$GITHUB_REPOSITORY/statuses/$SHA" --silent \
+                      -f context="preview/$1" -f state="$2" -f description="$3" -f target_url="$4"
+                  }
+
+                  if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+                    for name in app site; do status "$name" error "Preview deploys are not configured" "$run_url"; done
+                    exit 0
+                  fi
+                  case "$CI_CONCLUSION" in
+                    success|failure) ;;
+                    *) for name in app site; do status "$name" error "CI $CI_CONCLUSION" "$CI_URL"; done; exit 0 ;;
+                  esac
+
+                  failed=0
+                  deploy() {
+                    local name=$1 artifact=$2 dir=$3 assets=$4 project=$5
+                    if [ "$artifact" != success ]; then
+                      status "$name" failure "CI produced no preview" "$CI_URL"
+                      failed=1
+                      return
+                    fi
+                    if (cd "$dir" && npx -y wrangler@4.135.0 pages deploy "$assets" \
+                          --project-name "$project" --branch "pr-$PR" --commit-hash "$SHA" --commit-dirty=true); then
+                      status "$name" success Ready "https://pr-$PR.$project.pages.dev"
+                    else
+                      status "$name" failure "Deploy failed" "$run_url"
+                      failed=1
+                    fi
+                  }
+                  deploy app "$APP_ARTIFACT" app . modrex-app-pr
+                  deploy site "$SITE_ARTIFACT" site dist modrex-site-pr
+                  exit $failed
