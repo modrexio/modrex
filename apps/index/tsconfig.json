@@ -2,7 +2,7 @@
     "compilerOptions": {
         "target": "ESNext",
         "module": "Node16",
-        "types": ["node"],
+        "types": ["node", "emscripten"],
         "strict": true
     }
 }

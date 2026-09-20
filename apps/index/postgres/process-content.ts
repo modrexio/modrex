@@ -1,5 +1,3 @@
-import { neon } from '@neondatabase/serverless'
-
 import { extractContentEntries, type ContentEntry } from './content-archive.js'
 import {
     TransientFetchError,
@@ -8,51 +6,28 @@ import {
     extractMarkerEntry,
     extractPdmodEntry,
 } from './marker-archive.js'
+import { connectDatabase } from './database.js'
+import { selectContentListings } from './content-selection.js'
+import {
+    deferDownloadable,
+    finishDiscovery,
+    needsProcessing,
+    recordHostedVersion,
+    registerDownloadable,
+    retireMissingDownloadables,
+    settleDownloadable,
+    type DownloadableInput,
+    type DownloadableState,
+    type Listing,
+} from './downloadable-state.js'
+import { ModWorkshop, ModWorkshopApiError, type ModFile, type ModLink } from './modworkshop.js'
 
-interface Listing {
-    source_id: string
-    remote_id: string
-    name: string
-    version: string
-    updated_at: string
-}
-
-interface ModFile {
-    id: number
-    version: string
-    download_url: string
-    type: string
-}
-
-// A mod's download can be a link to another host instead of a file ModWorkshop stores.
-interface ModLink {
-    id: number
-    url: string
-}
-
-interface Paginated<T> {
-    data: T[]
-    meta: { current_page: number; last_page: number }
-}
-
-class ModWorkshopApiError extends Error {
-    constructor(
-        readonly status: number,
-        readonly path: string
-    ) {
-        super(`ModWorkshop API ${status}: ${path}`)
-    }
-}
-
-const databaseUrl = process.env.INDEX_DATABASE_URL
-if (!databaseUrl) throw new Error('INDEX_DATABASE_URL is required')
-
-const game = process.argv.find((argument) => argument.startsWith('--game='))?.slice(7)
+const gameArg = process.argv.find((argument) => argument.startsWith('--game='))?.slice(7)
 const supportedGames = ['pd3', 'pd2', 'pdth', 'cb', 'raid'] as const
-if (!supportedGames.includes(game as (typeof supportedGames)[number])) {
+if (!supportedGames.includes(gameArg as (typeof supportedGames)[number])) {
     throw new Error(`--game must be one of ${supportedGames.join(', ')}`)
 }
-
+const game = gameArg as (typeof supportedGames)[number]
 const limit = Number(
     process.argv.find((argument) => argument.startsWith('--limit='))?.slice(8) ?? '25'
 )
@@ -60,14 +35,10 @@ if (!Number.isInteger(limit) || limit < 1 || limit > 1000) {
     throw new Error('--limit must be an integer from 1 through 1000')
 }
 
-// PD3 and Crime Boss index every content file in an archive. The Diesel games hash one
-// representative marker file per mod instead.
+const db = connectDatabase()
+const api = new ModWorkshop()
 const isUnrealGame = game === 'pd3' || game === 'cb'
-const apiBase = process.env.MODWORKSHOP_API_BASE ?? 'https://api.modworkshop.net'
-const sql = neon(databaseUrl)
-const userAgent = 'modrex-index-builder'
-const apiMinimumIntervalMs = 700
-let nextApiSlot = 0
+const now = new Date()
 
 function shouldDownload(type: string): boolean {
     const normalized = type.toLowerCase()
@@ -83,37 +54,6 @@ function shouldDownload(type: string): boolean {
     )
 }
 
-async function apiGet<T>(path: string): Promise<T> {
-    const now = Date.now()
-    const slot = Math.max(now, nextApiSlot)
-    nextApiSlot = slot + apiMinimumIntervalMs
-    if (slot > now) await new Promise((resolve) => setTimeout(resolve, slot - now))
-
-    const response = await fetch(`${apiBase}${path}`, {
-        headers: { Accept: 'application/json', 'User-Agent': userAgent },
-        signal: AbortSignal.timeout(30_000),
-    })
-    if (!response.ok) throw new ModWorkshopApiError(response.status, path)
-    return (await response.json()) as T
-}
-
-async function listFiles(modId: string): Promise<ModFile[]> {
-    const files: ModFile[] = []
-    let page = 1
-    let lastPage = 1
-    do {
-        const result = await apiGet<Paginated<ModFile>>(
-            `/mods/${modId}/files?limit=50&page=${page}`
-        )
-        files.push(...result.data)
-        lastPage = result.meta.last_page
-        page++
-    } while (page <= lastPage)
-    return files
-}
-
-// A link's URL is whatever the author typed, so anything that is not a fetchable web address
-// is dropped here rather than thrown at the extractor, where it would fail the whole run.
 function isFetchableUrl(url: string): boolean {
     try {
         const { protocol } = new URL(url)
@@ -123,26 +63,6 @@ function isFetchableUrl(url: string): boolean {
     }
 }
 
-async function listLinks(modId: string): Promise<ModLink[]> {
-    const links = await apiGet<Paginated<ModLink>>(`/mods/${modId}/links?limit=50`)
-    return links.data.filter((link) => isFetchableUrl(link.url))
-}
-
-const listings = (await sql`
-    SELECT mod_listings.source_id, mod_listings.remote_id, mod_listings.name,
-           mod_listings.version, mod_listings.updated_at
-    FROM mod_listings
-    JOIN sources ON sources.id = mod_listings.source_id
-    JOIN games ON games.id = sources.game_id
-    LEFT JOIN mod_checks ON mod_checks.source_id = mod_listings.source_id
-                        AND mod_checks.remote_id = mod_listings.remote_id
-    WHERE games.slug = ${game}
-      AND mod_listings.has_download
-      AND (mod_checks.remote_id IS NULL OR mod_checks.updated_at <> mod_listings.updated_at)
-    ORDER BY mod_listings.bumped_at DESC
-    LIMIT ${limit}
-`) as Listing[]
-
 async function extractEntries(url: string, type: string): Promise<ContentEntry[]> {
     if (!isUnrealGame) {
         const isPdmod =
@@ -150,166 +70,150 @@ async function extractEntries(url: string, type: string): Promise<ContentEntry[]
         const entry = isPdmod ? await extractPdmodEntry(url) : await extractMarkerEntry(url, null)
         return entry ? [entry] : []
     }
-
     const archive = await downloadArchive(url)
     if (!archive) return []
     const fallbackName = decodeURIComponent(new URL(url).pathname.split('/').pop() ?? '')
     return extractContentEntries(archive, fallbackName)
 }
 
-// downloadId is what files.remote_id holds: a positive ModWorkshop file id, or a negated
-// ModWorkshop link id for content reached through an off-site link (see the link fallback
-// below for why the two kinds must not share a range).
-async function storeEntries(
+const listings = await selectContentListings(db, game, limit, now)
+
+function fileInput(file: ModFile): DownloadableInput {
+    return {
+        kind: 'file',
+        remoteId: file.id,
+        url: file.download_url,
+        version: file.version,
+        objectKey: file.file,
+        size: file.size,
+        mediaType: file.type,
+    }
+}
+function linkInput(link: ModLink): DownloadableInput {
+    return {
+        kind: 'link',
+        remoteId: link.id,
+        url: link.url,
+        version: link.version,
+        objectKey: null,
+        size: null,
+        mediaType: null,
+    }
+}
+
+async function processDownloadable(
     listing: Listing,
-    downloadId: number,
-    version: string,
-    entries: ContentEntry[]
-): Promise<void> {
-    const indexedEntries: Array<{ sha256: string; entry_name: string }> = []
-    const indexedHashes = new Set<string>()
-    for (const entry of entries) {
-        if (indexedHashes.has(entry.sha256)) continue
-        indexedHashes.add(entry.sha256)
-        indexedEntries.push({ sha256: entry.sha256, entry_name: entry.entryName })
+    state: DownloadableState
+): Promise<{ indexed: boolean; pending: boolean }> {
+    if (!needsProcessing(state, now)) {
+        await recordHostedVersion(db, listing, state, now)
+        return { indexed: state.has_entries, pending: false }
     }
-
-    await sql.query(
-        `WITH indexed_mod AS (
-            INSERT INTO mods (source_id, remote_id, name, url)
-            VALUES ($1, $2, $3, $4)
-            ON CONFLICT (source_id, remote_id) DO UPDATE SET
-                name = EXCLUDED.name,
-                url = EXCLUDED.url
-            RETURNING id
-        ), contents AS (
-            INSERT INTO file_contents (sha256)
-            SELECT sha256 FROM jsonb_to_recordset($5::jsonb) AS entry(sha256 TEXT, entry_name TEXT)
-            ON CONFLICT DO NOTHING
+    if (!shouldDownload(state.input.mediaType ?? '')) {
+        await settleDownloadable(
+            db,
+            listing,
+            state,
+            'unusable',
+            [],
+            now,
+            `unsupported media type: ${state.input.mediaType}`
         )
-        INSERT INTO files (mod_id, sha256, remote_id, version, indexed_at, entry_name)
-        SELECT indexed_mod.id, entry.sha256, $6, $7, $8, entry.entry_name
-        FROM indexed_mod
-        CROSS JOIN jsonb_to_recordset($5::jsonb) AS entry(sha256 TEXT, entry_name TEXT)
-        ON CONFLICT (mod_id, sha256) DO UPDATE SET
-            entry_name = CASE WHEN files.entry_name = '' THEN EXCLUDED.entry_name ELSE files.entry_name END`,
-        [
-            listing.source_id,
-            listing.remote_id,
-            listing.name,
-            `https://modworkshop.net/mod/${listing.remote_id}`,
-            JSON.stringify(indexedEntries),
-            downloadId,
-            version,
-            new Date().toISOString(),
-        ]
-    )
-}
-
-async function recordCheck(listing: Listing, fileIds: number[]): Promise<void> {
-    await sql`
-        INSERT INTO mod_checks (source_id, remote_id, updated_at, file_ids, checked_at)
-        VALUES (${listing.source_id}, ${listing.remote_id}, ${listing.updated_at}, ${JSON.stringify(fileIds)}::jsonb, ${new Date().toISOString()})
-        ON CONFLICT (source_id, remote_id) DO UPDATE SET
-            updated_at = EXCLUDED.updated_at,
-            file_ids = EXCLUDED.file_ids,
-            checked_at = EXCLUDED.checked_at
-    `
-}
-
-// A download that could not be turned into entries either got an answer or did not. An answer
-// is part of evaluating the listing, so it is only worth a log line. Anything else leaves the
-// listing pending, and anything that is neither is a bug or an outage and ends the run.
-function classifyDownloadFailure(error: unknown, subject: string): 'deferred' | 'nothing-to-index' {
-    if (error instanceof TransientFetchError) {
-        console.warn(`${subject} deferred: ${error.message}`)
-        return 'deferred'
+        return { indexed: false, pending: false }
     }
-    if (error instanceof UnusableDownloadError) {
-        console.warn(`${subject} has nothing to index: ${error.message}`)
-        return 'nothing-to-index'
+    try {
+        const entries = await extractEntries(state.input.url, state.input.mediaType ?? '')
+        await settleDownloadable(
+            db,
+            listing,
+            state,
+            entries.length ? 'complete' : 'empty',
+            entries,
+            now
+        )
+        return { indexed: entries.length > 0, pending: false }
+    } catch (error) {
+        const subject = `${game} mod ${listing.remote_id} ${state.input.kind} ${state.input.remoteId}`
+        if (error instanceof TransientFetchError) {
+            console.warn(`${subject} deferred: ${error.message}`)
+            await deferDownloadable(db, state, now, error.message)
+            return { indexed: false, pending: true }
+        }
+        if (error instanceof UnusableDownloadError) {
+            console.warn(`${subject} has nothing to index: ${error.message}`)
+            await settleDownloadable(db, listing, state, 'unusable', [], now, error.message)
+            return { indexed: false, pending: false }
+        }
+        throw error
     }
-    throw error
 }
 
 let indexed = 0
 let deferred = 0
+let downloaded = 0
+let skipped = 0
 for (const listing of listings) {
     let files: ModFile[]
     try {
-        files = await listFiles(listing.remote_id)
+        files = await api.files(listing.remote_id)
     } catch (error) {
         if (error instanceof ModWorkshopApiError && error.status === 404) {
-            await recordCheck(listing, [])
+            await finishDiscovery(db, listing, [], now)
             continue
         }
-        // ModWorkshop is the source of truth rather than one of the hosts a mod page points
-        // at, and every listing goes through it before any download, so an outage there ends
-        // the run instead of quietly recording thousands of listings as holding nothing.
         throw error
     }
 
-    const indexedFileIds: number[] = []
+    const settledIds: number[] = []
+    let hasIndexedContent = false
     let pending = false
-
     for (const file of files) {
-        if (!shouldDownload(file.type)) continue
-        try {
-            const entries = await extractEntries(file.download_url, file.type)
-            if (entries.length === 0) continue
-            await storeEntries(listing, file.id, file.version || listing.version, entries)
-            indexedFileIds.push(file.id)
-        } catch (error) {
-            const outcome = classifyDownloadFailure(
-                error,
-                `${game} mod ${listing.remote_id} file ${file.id}`
-            )
-            pending ||= outcome === 'deferred'
+        const state = await registerDownloadable(db, listing, fileInput(file), now)
+        const processing = needsProcessing(state, now)
+        const result = await processDownloadable(listing, state)
+        if (processing) downloaded++
+        else skipped++
+        pending ||= result.pending
+        hasIndexedContent ||= result.indexed
+        if (result.indexed) settledIds.push(file.id)
+    }
+    await retireMissingDownloadables(
+        db,
+        listing,
+        'file',
+        files.map((file) => file.id),
+        now
+    )
+
+    if (!isUnrealGame && !pending && !hasIndexedContent) {
+        const links = await api.links(listing.remote_id)
+        for (const link of links.filter((item) => isFetchableUrl(item.url))) {
+            const state = await registerDownloadable(db, listing, linkInput(link), now)
+            const processing = needsProcessing(state, now)
+            const result = await processDownloadable(listing, state)
+            if (processing) downloaded++
+            else skipped++
+            pending ||= result.pending
+            hasIndexedContent ||= result.indexed
+            if (result.indexed) settledIds.push(-link.id)
         }
+        await retireMissingDownloadables(
+            db,
+            listing,
+            'link',
+            links.map((link) => link.id),
+            now
+        )
     }
 
-    // A mod can publish its download as a link to another host, and then the files endpoint
-    // above is empty and nothing about the mod is recorded at all. Marker games only: their
-    // extractor reads a few hundred kilobytes over Range and gives up on anything that is
-    // not an archive, so an author-supplied URL stays bounded and self-validating, which
-    // the whole-archive path the Unreal games use is not.
-    if (!isUnrealGame && !pending && indexedFileIds.length === 0) {
-        for (const link of await listLinks(listing.remote_id)) {
-            try {
-                const entries = await extractEntries(link.url, '')
-                if (entries.length === 0) continue
-                // Negated, because modrex-main groups installed mods by file id across
-                // the whole install (installedUtils.ts findSuspectDuplicateGroups) and
-                // that only holds while ids are unique game-wide. ModWorkshop numbers
-                // links in their own sequence, so a link id can equal some other mod's
-                // file id; negating keeps the two kinds in disjoint ranges and marks a
-                // row as "no downloadable ModWorkshop file" at the same time.
-                await storeEntries(listing, -link.id, listing.version, entries)
-                indexedFileIds.push(-link.id)
-            } catch (error) {
-                const outcome = classifyDownloadFailure(
-                    error,
-                    `${game} mod ${listing.remote_id} link ${link.id}`
-                )
-                pending ||= outcome === 'deferred'
-            }
-        }
-    }
-
-    // Recording the check is what stops a listing being selected again. A listing every one of
-    // whose downloads has been answered is finished, whether or not any of them yielded a file:
-    // the author's off-site link is optional content, and a mod page that offers nothing this
-    // pipeline can read is a fact about the mod, not a failure to establish one. Only a pending
-    // download leaves it unrecorded, so a host that was briefly unreachable is tried again.
-    if (pending) {
-        deferred++
-        continue
-    }
-    await recordCheck(listing, indexedFileIds)
-    if (indexedFileIds.length > 0) indexed++
+    await finishDiscovery(db, listing, settledIds, now)
+    if (pending) deferred++
+    else if (hasIndexedContent) indexed++
 }
 
 console.log(
     `Processed ${listings.length} ${game} listings: ${indexed} indexed, ` +
-        `${listings.length - indexed - deferred} with nothing to index, ${deferred} deferred`
+        `${listings.length - indexed - deferred} with nothing to index, ${deferred} deferred; ` +
+        `${downloaded} downloadables processed, ${skipped} unchanged`
 )
+console.log(`ModWorkshop requests: ${api.counts.requests}, retries: ${api.counts.retries}`)

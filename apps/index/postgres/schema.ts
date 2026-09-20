@@ -36,7 +36,7 @@ export const migrations: Migration[] = [
                 mod_id BIGINT NOT NULL REFERENCES mods(id),
                 sha256 TEXT NOT NULL REFERENCES file_contents(sha256),
                 remote_id BIGINT NOT NULL,
-                version TEXT NOT NULL,
+                version TEXT,
                 indexed_at TEXT NOT NULL,
                 entry_name TEXT NOT NULL DEFAULT '',
                 UNIQUE(mod_id, sha256)
@@ -154,6 +154,73 @@ export const migrations: Migration[] = [
                      13788, 13789, 13792, 13804
                    )
              )`,
+        ],
+    },
+    {
+        version: '006_downloadable_revisions',
+        statements: [
+            `CREATE TABLE listing_version_pending (
+                source_id BIGINT NOT NULL REFERENCES sources(id),
+                remote_id BIGINT NOT NULL,
+                listing JSONB NOT NULL,
+                outcome TEXT NOT NULL CHECK (outcome IN ('missing', 'failed')),
+                attempts INTEGER NOT NULL,
+                next_retry_at TEXT NOT NULL,
+                last_error TEXT,
+                first_seen_at TEXT NOT NULL,
+                last_attempt_at TEXT NOT NULL,
+                PRIMARY KEY(source_id, remote_id)
+            )`,
+            'CREATE INDEX listing_version_pending_retry_idx ON listing_version_pending(next_retry_at)',
+            `CREATE TABLE mod_reconciliations (
+                source_id BIGINT NOT NULL REFERENCES sources(id),
+                remote_id BIGINT NOT NULL,
+                last_discovered_at TEXT NOT NULL,
+                next_reconcile_at TEXT NOT NULL,
+                PRIMARY KEY(source_id, remote_id)
+            )`,
+            'CREATE INDEX mod_reconciliations_due_idx ON mod_reconciliations(next_reconcile_at)',
+            `CREATE TABLE remote_downloadables (
+                id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+                source_id BIGINT NOT NULL REFERENCES sources(id),
+                mod_remote_id BIGINT NOT NULL,
+                kind TEXT NOT NULL CHECK (kind IN ('file', 'link')),
+                remote_id BIGINT NOT NULL,
+                metadata_fingerprint TEXT NOT NULL,
+                version TEXT,
+                url TEXT NOT NULL,
+                object_key TEXT,
+                size BIGINT,
+                media_type TEXT,
+                status TEXT NOT NULL CHECK (status IN ('pending', 'complete', 'empty', 'unusable', 'failed')),
+                attempts INTEGER NOT NULL DEFAULT 0,
+                retry_at TEXT,
+                next_revalidate_at TEXT,
+                first_seen_at TEXT NOT NULL,
+                last_seen_at TEXT NOT NULL,
+                retired_at TEXT,
+                last_processed_at TEXT,
+                last_content_fingerprint TEXT,
+                UNIQUE(source_id, mod_remote_id, kind, remote_id)
+            )`,
+            'CREATE INDEX remote_downloadables_due_idx ON remote_downloadables(status, retry_at, next_revalidate_at)',
+            `CREATE TABLE downloadable_observations (
+                id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+                downloadable_id BIGINT NOT NULL REFERENCES remote_downloadables(id),
+                metadata_fingerprint TEXT NOT NULL,
+                content_fingerprint TEXT,
+                version TEXT NOT NULL,
+                outcome TEXT NOT NULL CHECK (outcome IN ('complete', 'empty', 'unusable')),
+                observed_at TEXT NOT NULL,
+                error TEXT,
+                UNIQUE(downloadable_id, metadata_fingerprint, content_fingerprint, version, outcome)
+            )`,
+            `CREATE TABLE downloadable_entries (
+                observation_id BIGINT NOT NULL REFERENCES downloadable_observations(id),
+                sha256 TEXT NOT NULL REFERENCES file_contents(sha256),
+                entry_name TEXT NOT NULL,
+                PRIMARY KEY(observation_id, sha256, entry_name)
+            )`,
         ],
     },
 ]

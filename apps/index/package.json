@@ -17,6 +17,7 @@
         "test:marker-archive": "tsx test-marker-archive.ts",
         "test:marker-contract": "tsx test-marker-contract.ts",
         "test:process-failure": "tsx test-process-failure.ts",
+        "test:postgres-architecture": "tsx test-postgres-architecture.ts",
         "test:staged-rebuild": "node test-staged-rebuild.mjs"
     },
     "dependencies": {
@@ -24,8 +25,10 @@
         "@neondatabase/serverless": "^1.1.0"
     },
     "devDependencies": {
+        "@electric-sql/pglite": "^0.5.8",
         "@types/adm-zip": "^0.5.8",
         "@types/better-sqlite3": "^7.6.13",
+        "@types/emscripten": "^1.41.6",
         "@types/node": "^26.4.0",
         "adm-zip": "^0.6.1",
         "better-sqlite3": "^13.0.3",

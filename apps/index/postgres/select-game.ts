@@ -7,21 +7,39 @@ const databaseUrl = process.env.INDEX_DATABASE_URL
 if (!databaseUrl) throw new Error('INDEX_DATABASE_URL is required')
 
 const sql = neon(databaseUrl)
+const selectionAt = new Date().toISOString()
 
 // Pending means the same thing here as in the processor's own selection, so the two
-// predicates have to stay in step: see the listings query in process-content.ts.
+// predicates have to stay in step with content-selection.ts.
 const pendingRows = (await sql`
     SELECT
         games.slug,
-        COUNT(*) FILTER (
+        COUNT(DISTINCT (mod_listings.source_id, mod_listings.remote_id)) FILTER (
             WHERE mod_listings.has_download
-              AND (mod_checks.remote_id IS NULL OR mod_checks.updated_at <> mod_listings.updated_at)
+              AND (
+                mod_checks.remote_id IS NULL OR mod_checks.updated_at <> mod_listings.updated_at OR
+                mod_reconciliations.remote_id IS NULL OR mod_reconciliations.next_reconcile_at <= ${selectionAt} OR
+                EXISTS (
+                    SELECT 1 FROM remote_downloadables
+                    WHERE remote_downloadables.source_id = mod_listings.source_id
+                      AND remote_downloadables.mod_remote_id = mod_listings.remote_id
+                      AND remote_downloadables.retired_at IS NULL
+                      AND (
+                        (remote_downloadables.status = 'failed'
+                            AND remote_downloadables.retry_at <= ${selectionAt}) OR
+                        (remote_downloadables.kind = 'link'
+                            AND remote_downloadables.next_revalidate_at <= ${selectionAt})
+                      )
+                )
+              )
         )::TEXT AS pending
     FROM games
     JOIN sources ON sources.game_id = games.id
     LEFT JOIN mod_listings ON mod_listings.source_id = sources.id
     LEFT JOIN mod_checks ON mod_checks.source_id = mod_listings.source_id
                         AND mod_checks.remote_id = mod_listings.remote_id
+    LEFT JOIN mod_reconciliations ON mod_reconciliations.source_id = mod_listings.source_id
+                                 AND mod_reconciliations.remote_id = mod_listings.remote_id
     GROUP BY games.slug
 `) as Array<{ slug: string; pending: string }>
 
