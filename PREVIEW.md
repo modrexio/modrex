@@ -36,12 +36,13 @@ Every pull request has a number next to its title on GitHub. Put that number aft
 `https://app-preview.modrex.net/pr/<pull-request-number>`
 
 The `/pr/` address belongs to the pull request, not to one commit. Keep using the same address
-while the pull request is open. After a new commit is pushed and Cloudflare finishes the next
-deployment, the same address opens the updated version.
+while the pull request is open. After a new commit is pushed and its preview is built, the same
+address opens the updated version. While the build runs the address shows **Building**, and it
+says so if the build failed or no preview exists for the latest commit.
 
-The Cloudflare bot comments on the pull request when a deployment is ready. Its **Preview URL**
-keeps the version from one commit. Its **Branch Preview URL** updates with the pull request. The
-Modrex `/pr/` address is the readable link to share for ongoing review.
+A comment on every pull request lists this address together with the site preview at
+`https://site-preview.modrex.net/pr/<pull-request-number>`, which opens the same commit of
+modrex.net.
 
 Preview state parameters also work after the pull request number:
 
