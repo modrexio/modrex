@@ -996,7 +996,6 @@ mod tests {
             "name": "Test Mod",
             "desc": "long",
             "short_desc": "short",
-            "version": "2.11",
             "downloads": 100,
             "likes": 5,
             "views": 900,
@@ -1005,13 +1004,6 @@ mod tests {
             "category_id": 7,
             "has_download": true,
             "thumbnail": { "file": "abc.png", "has_thumb": true },
-            "download": {
-                "id": 1,
-                "version": "1.9.4",
-                "size": 2048,
-                "type": "zip",
-                "download_url": "https://example.test/a.zip"
-            },
             "user": { "id": 3, "name": "Author" }
         }],
         "meta": { "current_page": 1, "last_page": 4, "per_page": 24, "total": 90 }

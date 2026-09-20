@@ -17,11 +17,8 @@ const CACHE_STORAGE_KEYS = [
     INSTALLED_META_STORAGE_KEY,
 ]
 
-// Freshness window for bulk installed-mod metadata (see fetchInstalledModsMeta).
-// Exported so useModData's own staleness check stays in lockstep with what
-// this cache actually serves. Longer than the 5-min mod/files/links TTL above
-// on purpose: names and thumbnails rarely change minute to minute, and a short
-// window re-triggers a full batch refresh on every game switch once it lapses.
+// Shared with useModData so its refresh timer matches this cache. The longer window
+// avoids refetching mostly static names and thumbnails on routine game switches.
 export const INSTALLED_META_TTL_MS = 30 * 60 * 1000
 
 interface ModCacheEntry {

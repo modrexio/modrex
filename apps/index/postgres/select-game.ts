@@ -9,29 +9,36 @@ if (!databaseUrl) throw new Error('INDEX_DATABASE_URL is required')
 const sql = neon(databaseUrl)
 const selectionAt = new Date().toISOString()
 
-// Pending means the same thing here as in the processor's own selection, so the two
-// predicates have to stay in step with content-selection.ts.
+// Keep this eligibility predicate in step with content-selection.ts so the scheduler
+// never selects a game that the processor considers settled, or skips actionable work.
 const pendingRows = (await sql`
     SELECT
         games.slug,
         COUNT(DISTINCT (mod_listings.source_id, mod_listings.remote_id)) FILTER (
-            WHERE mod_listings.has_download
-              AND (
-                mod_checks.remote_id IS NULL OR mod_checks.updated_at <> mod_listings.updated_at OR
-                mod_reconciliations.remote_id IS NULL OR mod_reconciliations.next_reconcile_at <= ${selectionAt} OR
-                EXISTS (
-                    SELECT 1 FROM remote_downloadables
-                    WHERE remote_downloadables.source_id = mod_listings.source_id
-                      AND remote_downloadables.mod_remote_id = mod_listings.remote_id
-                      AND remote_downloadables.retired_at IS NULL
-                      AND (
-                        (remote_downloadables.status = 'failed'
-                            AND remote_downloadables.retry_at <= ${selectionAt}) OR
-                        (remote_downloadables.kind = 'link'
-                            AND remote_downloadables.next_revalidate_at <= ${selectionAt})
-                      )
+            WHERE mod_listings.remote_id IS NOT NULL AND (
+                (mod_checks.remote_id IS NULL AND (
+                    mod_reconciliations.remote_id IS NULL OR
+                    mod_reconciliations.next_reconcile_at <= ${selectionAt}
+                )) OR
+                mod_checks.updated_at <> mod_listings.updated_at OR
+                (mod_checks.updated_at = mod_listings.updated_at AND (
+                    mod_reconciliations.remote_id IS NULL OR
+                    mod_reconciliations.next_reconcile_at <= ${selectionAt} OR
+                    EXISTS (
+                        SELECT 1 FROM remote_downloadables
+                        WHERE remote_downloadables.source_id = mod_listings.source_id
+                          AND remote_downloadables.mod_remote_id = mod_listings.remote_id
+                          AND remote_downloadables.retired_at IS NULL
+                          AND (
+                            remote_downloadables.status = 'pending' OR
+                            (remote_downloadables.status = 'failed'
+                                AND remote_downloadables.retry_at <= ${selectionAt}) OR
+                            (remote_downloadables.kind = 'link'
+                                AND remote_downloadables.next_revalidate_at <= ${selectionAt})
+                          )
+                    )
                 )
-              )
+            )
         )::TEXT AS pending
     FROM games
     JOIN sources ON sources.game_id = games.id

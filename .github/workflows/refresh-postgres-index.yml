@@ -26,7 +26,7 @@ permissions:
     contents: read
 
 concurrency:
-    group: postgres-index-r2
+    group: postgres-index
     cancel-in-progress: false
 
 jobs:
@@ -94,9 +94,7 @@ jobs:
                       database="apps/index/artifacts/${game}.db"
                       pnpm --dir apps/index export:postgres-sqlite -- --game="${game}" --output="artifacts/${game}.db" --require-files
                       sha256="$(sha256sum "${database}" | cut -d ' ' -f 1)"
-                      if ! aws s3 cp "s3://${R2_BUCKET}/catalog/latest.json" latest.json --endpoint-url "${R2_ENDPOINT}"; then
-                          printf '%s\n' '{"version":1,"games":{}}' > latest.json
-                      fi
+                      aws s3 cp "s3://${R2_BUCKET}/catalog/latest.json" latest.json --endpoint-url "${R2_ENDPOINT}"
                       previous_sha256="$(jq -r --arg game "${game}" '.games[$game].sha256 // empty' latest.json)"
                       if [ "${sha256}" = "${previous_sha256}" ]; then
                           printf 'No content change for %s; keeping the current generation.\n' "${game}"
@@ -113,9 +111,7 @@ jobs:
                       printf 'Published %s with sha256 %s\n' "${key}" "${sha256}"
                   done
                   supported_mods="$(pnpm --dir apps/index exec tsx postgres/report-stats.ts)"
-                  if ! aws s3 cp "s3://${R2_BUCKET}/catalog/latest.json" latest.json --endpoint-url "${R2_ENDPOINT}"; then
-                      printf '%s\n' '{"version":1,"games":{}}' > latest.json
-                  fi
+                  aws s3 cp "s3://${R2_BUCKET}/catalog/latest.json" latest.json --endpoint-url "${R2_ENDPOINT}"
                   previous_supported_mods="$(jq -r '.stats.supportedMods // empty' latest.json)"
                   if [ "${supported_mods}" != "${previous_supported_mods}" ]; then
                       generated_at="$(date -u +%Y-%m-%dT%H%M%SZ)"

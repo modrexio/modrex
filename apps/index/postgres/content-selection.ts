@@ -1,5 +1,77 @@
 import type { Database } from './database.js'
 import type { Listing } from './downloadable-state.js'
+import type { ModWorkshop } from './modworkshop.js'
+
+export interface VersionRefreshResult {
+    updated: number
+    missing: number
+    failed: number
+    processable: Listing[]
+}
+
+export async function refreshContentVersions(
+    db: Database,
+    api: ModWorkshop,
+    listings: Listing[],
+    now = new Date()
+): Promise<VersionRefreshResult> {
+    const versions = await api.versions(listings.map((listing) => Number(listing.remote_id)))
+    const updates: Array<{ source_id: string; remote_id: string; version: string }> = []
+    let missing = 0
+    let failed = 0
+    const processable: Listing[] = []
+    const deferred: Array<{ source_id: string; remote_id: string; status: 'missing' | 'failed' }> =
+        []
+    for (const listing of listings) {
+        const result = versions.get(Number(listing.remote_id))
+        if (!result) throw new Error(`No version outcome for ${listing.remote_id}`)
+        if (result.status === 'missing') {
+            missing++
+            deferred.push({ ...listing, status: 'missing' })
+            continue
+        }
+        if (result.status === 'failed') {
+            failed++
+            deferred.push({ ...listing, status: 'failed' })
+            continue
+        }
+        processable.push(listing)
+        if (listing.version === result.version) continue
+        listing.version = result.version
+        updates.push({
+            source_id: listing.source_id,
+            remote_id: listing.remote_id,
+            version: result.version,
+        })
+    }
+    if (updates.length)
+        await db.query(
+            `UPDATE mod_listings AS listing SET version=remote.version
+             FROM jsonb_to_recordset($1::jsonb)
+                  AS remote(source_id BIGINT, remote_id BIGINT, version TEXT)
+             WHERE listing.source_id=remote.source_id AND listing.remote_id=remote.remote_id`,
+            [JSON.stringify(updates)]
+        )
+    if (deferred.length)
+        await db.query(
+            `INSERT INTO mod_reconciliations (
+                source_id, remote_id, last_discovered_at, next_reconcile_at
+             )
+             SELECT item.source_id, item.remote_id, $2,
+                CASE WHEN item.status='missing' THEN $3 ELSE $4 END
+             FROM jsonb_to_recordset($1::jsonb)
+                  AS item(source_id BIGINT, remote_id BIGINT, status TEXT)
+             ON CONFLICT (source_id, remote_id) DO UPDATE SET
+                next_reconcile_at=EXCLUDED.next_reconcile_at`,
+            [
+                JSON.stringify(deferred),
+                now.toISOString(),
+                new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+                new Date(now.getTime() + 60 * 60 * 1000).toISOString(),
+            ]
+        )
+    return { updated: updates.length, missing, failed, processable }
+}
 
 export async function selectContentListings(
     db: Database,
@@ -7,7 +79,7 @@ export async function selectContentListings(
     limit: number,
     now: Date
 ): Promise<Listing[]> {
-    const dueQuota = Math.floor(limit / 4)
+    const dueQuota = Math.max(1, Math.floor(limit / 4))
     return db.query<Listing>(
         `WITH fresh AS (
             SELECT listing.source_id::TEXT, listing.remote_id::TEXT, listing.name,
@@ -17,8 +89,14 @@ export async function selectContentListings(
             JOIN games ON games.id=sources.game_id
             LEFT JOIN mod_checks check_state ON check_state.source_id=listing.source_id
                  AND check_state.remote_id=listing.remote_id
-            WHERE games.slug=$1 AND listing.has_download
-              AND (check_state.remote_id IS NULL OR check_state.updated_at<>listing.updated_at)
+            LEFT JOIN mod_reconciliations reconciliation ON reconciliation.source_id=listing.source_id
+                 AND reconciliation.remote_id=listing.remote_id
+            WHERE games.slug=$1
+              AND (
+                (check_state.remote_id IS NULL AND (
+                    reconciliation.remote_id IS NULL OR reconciliation.next_reconcile_at<=$2
+                )) OR check_state.updated_at<>listing.updated_at
+              )
         ), due AS (
             SELECT listing.source_id::TEXT, listing.remote_id::TEXT, listing.name,
                    listing.version, listing.updated_at, listing.bumped_at
@@ -30,7 +108,7 @@ export async function selectContentListings(
                  AND check_state.updated_at=listing.updated_at
             LEFT JOIN mod_reconciliations reconciliation ON reconciliation.source_id=listing.source_id
                  AND reconciliation.remote_id=listing.remote_id
-            WHERE games.slug=$1 AND listing.has_download
+            WHERE games.slug=$1
               AND (
                 reconciliation.remote_id IS NULL OR reconciliation.next_reconcile_at<=$2 OR
                 EXISTS (
@@ -39,6 +117,7 @@ export async function selectContentListings(
                       AND downloadable.mod_remote_id=listing.remote_id
                       AND downloadable.retired_at IS NULL
                       AND (
+                        downloadable.status='pending' OR
                         (downloadable.status='failed' AND downloadable.retry_at<=$2) OR
                         (downloadable.kind='link' AND downloadable.next_revalidate_at<=$2)
                       )

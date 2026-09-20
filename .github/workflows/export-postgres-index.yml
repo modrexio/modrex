@@ -13,7 +13,7 @@ permissions:
     contents: read
 
 concurrency:
-    group: export-postgres-index-${{ inputs.game }}
+    group: postgres-index
     cancel-in-progress: false
 
 jobs:

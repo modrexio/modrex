@@ -13,7 +13,7 @@ permissions:
     contents: read
 
 concurrency:
-    group: postgres-index-r2
+    group: postgres-index
     cancel-in-progress: false
 
 jobs:
@@ -65,9 +65,7 @@ jobs:
                   pnpm --dir apps/index export:postgres-sqlite -- --game="${GAME}" --output="artifacts/${GAME}.db" --require-files
                   sha256="$(sha256sum "${database}" | cut -d ' ' -f 1)"
                   size="$(wc -c < "${database}")"
-                  if ! aws s3 cp "s3://${R2_BUCKET}/catalog/latest.json" latest.json --endpoint-url "${R2_ENDPOINT}"; then
-                      printf '%s\n' '{"version":1,"games":{}}' > latest.json
-                  fi
+                  aws s3 cp "s3://${R2_BUCKET}/catalog/latest.json" latest.json --endpoint-url "${R2_ENDPOINT}"
                   previous_sha256="$(jq -r --arg game "${GAME}" '.games[$game].sha256 // empty' latest.json)"
                   if [ "${sha256}" = "${previous_sha256}" ]; then
                       printf 'No content change for %s; keeping the current generation.\n' "${GAME}"

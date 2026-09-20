@@ -5,12 +5,30 @@ const overlapMs = 10 * 60 * 1000
 
 interface PendingRow {
     listing: unknown
-    attempts: number
 }
 
 interface PendingAttemptRow {
     remote_id: string
     attempts: number
+    listing: unknown
+    next_retry_at: string
+}
+
+interface StoredBatch {
+    stored: number
+    pending: number
+}
+
+function sameListing(left: ModListing, right: ModListing): boolean {
+    return (
+        left.id === right.id &&
+        left.name === right.name &&
+        left.has_download === right.has_download &&
+        left.bumped_at === right.bumped_at &&
+        left.updated_at === right.updated_at &&
+        left.download_id === right.download_id &&
+        left.download_type === right.download_type
+    )
 }
 
 export interface SyncResult {
@@ -86,6 +104,67 @@ function pendingStatement(
     }
 }
 
+async function storeBatch(
+    db: Database,
+    api: ModWorkshop,
+    sourceId: string,
+    listings: ModListing[],
+    startedAt: Date
+): Promise<StoredBatch> {
+    if (!listings.length) return { stored: 0, pending: 0 }
+    const listingIds = listings.map((listing) => listing.id)
+    const existing = await db.query<PendingAttemptRow>(
+        `SELECT remote_id::TEXT, attempts, listing, next_retry_at FROM listing_version_pending
+         WHERE source_id = $1 AND remote_id = ANY($2::BIGINT[])`,
+        [sourceId, listingIds]
+    )
+    const prior = new Map(existing.map((row) => [Number(row.remote_id), row]))
+    const candidates = listings.filter((listing) => {
+        const pending = prior.get(listing.id)
+        return (
+            !pending ||
+            pending.next_retry_at <= startedAt.toISOString() ||
+            !sameListing(parseListing(pending.listing), listing)
+        )
+    })
+    if (!candidates.length) return { stored: 0, pending: 0 }
+    const versions = await api.versions(candidates.map((listing) => listing.id))
+    const known: Array<ModListing & { version: string }> = []
+    const pending: Parameters<typeof pendingStatement>[1] = []
+    const resolved: number[] = []
+    const at = startedAt.toISOString()
+
+    for (const listing of candidates) {
+        const result = versions.get(listing.id)
+        if (!result) throw new Error(`No version outcome for ${listing.id}`)
+        if (result.status === 'known') {
+            known.push({ ...listing, version: result.version })
+            resolved.push(listing.id)
+            continue
+        }
+        const attempts = (prior.get(listing.id)?.attempts ?? 0) + 1
+        pending.push({
+            listing,
+            outcome: result.status,
+            attempts,
+            next_retry_at: retryAt(startedAt, result, attempts),
+            last_error: result.status === 'failed' ? result.error : null,
+            at,
+        })
+    }
+
+    const statements: Statement[] = []
+    if (known.length) statements.push(knownStatement(sourceId, known))
+    if (pending.length) statements.push(pendingStatement(sourceId, pending))
+    if (resolved.length)
+        statements.push({
+            text: 'DELETE FROM listing_version_pending WHERE source_id = $1 AND remote_id = ANY($2::BIGINT[])',
+            values: [sourceId, resolved],
+        })
+    await db.transaction(statements)
+    return { stored: known.length, pending: pending.length }
+}
+
 export async function syncGameListings(
     db: Database,
     api: ModWorkshop,
@@ -110,83 +189,64 @@ export async function syncGameListings(
     const threshold = checkpoint ? new Date(checkpoint.getTime() - overlapMs) : null
 
     const due = await db.query<PendingRow>(
-        `SELECT listing, attempts FROM listing_version_pending
+        `SELECT listing FROM listing_version_pending
          WHERE source_id = $1 AND next_retry_at <= $2 ORDER BY next_retry_at LIMIT 1000`,
         [sourceId, startedAt.toISOString()]
     )
-    const listings = new Map<number, ModListing>()
-    const priorAttempts = new Map<number, number>()
+    const dueListings = new Map<number, ModListing>()
     for (const row of due) {
         const listing = parseListing(row.listing)
-        listings.set(listing.id, listing)
-        priorAttempts.set(listing.id, row.attempts)
+        dueListings.set(listing.id, listing)
     }
 
+    const discoveredIds = new Set<number>()
+    let stored = 0
+    let pending = 0
     let page = 1
+    let batch: ModListing[] = []
     while (true) {
         const result = await api.listings(workshopId, page)
         for (const listing of result.data) {
-            if (!threshold || new Date(listing.bumped_at) >= threshold)
-                listings.set(listing.id, listing)
+            const retrying = dueListings.delete(listing.id)
+            if (threshold && new Date(listing.bumped_at) < threshold && !retrying) continue
+            if (discoveredIds.has(listing.id)) continue
+            discoveredIds.add(listing.id)
+            batch.push(listing)
+        }
+        while (batch.length >= 100) {
+            const batchResult = await storeBatch(db, api, sourceId, batch.splice(0, 100), startedAt)
+            stored += batchResult.stored
+            pending += batchResult.pending
         }
         const oldest = result.data.at(-1)?.bumped_at
-        if (page === result.meta.last_page || (threshold && oldest && new Date(oldest) < threshold))
+        const finished =
+            page === result.meta.last_page ||
+            Boolean(threshold && oldest && new Date(oldest) < threshold)
+        if (finished) {
+            const batchResult = await storeBatch(db, api, sourceId, batch, startedAt)
+            stored += batchResult.stored
+            pending += batchResult.pending
             break
+        }
         page++
     }
 
-    const listingIds = [...listings.keys()]
-    if (listingIds.length) {
-        const existing = await db.query<PendingAttemptRow>(
-            `SELECT remote_id::TEXT, attempts FROM listing_version_pending
-             WHERE source_id = $1 AND remote_id = ANY($2::BIGINT[])`,
-            [sourceId, listingIds]
-        )
-        for (const row of existing) priorAttempts.set(Number(row.remote_id), row.attempts)
-    }
+    const retryResult = await storeBatch(db, api, sourceId, [...dueListings.values()], startedAt)
+    stored += retryResult.stored
+    pending += retryResult.pending
+    for (const id of dueListings.keys()) discoveredIds.add(id)
 
-    const versions = await api.versions(listingIds)
-    const known: Array<ModListing & { version: string }> = []
-    const pending: Parameters<typeof pendingStatement>[1] = []
-    const resolved: number[] = []
-    const at = startedAt.toISOString()
-    for (const listing of listings.values()) {
-        const result = versions.get(listing.id)
-        if (!result) throw new Error(`No version outcome for ${listing.id}`)
-        if (result.status === 'known') {
-            known.push({ ...listing, version: result.version })
-            resolved.push(listing.id)
-            continue
-        }
-        const attempts = (priorAttempts.get(listing.id) ?? 0) + 1
-        pending.push({
-            listing,
-            outcome: result.status,
-            attempts,
-            next_retry_at: retryAt(startedAt, result, attempts),
-            last_error: result.status === 'failed' ? result.error : null,
-            at,
-        })
-    }
-
-    const statements: Statement[] = []
-    if (known.length) statements.push(knownStatement(sourceId, known))
-    if (pending.length) statements.push(pendingStatement(sourceId, pending))
-    if (resolved.length)
-        statements.push({
-            text: 'DELETE FROM listing_version_pending WHERE source_id = $1 AND remote_id = ANY($2::BIGINT[])',
-            values: [sourceId, resolved],
-        })
-    statements.push({
-        text: `INSERT INTO metadata (key, value) VALUES ($1, $2)
+    await db.transaction([
+        {
+            text: `INSERT INTO metadata (key, value) VALUES ($1, $2)
                ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
-        values: [`listings_last_run_at:${slug}`, at],
-    })
-    await db.transaction(statements)
+            values: [`listings_last_run_at:${slug}`, startedAt.toISOString()],
+        },
+    ])
     return {
-        discovered: listings.size,
-        stored: known.length,
-        pending: pending.length,
+        discovered: discoveredIds.size,
+        stored,
+        pending,
         requests: api.counts.requests,
         versionBatches: api.counts.versionBatches,
     }

@@ -64,11 +64,11 @@ export async function registerDownloadable(
     const metadata = metadataFingerprint(input)
     const rows = await db.query<DownloadableRow>(
         `INSERT INTO remote_downloadables (
-            source_id, mod_remote_id, kind, remote_id, metadata_fingerprint, version,
+            source_id, mod_remote_id, kind, remote_id, metadata_fingerprint,
             url, object_key, size, media_type, status, first_seen_at, last_seen_at
-         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'pending',$11,$11)
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'pending',$10,$10)
          ON CONFLICT (source_id, mod_remote_id, kind, remote_id) DO UPDATE SET
-            version = EXCLUDED.version, url = EXCLUDED.url, object_key = EXCLUDED.object_key,
+            url = EXCLUDED.url, object_key = EXCLUDED.object_key,
             size = EXCLUDED.size, media_type = EXCLUDED.media_type,
             status = CASE WHEN remote_downloadables.metadata_fingerprint <> EXCLUDED.metadata_fingerprint
                 THEN 'pending' ELSE remote_downloadables.status END,
@@ -87,19 +87,19 @@ export async function registerDownloadable(
             EXISTS (SELECT 1 FROM downloadable_observations observation
                     WHERE observation.downloadable_id = remote_downloadables.id
                       AND observation.metadata_fingerprint = $5
-                      AND observation.version = COALESCE(NULLIF($6, ''), $12)) AS version_observed`,
+                      AND observation.version = COALESCE(NULLIF($11, ''), $12)) AS version_observed`,
         [
             listing.source_id,
             listing.remote_id,
             input.kind,
             input.remoteId,
             metadata,
-            input.version,
             input.url,
             input.objectKey,
             input.size,
             input.mediaType,
             now.toISOString(),
+            input.version,
             listing.version,
         ]
     )
@@ -270,7 +270,7 @@ export async function settleDownloadable(
         },
         {
             text: `UPDATE remote_downloadables SET status=$2, attempts=0, retry_at=NULL,
-                    next_revalidate_at=$3, last_processed_at=$4, last_content_fingerprint=$5
+                    next_revalidate_at=$3, last_processed_at=$4
                  WHERE id=$1`,
             values: [
                 state.id,
@@ -279,7 +279,6 @@ export async function settleDownloadable(
                     ? new Date(now.getTime() + revalidateMs).toISOString()
                     : null,
                 now.toISOString(),
-                content,
             ],
         }
     )
@@ -305,9 +304,14 @@ export async function finishDiscovery(
     db: Database,
     listing: Listing,
     fileIds: number[],
+    hasDownload: boolean,
     now: Date
 ): Promise<void> {
     await db.transaction([
+        {
+            text: `UPDATE mod_listings SET has_download=$3 WHERE source_id=$1 AND remote_id=$2`,
+            values: [listing.source_id, listing.remote_id, hasDownload],
+        },
         {
             text: `INSERT INTO mod_checks (source_id, remote_id, updated_at, file_ids, checked_at)
                  VALUES ($1,$2,$3,$4::jsonb,$5)

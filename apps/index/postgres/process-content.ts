@@ -7,7 +7,7 @@ import {
     extractPdmodEntry,
 } from './marker-archive.js'
 import { connectDatabase } from './database.js'
-import { selectContentListings } from './content-selection.js'
+import { refreshContentVersions, selectContentListings } from './content-selection.js'
 import {
     deferDownloadable,
     finishDiscovery,
@@ -77,6 +77,7 @@ async function extractEntries(url: string, type: string): Promise<ContentEntry[]
 }
 
 const listings = await selectContentListings(db, game, limit, now)
+const versionRefresh = await refreshContentVersions(db, api, listings, now)
 
 function fileInput(file: ModFile): DownloadableInput {
     return {
@@ -152,13 +153,15 @@ let indexed = 0
 let deferred = 0
 let downloaded = 0
 let skipped = 0
-for (const listing of listings) {
+for (const listing of versionRefresh.processable) {
     let files: ModFile[]
     try {
         files = await api.files(listing.remote_id)
     } catch (error) {
         if (error instanceof ModWorkshopApiError && error.status === 404) {
-            await finishDiscovery(db, listing, [], now)
+            await retireMissingDownloadables(db, listing, 'file', [], now)
+            await retireMissingDownloadables(db, listing, 'link', [], now)
+            await finishDiscovery(db, listing, [], false, now)
             continue
         }
         throw error
@@ -185,9 +188,12 @@ for (const listing of listings) {
         now
     )
 
-    if (!isUnrealGame && !pending && !hasIndexedContent) {
+    let fetchableLinkCount = 0
+    if (!isUnrealGame) {
         const links = await api.links(listing.remote_id)
-        for (const link of links.filter((item) => isFetchableUrl(item.url))) {
+        const fetchableLinks = links.filter((item) => isFetchableUrl(item.url))
+        fetchableLinkCount = fetchableLinks.length
+        for (const link of fetchableLinks) {
             const state = await registerDownloadable(db, listing, linkInput(link), now)
             const processing = needsProcessing(state, now)
             const result = await processDownloadable(listing, state)
@@ -201,19 +207,24 @@ for (const listing of listings) {
             db,
             listing,
             'link',
-            links.map((link) => link.id),
+            fetchableLinks.map((link) => link.id),
             now
         )
     }
 
-    await finishDiscovery(db, listing, settledIds, now)
+    await finishDiscovery(db, listing, settledIds, files.length > 0 || fetchableLinkCount > 0, now)
     if (pending) deferred++
     else if (hasIndexedContent) indexed++
 }
 
 console.log(
-    `Processed ${listings.length} ${game} listings: ${indexed} indexed, ` +
-        `${listings.length - indexed - deferred} with nothing to index, ${deferred} deferred; ` +
+    `Processed ${versionRefresh.processable.length} ${game} listings: ${indexed} indexed, ` +
+        `${versionRefresh.processable.length - indexed - deferred} with nothing to index, ` +
+        `${deferred} deferred; ` +
         `${downloaded} downloadables processed, ${skipped} unchanged`
 )
 console.log(`ModWorkshop requests: ${api.counts.requests}, retries: ${api.counts.retries}`)
+console.log(
+    `Reconciled versions: ${versionRefresh.updated} updated, ` +
+        `${versionRefresh.missing} missing, ${versionRefresh.failed} failed`
+)

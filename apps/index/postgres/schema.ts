@@ -171,7 +171,7 @@ export const migrations: Migration[] = [
                 last_attempt_at TEXT NOT NULL,
                 PRIMARY KEY(source_id, remote_id)
             )`,
-            'CREATE INDEX listing_version_pending_retry_idx ON listing_version_pending(next_retry_at)',
+            'CREATE INDEX listing_version_pending_retry_idx ON listing_version_pending(source_id, next_retry_at)',
             `CREATE TABLE mod_reconciliations (
                 source_id BIGINT NOT NULL REFERENCES sources(id),
                 remote_id BIGINT NOT NULL,
@@ -187,7 +187,6 @@ export const migrations: Migration[] = [
                 kind TEXT NOT NULL CHECK (kind IN ('file', 'link')),
                 remote_id BIGINT NOT NULL,
                 metadata_fingerprint TEXT NOT NULL,
-                version TEXT,
                 url TEXT NOT NULL,
                 object_key TEXT,
                 size BIGINT,
@@ -200,7 +199,6 @@ export const migrations: Migration[] = [
                 last_seen_at TEXT NOT NULL,
                 retired_at TEXT,
                 last_processed_at TEXT,
-                last_content_fingerprint TEXT,
                 UNIQUE(source_id, mod_remote_id, kind, remote_id)
             )`,
             'CREATE INDEX remote_downloadables_due_idx ON remote_downloadables(status, retry_at, next_revalidate_at)',
@@ -208,7 +206,7 @@ export const migrations: Migration[] = [
                 id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
                 downloadable_id BIGINT NOT NULL REFERENCES remote_downloadables(id),
                 metadata_fingerprint TEXT NOT NULL,
-                content_fingerprint TEXT,
+                content_fingerprint TEXT NOT NULL,
                 version TEXT NOT NULL,
                 outcome TEXT NOT NULL CHECK (outcome IN ('complete', 'empty', 'unusable')),
                 observed_at TEXT NOT NULL,

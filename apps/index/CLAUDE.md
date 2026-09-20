@@ -70,9 +70,9 @@ and publish workflows remain available for recovery and diagnosis. They need
 Listing ingestion treats `/games/{game}/mods` as discovery metadata, then enriches every
 candidate through `/mods/versions` in batches of at most 100 before writing the required
 `mod_listings.version`. Explicit empty versions are stored; omitted IDs and failed batches
-go to `listing_version_pending` with bounded retry state. Listing rows, pending outcomes and
-the checkpoint commit together, so a partial upstream response never advances past
-unaccounted work.
+go to `listing_version_pending` with bounded retry state. Enriched rows commit in batches of
+at most 100; the checkpoint advances only after every page is accounted for, so an interrupted
+run safely replays any committed batches.
 
 Content processing separates parent discovery from downloadable revisions.
 `remote_downloadables` tracks each hosted file or external link and its retry/revalidation
@@ -82,10 +82,17 @@ size and type define its remote revision; advertised version/URL churn alone doe
 archive extraction. External links use URL identity plus weekly byte revalidation because
 their content can change in place. `mod_reconciliations` reserves one quarter of each
 ordinary processing batch for a fair weekly rotation, so changes missed by listing bumps
-are eventually discovered without a full catalog scan. Retired downloadables and historical
-hashes are retained, never deleted during incremental recovery.
+are eventually discovered without a full catalog scan. Listings that currently advertise no
+download participate too, since a first file or link may appear without a bump. Hosted files
+and external links are discovered independently when both exist. Retired downloadables and
+historical hashes are retained, never deleted during incremental recovery.
 
-**Which game a `game: auto` run processes** is decided by `postgres/select-game.ts` over the pure rule in `postgres/game-schedule.ts`; `report-coverage.ts` only reports. A run processes one game, so this decides which games stay indexable at all. `pending` counts new/changed listings, due reconciliation, due per-downloadable retries and due external-link revalidation; future retries and retired downloadables do not inflate it. Candidates rank in three tiers: never selected, then gone `SERVICE_CEILING` turns without service, then largest actionable backlog. What the ceiling guarantees is a **processing opportunity within `SERVICE_CEILING + GAME_IDS.length - 1` auto-selection runs** — not successful indexing, and not a wall-clock bound, since the 30-minute cadence comes from an external dispatcher. `pnpm test:game-schedule` asserts the scheduling rule.
+All Postgres index workflows share one concurrency group. This prevents manual recovery jobs
+from racing the scheduled refresh or exporting between related state changes. Publication
+requires the current R2 manifest, uploads an immutable shard first, and replaces the manifest
+last. A failed manifest read therefore leaves the published catalog unchanged.
+
+**Which game a `game: auto` run processes** is decided by `postgres/select-game.ts` over the pure rule in `postgres/game-schedule.ts`; `report-coverage.ts` reports the same actionable content backlog plus listing versions awaiting retry. A run processes one game, so this decides which games stay indexable at all. `pending` counts new/changed listings, due reconciliation, due per-downloadable retries and due external-link revalidation; future retries and retired downloadables do not inflate it. Candidates rank in three tiers: never selected, then gone `SERVICE_CEILING` turns without service, then largest actionable backlog. What the ceiling guarantees is a **processing opportunity within `SERVICE_CEILING + GAME_IDS.length - 1` auto-selection runs** — not successful indexing, and not a wall-clock bound, since the 30-minute cadence comes from an external dispatcher. `pnpm test:game-schedule` asserts the scheduling rule.
 
 Each selection persists `content_last_turn:<slug>` in `metadata` **before** processing, so a failed run spends the turn it was granted rather than letting a game whose processing keeps failing hold the queue. Only `game: auto` writes it: explicit `game:` dispatches and the standalone `Process Postgres index content` workflow do not, which at worst costs a later redundant auto turn.
 
@@ -110,7 +117,7 @@ PD3 and Crime Boss are both UE pak-based with no marker-file shortcut available,
 
 PD2/PDTH/RAID mods aren't `.pak` — for them the indexer hashes one representative marker file per mod (`mod.txt` / `main.xml` / `supermod.xml` / `mod.xml` / wrapper-relative first file via `chooseMarker`, chosen to match `modrex-main`'s `hashable_file_for_mod_dir`). **The marker-less fallback is a cross-language contract**: both sides take the path whose UTF-8 bytes sort first, never a locale-aware comparison and never directory-walk order, and both run the vectors in `marker-contract.json` as a test (`pnpm test:marker-contract` here, `marker_contract_tests.rs` there). Changing the ordering on one side alone makes a class of mods unidentifiable, and migration `004_recheck_markerless_picks` is what re-processes rows chosen under the old order. `supermod.xml` (RAID-SuperBLT) and `mod.xml` (legacy RaidBLT) are RAID's markers — the RAID BLT fork has no `mod.txt`; they sit below the PD2/PDTH markers in the preference order so archives shipping both keep their existing pick. ZIPs use HTTP Range to fetch only that file; RAR/7z have no such trick, so they're fully downloaded and gated by `PD2_MAX_FULL_DOWNLOAD_BYTES` (50 MB) — larger ones are skipped. This is what lets `modrex-main` identify marker-less asset/background packs (incl. recovered host packs) by SHA256.
 
-**Link-hosted downloads** (marker games only, `process-content.ts`): a ModWorkshop mod can publish its download as a link to another host — GitHub source or release archives, GitLab raw, the author's own update server — instead of a file ModWorkshop stores, and then `/mods/{id}/files` comes back **empty**. That is ~8% of PD2's downloadable listings, and without a `mods` row `modrex-main` can never identify a copy of one on disk (neither SHA256 nor name, since `query_by_name` joins `files`). When a listing's hosted files yield nothing, the processor falls back to `/mods/{id}/links` and extracts through the same marker path.
+**Link-hosted downloads** (marker games only, `process-content.ts`): a ModWorkshop mod can publish content through GitHub, GitLab or an author's server, either instead of or alongside files stored by ModWorkshop. Both endpoints are discovered independently; BeardLib is a verified example with hosted releases plus a mutable GitHub branch link. Without a `mods` row `modrex-main` can never identify a copy of linked content on disk (neither SHA256 nor name, since `query_by_name` joins `files`). Links use the same bounded marker extractor and are revalidated weekly because their bytes can change without their URL changing.
 
 `files.remote_id` therefore holds **either a ModWorkshop file id (positive) or a negated ModWorkshop link id**. The negation is load-bearing, not cosmetic: ModWorkshop numbers links in their own sequence, so a link id can equal an unrelated mod's file id, and `modrex-main`'s `findSuspectDuplicateGroups` (`installedUtils.ts`) groups installed mods by file id **game-wide**, which only holds while the ids are unique across the game. Disjoint ranges keep that true and mark the row as "no downloadable ModWorkshop file" at the same time.
 
