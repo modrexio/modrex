@@ -1,0 +1,56 @@
+name: Preview build
+
+# Separate from CI so preview-deploy.yml does not wait for the slow test job.
+on:
+    pull_request:
+        branches: [main]
+
+permissions:
+    contents: read
+
+jobs:
+    site:
+        runs-on: ubuntu-latest
+        timeout-minutes: 15
+        steps:
+            - uses: actions/checkout@v7
+
+            - uses: pnpm/action-setup@v6
+            - uses: actions/setup-node@v7
+              with:
+                  node-version: 22
+                  cache: pnpm
+            - run: pnpm install --frozen-lockfile
+            - run: pnpm site:build
+
+            # Function tests would become routes, so they stay out.
+            - run: |
+                  mkdir -p preview/site/functions
+                  cp -R apps/site/dist preview/site/dist
+                  (cd apps/site/functions && find . -name '*.ts' ! -name '*.test.ts' -exec cp --parents {} ../../../preview/site/functions/ \;)
+            - uses: actions/upload-artifact@v7
+              with:
+                  name: site-preview
+                  path: preview/site
+                  retention-days: 3
+                  if-no-files-found: error
+
+    app:
+        runs-on: ubuntu-latest
+        timeout-minutes: 15
+        steps:
+            - uses: actions/checkout@v7
+
+            - uses: pnpm/action-setup@v6
+            - uses: actions/setup-node@v7
+              with:
+                  node-version: 22
+                  cache: pnpm
+            - run: pnpm install --frozen-lockfile
+            - run: pnpm --filter modrex build-preview
+            - uses: actions/upload-artifact@v7
+              with:
+                  name: app-preview
+                  path: apps/desktop/out/preview
+                  retention-days: 3
+                  if-no-files-found: error

@@ -1,9 +1,9 @@
 name: Preview deploy
 
-# Runs default-branch code with the deploy token; the CI artifacts are the only PR input.
+# Runs default-branch code with the deploy token; the build artifacts are the only PR input.
 on:
     workflow_run:
-        workflows: [CI]
+        workflows: [Preview build]
         types: [requested, completed]
 
 permissions: {}
@@ -24,7 +24,7 @@ jobs:
             GH_TOKEN: ${{ github.token }}
             GH_REPO: ${{ github.repository }}
             SHA: ${{ github.event.workflow_run.head_sha }}
-            CI_URL: ${{ github.event.workflow_run.html_url }}
+            BUILD_URL: ${{ github.event.workflow_run.html_url }}
         steps:
             - name: Resolve pull request
               id: pr
@@ -41,7 +41,7 @@ jobs:
               run: |
                   for name in app site; do
                     gh api "repos/$GITHUB_REPOSITORY/statuses/$SHA" --silent \
-                      -f context="preview/$name" -f state=pending -f description=Building -f target_url="$CI_URL"
+                      -f context="preview/$name" -f state=pending -f description=Building -f target_url="$BUILD_URL"
                   done
 
                   marker='<!-- modrex-preview -->'
@@ -84,7 +84,7 @@ jobs:
               if: steps.pr.outputs.number && github.event.action == 'completed'
               env:
                   PR: ${{ steps.pr.outputs.number }}
-                  CI_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+                  BUILD_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
                   APP_ARTIFACT: ${{ steps.app.outcome }}
                   SITE_ARTIFACT: ${{ steps.site.outcome }}
                   CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -100,16 +100,16 @@ jobs:
                     for name in app site; do status "$name" error "Preview deploys are not configured" "$run_url"; done
                     exit 0
                   fi
-                  case "$CI_CONCLUSION" in
+                  case "$BUILD_CONCLUSION" in
                     success|failure) ;;
-                    *) for name in app site; do status "$name" error "CI $CI_CONCLUSION" "$CI_URL"; done; exit 0 ;;
+                    *) for name in app site; do status "$name" error "Build $BUILD_CONCLUSION" "$BUILD_URL"; done; exit 0 ;;
                   esac
 
                   failed=0
                   deploy() {
                     local name=$1 artifact=$2 dir=$3 assets=$4 project=$5
                     if [ "$artifact" != success ]; then
-                      status "$name" failure "CI produced no preview" "$CI_URL"
+                      status "$name" failure "Build produced no preview" "$BUILD_URL"
                       failed=1
                       return
                     fi

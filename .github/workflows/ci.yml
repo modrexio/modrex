@@ -54,42 +54,6 @@ jobs:
             - run: pnpm site:test
             - run: pnpm site:build
 
-            # Consumed by preview-deploy.yml. Function tests would become routes, so they stay out.
-            - name: Stage the site preview
-              if: github.event_name == 'pull_request'
-              run: |
-                  mkdir -p preview/site/functions
-                  cp -R apps/site/dist preview/site/dist
-                  (cd apps/site/functions && find . -name '*.ts' ! -name '*.test.ts' -exec cp --parents {} ../../../preview/site/functions/ \;)
-            - uses: actions/upload-artifact@v7
-              if: github.event_name == 'pull_request'
-              with:
-                  name: site-preview
-                  path: preview/site
-                  retention-days: 3
-                  if-no-files-found: error
-
-    app-preview:
-        if: github.event_name == 'pull_request'
-        runs-on: ubuntu-latest
-        timeout-minutes: 15
-        steps:
-            - uses: actions/checkout@v7
-
-            - uses: pnpm/action-setup@v6
-            - uses: actions/setup-node@v7
-              with:
-                  node-version: 22
-                  cache: pnpm
-            - run: pnpm install --frozen-lockfile
-            - run: pnpm --filter modrex build-preview
-            - uses: actions/upload-artifact@v7
-              with:
-                  name: app-preview
-                  path: apps/desktop/out/preview
-                  retention-days: 3
-                  if-no-files-found: error
-
     test:
         runs-on: ubuntu-latest
         steps:
