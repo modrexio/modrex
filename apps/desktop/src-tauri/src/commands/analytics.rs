@@ -13,8 +13,9 @@
 //! apps/site/functions/api/collect.ts forwards each request verbatim to GA4.
 //!
 //! Nothing is transmitted unless analytics_enabled is true in settings and the build
-//! carries the GA credentials below. This module is the only place that knows the
-//! backend is GA4, so swapping sinks is a change to send_event alone.
+//! carries the measurement id below. The GA4 API secret lives only on the proxy. This
+//! module is the only place that knows the backend is GA4, so swapping sinks is a
+//! change to send_event alone.
 
 use crate::commands::api::{http_client, user_agent};
 use crate::commands::settings;
@@ -23,22 +24,17 @@ use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tauri::AppHandle;
 
-/// GA4 credentials, embedded at compile time. Absent in local and dev builds (and any
-/// build without the CI secrets), which makes every send a no-op, so development never
-/// pollutes production data. The API secret is write-only and rotatable, so shipping it
-/// in the binary is low-risk.
+/// GA4 measurement id, embedded at compile time. Absent in local and dev builds (and any
+/// build without the CI secret), which makes every send a no-op, so development never
+/// pollutes production data.
 fn measurement_id() -> Option<&'static str> {
     option_env!("MODREX_GA_MEASUREMENT_ID").filter(|s| !s.is_empty())
 }
 
-fn api_secret() -> Option<&'static str> {
-    option_env!("MODREX_GA_API_SECRET").filter(|s| !s.is_empty())
-}
-
 /// Our own domain, not Google's, for the reason in the module doc. The Pages Function
-/// behind this path forwards verbatim to GA4's mp/collect, so the query-string contract
-/// (measurement_id, api_secret) is unchanged. Overridable at compile time for local
-/// testing; release builds never set it and always get the production URL.
+/// behind this path adds the API secret and forwards to GA4's mp/collect. Overridable
+/// at compile time for local testing; release builds never set it and always get the
+/// production URL.
 fn collect_url() -> &'static str {
     option_env!("MODREX_ANALYTICS_ENDPOINT")
         .filter(|s| !s.is_empty())
@@ -137,7 +133,7 @@ pub(crate) fn start(app: &AppHandle) {
 /// Fire-and-forget an event. Safe to call from synchronous code. The network send
 /// happens on the async runtime and any error is logged, never propagated.
 pub(crate) fn track(app: &AppHandle, name: &str, mut params: Value) {
-    if measurement_id().is_none() || api_secret().is_none() {
+    if measurement_id().is_none() {
         return;
     }
     if !settings::read_settings(app).analytics_enabled {
@@ -175,7 +171,7 @@ async fn send_event(app: &AppHandle, name: &str, params: Value, timestamp_micros
     if !settings::read_settings(app).analytics_enabled {
         return;
     }
-    let (Some(measurement_id), Some(api_secret)) = (measurement_id(), api_secret()) else {
+    let Some(measurement_id) = measurement_id() else {
         return;
     };
 
@@ -186,10 +182,7 @@ async fn send_event(app: &AppHandle, name: &str, params: Value, timestamp_micros
         "events": [{ "name": name, "params": params }],
     });
 
-    let url = format!(
-        "{}?measurement_id={measurement_id}&api_secret={api_secret}",
-        collect_url()
-    );
+    let url = format!("{}?measurement_id={measurement_id}", collect_url());
     let res = http_client()
         .post(&url)
         .header("User-Agent", user_agent(app))

@@ -96,7 +96,6 @@ jobs:
                   TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
                   TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
                   MODREX_GA_MEASUREMENT_ID: ${{ secrets.MODREX_GA_MEASUREMENT_ID }}
-                  MODREX_GA_API_SECRET: ${{ secrets.MODREX_GA_API_SECRET }}
 
             - name: Smoke-test NSIS installer
               shell: pwsh
@@ -224,7 +223,6 @@ jobs:
                   TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
                   TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
                   MODREX_GA_MEASUREMENT_ID: ${{ secrets.MODREX_GA_MEASUREMENT_ID }}
-                  MODREX_GA_API_SECRET: ${{ secrets.MODREX_GA_API_SECRET }}
 
             # linuxdeploy sweeps the build image's wayland libraries into the bundle as GTK
             # dependencies, but Mesa always comes from the user's own system and cannot pair

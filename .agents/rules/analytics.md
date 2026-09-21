@@ -18,9 +18,10 @@ the visitor IP for country attribution and logs upstream failures without creden
   again before sending. `set_analytics_consent` resets accumulated activity when consent
   changes and emits `consent_granted` on opt-in. Pre-consent time is discarded. The existing
   random per-install `analyticsId` remains the client ID.
-- Release credentials come from `MODREX_GA_MEASUREMENT_ID` and `MODREX_GA_API_SECRET`.
-  Builds without them send nothing. `MODREX_ANALYTICS_ENDPOINT` overrides the proxy URL
-  for local testing. Never print request URLs with API secrets.
+- Release builds embed `MODREX_GA_MEASUREMENT_ID`; builds without it send nothing. The
+  GA4 API secret is a Cloudflare Pages secret (`MODREX_GA_API_SECRET`) read by the proxy
+  and never ships in the binary. `MODREX_ANALYTICS_ENDPOINT` overrides the proxy URL for
+  local testing. Never print request URLs with API secrets.
 
 ## GA4 reports
 
@@ -55,7 +56,7 @@ a retrospective, exact inventory of everyone's currently installed version.
   session expiry, consent reset, environment fields and the renderer allowlist.
 - `pnpm exec vitest run functions/api/collect.test.ts` in `apps/site` covers forwarding,
   country attribution and failures. `pnpm typecheck:functions` checks the proxy types.
-- Point `MODREX_ANALYTICS_ENDPOINT` at a local receiver with dummy credentials to inspect
+- Point `MODREX_ANALYTICS_ENDPOINT` at a local receiver with a dummy id to inspect
   requests without sending production events.
 - GA4's `/debug/mp/collect` validates payloads without collecting them. Production
   `/mp/collect` returning 2xx only proves receipt, not successful processing. Setting

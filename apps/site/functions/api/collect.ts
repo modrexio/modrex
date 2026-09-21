@@ -7,8 +7,8 @@
 // NextDNS) block google-analytics.com for every process on a machine, and this audience
 // runs that tooling heavily.
 //
-// The query string and body are forwarded verbatim, so this never drifts out of sync with
-// whatever analytics.rs sends. The one exception is ip_override below: without it GA4
+// The body is forwarded verbatim, so this never drifts out of sync with whatever
+// analytics.rs sends. The one exception is ip_override below: without it GA4
 // geolocates every user to wherever this function's outbound fetch egresses from
 // (Cloudflare's network) rather than to the real visitor.
 export async function onRequestPost({
@@ -17,14 +17,20 @@ export async function onRequestPost({
     waitUntil,
 }: {
     request: Request
-    env: { MODREX_GA_MEASUREMENT_ID?: string }
+    env: { MODREX_GA_MEASUREMENT_ID?: string; MODREX_GA_API_SECRET?: string }
     waitUntil: (promise: Promise<unknown>) => void
 }): Promise<Response> {
+    // Only the proxy holds the GA4 secret. Older desktop releases still send one in the
+    // query string and it is ignored.
+    const apiSecret = env.MODREX_GA_API_SECRET
+    if (!apiSecret) {
+        console.error('Analytics relay is missing the MODREX_GA_API_SECRET binding')
+        return new Response('Analytics relay is not configured', { status: 503 })
+    }
     const incoming = new URL(request.url)
     const measurementId = incoming.searchParams.get('measurement_id')
-    const apiSecret = incoming.searchParams.get('api_secret')
-    if (!measurementId || !apiSecret) {
-        return new Response('Missing measurement_id or api_secret', { status: 400 })
+    if (!measurementId) {
+        return new Response('Missing measurement_id', { status: 400 })
     }
     // Relay only to Modrex's own GA4 property so modrex.net can't be used as a generic,
     // unauthenticated relay into arbitrary GA4 accounts. The exact id is a build-time secret in

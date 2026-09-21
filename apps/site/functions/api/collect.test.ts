@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { onRequestPost } from './collect'
 
 const VALID_ID = 'G-1Z7TF66B8X'
+const SECRET = 'pages-secret'
 
 type Captured = { url: URL; init: RequestInit }
 
@@ -10,7 +11,7 @@ type Captured = { url: URL; init: RequestInit }
 async function invoke(opts: {
     query: string
     body: string
-    env?: { MODREX_GA_MEASUREMENT_ID?: string }
+    env?: { MODREX_GA_MEASUREMENT_ID?: string; MODREX_GA_API_SECRET?: string }
     connectingIp?: string
     upstreamStatus?: number
     upstreamError?: Error
@@ -34,7 +35,7 @@ async function invoke(opts: {
     const pending: Promise<unknown>[] = []
     const res = await onRequestPost({
         request,
-        env: opts.env ?? {},
+        env: opts.env ?? { MODREX_GA_API_SECRET: SECRET },
         waitUntil: (p) => pending.push(p),
     })
     await Promise.all(pending)
@@ -47,19 +48,30 @@ afterEach(() => {
 })
 
 describe('onRequestPost validation', () => {
-    it('returns 400 when measurement_id or api_secret is missing', async () => {
-        const a = await invoke({ query: '?api_secret=s', body: '{}' })
-        expect(a.res.status).toBe(400)
+    it('returns 503 without forwarding when the api secret binding is missing', async () => {
+        const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+        const { res, fetchMock } = await invoke({
+            query: `?measurement_id=${VALID_ID}`,
+            body: '{}',
+            env: { MODREX_GA_MEASUREMENT_ID: VALID_ID },
+        })
+        expect(res.status).toBe(503)
+        expect(fetchMock).not.toHaveBeenCalled()
+        expect(log).toHaveBeenCalledExactlyOnceWith(
+            'Analytics relay is missing the MODREX_GA_API_SECRET binding'
+        )
+    })
 
-        const b = await invoke({ query: `?measurement_id=${VALID_ID}`, body: '{}' })
-        expect(b.res.status).toBe(400)
+    it('returns 400 when measurement_id is missing', async () => {
+        const { res } = await invoke({ query: '', body: '{}' })
+        expect(res.status).toBe(400)
     })
 
     it('returns 403 when the id does not match the pinned env id', async () => {
         const { res, fetchMock } = await invoke({
-            query: `?measurement_id=G-WRONG123&api_secret=s`,
+            query: `?measurement_id=G-WRONG123`,
             body: '{}',
-            env: { MODREX_GA_MEASUREMENT_ID: VALID_ID },
+            env: { MODREX_GA_MEASUREMENT_ID: VALID_ID, MODREX_GA_API_SECRET: SECRET },
         })
         expect(res.status).toBe(403)
         expect(fetchMock).not.toHaveBeenCalled()
@@ -67,39 +79,48 @@ describe('onRequestPost validation', () => {
 
     it('accepts the exact pinned id', async () => {
         const { res, captured } = await invoke({
-            query: `?measurement_id=${VALID_ID}&api_secret=s`,
+            query: `?measurement_id=${VALID_ID}`,
             body: '{}',
-            env: { MODREX_GA_MEASUREMENT_ID: VALID_ID },
+            env: { MODREX_GA_MEASUREMENT_ID: VALID_ID, MODREX_GA_API_SECRET: SECRET },
         })
         expect(res.status).toBe(204)
         expect(captured).toHaveLength(1)
     })
 
     it('falls back to a GA4 id shape check when no env id is pinned', async () => {
-        const ok = await invoke({ query: `?measurement_id=${VALID_ID}&api_secret=s`, body: '{}' })
+        const ok = await invoke({ query: `?measurement_id=${VALID_ID}`, body: '{}' })
         expect(ok.res.status).toBe(204)
 
-        const bad = await invoke({ query: `?measurement_id=not-a-ga-id&api_secret=s`, body: '{}' })
+        const bad = await invoke({ query: `?measurement_id=not-a-ga-id`, body: '{}' })
         expect(bad.res.status).toBe(403)
     })
 })
 
 describe('onRequestPost forwarding', () => {
-    it('forwards to GA4 mp/collect carrying both credentials', async () => {
+    it('forwards to GA4 mp/collect with the measurement id and the Pages secret', async () => {
         const { captured } = await invoke({
-            query: `?measurement_id=${VALID_ID}&api_secret=secret`,
+            query: `?measurement_id=${VALID_ID}`,
             body: '{}',
         })
         const { url, init } = captured[0]
         expect(url.origin + url.pathname).toBe('https://www.google-analytics.com/mp/collect')
         expect(url.searchParams.get('measurement_id')).toBe(VALID_ID)
-        expect(url.searchParams.get('api_secret')).toBe('secret')
+        expect(url.searchParams.get('api_secret')).toBe(SECRET)
         expect(init.method).toBe('POST')
+    })
+
+    it('ignores an api_secret sent by an older desktop release', async () => {
+        const { res, captured } = await invoke({
+            query: `?measurement_id=${VALID_ID}&api_secret=baked-into-old-binary`,
+            body: '{}',
+        })
+        expect(res.status).toBe(204)
+        expect(captured[0].url.searchParams.get('api_secret')).toBe(SECRET)
     })
 
     it('injects the real client IP as ip_override into a JSON body', async () => {
         const { captured } = await invoke({
-            query: `?measurement_id=${VALID_ID}&api_secret=s`,
+            query: `?measurement_id=${VALID_ID}`,
             body: JSON.stringify({ client_id: '123', events: [] }),
             connectingIp: '203.0.113.7',
         })
@@ -110,7 +131,7 @@ describe('onRequestPost forwarding', () => {
 
     it('does not add ip_override when the edge did not set CF-Connecting-IP', async () => {
         const { captured } = await invoke({
-            query: `?measurement_id=${VALID_ID}&api_secret=s`,
+            query: `?measurement_id=${VALID_ID}`,
             body: JSON.stringify({ client_id: '123' }),
         })
         expect(JSON.parse(String(captured[0].init.body))).not.toHaveProperty('ip_override')
@@ -118,7 +139,7 @@ describe('onRequestPost forwarding', () => {
 
     it('rejects malformed JSON before forwarding', async () => {
         const { res, captured } = await invoke({
-            query: `?measurement_id=${VALID_ID}&api_secret=s`,
+            query: `?measurement_id=${VALID_ID}`,
             body: 'not json',
             connectingIp: '203.0.113.7',
         })
@@ -128,7 +149,7 @@ describe('onRequestPost forwarding', () => {
 
     it.each(['null', '[]', '"text"', '123'])('rejects non-object JSON: %s', async (body) => {
         const { res, captured } = await invoke({
-            query: `?measurement_id=${VALID_ID}&api_secret=s`,
+            query: `?measurement_id=${VALID_ID}`,
             body,
         })
         expect(res.status).toBe(400)
@@ -148,7 +169,7 @@ describe('onRequestPost forwarding', () => {
             ip_override: '192.0.2.1',
         }
         const { captured } = await invoke({
-            query: `?measurement_id=${VALID_ID}&api_secret=s`,
+            query: `?measurement_id=${VALID_ID}`,
             body: JSON.stringify(payload),
             connectingIp: '203.0.113.7',
         })
@@ -161,7 +182,7 @@ describe('onRequestPost forwarding', () => {
     it('logs non-success upstream status codes', async () => {
         const log = vi.spyOn(console, 'error').mockImplementation(() => {})
         const { res } = await invoke({
-            query: `?measurement_id=${VALID_ID}&api_secret=secret`,
+            query: `?measurement_id=${VALID_ID}`,
             body: '{}',
             upstreamStatus: 503,
         })
@@ -172,7 +193,7 @@ describe('onRequestPost forwarding', () => {
     it('logs transport failures without leaking credentials from the error', async () => {
         const log = vi.spyOn(console, 'error').mockImplementation(() => {})
         await invoke({
-            query: `?measurement_id=${VALID_ID}&api_secret=secret`,
+            query: `?measurement_id=${VALID_ID}`,
             body: '{}',
             upstreamError: new Error('Failed fetching https://example.com/?api_secret=secret'),
         })
