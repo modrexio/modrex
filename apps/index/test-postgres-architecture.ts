@@ -1,4 +1,5 @@
 import { strict as assert } from 'node:assert'
+import { createHash } from 'node:crypto'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -21,6 +22,32 @@ import {
 } from './postgres/downloadable-state.js'
 import { refreshContentVersions, selectContentListings } from './postgres/content-selection.js'
 import { writeSnapshot, type SnapshotRow, type SnapshotSource } from './postgres/snapshot.js'
+
+const productionMigrationChecksums = new Map([
+    ['001_initial', '40465f9f3018532f3caee2e76581d86ed4d9584639c44436a5dacbdc8e107b09'],
+    ['002_mod_listings', 'c48042b9591611ad4ea1e4b3f7a2eb7fad07daba00a747597f56900132594879'],
+    [
+        '003_recheck_empty_listings',
+        '066964471edae2dba12504729785a0e3ebaf13306881859e91cae88dda8311d2',
+    ],
+    [
+        '004_recheck_markerless_picks',
+        '0376948ad49c89fdfdd6db19a70da83b59b50bc63cc1f18acb1f02159d441873',
+    ],
+    [
+        '005_recheck_rar4_listings',
+        '20314514fa28194a54407d51ee7ff3e8a9a1b464d9ba95e04aecb9f5788fc38c',
+    ],
+])
+
+for (const migration of migrations.slice(0, 5)) {
+    const checksum = createHash('sha256').update(migration.statements.join('\n')).digest('hex')
+    assert.equal(
+        checksum,
+        productionMigrationChecksums.get(migration.version),
+        `${migration.version} must remain byte-compatible with its production checksum`
+    )
+}
 
 function database(pg: PGlite): Database {
     return {
@@ -227,6 +254,17 @@ assert.throws(
                 ($1,3,'Three','also-kept',TRUE,$2,$2,NULL,NULL)`,
         [source, '2026-09-20T12:00:00.000Z']
     )
+    await pg.query(
+        `INSERT INTO mod_checks (source_id, remote_id, updated_at, file_ids, checked_at)
+         VALUES ($1,2,'2026-09-19T12:00:00.000Z','[]','2026-09-19T13:00:00.000Z')`,
+        [source]
+    )
+    await pg.query(
+        `INSERT INTO mod_reconciliations (
+            source_id, remote_id, last_discovered_at, next_reconcile_at
+         ) VALUES ($1,2,'2026-09-19T13:00:00.000Z','2026-09-26T13:00:00.000Z')`,
+        [source]
+    )
     const api = new ModWorkshop(
         'https://api.test',
         async (request) => {
@@ -283,7 +321,7 @@ assert.throws(
             (listing) => listing.remote_id === '2'
         ),
         false,
-        'a deferred initial content check does not retry every refresh'
+        'a changed listing with a deferred version check does not retry every refresh'
     )
     await pg.close()
 }
@@ -747,13 +785,28 @@ assert.throws(
         [{ sha256: 'link-marker', entryName: 'mod.txt' }],
         at
     )
-    const weekLater = new Date('2026-09-27T12:00:00.000Z')
-    const updatedLink = await registerDownloadable(
+    const versionChangedAt = new Date('2026-09-20T12:01:00.000Z')
+    const versionedLink = await registerDownloadable(
         db,
         mod,
         { ...link.input, version: 'release-two' },
-        weekLater
+        versionChangedAt
     )
+    assert.equal(
+        needsProcessing(versionedLink, versionChangedAt),
+        true,
+        'an explicit external-link version change is a new revision'
+    )
+    await settleDownloadable(
+        db,
+        mod,
+        versionedLink,
+        'complete',
+        [{ sha256: 'link-marker', entryName: 'mod.txt' }],
+        versionChangedAt
+    )
+    const weekLater = new Date('2026-09-27T12:01:00.000Z')
+    const updatedLink = await registerDownloadable(db, mod, versionedLink.input, weekLater)
     assert.equal(
         needsProcessing(updatedLink, weekLater),
         true,

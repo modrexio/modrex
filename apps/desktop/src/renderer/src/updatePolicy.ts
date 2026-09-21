@@ -35,7 +35,12 @@ export type UpdateTarget =
     | { status: 'ready'; download: NonNullable<Mod['download']> & { download_url: string } }
 
 export function resolveUpdateTarget(installed: InstalledMod[], detail: Mod): UpdateTarget {
-    if (!detail.version || installed.some((mod) => mod.version === detail.version && !mod.missing))
+    const currentBytes = installed.filter((mod) => !mod.missing)
+    const hasOutdatedBytes = currentBytes.some((mod) => mod.updateStatus === 'outdated')
+    if (
+        !detail.version ||
+        (!hasOutdatedBytes && currentBytes.some((mod) => mod.version === detail.version))
+    )
         return { status: 'unchanged' }
     const download = detail.download
     // Existing records do not prove default-following intent. A different file ID

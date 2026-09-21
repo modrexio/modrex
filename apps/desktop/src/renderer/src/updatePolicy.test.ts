@@ -57,6 +57,12 @@ it('never infers consent to change a selected downloadable', () => {
     expect(resolveUpdateTarget([installed], { ...detail, version: 'first' }).status).toBe(
         'unchanged'
     )
+    expect(
+        resolveUpdateTarget([{ ...installed, updateStatus: 'outdated' }], {
+            ...detail,
+            version: 'first',
+        }).status
+    ).toBe('ready')
     expect(resolveUpdateTarget([installed], { ...detail, download: null }).status).toBe('review')
     expect(resolveUpdateTarget([installed], { ...detail, disable_mod_managers: true }).status).toBe(
         'review'

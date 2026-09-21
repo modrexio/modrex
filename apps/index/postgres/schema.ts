@@ -36,7 +36,7 @@ export const migrations: Migration[] = [
                 mod_id BIGINT NOT NULL REFERENCES mods(id),
                 sha256 TEXT NOT NULL REFERENCES file_contents(sha256),
                 remote_id BIGINT NOT NULL,
-                version TEXT,
+                version TEXT NOT NULL,
                 indexed_at TEXT NOT NULL,
                 entry_name TEXT NOT NULL DEFAULT '',
                 UNIQUE(mod_id, sha256)
@@ -177,6 +177,7 @@ export const migrations: Migration[] = [
                 remote_id BIGINT NOT NULL,
                 last_discovered_at TEXT NOT NULL,
                 next_reconcile_at TEXT NOT NULL,
+                version_deferred_updated_at TEXT,
                 PRIMARY KEY(source_id, remote_id)
             )`,
             'CREATE INDEX mod_reconciliations_due_idx ON mod_reconciliations(next_reconcile_at)',

@@ -20,8 +20,12 @@ export async function refreshContentVersions(
     let missing = 0
     let failed = 0
     const processable: Listing[] = []
-    const deferred: Array<{ source_id: string; remote_id: string; status: 'missing' | 'failed' }> =
-        []
+    const deferred: Array<{
+        source_id: string
+        remote_id: string
+        updated_at: string
+        status: 'missing' | 'failed'
+    }> = []
     for (const listing of listings) {
         const result = versions.get(Number(listing.remote_id))
         if (!result) throw new Error(`No version outcome for ${listing.remote_id}`)
@@ -55,14 +59,18 @@ export async function refreshContentVersions(
     if (deferred.length)
         await db.query(
             `INSERT INTO mod_reconciliations (
-                source_id, remote_id, last_discovered_at, next_reconcile_at
+                source_id, remote_id, last_discovered_at, next_reconcile_at,
+                version_deferred_updated_at
              )
              SELECT item.source_id, item.remote_id, $2,
-                CASE WHEN item.status='missing' THEN $3 ELSE $4 END
+                CASE WHEN item.status='missing' THEN $3 ELSE $4 END,
+                item.updated_at
              FROM jsonb_to_recordset($1::jsonb)
-                  AS item(source_id BIGINT, remote_id BIGINT, status TEXT)
+                  AS item(source_id BIGINT, remote_id BIGINT, status TEXT, updated_at TEXT)
              ON CONFLICT (source_id, remote_id) DO UPDATE SET
-                next_reconcile_at=EXCLUDED.next_reconcile_at`,
+                last_discovered_at=EXCLUDED.last_discovered_at,
+                next_reconcile_at=EXCLUDED.next_reconcile_at,
+                version_deferred_updated_at=EXCLUDED.version_deferred_updated_at`,
             [
                 JSON.stringify(deferred),
                 now.toISOString(),
@@ -93,9 +101,11 @@ export async function selectContentListings(
                  AND reconciliation.remote_id=listing.remote_id
             WHERE games.slug=$1
               AND (
-                (check_state.remote_id IS NULL AND (
-                    reconciliation.remote_id IS NULL OR reconciliation.next_reconcile_at<=$2
-                )) OR check_state.updated_at<>listing.updated_at
+                (check_state.remote_id IS NULL OR check_state.updated_at<>listing.updated_at)
+                AND (
+                    reconciliation.version_deferred_updated_at IS DISTINCT FROM listing.updated_at
+                    OR reconciliation.next_reconcile_at<=$2
+                )
               )
         ), due AS (
             SELECT listing.source_id::TEXT, listing.remote_id::TEXT, listing.name,

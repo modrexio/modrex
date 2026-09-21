@@ -46,7 +46,7 @@ function metadataFingerprint(input: DownloadableInput): string {
     const locator =
         input.kind === 'file'
             ? { objectKey: input.objectKey, size: input.size, mediaType: input.mediaType }
-            : { url: input.url }
+            : { url: input.url, version: input.version }
     return fingerprint({
         policy: EXTRACTION_POLICY,
         kind: input.kind,
@@ -326,9 +326,13 @@ export async function finishDiscovery(
             ],
         },
         {
-            text: `INSERT INTO mod_reconciliations (source_id, remote_id, last_discovered_at, next_reconcile_at)
-                 VALUES ($1,$2,$3,$4) ON CONFLICT (source_id, remote_id) DO UPDATE SET
-                    last_discovered_at=EXCLUDED.last_discovered_at, next_reconcile_at=EXCLUDED.next_reconcile_at`,
+            text: `INSERT INTO mod_reconciliations (
+                    source_id, remote_id, last_discovered_at, next_reconcile_at,
+                    version_deferred_updated_at
+                 ) VALUES ($1,$2,$3,$4,NULL) ON CONFLICT (source_id, remote_id) DO UPDATE SET
+                    last_discovered_at=EXCLUDED.last_discovered_at,
+                    next_reconcile_at=EXCLUDED.next_reconcile_at,
+                    version_deferred_updated_at=NULL`,
             values: [
                 listing.source_id,
                 listing.remote_id,

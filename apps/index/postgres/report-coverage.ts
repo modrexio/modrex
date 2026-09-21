@@ -28,11 +28,12 @@ const rows = (await sql`
         COUNT(*) FILTER (WHERE mod_listings.has_download)::TEXT AS downloadable,
         COUNT(DISTINCT (mod_listings.source_id, mod_listings.remote_id)) FILTER (
             WHERE mod_listings.remote_id IS NOT NULL AND (
-                  (mod_checks.remote_id IS NULL AND (
-                      mod_reconciliations.remote_id IS NULL OR
+                  ((mod_checks.remote_id IS NULL OR
+                      mod_checks.updated_at <> mod_listings.updated_at) AND (
+                      mod_reconciliations.version_deferred_updated_at
+                          IS DISTINCT FROM mod_listings.updated_at OR
                       mod_reconciliations.next_reconcile_at <= ${reportedAt}
                   )) OR
-                  mod_checks.updated_at <> mod_listings.updated_at OR
                   (mod_checks.updated_at = mod_listings.updated_at AND (
                       mod_reconciliations.remote_id IS NULL OR
                       mod_reconciliations.next_reconcile_at <= ${reportedAt} OR
