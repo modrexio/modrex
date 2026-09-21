@@ -79,16 +79,13 @@ export function parseFile(value: unknown): ModFile {
     const row = object(value)
     if (typeof row.size !== 'number' || !Number.isSafeInteger(row.size) || row.size < 0)
         throw new Error('Invalid ModWorkshop file size')
-    const file = string(row.file, 'file')
-    const downloadUrl = string(row.download_url, 'download_url')
-    if (!file || !downloadUrl) throw new Error('ModWorkshop file is missing its storage location')
     return {
         id: id(row.id),
-        file,
+        file: string(row.file, 'file'),
         size: row.size,
         type: row.type === null ? '' : string(row.type, 'type'),
         version: row.version === null ? '' : string(row.version, 'version'),
-        download_url: downloadUrl,
+        download_url: string(row.download_url, 'download_url'),
     }
 }
 

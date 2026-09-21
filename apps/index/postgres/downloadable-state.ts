@@ -174,9 +174,11 @@ function legacyStatements(
     now: Date
 ): Statement[] {
     if (!entries.length) return []
-    const unique = [
-        ...new Map(entries.map((entry) => [`${entry.sha256}:${entry.entryName}`, entry])).values(),
-    ]
+    // One row per sha256: the files upsert below conflicts on (mod_id, sha256) and Postgres
+    // rejects a statement that hits the same row twice. downloadable_entries keeps every name.
+    const unique = entries.filter(
+        (entry, index) => entries.findIndex((other) => other.sha256 === entry.sha256) === index
+    )
     const downloadId = state.input.kind === 'file' ? state.input.remoteId : -state.input.remoteId
     return [
         {

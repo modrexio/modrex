@@ -96,9 +96,9 @@ function listing(id: number) {
 assert.deepEqual([...parseVersions([], [1])], [[1, { status: 'missing' }]])
 assert.deepEqual([...parseVersions({ 1: '' }, [1])], [[1, { status: 'known', version: '' }]])
 assert.throws(() => parseVersions({ 2: 'unexpected' }, [1]))
-assert.throws(
-    () => parseFile({ id: 1, file: '', size: 1, type: 'zip', version: '', download_url: '' }),
-    /storage location/
+assert.deepEqual(
+    parseFile({ id: 1, file: '', size: 1, type: 'zip', version: '', download_url: '' }),
+    { id: 1, file: '', size: 1, type: 'zip', version: '', download_url: '' }
 )
 
 {
@@ -735,6 +735,39 @@ assert.throws(
         at
     )
     assert.equal(needsProcessing(emptyAgain, at), false, 'successful empty is a settled result')
+
+    const duplicated = await registerDownloadable(
+        db,
+        mod,
+        { ...file, remoteId: 103, objectKey: 'duplicated.zip' },
+        at
+    )
+    await settleDownloadable(
+        db,
+        mod,
+        duplicated,
+        'complete',
+        [
+            { sha256: 'shared-content', entryName: 'a/mod.txt' },
+            { sha256: 'shared-content', entryName: 'b/mod.txt' },
+        ],
+        at
+    )
+    assert.deepEqual(
+        (
+            await pg.query<{ entry_name: string }>(
+                "SELECT entry_name FROM files WHERE sha256='shared-content'"
+            )
+        ).rows,
+        [{ entry_name: 'a/mod.txt' }],
+        'one archive shipping the same content under two names stores one files row'
+    )
+    assert.equal(
+        (await pg.query("SELECT * FROM downloadable_entries WHERE sha256='shared-content'")).rows
+            .length,
+        2,
+        'the observation keeps every entry name'
+    )
 
     const sibling = await registerDownloadable(
         db,

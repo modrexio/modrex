@@ -110,6 +110,12 @@ async function processDownloadable(
         await recordHostedVersion(db, listing, state, now)
         return { indexed: state.has_entries, pending: false }
     }
+    // ModWorkshop lists abandoned uploads from before its completed flag existed with an
+    // empty file key and a download_url that points at the bucket directory.
+    if (state.input.kind === 'file' && !state.input.objectKey) {
+        await settleDownloadable(db, listing, state, 'unusable', [], now, 'upload never completed')
+        return { indexed: false, pending: false }
+    }
     if (!shouldDownload(state.input.mediaType ?? '')) {
         await settleDownloadable(
             db,
