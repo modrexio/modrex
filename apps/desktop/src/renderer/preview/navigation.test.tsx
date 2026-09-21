@@ -81,6 +81,7 @@ test('repeated settings clicks stay global and keep that scope after restart', a
     }
     expectNoGameCalls(calls)
     expect(store.get('modrex:scope')).toBe('global-settings')
+    expect(calls.presence).toHaveBeenCalledExactlyOnceWith('')
     unmount()
     vi.restoreAllMocks()
     const restarted = await mount()
@@ -88,6 +89,7 @@ test('repeated settings clicks stay global and keep that scope after restart', a
     expectNoGameCalls(restarted.calls)
     fireEvent.click(sidebar().getByRole('button', { name: 'Back' }))
     expect(await screen.findByRole('heading', { name: 'Games' })).toBeTruthy()
+    expect(restarted.calls.presence).toHaveBeenCalledExactlyOnceWith('')
 })
 
 test('global advanced settings have no game folder actions', async () => {
@@ -149,6 +151,10 @@ test('game settings belong to the selected game after leaving global settings', 
     ).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Game' })).toBeTruthy()
     expect(calls.path).not.toHaveBeenCalledWith('pd3')
+    expect(calls.presence.mock.calls).toEqual([[''], ['PAYDAY 2']])
+    fireEvent.click(sidebar().getByRole('button', { name: 'PAYDAY 2' }))
+    expect(await screen.findByRole('heading', { name: 'Games' })).toBeTruthy()
+    expect(calls.presence.mock.calls).toEqual([[''], ['PAYDAY 2'], ['']])
 })
 
 test('an unknown remembered game opens the picker', async () => {

@@ -44,8 +44,12 @@ export default function App() {
     useEffect(() => {
         saveAppRoute(route)
         if (route.kind !== 'game') onStartupPhase('ready')
-        void api.updateDiscordPresence(route.kind === 'game' ? GAMES[route.gameId].name : '')
     }, [route, onStartupPhase])
+
+    const presenceGame = route.kind === 'game' ? GAMES[route.gameId].name : ''
+    useEffect(() => {
+        void api.updateDiscordPresence(presenceGame)
+    }, [presenceGame])
 
     function handleShowWelcome() {
         setRoute({ kind: 'picker' })
