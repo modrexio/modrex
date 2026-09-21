@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import type { GameId } from '../../../shared/types'
+import type { GameId, InstalledMod } from '../../../shared/types'
 import { api } from '../api'
+import { refreshInstalled } from '../gameData'
 import { t } from '../i18n'
 import { handleInstallOutcome } from '../installSentinels'
 import type { ZipMultiPakPayload } from '../components/ZipPickerModal'
@@ -16,21 +17,20 @@ export type DropSentinel =
     | { kind: 'cb'; payload: CbFlatArchivePayload }
     | { kind: 'loader'; payload: LoaderReplacePayload }
 
-interface Options {
+export interface FileDropTarget {
     gamePath: string | null
     activeGame: GameId
-    enabled: boolean
-    onRefreshInstalled: () => Promise<void>
+    installed: InstalledMod[]
 }
 
 function baseName(path: string): string {
     return path.split(/[\\/]/).pop() || path
 }
 
-// Native OS file drops from Explorer install as unidentified local mods (see
-// install_dropped_file). Multi-pak / specially-packaged archives return DROP_NEEDS_PICKER
-// until Part 2b wires the archive picker.
-export function useFileDropInstall({ gamePath, activeGame, enabled, onRefreshInstalled }: Options) {
+type InstallTarget = FileDropTarget & { gamePath: string }
+
+export function useFileDropInstall(target: FileDropTarget | null) {
+    const [operationTarget, setOperationTarget] = useState<InstallTarget | null>(null)
     const [dragging, setDragging] = useState(false)
     const [installing, setInstalling] = useState(false)
     const [progress, setProgress] = useState<{
@@ -39,19 +39,17 @@ export function useFileDropInstall({ gamePath, activeGame, enabled, onRefreshIns
         name: string
     } | null>(null)
     const [result, setResult] = useState<DropResult | null>(null)
-    // Archives that need a UI decision (multi-pak / host pack / CB flat / loader replacement),
-    // shown one modal at a time.
-    const [sentinels, setSentinels] = useState<DropSentinel[]>([])
+    const [prompts, setPrompts] = useState<{ target: InstallTarget; sentinel: DropSentinel }[]>([])
     // Latest values for the event callback, so it never re-subscribes mid-drag.
-    const optsRef = useRef<Options>({ gamePath, activeGame, enabled, onRefreshInstalled })
+    const optsRef = useRef(target)
     useLayoutEffect(() => {
-        optsRef.current = { gamePath, activeGame, enabled, onRefreshInstalled }
-    })
-    const installingRef = useRef(false)
+        optsRef.current = target
+        if (!target) setDragging(false)
+    }, [target])
     // Blocks a fresh drop while a picker modal from a previous drop is still open.
     const busyRef = useRef(false)
     useLayoutEffect(() => {
-        busyRef.current = installing || sentinels.length > 0
+        busyRef.current = installing || prompts.length > 0
     })
     const resultTimer = useRef<number | null>(null)
 
@@ -61,9 +59,9 @@ export function useFileDropInstall({ gamePath, activeGame, enabled, onRefreshIns
         resultTimer.current = window.setTimeout(() => setResult(null), 6000)
     }
 
-    async function runInstall(paths: string[], opts: Options) {
-        if (!opts.gamePath) return
-        installingRef.current = true
+    async function runInstall(paths: string[], opts: InstallTarget) {
+        busyRef.current = true
+        setOperationTarget(opts)
         setInstalling(true)
         setResult(null)
         let ok = 0
@@ -89,31 +87,39 @@ export function useFileDropInstall({ gamePath, activeGame, enabled, onRefreshIns
                 failed.push(baseName(path))
             }
         }
-        await opts.onRefreshInstalled()
-        installingRef.current = false
+        let refreshError: string | null = null
+        try {
+            await refreshInstalled(opts.activeGame)
+        } catch (error) {
+            refreshError = String(error)
+        }
         setInstalling(false)
         setProgress(null)
 
-        // Sentinels get their own modals; only the directly-resolved outcomes drive the toast.
-        if (failed.length > 0) {
-            showResult({ kind: 'error', message: t('drop.failed', { names: failed.join(', ') }) })
+        if (failed.length > 0 || refreshError !== null) {
+            const installError =
+                failed.length > 0 ? t('drop.failed', { names: failed.join(', ') }) : null
+            showResult({
+                kind: 'error',
+                message: [installError, refreshError].filter(Boolean).join('\n'),
+            })
         } else if (ok > 0) {
             const base = ok === 1 ? t('drop.installedSingle') : t('drop.installed', { count: ok })
             showResult({
                 kind: 'done',
-                message: unrecognized ? `${base} · ${t('drop.needsPicker')}` : base,
+                message: unrecognized ? `${base}. ${t('drop.needsPicker')}` : base,
             })
         } else if (unrecognized && collected.length === 0) {
             showResult({ kind: 'error', message: t('drop.needsPicker') })
         }
 
-        if (collected.length > 0) setSentinels(collected)
+        setPrompts(collected.map((sentinel) => ({ target: opts, sentinel })))
     }
 
     useEffect(() => {
         return api.onFileDrop((info) => {
             const opts = optsRef.current
-            if (!opts.enabled) {
+            if (!opts) {
                 setDragging(false)
                 return
             }
@@ -127,7 +133,7 @@ export function useFileDropInstall({ gamePath, activeGame, enabled, onRefreshIns
                 showResult({ kind: 'error', message: t('drop.noGame') })
                 return
             }
-            void runInstall(info.paths, opts)
+            void runInstall(info.paths, { ...opts, gamePath: opts.gamePath })
         })
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
@@ -140,12 +146,13 @@ export function useFileDropInstall({ gamePath, activeGame, enabled, onRefreshIns
     )
 
     return {
+        operationTarget,
         dragging,
         installing,
         progress,
         result,
         dismissResult: () => setResult(null),
-        sentinel: sentinels[0] ?? null,
-        resolveSentinel: () => setSentinels((s) => s.slice(1)),
+        prompt: prompts[0],
+        resolvePrompt: () => setPrompts((remaining) => remaining.slice(1)),
     }
 }

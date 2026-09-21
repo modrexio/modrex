@@ -1,156 +1,21 @@
-import { useState, useEffect, useLayoutEffect, useRef } from 'react'
+import type { ReactNode } from 'react'
+import { X, RefreshCw } from 'lucide-react'
 import { Button } from './ui/Button'
-import { Play, Square, X, RefreshCw, Loader } from 'lucide-react'
 import { WindowControls } from './WindowControls'
 import { Tooltip } from './Tooltip'
 import { t } from '../i18n'
 import { api } from '../api'
-import type { SisrLaunchIssue } from '../api'
-import type { GameId } from '../../../shared/types'
 
-interface UpdateState {
-    phase: 'downloading' | 'ready'
-    percent: number | null
-}
-
-interface Props {
-    gamePath: string | null
-    activeGame: GameId
-    onRefreshInstalled: () => Promise<void>
-    update?: UpdateState | null
+export interface TopBarProps {
+    update?: { phase: 'downloading' | 'ready'; percent: number | null } | null
     onDismissUpdate?: () => void
-    hideGameActions?: boolean
 }
 
 export function TopBar({
-    gamePath,
-    activeGame,
-    onRefreshInstalled,
     update,
     onDismissUpdate,
-    hideGameActions,
-}: Props) {
-    const [gameRunning, setGameRunning] = useState(false)
-    const [launching, setLaunching] = useState<'modded' | 'vanilla' | null>(null)
-    const [launchError, setLaunchError] = useState<string | null>(null)
-    const [launchWarning, setLaunchWarning] = useState<SisrLaunchIssue | null>(null)
-    const wasRunning = useRef(false)
-    const pendingRestore = useRef(false)
-    const missedWhileLaunching = useRef(0)
-    const launchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-    // Kept in sync with activeGame so in-flight poll results from a switched-away
-    // game can be discarded. All running/launching state belongs to the previous
-    // game after a switch, so reset before paint and it never bleeds through.
-    const activeGameRef = useRef(activeGame)
-    useLayoutEffect(() => {
-        activeGameRef.current = activeGame
-        setGameRunning(false)
-        setLaunching(null)
-        wasRunning.current = false
-        pendingRestore.current = false
-        missedWhileLaunching.current = 0
-        if (launchTimeoutRef.current) {
-            clearTimeout(launchTimeoutRef.current)
-            launchTimeoutRef.current = null
-        }
-    }, [activeGame])
-
-    function startLaunching(mode: 'modded' | 'vanilla') {
-        setLaunchError(null)
-        setLaunchWarning(null)
-        setLaunching(mode)
-        missedWhileLaunching.current = 0
-        if (launchTimeoutRef.current) clearTimeout(launchTimeoutRef.current)
-        launchTimeoutRef.current = setTimeout(() => setLaunching(null), 60_000)
-    }
-
-    useEffect(() => {
-        if (hideGameActions) return
-        const check = async () => {
-            const game = activeGame
-            const running = await api.isGameRunning(game)
-            if (activeGameRef.current !== game) return
-            if (!running && wasRunning.current) {
-                if (pendingRestore.current) {
-                    try {
-                        await api.restoreMods(activeGame)
-                    } catch (e) {
-                        setLaunchError(String(e))
-                    }
-                }
-                pendingRestore.current = false
-                await onRefreshInstalled()
-            }
-            if (running) {
-                setLaunching(null)
-                if (launchTimeoutRef.current) {
-                    clearTimeout(launchTimeoutRef.current)
-                    launchTimeoutRef.current = null
-                }
-            } else if (launchTimeoutRef.current !== null) {
-                // 3 attempts at 3 s, so 9 s max before concluding the game crashed at startup
-                if (++missedWhileLaunching.current >= 3) {
-                    setLaunching(null)
-                    clearTimeout(launchTimeoutRef.current)
-                    launchTimeoutRef.current = null
-                    missedWhileLaunching.current = 0
-                }
-            }
-            wasRunning.current = running
-            setGameRunning(running)
-        }
-        check()
-        const id = setInterval(check, 3000)
-        return () => clearInterval(id)
-    }, [onRefreshInstalled, activeGame, hideGameActions])
-
-    async function handleLaunchModded() {
-        await launchModded()
-    }
-
-    async function launchModded() {
-        const game = activeGame
-        startLaunching('modded')
-        try {
-            const warning = await api.launchModded(game)
-            if (activeGameRef.current !== game) return
-            setLaunchWarning(warning)
-        } catch (error) {
-            if (activeGameRef.current !== game) return
-            setLaunching(null)
-            if (launchTimeoutRef.current) {
-                clearTimeout(launchTimeoutRef.current)
-                launchTimeoutRef.current = null
-            }
-            setLaunchError(String(error))
-        }
-    }
-
-    async function launchWithoutMods() {
-        if (!gamePath) return
-        const game = activeGame
-        try {
-            startLaunching('vanilla')
-            const warning = await api.launchWithoutMods(game)
-            if (activeGameRef.current !== game) return
-            setLaunchWarning(warning)
-            pendingRestore.current = true
-        } catch (e) {
-            if (activeGameRef.current !== game) return
-            setLaunching(null)
-            if (launchTimeoutRef.current) {
-                clearTimeout(launchTimeoutRef.current)
-                launchTimeoutRef.current = null
-            }
-            setLaunchError(String(e))
-        }
-    }
-
-    function stopGame() {
-        api.stopGame(activeGame)
-    }
-
+    children,
+}: TopBarProps & { children?: ReactNode }) {
     return (
         <>
             {/* z-[60] keeps the title bar above the startup splash (z-50) and Radix
@@ -196,46 +61,7 @@ export function TopBar({
                                 <div className="w-px h-4 bg-border mx-1" />
                             </>
                         )}
-                        {!hideGameActions &&
-                            (gameRunning ? (
-                                <Button variant="danger" size="sm" onClick={stopGame}>
-                                    <Square className="w-3.5 h-3.5" fill="currentColor" />
-                                    {t('topBar.stopGame')}
-                                </Button>
-                            ) : (
-                                <>
-                                    <Button
-                                        variant="secondary"
-                                        size="sm"
-                                        disabled={!gamePath || !!launching}
-                                        onClick={launchWithoutMods}
-                                    >
-                                        {launching === 'vanilla' ? (
-                                            <Loader className="w-3.5 h-3.5 animate-spin" />
-                                        ) : (
-                                            <Play className="w-3.5 h-3.5" fill="currentColor" />
-                                        )}
-                                        {launching === 'vanilla'
-                                            ? t('topBar.launching')
-                                            : t('topBar.launchWithoutMods')}
-                                    </Button>
-                                    <Button
-                                        variant="accent"
-                                        size="sm"
-                                        disabled={!gamePath || !!launching}
-                                        onClick={handleLaunchModded}
-                                    >
-                                        {launching === 'modded' ? (
-                                            <Loader className="w-3.5 h-3.5 animate-spin" />
-                                        ) : (
-                                            <Play className="w-3.5 h-3.5" fill="currentColor" />
-                                        )}
-                                        {launching === 'modded'
-                                            ? t('topBar.launching')
-                                            : t('topBar.launchModded')}
-                                    </Button>
-                                </>
-                            ))}
+                        {children}
                         <div className="w-px h-4 bg-border ml-1" />
                         <WindowControls />
                     </div>
@@ -249,36 +75,6 @@ export function TopBar({
                     </div>
                 )}
             </div>
-            {launchError && (
-                <div className="shrink-0 flex items-center justify-between gap-3 px-4 py-2 bg-danger border-b border-danger-hover text-xs text-danger-text">
-                    <span>{launchError}</span>
-                    <Tooltip content={t('common.close')}>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setLaunchError(null)}
-                            className="shrink-0 p-0 text-danger-text hover:bg-transparent"
-                        >
-                            <X className="w-3.5 h-3.5" />
-                        </Button>
-                    </Tooltip>
-                </div>
-            )}
-            {launchWarning && (
-                <div className="shrink-0 flex items-center justify-between gap-3 px-4 py-2 bg-warning/10 border-b border-warning/30 text-xs text-warning">
-                    <span>{t(`topBar.sisr.${launchWarning}`)}</span>
-                    <Tooltip content={t('common.close')}>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setLaunchWarning(null)}
-                            className="shrink-0 p-0 text-warning hover:bg-transparent"
-                        >
-                            <X className="w-3.5 h-3.5" />
-                        </Button>
-                    </Tooltip>
-                </div>
-            )}
         </>
     )
 }

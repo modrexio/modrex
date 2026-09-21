@@ -6,9 +6,7 @@ export interface SettingsCacheEntry {
     installs: DetectedInstall[]
 }
 
-// Session cache for SettingsPage data, mirroring gamePathCache/installedCache in
-// App.tsx: the page sync-initializes from the last fetched values on remount and
-// revalidates in the background, so repeat visits never flash default values.
+// Repeat visits render cached settings while detection runs in the background.
 const cache = new Map<GameId, SettingsCacheEntry>()
 
 export function getSettingsCache(game: GameId): SettingsCacheEntry | undefined {

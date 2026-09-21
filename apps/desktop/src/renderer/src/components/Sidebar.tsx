@@ -20,11 +20,10 @@ import { Tooltip } from './Tooltip'
 type NavView = 'browse' | 'installed' | 'news' | 'settings'
 
 interface Props {
-    view: NavView
-    onViewChange: (v: NavView) => void
-    activeGame: GameId
+    navigation:
+        | { kind: 'global'; view: 'picker' | 'settings'; onViewChange: (view: 'settings') => void }
+        | { kind: 'game'; view: NavView; activeGame: GameId; onViewChange: (view: NavView) => void }
     onShowWelcome: () => void
-    mode?: 'app' | 'picker'
 }
 
 const navItems: {
@@ -37,24 +36,19 @@ const navItems: {
     { id: 'news', labelKey: 'sidebar.news', icon: Newspaper },
 ]
 
-export function Sidebar({ view, onViewChange, activeGame, onShowWelcome, mode = 'app' }: Props) {
+export function Sidebar({ navigation, onShowWelcome }: Props) {
     const [collapsed, setCollapsed] = useState(
         () => localStorage.getItem('modrex:sidebar-collapsed') === 'true'
     )
-    const isPicker = mode === 'picker'
-    const visibleNavItems = navItems.filter((item) => {
-        if (item.id === 'news') return GAMES[activeGame].hasNews
-        return true
-    })
 
     return (
         <aside
             className={`${collapsed ? 'w-12' : 'w-48'} shrink-0 flex flex-col bg-surface-raised border-r border-border transition-[width] duration-200 overflow-hidden`}
         >
-            {!isPicker ? (
+            {navigation.kind === 'game' ? (
                 <div className="p-2 border-b border-border shrink-0">
                     <Tooltip
-                        content={`${GAMES[activeGame].name} — ${t('sidebar.changeGame')}`}
+                        content={`${GAMES[navigation.activeGame].name} - ${t('sidebar.changeGame')}`}
                         side="right"
                     >
                         <button
@@ -65,12 +59,12 @@ export function Sidebar({ view, onViewChange, activeGame, onShowWelcome, mode = 
                             <span
                                 className={`truncate transition-opacity duration-200 font-medium flex-1 text-left ${collapsed ? 'opacity-0' : 'opacity-100'}`}
                             >
-                                {GAMES[activeGame].name}
+                                {GAMES[navigation.activeGame].name}
                             </span>
                         </button>
                     </Tooltip>
                 </div>
-            ) : view === 'settings' ? (
+            ) : navigation.view === 'settings' ? (
                 <div className="p-2 border-b border-border shrink-0">
                     <Tooltip content={t('sidebar.back')} disabled={!collapsed} side="right">
                         <button
@@ -89,42 +83,46 @@ export function Sidebar({ view, onViewChange, activeGame, onShowWelcome, mode = 
             ) : null}
 
             <nav className="flex flex-col gap-1 p-2 flex-1">
-                {!isPicker &&
-                    visibleNavItems.map((item) => {
-                        const Icon = item.icon
-                        return (
-                            <Tooltip
-                                key={item.id}
-                                content={t(item.labelKey)}
-                                disabled={!collapsed}
-                                side="right"
-                            >
-                                <button
-                                    onClick={() => onViewChange(item.id)}
-                                    className={`w-full px-2 py-2 gap-2.5 flex items-center rounded text-sm transition-colors ${
-                                        view === item.id
-                                            ? 'bg-surface-active text-text'
-                                            : 'text-text-muted hover:bg-surface-hover hover:text-text'
-                                    }`}
-                                >
-                                    <Icon className="w-4 h-4 shrink-0" />
-                                    <span
-                                        className={`truncate transition-opacity duration-200 ${collapsed ? 'opacity-0' : 'opacity-100'}`}
-                                    >
-                                        {t(item.labelKey)}
-                                    </span>
-                                </button>
-                            </Tooltip>
+                {navigation.kind === 'game' &&
+                    navItems
+                        .filter(
+                            (item) => item.id !== 'news' || GAMES[navigation.activeGame].hasNews
                         )
-                    })}
+                        .map((item) => {
+                            const Icon = item.icon
+                            return (
+                                <Tooltip
+                                    key={item.id}
+                                    content={t(item.labelKey)}
+                                    disabled={!collapsed}
+                                    side="right"
+                                >
+                                    <button
+                                        onClick={() => navigation.onViewChange(item.id)}
+                                        className={`w-full px-2 py-2 gap-2.5 flex items-center rounded text-sm transition-colors ${
+                                            navigation.view === item.id
+                                                ? 'bg-surface-active text-text'
+                                                : 'text-text-muted hover:bg-surface-hover hover:text-text'
+                                        }`}
+                                    >
+                                        <Icon className="w-4 h-4 shrink-0" />
+                                        <span
+                                            className={`truncate transition-opacity duration-200 ${collapsed ? 'opacity-0' : 'opacity-100'}`}
+                                        >
+                                            {t(item.labelKey)}
+                                        </span>
+                                    </button>
+                                </Tooltip>
+                            )
+                        })}
             </nav>
 
             <div className="p-2 flex flex-col gap-1">
                 <Tooltip content={t('sidebar.settings')} disabled={!collapsed} side="right">
                     <button
-                        onClick={() => onViewChange('settings')}
+                        onClick={() => navigation.onViewChange('settings')}
                         className={`w-full px-2 py-2 gap-2.5 flex items-center rounded text-sm transition-colors ${
-                            view === 'settings'
+                            navigation.view === 'settings'
                                 ? 'bg-surface-active text-text'
                                 : 'text-text-muted hover:bg-surface-hover hover:text-text'
                         }`}
