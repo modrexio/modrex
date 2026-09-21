@@ -65,10 +65,9 @@ Formatting and lint are automated: `pnpm format` and `pnpm lint:fix` fix most is
 The rules below are the ones tooling cannot check for you.
 
 Code: keep the happy path flat, use guard clauses for invalid cases, validate at
-boundaries, and skip speculative abstractions. The full policy lives in
-`.claude/rules/code-style.md`, a plain markdown file that doubles as the instruction
-set the repo's AI tooling loads, so human and AI contributions are reviewed against
-the same rules.
+boundaries, and skip speculative abstractions. The full policy lives in the Code style
+section of `AGENTS.md`, a plain markdown file that doubles as the instruction set the
+repo's AI tooling loads, so human and AI contributions are reviewed against the same rules.
 
 Comments:
 

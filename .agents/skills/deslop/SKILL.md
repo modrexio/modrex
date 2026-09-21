@@ -26,8 +26,8 @@ Fix each issue you find, then report a 1-3 sentence summary of what you changed.
 Before editing, read:
 
 1. `AI_DANGER_PATTERNS.md`
-2. `CLAUDE.md`
-3. any relevant `.claude/rules/*.md` file for touched paths
+2. the repository-root `AGENTS.md`
+3. the nearest `AGENTS.md` above each touched path
 
 ## Priority order
 

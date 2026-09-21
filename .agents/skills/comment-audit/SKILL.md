@@ -1,11 +1,11 @@
 ---
 name: comment-audit
-description: Review comments against the Comments policy in code-style.md and fix violations
+description: Review comments against the Comments policy in AGENTS.md and fix violations
 ---
 
 # comment-audit
 
-Use this skill after AI-assisted edits, or on demand to review existing code. It enforces the Comments section of `.claude/rules/code-style.md`.
+Use this skill after AI-assisted edits, or on demand to review existing code. It enforces the Comments section of the repository-root `AGENTS.md`.
 
 This skill handles cosmetic AI slop. It is lower priority than the five dangerous patterns in `AI_DANGER_PATTERNS.md`.
 
@@ -84,7 +84,7 @@ Contributors read comments as raw source, where markup renders as noise. Rewrite
 ## One home per fact
 
 - A fact enforced by a check script or test: the comment shrinks to one line naming the enforcement.
-- A fact stated both inline and in a rules file or CLAUDE.md: the inline comment at the site is canonical. Keep it, and reduce the other copy to a pointer when editing that file.
+- A fact stated both inline and in an AGENTS.md: the inline comment at the site is canonical. Keep it, and reduce the other copy to a pointer when editing that file.
 - Never resolve duplication by deleting the site comment.
 
 ## Keep comments that explain why
@@ -160,7 +160,7 @@ Remove:
 2. Delete comments that repeat code, narrate history, or hold placeholders.
 3. Compress blocks over four lines that are not a reserved kind.
 4. Rewrite punctuation violations as plain sentences.
-5. Shrink comments duplicating a check script, test, rules file, or CLAUDE.md per the one-home rule.
+5. Shrink comments duplicating a check script, test, or AGENTS.md per the one-home rule.
 6. If a comment compensates for unclear code, flag it in the report instead of editing the code.
 
 ## Report

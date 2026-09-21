@@ -40,7 +40,7 @@ Then check for:
 - bare JSX strings (use `t('key')`)
 - missing Tauri command wiring (all three places)
 - user-facing behavior missing from CHANGELOG when appropriate
-- code that contradicts `CLAUDE.md` or `.claude/rules/*`
+- code that contradicts the nearest `AGENTS.md` above it
 
 ## Severity
 
