@@ -18,6 +18,10 @@ function mod(uid: string, name: string): InstalledMod {
     } as InstalledMod
 }
 
+const installMod = vi.fn()
+const refreshModDetail = vi.fn()
+const getCachedModFiles = vi.fn()
+
 async function loadHook() {
     vi.resetModules()
     vi.doMock('../api', () => ({
@@ -26,9 +30,10 @@ async function loadHook() {
             enableMod,
             uninstallMod: vi.fn().mockResolvedValue(undefined),
             onDownloadProgress: vi.fn(() => () => {}),
-            installMod: vi.fn(),
+            installMod,
         },
     }))
+    vi.doMock('../modCache', () => ({ refreshModDetail, getCachedModFiles }))
     return (await import('./useModActions')).useModActions
 }
 
@@ -128,5 +133,42 @@ describe('useModActions bulk behaviour', () => {
 
         await result.current.handleDisable([mod('a', 'Alpha')])
         await waitFor(() => expect(result.current.modActionError).toBeNull())
+    })
+})
+
+describe('useModActions reinstall', () => {
+    const installed = { ...mod('a', 'Alpha'), remoteId: '7', fileId: 11 }
+    const variants = { id: 7, download: null, download_id: null, files_are_versions: false }
+
+    beforeEach(() => {
+        installMod.mockReset().mockResolvedValue('installed')
+        refreshModDetail.mockReset().mockResolvedValue(variants)
+    })
+
+    it('reinstalls the file that is installed while the mod still lists it', async () => {
+        getCachedModFiles.mockReset().mockResolvedValue([{ id: 12 }, { id: 11 }])
+        const useModActions = await loadHook()
+        const { result } = renderHook(() =>
+            useModActions('C:/game', vi.fn().mockResolvedValue(undefined), 'pd3')
+        )
+
+        await result.current.handleReinstall([installed])
+
+        expect(installMod).toHaveBeenCalledWith(7, 'C:/game', 'pd3', 11)
+    })
+
+    it('asks which file to install when the installed one is gone and the rest are variants', async () => {
+        getCachedModFiles.mockReset().mockResolvedValue([{ id: 13 }, { id: 12 }])
+        const useModActions = await loadHook()
+        const { result } = renderHook(() =>
+            useModActions('C:/game', vi.fn().mockResolvedValue(undefined), 'pd3')
+        )
+
+        await result.current.handleReinstall([installed])
+        await waitFor(() => expect(result.current.reinstallChoice).not.toBeNull())
+        expect(installMod).not.toHaveBeenCalled()
+
+        await result.current.chooseReinstallFile(12)
+        expect(installMod).toHaveBeenCalledWith(7, 'C:/game', 'pd3', 12)
     })
 })

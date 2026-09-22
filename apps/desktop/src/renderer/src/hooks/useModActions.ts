@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import type { GameId, InstalledMod } from '../../../shared/types'
+import type { GameId, InstalledMod, Mod, ModFile } from '../../../shared/types'
 import type { ZipMultiPakPayload } from '../components/ZipPickerModal'
 import { installZipPickerEntries } from '../components/ZipPickerModal'
 import type { HostPackPayload } from '../components/HostPackModal'
@@ -11,6 +11,8 @@ import { entryFilename, stripPriorityPrefix } from './installedUtils'
 import { t } from '../i18n'
 import { api } from '../api'
 import { runBulkAction } from '../bulkAction'
+import { getCachedModFiles, refreshModDetail } from '../modCache'
+import { defaultFileIsUnambiguous } from '../updatePolicy'
 
 export type IdentifyNexusResult = { kind: 'done' | 'error'; message: string }
 
@@ -21,6 +23,9 @@ export interface ModActions {
     reinstallProgress: { downloaded: number; total: number } | null
     reinstallError: string | null
     clearReinstallError: () => void
+    reinstallChoice: { mods: InstalledMod[]; mod: Mod; files: ModFile[] } | null
+    chooseReinstallFile: (fileId: number) => Promise<void>
+    clearReinstallChoice: () => void
     refreshing: boolean
     zipPickerData: ZipMultiPakPayload | null
     clearZipPickerData: () => void
@@ -62,6 +67,10 @@ export function useModActions(
         total: number
     } | null>(null)
     const [reinstallError, setReinstallError] = useState<string | null>(null)
+    const [reinstallChoices, setReinstallChoices] = useState<
+        NonNullable<ModActions['reinstallChoice']>[]
+    >([])
+    const reinstallChoice = reinstallChoices[0] ?? null
     const [refreshing, setRefreshing] = useState(false)
     const [zipPickerData, setZipPickerData] = useState<ZipMultiPakPayload | null>(null)
     const [hostPackData, setHostPackData] = useState<HostPackPayload | null>(null)
@@ -184,6 +193,33 @@ export function useModActions(
         const remoteId = Number(mods[0].remoteId)
         if (!gamePath || !isModworkshop || !Number.isFinite(remoteId) || remoteId <= 0) return
 
+        setLoadingMod(mods[0].uid)
+        setReinstallError(null)
+        let found: [Mod, ModFile[]]
+        try {
+            found = await Promise.all([refreshModDetail(remoteId), getCachedModFiles(remoteId)])
+        } catch (e) {
+            setReinstallError(String(e))
+            setLoadingMod(null)
+            return
+        }
+        const [detail, files] = found
+        const fileIds = new Set(mods.map((m) => m.fileId))
+        const installedFile = files.find((f) => fileIds.size === 1 && fileIds.has(f.id))
+        if (installedFile) return reinstall(mods, remoteId, installedFile.id)
+        if (defaultFileIsUnambiguous(mods, detail, files)) return reinstall(mods, remoteId)
+        setLoadingMod(null)
+        setReinstallChoices((prev) => [...prev, { mods, mod: detail, files }])
+    }
+
+    async function chooseReinstallFile(fileId: number) {
+        if (!reinstallChoice) return
+        setReinstallChoices((prev) => prev.slice(1))
+        await reinstall(reinstallChoice.mods, reinstallChoice.mod.id, fileId)
+    }
+
+    async function reinstall(mods: InstalledMod[], remoteId: number, fileId?: number) {
+        if (!gamePath) return
         const missingMods = mods.filter((m) => m.missing)
 
         setLoadingMod(mods[0].uid)
@@ -201,7 +237,7 @@ export function useModActions(
             if (download_id === targetId) setReinstallProgress({ downloaded, total })
         })
         try {
-            const outcome = await api.installMod(remoteId, gamePath, activeGame)
+            const outcome = await api.installMod(remoteId, gamePath, activeGame, fileId)
             if (typeof outcome !== 'string' && 'needsPicker' in outcome) {
                 const zipPayload = outcome.needsPicker as unknown as ZipMultiPakPayload
                 // install_from_zip_entry's pre-removal only fires when exactly one other entry
@@ -294,6 +330,9 @@ export function useModActions(
         reinstallProgress,
         reinstallError,
         clearReinstallError: () => setReinstallError(null),
+        reinstallChoice,
+        chooseReinstallFile,
+        clearReinstallChoice: () => setReinstallChoices((prev) => prev.slice(1)),
         refreshing,
         zipPickerData,
         clearZipPickerData: () => setZipPickerData(null),

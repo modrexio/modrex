@@ -188,7 +188,7 @@
             "updateSelected": "Update Selected ({count})",
             "error": "Update failed. Check your connection and try again.",
             "chooseTitle": "Choose a file",
-            "chooseBody": "{name} has several files. Pick the one to install as the update."
+            "chooseBody": "{name} has several files. Pick the one to install."
         },
         "pakViewer": {
             "title": "Pak contents",

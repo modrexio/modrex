@@ -33,6 +33,7 @@ import { useModData } from '../hooks/useModData'
 import { useDragDrop } from '../hooks/useDragDrop'
 import { useFolderActions } from '../hooks/useFolderActions'
 import { useModActions } from '../hooks/useModActions'
+import { UpdateFileModal } from './UpdateFileModal'
 import { useAutoIdentifyNexusMods } from '../hooks/useAutoIdentifyNexusMods'
 import {
     computeChildren,
@@ -152,6 +153,9 @@ export function InstalledPage({
         reinstallProgress,
         reinstallError,
         clearReinstallError,
+        reinstallChoice,
+        chooseReinstallFile,
+        clearReinstallChoice,
         modActionError,
         clearModActionError,
         refreshing,
@@ -186,9 +190,15 @@ export function InstalledPage({
     // Sentinel modals (ZipPicker, HostPack, CbFlatArchive, Ue4ssReplace) portal to body but
     // Radix focus traps prevent interacting with them while HealthCheckModal is also open.
     useEffect(() => {
-        if (zipPickerData || hostPackData || cbFlatArchiveData || loaderReplaceData)
+        if (
+            zipPickerData ||
+            hostPackData ||
+            cbFlatArchiveData ||
+            loaderReplaceData ||
+            reinstallChoice
+        )
             setShowHealth(false)
-    }, [zipPickerData, hostPackData, cbFlatArchiveData, loaderReplaceData])
+    }, [zipPickerData, hostPackData, cbFlatArchiveData, loaderReplaceData, reinstallChoice])
 
     useAutoIdentifyNexusMods({ installed, gamePath, activeGame, onRefreshInstalled })
 
@@ -326,6 +336,15 @@ export function InstalledPage({
                         gamePath={gamePath}
                         onRefreshInstalled={onRefreshInstalled}
                         onClose={clearLoaderReplaceData}
+                    />
+                )}
+                {reinstallChoice && (
+                    <UpdateFileModal
+                        mod={reinstallChoice.mod}
+                        files={reinstallChoice.files}
+                        installed={reinstallChoice.mods}
+                        onChoose={(fileId) => void chooseReinstallFile(fileId)}
+                        onCancel={clearReinstallChoice}
                     />
                 )}
                 {removingLoader && gamePath && (

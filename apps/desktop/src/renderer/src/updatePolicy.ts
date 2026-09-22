@@ -57,12 +57,21 @@ export function resolveUpdateTarget(
             status: 'external',
             url: download?.url ?? `https://modworkshop.net/mod/${detail.id}`,
         }
-    if (download && present.length && present.every((mod) => mod.fileId === download.id))
-        return { status: 'install' }
-    // Other files can be variants or parts of the mod unless the author marks them as
-    // versions and pins none of them.
-    if (detail.files_are_versions === true && detail.download_id === null)
-        return { status: 'install' }
-    if (files.length === 1) return { status: 'install' }
-    return { status: 'choose' }
+    return defaultFileIsUnambiguous(present, detail, files)
+        ? { status: 'install' }
+        : { status: 'choose' }
+}
+
+// Other files can be variants or parts of the mod unless the author marks them as
+// versions and pins none of them.
+export function defaultFileIsUnambiguous(
+    installed: InstalledMod[],
+    detail: Mod,
+    files: ModFile[]
+): boolean {
+    const download = detail.download
+    if (download && installed.length && installed.every((mod) => mod.fileId === download.id))
+        return true
+    if (detail.files_are_versions === true && detail.download_id === null) return true
+    return files.length === 1
 }
