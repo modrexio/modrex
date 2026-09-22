@@ -156,6 +156,8 @@ fn sample_nexus_detail() -> crate::commands::domain::ModDetail {
             has_thumb: None,
         }),
         download: None,
+        download_id: None,
+        files_are_versions: None,
         user: crate::commands::domain::ModUser {
             id: None,
             name: "abkarino".to_string(),

@@ -1,4 +1,4 @@
-import type { InstalledMod, Mod } from '../../shared/types'
+import type { InstalledMod, Mod, ModFile } from '../../shared/types'
 import type { VersionState } from './modVersions'
 
 export function updatableMods(
@@ -31,26 +31,38 @@ export function updatableMods(
 
 export type UpdateTarget =
     | { status: 'unchanged' }
-    | { status: 'review' }
-    | { status: 'ready'; download: NonNullable<Mod['download']> & { download_url: string } }
+    | { status: 'external'; url: string }
+    | { status: 'install' }
+    | { status: 'choose' }
 
-export function resolveUpdateTarget(installed: InstalledMod[], detail: Mod): UpdateTarget {
-    const currentBytes = installed.filter((mod) => !mod.missing)
-    const hasOutdatedBytes = currentBytes.some((mod) => mod.updateStatus === 'outdated')
+export function resolveUpdateTarget(
+    installed: InstalledMod[],
+    detail: Mod,
+    files: ModFile[]
+): UpdateTarget {
+    const present = installed.filter((mod) => !mod.missing)
+    const hasOutdatedBytes = present.some((mod) => mod.updateStatus === 'outdated')
     if (
         !detail.version ||
-        (!hasOutdatedBytes && currentBytes.some((mod) => mod.version === detail.version))
+        (!hasOutdatedBytes && present.some((mod) => mod.version === detail.version))
     )
         return { status: 'unchanged' }
     const download = detail.download
-    // Existing records do not prove default-following intent. A different file ID
-    // requires review rather than replacing a deliberately selected variant.
     if (
         detail.disable_mod_managers ||
-        !download?.download_url ||
-        !installed.length ||
-        installed.some((mod) => mod.fileId !== download.id || mod.missing)
+        (download && !download.download_url) ||
+        (!download && !files.length)
     )
-        return { status: 'review' }
-    return { status: 'ready', download: { ...download, download_url: download.download_url } }
+        return {
+            status: 'external',
+            url: download?.url ?? `https://modworkshop.net/mod/${detail.id}`,
+        }
+    if (download && present.length && present.every((mod) => mod.fileId === download.id))
+        return { status: 'install' }
+    // Other files can be variants or parts of the mod unless the author marks them as
+    // versions and pins none of them.
+    if (detail.files_are_versions === true && detail.download_id === null)
+        return { status: 'install' }
+    if (files.length === 1) return { status: 'install' }
+    return { status: 'choose' }
 }

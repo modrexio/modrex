@@ -502,6 +502,8 @@ struct WireModDetail {
     summary: WireModSummary,
     version: String,
     download: Option<WireDownload>,
+    download_id: Option<i64>,
+    files_are_versions: Option<bool>,
     changelog: Option<String>,
     instructions: Option<String>,
     license: Option<String>,
@@ -594,6 +596,10 @@ pub struct ModDetail {
     pub disable_mod_managers: Option<bool>,
     pub thumbnail: Option<ModThumbnail>,
     pub download: Option<ModDownload>,
+    /// Set only when the author pinned a default file. Without a pin, download is the newest
+    /// file when files_are_versions is true and absent when it is false.
+    pub download_id: Option<i64>,
+    pub files_are_versions: Option<bool>,
     pub user: ModUser,
     pub changelog: Option<String>,
     pub instructions: Option<String>,
@@ -690,6 +696,8 @@ impl From<WireModDetail> for ModDetail {
             disable_mod_managers: s.disable_mod_managers,
             thumbnail: s.thumbnail,
             download: w.download.map(Into::into),
+            download_id: w.download_id,
+            files_are_versions: w.files_are_versions,
             user: s.user,
             changelog: w.changelog,
             instructions: w.instructions,
@@ -864,6 +872,8 @@ pub fn parse_nexus_detail(value: serde_json::Value) -> Result<ModDetail, String>
             has_thumb: None,
         }),
         download: None,
+        download_id: None,
+        files_are_versions: None,
         user: ModUser {
             id: w.user.and_then(|u| u.member_id),
             name: w.author.unwrap_or_default(),
@@ -1177,6 +1187,18 @@ mod tests {
         assert!(detail.members.is_empty());
         assert!(detail.banner.is_none());
         assert!(detail.instructs_template.is_none());
+        assert!(detail.download_id.is_none());
+        assert!(detail.files_are_versions.is_none());
+    }
+
+    #[test]
+    fn a_detail_keeps_the_file_layout() {
+        let detail = parse_mod_detail(serde_json::json!({
+            "id": 1, "name": "M", "version": "2", "download_id": 70813, "files_are_versions": false
+        }))
+        .expect("detail");
+        assert_eq!(detail.download_id, Some(70813));
+        assert_eq!(detail.files_are_versions, Some(false));
     }
 
     #[test]

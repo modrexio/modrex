@@ -739,6 +739,12 @@ export type ModDetail = {
 	disable_mod_managers: boolean | null,
 	thumbnail: ModThumbnail | null,
 	download: ModDownload | null,
+	/**
+	 *  Set only when the author pinned a default file. Without a pin, download is the newest
+	 *  file when files_are_versions is true and absent when it is false.
+	 */
+	download_id: number | null,
+	files_are_versions: boolean | null,
 	user: ModUser,
 	changelog: string | null,
 	instructions: string | null,

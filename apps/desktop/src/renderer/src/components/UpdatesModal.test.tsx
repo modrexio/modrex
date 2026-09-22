@@ -3,9 +3,14 @@ import { beforeEach, describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react'
 import type { InstalledMod, Mod } from '../../../shared/types'
 
-const { install, refresh } = vi.hoisted(() => ({ install: vi.fn(), refresh: vi.fn() }))
-vi.mock('../api', () => ({ api: { installModFile: install } }))
-vi.mock('../modCache', () => ({ refreshModDetail: refresh }))
+const { install, openExternal, refresh, files } = vi.hoisted(() => ({
+    install: vi.fn(),
+    openExternal: vi.fn(),
+    refresh: vi.fn(),
+    files: vi.fn(),
+}))
+vi.mock('../api', () => ({ api: { installMod: install, openExternal } }))
+vi.mock('../modCache', () => ({ refreshModDetail: refresh, getCachedModFiles: files }))
 vi.mock('../hooks/useThumbnail', () => ({ useThumbnail: () => null }))
 import { UpdatesModal } from './UpdatesModal'
 
@@ -46,6 +51,8 @@ function detail(id: number): Mod {
             url: null,
             size: 1,
         },
+        download_id: null,
+        files_are_versions: true,
         user: {
             id: null,
             name: 'Author',
@@ -102,28 +109,45 @@ beforeEach(() => {
     vi.clearAllMocks()
     install.mockResolvedValue('installed')
     refresh.mockImplementation(async (id: number) => detail(id))
+    files.mockImplementation(async (id: number) => [{ id: id * 10, name: 'File ' + id }])
 })
 
 describe('update target revalidation', () => {
-    it('uses the freshly checked explicit target for each unchanged selection', async () => {
-        const { close } = mount()
+    it('installs each unambiguous update without leaving the modal flow', async () => {
+        const { open, close } = mount()
         fireEvent.click(screen.getByText('Update Selected (2)'))
         await waitFor(() => expect(close).toHaveBeenCalled())
         expect(refresh.mock.calls).toEqual([[1], [2]])
-        expect(install.mock.calls.map((call) => [call[0], call[2]])).toEqual([
-            [1, 10],
-            [2, 20],
+        expect(install.mock.calls.map((call) => [call[0], call[3]])).toEqual([
+            [1, undefined],
+            [2, undefined],
         ])
+        expect(open).not.toHaveBeenCalled()
         expect(screen.getAllByText('old to new')).toHaveLength(2)
     })
 
-    it('stops the queue and opens review instead of guessing a changed default', async () => {
-        refresh.mockResolvedValue({ ...detail(1), download: { ...detail(1).download!, id: 999 } })
-        const { open } = mount()
+    it('asks for a file when variants make the choice ambiguous, then resumes', async () => {
+        refresh.mockImplementation(async (id: number) =>
+            id === 1 ? { ...detail(1), download: null, files_are_versions: false } : detail(2)
+        )
+        files.mockImplementation(async (id: number) =>
+            id === 1
+                ? [
+                      { id: 11, name: 'Variant A' },
+                      { id: 12, name: 'Variant B' },
+                  ]
+                : [{ id: 20, name: 'File 2' }]
+        )
+        const { open, close } = mount()
         fireEvent.click(screen.getByText('Update Selected (2)'))
-        await waitFor(() => expect(open).toHaveBeenCalledWith(1))
-        expect(install).not.toHaveBeenCalled()
-        expect(refresh).toHaveBeenCalledTimes(1)
+        fireEvent.click(await screen.findByText('Variant B'))
+        fireEvent.click(screen.getByText('Update'))
+        await waitFor(() => expect(close).toHaveBeenCalled())
+        expect(install.mock.calls.map((call) => [call[0], call[3]])).toEqual([
+            [1, 12],
+            [2, undefined],
+        ])
+        expect(open).not.toHaveBeenCalled()
     })
 
     it('does not install when fresh detail fails', async () => {

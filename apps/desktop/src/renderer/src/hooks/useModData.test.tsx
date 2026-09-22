@@ -87,6 +87,8 @@ function makeNexusDetail(id: number, version: string): Mod {
         thumbnail: null,
         download: null,
         user: { id: null, name: '', donation_url: null, avatar: null, avatar_has_thumb: null },
+        download_id: null,
+        files_are_versions: null,
         changelog: null,
         instructions: null,
         license: null,

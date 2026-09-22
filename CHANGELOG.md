@@ -4,6 +4,10 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 ## Unreleased
 
+### Fixed
+
+- Fixed Update in the updates list opening the mod's page instead of installing the update.
+
 ## 0.15.1
 
 ### Added

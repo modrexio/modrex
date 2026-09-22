@@ -97,6 +97,8 @@ export interface Mod extends ModSummary {
         download_url: string | null
         url: string | null
     } | null
+    download_id: number | null
+    files_are_versions: boolean | null
     changelog: string | null
     instructions: string | null
     license: string | null
