@@ -31,6 +31,18 @@ describe('ModWorkshop version observations', () => {
         expect(fetch).toHaveBeenCalledTimes(2)
     })
 
+    it('renews a known version before it goes stale', async () => {
+        let now = 0
+        const fetch = vi.fn(async () => [{ id: 1, status: 'known' as const, version: 'v1' }])
+        const cache = createVersionCache(fetch, () => now)
+        await cache.refresh([1])
+        now = VERSION_TTL_MS - 30_000
+        await cache.refresh([1])
+        expect(fetch).toHaveBeenCalledTimes(2)
+        now = VERSION_TTL_MS
+        expect(cache.read(1)).toEqual({ status: 'known', version: 'v1' })
+    })
+
     it('distinguishes unversioned, missing and failed, and retries only failed due IDs', async () => {
         let now = 0
         const fetch = vi

@@ -15,6 +15,8 @@ export type VersionState =
 type Result = Awaited<ReturnType<typeof api.getModVersions>>[number]
 type Entry = { result: Result; checkedAt: number; retryAt: number; failures: number }
 export const VERSION_TTL_MS = 30 * 60 * 1000
+// useModVersions polls every 30 seconds, so a minute of lead renews an entry before it goes stale.
+const REFRESH_LEAD_MS = 60_000
 
 // This cache is provider-global: ModWorkshop IDs do not repeat between games.
 // Transport injection lets tests exercise the same batching and retry state as the UI.
@@ -80,7 +82,7 @@ export function createVersionCache(
                         result.status === 'failed' ? (entries.get(id)?.failures ?? 0) + 1 : 0
                     const delay = failures
                         ? Math.min(VERSION_TTL_MS, 60_000 * 2 ** Math.min(failures - 1, 5))
-                        : VERSION_TTL_MS
+                        : VERSION_TTL_MS - REFRESH_LEAD_MS
                     entries.set(id, { result, checkedAt: now(), retryAt: now() + delay, failures })
                 }
                 pending.delete(id)
@@ -126,7 +128,7 @@ export function createVersionCache(
                         ? { id, status: 'unversioned' }
                         : { id, status: 'known', version },
                 checkedAt: now(),
-                retryAt: now() + VERSION_TTL_MS,
+                retryAt: now() + VERSION_TTL_MS - REFRESH_LEAD_MS,
                 failures: 0,
             })
             notify()
