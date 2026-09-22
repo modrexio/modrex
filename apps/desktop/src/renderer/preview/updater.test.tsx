@@ -85,3 +85,65 @@ test.each(['downloading', 'ready'])(
         expect(install).toHaveBeenCalledTimes(1)
     }
 )
+
+test.each(['available', 'downloading', 'ready'])(
+    'keeps the %s update popup open when restoring the window',
+    async (phase) => {
+        const { dialog, finishDownload } = await mountUpdate()
+        if (phase !== 'available')
+            fireEvent.click(within(dialog).getByRole('button', { name: 'Update' }))
+        if (phase === 'ready') await finishDownload()
+        const { api } = await import('../src/api')
+        const restore = vi.spyOn(api, 'windowToggleMaximize').mockResolvedValue()
+        const button = screen.getByRole('button', { name: 'Restore', hidden: true })
+        await act(async () => {
+            fireEvent(button, new MouseEvent('pointerdown', { bubbles: true, button: 0 }))
+            fireEvent.click(button)
+            fireEvent(window, new Event('resize'))
+            await new Promise((resolve) => setTimeout(resolve, 0))
+        })
+        expect(restore).toHaveBeenCalledTimes(1)
+        expect(screen.queryByRole('dialog')).toBe(dialog)
+    }
+)
+
+test('keeps the update popup open when dragging a Linux resize handle', async () => {
+    vi.spyOn(window.navigator, 'userAgent', 'get').mockReturnValue('Linux')
+    const { api } = await import('../src/api')
+    vi.spyOn(api, 'windowIsMaximized').mockResolvedValue(false)
+    const resize = vi.spyOn(api, 'windowStartResizeDragging').mockResolvedValue()
+    const { dialog } = await mountUpdate()
+    const handle = document.querySelector('[data-window-resize="East"]')!
+    expect(handle.classList.contains('pointer-events-auto')).toBe(true)
+    await act(async () => {
+        fireEvent(handle, new MouseEvent('pointerdown', { bubbles: true, button: 0 }))
+        fireEvent.mouseDown(handle, { button: 0 })
+        fireEvent(window, new Event('resize'))
+        fireEvent.click(handle)
+        await new Promise((resolve) => setTimeout(resolve, 0))
+    })
+    expect(resize).toHaveBeenCalledExactlyOnceWith('East')
+    expect(screen.queryByRole('dialog')).toBe(dialog)
+})
+
+test.each(['outside click', 'Escape', 'close button'])(
+    'still dismisses the update popup on %s',
+    async (action) => {
+        const { dialog, install } = await mountUpdate()
+        await act(async () => {
+            if (action === 'outside click') {
+                fireEvent(
+                    document.body,
+                    new MouseEvent('pointerdown', { bubbles: true, button: 0 })
+                )
+                fireEvent.click(document.body)
+            }
+            if (action === 'Escape') fireEvent.keyDown(dialog, { key: 'Escape' })
+            if (action === 'close button')
+                fireEvent.click(within(dialog).getByRole('button', { name: '' }))
+            await new Promise((resolve) => setTimeout(resolve, 0))
+        })
+        expect(screen.queryByRole('dialog')).toBeNull()
+        expect(install).not.toHaveBeenCalled()
+    }
+)

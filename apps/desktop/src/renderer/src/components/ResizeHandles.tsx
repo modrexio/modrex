@@ -39,7 +39,8 @@ export function ResizeHandles() {
             {HANDLES.map(({ direction, className }) => (
                 <div
                     key={direction}
-                    className={`fixed z-[70] ${className}`}
+                    data-window-resize={direction}
+                    className={`fixed z-[70] pointer-events-auto ${className}`}
                     onMouseDown={(e) => {
                         if (e.button !== 0) return
                         e.preventDefault()

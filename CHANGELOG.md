@@ -12,6 +12,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 ### Fixed
 
 - Fixed update progress and restart controls disappearing from the update popup.
+- Fixed window resizing dismissing the update popup.
 - Fixed global settings reopening the last game's settings.
 - Fixed ModWorkshop update detection and restored identification index refreshes after an upstream API change.
 - Fixed Browse hiding category and tag filter loading failures when a request fails.

@@ -235,6 +235,15 @@ export default function App() {
                     <Dialog
                         open={showUpdateModal && !!update}
                         onOpenChange={(open) => !open && setShowUpdateModal(false)}
+                        onPointerDownOutside={(event) => {
+                            const target = event.detail.originalEvent.target
+                            if (
+                                target instanceof Element &&
+                                target.closest('[data-tauri-drag-region], [data-window-resize]')
+                            ) {
+                                event.preventDefault()
+                            }
+                        }}
                         title={update ? t('app.updateNotesTitle', { version: update.version }) : ''}
                         className="w-full max-w-lg max-h-[80vh]"
                     >
