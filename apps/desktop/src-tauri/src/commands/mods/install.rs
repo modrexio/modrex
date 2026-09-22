@@ -158,6 +158,15 @@ pub fn install_mod_from_path(
             copy_file_with_sidecars(source, &dest, extension, target.companions)?;
         }
         ModUnit::Directory { .. } => {
+            let replaces_in_place = existing.as_ref().is_some_and(|ex| {
+                let ex_rel = get_folder_path(&state.folders, ex.folder_id.as_deref());
+                ex.enabled
+                    && active_mod_path(game_path, &ex.filename, ex_rel.as_deref(), target) == dest
+            });
+            if replaces_in_place && superblt_manages(cfg) {
+                fs::remove_dir_all(&dest)
+                    .map_err(|e| format!("could not remove old {}: {e}", log_name(&dest)))?;
+            }
             copy_dir_all(source, &dest)?;
         }
     }
@@ -221,6 +230,21 @@ pub fn install_mod_from_path(
     )
     .map_err(save_error)?;
     Ok(())
+}
+
+// SuperBLT deletes a mod's folder before moving an update in (BLTDownloadManager.lua), so its
+// mods keep nothing in their folder that an update must preserve. Other loaders' folders merge.
+fn superblt_manages(cfg: &ModEngineConfig) -> bool {
+    crate::games::discovered().iter().any(|(id, pkg)| {
+        *id == cfg.game_id
+            && pkg.loaders.iter().any(|l| {
+                matches!(
+                    l,
+                    crate::game_package::LoaderBinding::Superblt { .. }
+                        | crate::game_package::LoaderBinding::RaidSuperblt { .. }
+                )
+            })
+    })
 }
 
 /// Toggles a Crime Boss mod between the primary mods/<name>/ ModKit skeleton and the legacy

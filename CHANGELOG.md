@@ -10,6 +10,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - Fixed available updates briefly disappearing every half hour.
 - Fixed Reinstall swapping a mod's chosen file for a different one.
 - Fixed updating a mod with several paks in one archive keeping the old paks next to the new ones.
+- Fixed updating a PAYDAY 2 or RAID mod leaving files from its old version behind.
 
 ## 0.15.1
 

@@ -1809,6 +1809,37 @@ fn an_install_records_its_own_provenance() {
 }
 
 #[test]
+fn reinstalling_a_superblt_folder_mod_drops_files_the_new_version_removed() {
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let cfg = engine_for_game("pd2").unwrap();
+    let sp = get_state_path(game, cfg);
+    let record = InstalledMod {
+        uid: "700".into(),
+        name: "Celer".into(),
+        filename: "Celer".into(),
+        enabled: true,
+        file_id: Some(700),
+        ..InstalledMod::default()
+    };
+
+    let old = tmp.path().join("old").join("Celer");
+    fs::create_dir_all(&old).unwrap();
+    fs::write(old.join("mod.txt"), b"{}").unwrap();
+    fs::write(old.join("removed.lua"), b"").unwrap();
+    install_mod_from_path(game, &sp, record.clone(), &old, None, cfg, cfg.primary()).unwrap();
+
+    let new = tmp.path().join("new").join("Celer");
+    fs::create_dir_all(&new).unwrap();
+    fs::write(new.join("mod.txt"), b"{}").unwrap();
+    install_mod_from_path(game, &sp, record, &new, None, cfg, cfg.primary()).unwrap();
+
+    let installed = active_mod_path(game, "Celer", None, cfg.primary());
+    assert!(installed.join("mod.txt").exists());
+    assert!(!installed.join("removed.lua").exists());
+}
+
+#[test]
 fn regroup_by_name_suffix_skips_entries_with_source_identity() {
     let base_id = crate::commands::sources::source_native_local_id("modworkshop", "100");
     let base = InstalledMod {
