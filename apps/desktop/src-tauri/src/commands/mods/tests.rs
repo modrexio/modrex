@@ -4681,6 +4681,23 @@ fn stale_entry_removes_older_file_id() {
 }
 
 #[test]
+fn stale_entry_removes_the_same_entry_from_an_older_file() {
+    let mods = vec![
+        zip_install_entry("90000_zDarkMatter_AG-9", 56976, 90000),
+        zip_install_entry("90000_zDarkMatter_ATK-7", 56976, 90000),
+    ];
+    let stale = stale_entry_for_zip_install(&mods, "98276_zDarkMatter_AG-9", 56976, "56976", 98276);
+    assert_eq!(
+        stale.map(|m| m.uid.as_str()),
+        Some("90000_zDarkMatter_AG-9")
+    );
+    assert!(
+        stale_entry_for_zip_install(&mods, "98276_zDarkMatter_New", 56976, "56976", 98276)
+            .is_none()
+    );
+}
+
+#[test]
 fn stale_entry_none_when_uid_already_installed() {
     let mods = vec![zip_install_entry("98276_zDarkMatter_AG-9", 56976, 98276)];
     assert!(

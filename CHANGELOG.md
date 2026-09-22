@@ -9,6 +9,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - Fixed Update in the updates list opening the mod's page instead of installing the update.
 - Fixed available updates briefly disappearing every half hour.
 - Fixed Reinstall swapping a mod's chosen file for a different one.
+- Fixed updating a mod with several paks in one archive keeping the old paks next to the new ones.
 
 ## 0.15.1
 

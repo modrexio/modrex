@@ -1413,8 +1413,9 @@ pub async fn install_dropped_file(
     result.map(|()| InstallOutcome::Installed)
 }
 
-/// The single same-mod entry to uninstall before an archive-entry install lands under a new uid:
-/// an older version under a different file id, or this file's previous bare-pak packaging
+/// The same-mod entry to uninstall before an archive-entry install lands under a new uid: the
+/// same entry from an older file of the mod, else the mod's only entry when that is an older
+/// version under a different file id or this file's previous bare-pak packaging
 /// (uid == "{file_id}"). An archive-scheme sibling of the same file (uid "{file_id}_...") is
 /// another entry of the archive being installed right now, and removing it would make a
 /// multi-entry batch install delete each predecessor, leaving only the last selected entry.
@@ -1432,6 +1433,15 @@ fn stale_entry_for_zip_install<'a>(
         .iter()
         .filter(|m| m.remote_id.as_deref() == Some(mod_id_str))
         .collect();
+    if let Some(stem) = uid.strip_prefix(&format!("{file_id}_")) {
+        let previous = same.iter().find(|m| {
+            m.file_id
+                .is_some_and(|old| old != file_id && m.uid == format!("{old}_{stem}"))
+        });
+        if previous.is_some() {
+            return previous.copied();
+        }
+    }
     if same.len() != 1 || same[0].uid.starts_with(&format!("{file_id}_")) {
         return None;
     }
