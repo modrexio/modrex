@@ -8,7 +8,7 @@ pnpm dev-preview  # Renderer in a browser against fixtures, no Rust backend; com
 pnpm build-preview # Static build of the same into out/preview/
 pnpm test:preview # Mount the app through the preview backend in jsdom and assert the browse grid renders
 pnpm build        # Local production build, unsigned (tauri.local.conf.json disables updater artifacts) — exits 0, installer in src-tauri/target/release/bundle/nsis/
-pnpm build:signed # CI production build with updater artifacts — requires TAURI_SIGNING_PRIVATE_KEY (release.yml only; exits 1 without the key)
+pnpm build:signed # CI production build with updater artifacts and Authenticode signing — requires TAURI_SIGNING_PRIVATE_KEY and, on Windows, the AZURE_* secrets read by scripts/sign-windows.ps1 (release.yml only; exits 1 without them)
 pnpm dist:win     # Same as build but with explicit --target x86_64-pc-windows-msvc
 pnpm dist:linux   # Package Linux AppImage + .deb (unsigned, like build)
 pnpm typecheck    # Type-check renderer without emitting (same as: pnpm tsc --noEmit)

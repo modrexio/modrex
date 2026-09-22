@@ -91,11 +91,26 @@ jobs:
 
             - run: pnpm install --frozen-lockfile
             - run: pnpm typecheck
+            - run: cargo install artifact-signing-cli --version 0.11.0
             - run: pnpm build:signed
               env:
+                  AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+                  AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+                  AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
                   TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
                   TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
                   MODREX_GA_MEASUREMENT_ID: ${{ secrets.MODREX_GA_MEASUREMENT_ID }}
+
+            - name: Verify Authenticode signature
+              shell: pwsh
+              run: |
+                  $ErrorActionPreference = 'Stop'
+                  $installer = Get-ChildItem 'apps/desktop/src-tauri/target/release/bundle/nsis/*.exe'
+                  $signature = Get-AuthenticodeSignature $installer.FullName
+                  if ($signature.Status -ne 'Valid') {
+                      throw "Installer signature is $($signature.Status): $($signature.StatusMessage)"
+                  }
+                  Write-Host "Signed by $($signature.SignerCertificate.Subject)"
 
             - name: Smoke-test NSIS installer
               shell: pwsh
