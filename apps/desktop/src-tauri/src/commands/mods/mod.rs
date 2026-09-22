@@ -407,6 +407,7 @@ pub async fn get_installed(app: AppHandle, game_id: String) -> Result<InstalledR
 pub async fn install_mod(
     app: AppHandle,
     mod_id: u32,
+    file_id: Option<u32>,
     game_path: String,
     folder_id: Option<String>,
     game_id: String,
@@ -418,29 +419,28 @@ pub async fn install_mod(
         let mod_version = mod_val["version"].as_str().unwrap_or("").to_string();
         let remote_id = mod_val["id"].as_i64().unwrap_or(0);
 
-        let (file_id, download_url, file_type) = if !mod_val["download"].is_null() {
-            let dl = &mod_val["download"];
-            (
-                dl["id"].as_i64().unwrap_or(0),
-                dl["download_url"]
-                    .as_str()
-                    .ok_or("no download_url")?
-                    .to_string(),
-                dl["type"].as_str().unwrap_or("pak").to_string(),
-            )
-        } else if mod_val["has_download"].as_bool().unwrap_or(false) {
-            let f = api_get(&app, &format!("/mods/{}/files/latest", mod_id), vec![]).await?;
-            (
-                f["id"].as_i64().unwrap_or(0),
-                f["download_url"]
-                    .as_str()
-                    .ok_or("no download_url")?
-                    .to_string(),
-                f["type"].as_str().unwrap_or("pak").to_string(),
-            )
-        } else {
-            return Err("Mod has no download".to_string());
+        let file = match file_id {
+            Some(file_id) => {
+                let f = api_get(&app, &format!("/files/{file_id}"), vec![]).await?;
+                if f["mod_id"].as_i64() != Some(remote_id) {
+                    return Err(format!("file {file_id} does not belong to mod {mod_id}"));
+                }
+                f
+            }
+            None if !mod_val["download"].is_null() => mod_val["download"].clone(),
+            None if mod_val["has_download"].as_bool().unwrap_or(false) => {
+                api_get(&app, &format!("/mods/{}/files/latest", mod_id), vec![]).await?
+            }
+            None => return Err("Mod has no download".to_string()),
         };
+        let (file_id, download_url, file_type) = (
+            file["id"].as_i64().unwrap_or(0),
+            file["download_url"]
+                .as_str()
+                .ok_or("no download_url")?
+                .to_string(),
+            file["type"].as_str().unwrap_or("pak").to_string(),
+        );
 
         let download_id = format!("mod:{mod_id}");
         let downloaded = download_file(&app, &download_url, &file_type, &download_id).await?;

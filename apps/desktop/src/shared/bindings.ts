@@ -76,7 +76,7 @@ export const commands = {
 	 */
 	trackEvent: (name: string, params: unknown | null) => __TAURI_INVOKE<void>("track_event", { name, params }),
 	getInstalled: (gameId: string) => __TAURI_INVOKE<InstalledResponse_Serialize>("get_installed", { gameId }),
-	installMod: (modId: number, gamePath: string, folderId: string | null, gameId: string) => __TAURI_INVOKE<InstallOutcome_Serialize>("install_mod", { modId, gamePath, folderId, gameId }),
+	installMod: (modId: number, fileId: number | null, gamePath: string, folderId: string | null, gameId: string) => __TAURI_INVOKE<InstallOutcome_Serialize>("install_mod", { modId, fileId, gamePath, folderId, gameId }),
 	installFile: (modId: number, modName: string, fileId: number, downloadUrl: string, fileType: string, modVersion: string, gamePath: string, gameId: string) => __TAURI_INVOKE<InstallOutcome_Serialize>("install_file", { modId, modName, fileId, downloadUrl, fileType, modVersion, gamePath, gameId }),
 	/**
 	 *  Installs a mod from a local file the user dropped onto the window (Explorer drag-drop).

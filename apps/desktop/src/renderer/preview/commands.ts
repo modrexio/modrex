@@ -198,10 +198,13 @@ const handlers = {
         }
         return lib.response()
     },
-    installMod: async (modId, _gamePath, folderId, gameId) => {
+    installMod: async (modId, fileId, _gamePath, folderId, gameId) => {
         await remote(`/mods/${modId}`)
         const { detail, files } = await modRecord(modId)
-        const file = detail.download ?? files.data[0]
+        const file =
+            fileId === null
+                ? (detail.download ?? files.data[0])
+                : files.data.find((f) => f.id === fileId)
         if (!file) throw new Error(`preview: mod ${modId} has no download`)
         await simulateDownload(`mod:${modId}`, file.size)
         library(game(gameId)).install(installedFromWorkshop(detail, file, folderId))
