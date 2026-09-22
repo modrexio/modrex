@@ -58,6 +58,7 @@ test('keeps the same update popup through download until the user chooses instal
     expect(within(dialog).queryByRole('button', { name: 'Later' })).toBeNull()
     await act(() => emit('updater:update-progress', 47))
     expect(within(dialog).getByRole('progressbar').getAttribute('aria-valuenow')).toBe('47')
+    expect(within(dialog).getByText('47%')).toBeTruthy()
     expect(install).not.toHaveBeenCalled()
     await finishDownload()
     expect(screen.getByRole('dialog')).toBe(dialog)

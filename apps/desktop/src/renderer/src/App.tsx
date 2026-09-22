@@ -318,18 +318,23 @@ export default function App() {
                                     </div>
                                 </div>
                                 {update.phase === 'downloading' && (
-                                    <div
-                                        role="progressbar"
-                                        aria-label={t('common.downloading')}
-                                        aria-valuemin={0}
-                                        aria-valuemax={100}
-                                        aria-valuenow={update.percent ?? 0}
-                                        className="absolute bottom-0 left-0 right-0 h-0.5 bg-surface-active"
-                                    >
+                                    <div className="absolute bottom-0 left-0 right-0 h-4">
+                                        <span className="absolute right-2 bottom-1 text-[10px] text-text-muted">
+                                            {update.percent ?? 0}%
+                                        </span>
                                         <div
-                                            className="h-full bg-accent transition-[width] duration-100"
-                                            style={{ width: `${update.percent ?? 0}%` }}
-                                        />
+                                            role="progressbar"
+                                            aria-label={t('common.downloading')}
+                                            aria-valuemin={0}
+                                            aria-valuemax={100}
+                                            aria-valuenow={update.percent ?? 0}
+                                            className="absolute bottom-0 left-0 right-0 h-0.5 bg-surface-active"
+                                        >
+                                            <div
+                                                className="h-full bg-accent transition-[width] duration-100"
+                                                style={{ width: `${update.percent ?? 0}%` }}
+                                            />
+                                        </div>
                                     </div>
                                 )}
                             </>
