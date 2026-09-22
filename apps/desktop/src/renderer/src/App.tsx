@@ -1,7 +1,7 @@
 import { useState, useEffect, useLayoutEffect, useCallback, useRef, startTransition } from 'react'
 import { error as logError } from '@tauri-apps/plugin-log'
 import { Button } from './components/ui/Button'
-import { X, ExternalLink, Download } from 'lucide-react'
+import { X, ExternalLink, Download, RefreshCw } from 'lucide-react'
 import { GAMES, isGameId, type GameId } from '../../shared/types'
 import { loadLoaderRegistry } from './loaders'
 import { loadSourceRegistry } from './sources'
@@ -161,7 +161,6 @@ export default function App() {
 
     async function handleUpdate() {
         if (!update) return
-        setShowUpdateModal(false)
         setUpdate((prev) => (prev ? { ...prev, phase: 'downloading', percent: 0 } : prev))
         try {
             await api.download()
@@ -179,7 +178,7 @@ export default function App() {
     }
     const topBar = {
         update:
-            update && update.phase !== 'available'
+            update && update.phase !== 'available' && !showUpdateModal
                 ? { phase: update.phase, percent: update.percent }
                 : null,
         onDismissUpdate: () => setUpdate(null),
@@ -234,7 +233,7 @@ export default function App() {
                         </div>
                     )}
                     <Dialog
-                        open={showUpdateModal && !!update && update.phase === 'available'}
+                        open={showUpdateModal && !!update}
                         onOpenChange={(open) => !open && setShowUpdateModal(false)}
                         title={update ? t('app.updateNotesTitle', { version: update.version }) : ''}
                         className="w-full max-w-lg max-h-[80vh]"
@@ -259,6 +258,27 @@ export default function App() {
                                         <MarkdownContent text={update.body} />
                                     </div>
                                 )}
+                                {update.phase === 'downloading' && (
+                                    <div className="px-5 py-4 shrink-0">
+                                        <div className="flex justify-between text-xs text-text-muted mb-2">
+                                            <span>{t('common.downloading')}</span>
+                                            <span>{update.percent ?? 0}%</span>
+                                        </div>
+                                        <div
+                                            role="progressbar"
+                                            aria-label={t('common.downloading')}
+                                            aria-valuemin={0}
+                                            aria-valuemax={100}
+                                            aria-valuenow={update.percent ?? 0}
+                                            className="h-1 bg-surface-hover rounded overflow-hidden"
+                                        >
+                                            <div
+                                                className="h-full bg-accent transition-all duration-300"
+                                                style={{ width: `${update.percent ?? 0}%` }}
+                                            />
+                                        </div>
+                                    </div>
+                                )}
                                 <div className="px-5 py-4 border-t border-border shrink-0 flex items-center justify-between">
                                     <Button
                                         variant="ghost"
@@ -277,23 +297,37 @@ export default function App() {
                                         >
                                             {t('app.updateLater')}
                                         </Button>
-                                        {update.strategy !== 'browser' ? (
-                                            <button
-                                                onClick={handleUpdate}
-                                                className="text-xs px-3 py-1 rounded bg-accent/20 hover:bg-accent/30 text-accent transition-colors flex items-center gap-1.5"
+                                        {update.phase === 'ready' && (
+                                            <Button
+                                                variant="ghost-accent"
+                                                onClick={() => api.installUpdate()}
                                             >
-                                                <Download className="w-3.5 h-3.5" />
-                                                {t('app.updateAction')}
-                                            </button>
-                                        ) : (
-                                            <button
-                                                onClick={() => api.openExternal(update.releaseUrl)}
-                                                className="text-xs px-3 py-1 rounded bg-accent/20 hover:bg-accent/30 text-accent transition-colors flex items-center gap-1.5"
-                                            >
-                                                <ExternalLink className="w-3.5 h-3.5" />
-                                                {t('app.updateDownload')}
-                                            </button>
+                                                <RefreshCw className="w-3.5 h-3.5" />
+                                                {t('app.updateInstall')}
+                                            </Button>
                                         )}
+                                        {update.phase === 'available' &&
+                                            update.strategy !== 'browser' && (
+                                                <Button
+                                                    variant="ghost-accent"
+                                                    onClick={handleUpdate}
+                                                >
+                                                    <Download className="w-3.5 h-3.5" />
+                                                    {t('app.updateAction')}
+                                                </Button>
+                                            )}
+                                        {update.phase === 'available' &&
+                                            update.strategy === 'browser' && (
+                                                <Button
+                                                    variant="ghost-accent"
+                                                    onClick={() =>
+                                                        api.openExternal(update.releaseUrl)
+                                                    }
+                                                >
+                                                    <ExternalLink className="w-3.5 h-3.5" />
+                                                    {t('app.updateDownload')}
+                                                </Button>
+                                            )}
                                     </div>
                                 </div>
                             </>
