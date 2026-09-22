@@ -3,12 +3,14 @@ import { beforeEach, describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react'
 import type { InstalledMod, Mod } from '../../../shared/types'
 
-const { install, openExternal, refresh, files } = vi.hoisted(() => ({
+const { install, openExternal, refresh, files, logError } = vi.hoisted(() => ({
     install: vi.fn(),
     openExternal: vi.fn(),
     refresh: vi.fn(),
     files: vi.fn(),
+    logError: vi.fn(),
 }))
+vi.mock('@tauri-apps/plugin-log', () => ({ error: logError }))
 vi.mock('../api', () => ({ api: { installMod: install, openExternal } }))
 vi.mock('../modCache', () => ({ refreshModDetail: refresh, getCachedModFiles: files }))
 vi.mock('../hooks/useThumbnail', () => ({ useThumbnail: () => null }))
@@ -154,8 +156,11 @@ describe('update target revalidation', () => {
         refresh.mockRejectedValue(new Error('offline'))
         mount()
         fireEvent.click(screen.getByText('Update Selected (2)'))
-        await waitFor(() => expect(refresh).toHaveBeenCalled())
+        await waitFor(() =>
+            expect(logError).toHaveBeenCalledWith('Mod update failed: Error: offline')
+        )
         expect(install).not.toHaveBeenCalled()
+        expect(screen.getByText('Update failed. Check your connection and try again.')).toBeTruthy()
     })
 
     it('renders an explicit available version when installed metadata is incomplete', () => {

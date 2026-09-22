@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { error as logError } from '@tauri-apps/plugin-log'
 import { Image as ImageIcon } from 'lucide-react'
 import { Button } from './ui/Button'
 import { Dialog, DialogHeader } from './Dialog'
@@ -271,11 +272,16 @@ export function UpdatesModal({
             }
             if (outcome === 'unchanged' || outcome === 'external' || outcome === 'choosing') return
             await resolveInstallPrompt(outcome, remoteId)
-        } catch {
-            setUpdateError(t('installed.updatesModal.error'))
+        } catch (error) {
+            reportFailure(error)
         } finally {
             setLoadingMod(null)
         }
+    }
+
+    function reportFailure(error: unknown) {
+        void logError('Mod update failed: ' + String(error))
+        setUpdateError(t('installed.updatesModal.error'))
     }
 
     function stopBatch() {
@@ -309,8 +315,8 @@ export function UpdatesModal({
                     // 'manual' = picker handles this mod, pause until its onClose resumes.
                     if (resolution === 'manual') return
                 }
-            } catch {
-                setUpdateError(t('installed.updatesModal.error'))
+            } catch (error) {
+                reportFailure(error)
                 stopBatch()
                 return
             }
@@ -330,8 +336,8 @@ export function UpdatesModal({
             if (outcome === 'installed') await onRefreshInstalled()
             else if ((await resolveInstallPrompt(outcome, remoteId)) === 'manual') return
             resumeQueueIfBatch()
-        } catch {
-            setUpdateError(t('installed.updatesModal.error'))
+        } catch (error) {
+            reportFailure(error)
             stopBatch()
         } finally {
             setLoadingMod(null)
