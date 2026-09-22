@@ -263,29 +263,8 @@ export default function App() {
                                     </Button>
                                 </div>
                                 {update.body && (
-                                    <div className="overflow-y-auto px-5 py-4 flex-1">
+                                    <div className="overflow-y-auto px-5 py-4 flex-1 [&>div>:first-child]:mt-0">
                                         <MarkdownContent text={update.body} />
-                                    </div>
-                                )}
-                                {update.phase === 'downloading' && (
-                                    <div className="px-5 py-4 shrink-0">
-                                        <div className="flex justify-between text-xs text-text-muted mb-2">
-                                            <span>{t('common.downloading')}</span>
-                                            <span>{update.percent ?? 0}%</span>
-                                        </div>
-                                        <div
-                                            role="progressbar"
-                                            aria-label={t('common.downloading')}
-                                            aria-valuemin={0}
-                                            aria-valuemax={100}
-                                            aria-valuenow={update.percent ?? 0}
-                                            className="h-1 bg-surface-hover rounded overflow-hidden"
-                                        >
-                                            <div
-                                                className="h-full bg-accent transition-all duration-300"
-                                                style={{ width: `${update.percent ?? 0}%` }}
-                                            />
-                                        </div>
                                     </div>
                                 )}
                                 <div className="px-5 py-4 border-t border-border shrink-0 flex items-center justify-between">
@@ -299,16 +278,18 @@ export default function App() {
                                         {t('app.updateViewOnGithub')}
                                     </Button>
                                     <div className="flex items-center gap-2">
-                                        <Button
-                                            variant="secondary"
-                                            size="sm"
-                                            onClick={() => setShowUpdateModal(false)}
-                                        >
-                                            {t('app.updateLater')}
-                                        </Button>
+                                        {update.phase === 'available' && (
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => setShowUpdateModal(false)}
+                                            >
+                                                {t('app.updateLater')}
+                                            </Button>
+                                        )}
                                         {update.phase === 'ready' && (
                                             <Button
-                                                variant="ghost-accent"
+                                                variant="accent"
                                                 onClick={() => api.installUpdate()}
                                             >
                                                 <RefreshCw className="w-3.5 h-3.5" />
@@ -317,10 +298,7 @@ export default function App() {
                                         )}
                                         {update.phase === 'available' &&
                                             update.strategy !== 'browser' && (
-                                                <Button
-                                                    variant="ghost-accent"
-                                                    onClick={handleUpdate}
-                                                >
+                                                <Button variant="accent" onClick={handleUpdate}>
                                                     <Download className="w-3.5 h-3.5" />
                                                     {t('app.updateAction')}
                                                 </Button>
@@ -328,7 +306,7 @@ export default function App() {
                                         {update.phase === 'available' &&
                                             update.strategy === 'browser' && (
                                                 <Button
-                                                    variant="ghost-accent"
+                                                    variant="accent"
                                                     onClick={() =>
                                                         api.openExternal(update.releaseUrl)
                                                     }
@@ -339,6 +317,21 @@ export default function App() {
                                             )}
                                     </div>
                                 </div>
+                                {update.phase === 'downloading' && (
+                                    <div
+                                        role="progressbar"
+                                        aria-label={t('common.downloading')}
+                                        aria-valuemin={0}
+                                        aria-valuemax={100}
+                                        aria-valuenow={update.percent ?? 0}
+                                        className="absolute bottom-0 left-0 right-0 h-0.5 bg-surface-active"
+                                    >
+                                        <div
+                                            className="h-full bg-accent transition-[width] duration-100"
+                                            style={{ width: `${update.percent ?? 0}%` }}
+                                        />
+                                    </div>
+                                )}
                             </>
                         )}
                     </Dialog>

@@ -55,13 +55,14 @@ test('keeps the same update popup through download until the user chooses instal
     expect(download).toHaveBeenCalledTimes(1)
     expect(screen.getByRole('dialog')).toBe(dialog)
     expect(within(dialog).queryByRole('button', { name: 'Update' })).toBeNull()
+    expect(within(dialog).queryByRole('button', { name: 'Later' })).toBeNull()
     await act(() => emit('updater:update-progress', 47))
     expect(within(dialog).getByRole('progressbar').getAttribute('aria-valuenow')).toBe('47')
-    expect(within(dialog).getByText('47%')).toBeTruthy()
     expect(install).not.toHaveBeenCalled()
     await finishDownload()
     expect(screen.getByRole('dialog')).toBe(dialog)
     expect(within(dialog).queryByRole('progressbar')).toBeNull()
+    expect(within(dialog).queryByRole('button', { name: 'Later' })).toBeNull()
     expect(install).not.toHaveBeenCalled()
     expect(screen.getAllByRole('button', { name: 'Restart & Install', hidden: true })).toHaveLength(
         1
@@ -71,12 +72,12 @@ test('keeps the same update popup through download until the user chooses instal
 })
 
 test.each(['downloading', 'ready'])(
-    'keeps the top-bar install action after Later during %s',
+    'keeps the top-bar install action after closing the popup during %s',
     async (phase) => {
         const { dialog, install, finishDownload } = await mountUpdate()
         fireEvent.click(within(dialog).getByRole('button', { name: 'Update' }))
         if (phase === 'ready') await finishDownload()
-        fireEvent.click(within(dialog).getByRole('button', { name: 'Later' }))
+        fireEvent.click(within(dialog).getByRole('button', { name: '' }))
         expect(screen.queryByRole('dialog')).toBeNull()
         if (phase === 'downloading') await finishDownload()
         expect(screen.queryByRole('dialog')).toBeNull()
