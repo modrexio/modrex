@@ -709,6 +709,7 @@ pub async fn install_file(
                 None
             }
         });
+        let was_disabled = saved.mods.iter().any(|m| m.uid == uid && !m.enabled);
         // Never inherit folder when this mod_id already has multiple installed files.
         let effective_folder_id = if mod_id > 0
             && saved
@@ -743,7 +744,7 @@ pub async fn install_file(
             &game_path,
             &sp,
             InstalledMod {
-                uid,
+                uid: uid.clone(),
                 name: mod_name,
                 version: mod_version,
                 filename,
@@ -763,6 +764,13 @@ pub async fn install_file(
             cfg,
             target,
         )?;
+
+        if was_disabled {
+            let settings = read_settings(&app);
+            let launcher_str =
+                game_settings(&settings, cfg.game_id).and_then(|gs| gs.launcher.clone());
+            disable_mod_op(&game_path, &sp, &uid, cfg, launcher_str.as_deref())?;
+        }
 
         register_download(&app, file_id).await;
 
