@@ -240,9 +240,8 @@ export function useModActions(
             const outcome = await api.installMod(remoteId, gamePath, activeGame, fileId)
             if (typeof outcome !== 'string' && 'needsPicker' in outcome) {
                 const zipPayload = outcome.needsPicker as unknown as ZipMultiPakPayload
-                // install_from_zip_entry replaces a multi-entry mod's entries only by name, so
-                // entries the new archive no longer ships would survive and keep the group
-                // outdated. missingMods were already removed above.
+                // install_from_zip_entry keeps entries the new archive no longer ships.
+                // missingMods were already removed above.
                 // ZipPickerModal is also blocked by Radix's focus trap when HealthCheckModal is open.
                 const priorMods = mods.filter((m) => !m.missing)
                 for (const m of priorMods) {

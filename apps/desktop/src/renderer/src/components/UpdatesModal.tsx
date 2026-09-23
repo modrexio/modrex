@@ -290,8 +290,8 @@ export function UpdatesModal({
         queueRef.current = []
     }
 
-    // Stops without finishing the batch when a mod needs a picker; the picker's onClose calls
-    // this again to resume with the next mod.
+    // Stops without finishing the batch when a sentinel needs a manual picker; the picker's
+    // onClose calls this again to resume with the next mod.
     async function processQueue() {
         if (!gamePath) return
         while (queueRef.current.length > 0) {

@@ -596,8 +596,7 @@ pub struct ModDetail {
     pub disable_mod_managers: Option<bool>,
     pub thumbnail: Option<ModThumbnail>,
     pub download: Option<ModDownload>,
-    /// Set only when the author pinned a default file. Without a pin, download is the newest
-    /// file when files_are_versions is true and absent when it is false.
+    // Set only when the author pinned a default file.
     pub download_id: Option<i64>,
     pub files_are_versions: Option<bool>,
     pub user: ModUser,

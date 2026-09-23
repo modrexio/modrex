@@ -232,8 +232,7 @@ pub fn install_mod_from_path(
     Ok(())
 }
 
-// SuperBLT deletes a mod's folder before moving an update in (BLTDownloadManager.lua), so its
-// mods keep nothing in their folder that an update must preserve. Other loaders' folders merge.
+// SuperBLT deletes a mod's folder on update, so nothing in it has to survive one.
 fn superblt_manages(cfg: &ModEngineConfig) -> bool {
     crate::games::discovered().iter().any(|(id, pkg)| {
         *id == cfg.game_id
@@ -371,7 +370,6 @@ pub fn move_crimeboss_mod_target_op(
     Ok(())
 }
 
-/// Drops a mod's record and leaves its files in place.
 pub fn forget_mod_op(state_path: &Path, uid: &str) -> Result<(), String> {
     let mut state = read_state(state_path).map_err(|e| e.to_string())?;
     state.mods.retain(|m| m.uid != uid);

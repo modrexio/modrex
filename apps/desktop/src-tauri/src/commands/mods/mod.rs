@@ -1413,12 +1413,8 @@ pub async fn install_dropped_file(
     result.map(|()| InstallOutcome::Installed)
 }
 
-/// Same-mod entries to remove before an archive entry installs: every record from an older
-/// file that is this same entry or sits at the path this install writes to, else the mod's
-/// only entry when that is an older version under a different file id or this file's previous
-/// bare-pak packaging (uid == "{file_id}"). An archive-scheme sibling of the same file (uid
-/// "{file_id}_...") is another entry of the archive being installed right now, and removing it
-/// would make a multi-entry batch install delete each predecessor, leaving only the last one.
+/// Records an archive entry install replaces. Siblings from the same file are kept, or a
+/// multi-entry batch install would delete each entry it had just installed.
 fn stale_entries_for_zip_install<'a>(
     mods: &'a [InstalledMod],
     uid: &str,
@@ -1464,8 +1460,7 @@ fn stale_entries_for_zip_install<'a>(
     same
 }
 
-/// Crime Boss installs every entry of a mod into one folder, so a stale entry that shares its
-/// path with another record only loses its record. Removing the path would take the siblings.
+/// A Crime Boss mod's entries share one folder, so a shared path only loses its record.
 fn remove_stale_zip_entry(
     game_path: &str,
     state_path: &Path,

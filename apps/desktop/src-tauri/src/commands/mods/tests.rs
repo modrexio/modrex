@@ -4713,8 +4713,6 @@ fn stale_entry_removes_older_file_id() {
     }
 }
 
-// Real shape (Improved Roguelite & Multiplayer, modworkshop 54961): each update left the
-// previous entries behind, one of them under a uid reused from an earlier file.
 #[test]
 fn stale_entry_removes_every_older_copy_of_the_same_entry() {
     let mods = vec![
@@ -4756,8 +4754,6 @@ fn stale_entry_none_for_multi_entry_mods_and_negative_ids() {
     .is_empty());
 }
 
-// Real shape (54961 again): a record from when the mod was one pak shares the Crime Boss
-// folder the current entries install into, and it outlived the update that replaced it.
 #[test]
 fn stale_entry_removes_an_older_record_at_the_install_path() {
     let entry = |uid: &str, file_id: i64| InstalledMod {

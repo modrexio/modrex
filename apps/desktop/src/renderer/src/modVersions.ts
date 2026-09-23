@@ -15,7 +15,7 @@ export type VersionState =
 type Result = Awaited<ReturnType<typeof api.getModVersions>>[number]
 type Entry = { result: Result; checkedAt: number; retryAt: number; failures: number }
 export const VERSION_TTL_MS = 30 * 60 * 1000
-// useModVersions polls every 30 seconds, so a minute of lead renews an entry before it goes stale.
+// Renews an entry before it goes stale. useModVersions polls every 30 seconds.
 const REFRESH_LEAD_MS = 60_000
 
 // This cache is provider-global: ModWorkshop IDs do not repeat between games.
