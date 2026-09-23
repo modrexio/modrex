@@ -4781,6 +4781,53 @@ fn stale_entry_removes_an_older_record_at_the_install_path() {
 }
 
 #[test]
+fn loading_drops_an_older_record_at_a_path_a_newer_file_claims() {
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let cfg = engine_for_game("cb").unwrap();
+    let sp = get_state_path(game, cfg);
+    fs::create_dir_all(active_mod_path(game, "Roguelite", None, cfg.primary())).unwrap();
+    let entry = |uid: &str, file_id: i64| InstalledMod {
+        filename: "Roguelite".into(),
+        ..zip_install_entry(uid, 54961, file_id)
+    };
+    save_state(
+        &sp,
+        &ModsState {
+            folders: vec![],
+            mods: vec![
+                entry("99742", 99742),
+                entry("102936_Rogue", 102936),
+                entry("102936_Rogue2", 102936),
+            ],
+        },
+    )
+    .unwrap();
+
+    let state = super::state::reconcile_state(game, &sp, cfg).unwrap();
+
+    let uids: Vec<_> = state.mods.iter().map(|m| m.uid.as_str()).collect();
+    assert_eq!(uids, ["102936_Rogue", "102936_Rogue2"]);
+    assert_eq!(read_state(&sp).unwrap().mods.len(), 2);
+}
+
+#[test]
+fn records_at_different_paths_or_states_are_not_superseded() {
+    let at = |uid: &str, file_id: i64, filename: &str, enabled: bool| InstalledMod {
+        filename: filename.into(),
+        enabled,
+        ..zip_install_entry(uid, 54961, file_id)
+    };
+    let mods = vec![
+        at("1", 1, "A.pak", true),
+        at("2", 2, "B.pak", true),
+        at("3", 3, "C.pak", false),
+        at("4", 4, "C.pak", true),
+    ];
+    assert!(super::state::superseded_records(&mods).is_empty());
+}
+
+#[test]
 fn a_stale_entry_sharing_its_folder_keeps_the_folder() {
     let tmp = TempDir::new().unwrap();
     let game = tmp.path().to_str().unwrap();

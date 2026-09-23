@@ -370,6 +370,29 @@ fn migrate_ue4ss_mods_folder(game_path: &str, cfg: &ModEngineConfig, mods: &mut 
     }
 }
 
+/// Records of a mod at a path a newer file of the same mod also claims. Only one of them can
+/// own the files there, and file ids grow with every upload.
+pub(crate) fn superseded_records(mods: &[InstalledMod]) -> HashSet<String> {
+    mods.iter()
+        .filter(|m| {
+            let (Some(remote_id), Some(file_id)) = (m.remote_id.as_deref(), m.file_id) else {
+                return false;
+            };
+            file_id > 0
+                && mods.iter().any(|o| {
+                    o.source == m.source
+                        && o.remote_id.as_deref() == Some(remote_id)
+                        && o.file_id.is_some_and(|newer| newer > file_id)
+                        && o.filename == m.filename
+                        && o.location == m.location
+                        && o.folder_id == m.folder_id
+                        && o.enabled == m.enabled
+                })
+        })
+        .map(|m| m.uid.clone())
+        .collect()
+}
+
 pub fn reconcile_state(
     game_path: &str,
     state_path: &Path,
@@ -444,6 +467,8 @@ pub fn reconcile_state(
             identity_id_repaired = true;
         }
     }
+    let superseded = superseded_records(&state.mods);
+    state.mods.retain(|m| !superseded.contains(&m.uid));
     let state = state;
 
     // Removes auto-discovered, never-installed entries whose directory has no scan_marker
@@ -617,6 +642,7 @@ pub fn reconcile_state(
         || cleanup_changed
         || identity_migrated
         || identity_id_repaired
+        || !superseded.is_empty()
     {
         // Class C: everything written here is re-derived on the next load, and the folder
         // renames compact_folder_priorities already performed converge to the same names on
