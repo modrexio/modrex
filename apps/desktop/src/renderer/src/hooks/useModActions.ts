@@ -207,7 +207,8 @@ export function useModActions(
         const fileIds = new Set(mods.map((m) => m.fileId))
         const installedFile = files.find((f) => fileIds.size === 1 && fileIds.has(f.id))
         if (installedFile) return reinstall(mods, remoteId, installedFile.id)
-        if (defaultFileIsUnambiguous(mods, detail, files)) return reinstall(mods, remoteId)
+        if (!files.length || defaultFileIsUnambiguous(mods, detail, files))
+            return reinstall(mods, remoteId)
         setLoadingMod(null)
         setReinstallChoices((prev) => [...prev, { mods, mod: detail, files }])
     }

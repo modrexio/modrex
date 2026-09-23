@@ -157,6 +157,25 @@ describe('useModActions reinstall', () => {
         expect(installMod).toHaveBeenCalledWith(7, 'C:/game', 'pd3', 11)
     })
 
+    it('leaves a mod without hosted files to the default install', async () => {
+        getCachedModFiles.mockReset().mockResolvedValue([])
+        refreshModDetail.mockResolvedValue({
+            ...variants,
+            download: { id: 976, download_url: null, url: 'https://x.test/a.zip' },
+            download_id: 976,
+            files_are_versions: true,
+        })
+        const useModActions = await loadHook()
+        const { result } = renderHook(() =>
+            useModActions('C:/game', vi.fn().mockResolvedValue(undefined), 'pd3')
+        )
+
+        await result.current.handleReinstall([{ ...installed, fileId: undefined }])
+
+        expect(result.current.reinstallChoice).toBeNull()
+        expect(installMod).toHaveBeenCalledWith(7, 'C:/game', 'pd3', undefined)
+    })
+
     it('asks which file to install when the installed one is gone and the rest are variants', async () => {
         getCachedModFiles.mockReset().mockResolvedValue([{ id: 13 }, { id: 12 }])
         const useModActions = await loadHook()
