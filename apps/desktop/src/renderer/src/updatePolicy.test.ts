@@ -83,6 +83,11 @@ it('asks which file to install when the other files can be variants', () => {
     const pinned = { ...detail, download: { ...detail.download!, id: 12 }, download_id: 12 }
     expect(resolveUpdateTarget([installed], variants, files).status).toBe('choose')
     expect(resolveUpdateTarget([installed], pinned, files).status).toBe('choose')
+    expect(resolveUpdateTarget([installed], pinned, [file(12), file(11)]).status).toBe('install')
+    expect(
+        resolveUpdateTarget([{ ...installed, fileId: undefined }], pinned, [file(12), file(11)])
+            .status
+    ).toBe('choose')
     expect(
         resolveUpdateTarget([installed, { ...installed, fileId: 11 }], detail, files).status
     ).toBe('install')

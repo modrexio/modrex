@@ -63,7 +63,7 @@ export function resolveUpdateTarget(
 }
 
 // Other files can be variants or parts of the mod unless the author marks them as
-// versions and pins none of them.
+// versions and pins none of them, or has removed every file that is installed.
 export function defaultFileIsUnambiguous(
     installed: InstalledMod[],
     detail: Mod,
@@ -72,6 +72,9 @@ export function defaultFileIsUnambiguous(
     const download = detail.download
     if (download && installed.length && installed.every((mod) => mod.fileId === download.id))
         return true
+    const removed = (mod: InstalledMod) =>
+        mod.fileId !== undefined && !files.some((file) => file.id === mod.fileId)
+    if (download && installed.length && installed.every(removed)) return true
     if (detail.files_are_versions === true && detail.download_id === null) return true
     return files.length === 1
 }
