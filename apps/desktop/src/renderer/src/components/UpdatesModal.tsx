@@ -369,7 +369,15 @@ export function UpdatesModal({
     return (
         <>
             <Dialog
-                open={visible && !fileChoice}
+                open={
+                    visible &&
+                    !fileChoice &&
+                    !zipPickerData &&
+                    !hostPackData &&
+                    !cbFlatArchiveData &&
+                    !loaderReplaceData &&
+                    unrecognizedModId === null
+                }
                 onOpenChange={(open) => !open && onClose()}
                 title={t('installed.updatesModal.title', { count: updatable.length })}
                 size="list"

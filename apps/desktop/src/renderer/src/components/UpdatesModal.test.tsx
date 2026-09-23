@@ -194,6 +194,25 @@ describe('update target revalidation', () => {
         expect(screen.queryByText('Install from archive')).toBeNull()
     })
 
+    it('hides the list while an archive picker is open', async () => {
+        install.mockResolvedValue({
+            needsPicker: {
+                archiveHandle: 'h',
+                entries: ['A.pak', 'B.pak'],
+                entryIds: [0, 1],
+                modId: 1,
+                modName: 'Mod 1',
+                fileId: 10,
+                fileType: 'zip',
+                modVersion: 'new',
+            },
+        })
+        mount()
+        fireEvent.click(screen.getAllByText('Update')[0])
+        expect(await screen.findAllByText('Install from archive')).not.toHaveLength(0)
+        expect(screen.queryByText('Available updates (2)')).toBeNull()
+    })
+
     it('does not install when fresh detail fails', async () => {
         refresh.mockRejectedValue(new Error('offline'))
         mount()
