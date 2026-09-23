@@ -4688,14 +4688,12 @@ fn zip_install_entry(uid: &str, remote_id: i64, file_id: i64) -> InstalledMod {
 #[test]
 fn stale_entry_keeps_same_archive_sibling() {
     let mods = vec![zip_install_entry("98276_zDarkMatter_AG-9", 56976, 98276)];
-    assert!(
-        stale_entries_for_zip_install(&mods, "98276_zDarkMatter_ATK-7", 56976, "56976", 98276)
-            .is_empty()
-    );
+    assert!(stale_uids(&mods, "98276_zDarkMatter_ATK-7").is_empty());
 }
 
 fn stale_uids(mods: &[InstalledMod], uid: &str) -> Vec<String> {
-    stale_entries_for_zip_install(mods, uid, 56976, "56976", 98276)
+    let filename = format!("{}.pak", uid.split_once('_').map_or(uid, |(_, stem)| stem));
+    stale_entries_for_zip_install(mods, uid, 56976, 98276, &filename, None, None)
         .into_iter()
         .map(|m| m.uid.clone())
         .collect()
@@ -4746,10 +4744,44 @@ fn stale_entry_none_for_multi_entry_mods_and_negative_ids() {
     assert!(stale_uids(&mods, "98276_zDarkMatter_AG-9").is_empty());
 
     let mods = vec![zip_install_entry("Foo", -42, 0)];
-    assert!(
-        stale_entries_for_zip_install(&mods, "98276_zDarkMatter_AG-9", -42, "-42", 98276)
-            .is_empty()
-    );
+    assert!(stale_entries_for_zip_install(
+        &mods,
+        "98276_zDarkMatter_AG-9",
+        -42,
+        98276,
+        "zDarkMatter_AG-9.pak",
+        None,
+        None
+    )
+    .is_empty());
+}
+
+// Real shape (54961 again): a record from when the mod was one pak shares the Crime Boss
+// folder the current entries install into, and it outlived the update that replaced it.
+#[test]
+fn stale_entry_removes_an_older_record_at_the_install_path() {
+    let entry = |uid: &str, file_id: i64| InstalledMod {
+        filename: "Improved_Roguelite_Multiplayer".into(),
+        ..zip_install_entry(uid, 54961, file_id)
+    };
+    let mods = vec![
+        entry("99742", 99742),
+        entry("102936_ImprovedRogue", 102936),
+        entry("102936_ImprovedRogue2", 102936),
+    ];
+    let stale: Vec<_> = stale_entries_for_zip_install(
+        &mods,
+        "102936_ImprovedRogue",
+        54961,
+        102936,
+        "Improved_Roguelite_Multiplayer",
+        None,
+        None,
+    )
+    .into_iter()
+    .map(|m| m.uid.as_str())
+    .collect();
+    assert_eq!(stale, ["99742"]);
 }
 
 #[test]

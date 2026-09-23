@@ -1413,41 +1413,52 @@ pub async fn install_dropped_file(
     result.map(|()| InstallOutcome::Installed)
 }
 
-/// Same-mod entries to remove before an archive-entry install lands under a new uid: every copy
-/// of this entry installed from an older file of the mod, else the mod's only entry when that is
-/// an older version under a different file id or this file's previous bare-pak packaging
-/// (uid == "{file_id}"). An archive-scheme sibling of the same file (uid "{file_id}_...") is
-/// another entry of the archive being installed right now, and removing it would make a
-/// multi-entry batch install delete each predecessor, leaving only the last selected entry.
+/// Same-mod entries to remove before an archive entry installs: every record from an older
+/// file that is this same entry or sits at the path this install writes to, else the mod's
+/// only entry when that is an older version under a different file id or this file's previous
+/// bare-pak packaging (uid == "{file_id}"). An archive-scheme sibling of the same file (uid
+/// "{file_id}_...") is another entry of the archive being installed right now, and removing it
+/// would make a multi-entry batch install delete each predecessor, leaving only the last one.
 fn stale_entries_for_zip_install<'a>(
     mods: &'a [InstalledMod],
     uid: &str,
     mod_id: i64,
-    mod_id_str: &str,
     file_id: i64,
+    filename: &str,
+    location: Option<&str>,
+    folder_id: Option<&str>,
 ) -> Vec<&'a InstalledMod> {
-    if mod_id <= 0 || mods.iter().any(|m| m.uid == uid) {
+    if mod_id <= 0 {
         return Vec::new();
     }
+    let mod_id_str = mod_id.to_string();
+    let sibling = format!("{file_id}_");
+    let stem = uid.strip_prefix(&sibling);
     let same: Vec<_> = mods
         .iter()
-        .filter(|m| m.remote_id.as_deref() == Some(mod_id_str))
+        .filter(|m| m.remote_id.as_deref() == Some(mod_id_str.as_str()))
         .collect();
-    if let Some(stem) = uid.strip_prefix(&format!("{file_id}_")) {
-        let previous: Vec<_> = same
-            .iter()
-            .copied()
-            .filter(|m| {
+    let stale: Vec<_> = same
+        .iter()
+        .copied()
+        .filter(|m| m.uid != uid && !m.uid.starts_with(&sibling))
+        .filter(|m| {
+            let same_entry = stem.is_some_and(|stem| {
                 m.uid
                     .split_once('_')
                     .is_some_and(|(old, s)| s == stem && old.parse::<i64>().is_ok())
-            })
-            .collect();
-        if !previous.is_empty() {
-            return previous;
-        }
+            });
+            let same_path = (m.filename == filename
+                || strip_priority_prefix(&m.filename) == filename)
+                && m.location.as_deref() == location
+                && m.folder_id.as_deref() == folder_id;
+            same_entry || same_path
+        })
+        .collect();
+    if !stale.is_empty() || mods.iter().any(|m| m.uid == uid) {
+        return stale;
     }
-    if same.len() != 1 || same[0].uid.starts_with(&format!("{file_id}_")) {
+    if same.len() != 1 || same[0].uid.starts_with(&sibling) {
         return Vec::new();
     }
     same
@@ -1603,8 +1614,17 @@ pub async fn install_from_zip_entry(
             .find(|m| m.sha256.as_deref() == Some(sha256.as_str()));
         let uid = sha256_match.map(|m| m.uid.clone()).unwrap_or(uid);
 
-        for stale in stale_entries_for_zip_install(&saved.mods, &uid, mod_id, &mod_id_str, file_id)
-        {
+        let primary = std::ptr::eq(target, cfg.primary());
+        let stale = stale_entries_for_zip_install(
+            &saved.mods,
+            &uid,
+            mod_id,
+            file_id,
+            &install_filename,
+            (!primary).then_some(target.tag),
+            folder_id.as_deref().filter(|_| primary),
+        );
+        for stale in stale {
             remove_stale_zip_entry(&game_path, &sp, cfg, &saved.mods, stale)?;
         }
 
