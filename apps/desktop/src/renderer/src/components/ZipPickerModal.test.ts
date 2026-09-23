@@ -71,6 +71,17 @@ describe('computeAutoUpdateSelection', () => {
         expect(result).toEqual([0, 2])
     })
 
+    it('matches entries by the uid when every entry shares one folder name', () => {
+        const installed = [
+            makeInstalled({ uid: '101909_VariantB', filename: 'Some_Mod' }),
+            makeInstalled({ uid: '99907_VariantC', filename: 'Some_Mod' }),
+        ]
+        const payload = makePayload({
+            entries: ['Wrap/VariantA.pak', 'Wrap/VariantB.pak', 'Wrap/VariantC.pak'],
+        })
+        expect(mod.computeAutoUpdateSelection(payload, installed)).toEqual([1, 2])
+    })
+
     it('returns null for a fresh install with no prior entries for this mod id', () => {
         const installed = [makeInstalled({ id: 999, filename: 'Unrelated.pak' })]
         const payload = makePayload()

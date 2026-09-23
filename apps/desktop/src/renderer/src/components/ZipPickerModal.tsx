@@ -111,8 +111,10 @@ function computeInstalledEntries(
     return set
 }
 
-// Matches this archive's entries against an existing install's filenames (the new file's id
-// never matches the old install) so an update can silently re-apply the prior selection.
+// Matches this archive's entries against an existing install's filenames or entry uids (the
+// new file's id never matches the old install) so an update can silently re-apply the prior
+// selection. Crime Boss records every entry under the mod's folder name, so only the uid
+// still names the entry there.
 // Returns null when there is no prior install or nothing matched, and the caller shows the
 // picker in that case.
 export function computeAutoUpdateSelection(
@@ -130,7 +132,14 @@ export function computeAutoUpdateSelection(
     payload.entries.forEach((entry, pos) => {
         if (installedEntries.has(pos)) return
         const filename = entryFilename(entry)
-        if (priorEntriesForMod.some((m) => stripPriorityPrefix(m.filename) === filename)) {
+        const stem = entryStem(entry)
+        if (
+            priorEntriesForMod.some(
+                (m) =>
+                    stripPriorityPrefix(m.filename) === filename ||
+                    /^\d+_(.+)$/.exec(m.uid)?.[1] === stem
+            )
+        ) {
             matched.push(pos)
         }
     })
