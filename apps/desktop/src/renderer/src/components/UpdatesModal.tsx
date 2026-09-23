@@ -361,7 +361,7 @@ export function UpdatesModal({
     return (
         <>
             <Dialog
-                open={visible}
+                open={visible && !fileChoice}
                 onOpenChange={(open) => !open && onClose()}
                 title={t('installed.updatesModal.title', { count: updatable.length })}
                 size="list"
