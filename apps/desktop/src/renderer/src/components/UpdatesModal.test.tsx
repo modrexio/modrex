@@ -3,15 +3,18 @@ import { beforeEach, describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react'
 import type { InstalledMod, Mod } from '../../../shared/types'
 
-const { install, openExternal, refresh, files, logError } = vi.hoisted(() => ({
+const { install, discard, openExternal, refresh, files, logError } = vi.hoisted(() => ({
     install: vi.fn(),
+    discard: vi.fn(),
     openExternal: vi.fn(),
     refresh: vi.fn(),
     files: vi.fn(),
     logError: vi.fn(),
 }))
 vi.mock('@tauri-apps/plugin-log', () => ({ error: logError }))
-vi.mock('../api', () => ({ api: { installMod: install, openExternal } }))
+vi.mock('../api', () => ({
+    api: { installMod: install, discardStagedArchive: discard, openExternal },
+}))
 vi.mock('../modCache', () => ({ refreshModDetail: refresh, getCachedModFiles: files }))
 vi.mock('../hooks/useThumbnail', () => ({ useThumbnail: () => null }))
 import { UpdatesModal } from './UpdatesModal'
@@ -76,14 +79,14 @@ function detail(id: number): Mod {
         members: [],
     }
 }
-function mount() {
+function mount(entries: InstalledMod[] = []) {
     const mods = [installed(1), installed(2)]
     const open = vi.fn()
     const close = vi.fn()
     render(
         <UpdatesModal
             updatable={mods}
-            installed={mods}
+            installed={[...mods, ...entries]}
             modData={
                 new Map([
                     [1, detail(1)],
@@ -163,6 +166,32 @@ describe('update target revalidation', () => {
         expect(await screen.findByText("Mod 1 can't be updated from Modrex.")).toBeTruthy()
         expect(close).not.toHaveBeenCalled()
         expect(openExternal).not.toHaveBeenCalled()
+    })
+
+    it('does not open the archive picker when every entry is already installed', async () => {
+        const archive = {
+            archiveHandle: 'h',
+            entries: ['A.pak', 'B.pak'],
+            entryIds: [0, 1],
+            modId: 1,
+            modName: 'Mod 1',
+            fileId: 10,
+            fileType: 'zip',
+            modVersion: 'new',
+        }
+        install.mockImplementation(async (id: number) =>
+            id === 1 ? { needsPicker: archive } : 'installed'
+        )
+        const entries = ['A', 'B'].map((stem) => ({
+            ...installed(1),
+            uid: `10_${stem}`,
+            filename: `${stem}.pak`,
+        }))
+        const { close } = mount(entries)
+        fireEvent.click(screen.getByText('Update Selected (2)'))
+        await waitFor(() => expect(close).toHaveBeenCalled())
+        expect(discard).toHaveBeenCalledWith('h')
+        expect(screen.queryByText('Install from archive')).toBeNull()
     })
 
     it('does not install when fresh detail fails', async () => {

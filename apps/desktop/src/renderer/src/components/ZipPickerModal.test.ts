@@ -109,6 +109,13 @@ describe('computeAutoUpdateSelection', () => {
         expect(mod.computeAutoUpdateSelection(payload, installed)).toEqual([2])
     })
 
+    it('returns an empty selection when every entry is already installed', () => {
+        const installed = ['VariantA', 'VariantB', 'VariantC'].map((stem) =>
+            makeInstalled({ uid: `200_${stem}`, fileId: 200, filename: `${stem}.pak` })
+        )
+        expect(mod.computeAutoUpdateSelection(makePayload(), installed)).toEqual([])
+    })
+
     it('ignores missing (uninstalled) prior entries', () => {
         const installed = [makeInstalled({ filename: '001_VariantA.pak', missing: true })]
         const payload = makePayload()

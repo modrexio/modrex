@@ -114,7 +114,7 @@ function computeInstalledEntries(
 // Matches this archive's entries against an existing install's filenames (the new file's id
 // never matches the old install) so an update can silently re-apply the prior selection.
 // Returns null when there is no prior install or nothing matched, and the caller shows the
-// picker in that case.
+// picker in that case. An empty selection means every entry is already installed.
 export function computeAutoUpdateSelection(
     payload: ZipMultiPakPayload,
     installedFiles: InstalledMod[]
@@ -126,6 +126,7 @@ export function computeAutoUpdateSelection(
     const modIdStr = String(payload.modId)
     const priorEntriesForMod = installedFiles.filter((m) => m.remoteId === modIdStr && !m.missing)
     if (priorEntriesForMod.length === 0) return null
+    if (installedEntries.size === payload.entries.length) return []
     const matched: number[] = []
     payload.entries.forEach((entry, pos) => {
         if (installedEntries.has(pos)) return
