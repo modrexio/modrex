@@ -383,8 +383,14 @@ pub async fn list_mod_files(
     app: AppHandle,
     mod_id: u32,
 ) -> Result<crate::commands::domain::FilePage, String> {
-    let value = api_get(&app, &format!("/mods/{}/files", mod_id), vec![]).await?;
-    crate::commands::domain::parse_file_page(value)
+    use crate::commands::domain::parse_file_page;
+    let path = format!("/mods/{}/files", mod_id);
+    let mut files = parse_file_page(api_get(&app, &path, vec![]).await?)?;
+    for page in 2..=files.meta.last_page {
+        let next = parse_file_page(api_get(&app, &path, vec![("page", page.to_string())]).await?)?;
+        files.data.extend(next.data);
+    }
+    Ok(files)
 }
 
 #[tauri::command]
