@@ -17,6 +17,7 @@ function makeMod(id: number): Mod {
         category_id: 0,
         has_download: false,
         disable_mod_managers: null,
+        download_type: null,
         thumbnail: null,
         download: null,
         user: { id: null, name: 'Test', donation_url: null, avatar: null, avatar_has_thumb: null },

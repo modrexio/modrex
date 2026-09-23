@@ -164,6 +164,7 @@ export function UpdatesModal({
     // Remaining mods for the in-progress batch update; lets processQueue resume after a
     // picker modal closes instead of abandoning the rest of the selection.
     const queueRef = useRef<InstalledMod[]>([])
+    const skippedRef = useRef(false)
 
     function toggleSelected(id: number) {
         setSelectedIds((prev) => {
@@ -224,7 +225,7 @@ export function UpdatesModal({
     async function installUpdate(
         ins: InstalledMod,
         installPath: string
-    ): Promise<InstallOutcome | 'unchanged' | 'external' | 'choosing'> {
+    ): Promise<InstallOutcome | 'unchanged' | 'unavailable' | 'choosing'> {
         const remoteId = Number(ins.remoteId)
         const [detail, files] = await Promise.all([
             refreshModDetail(remoteId),
@@ -239,9 +240,10 @@ export function UpdatesModal({
             modVersions.record(detail.id, detail.version)
             return 'unchanged'
         }
-        if (target.status === 'external') {
-            api.openExternal(target.url)
-            return 'external'
+        if (target.status === 'unavailable') {
+            skippedRef.current = true
+            setUpdateError(t('installed.updatesModal.unavailable', { name: detail.name }))
+            return 'unavailable'
         }
         if (target.status === 'choose') {
             setFileChoice({ ins, mod: detail, files })
@@ -270,7 +272,8 @@ export function UpdatesModal({
                 await onRefreshInstalled()
                 return
             }
-            if (outcome === 'unchanged' || outcome === 'external' || outcome === 'choosing') return
+            if (outcome === 'unchanged' || outcome === 'unavailable' || outcome === 'choosing')
+                return
             await resolveInstallPrompt(outcome, remoteId)
         } catch (error) {
             reportFailure(error)
@@ -309,7 +312,11 @@ export function UpdatesModal({
                 const outcome = await installUpdate(ins, gamePath)
                 setUpdateProgress((prev) => prev && { done: prev.done + 1, total: prev.total })
                 if (outcome === 'choosing') return
-                if (outcome !== 'installed' && outcome !== 'unchanged' && outcome !== 'external') {
+                if (
+                    outcome !== 'installed' &&
+                    outcome !== 'unchanged' &&
+                    outcome !== 'unavailable'
+                ) {
                     const resolution = await resolveInstallPrompt(outcome, remoteId)
                     // 'resolved' = auto-applied silently, continue with the next mod;
                     // 'manual' = picker handles this mod, pause until its onClose resumes.
@@ -323,7 +330,7 @@ export function UpdatesModal({
         }
         await onRefreshInstalled()
         stopBatch()
-        onClose()
+        if (!skippedRef.current) onClose()
     }
 
     async function installChosenFile(ins: InstalledMod, fileId: number) {
@@ -351,6 +358,7 @@ export function UpdatesModal({
     async function handleUpdateSelected() {
         if (!gamePath) return
         setUpdateError(null)
+        skippedRef.current = false
         setUpdatingAll(true)
         const queue = updatable.filter((m) => selectedIds.has(m.id))
         queueRef.current = queue

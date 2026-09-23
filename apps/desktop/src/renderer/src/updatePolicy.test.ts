@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import type { InstalledMod, Mod, ModFile } from '../../shared/types'
+import type { InstalledMod, Mod, ModFile, ModSummary } from '../../shared/types'
 import type { VersionState } from './modVersions'
 import { updatableMods, resolveUpdateTarget } from './updatePolicy'
 
@@ -15,6 +15,8 @@ const installed: InstalledMod = {
     fileId: 10,
 }
 
+const noSummaries = new Map<number, ModSummary>()
+
 it('requires a fresh, explicit remote version and a comparable installed version', () => {
     for (const state of [
         { status: 'pending' },
@@ -24,24 +26,29 @@ it('requires a fresh, explicit remote version and a comparable installed version
         { status: 'stale', previous: { status: 'known', version: 'different' } },
         { status: 'known', version: 'first' },
     ] as VersionState[]) {
-        expect(updatableMods([installed], new Map([[1, state]]))).toEqual([])
+        expect(updatableMods([installed], new Map([[1, state]]), noSummaries)).toEqual([])
     }
     const versions = new Map<number, VersionState>([
         [1, { status: 'known', version: 'anything the author writes' }],
     ])
-    expect(updatableMods([installed], versions)).toEqual([installed])
+    expect(updatableMods([installed], versions, noSummaries)).toEqual([installed])
     expect(
-        updatableMods([{ ...installed, version: '', updateStatus: 'outdated' }], versions)
+        updatableMods(
+            [{ ...installed, version: '', updateStatus: 'outdated' }],
+            versions,
+            noSummaries
+        )
     ).toHaveLength(1)
     expect(
         updatableMods(
             [{ ...installed, version: 'anything the author writes', updateStatus: 'outdated' }],
-            versions
+            versions,
+            noSummaries
         )
     ).toHaveLength(1)
-    expect(updatableMods([{ ...installed, missing: true }, installed], versions)).toEqual([
-        installed,
-    ])
+    expect(
+        updatableMods([{ ...installed, missing: true }, installed], versions, noSummaries)
+    ).toEqual([installed])
 })
 
 function file(id: number): ModFile {
@@ -113,24 +120,29 @@ it('asks which file to install when the other files can be variants', () => {
     ).toBe('install')
 })
 
-it('sends downloads a mod manager cannot fetch to the browser', () => {
+it('marks downloads Modrex cannot install as unavailable', () => {
     const files = [file(10)]
-    expect(
-        resolveUpdateTarget([installed], { ...detail, disable_mod_managers: true }, files)
-    ).toEqual({ status: 'external', url: 'https://modworkshop.net/mod/1' })
-    expect(
-        resolveUpdateTarget(
-            [installed],
-            {
-                ...detail,
-                download: { ...detail.download!, download_url: null, url: 'https://x.test' },
-            },
-            files
-        )
-    ).toEqual({ status: 'external', url: 'https://x.test' })
+    const link = { ...detail.download!, download_url: null, url: 'https://x.test' }
+    for (const mod of [
+        { ...detail, disable_mod_managers: true },
+        { ...detail, download: link },
+    ]) {
+        expect(resolveUpdateTarget([installed], mod, files).status).toBe('unavailable')
+    }
     expect(resolveUpdateTarget([installed], { ...detail, download: null }, []).status).toBe(
-        'external'
+        'unavailable'
     )
+})
+
+it('does not offer updates for mods Modrex cannot download', () => {
+    const versions = new Map<number, VersionState>([[1, { status: 'known', version: 'new' }]])
+    for (const summary of [
+        { download_type: 'link', disable_mod_managers: false },
+        { download_type: 'file', disable_mod_managers: true },
+    ]) {
+        const summaries = new Map([[1, summary as ModSummary]])
+        expect(updatableMods([installed], versions, summaries)).toEqual([])
+    }
 })
 
 it('skips mods whose installed version is already current', () => {

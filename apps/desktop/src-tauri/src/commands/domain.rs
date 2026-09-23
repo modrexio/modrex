@@ -91,6 +91,7 @@ struct WireModSummary {
     #[serde(deserialize_with = "null_default")]
     has_download: bool,
     disable_mod_managers: Option<bool>,
+    download_type: Option<String>,
     thumbnail: Option<WireThumbnail>,
     #[serde(deserialize_with = "null_default")]
     user: WireUser,
@@ -162,6 +163,7 @@ pub struct ModSummary {
     pub category_id: i64,
     pub has_download: bool,
     pub disable_mod_managers: Option<bool>,
+    pub download_type: Option<String>,
     pub thumbnail: Option<ModThumbnail>,
     pub user: ModUser,
 }
@@ -229,6 +231,7 @@ impl From<WireModSummary> for ModSummary {
             category_id: w.category_id,
             has_download: w.has_download,
             disable_mod_managers: w.disable_mod_managers,
+            download_type: w.download_type,
             thumbnail: w.thumbnail.map(Into::into),
             user: w.user.into(),
         }
@@ -594,6 +597,7 @@ pub struct ModDetail {
     pub category_id: i64,
     pub has_download: bool,
     pub disable_mod_managers: Option<bool>,
+    pub download_type: Option<String>,
     pub thumbnail: Option<ModThumbnail>,
     pub download: Option<ModDownload>,
     // Set only when the author pinned a default file.
@@ -693,6 +697,7 @@ impl From<WireModDetail> for ModDetail {
             category_id: s.category_id,
             has_download: s.has_download,
             disable_mod_managers: s.disable_mod_managers,
+            download_type: s.download_type,
             thumbnail: s.thumbnail,
             download: w.download.map(Into::into),
             download_id: w.download_id,
@@ -775,6 +780,7 @@ fn nexus_node_to_summary(w: WireNexusNode) -> ModSummary {
         category_id: 0,
         has_download: true,
         disable_mod_managers: None,
+        download_type: None,
         thumbnail: w.picture_url.map(|file| ModThumbnail {
             file,
             has_thumb: None,
@@ -866,6 +872,7 @@ pub fn parse_nexus_detail(value: serde_json::Value) -> Result<ModDetail, String>
         category_id: 0,
         has_download: true,
         disable_mod_managers: None,
+        download_type: None,
         thumbnail: w.picture_url.map(|file| ModThumbnail {
             file,
             has_thumb: None,
@@ -1188,6 +1195,12 @@ mod tests {
         assert!(detail.instructs_template.is_none());
         assert!(detail.download_id.is_none());
         assert!(detail.files_are_versions.is_none());
+    }
+
+    #[test]
+    fn a_listing_keeps_the_download_type() {
+        let page = parse(r#"{"data":[{"id":1,"name":"L","download_type":"link"}],"meta":{}}"#);
+        assert_eq!(page.data[0].download_type.as_deref(), Some("link"));
     }
 
     #[test]

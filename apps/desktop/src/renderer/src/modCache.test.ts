@@ -34,6 +34,7 @@ function makeMod(id: number): Mod {
         category_id: 0,
         has_download: false,
         disable_mod_managers: null,
+        download_type: null,
         thumbnail: null,
         download: null,
         user: { id: null, name: 'Test', donation_url: null, avatar: null, avatar_has_thumb: null },
@@ -256,6 +257,21 @@ describe('loadFromStorage', () => {
         vi.setSystemTime(new Date(STORAGE_TTL_MS))
         const freshCache = await importWithStorage()
         expect(freshCache.getModCacheEntry(99)).toBeUndefined()
+    })
+
+    it('skips entries stored before the download fields existed', async () => {
+        const older: Record<string, unknown> = { ...makeMod(99) }
+        delete older.download_id
+        delete older.files_are_versions
+        delete older.download_type
+        storage.setItem(STORAGE_KEY, JSON.stringify({ '99': { mod: older, fetchedAt: 0 } }))
+        storage.setItem(
+            'modrex:installed-meta-cache',
+            JSON.stringify({ '99': { mod: older, fetchedAt: 0 } })
+        )
+        const freshCache = await importWithStorage()
+        expect(freshCache.getModCacheEntry(99)).toBeUndefined()
+        expect(freshCache.getInstalledMetaEntry(99)).toBeUndefined()
     })
 
     it('silently handles corrupt JSON in localStorage', async () => {

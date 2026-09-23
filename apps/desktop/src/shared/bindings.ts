@@ -737,6 +737,7 @@ export type ModDetail = {
 	category_id: number,
 	has_download: boolean,
 	disable_mod_managers: boolean | null,
+	download_type: string | null,
 	thumbnail: ModThumbnail | null,
 	download: ModDownload | null,
 	download_id: number | null,
@@ -875,6 +876,7 @@ export type ModSummary = {
 	category_id: number,
 	has_download: boolean,
 	disable_mod_managers: boolean | null,
+	download_type: string | null,
 	thumbnail: ModThumbnail | null,
 	user: ModUser,
 };

@@ -13,6 +13,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - Fixed updating a PAYDAY 2 or RAID mod leaving files from its old version behind.
 - Fixed updating a Crime Boss mod with several paks asking which paks to install every time.
 - Fixed an already updated mod staying in the updates list.
+- Mods that download from outside ModWorkshop no longer appear as updates Modrex cannot install.
 
 ## 0.15.1
 

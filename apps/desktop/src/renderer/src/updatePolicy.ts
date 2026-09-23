@@ -1,9 +1,10 @@
-import type { InstalledMod, Mod, ModFile } from '../../shared/types'
+import type { InstalledMod, Mod, ModFile, ModSummary } from '../../shared/types'
 import type { VersionState } from './modVersions'
 
 export function updatableMods(
     installed: InstalledMod[],
-    versions: ReadonlyMap<number, VersionState>
+    versions: ReadonlyMap<number, VersionState>,
+    summaries: ReadonlyMap<number, ModSummary>
 ): InstalledMod[] {
     const groups = new Map<number, InstalledMod[]>()
     for (const mod of installed) {
@@ -15,6 +16,8 @@ export function updatableMods(
     for (const [id, group] of groups) {
         const remote = versions.get(id)
         if (remote?.status !== 'known') continue
+        const summary = summaries.get(id)
+        if (summary?.download_type === 'link' || summary?.disable_mod_managers) continue
         const present = group.filter((mod) => !mod.missing)
         const confirmed = present.find((mod) => mod.updateStatus === 'outdated')
         if (confirmed) {
@@ -31,7 +34,7 @@ export function updatableMods(
 
 export type UpdateTarget =
     | { status: 'unchanged' }
-    | { status: 'external'; url: string }
+    | { status: 'unavailable' }
     | { status: 'install' }
     | { status: 'choose' }
 
@@ -53,10 +56,7 @@ export function resolveUpdateTarget(
         (download && !download.download_url) ||
         (!download && !files.length)
     )
-        return {
-            status: 'external',
-            url: download?.url ?? `https://modworkshop.net/mod/${detail.id}`,
-        }
+        return { status: 'unavailable' }
     return defaultFileIsUnambiguous(present, detail, files)
         ? { status: 'install' }
         : { status: 'choose' }

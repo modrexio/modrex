@@ -104,6 +104,7 @@ export function syntheticMod(ins: InstalledMod): ModSummary {
         category_id: 0,
         has_download: false,
         disable_mod_managers: null,
+        download_type: null,
         // useThumbnail passes absolute URLs through untouched, so a recorded CDN
         // URL can ride the normal thumbnail field.
         thumbnail: ins.thumbnailUrl ? { file: ins.thumbnailUrl, has_thumb: null } : null,

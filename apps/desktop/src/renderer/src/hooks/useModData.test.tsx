@@ -84,6 +84,7 @@ function makeNexusDetail(id: number, version: string): Mod {
         category_id: 0,
         has_download: true,
         disable_mod_managers: null,
+        download_type: null,
         thumbnail: null,
         download: null,
         user: { id: null, name: '', donation_url: null, avatar: null, avatar_has_thumb: null },
@@ -117,6 +118,7 @@ function makeWorkshopSummary(id: number): ModSummary {
         category_id: 0,
         has_download: true,
         disable_mod_managers: null,
+        download_type: null,
         thumbnail: null,
         user: { id: null, name: '', donation_url: null, avatar: null, avatar_has_thumb: null },
     }

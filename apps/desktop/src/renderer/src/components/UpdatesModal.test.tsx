@@ -44,6 +44,7 @@ function detail(id: number): Mod {
         category_id: 0,
         has_download: true,
         disable_mod_managers: null,
+        download_type: null,
         thumbnail: null,
         download: {
             id: id * 10,
@@ -150,6 +151,18 @@ describe('update target revalidation', () => {
             [2, undefined],
         ])
         expect(open).not.toHaveBeenCalled()
+    })
+
+    it('keeps the list open to say which mod it could not update', async () => {
+        refresh.mockImplementation(async (id: number) =>
+            id === 1 ? { ...detail(1), disable_mod_managers: true } : detail(2)
+        )
+        const { close } = mount()
+        fireEvent.click(screen.getByText('Update Selected (2)'))
+        await waitFor(() => expect(install).toHaveBeenCalledTimes(1))
+        expect(await screen.findByText("Mod 1 can't be updated from Modrex.")).toBeTruthy()
+        expect(close).not.toHaveBeenCalled()
+        expect(openExternal).not.toHaveBeenCalled()
     })
 
     it('does not install when fresh detail fails', async () => {

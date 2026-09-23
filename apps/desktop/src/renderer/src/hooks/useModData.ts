@@ -167,7 +167,7 @@ export function useModData(
                 : state
         )
     }
-    const updatable = updatableMods(installed, versions)
+    const updatable = updatableMods(installed, versions, modData)
     const updateVersions = new Map<number, string>()
     for (const mod of updatable) {
         const state = versions.get(mod.id)

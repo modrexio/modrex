@@ -151,6 +151,7 @@ fn sample_nexus_detail() -> crate::commands::domain::ModDetail {
         category_id: 0,
         has_download: true,
         disable_mod_managers: None,
+        download_type: None,
         thumbnail: Some(crate::commands::domain::ModThumbnail {
             file: "https://example.com/thumb.png".to_string(),
             has_thumb: None,

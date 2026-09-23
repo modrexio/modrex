@@ -58,7 +58,7 @@ function loadFromStorage(): void {
         if (raw) {
             const stored = JSON.parse(raw) as Record<string, ModCacheEntry>
             for (const [key, entry] of Object.entries(stored)) {
-                if (now - entry.fetchedAt < STORAGE_TTL_MS) {
+                if (now - entry.fetchedAt < STORAGE_TTL_MS && 'files_are_versions' in entry.mod) {
                     modCache.set(Number(key), entry)
                 }
             }
@@ -97,7 +97,7 @@ function loadFromStorage(): void {
         if (raw) {
             const stored = JSON.parse(raw) as Record<string, InstalledMetaCacheEntry>
             for (const [key, entry] of Object.entries(stored)) {
-                if (now - entry.fetchedAt < STORAGE_TTL_MS) {
+                if (now - entry.fetchedAt < STORAGE_TTL_MS && 'download_type' in entry.mod) {
                     installedMetaCache.set(Number(key), entry)
                 }
             }

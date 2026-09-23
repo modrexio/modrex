@@ -32,6 +32,7 @@ const summary: ModSummary = {
     category_id: 0,
     has_download: true,
     disable_mod_managers: null,
+    download_type: null,
     thumbnail: null,
     user: { id: 1, name: 'Author', donation_url: null, avatar: null, avatar_has_thumb: null },
 }
