@@ -4689,52 +4689,52 @@ fn zip_install_entry(uid: &str, remote_id: i64, file_id: i64) -> InstalledMod {
 fn stale_entry_keeps_same_archive_sibling() {
     let mods = vec![zip_install_entry("98276_zDarkMatter_AG-9", 56976, 98276)];
     assert!(
-        stale_entry_for_zip_install(&mods, "98276_zDarkMatter_ATK-7", 56976, "56976", 98276)
-            .is_none()
+        stale_entries_for_zip_install(&mods, "98276_zDarkMatter_ATK-7", 56976, "56976", 98276)
+            .is_empty()
     );
+}
+
+fn stale_uids(mods: &[InstalledMod], uid: &str) -> Vec<String> {
+    stale_entries_for_zip_install(mods, uid, 56976, "56976", 98276)
+        .into_iter()
+        .map(|m| m.uid.clone())
+        .collect()
 }
 
 #[test]
 fn stale_entry_removes_bare_packaging_of_same_file() {
     let mods = vec![zip_install_entry("98276", 56976, 98276)];
-    let stale = stale_entry_for_zip_install(&mods, "98276_zDarkMatter_AG-9", 56976, "56976", 98276);
-    assert_eq!(stale.map(|m| m.uid.as_str()), Some("98276"));
+    assert_eq!(stale_uids(&mods, "98276_zDarkMatter_AG-9"), ["98276"]);
 }
 
 #[test]
 fn stale_entry_removes_older_file_id() {
     for old_uid in ["90000", "90000_OldEntry"] {
         let mods = vec![zip_install_entry(old_uid, 56976, 90000)];
-        let stale =
-            stale_entry_for_zip_install(&mods, "98276_zDarkMatter_AG-9", 56976, "56976", 98276);
-        assert_eq!(stale.map(|m| m.uid.as_str()), Some(old_uid));
+        assert_eq!(stale_uids(&mods, "98276_zDarkMatter_AG-9"), [old_uid]);
     }
 }
 
+// Real shape (Improved Roguelite & Multiplayer, modworkshop 54961): each update left the
+// previous entries behind, one of them under a uid reused from an earlier file.
 #[test]
-fn stale_entry_removes_the_same_entry_from_an_older_file() {
+fn stale_entry_removes_every_older_copy_of_the_same_entry() {
     let mods = vec![
         zip_install_entry("90000_zDarkMatter_AG-9", 56976, 90000),
         zip_install_entry("90000_zDarkMatter_ATK-7", 56976, 90000),
+        zip_install_entry("89000_zDarkMatter_AG-9", 56976, 90000),
     ];
-    let stale = stale_entry_for_zip_install(&mods, "98276_zDarkMatter_AG-9", 56976, "56976", 98276);
     assert_eq!(
-        stale.map(|m| m.uid.as_str()),
-        Some("90000_zDarkMatter_AG-9")
+        stale_uids(&mods, "98276_zDarkMatter_AG-9"),
+        ["90000_zDarkMatter_AG-9", "89000_zDarkMatter_AG-9"]
     );
-    assert!(
-        stale_entry_for_zip_install(&mods, "98276_zDarkMatter_New", 56976, "56976", 98276)
-            .is_none()
-    );
+    assert!(stale_uids(&mods, "98276_zDarkMatter_New").is_empty());
 }
 
 #[test]
 fn stale_entry_none_when_uid_already_installed() {
     let mods = vec![zip_install_entry("98276_zDarkMatter_AG-9", 56976, 98276)];
-    assert!(
-        stale_entry_for_zip_install(&mods, "98276_zDarkMatter_AG-9", 56976, "56976", 98276)
-            .is_none()
-    );
+    assert!(stale_uids(&mods, "98276_zDarkMatter_AG-9").is_empty());
 }
 
 #[test]
@@ -4743,15 +4743,47 @@ fn stale_entry_none_for_multi_entry_mods_and_negative_ids() {
         zip_install_entry("90000", 56976, 90000),
         zip_install_entry("90001", 56976, 90001),
     ];
-    assert!(
-        stale_entry_for_zip_install(&mods, "98276_zDarkMatter_AG-9", 56976, "56976", 98276)
-            .is_none()
-    );
+    assert!(stale_uids(&mods, "98276_zDarkMatter_AG-9").is_empty());
 
     let mods = vec![zip_install_entry("Foo", -42, 0)];
     assert!(
-        stale_entry_for_zip_install(&mods, "98276_zDarkMatter_AG-9", -42, "-42", 98276).is_none()
+        stale_entries_for_zip_install(&mods, "98276_zDarkMatter_AG-9", -42, "-42", 98276)
+            .is_empty()
     );
+}
+
+#[test]
+fn a_stale_entry_sharing_its_folder_keeps_the_folder() {
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let cfg = engine_for_game("cb").unwrap();
+    let sp = get_state_path(game, cfg);
+    let folder = active_mod_path(game, "Roguelite", None, cfg.primary());
+    fs::create_dir_all(&folder).unwrap();
+    let entry = |uid: &str| InstalledMod {
+        filename: "Roguelite".into(),
+        ..zip_install_entry(uid, 54961, 101909)
+    };
+    let mods = vec![entry("101909_Rogue"), entry("101909_Rogue2")];
+    save_state(
+        &sp,
+        &ModsState {
+            folders: vec![],
+            mods: mods.clone(),
+        },
+    )
+    .unwrap();
+
+    remove_stale_zip_entry(game, &sp, cfg, &mods, &mods[0]).unwrap();
+
+    assert!(folder.exists());
+    let left: Vec<_> = read_state(&sp)
+        .unwrap()
+        .mods
+        .into_iter()
+        .map(|m| m.uid)
+        .collect();
+    assert_eq!(left, ["101909_Rogue2"]);
 }
 
 // ── Legacy version-sentinel migration ────────────────────────────────────────

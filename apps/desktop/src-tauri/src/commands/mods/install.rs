@@ -371,6 +371,13 @@ pub fn move_crimeboss_mod_target_op(
     Ok(())
 }
 
+/// Drops a mod's record and leaves its files in place.
+pub fn forget_mod_op(state_path: &Path, uid: &str) -> Result<(), String> {
+    let mut state = read_state(state_path).map_err(|e| e.to_string())?;
+    state.mods.retain(|m| m.uid != uid);
+    save_state(state_path, &state).map_err(save_error)
+}
+
 pub fn uninstall_mod_op(
     game_path: &str,
     state_path: &Path,

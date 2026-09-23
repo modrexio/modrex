@@ -50,8 +50,8 @@ pub(crate) use self::folders::{
     create_folder_op, delete_folder_op, move_folder_op, rename_folder_op,
 };
 pub(crate) use self::install::{
-    disable_mod_op, enable_mod_op, install_host_pack_op, move_crimeboss_mod_target_op,
-    uninstall_mod_op,
+    disable_mod_op, enable_mod_op, forget_mod_op, install_host_pack_op,
+    move_crimeboss_mod_target_op, uninstall_mod_op,
 };
 pub(crate) use self::naming::{hash_filename, sidecar_path, strip_priority_prefix, unit_filename};
 pub(crate) use self::paths::{active_mod_path, disabled_base, disabled_mod_path, resolve_pak_path};
@@ -97,7 +97,7 @@ use crate::commands::sources;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Emitter};
 use uuid::Uuid;
 
@@ -1413,39 +1413,65 @@ pub async fn install_dropped_file(
     result.map(|()| InstallOutcome::Installed)
 }
 
-/// The same-mod entry to uninstall before an archive-entry install lands under a new uid: the
-/// same entry from an older file of the mod, else the mod's only entry when that is an older
-/// version under a different file id or this file's previous bare-pak packaging
+/// Same-mod entries to remove before an archive-entry install lands under a new uid: every copy
+/// of this entry installed from an older file of the mod, else the mod's only entry when that is
+/// an older version under a different file id or this file's previous bare-pak packaging
 /// (uid == "{file_id}"). An archive-scheme sibling of the same file (uid "{file_id}_...") is
 /// another entry of the archive being installed right now, and removing it would make a
 /// multi-entry batch install delete each predecessor, leaving only the last selected entry.
-fn stale_entry_for_zip_install<'a>(
+fn stale_entries_for_zip_install<'a>(
     mods: &'a [InstalledMod],
     uid: &str,
     mod_id: i64,
     mod_id_str: &str,
     file_id: i64,
-) -> Option<&'a InstalledMod> {
+) -> Vec<&'a InstalledMod> {
     if mod_id <= 0 || mods.iter().any(|m| m.uid == uid) {
-        return None;
+        return Vec::new();
     }
     let same: Vec<_> = mods
         .iter()
         .filter(|m| m.remote_id.as_deref() == Some(mod_id_str))
         .collect();
     if let Some(stem) = uid.strip_prefix(&format!("{file_id}_")) {
-        let previous = same.iter().find(|m| {
-            m.file_id
-                .is_some_and(|old| old != file_id && m.uid == format!("{old}_{stem}"))
-        });
-        if previous.is_some() {
-            return previous.copied();
+        let previous: Vec<_> = same
+            .iter()
+            .copied()
+            .filter(|m| {
+                m.uid
+                    .split_once('_')
+                    .is_some_and(|(old, s)| s == stem && old.parse::<i64>().is_ok())
+            })
+            .collect();
+        if !previous.is_empty() {
+            return previous;
         }
     }
     if same.len() != 1 || same[0].uid.starts_with(&format!("{file_id}_")) {
-        return None;
+        return Vec::new();
     }
-    Some(same[0])
+    same
+}
+
+/// Crime Boss installs every entry of a mod into one folder, so a stale entry that shares its
+/// path with another record only loses its record. Removing the path would take the siblings.
+fn remove_stale_zip_entry(
+    game_path: &str,
+    state_path: &Path,
+    cfg: &ModEngineConfig,
+    mods: &[InstalledMod],
+    stale: &InstalledMod,
+) -> Result<(), String> {
+    let shared = mods.iter().any(|m| {
+        m.uid != stale.uid
+            && m.filename == stale.filename
+            && m.location == stale.location
+            && m.folder_id == stale.folder_id
+    });
+    if shared {
+        return forget_mod_op(state_path, &stale.uid);
+    }
+    uninstall_mod_op(game_path, state_path, &stale.uid, cfg)
 }
 
 // The arg list outgrew specta's function arity; the renderer passes these under one args key.
@@ -1577,11 +1603,9 @@ pub async fn install_from_zip_entry(
             .find(|m| m.sha256.as_deref() == Some(sha256.as_str()));
         let uid = sha256_match.map(|m| m.uid.clone()).unwrap_or(uid);
 
-        if let Some(stale) =
-            stale_entry_for_zip_install(&saved.mods, &uid, mod_id, &mod_id_str, file_id)
+        for stale in stale_entries_for_zip_install(&saved.mods, &uid, mod_id, &mod_id_str, file_id)
         {
-            let stale_uid = stale.uid.clone();
-            uninstall_mod_op(&game_path, &sp, &stale_uid, cfg)?;
+            remove_stale_zip_entry(&game_path, &sp, cfg, &saved.mods, stale)?;
         }
 
         // Never inherit folderId from existing entries; callers always supply the target folder.
