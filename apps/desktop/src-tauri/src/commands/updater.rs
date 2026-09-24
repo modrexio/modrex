@@ -100,5 +100,6 @@ pub async fn install_update(app: AppHandle) -> Result<(), String> {
         .await
         .take()
         .ok_or("update not downloaded")?;
-    update.install(bytes).map_err(|e| e.to_string())
+    update.install(bytes).map_err(|e| e.to_string())?;
+    app.restart()
 }

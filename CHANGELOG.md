@@ -4,6 +4,10 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 ## Unreleased
 
+### Fixed
+
+- Fixed Restart & Install not restarting Modrex on Linux after installing an update.
+
 ## 0.15.2
 
 ### Changed
