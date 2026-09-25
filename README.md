@@ -19,52 +19,23 @@ Free and open source, for Windows and Linux.
 
 <img src="assets/example.png" width="900" alt="The Modrex mod library showing installed mods for a game, each with a switch to enable or disable it" />
 
-Supported today: **PAYDAY 3**, **PAYDAY 2**, **PAYDAY: The Heist**, **Crime Boss: Rockay City**
-and **RAID: World War II**.
-
 </div>
 
 ## What Modrex does
 
-**Find mods without leaving the app.** Browse ModWorkshop for any supported game, and sign in to
-Nexus Mods to browse that too wherever a game has both. Filter by category and tag, and read the
-whole mod page: description, images, changelog, license, dependencies and credits.
-
-**Install without unpacking anything.** Installing a mod is usually a single click. An archive
-that holds several mods or an asset pack asks which parts you want, and one Modrex cannot place
-on its own sends you to the mod page instead. When a mod needs a loader, such as SuperBLT or
-UE4SS, Modrex installs that first. Missing dependencies are named and offered rather than
-installed silently. You can drag archives from the file explorer onto the window, and Nexus
-downloads arrive over `nxm://` when you use that site's Mod Manager Download button.
-
-**Stay in control of your load order.** Group mods into nested folders, drag them into the order
-the game should load them, disable one without deleting it, and launch modded or vanilla per
-game.
-
-**Know what you have installed.** Mods you dropped into the folder by hand are matched by
-checksum against a mod index Modrex keeps current, so they show up with a real name and version
-instead of as unknown files. Health Check sweeps the library for missing files, broken archives,
-outdated installs, unrecognized mods and unmet dependencies, and can reinstall or fill in what it
-finds.
-
-Modrex keeps a separate game folder, launcher and launch options per game, and shows the active
-game on your Discord profile. The interface is available in six languages.
+- **Find mods in the app.** Browse ModWorkshop and Nexus Mods, with the full mod page, images
+  and changelog.
+- **Install in one click.** Modrex unpacks the mod and installs the loader it needs, such as
+  SuperBLT or UE4SS.
+- **Control your load order.** Sort mods into folders, drag them into order, and switch one off
+  without deleting it.
+- **Keep your library healthy.** Mods you added by hand are recognized, and Health Check finds
+  and fixes missing files, outdated mods and missing dependencies.
 
 ## Download
 
-**Windows**
-
-```pwsh
-winget install modrex
-```
-
-**Linux**
-
-```sh
-curl -fsSL https://modrex.net/install.sh | sh
-```
-
-Or take a specific package from the [latest release](https://github.com/modrexio/modrex/releases/latest):
+Download the package for your system from the
+[latest release](https://github.com/modrexio/modrex/releases/latest):
 
 | Platform       | Download                                                                                                     |
 | -------------- | ------------------------------------------------------------------------------------------------------------ |
@@ -73,9 +44,23 @@ Or take a specific package from the [latest release](https://github.com/modrexio
 | Linux .rpm     | [modrex_x86_64.rpm](https://github.com/modrexio/modrex/releases/latest/download/modrex_x86_64.rpm)           |
 | Linux AppImage | [modrex_x86_64.AppImage](https://github.com/modrexio/modrex/releases/latest/download/modrex_x86_64.AppImage) |
 
-Modrex checks for updates and lets you install them from the app. An update installed that way is
-cryptographically verified first; a package you download by hand is not checked for you. The
-Windows installer is not Authenticode-signed, so SmartScreen may warn before it runs.
+The Windows binary is signed.
+
+install from the command line:
+
+**Windows**:
+
+```pwsh
+winget install modrex
+```
+
+**Linux**:
+
+```sh
+curl -fsSL https://modrex.net/install.sh | sh
+```
+
+The Linux script is powered by [mget](https://github.com/modrexio/mget).
 
 ## Supported games
 
@@ -116,15 +101,6 @@ your log. The log gives maintainers the details needed to diagnose the problem. 
 | Windows  | `%LOCALAPPDATA%\Modrex\logs\Modrex.log` |
 | Linux    | `~/.local/share/modrex/logs/Modrex.log` |
 
-## Privacy
-
-Usage analytics are off unless you turn them on in Settings. Your Nexus Mods credentials are
-stored on your device, in the operating system credential store where one is available.
-
-The [privacy policy](https://modrex.net/privacy) covers what analytics contain if you opt in,
-where credentials are stored on each platform and what happens when no credential store exists,
-and which services Modrex contacts while you use it.
-
 ## Community and support
 
 Ask questions, share mods and follow development in the
@@ -140,7 +116,7 @@ Ask questions, share mods and follow development in the
 ## Translations
 
 Modrex is translated by the people who use it. The share below is the proportion of English
-source keys that have target-language text; it does not measure quality, and a missing key falls
+source keys that have target-language text. It does not measure quality, and a missing key falls
 back to English in the app.
 
 <!-- TRANSLATION_STATUS_START -->
@@ -169,6 +145,10 @@ To improve an existing language or add a new one, follow the
 ## License
 
 Modrex is open source under the [MIT License](LICENSE).
+
+## Privacy
+
+See the [privacy policy](https://modrex.net/privacy).
 
 ## Support
 
