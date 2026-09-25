@@ -102,7 +102,7 @@
         "tagFilterEmpty": "Keine Tags gefunden",
         "noMods": "Keine Mods gefunden",
         "loadFailed": "Mods konnten nicht geladen werden",
-        "filterLoadFailed": "! Couldn't load filters: {error}",
+        "filterLoadFailed": "Konnte keine filter laden: {error}",
         "rateLimited": "ModWorkshop hat ein Anfragen-Limit. Versuche es gleich nochmal.",
         "modCount": "{total} Mods",
         "sort": {
@@ -179,17 +179,17 @@
             "staleDuplicateHint": "Dies ist ein Überbleibsel aus der Zeit vor der Neuverpackung des Downloads – kann sicher entfernt werden."
         },
         "updatesModal": {
-            "versionChange": "! {from} to {to}",
-            "versionAvailable": "! {version} available",
+            "versionChange": "{from} zu {to}",
+            "versionAvailable": "{version} verfügbar",
             "title": "Verfügbare Updates ({count})",
             "update": "Aktualisieren",
             "updating": "Aktualisiere...",
             "updatingProgress": "Aktualisiere {done} / {total}",
             "updateSelected": "Ausgewählte aktualisieren ({count})",
             "error": "Aktualisierung fehlgeschlagen. Überprüfe deine Verbindung und versuche es erneut.",
-            "chooseTitle": "! Choose a file",
-            "chooseBody": "! {name} has several files. Pick the one to install.",
-            "unavailable": "! {name} can't be updated from Modrex."
+            "chooseTitle": "Wähle eine Datei aus:",
+            "chooseBody": "{name} hat verschiedene Dateien. Bitte wähle eine aus zum installieren.",
+            "unavailable": "{name} kann nicht mithilfe von Modrex aktualisiert werden."
         },
         "pakViewer": {
             "title": "Inhalte dieser PAK-Datei",
