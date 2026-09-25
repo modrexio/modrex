@@ -151,7 +151,7 @@ back to English in the app.
 | Language | Translation | Contributors |
 | --- | --- | --- |
 | [English (en)](apps/desktop/src/renderer/src/i18n/en.json) | <img src="assets/i18n/status/en.svg" alt="English source: 474 valid strings."> Complete | - |
-| [Deutsch (de)](apps/desktop/src/renderer/src/i18n/de.json) | <img src="assets/i18n/status/de.svg" alt="Deutsch (de): 468 accepted, 0 review, 6 missing; 98.7%."> 98.7% | [TarekLP](https://github.com/TarekLP) |
+| [Deutsch (de)](apps/desktop/src/renderer/src/i18n/de.json) | <img src="assets/i18n/status/de.svg" alt="Deutsch (de): 474 accepted, 0 review, 0 missing; Complete."> Complete | [TarekLP](https://github.com/TarekLP) |
 | [Italiano (it)](apps/desktop/src/renderer/src/i18n/it.json) | <img src="assets/i18n/status/it.svg" alt="Italiano (it): 416 accepted, 0 review, 58 missing; 87.8%."> 87.8% | [Enderbox89](https://github.com/Enderbox89) |
 | [Русский (ru)](apps/desktop/src/renderer/src/i18n/ru.json) | <img src="assets/i18n/status/ru.svg" alt="Русский (ru): 468 accepted, 0 review, 6 missing; 98.7%."> 98.7% | [ShulhaOleh](https://github.com/ShulhaOleh) |
 | [Українська (uk)](apps/desktop/src/renderer/src/i18n/uk.json) | <img src="assets/i18n/status/uk.svg" alt="Українська (uk): 468 accepted, 0 review, 6 missing; 98.7%."> 98.7% | [ShevRuslan1](https://github.com/ShevRuslan1), [illianezheviasov](https://github.com/illianezheviasov) |
