@@ -46,7 +46,7 @@ Download the package for your system from the
 
 The Windows binary is signed.
 
-install from the command line:
+Install from the command line:
 
 **Windows**:
 
@@ -109,7 +109,7 @@ Ask questions, share mods and follow development in the
 - [Request a feature](https://github.com/modrexio/modrex/issues/new?template=feature_request.yml)
 - [Report a vulnerability](SECURITY.md), privately, never in an issue or in Discord
 - [Contribute code or documentation](CONTRIBUTING.md)
-- [Translate Modrex](TRANSLATING.md), which needs no development setup
+- [Translate Modrex](docs/contributing/translating.md), which needs no development setup
 
 <a href="https://discord.gg/QM2rDgy43Y"><img src="https://discord.com/api/guilds/1508553766025170986/widget.png?style=banner3" alt="Modrex Discord server, member count and join link" /></a>
 
@@ -138,7 +138,7 @@ back to English in the app.
 </div>
 
 To improve an existing language or add a new one, follow the
-[translation guide](TRANSLATING.md).
+[translation guide](docs/contributing/translating.md).
 
 <!-- TRANSLATION_STATUS_END -->
 

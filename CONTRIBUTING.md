@@ -3,9 +3,9 @@
 Thanks for taking the time to contribute! Every bug report, suggestion, and pull request helps make Modrex better for the whole community.
 
 If you want to improve an existing translation or add a language, use the dedicated
-[translation guide](TRANSLATING.md). It does not require the development setup below.
+[translation guide](docs/contributing/translating.md). It does not require the development setup below.
 
-To review the desktop interface in a browser, use the [app preview guide](PREVIEW.md).
+To review the desktop interface in a browser, use the [app preview guide](docs/contributing/preview.md).
 
 ## Development setup
 
@@ -129,7 +129,7 @@ AI agents must not create or update non-English translations unless the user exp
 translation for specific named locales.
 
 The translator-focused workflow, optional commands, locale rules, and new-language steps are in
-[TRANSLATING.md](TRANSLATING.md). Local tooling is optional; CI can perform validation without
+[translation guide](docs/contributing/translating.md). Local tooling is optional; CI can perform validation without
 pnpm, application dependencies, Rust, Tauri, or launching Modrex.
 
 ### Who owns what

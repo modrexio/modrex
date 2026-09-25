@@ -1112,7 +1112,7 @@ test('translation table renders compact deterministic coverage and contributors'
             '</div>',
             '',
             'To improve an existing language or add a new one, follow the',
-            '[translation guide](TRANSLATING.md).',
+            '[translation guide](docs/contributing/translating.md).',
         ].join('\n')
     )
     assert.doesNotMatch(table, /\(\d+\/\d+\)/)

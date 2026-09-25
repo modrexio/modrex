@@ -14,21 +14,9 @@ This directory is for people working on Modrex. User instructions live on
 | Know which URLs and artifacts outside clients depend on                    | [architecture/public-contracts.md](architecture/public-contracts.md)         |
 | Know who may change a translation file, and which check enforces it        | [architecture/i18n-ownership.md](architecture/i18n-ownership.md)             |
 | Set up the repository and run the checks                                   | [../CONTRIBUTING.md](../CONTRIBUTING.md)                                     |
-| Translate Modrex                                                           | [../TRANSLATING.md](../TRANSLATING.md)                                       |
+| Review the desktop interface in a browser                                  | [contributing/preview.md](contributing/preview.md)                           |
+| Translate Modrex                                                           | [contributing/translating.md](contributing/translating.md)                   |
 | Report a vulnerability                                                     | [../SECURITY.md](../SECURITY.md)                                             |
 
 `reference/game-package.md` is generated from the Rust contract and CI fails when the committed
 copy is stale. Everything else here is written by hand.
-
-## Translated contributor documentation
-
-There is none yet, and no directory is created for one until a translation exists. When one
-does, it mirrors the English structure under `docs/i18n/<locale>/`, so English keeps its paths
-and relative links inside a locale tree resolve.
-
-GitHub serves Markdown files, not a documentation site: a page that a locale has not translated
-is simply absent, and nothing redirects the reader to English. An index of translated pages
-therefore links only files that exist.
-
-A translated page records the commit of the English page it was translated from, so a reviewer
-can see what has changed since.

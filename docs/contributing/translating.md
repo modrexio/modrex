@@ -1,8 +1,8 @@
 # Translating Modrex
 
 You can contribute a translation without building Modrex or installing its development tools.
-The language files are in [`apps/desktop/src/renderer/src/i18n`](apps/desktop/src/renderer/src/i18n).
-See the [translation status](README.md#translations) for the languages currently available and
+The language files are in [`apps/desktop/src/renderer/src/i18n`](../../apps/desktop/src/renderer/src/i18n).
+See the [translation status](../../README.md#translations) for the languages currently available and
 their key coverage.
 
 ## Choose how to translate
@@ -137,4 +137,4 @@ Commits must be linked to your GitHub account for automatic credit. A GitHub squ
 the pull request author linked even when the maintainer performs the merge.
 
 For code, documentation, or other changes, use the general
-[contribution guide](CONTRIBUTING.md).
+[contribution guide](../../CONTRIBUTING.md).

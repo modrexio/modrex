@@ -42,7 +42,11 @@ test('legend assets are canonical solid, secure, and newline-stable SVGs', () =>
 // pnpm i18n:presentation-check rather than by a unit test over the committed file.
 test('the generated README block owns its markers and resolves every legend image', () => {
     const readme = expectedReadme(readFileSync(README_PATH, 'utf8'))
-    assert.equal((readme.match(/\[translation guide\]\(TRANSLATING\.md\)/gu) ?? []).length, 1)
+    assert.equal(
+        (readme.match(/\[translation guide\]\(docs\/contributing\/translating\.md\)/gu) ?? [])
+            .length,
+        1
+    )
     assert.equal((readme.match(/<!-- TRANSLATION_STATUS_START -->/gu) ?? []).length, 1)
     assert.equal((readme.match(/<!-- TRANSLATION_STATUS_END -->/gu) ?? []).length, 1)
     const generated = readme.slice(
@@ -94,7 +98,7 @@ test('the generated README block owns its markers and resolves every legend imag
         generated,
         /\[English \(en\)\]\(apps\/desktop\/src\/renderer\/src\/i18n\/en\.json\)/u
     )
-    assert.match(generated, /\[translation guide\]\(TRANSLATING\.md\)/u)
+    assert.match(generated, /\[translation guide\]\(docs\/contributing\/translating\.md\)/u)
     assert.doesNotMatch(generated, /0 use English fallback|<sub>/u)
 })
 

@@ -7,7 +7,7 @@ description: Review a diff for AI-shaped code before a PR, commit, or final summ
 
 Use this skill before proposing a PR, commit, or final response for a non-trivial code change.
 
-Start with blocker-level issues from `AI_DANGER_PATTERNS.md`.
+Start with blocker-level issues from `.agents/rules/ai-danger-patterns.md`.
 
 ## Review target
 
