@@ -1,6 +1,5 @@
 ---
 import Default from '@astrojs/starlight/components/Head.astro'
-import { GAME_IDS, GAMES } from '@modrex/games'
 import { getOgImage } from '../../lib/og-image'
 
 // Starlight emits twitter:card as summary_large_image but supplies no image of its own,
@@ -61,39 +60,23 @@ const breadcrumb = {
 
 const isGettingStarted = pathname === '/docs/getting-started'
 
-const supportedGames = new Intl.ListFormat('en', { type: 'conjunction' }).format(
-    GAME_IDS.map((id) => GAMES[id].name)
-)
-
 const howTo = {
     '@context': 'https://schema.org',
     '@type': 'HowTo',
     name: 'How to install Modrex mod manager',
-    description: `Download Modrex and start managing mods for ${supportedGames}.`,
+    description: 'Download and install Modrex on 64-bit Windows or Linux.',
     step: [
         {
             '@type': 'HowToStep',
             position: '1',
-            name: 'Download and install',
-            text: 'Download the latest release from GitHub. On Windows, run the modrex_x86_64.exe installer. On Linux, install the .deb, .rpm, or .AppImage package for your distribution.',
+            name: 'Install on Windows',
+            text: 'Download modrex_x86_64.exe from the latest release and run it, or run winget install modrex.',
         },
         {
             '@type': 'HowToStep',
             position: '2',
-            name: 'Choose a game',
-            text: `On first launch Modrex asks which game to manage. Supported games: ${supportedGames}.`,
-        },
-        {
-            '@type': 'HowToStep',
-            position: '3',
-            name: 'Set the game path',
-            text: 'Modrex automatically scans for your game. If detection fails, go to Settings > Game > Game Path, click Browse, and select the game root folder.',
-        },
-        {
-            '@type': 'HowToStep',
-            position: '4',
-            name: 'Install UE4SS (PAYDAY 3)',
-            text: 'PAYDAY 3 loads pak mods only when the UE4SS loader is installed. Install it from its mod page like any other mod.',
+            name: 'Install on Linux',
+            text: 'Download the .deb, .rpm or .AppImage package from the latest release and install it, or run curl -fsSL https://modrex.net/install.sh | sh.',
         },
     ],
 }
