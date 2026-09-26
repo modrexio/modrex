@@ -44,7 +44,7 @@ Or pick the package for your distribution manually:
 
 On first launch Modrex asks which game you want to manage. Supported games:
 
-- **PAYDAY 3** - `.pak` mods in the Unreal `~mods` folder.
+- **PAYDAY 3** - pak mods in the Unreal `~mods` folder and UE4SS Lua mods.
 - **PAYDAY 2** - BLT/BeardLib mods and `mod_overrides` content.
 - **PAYDAY: The Heist** - PDTH BLT/DAHM mods and `mod_overrides` content.
 - **Crime Boss: Rockay City** - official ModKit folders, legacy `.pak` mods, and UE4SS mods.
@@ -70,7 +70,7 @@ install, you're ready to go.
 If detection fails, set the path manually:
 
 1. Open **Settings** from the bottom of the sidebar.
-2. Under **Game Path**, click **Browse** and select the game's root folder.
+2. On the **Game** tab, under **Game Path**, click **Browse** and select the game's root folder.
 3. Modrex validates the path and identifies your launcher.
 
 <Callout>
@@ -78,15 +78,10 @@ If detection fails, set the path manually:
     `SteamLibrary/steamapps/common/<game name>`.
 </Callout>
 
-## Launch options
+## PAYDAY 3 needs UE4SS
 
-For most PAYDAY 3 `.pak` mods to work, the game needs the `-fileopenlog` launch argument. Add it in
-**Settings - Launch Options**, or directly in your launcher's launch arguments for PAYDAY 3.
-
-<Callout>
-    `-fileopenlog` is a PAYDAY 3 requirement. Other supported games use game-specific loader or
-    install-target behavior instead.
-</Callout>
+PAYDAY 3 loads pak mods only when the UE4SS loader is installed. Install it from its mod page like
+any other mod. See [PAYDAY 3](/docs/games/payday-3#ue4ss).
 
 ## Requirements
 

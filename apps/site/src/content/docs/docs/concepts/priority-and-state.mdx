@@ -35,15 +35,14 @@ Modrex periodically scans each game's mod folders for files it isn't already tra
 mods you placed manually outside Modrex. These show up in the Installed list automatically.
 
 A newly discovered mod is identified by checking its file hash against Modrex's mod index. A match
-fills in the real name, ModWorkshop ID, and version. If there's no match, the mod still appears,
-named after its filename, with a negative ID standing in for an unknown ModWorkshop ID - this isn't
-an error, just an unrecognized file. It's re-checked on later scans in case the index catches up.
+fills in the real name and version. If there's no match, the mod still appears under its filename.
+It's checked again on later scans in case the index catches up.
 
 ## Missing files
 
 A missing file badge means Modrex has state for a mod, but the file or folder no longer exists where Modrex expects it. This usually happens after manual deletion, a moved game folder, or external cleanup.
 
-Use **Reinstall** to restore the files when Modrex can identify the original download, or uninstall the entry to remove the stale state.
+Use **Reinstall** to restore the files when Modrex can identify the original download, or remove the entry to clear the stale state.
 
 ## State file
 

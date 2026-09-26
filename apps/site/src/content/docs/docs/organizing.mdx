@@ -9,10 +9,10 @@ import Callout from '../../../components/docs/Callout.astro'
 
 Create folders on the **Installed** tab to group related mods. Folders can be nested to any depth.
 
-- **Create a folder** - click the folder icon in the toolbar, or right-click an existing folder and
-  select **New subfolder**.
+- **Create a folder** - click **New Folder** in the toolbar, or **New Subfolder** on an existing
+  folder's row.
 - **Move a mod into a folder** - drag it from the list and drop it onto the folder name.
-- **Rename or delete** - right-click the folder.
+- **Rename or delete** - use the pencil or trash button on the folder's row.
 
 Deleting a folder moves its contents to the parent level; the mod files are not removed from disk.
 
@@ -69,14 +69,14 @@ Open it from the toolbar on the Installed tab.
 
 Each category has its own tab and a bulk action in the footer:
 
-| Category             | What it flags                                                 | Bulk action                              |
-| -------------------- | ------------------------------------------------------------- | ---------------------------------------- |
-| Missing files        | Mods whose files are no longer on disk                        | Reinstall all                            |
-| Broken archives      | Mods whose installed file is a corrupt or unextracted archive | Reinstall all                            |
-| Outdated installs    | Mods with a version mismatch or a stale duplicate file        | Reinstall all                            |
-| Unrecognized mods    | Mods Modrex can't match to a ModWorkshop entry                | —                                        |
-| Missing dependencies | Mods whose required loader or dependency isn't installed      | Install All Dependencies                 |
-| Available updates    | Mods with a newer version on ModWorkshop                      | Review updates (opens the Updates modal) |
+| Tab             | What it flags                                                 | Bulk action              |
+| --------------- | ------------------------------------------------------------- | ------------------------ |
+| Dependencies    | Mods whose required loader or dependency isn't installed      | Install All Dependencies |
+| Missing files   | Mods whose files are no longer on disk                        | Reinstall All            |
+| Broken archives | Mods whose installed file is a corrupt or unextracted archive | Reinstall All            |
+| Outdated        | Mods with a version mismatch or a stale duplicate file        | Reinstall All            |
+| Unidentified    | Mods Modrex can't match to a known mod                        | None                     |
+| Updates         | Mods with a newer version available                           | Review updates           |
 
 You can also act on individual rows inside each tab. Installing a missing dependency updates the
 tab immediately so you can see what's still outstanding without closing the modal.

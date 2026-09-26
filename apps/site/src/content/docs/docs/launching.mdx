@@ -10,8 +10,8 @@ import LauncherMatrix from '../../../components/docs/LauncherMatrix.astro'
 Click **Launch** in the top bar to start the active game with all enabled mods active. Modrex passes
 your configured launch options to the game and hands off to your launcher.
 
-For PAYDAY 3, make sure `-fileopenlog` is in your launch options - without it most `.pak` mods
-won't load. See [PAYDAY 3](/docs/games/payday-3#launch-options) for details.
+For PAYDAY 3, pak mods load only when UE4SS is installed. See
+[PAYDAY 3](/docs/games/payday-3#ue4ss).
 
 ## Launch without mods
 
@@ -30,5 +30,5 @@ work.
 
 <LauncherMatrix />
 
-To override the detected launcher for the active game, go to **Settings - Launcher** and select one
-manually.
+To override the detected launcher for the active game, go to **Settings > Game > Launcher** and
+select one manually.

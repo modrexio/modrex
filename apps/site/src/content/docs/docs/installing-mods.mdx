@@ -15,7 +15,7 @@ For ModWorkshop, click any mod to open its detail page, then click **Install**. 
 the file, extracts it if needed, and places it in the correct location automatically. The Install
 button shows a live download percentage and progress bar while the file is transferring.
 
-To browse Nexus Mods, sign in from **Settings > Advanced > Nexus Mods**, then select Nexus at the
+To browse Nexus Mods, sign in from **Settings > Advanced > Nexus Mods Account**, then select Nexus at the
 top of Browse. Open the mod’s **Files** tab on Nexus and choose **Mod Manager Download**. Nexus
 hands the download back to Modrex, which shows its progress and installs it into the active game.
 
@@ -58,32 +58,28 @@ the link in your browser. Download the file manually, then install it from a loc
 
 ## From a local file
 
-Drag a supported file from your file explorer into the Modrex window, or click **Install from file** in the top bar.
-Modrex handles extraction and placement the same way as a Browse install.
+Drag a supported file from your file explorer into the Modrex window. Modrex handles extraction and
+placement the same way as a Browse install.
 
 ## Enable and disable
 
-Toggle the switch next to any mod to enable or disable it without uninstalling. Disabled mods are
-moved to a `disabled/` subfolder with a `.disabled` extension - they're preserved on disk but the
-game ignores them.
+Toggle the switch next to any mod to enable or disable it without removing it. Disabled mods move
+to the target's `disabled/` folder, and single-file mods also get a `.disabled` extension. They stay
+on disk, but the game ignores them.
 
-## Uninstalling
+## Removing
 
-Right-click a mod and select **Uninstall**, or use the context menu. The mod's file (`.pak`-based
-targets) or folder (directory-based targets, such as BLT, BeardLib, or ModKit mods) is deleted from
-disk and the mod is removed from Modrex's state.
+Click **Remove** on a mod. Its file or folder is deleted from disk and the mod leaves Modrex's
+list.
 
 <Callout>
-    Uninstalling is permanent. If you want to keep the file but stop using the mod, disable it
-    instead.
+    Removing is permanent. To keep the files but stop using the mod, disable it instead.
 </Callout>
 
 ## Reinstalling and updating
 
-Click **Reinstall** on a mod to re-download and replace its current file. If Modrex detects newer
-versions for installed mods, use the update prompt to review and install them in bulk. The
-**Update All** button shows a progress counter (`1 / N`, `2 / N`, …) while working through the
-queue.
+Click **Reinstall** on a mod to re-download and replace its current file. When updates are
+available, click **Review updates**, pick the mods, then click **Update Selected**.
 
 ## News
 
