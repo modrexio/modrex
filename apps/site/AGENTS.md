@@ -77,7 +77,10 @@ The recognized-mod count uses `getModIndexStats()` at build time only as a fallb
 `Features.astro` refreshes the rendered number in the browser from the R2 catalog
 manifest at `https://index.modrex.net/catalog/latest.json` (URL + payload type live in
 `src/lib/mod-index-shared.ts`, shared by both sides); do not make visitors or the build
-download a SQLite shard just to render the count.
+download a SQLite shard just to render the count. The refresh needs two things outside
+`Features.astro`: `connect-src` in `public/_headers` listing `https://index.modrex.net`, and a
+CORS rule on the R2 bucket (Cloudflare dashboard, not this repo) allowing `GET` from
+`https://modrex.net`. Without either, the fetch fails and the build-time number stays.
 
 ### Styling rules
 
