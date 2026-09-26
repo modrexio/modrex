@@ -7,7 +7,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 ### Fixed
 
 - Fixed Restart & Install not restarting Modrex on Linux after installing an update.
-- Fixed UE4SS mods installing to the wrong folder on the Xbox app version of PAYDAY 3.
+- Fixed UE4SS mods installing to a folder PAYDAY 3's UE4SS does not read.
 
 ## 0.15.2
 
