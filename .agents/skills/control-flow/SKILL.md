@@ -7,7 +7,7 @@ description: Flatten nested conditionals and make the happy path readable
 
 Use this skill when a change touches branching logic, validation, installation flow, filesystem routing, renderer event handlers, or any function with nested conditionals.
 
-This skill targets dangerous pattern #4 from `AI_DANGER_PATTERNS.md`: deep `if`/`else` nesting.
+This skill targets dangerous pattern #4 from `.agents/rules/ai-danger-patterns.md`: deep `if`/`else` nesting.
 
 ## Rule
 

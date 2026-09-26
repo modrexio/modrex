@@ -64,32 +64,19 @@ const howTo = {
     '@context': 'https://schema.org',
     '@type': 'HowTo',
     name: 'How to install Modrex mod manager',
-    description:
-        'Download Modrex and start managing mods for PAYDAY 3, PAYDAY 2, PAYDAY: The Heist, and Crime Boss: Rockay City.',
+    description: 'Download and install Modrex on 64-bit Windows or Linux.',
     step: [
         {
             '@type': 'HowToStep',
             position: '1',
-            name: 'Download and install',
-            text: 'Download the latest release from GitHub. On Windows, run the modrex_x86_64.exe installer. On Linux, install the .deb, .rpm, or .AppImage package for your distribution.',
+            name: 'Install on Windows',
+            text: 'Download modrex_x86_64.exe from the latest release and run it, or run winget install modrex.',
         },
         {
             '@type': 'HowToStep',
             position: '2',
-            name: 'Choose a game',
-            text: 'On first launch Modrex asks which game to manage. Supported games: PAYDAY 3, PAYDAY 2, PAYDAY: The Heist, and Crime Boss: Rockay City.',
-        },
-        {
-            '@type': 'HowToStep',
-            position: '3',
-            name: 'Set the game path',
-            text: 'Modrex automatically scans for your game. If detection fails, open Settings, click Browse under Game Path, and select the game root folder.',
-        },
-        {
-            '@type': 'HowToStep',
-            position: '4',
-            name: 'Configure launch options (PAYDAY 3)',
-            text: 'For PAYDAY 3 pak mods to work, add -fileopenlog to Settings - Launch Options so Unreal Engine scans the ~mods folder.',
+            name: 'Install on Linux',
+            text: 'Download the .deb, .rpm or .AppImage package from the latest release and install it, or run curl -fsSL https://modrex.net/install.sh | sh.',
         },
     ],
 }
@@ -117,10 +104,10 @@ const faqPage = {
     mainEntity: [
         {
             '@type': 'Question',
-            name: 'Why are my mods not loading in PAYDAY 3?',
+            name: 'Why are my mods not loading?',
             acceptedAnswer: {
                 '@type': 'Answer',
-                text: 'The most common cause is a missing -fileopenlog launch argument. Add -fileopenlog to Settings - Launch Options. Without it, Unreal Engine 5 does not scan the ~mods folder and no pak mods will load.',
+                text: "Check that the loader the game needs is installed. For example, PAYDAY 3 loads pak mods only through UE4SS. Then check that the mod is enabled, isn't overridden by a higher-priority mod, and targets your game version.",
             },
         },
         {
@@ -128,7 +115,7 @@ const faqPage = {
             name: "Modrex can't detect my game — what do I do?",
             acceptedAnswer: {
                 '@type': 'Answer',
-                text: "Go to Settings - Game Path and click Browse. Navigate to the game's installation root folder and click Select Folder. Modrex will validate and save the path.",
+                text: "Go to Settings > Game > Game Path and click Browse. Navigate to the game's installation root folder and click Select Folder. Modrex will validate and save the path.",
             },
         },
         {
@@ -136,7 +123,7 @@ const faqPage = {
             name: "What does the 'Missing file' badge on a mod mean?",
             acceptedAnswer: {
                 '@type': 'Answer',
-                text: 'Modrex references a file or folder that no longer exists on disk, usually after manually deleting files or moving your game folder. Either Reinstall the mod or right-click and select Uninstall to remove the stale entry.',
+                text: 'Modrex references a file or folder that no longer exists on disk, usually after manually deleting files or moving your game folder. Either Reinstall the mod or click Remove to clear the stale entry.',
             },
         },
         {
@@ -152,7 +139,7 @@ const faqPage = {
             name: "Modrex won't launch after a Windows update",
             acceptedAnswer: {
                 '@type': 'Answer',
-                text: 'Xbox Game Pass installs can lose their file permissions after major Windows updates. Run Modrex as administrator once to restore access, then relaunch normally.',
+                text: 'Xbox app installs can lose their file permissions after major Windows updates. Run Modrex as administrator once to restore access, then relaunch normally.',
             },
         },
         {
@@ -160,7 +147,7 @@ const faqPage = {
             name: 'Where is the Modrex log file?',
             acceptedAnswer: {
                 '@type': 'Answer',
-                text: 'On Windows: %APPDATA%\\Modrex\\logs\\modrex.log. On Linux: ~/.config/modrex/logs/modrex.log. You can also open it from Settings - Open log file.',
+                text: 'On Windows: %LOCALAPPDATA%\\Modrex\\logs\\Modrex.log. On Linux: ~/.local/share/modrex/logs/Modrex.log. You can also open it from Settings > Advanced > Logs > Open log file.',
             },
         },
     ],

@@ -7,7 +7,7 @@ description: Remove AI-generated code slop from a diff, path, branch, or reposit
 
 Use this skill to clean AI-shaped code before a commit, PR, or final answer.
 
-Start with the five dangerous patterns from `AI_DANGER_PATTERNS.md`. These are worse than cosmetic slop because they can hide real bugs.
+Start with the five dangerous patterns from `.agents/rules/ai-danger-patterns.md`. These are worse than cosmetic slop because they can hide real bugs.
 
 ## Mode
 
@@ -25,7 +25,7 @@ Fix each issue you find, then report a 1-3 sentence summary of what you changed.
 
 Before editing, read:
 
-1. `AI_DANGER_PATTERNS.md`
+1. `.agents/rules/ai-danger-patterns.md`
 2. the repository-root `AGENTS.md`
 3. the nearest `AGENTS.md` above each touched path
 

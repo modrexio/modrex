@@ -150,17 +150,21 @@ test('simulated Step 7 replacement is idempotent and preserves exactly one guide
         '<!-- TRANSLATION_STATUS_END -->',
         '',
         'To improve an existing language or add a new one, follow the',
-        '[translation guide](TRANSLATING.md).',
+        '[translation guide](docs/contributing/translating.md).',
         'after sentinel',
     ].join('\n')
     const first = replaceTranslationTable(fixture, render())
     const second = replaceTranslationTable(first, render())
     assert.equal(second, first)
-    assert.equal((first.match(/\[translation guide\]\(TRANSLATING\.md\)/gu) ?? []).length, 1)
+    assert.equal(
+        (first.match(/\[translation guide\]\(docs\/contributing\/translating\.md\)/gu) ?? [])
+            .length,
+        1
+    )
     assert.equal((first.match(/<!-- TRANSLATION_STATUS_START -->/gu) ?? []).length, 1)
     assert.equal((first.match(/<!-- TRANSLATION_STATUS_END -->/gu) ?? []).length, 1)
     assert.match(first, /before sentinel[\s\S]*after sentinel/u)
-    const guide = first.indexOf('[translation guide](TRANSLATING.md)')
+    const guide = first.indexOf('[translation guide](docs/contributing/translating.md)')
     const end = first.indexOf('<!-- TRANSLATION_STATUS_END -->')
     assert.ok(guide < end)
     assert.ok(end - guide < 200)

@@ -10,7 +10,8 @@ beside it and holds nothing of its own.
 - A directory that carries an `AGENTS.md` owns the rules for the files under it. Read the
   nearest `AGENTS.md` above each file you change before changing it, whether or not your
   tool loads nested files on its own.
-- `AI_DANGER_PATTERNS.md` holds worked examples of the five dangerous patterns below.
+- `.agents/rules/ai-danger-patterns.md` holds worked examples of the five dangerous
+  patterns below.
 - Reusable skills live in `.agents/skills/<name>/SKILL.md`. Load the relevant skill before
   executing it. Claude Code exposes them as slash commands through `.claude/commands/`.
 - `docs/README.md` routes the contributor documentation.
@@ -69,7 +70,7 @@ docs/architecture/i18n-ownership.md.
 
 AI-assisted work is allowed, but raw AI-shaped code is not. These five patterns are
 blocker-level because they can hide bugs or break Modrex-specific behavior. Do not leave
-them in any change; `AI_DANGER_PATTERNS.md` shows each one.
+them in any change; `.agents/rules/ai-danger-patterns.md` shows each one.
 
 1. Silent catch / silent fallback
 2. Generic helpers replacing game-specific logic
@@ -155,8 +156,8 @@ Before reporting completion of a code change, run mentally or explicitly:
 
 ## AI-facing documentation
 
-The `AGENTS.md` files, `AI_DANGER_PATTERNS.md`, the skills and the agent adapters are
-AI-facing documentation. Every line in an `AGENTS.md` is paid for by every session that
+The `AGENTS.md` files, `.agents/rules/ai-danger-patterns.md`, the skills and the agent
+adapters are AI-facing documentation. Every line in an `AGENTS.md` is paid for by every session that
 loads it, so the bar for adding one is that the fact is difficult, expensive, unsafe or
 unreliable to reconstruct from the repository itself. Usefulness alone is not the bar.
 

@@ -7,7 +7,7 @@ description: Review comments against the Comments policy in AGENTS.md and fix vi
 
 Use this skill after AI-assisted edits, or on demand to review existing code. It enforces the Comments section of the repository-root `AGENTS.md`.
 
-This skill handles cosmetic AI slop. It is lower priority than the five dangerous patterns in `AI_DANGER_PATTERNS.md`.
+This skill handles cosmetic AI slop. It is lower priority than the five dangerous patterns in `.agents/rules/ai-danger-patterns.md`.
 
 ## Scope
 

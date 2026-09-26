@@ -1,93 +1,36 @@
 ---
 title: Installation
-description: Modrex is a desktop app for Windows and Linux. Download the build for your platform, pick a supported game, and start managing mods - there's no account to create.
+description: Download and install Modrex on 64-bit Windows or Linux.
 ---
 
-import Callout from '../../../components/docs/Callout.astro'
-import LauncherMatrix from '../../../components/docs/LauncherMatrix.astro'
 import OsIcon from '../../../components/docs/OsIcon.astro'
 
-## Download & install
+## <OsIcon os="Windows" />Windows
 
-Grab the latest release from the [download page](/#download) or directly from
-[GitHub Releases](https://github.com/modrexio/modrex/releases).
+Download [modrex_x86_64.exe](https://github.com/modrexio/modrex/releases/latest/download/modrex_x86_64.exe)
+and run it. The installer is signed.
 
-### <OsIcon os="Windows" />Windows
-
-Run the `modrex_x86_64.exe` installer and follow the prompts. Modrex checks for updates on
-every launch and can install them in-app - you won't need to manually reinstall for future versions.
-
-Or install it from the command line with winget:
+Or install it with winget:
 
 ```sh
 winget install modrex
 ```
 
-### <OsIcon os="Linux" />Linux
+New versions can reach winget later than the direct download, because each one goes through
+winget's own review first.
 
-The quickest way is the install script - it installs the right package through apt, dnf, or
-zypper (so updates flow through your package manager), and falls back to a self-contained
-AppImage on other distributions:
+## <OsIcon os="Linux" />Linux
+
+Download a package and install it:
+
+| Platform       | Download                                                                                                     | Install                                |
+| -------------- | ------------------------------------------------------------------------------------------------------------ | -------------------------------------- |
+| Linux .deb     | [modrex_x86_64.deb](https://github.com/modrexio/modrex/releases/latest/download/modrex_x86_64.deb)           | `sudo apt install ./modrex_x86_64.deb` |
+| Linux .rpm     | [modrex_x86_64.rpm](https://github.com/modrexio/modrex/releases/latest/download/modrex_x86_64.rpm)           | `sudo dnf install ./modrex_x86_64.rpm` |
+| Linux AppImage | [modrex_x86_64.AppImage](https://github.com/modrexio/modrex/releases/latest/download/modrex_x86_64.AppImage) | `chmod +x modrex_x86_64.AppImage`      |
+
+Or let the install script pick and install the right package:
 
 ```sh
 curl -fsSL https://modrex.net/install.sh | sh
 ```
-
-Or pick the package for your distribution manually:
-
-- **`.deb`** - Debian, Ubuntu, and derivatives. Install with `sudo dpkg -i modrex_x86_64.deb`.
-- **`.rpm`** - Fedora, RHEL, and derivatives. Install with `sudo rpm -i modrex_x86_64.rpm`.
-- **`.AppImage`** - Any distribution. Mark the file executable (`chmod +x modrex_x86_64.AppImage`) and run
-  it directly.
-
-## Choose a game
-
-On first launch Modrex asks which game you want to manage. Supported games:
-
-- **PAYDAY 3** - `.pak` mods in the Unreal `~mods` folder.
-- **PAYDAY 2** - BLT/BeardLib mods and `mod_overrides` content.
-- **PAYDAY: The Heist** - PDTH BLT/DAHM mods and `mod_overrides` content.
-- **Crime Boss: Rockay City** - official ModKit folders, legacy `.pak` mods, and UE4SS mods.
-- **RAID: World War II** - RAID-SuperBLT and legacy RaidBLT script mods plus asset override packs.
-
-You can switch games from the sidebar at any time. Each game keeps its own path, launcher, launch
-options, installed list, and folders.
-
-Use the search box in the game picker to filter by name, or enable the **Installed only** toggle to
-show only games you have set up.
-
-See [Supported games](/docs/games/) for launcher support, install targets, loader notes, and
-priority behavior per game.
-
-For the shared model behind game switching and target routing, see
-[Games and targets](/docs/concepts/games-and-targets).
-
-## Game detection
-
-Modrex automatically scans for the selected game across the launchers it supports. If it finds your
-install, you're ready to go.
-
-If detection fails, set the path manually:
-
-1. Open **Settings** from the bottom of the sidebar.
-2. Under **Game Path**, click **Browse** and select the game's root folder.
-3. Modrex validates the path and identifies your launcher.
-
-<Callout>
-    Select the root folder, not the mods folder. On Steam this is typically
-    `SteamLibrary/steamapps/common/<game name>`.
-</Callout>
-
-## Launch options
-
-For most PAYDAY 3 `.pak` mods to work, the game needs the `-fileopenlog` launch argument. Add it in
-**Settings - Launch Options**, or directly in your launcher's launch arguments for PAYDAY 3.
-
-<Callout>
-    `-fileopenlog` is a PAYDAY 3 requirement. Other supported games use game-specific loader or
-    install-target behavior instead.
-</Callout>
-
-## Requirements
-
-<LauncherMatrix />

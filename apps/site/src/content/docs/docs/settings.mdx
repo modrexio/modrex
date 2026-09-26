@@ -31,9 +31,13 @@ difference between the two targets and how to move an already-installed mod late
 
 ### Launch Options
 
-Command-line arguments appended to every launch for the active game. Add `-fileopenlog` here for
-PAYDAY 3 if `.pak` mods aren't loading - most PAYDAY 3 mods require it for Unreal Engine to scan the
-mods directory.
+Command-line arguments appended to every launch for the active game. Not available for Xbox app
+installs.
+
+### Crash reporter cleanup
+
+Shown for PAYDAY 3 on the Xbox app. Removes the game's crash reporter files before each launch,
+which works around an empty crash report window. Off by default.
 
 ## Application
 
@@ -60,7 +64,16 @@ with your installed version. Missing text in a partial translation falls back to
 To improve a translation or add a language, start with the
 [contribution guide](/docs/contributing#translate-modrex).
 
+### Accent color
+
+The highlight color used across the app.
+
 ## Advanced
+
+### Auto-launch SISR
+
+Starts SISR (Steam Input System Redirector) before a game launches, so Steam Input controllers work
+with games started outside Steam. Off by default.
 
 ### Logs
 
@@ -82,10 +95,10 @@ The About tab links to the Modrex website, Discord, GitHub repository, and GitHu
 
 Modrex stores its state and settings in the following locations:
 
-| Platform | Path                     |
-| -------- | ------------------------ |
-| Windows  | `%APPDATA%\Modrex\`      |
-| Linux    | `~/.local/share/modrex/` |
+| Platform | Path                  |
+| -------- | --------------------- |
+| Windows  | %APPDATA%\Modrex      |
+| Linux    | ~/.local/share/modrex |
 
 The mod state file (`.modrex.json`) lives inside the active game's managed mods folder so it travels
 with the game directory on dual-boot setups. Older `.pd3mm.json` state files are migrated

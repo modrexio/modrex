@@ -14,7 +14,7 @@ const CONTRIBUTORS_PATH = resolve(SCRIPT_DIR, '..', 'translation-contributors.ge
 const START_MARKER = '<!-- TRANSLATION_STATUS_START -->'
 const END_MARKER = '<!-- TRANSLATION_STATUS_END -->'
 const TRANSLATION_GUIDE =
-    'To improve an existing language or add a new one, follow the\n[translation guide](TRANSLATING.md).'
+    'To improve an existing language or add a new one, follow the\n[translation guide](docs/contributing/translating.md).'
 const GITHUB_USERNAME = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$/
 const PRETTIER_IGNORE = '<!-- prettier-ignore -->'
 

@@ -5,7 +5,7 @@ description: Add user-facing entries to CHANGELOG.md's Unreleased section for re
 
 # changelog
 
-Add entries to [`CHANGELOG.md`](../../../apps/desktop/CHANGELOG.md)'s `## Unreleased` section for
+Add entries to [`CHANGELOG.md`](../../../CHANGELOG.md)'s `## Unreleased` section for
 changes that haven't been recorded yet. Never touch a released (`## X.Y.Z`) section.
 Version headings have no brackets and no date — just the bare number (e.g. `## 0.10.0`).
 

@@ -16,7 +16,7 @@
 - **Language:**
 - **Locale code:**
 
-See the [translation guide](https://github.com/modrexio/modrex/blob/main/TRANSLATING.md).
+See the [translation guide](https://github.com/modrexio/modrex/blob/main/docs/contributing/translating.md).
 
 ## Validation
 

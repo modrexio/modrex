@@ -25,7 +25,7 @@ A change is not ready if it introduces one of these without a strong project-spe
 4. Deep `if`/`else` nesting
 5. Fake abstractions / speculative future-proofing
 
-Read `AI_DANGER_PATTERNS.md` for full examples.
+Read `.agents/rules/ai-danger-patterns.md` for full examples.
 
 ---
 
