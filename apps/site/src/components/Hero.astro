@@ -290,8 +290,7 @@ const slots = [...shots.slice(-CLONES), ...shots, ...shots.slice(0, CLONES)]
         gallery.place(i)
     )
 
-    function openViewer(card: HTMLElement, index: number) {
-        if (!card.classList.contains('active')) return
+    function openViewer(index: number) {
         viewer.classList.add('open')
         hero.classList.add('viewer-open')
         viewer.setAttribute('aria-hidden', 'false')
@@ -313,8 +312,12 @@ const slots = [...shots.slice(-CLONES), ...shots, ...shots.slice(0, CLONES)]
     cards
         .slice(cards.length - REAL_FIRST)
         .forEach((c) => c.addEventListener('click', () => gallery.step(1)))
+    // A real card beside the active one steps toward it, like the edge clones do.
     realCards.forEach((card, index) =>
-        card.addEventListener('click', () => openViewer(card, index))
+        card.addEventListener('click', () => {
+            if (card.classList.contains('active')) openViewer(index)
+            else gallery.step(REAL_FIRST + index < gallery.index ? -1 : 1)
+        })
     )
     document.getElementById('viewer-close')!.addEventListener('click', closeViewer)
     document.getElementById('viewer-backdrop')!.addEventListener('click', closeViewer)
