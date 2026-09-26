@@ -53,6 +53,7 @@ pub fn check(id: &str, package: &GamePackage) -> Result<(), String> {
             storefronts,
             proxy_dlls,
             install_into,
+            store_install_into,
             ..
         } = loader
         else {
@@ -63,6 +64,27 @@ pub fn check(id: &str, package: &GamePackage) -> Result<(), String> {
                 "the ue4ss loader needs at least one storefront, proxy dll and install_into component"
                     .to_string(),
             );
+        }
+        if let Some(duplicate) =
+            first_duplicate(store_install_into.iter().map(|o| o.store.provider()))
+        {
+            return Err(format!(
+                "gives the ue4ss loader two install_into folders for the '{duplicate}' store"
+            ));
+        }
+        for store in store_install_into {
+            if !storefronts.contains(&store.store) {
+                return Err(format!(
+                    "gives the ue4ss loader an install_into folder for the '{}' store, which its storefronts do not list",
+                    store.store.provider()
+                ));
+            }
+            if store.install_into.is_empty() {
+                return Err(format!(
+                    "gives the ue4ss loader an empty install_into for the '{}' store",
+                    store.store.provider()
+                ));
+            }
         }
     }
 
@@ -92,6 +114,45 @@ pub fn check(id: &str, package: &GamePackage) -> Result<(), String> {
     }
     for target in &package.targets {
         check_target(target).map_err(|problem| format!("target '{}' {problem}", target.tag))?;
+        check_store_paths(target, package)
+            .map_err(|problem| format!("target '{}' {problem}", target.tag))?;
+    }
+    Ok(())
+}
+
+fn check_store_paths(target: &Target, package: &GamePackage) -> Result<(), String> {
+    if target.store_paths.is_empty() {
+        return Ok(());
+    }
+    if target.primary {
+        return Err(
+            "is primary and declares store_paths; the state file lives in the primary target, and choosing between two stores' copies reads it from each with the same path"
+                .to_string(),
+        );
+    }
+    if let Some(duplicate) = first_duplicate(target.store_paths.iter().map(|s| s.store.provider()))
+    {
+        return Err(format!(
+            "declares two store_paths for the '{duplicate}' store"
+        ));
+    }
+    for store_path in &target.store_paths {
+        let store = store_path.store.provider();
+        let Some(binding) = package.install.store(store_path.store) else {
+            return Err(format!(
+                "declares a store path for the '{store}' store, which install does not list"
+            ));
+        };
+        if binding.own_executable().is_none() {
+            return Err(format!(
+                "declares a store path for the '{store}' store, whose binding names no executable of its own to recognise its build by"
+            ));
+        }
+        if store_path.path.is_empty() || store_path.backup.is_empty() {
+            return Err(format!(
+                "has an empty path or backup for the '{store}' store"
+            ));
+        }
     }
     Ok(())
 }

@@ -7,7 +7,8 @@
 use crate::{
     Activation, DecoderBinding, Discovery, FileFamily, FileNaming, GamePackage, Install, LoadOrder,
     LoaderBinding, MarkerMode, MarkerRule, ModMetadata, NamePreset, NewsBinding,
-    PackageReaderBinding, SourceBinding, StoreBinding, Storefront, Target, TargetLabel, Unit,
+    PackageReaderBinding, SourceBinding, StoreBinding, StoreInstallInto, StorePath, Storefront,
+    Target, TargetLabel, Unit,
 };
 
 const PATH: &str = "::modrex_game_package";
@@ -173,19 +174,47 @@ fn target(value: &Target) -> String {
         primary,
         path,
         backup,
+        store_paths,
         activation: how,
         load_order: order,
         unit: shape,
     } = value;
     format!(
-        "{PATH}::Target {{ tag: {}, label: {}, primary: {primary}, path: {}, backup: {}, activation: {}, load_order: {}, unit: {} }}",
+        "{PATH}::Target {{ tag: {}, label: {}, primary: {primary}, path: {}, backup: {}, store_paths: {}, activation: {}, load_order: {}, unit: {} }}",
         text(tag),
         target_label(*label),
         texts(path),
         texts(backup),
+        list(store_paths.iter().map(store_path).collect()),
         activation(*how),
         load_order(*order),
         unit(shape),
+    )
+}
+
+fn store_path(value: &StorePath) -> String {
+    let StorePath {
+        store,
+        path,
+        backup,
+    } = value;
+    format!(
+        "{PATH}::StorePath {{ store: {}, path: {}, backup: {} }}",
+        storefront(*store),
+        texts(path),
+        texts(backup),
+    )
+}
+
+fn store_install_into(value: &StoreInstallInto) -> String {
+    let StoreInstallInto {
+        store,
+        install_into,
+    } = value;
+    format!(
+        "{PATH}::StoreInstallInto {{ store: {}, install_into: {} }}",
+        storefront(*store),
+        texts(install_into),
     )
 }
 
@@ -261,12 +290,14 @@ fn loader(value: &LoaderBinding) -> String {
             storefronts,
             proxy_dlls,
             install_into,
+            store_install_into: overrides,
         } => format!(
-            "{PATH}::LoaderBinding::Ue4ss {{ modworkshop_ids: {}, storefronts: {}, proxy_dlls: {}, install_into: {} }}",
+            "{PATH}::LoaderBinding::Ue4ss {{ modworkshop_ids: {}, storefronts: {}, proxy_dlls: {}, install_into: {}, store_install_into: {} }}",
             ids(modworkshop_ids),
             list(storefronts.iter().copied().map(storefront).collect()),
             texts(proxy_dlls),
             texts(install_into),
+            list(overrides.iter().map(store_install_into).collect()),
         ),
         LoaderBinding::Superblt { modworkshop_ids } => plain("Superblt", modworkshop_ids),
         LoaderBinding::RaidSuperblt { modworkshop_ids } => plain("RaidSuperblt", modworkshop_ids),

@@ -3268,6 +3268,7 @@ const fn companion_target(companions: &'static [&'static str]) -> ScanTarget {
         mods_subpath: &["Paks"],
         disabled_subpath: &["Paks", "disabled"],
         backup_subpath: &["Paks.bak"],
+        store_layouts: &[],
     }
 }
 
@@ -3306,6 +3307,7 @@ const VPK_TARGETS: [ScanTarget; 1] = [ScanTarget {
     mods_subpath: &["Paks"],
     disabled_subpath: &["Paks", "disabled"],
     backup_subpath: &["Paks.bak"],
+    store_layouts: &[],
 }];
 
 static VPK_ENGINE: ModEngineConfig = companion_engine(&VPK_TARGETS);
@@ -4082,6 +4084,7 @@ const fn overrides_target() -> ScanTarget {
         mods_subpath: &["assets", "mod_overrides"],
         disabled_subpath: &["assets", "mod_overrides", "disabled"],
         backup_subpath: &["assets", "mod_overrides.bak"],
+        store_layouts: &[],
     }
 }
 
@@ -4212,6 +4215,7 @@ const fn crossed_target(tag: &'static str, enabled_state: Activation) -> ScanTar
         mods_subpath: &["Binaries", "Win64", "Mods"],
         disabled_subpath: &["Binaries", "Win64", "Mods", "disabled"],
         backup_subpath: &["Binaries", "Win64", "Mods.bak"],
+        store_layouts: &[],
     }
 }
 

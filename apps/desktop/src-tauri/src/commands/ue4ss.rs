@@ -114,10 +114,14 @@ fn descriptor_for(game_id: &str, launcher: Option<&str>) -> Option<Ue4ssBuild> {
             storefronts,
             proxy_dlls,
             install_into,
+            store_install_into,
             ..
         } if storefronts.contains(&storefront) => Some(Ue4ssBuild {
             proxy_dlls,
-            binaries: install_into,
+            binaries: store_install_into
+                .iter()
+                .find(|o| o.store == storefront)
+                .map_or(install_into, |o| &o.install_into),
         }),
         _ => None,
     })

@@ -128,6 +128,20 @@ fn a_discovered_spec_resolves_its_package() {
             expected_disabled.push("disabled".to_string());
             assert_eq!(owned(target.disabled_subpath), expected_disabled);
 
+            assert_eq!(target.store_layouts.len(), declared.store_paths.len());
+            for (layout, store_path) in target.store_layouts.iter().zip(&declared.store_paths) {
+                let executable = pkg
+                    .install
+                    .store(store_path.store)
+                    .and_then(|store| store.own_executable());
+                assert_eq!(Some(layout.executable), executable);
+                assert_eq!(owned(layout.mods_subpath), store_path.path);
+                assert_eq!(owned(layout.backup_subpath), store_path.backup);
+                let mut expected_disabled = store_path.path.clone();
+                expected_disabled.push("disabled".to_string());
+                assert_eq!(owned(layout.disabled_subpath), expected_disabled);
+            }
+
             assert_eq!(
                 target.priority_prefix_enabled(),
                 declared.load_order == package::LoadOrder::FilenamePrefix

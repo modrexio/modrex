@@ -2,7 +2,7 @@
 //! package declares.
 
 use crate::commands::launchers::{EpicDef, GameDef, SteamDef, XboxDef};
-use crate::commands::mods::{ModEngineConfig, ModUnit, ScanTarget};
+use crate::commands::mods::{ModEngineConfig, ModUnit, ScanTarget, StoreLayout};
 use crate::game_package::{self as package, GamePackage};
 use std::sync::LazyLock;
 
@@ -31,7 +31,12 @@ fn spec_from(pkg: &'static GamePackage) -> GameSpec {
         index_game_name: &pkg.name,
         mod_metadata: pkg.mod_metadata,
         decoders: &pkg.decoders,
-        targets: own_slice(pkg.targets.iter().map(scan_target).collect()),
+        targets: own_slice(
+            pkg.targets
+                .iter()
+                .map(|target| scan_target(pkg, target))
+                .collect(),
+        ),
     }));
     let mut def = GameDef {
         name: &pkg.name,
@@ -69,7 +74,7 @@ fn spec_from(pkg: &'static GamePackage) -> GameSpec {
     }
 }
 
-fn scan_target(target: &'static package::Target) -> ScanTarget {
+fn scan_target(pkg: &'static GamePackage, target: &'static package::Target) -> ScanTarget {
     ScanTarget {
         tag: &target.tag,
         label_key: target.label.key(),
@@ -113,16 +118,36 @@ fn scan_target(target: &'static package::Target) -> ScanTarget {
         },
         enabled_state: target.activation,
         mods_subpath: text_slice(&target.path),
-        disabled_subpath: own_slice(
+        disabled_subpath: disabled_subpath(&target.path),
+        backup_subpath: text_slice(&target.backup),
+        store_layouts: own_slice(
             target
-                .path
+                .store_paths
                 .iter()
-                .map(String::as_str)
-                .chain(std::iter::once("disabled"))
+                .map(|store_path| StoreLayout {
+                    executable: pkg
+                        .install
+                        .store(store_path.store)
+                        .and_then(package::StoreBinding::own_executable)
+                        .expect(
+                            "validate::check rejects a store path whose build names no executable",
+                        ),
+                    mods_subpath: text_slice(&store_path.path),
+                    disabled_subpath: disabled_subpath(&store_path.path),
+                    backup_subpath: text_slice(&store_path.backup),
+                })
                 .collect(),
         ),
-        backup_subpath: text_slice(&target.backup),
     }
+}
+
+fn disabled_subpath(path: &'static [String]) -> &'static [&'static str] {
+    own_slice(
+        path.iter()
+            .map(String::as_str)
+            .chain(std::iter::once("disabled"))
+            .collect(),
+    )
 }
 
 /// The scan reads one flat list per mode, so a rule naming several modes lands in each of

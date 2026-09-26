@@ -511,3 +511,82 @@ fn an_unknown_field_on_a_package_reader_is_rejected() {
         "nonce",
     );
 }
+
+const XBOX_STORE: &str =
+    "{ provider = \"xbox\", product_id = \"X\", executable = \"Game/Binaries/WinGDK/Game.exe\" },";
+
+fn with_store_paths(stores: &str, primary: bool, store_paths: &str) -> String {
+    let base = BASE.replace(
+        "    { provider = \"steam\", app_id = 1, folder = \"Fixture\" },\n",
+        &format!("    {{ provider = \"steam\", app_id = 1, folder = \"Fixture\" }},\n{stores}\n"),
+    );
+    let target = second_target("ue4ss_mods", primary).replace(
+        "backup = [\"other.bak\"]\n",
+        &format!("backup = [\"other.bak\"]\nstore_paths = [{store_paths}]\n"),
+    );
+    format!("{base}\n{target}")
+}
+
+const XBOX_PATH: &str = "{ store = \"xbox\", path = [\"gdk\"], backup = [\"gdk.bak\"] }";
+
+#[test]
+fn a_store_path_for_a_store_with_its_own_executable_is_accepted() {
+    let text = with_store_paths(XBOX_STORE, false, XBOX_PATH);
+    let parsed: GamePackage = toml::from_str(&text).expect("parses");
+    validate::check("fixture", &parsed).expect("passes the checks");
+    let target = parsed
+        .targets
+        .iter()
+        .find(|t| t.tag == "ue4ss_mods")
+        .unwrap();
+    assert_eq!(target.store_paths[0].path, ["gdk"]);
+}
+
+#[test]
+fn a_store_path_for_a_store_without_its_own_executable_is_rejected() {
+    assert_rejected(
+        &with_store_paths(
+            XBOX_STORE,
+            false,
+            "{ store = \"steam\", path = [\"a\"], backup = [\"b\"] }",
+        ),
+        "names no executable of its own",
+    );
+}
+
+#[test]
+fn a_store_path_for_a_store_the_game_is_not_sold_on_is_rejected() {
+    assert_rejected(
+        &with_store_paths("", false, XBOX_PATH),
+        "which install does not list",
+    );
+}
+
+#[test]
+fn a_store_path_on_the_primary_target_is_rejected() {
+    let text = with_store_paths(XBOX_STORE, false, XBOX_PATH)
+        .replace("primary = true", "primary = false")
+        .replace(
+            "primary = false\npath = [\"other\"]",
+            "primary = true\npath = [\"other\"]",
+        );
+    assert_rejected(&text, "is primary and declares store_paths");
+}
+
+#[test]
+fn two_store_paths_for_one_store_are_rejected() {
+    assert_rejected(
+        &with_store_paths(XBOX_STORE, false, &format!("{XBOX_PATH}, {XBOX_PATH}")),
+        "two store_paths for the 'xbox' store",
+    );
+}
+
+#[test]
+fn a_ue4ss_install_folder_for_an_unlisted_storefront_is_rejected() {
+    assert_rejected(
+        &format!(
+            "{BASE}\n[[loaders]]\nkind = \"ue4ss\"\nstorefronts = [\"steam\"]\nproxy_dlls = [\"x.dll\"]\ninstall_into = [\"Bin\"]\nstore_install_into = [{{ store = \"xbox\", install_into = [\"Gdk\"] }}]\n"
+        ),
+        "which its storefronts do not list",
+    );
+}

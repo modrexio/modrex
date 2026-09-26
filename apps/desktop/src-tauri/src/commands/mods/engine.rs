@@ -1,5 +1,5 @@
 pub use crate::game_package::{Activation, DecoderBinding, ModMetadata};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 pub enum ModUnit {
     File {
@@ -30,6 +30,14 @@ pub enum ModUnit {
     },
 }
 
+pub struct StoreLayout {
+    /// Its presence marks the copy as this store's build.
+    pub executable: &'static str,
+    pub mods_subpath: &'static [&'static str],
+    pub disabled_subpath: &'static [&'static str],
+    pub backup_subpath: &'static [&'static str],
+}
+
 pub struct ScanTarget {
     pub tag: &'static str,
     pub label_key: &'static str,
@@ -46,9 +54,17 @@ pub struct ScanTarget {
     pub mods_subpath: &'static [&'static str],
     pub disabled_subpath: &'static [&'static str],
     pub backup_subpath: &'static [&'static str],
+    pub store_layouts: &'static [StoreLayout],
 }
 
 impl ScanTarget {
+    /// Read from disk, not the launcher, because path helpers only get the game path.
+    pub fn store_layout(&self, game_path: &str) -> Option<&'static StoreLayout> {
+        self.store_layouts
+            .iter()
+            .find(|layout| Path::new(game_path).join(layout.executable).exists())
+    }
+
     pub fn is_directory_unit(&self) -> bool {
         matches!(self.unit, ModUnit::Directory { .. })
     }
@@ -130,25 +146,31 @@ pub fn engine_for_game(game_id: &str) -> Result<&'static ModEngineConfig, String
         .ok_or_else(|| format!("unknown game id '{game_id}'"))
 }
 
-pub fn mods_dir(game_path: &str, target: &ScanTarget) -> PathBuf {
-    target
-        .mods_subpath
+pub(crate) fn join_subpath(game_path: &str, subpath: &[&str]) -> PathBuf {
+    subpath
         .iter()
         .fold(PathBuf::from(game_path), |p, s| p.join(s))
+}
+
+pub fn mods_dir(game_path: &str, target: &ScanTarget) -> PathBuf {
+    let subpath = target
+        .store_layout(game_path)
+        .map_or(target.mods_subpath, |layout| layout.mods_subpath);
+    join_subpath(game_path, subpath)
 }
 
 pub fn disabled_dir(game_path: &str, target: &ScanTarget) -> PathBuf {
-    target
-        .disabled_subpath
-        .iter()
-        .fold(PathBuf::from(game_path), |p, s| p.join(s))
+    let subpath = target
+        .store_layout(game_path)
+        .map_or(target.disabled_subpath, |layout| layout.disabled_subpath);
+    join_subpath(game_path, subpath)
 }
 
 pub fn backup_dir(game_path: &str, target: &ScanTarget) -> PathBuf {
-    target
-        .backup_subpath
-        .iter()
-        .fold(PathBuf::from(game_path), |p, s| p.join(s))
+    let subpath = target
+        .store_layout(game_path)
+        .map_or(target.backup_subpath, |layout| layout.backup_subpath);
+    join_subpath(game_path, subpath)
 }
 
 pub fn state_path(game_path: &str, cfg: &ModEngineConfig) -> PathBuf {
