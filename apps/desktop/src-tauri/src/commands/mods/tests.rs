@@ -3268,6 +3268,7 @@ const fn companion_target(companions: &'static [&'static str]) -> ScanTarget {
         mods_subpath: &["Paks"],
         disabled_subpath: &["Paks", "disabled"],
         backup_subpath: &["Paks.bak"],
+        store_layouts: &[],
     }
 }
 
@@ -3306,6 +3307,7 @@ const VPK_TARGETS: [ScanTarget; 1] = [ScanTarget {
     mods_subpath: &["Paks"],
     disabled_subpath: &["Paks", "disabled"],
     backup_subpath: &["Paks.bak"],
+    store_layouts: &[],
 }];
 
 static VPK_ENGINE: ModEngineConfig = companion_engine(&VPK_TARGETS);
@@ -4082,6 +4084,7 @@ const fn overrides_target() -> ScanTarget {
         mods_subpath: &["assets", "mod_overrides"],
         disabled_subpath: &["assets", "mod_overrides", "disabled"],
         backup_subpath: &["assets", "mod_overrides.bak"],
+        store_layouts: &[],
     }
 }
 
@@ -4212,6 +4215,7 @@ const fn crossed_target(tag: &'static str, enabled_state: Activation) -> ScanTar
         mods_subpath: &["Binaries", "Win64", "Mods"],
         disabled_subpath: &["Binaries", "Win64", "Mods", "disabled"],
         backup_subpath: &["Binaries", "Win64", "Mods.bak"],
+        store_layouts: &[],
     }
 }
 
@@ -6383,6 +6387,134 @@ fn a_game_without_a_ue4ss_target_migrates_nothing() {
     super::state::reconcile_state(tmp.path().to_str().unwrap(), &sp, cfg).unwrap();
 
     assert!(dir.join("mod.txt").is_file());
+}
+
+// ── UE4SS mods on a Microsoft Store build ──────────────────────────────────────
+
+fn store_build() -> TempDir {
+    let tmp = TempDir::new().unwrap();
+    let bin = tmp.path().join("PAYDAY3/Binaries/WinGDK");
+    fs::create_dir_all(&bin).unwrap();
+    fs::write(bin.join("PAYDAY3-WinGDK-Shipping.exe"), b"").unwrap();
+    tmp
+}
+
+fn reconcile(tmp: &TempDir, cfg: &ModEngineConfig) {
+    let game = tmp.path().to_str().unwrap();
+    super::state::reconcile_state(game, &get_state_path(game, cfg), cfg).unwrap();
+}
+
+#[test]
+fn a_store_build_moves_submods_out_of_win64() {
+    let tmp = store_build();
+    let cfg = engine_for_game("pd3").unwrap();
+    let win64 = tmp.path().join("PAYDAY3/Binaries/Win64");
+    let gdk = tmp.path().join("PAYDAY3/Binaries/WinGDK/UE4SS");
+    write_submod(&win64.join("UE4SS/Mods"), "CoolMod", b"-- lua");
+    write_submod(&win64.join("UE4SS/Mods.bak"), "HiddenMod", b"-- hidden");
+    write_submod(&win64.join("Mods"), "OldMod", b"-- old");
+
+    reconcile(&tmp, cfg);
+
+    assert_eq!(
+        fs::read(gdk.join("Mods/CoolMod/Scripts/main.lua")).unwrap(),
+        b"-- lua"
+    );
+    assert_eq!(
+        fs::read(gdk.join("Mods.bak/HiddenMod/Scripts/main.lua")).unwrap(),
+        b"-- hidden"
+    );
+    assert!(gdk.join("Mods/OldMod/Scripts/main.lua").is_file());
+    assert!(!win64.exists());
+}
+
+#[test]
+fn a_store_build_keeps_the_copy_already_in_wingdk() {
+    let tmp = store_build();
+    let cfg = engine_for_game("pd3").unwrap();
+    let stray = tmp.path().join("PAYDAY3/Binaries/Win64/UE4SS/Mods");
+    let gdk = tmp.path().join("PAYDAY3/Binaries/WinGDK/UE4SS/Mods");
+    write_submod(&stray, "CoolMod", b"-- stray");
+    write_submod(&gdk, "CoolMod", b"-- by hand");
+
+    reconcile(&tmp, cfg);
+
+    assert_eq!(
+        fs::read(gdk.join("CoolMod/Scripts/main.lua")).unwrap(),
+        b"-- by hand"
+    );
+    assert!(!gdk.join("CoolMod (2)").exists(), "UE4SS would load both");
+    assert!(stray.join("CoolMod/Scripts/main.lua").is_file());
+}
+
+#[test]
+fn a_store_build_deletes_a_stray_copy_identical_to_the_one_in_wingdk() {
+    let tmp = store_build();
+    let cfg = engine_for_game("pd3").unwrap();
+    let gdk = tmp.path().join("PAYDAY3/Binaries/WinGDK/UE4SS/Mods");
+    write_submod(
+        &tmp.path().join("PAYDAY3/Binaries/Win64/UE4SS/Mods"),
+        "CoolMod",
+        b"-- same",
+    );
+    write_submod(&gdk, "CoolMod", b"-- same");
+
+    reconcile(&tmp, cfg);
+
+    assert_eq!(
+        fs::read(gdk.join("CoolMod/Scripts/main.lua")).unwrap(),
+        b"-- same"
+    );
+    assert!(!tmp.path().join("PAYDAY3/Binaries/Win64").exists());
+}
+
+#[test]
+fn a_store_build_keeps_a_stray_copy_with_an_extra_file() {
+    let tmp = store_build();
+    let cfg = engine_for_game("pd3").unwrap();
+    let stray = tmp.path().join("PAYDAY3/Binaries/Win64/UE4SS/Mods");
+    write_submod(&stray, "CoolMod", b"-- same");
+    fs::write(stray.join("CoolMod/config.lua"), b"-- tuned").unwrap();
+    write_submod(
+        &tmp.path().join("PAYDAY3/Binaries/WinGDK/UE4SS/Mods"),
+        "CoolMod",
+        b"-- same",
+    );
+
+    reconcile(&tmp, cfg);
+
+    assert!(stray.join("CoolMod/config.lua").is_file());
+}
+
+#[test]
+fn a_store_build_leaves_ue4ss_bundled_submods_and_files_behind() {
+    let tmp = store_build();
+    let cfg = engine_for_game("pd3").unwrap();
+    let stray = tmp.path().join("PAYDAY3/Binaries/Win64/UE4SS/Mods");
+    write_submod(&stray, "BPModLoaderMod", b"-- bundled");
+    fs::write(stray.join("mods.txt"), b"BPModLoaderMod : 1").unwrap();
+
+    reconcile(&tmp, cfg);
+
+    assert!(stray.join("BPModLoaderMod").is_dir());
+    assert!(stray.join("mods.txt").is_file());
+    assert!(!tmp
+        .path()
+        .join("PAYDAY3/Binaries/WinGDK/UE4SS/Mods/BPModLoaderMod")
+        .exists());
+}
+
+#[test]
+fn a_win64_build_keeps_its_submods_in_win64() {
+    let tmp = TempDir::new().unwrap();
+    let cfg = engine_for_game("pd3").unwrap();
+    let (_, current) = ue4ss_dirs(tmp.path());
+    write_submod(&current, "CoolMod", b"-- lua");
+
+    reconcile(&tmp, cfg);
+
+    assert!(current.join("CoolMod/Scripts/main.lua").is_file());
+    assert!(!tmp.path().join("PAYDAY3/Binaries/WinGDK").exists());
 }
 
 // ── Archive filenames on file-unit targets ─────────────────────────────────────

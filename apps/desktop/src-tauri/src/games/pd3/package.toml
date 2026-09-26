@@ -47,9 +47,15 @@ loaders = [
     {
         kind = "ue4ss",
         modworkshop_ids = [47771, 44048],
-        storefronts = ["steam", "epic"],
+        storefronts = ["steam", "epic", "xbox"],
         proxy_dlls = ["dwmapi.dll", "xinput1_3.dll", "dxgi.dll"],
         install_into = ["PAYDAY3", "Binaries", "Win64"],
+        store_install_into = [
+            {
+                store = "xbox",
+                install_into = ["PAYDAY3", "Binaries", "WinGDK"],
+            },
+        ],
     },
 ]
 
@@ -84,6 +90,13 @@ targets = [
         label = "ue4ss_mods",
         path = ["PAYDAY3", "Binaries", "Win64", "UE4SS", "Mods"],
         backup = ["PAYDAY3", "Binaries", "Win64", "UE4SS", "Mods.bak"],
+        store_paths = [
+            {
+                store = "xbox",
+                path = ["PAYDAY3", "Binaries", "WinGDK", "UE4SS", "Mods"],
+                backup = ["PAYDAY3", "Binaries", "WinGDK", "UE4SS", "Mods.bak"],
+            },
+        ],
         activation = "ue4ss_mods_txt",
         load_order = "none",
 

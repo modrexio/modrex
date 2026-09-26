@@ -222,7 +222,10 @@ pub fn markdown(examples: &[(&str, &str)]) -> String {
          installs the loader.\n\n\
          | Kind | Extra fields |\n| --- | --- |\n",
     );
-    out.push_str(&row("ue4ss", "`storefronts`, `proxy_dlls`, `install_into`"));
+    out.push_str(&row(
+        "ue4ss",
+        "`storefronts`, `proxy_dlls`, `install_into`, optional `store_install_into`",
+    ));
     out.push_str(&row("superblt", "none"));
     out.push_str(&row("raid_superblt", "none"));
     out.push_str(&row("pdth_overrides", "none"));
@@ -239,7 +242,12 @@ pub fn markdown(examples: &[(&str, &str)]) -> String {
             .collect::<Vec<_>>()
             .join(", "),
     );
-    out.push_str(".\n");
+    out.push_str(
+        ".\n\n`install_into` is the folder beside the executable the game runs. A storefront\n\
+         whose build runs from another folder, as an Unreal game built for the Microsoft Store\n\
+         runs from `Binaries/WinGDK`, gives it in `store_install_into` as a `store` and an\n\
+         `install_into`. That store must also be listed in `storefronts`.\n",
+    );
 
     out.push_str(
         "\n## `decoders`\n\n\
@@ -273,12 +281,19 @@ pub fn markdown(examples: &[(&str, &str)]) -> String {
          | `primary` | no | defaults to `false`; exactly one target must set it |\n\
          | `path` | yes | components below the game path |\n\
          | `backup` | yes | where launching without mods moves the contents |\n\
+         | `store_paths` | no | `path` and `backup` for a store build laid out differently |\n\
          | `activation` | yes | how a mod is enabled and disabled |\n\
          | `load_order` | yes | whether the game orders mods here |\n\
          | `unit` | yes | what one mod looks like |\n\n\
          The disabled folder is always `path` plus `disabled`, so it is not declared. `backup`\n\
          is declared because it does not follow a pattern: pak targets must place it outside\n\
          `Paks/`, which Unreal mounts recursively.\n\n\
+         `store_paths` lists a `store`, a `path` and a `backup` for each store whose build keeps\n\
+         the target somewhere else, such as a UE4SS target on a Microsoft Store build, which\n\
+         lives under `Binaries/WinGDK` instead of `Binaries/Win64`. The store is recognised by\n\
+         its own executable being present, so only a store whose binding names one can be\n\
+         listed, which today is `xbox`. The primary target cannot declare any, because the\n\
+         state file lives there and must be found at the same place in every store's copy.\n\n\
          ### `label`\n\n| Value | Interface string |\n| --- | --- |\n",
     );
     out.push_str(&label_rows());
@@ -359,7 +374,8 @@ pub fn markdown(examples: &[(&str, &str)]) -> String {
          a `id` that disagrees with its directory, a duplicate target tag or provider, a target\n\
          count of zero, a primary count other than one, a decoder pointing at a target that is\n\
          not declared, a marker file listed twice or claiming both `scan` and `index_gated`, a\n\
-         `markers` policy with no rules, a malformed extension, and a hand-written copy of an\n\
+         `markers` policy with no rules, a malformed extension, a store path the build cannot\n\
+         be recognised by or declared on the primary target, and a hand-written copy of an\n\
          `ignore` preset.\n\n",
     );
 

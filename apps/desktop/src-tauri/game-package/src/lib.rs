@@ -80,6 +80,16 @@ pub enum Storefront {
     Xbox,
 }
 
+impl Storefront {
+    pub fn provider(self) -> &'static str {
+        match self {
+            Storefront::Steam => "steam",
+            Storefront::Epic => "epic",
+            Storefront::Xbox => "xbox",
+        }
+    }
+}
+
 /// What a mod source calls this game. Each provider names games its own way, so the fields
 /// differ per provider rather than being one shared shape.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
@@ -154,6 +164,22 @@ impl StoreBinding {
             StoreBinding::Xbox { .. } => "xbox",
         }
     }
+
+    /// None when the build shares the root executables with other stores.
+    pub fn own_executable(&self) -> Option<&str> {
+        match self {
+            StoreBinding::Xbox { executable, .. } => Some(executable),
+            StoreBinding::Steam { .. } | StoreBinding::Epic { .. } => None,
+        }
+    }
+}
+
+impl Install {
+    pub fn store(&self, storefront: Storefront) -> Option<&StoreBinding> {
+        self.stores
+            .iter()
+            .find(|binding| binding.provider() == storefront.provider())
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
@@ -182,6 +208,8 @@ pub enum LoaderBinding {
         storefronts: Vec<Storefront>,
         proxy_dlls: Vec<String>,
         install_into: Vec<String>,
+        #[serde(default)]
+        store_install_into: Vec<StoreInstallInto>,
     },
     Superblt {
         #[serde(default)]
@@ -227,6 +255,24 @@ impl LoaderBinding {
             | LoaderBinding::Dahm { modworkshop_ids } => modworkshop_ids,
         }
     }
+}
+
+/// UE4SS must sit beside the executable that runs, which a Store build keeps in WinGDK.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct StoreInstallInto {
+    pub store: Storefront,
+    pub install_into: Vec<String>,
+}
+
+/// Only for a store whose binding names its own executable, since that file is how the
+/// build is recognised on disk.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct StorePath {
+    pub store: Storefront,
+    pub path: Vec<String>,
+    pub backup: Vec<String>,
 }
 
 /// A container format whose contents must be decoded before the generic archive readers see
@@ -418,6 +464,10 @@ pub struct Target {
     /// because PAYDAY 3 and Crime Boss must place it outside Paks/, which Unreal mounts
     /// recursively.
     pub backup: Vec<String>,
+    /// Not allowed on the primary target: the state file must sit at one path in every
+    /// store's copy.
+    #[serde(default)]
+    pub store_paths: Vec<StorePath>,
     pub activation: Activation,
     pub load_order: LoadOrder,
     pub unit: Unit,

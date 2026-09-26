@@ -89,13 +89,18 @@ installs the loader.
 
 | Kind | Extra fields |
 | --- | --- |
-| `ue4ss` | `storefronts`, `proxy_dlls`, `install_into` |
+| `ue4ss` | `storefronts`, `proxy_dlls`, `install_into`, optional `store_install_into` |
 | `superblt` | none |
 | `raid_superblt` | none |
 | `pdth_overrides` | none |
 | `dahm` | none |
 
 `storefronts` accepts: `steam`, `epic`, `xbox`.
+
+`install_into` is the folder beside the executable the game runs. A storefront
+whose build runs from another folder, as an Unreal game built for the Microsoft Store
+runs from `Binaries/WinGDK`, gives it in `store_install_into` as a `store` and an
+`install_into`. That store must also be listed in `storefronts`.
 
 ## `decoders`
 
@@ -126,6 +131,7 @@ elsewhere.
 | `primary` | no | defaults to `false`; exactly one target must set it |
 | `path` | yes | components below the game path |
 | `backup` | yes | where launching without mods moves the contents |
+| `store_paths` | no | `path` and `backup` for a store build laid out differently |
 | `activation` | yes | how a mod is enabled and disabled |
 | `load_order` | yes | whether the game orders mods here |
 | `unit` | yes | what one mod looks like |
@@ -133,6 +139,13 @@ elsewhere.
 The disabled folder is always `path` plus `disabled`, so it is not declared. `backup`
 is declared because it does not follow a pattern: pak targets must place it outside
 `Paks/`, which Unreal mounts recursively.
+
+`store_paths` lists a `store`, a `path` and a `backup` for each store whose build keeps
+the target somewhere else, such as a UE4SS target on a Microsoft Store build, which
+lives under `Binaries/WinGDK` instead of `Binaries/Win64`. The store is recognised by
+its own executable being present, so only a store whose binding names one can be
+listed, which today is `xbox`. The primary target cannot declare any, because the
+state file lives there and must be found at the same place in every store's copy.
 
 ### `label`
 
@@ -246,7 +259,8 @@ Everything else is reported by the checks the build script runs after parsing:
 a `id` that disagrees with its directory, a duplicate target tag or provider, a target
 count of zero, a primary count other than one, a decoder pointing at a target that is
 not declared, a marker file listed twice or claiming both `scan` and `index_gated`, a
-`markers` policy with no rules, a malformed extension, and a hand-written copy of an
+`markers` policy with no rules, a malformed extension, a store path the build cannot
+be recognised by or declared on the primary target, and a hand-written copy of an
 `ignore` preset.
 
 ## Example: the simplest game, RAID: World War II

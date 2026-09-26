@@ -128,6 +128,20 @@ fn a_discovered_spec_resolves_its_package() {
             expected_disabled.push("disabled".to_string());
             assert_eq!(owned(target.disabled_subpath), expected_disabled);
 
+            assert_eq!(target.store_layouts.len(), declared.store_paths.len());
+            for (layout, store_path) in target.store_layouts.iter().zip(&declared.store_paths) {
+                let executable = pkg
+                    .install
+                    .store(store_path.store)
+                    .and_then(|store| store.own_executable());
+                assert_eq!(Some(layout.executable), executable);
+                assert_eq!(owned(layout.mods_subpath), store_path.path);
+                assert_eq!(owned(layout.backup_subpath), store_path.backup);
+                let mut expected_disabled = store_path.path.clone();
+                expected_disabled.push("disabled".to_string());
+                assert_eq!(owned(layout.disabled_subpath), expected_disabled);
+            }
+
             assert_eq!(
                 target.priority_prefix_enabled(),
                 declared.load_order == package::LoadOrder::FilenamePrefix
@@ -523,6 +537,42 @@ fn pd3_recognises_both_its_win64_and_store_builds() {
     std::fs::write(staged.join("PAYDAY3-WinGDK-Shipping.exe"), b"").unwrap();
     assert_eq!(def.resolve_executable(store_path), None);
     assert!(def.is_installation(store_path));
+}
+
+#[test]
+fn pd3_store_build_resolves_ue4ss_mods_under_wingdk() {
+    let cfg = crate::commands::mods::engine_for_game("pd3").unwrap();
+    let paks = cfg.primary();
+    let ue4ss = cfg.target_for(Some("ue4ss_mods"));
+    let store = TempDir::new().unwrap();
+    let game = store.path().to_str().unwrap();
+    let staged = store.path().join("PAYDAY3/Binaries/WinGDK");
+    std::fs::create_dir_all(&staged).unwrap();
+    std::fs::write(staged.join("PAYDAY3-WinGDK-Shipping.exe"), b"").unwrap();
+    let root = store.path();
+
+    assert!(paks.store_layout(game).is_none());
+    assert!(ue4ss.store_layout(game).is_some());
+    assert_eq!(
+        mods_dir(game, ue4ss),
+        root.join("PAYDAY3/Binaries/WinGDK/UE4SS/Mods")
+    );
+    assert_eq!(
+        disabled_dir(game, ue4ss),
+        root.join("PAYDAY3/Binaries/WinGDK/UE4SS/Mods/disabled")
+    );
+    assert_eq!(
+        backup_dir(game, ue4ss),
+        root.join("PAYDAY3/Binaries/WinGDK/UE4SS/Mods.bak")
+    );
+    assert_eq!(
+        mods_dir(game, paks),
+        root.join("PAYDAY3/Content/Paks/~mods")
+    );
+    assert_eq!(
+        get_state_path(game, cfg),
+        root.join("PAYDAY3/Content/Paks/~mods/.modrex.json")
+    );
 }
 
 #[test]
