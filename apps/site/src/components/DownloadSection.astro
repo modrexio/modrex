@@ -11,7 +11,7 @@ function formatSize(bytes: number): string {
     return mb >= 1 ? `${mb.toFixed(1)} MB` : `${(bytes / 1024).toFixed(0)} KB`
 }
 
-type DlFile = { name: string; url: string; label: string; size?: string }
+type DlFile = { name: string; url: string; size?: string }
 
 const exeAsset = release?.assets.find((a) => a.name.endsWith('.exe'))
 const appImageAsset = release?.assets.find((a) => a.name === 'modrex_x86_64.AppImage')
@@ -29,37 +29,33 @@ const windowsFiles: DlFile[] = exeAsset
           {
               name: exeAsset.name,
               url: exeAsset.browser_download_url,
-              label: 'Installer',
               size: formatSize(exeAsset.size),
           },
       ]
-    : [{ name: 'modrex_x86_64.exe', url: fallbackUrl, label: 'Installer' }]
+    : [{ name: 'modrex_x86_64.exe', url: fallbackUrl }]
 
 const linuxFiles: DlFile[] = [
     appImageAsset
         ? {
               name: appImageAsset.name,
               url: appImageAsset.browser_download_url,
-              label: 'Universal',
               size: formatSize(appImageAsset.size),
           }
-        : { name: 'modrex_x86_64.AppImage', url: fallbackUrl, label: 'Universal' },
+        : { name: 'modrex_x86_64.AppImage', url: fallbackUrl },
     debAsset
         ? {
               name: debAsset.name,
               url: debAsset.browser_download_url,
-              label: 'Debian / Ubuntu',
               size: formatSize(debAsset.size),
           }
-        : { name: 'modrex_x86_64.deb', url: fallbackUrl, label: 'Debian / Ubuntu' },
+        : { name: 'modrex_x86_64.deb', url: fallbackUrl },
     rpmAsset
         ? {
               name: rpmAsset.name,
               url: rpmAsset.browser_download_url,
-              label: 'Fedora / RHEL',
               size: formatSize(rpmAsset.size),
           }
-        : { name: 'modrex_x86_64.rpm', url: fallbackUrl, label: 'Fedora / RHEL' },
+        : { name: 'modrex_x86_64.rpm', url: fallbackUrl },
 ]
 ---
 
