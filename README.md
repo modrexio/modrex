@@ -4,7 +4,7 @@
 
 # Modrex
 
-**Install and manage game mods without opening the game folder.**
+**A mod manager that installs and manages game mods without opening the game folder.**
 
 Modrex finds mods on ModWorkshop and Nexus Mods, installs them together with the loaders they
 need, keeps your load order where you put it, and launches the game modded or vanilla.
