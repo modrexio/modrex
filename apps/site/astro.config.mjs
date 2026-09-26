@@ -47,7 +47,7 @@ export default defineConfig({
             description:
                 'Documentation for installing, managing, and troubleshooting mods with Modrex.',
             favicon: '/favicon.ico',
-            titleDelimiter: '-',
+            titleDelimiter: '|',
             customCss: ['./src/styles/starlight.css'],
             expressiveCode: {
                 themes: [modrexCodeTheme],
