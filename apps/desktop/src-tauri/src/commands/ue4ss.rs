@@ -127,6 +127,29 @@ fn descriptor_for(game_id: &str, launcher: Option<&str>) -> Option<Ue4ssBuild> {
     })
 }
 
+/// UE4SS reads Mods beside the UE4SS.dll its proxy loads, and the proxy tries UE4SS/UE4SS.dll
+/// first (load_ue4ss_dll in RE-UE4SS proxy_generator).
+pub(crate) fn live_mods_dir(binaries: &Path) -> Option<PathBuf> {
+    let nested = on_disk(binaries, "UE4SS").filter(|dir| on_disk(dir, "UE4SS.dll").is_some());
+    let root = match nested {
+        Some(dir) => dir,
+        None => {
+            on_disk(binaries, "UE4SS.dll")?;
+            binaries.to_path_buf()
+        }
+    };
+    Some(on_disk(&root, "Mods").unwrap_or_else(|| root.join("Mods")))
+}
+
+/// Older releases ship ue4ss.dll, and a Linux filesystem does not fold case like Wine does.
+pub(crate) fn on_disk(dir: &Path, name: &str) -> Option<PathBuf> {
+    std::fs::read_dir(dir)
+        .ok()?
+        .flatten()
+        .find(|entry| entry.file_name().eq_ignore_ascii_case(name))
+        .map(|entry| entry.path())
+}
+
 fn binaries_dir(game_path: &str, descriptor: &Ue4ssBuild) -> PathBuf {
     descriptor
         .binaries

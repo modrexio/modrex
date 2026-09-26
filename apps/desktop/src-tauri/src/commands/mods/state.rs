@@ -1,4 +1,4 @@
-use super::engine::{backup_dir, join_subpath, ModEngineConfig, ModUnit, ScanTarget, StoreLayout};
+use super::engine::{backup_dir, join_subpath, ModEngineConfig, ModUnit, ScanTarget};
 use super::naming::log_name;
 use super::naming::{apply_priority_prefix, make_uid, strip_priority_prefix};
 use super::paths::{
@@ -317,6 +317,10 @@ fn migrate_ue4ss_mods_folder(game_path: &str, cfg: &ModEngineConfig, mods: &mut 
         return;
     }
     let new_dir = mods_base(game_path, target);
+    // With UE4SS.dll beside the game this is the folder UE4SS reads, not a legacy one.
+    if same_dir(&legacy, &new_dir) {
+        return;
+    }
     let Ok(entries) = fs::read_dir(&legacy) else {
         return;
     };
@@ -371,80 +375,81 @@ fn legacy_ue4ss_mods_dir(game_path: &str, target: &ScanTarget) -> Option<PathBuf
     Some(join_subpath(game_path, before).join("Mods"))
 }
 
-/// A Store build runs from Binaries/WinGDK, so sub-mods under the default Win64 layout never
-/// load. A name already at the destination is never renamed beside it, because UE4SS would
-/// load both: an identical copy is deleted and a differing one stays put.
-fn migrate_off_default_layout(game_path: &str, cfg: &ModEngineConfig) {
+/// 0.15.2 kept UE4SS sub-mods in the declared default UE4SS/Mods whatever build and layout
+/// was installed. A name already at the destination is never renamed beside it, because UE4SS
+/// would load both: an identical copy is deleted and a differing one stays put.
+fn migrate_to_live_ue4ss_mods(game_path: &str, cfg: &ModEngineConfig) {
     let Some(target) = cfg.targets.iter().find(|t| t.tag == "ue4ss_mods") else {
         return;
     };
-    let Some(layout) = target.store_layout(game_path) else {
+    let old_mods = join_subpath(game_path, target.mods_subpath);
+    let live = mods_base(game_path, target);
+    if !old_mods.is_dir() || same_dir(&old_mods, &live) {
         return;
-    };
-    let moves = [
-        (target.mods_subpath, layout.mods_subpath),
-        (target.backup_subpath, layout.backup_subpath),
-    ];
-    for (from, to) in moves {
-        let from = join_subpath(game_path, from);
-        let to = join_subpath(game_path, to);
-        let entries = match fs::read_dir(&from) {
-            Ok(entries) => entries,
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => continue,
-            Err(e) => {
-                log::warn!("migrate ue4ss store layout: read {}: {e}", log_name(&from));
-                continue;
-            }
-        };
-        for entry in entries.flatten() {
-            if !entry.file_type().is_ok_and(|t| t.is_dir()) {
-                continue;
-            }
-            let name = entry.file_name();
-            if target
-                .excluded_names()
-                .contains(&name.to_string_lossy().as_ref())
-            {
-                continue;
-            }
-            let dest = to.join(&name);
-            if dest.exists() {
-                drop_duplicate(&entry.path(), &dest);
-                continue;
-            }
-            if let Err(e) = fs::create_dir_all(&to) {
-                log::warn!("migrate ue4ss store layout: create {}: {e}", log_name(&to));
-                break;
-            }
-            if let Err(e) = fs::rename(entry.path(), &dest) {
-                log::warn!(
-                    "migrate ue4ss store layout {}: {e}",
-                    log_name(&entry.path())
-                );
-            }
+    }
+    let old_backup = join_subpath(game_path, target.backup_subpath);
+    move_sub_mod_dirs(&old_mods, &live);
+    move_sub_mod_dirs(&old_backup, &backup_dir(game_path, target));
+
+    remove_if_empty(&old_backup);
+    if let Some(legacy) = legacy_ue4ss_mods_dir(game_path, target) {
+        if !same_dir(&legacy, &live) {
+            remove_if_empty(&legacy);
         }
     }
-    remove_emptied_default_dirs(game_path, target, layout);
+    let game = Path::new(game_path);
+    for dir in old_mods.ancestors().take_while(|dir| *dir != game) {
+        if !remove_if_empty(dir) {
+            break;
+        }
+    }
+}
+
+/// Canonical, so Windows casing cannot make one folder look like two.
+fn same_dir(a: &Path, b: &Path) -> bool {
+    matches!((a.canonicalize(), b.canonicalize()), (Ok(a), Ok(b)) if a == b)
+}
+
+fn move_sub_mod_dirs(from: &Path, to: &Path) {
+    let entries = match fs::read_dir(from) {
+        Ok(entries) => entries,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return,
+        Err(e) => {
+            log::warn!("migrate ue4ss mods: read {}: {e}", log_name(from));
+            return;
+        }
+    };
+    for entry in entries.flatten() {
+        if !entry.file_type().is_ok_and(|t| t.is_dir()) {
+            continue;
+        }
+        let dest = to.join(entry.file_name());
+        if dest.exists() {
+            drop_duplicate(&entry.path(), &dest);
+            continue;
+        }
+        if let Err(e) = fs::create_dir_all(to) {
+            log::warn!("migrate ue4ss mods: create {}: {e}", log_name(to));
+            return;
+        }
+        if let Err(e) = fs::rename(entry.path(), &dest) {
+            log::warn!("migrate ue4ss mods {}: {e}", log_name(&entry.path()));
+        }
+    }
 }
 
 fn drop_duplicate(stray: &Path, kept: &Path) {
     match same_tree(stray, kept) {
         Ok(true) => {
             if let Err(e) = fs::remove_dir_all(stray) {
-                log::warn!(
-                    "migrate ue4ss store layout: remove {}: {e}",
-                    log_name(stray)
-                );
+                log::warn!("migrate ue4ss mods: remove {}: {e}", log_name(stray));
             }
         }
         Ok(false) => log::warn!(
-            "migrate ue4ss store layout: {} differs from the copy already in place, so it stays",
+            "migrate ue4ss mods: {} differs from the copy already in place, so it stays",
             log_name(stray)
         ),
-        Err(e) => log::warn!(
-            "migrate ue4ss store layout: compare {}: {e}",
-            log_name(stray)
-        ),
+        Err(e) => log::warn!("migrate ue4ss mods: compare {}: {e}", log_name(stray)),
     }
 }
 
@@ -478,35 +483,24 @@ fn same_tree(a: &Path, b: &Path) -> std::io::Result<bool> {
     Ok(true)
 }
 
-/// Stops where the two layouts' paths meet, so a folder both share is never removed.
-fn remove_emptied_default_dirs(game_path: &str, target: &ScanTarget, layout: &StoreLayout) {
-    let shared = target
-        .mods_subpath
-        .iter()
-        .zip(layout.mods_subpath)
-        .take_while(|(a, b)| a == b)
-        .count();
-    let mut dirs = vec![join_subpath(game_path, target.backup_subpath)];
-    dirs.extend(legacy_ue4ss_mods_dir(game_path, target));
-    dirs.extend(
-        (shared + 1..=target.mods_subpath.len())
-            .rev()
-            .map(|len| join_subpath(game_path, &target.mods_subpath[..len])),
-    );
-    for dir in dirs {
-        let mut entries = match fs::read_dir(&dir) {
-            Ok(entries) => entries,
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => continue,
-            Err(e) => {
-                log::warn!("remove emptied ue4ss folder: read {}: {e}", log_name(&dir));
-                continue;
-            }
-        };
-        if entries.next().is_some() {
-            continue;
+/// True when dir is gone afterwards, including when it never existed.
+fn remove_if_empty(dir: &Path) -> bool {
+    let mut entries = match fs::read_dir(dir) {
+        Ok(entries) => entries,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return true,
+        Err(e) => {
+            log::warn!("remove emptied ue4ss folder: read {}: {e}", log_name(dir));
+            return false;
         }
-        if let Err(e) = fs::remove_dir(&dir) {
-            log::warn!("remove emptied ue4ss folder {}: {e}", log_name(&dir));
+    };
+    if entries.next().is_some() {
+        return false;
+    }
+    match fs::remove_dir(dir) {
+        Ok(()) => true,
+        Err(e) => {
+            log::warn!("remove emptied ue4ss folder {}: {e}", log_name(dir));
+            false
         }
     }
 }
@@ -688,7 +682,7 @@ pub fn reconcile_state(
 
     let mut state = state;
     migrate_ue4ss_mods_folder(game_path, cfg, &mut state.mods);
-    migrate_off_default_layout(game_path, cfg);
+    migrate_to_live_ue4ss_mods(game_path, cfg);
 
     let checks: Vec<bool> = state
         .mods

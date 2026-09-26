@@ -45,7 +45,7 @@ fn activation_rows() -> String {
             ),
             Activation::Ue4ssModsTxt => row(
                 "ue4ss_mods_txt",
-                "the files never move; UE4SS's `mods.txt` beside them is edited instead",
+                "the files never move; UE4SS's `mods.txt` beside them is edited instead. `path` must end in `Mods` and applies until UE4SS is installed, then the `Mods` beside its `UE4SS.dll` does",
             ),
         })
         .collect()

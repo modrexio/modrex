@@ -6487,21 +6487,104 @@ fn a_store_build_keeps_a_stray_copy_with_an_extra_file() {
 }
 
 #[test]
-fn a_store_build_leaves_ue4ss_bundled_submods_and_files_behind() {
+fn a_store_build_leaves_files_behind() {
     let tmp = store_build();
     let cfg = engine_for_game("pd3").unwrap();
     let stray = tmp.path().join("PAYDAY3/Binaries/Win64/UE4SS/Mods");
-    write_submod(&stray, "BPModLoaderMod", b"-- bundled");
-    fs::write(stray.join("mods.txt"), b"BPModLoaderMod : 1").unwrap();
+    write_submod(&stray, "CoolMod", b"-- lua");
+    fs::write(stray.join("mods.txt"), b"CoolMod : 1").unwrap();
 
     reconcile(&tmp, cfg);
 
-    assert!(stray.join("BPModLoaderMod").is_dir());
     assert!(stray.join("mods.txt").is_file());
-    assert!(!tmp
+    assert!(tmp
         .path()
-        .join("PAYDAY3/Binaries/WinGDK/UE4SS/Mods/BPModLoaderMod")
-        .exists());
+        .join("PAYDAY3/Binaries/WinGDK/UE4SS/Mods/CoolMod")
+        .is_dir());
+}
+
+fn flat_ue4ss(bin: &Path) {
+    fs::create_dir_all(bin.join("Mods")).unwrap();
+    fs::write(bin.join("UE4SS.dll"), b"").unwrap();
+}
+
+#[test]
+fn a_flat_ue4ss_gets_the_submods_0_15_2_put_in_ue4ss_mods() {
+    let tmp = TempDir::new().unwrap();
+    let cfg = engine_for_game("pd3").unwrap();
+    let win64 = tmp.path().join("PAYDAY3/Binaries/Win64");
+    flat_ue4ss(&win64);
+    write_submod(&win64.join("Mods"), "Existing", b"-- here");
+    write_submod(&win64.join("UE4SS/Mods"), "CoolMod", b"-- lua");
+    write_submod(&win64.join("UE4SS/Mods"), "AllowModsMod", b"-- bundled");
+    write_submod(&win64.join("UE4SS/Mods.bak"), "HiddenMod", b"-- hidden");
+
+    reconcile(&tmp, cfg);
+
+    let game = tmp.path().to_str().unwrap();
+    assert_eq!(
+        mods_base(game, cfg.target_for(Some("ue4ss_mods"))),
+        win64.join("Mods")
+    );
+    for name in ["Existing", "CoolMod", "AllowModsMod"] {
+        assert!(
+            win64
+                .join("Mods")
+                .join(name)
+                .join("Scripts/main.lua")
+                .is_file(),
+            "{name}"
+        );
+    }
+    assert!(win64.join("Mods.bak/HiddenMod/Scripts/main.lua").is_file());
+    assert!(!win64.join("UE4SS").exists());
+}
+
+#[test]
+fn a_flat_ue4ss_keeps_its_mods_folder_in_place() {
+    let tmp = TempDir::new().unwrap();
+    let cfg = engine_for_game("pd3").unwrap();
+    let win64 = tmp.path().join("PAYDAY3/Binaries/Win64");
+    flat_ue4ss(&win64);
+    write_submod(&win64.join("Mods"), "CoolMod", b"-- lua");
+
+    reconcile(&tmp, cfg);
+
+    assert!(win64.join("Mods/CoolMod/Scripts/main.lua").is_file());
+    assert!(!win64.join("Mods/CoolMod (2)").exists());
+    assert!(!win64.join("UE4SS").exists());
+}
+
+#[test]
+fn a_nested_ue4ss_keeps_the_submods_where_0_15_2_put_them() {
+    let tmp = TempDir::new().unwrap();
+    let cfg = engine_for_game("pd3").unwrap();
+    let nested = tmp.path().join("PAYDAY3/Binaries/Win64/UE4SS");
+    fs::create_dir_all(&nested).unwrap();
+    fs::write(nested.join("UE4SS.dll"), b"").unwrap();
+    write_submod(&nested.join("Mods"), "CoolMod", b"-- lua");
+
+    reconcile(&tmp, cfg);
+
+    assert!(nested.join("Mods/CoolMod/Scripts/main.lua").is_file());
+}
+
+#[test]
+fn a_store_build_with_a_flat_ue4ss_gets_its_submods_in_wingdk_mods() {
+    let tmp = store_build();
+    let cfg = engine_for_game("pd3").unwrap();
+    let gdk = tmp.path().join("PAYDAY3/Binaries/WinGDK");
+    flat_ue4ss(&gdk);
+    write_submod(
+        &tmp.path().join("PAYDAY3/Binaries/Win64/UE4SS/Mods"),
+        "CoolMod",
+        b"-- lua",
+    );
+
+    reconcile(&tmp, cfg);
+
+    assert!(gdk.join("Mods/CoolMod/Scripts/main.lua").is_file());
+    assert!(!tmp.path().join("PAYDAY3/Binaries/Win64").exists());
 }
 
 #[test]

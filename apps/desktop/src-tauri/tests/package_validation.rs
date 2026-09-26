@@ -590,3 +590,18 @@ fn a_ue4ss_install_folder_for_an_unlisted_storefront_is_rejected() {
         "which its storefronts do not list",
     );
 }
+
+#[test]
+fn a_ue4ss_target_path_that_does_not_end_in_mods_is_rejected() {
+    let text = second_target("ue4ss_mods", false).replace(
+        "activation = \"filesystem\"",
+        "activation = \"ue4ss_mods_txt\"",
+    );
+    assert_rejected(
+        &format!(
+            "{BASE}
+{text}"
+        ),
+        "must end in Mods",
+    );
+}

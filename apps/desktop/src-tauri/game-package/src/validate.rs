@@ -5,7 +5,7 @@
 //! references between sections, and values that would build a path the scan cannot find.
 
 use crate::{
-    Discovery, FileFamily, GamePackage, LoaderBinding, MarkerMode, NewsBinding,
+    Activation, Discovery, FileFamily, GamePackage, LoaderBinding, MarkerMode, NewsBinding,
     PackageReaderBinding, SourceBinding, StoreBinding, Target, Unit,
 };
 
@@ -175,6 +175,17 @@ fn check_target(target: &Target) -> Result<(), String> {
     }
     if target.backup.is_empty() {
         return Err("has an empty backup path".to_string());
+    }
+    let ends_in_mods = |path: &Vec<String>| path.last().is_some_and(|last| last == "Mods");
+    if target.activation == Activation::Ue4ssModsTxt
+        && !std::iter::once(&target.path)
+            .chain(target.store_paths.iter().map(|s| &s.path))
+            .all(ends_in_mods)
+    {
+        return Err(
+            "uses ue4ss_mods_txt, so every path must end in Mods, the folder UE4SS reads"
+                .to_string(),
+        );
     }
     match &target.unit {
         Unit::File {

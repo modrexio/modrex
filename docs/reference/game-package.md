@@ -162,7 +162,7 @@ state file lives there and must be found at the same place in every store's copy
 | Value | Meaning |
 | --- | --- |
 | `filesystem` | enabling and disabling move the mod between the target and its `disabled` folder |
-| `ue4ss_mods_txt` | the files never move; UE4SS's `mods.txt` beside them is edited instead |
+| `ue4ss_mods_txt` | the files never move; UE4SS's `mods.txt` beside them is edited instead. `path` must end in `Mods` and applies until UE4SS is installed, then the `Mods` beside its `UE4SS.dll` does |
 
 ### `load_order`
 
@@ -248,7 +248,7 @@ discovery = {
 | Preset | Folders |
 | --- | --- |
 | `diesel_infra` | `base`, `downloads`, `logs`, `saves` |
-| `ue4ss_bundled_submods` | `ActorDumperMod`, `BPML_GenericFunctions`, `BPModLoaderMod`, `CheatManagerEnablerMod`, `ConsoleCommandsMod`, `ConsoleEnablerMod`, `jsbLuaProfilerMod`, `Keybinds`, `LineTraceMod`, `SplitScreenMod`, `shared` |
+| `ue4ss_bundled_submods` | `ActorDumperMod`, `AllowModsMod`, `BPML_GenericFunctions`, `BPModLoaderMod`, `CheatManagerEnablerMod`, `ConsoleCommandsMod`, `ConsoleEnablerMod`, `HideHUDMod`, `jsbLuaProfilerMod`, `Keybinds`, `LineTraceMod`, `SplitScreenMod`, `shared` |
 
 ## Errors
 

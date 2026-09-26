@@ -28,11 +28,13 @@ pub enum ModMetadata {
 /// by name rather than by marker. shared holds Lua libraries the bundled modules import.
 pub const UE4SS_BUNDLED_SUBMODS: &[&str] = &[
     "ActorDumperMod",
+    "AllowModsMod",
     "BPML_GenericFunctions",
     "BPModLoaderMod",
     "CheatManagerEnablerMod",
     "ConsoleCommandsMod",
     "ConsoleEnablerMod",
+    "HideHUDMod",
     "jsbLuaProfilerMod",
     "Keybinds",
     "LineTraceMod",

@@ -576,6 +576,21 @@ fn pd3_store_build_resolves_ue4ss_mods_under_wingdk() {
 }
 
 #[test]
+fn pd3_flat_ue4ss_resolves_mods_beside_its_dll() {
+    let cfg = crate::commands::mods::engine_for_game("pd3").unwrap();
+    let ue4ss = cfg.target_for(Some("ue4ss_mods"));
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let bin = tmp.path().join("PAYDAY3/Binaries/Win64");
+    std::fs::create_dir_all(&bin).unwrap();
+    std::fs::write(bin.join("UE4SS.dll"), b"").unwrap();
+
+    assert_eq!(mods_dir(game, ue4ss), bin.join("Mods"));
+    assert_eq!(disabled_dir(game, ue4ss), bin.join("Mods/disabled"));
+    assert_eq!(backup_dir(game, ue4ss), bin.join("Mods.bak"));
+}
+
+#[test]
 fn raid_resolves_the_paths_its_loader_reads() {
     let cfg = crate::commands::mods::engine_for_game("raid").unwrap();
     assert_eq!(cfg.targets.len(), 1);

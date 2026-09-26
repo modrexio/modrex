@@ -825,3 +825,25 @@ fn removing_an_unverified_storefront_refuses_rather_than_guessing_a_path() {
         "nothing was removed on a guessed path"
     );
 }
+
+#[test]
+fn live_mods_dir_follows_the_ue4ss_dll_the_proxy_loads() {
+    let tmp = TempDir::new().unwrap();
+    let bin = tmp.path();
+    assert_eq!(live_mods_dir(bin), None);
+
+    fs::create_dir_all(bin.join("UE4SS").join("Mods")).unwrap();
+    fs::write(bin.join("ue4ss.dll"), b"").unwrap();
+    assert_eq!(
+        live_mods_dir(bin),
+        Some(bin.join("Mods")),
+        "a UE4SS folder without the dll is not a layout"
+    );
+
+    fs::write(bin.join("UE4SS").join("UE4SS.dll"), b"").unwrap();
+    assert_eq!(
+        live_mods_dir(bin),
+        Some(bin.join("UE4SS").join("Mods")),
+        "the proxy tries the nested dll first"
+    );
+}
