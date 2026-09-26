@@ -187,8 +187,15 @@ const linUrl =
         --header-side-width: var(--sl-sidebar-width, 17rem);
         --header-wordmark-width: 5.5rem;
 
+        /* The side columns match the docs sidebar while there is room. Just above the
+           hamburger breakpoint the links outgrow the middle column, so every column keeps
+           at least its content width and the left one gives way instead of overlapping.
+           The padding on nav-links keeps the links clear of the icons once squeezed. */
         display: grid;
-        grid-template-columns: var(--header-side-width) minmax(0, 1fr) var(--header-side-width);
+        grid-template-columns:
+            minmax(max-content, var(--header-side-width))
+            minmax(max-content, 1fr)
+            minmax(max-content, var(--header-side-width));
         align-items: center;
         height: 60px;
         width: 100%;
@@ -206,6 +213,7 @@ const linUrl =
         display: flex;
         align-items: center;
         gap: clamp(12px, 2vw, 28px);
+        padding-inline: 8px;
     }
 
     .nav-links a {
