@@ -696,10 +696,10 @@ pub(crate) fn uninstall(
     let (dest, proxies) = resolve_build(game_id, game_path, launcher)?;
     let owned = owned_paths(&dest, proxies);
     if owned.is_empty() {
-        return Err(
-            "Modrex could not tell which files here are UE4SS's, so it will not delete any of them. Remove it by hand from the game's Win64 folder."
-                .to_string(),
-        );
+        return Err(format!(
+            "Modrex could not tell which files here are UE4SS's, so it will not delete any of them. Remove it by hand from {}.",
+            dest.display()
+        ));
     }
     let failed: Vec<String> = owned
         .iter()

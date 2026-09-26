@@ -51,6 +51,20 @@ fn pd3_epic_detects_proxy_dll() {
 }
 
 #[test]
+fn pd3_xbox_detects_the_proxy_beside_the_wingdk_executable() {
+    let tmp = TempDir::new().unwrap();
+    let win64 = tmp.path().join("PAYDAY3").join("Binaries").join("Win64");
+    fs::create_dir_all(&win64).unwrap();
+    fs::write(win64.join("dwmapi.dll"), b"").unwrap();
+    assert!(!is_installed("pd3", &path_str(&tmp), Some("xbox")));
+
+    let gdk = tmp.path().join("PAYDAY3").join("Binaries").join("WinGDK");
+    fs::create_dir_all(&gdk).unwrap();
+    fs::write(gdk.join("dwmapi.dll"), b"").unwrap();
+    assert!(is_installed("pd3", &path_str(&tmp), Some("xbox")));
+}
+
+#[test]
 fn pd3_detects_the_ue5_dwmapi_proxy() {
     // The UE5 rebuild (modworkshop id 47771, v0.2.0) proxies dwmapi.dll on every storefront,
     // replacing the xinput1_3.dll its UE4 predecessor shipped.
@@ -465,7 +479,7 @@ fn an_unreadable_package_changes_nothing() {
 fn an_unverified_storefront_refuses_rather_than_guessing_a_path() {
     let tmp = TempDir::new().unwrap();
     let package = ue5_package(&[]);
-    for launcher in [Some("xbox"), Some("gog"), None] {
+    for launcher in [Some("manual"), Some("gog"), None] {
         let err = install_loader("pd3", &path_str(&tmp), launcher, package.path())
             .unwrap_err()
             .message();
@@ -803,7 +817,7 @@ fn removing_an_unverified_storefront_refuses_rather_than_guessing_a_path() {
     let tmp = TempDir::new().unwrap();
     install_fixture(&tmp, Ue4ssFixture::Ue4);
 
-    let err = uninstall("pd3", &path_str(&tmp), Some("xbox")).unwrap_err();
+    let err = uninstall("pd3", &path_str(&tmp), Some("manual")).unwrap_err();
 
     assert!(err.contains("isn't supported yet"), "unexpected: {err}");
     assert!(
