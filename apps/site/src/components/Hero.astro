@@ -15,34 +15,72 @@ const { release = null } = Astro.props
 
 // Imported rather than served from public/ so astro:assets emits AVIF and WebP at
 // several widths. The sources are 2560px PNG screenshots, two megabytes each; the
-// first one is the largest contentful paint of the whole site.
+// first one shown is the largest contentful paint of the whole site.
 const shots = [
-    { src: gamePicker, alt: 'Choosing a game in Modrex: PAYDAY 3, PAYDAY 2, Crime Boss and RAID' },
-    { src: browseMods, alt: 'Browsing ModWorkshop and Nexus Mods inside Modrex' },
-    { src: installedMods, alt: 'The Modrex installed mods list with folders and load order' },
-    { src: news, alt: 'The Modrex news tab showing the latest posts for the active game' },
-    { src: settings, alt: 'Modrex settings: game path, launcher and launch options' },
+    {
+        src: gamePicker,
+        name: 'Game picker',
+        alt: 'Choosing a game in Modrex: PAYDAY 3, PAYDAY 2, PAYDAY: The Heist, Crime Boss and RAID',
+        desc: 'Pick the game you want to mod.',
+    },
+    {
+        src: browseMods,
+        name: 'Browse mods',
+        alt: 'Browsing ModWorkshop and Nexus Mods inside Modrex',
+        desc: 'ModWorkshop and Nexus Mods side by side, with categories, tags and sorting.',
+    },
+    {
+        src: installedMods,
+        name: 'Installed',
+        alt: 'The Modrex installed mods list, each mod with its own switch',
+        desc: 'Every installed mod, each with its own on and off switch.',
+    },
+    {
+        src: news,
+        name: 'News',
+        alt: 'The Modrex news tab showing the latest posts for the active game',
+        desc: 'The latest posts for the game you picked.',
+    },
+    {
+        src: settings,
+        name: 'Settings',
+        alt: 'Modrex settings: game path, launcher and launch options',
+        desc: 'Game path, launcher and launch options.',
+    },
 ]
 
-// The hero card is 74% of the wrap on desktop and 88% on mobile; these widths cover
-// both at 1x and 2x, and the fullscreen viewer reuses the same generated set.
-const SHOT_WIDTHS = [640, 1180, 1960]
-const SHOT_SIZES = '(max-width: 640px) 88vw, 74vw'
+// Browse mods opens first: the game picker is a mostly empty window, and the stage
+// should lead with the screen that shows what the app is for.
+const FIRST = 1
 
-// Infinite track with two clones per edge: a wrap step travels onto the first
-// clone, and the second keeps a neighbor sliver visible beyond it; with one
-// clone the viewport edge went blank during the wrap animation.
-const CLONES = 2
-const slots = [...shots.slice(-CLONES), ...shots, ...shots.slice(0, CLONES)]
+// The stage is 7/12 of the content column beside the hero text (775px at the full
+// 1440px wrap), and the whole column once the hero stacks below 1100px.
+const STAGE_WIDTHS = [640, 1180, 1960]
+const STAGE_SIZES = [
+    '(max-width: 768px) calc(100vw - 32px)',
+    '(max-width: 1100px) calc(100vw - 64px)',
+    '(max-width: 1440px) calc((100vw - 112px) * 7 / 12)',
+    '775px',
+].join(', ')
+const VIEWER_WIDTHS = [1180, 1960, 2560]
+
+const releasedOn = release
+    ? new Intl.DateTimeFormat('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+          timeZone: 'UTC',
+      }).format(new Date(release.published_at))
+    : null
 ---
 
 <header class="hero">
-    <div class="wrap">
-        <div class="hero-inner">
-            <h1 class="hero-title">MODREX<br /><span class="accent">MOD MANAGER</span></h1>
+    <div class="wrap hero-grid">
+        <div class="hero-text">
+            <h1 class="hero-title">Modrex <span class="nowrap">Mod Manager</span></h1>
             <p class="hero-sub">
-                Browse, install, and organize mods from ModWorkshop and Nexus Mods - one place, no
-                file juggling. Launch modded or vanilla straight from the app.
+                Browse ModWorkshop and Nexus Mods, install in one click, and launch the game modded
+                or vanilla from the same window.
             </p>
             <div class="cta-row">
                 <a href="/#download" id="hero-dl" class="btn-lg primary">
@@ -50,690 +88,705 @@ const slots = [...shots.slice(-CLONES), ...shots, ...shots.slice(0, CLONES)]
                         id="hero-dl-icon"
                         src="/icons/windows-white.svg"
                         alt=""
-                        width="18"
-                        height="18"
+                        width="16"
+                        height="16"
                     />
                     <span id="hero-dl-label">Download for Windows</span>
                 </a>
-                <a href="/#download" class="btn-lg secondary other-platforms">Other platforms</a>
+                <a href="/#download" id="hero-other" class="other-link">Linux and other downloads</a
+                >
             </div>
-            {
-                release && (
-                    <a href={release.html_url} target="_blank" rel="noopener" class="version-pill">
-                        <span class="version-pill-tag">{release.tag_name}</span>
-                        <span class="version-pill-divider" />
-                        Release notes
-                    </a>
-                )
-            }
             <p class="hero-meta">
-                Free and open source. Powered by{' '}
-                <a href="https://modworkshop.net/" target="_blank" rel="noopener">ModWorkshop</a>
-                {' '}and{' '}
-                <a href="https://www.nexusmods.com/" target="_blank" rel="noopener">Nexus Mods</a>.
+                Free and open source.{' '}
+                {
+                    release && (
+                        <span>
+                            <a href={release.html_url} target="_blank" rel="noopener">
+                                {release.tag_name}
+                            </a>
+                            <span>, released {releasedOn}.</span>
+                        </span>
+                    )
+                }
             </p>
         </div>
 
-        <div class="shot-row" id="screenshots">
-            <button class="nav-btn" id="hero-prev" aria-label="Previous">
-                <i data-lucide="chevron-left"></i>
-            </button>
-            <div class="gallery-outer" id="hero-outer">
-                <div class="gallery-track" id="hero-track">
+        <div class="stage" id="screenshots">
+            <div
+                class="stage-frame"
+                id="stage-panel"
+                role="tabpanel"
+                aria-labelledby={`shot-tab-${FIRST}`}
+            >
+                <button
+                    type="button"
+                    class="stage-open"
+                    id="stage-open"
+                    aria-label={`Open ${shots[FIRST].name} fullscreen`}
+                >
+                    <span class="shot-stack">
+                        {
+                            shots.map((s, i) => (
+                                <span class:list={['stage-shot', { active: i === FIRST }]}>
+                                    <Picture
+                                        src={s.src}
+                                        alt={s.alt}
+                                        widths={STAGE_WIDTHS}
+                                        sizes={STAGE_SIZES}
+                                        formats={['avif']}
+                                        fallbackFormat="webp"
+                                        loading={i === FIRST ? 'eager' : 'lazy'}
+                                        fetchpriority={i === FIRST ? 'high' : 'auto'}
+                                    />
+                                </span>
+                            ))
+                        }
+                    </span>
+                </button>
+                <div class="stage-bar">
+                    <span class="shot-name" data-shot-name>{shots[FIRST].name}</span>
+                    <span class="shot-count" data-shot-count>{FIRST + 1} / {shots.length}</span>
+                    <div class="seg">
+                        <button type="button" data-step="-1" aria-label="Previous screenshot">
+                            <i data-lucide="chevron-left"></i>
+                        </button>
+                        <button type="button" data-step="1" aria-label="Next screenshot">
+                            <i data-lucide="chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="stage-tabs">
+                <div class="tablist" role="tablist" aria-label="Screenshots">
                     {
-                        slots.map((s, i) => (
-                            <div class:list={['shot-card', { active: i === CLONES }]}>
-                                <Picture
-                                    src={s.src}
-                                    alt={s.alt}
-                                    widths={SHOT_WIDTHS}
-                                    sizes={SHOT_SIZES}
-                                    formats={['avif']}
-                                    fallbackFormat="webp"
-                                    loading={i === CLONES ? 'eager' : 'lazy'}
-                                    fetchpriority={i === CLONES ? 'high' : 'auto'}
-                                />
-                            </div>
+                        shots.map((s, i) => (
+                            <button
+                                type="button"
+                                role="tab"
+                                id={`shot-tab-${i}`}
+                                class:list={['tab', { active: i === FIRST }]}
+                                aria-controls="stage-panel"
+                                aria-selected={i === FIRST ? 'true' : 'false'}
+                                tabindex={i === FIRST ? 0 : -1}
+                                data-desc={s.desc}
+                            >
+                                {s.name}
+                            </button>
                         ))
                     }
                 </div>
+                <button type="button" class="fullscreen" id="stage-fullscreen">
+                    <i data-lucide="maximize-2"></i>
+                    Fullscreen
+                </button>
             </div>
-            <button class="nav-btn" id="hero-next" aria-label="Next">
-                <i data-lucide="chevron-right"></i>
-            </button>
+            <p class="stage-desc" data-shot-desc>{shots[FIRST].desc}</p>
         </div>
     </div>
 
-    <div class="image-viewer" id="image-viewer" aria-hidden="true">
-        <button class="viewer-backdrop" id="viewer-backdrop" type="button" aria-label="Close image">
-        </button>
-        <div class="viewer-panel" role="dialog" aria-modal="true" aria-label="Screenshot preview">
-            <button class="viewer-close" id="viewer-close" type="button" aria-label="Close image">
-                <i data-lucide="x"></i>
-            </button>
-            <button
-                class="viewer-nav"
-                id="viewer-prev"
-                type="button"
-                aria-label="Previous screenshot"
-            >
-                <i data-lucide="chevron-left"></i>
-            </button>
-            <div class="viewer-outer" id="viewer-outer">
-                <div class="viewer-track" id="viewer-track">
-                    {
-                        slots.map((s, i) => (
-                            <div class:list={['viewer-card', { active: i === CLONES }]}>
-                                <Picture
-                                    src={s.src}
-                                    alt={s.alt}
-                                    widths={SHOT_WIDTHS}
-                                    sizes={SHOT_SIZES}
-                                    formats={['avif']}
-                                    fallbackFormat="webp"
-                                    loading="lazy"
-                                />
-                            </div>
-                        ))
-                    }
+    <dialog class="viewer" id="viewer" aria-label="Screenshot viewer">
+        <div class="viewer-bar">
+            <span class="shot-name" data-shot-name>{shots[FIRST].name}</span>
+            <span class="shot-count" data-shot-count>{FIRST + 1} / {shots.length}</span>
+            <div class="viewer-actions">
+                <div class="seg">
+                    <button type="button" data-step="-1" aria-label="Previous screenshot">
+                        <i data-lucide="chevron-left"></i>
+                    </button>
+                    <button type="button" data-step="1" aria-label="Next screenshot">
+                        <i data-lucide="chevron-right"></i>
+                    </button>
                 </div>
+                <button type="button" class="viewer-close" id="viewer-close" autofocus>
+                    <i data-lucide="x"></i>
+                    Close
+                    <kbd>Esc</kbd>
+                </button>
             </div>
-            <button class="viewer-nav" id="viewer-next" type="button" aria-label="Next screenshot">
-                <i data-lucide="chevron-right"></i>
-            </button>
         </div>
-    </div>
+        <div class="viewer-body" id="viewer-body">
+            {
+                shots.map((s, i) => (
+                    <div class:list={['viewer-shot', { active: i === FIRST }]}>
+                        <Picture
+                            src={s.src}
+                            alt={s.alt}
+                            widths={VIEWER_WIDTHS}
+                            sizes="100vw"
+                            formats={['avif']}
+                            fallbackFormat="webp"
+                            loading="lazy"
+                        />
+                    </div>
+                ))
+            }
+        </div>
+    </dialog>
 </header>
 
 <script>
-    import { createIcons, ChevronLeft, ChevronRight, X } from 'lucide'
+    import { createIcons, ChevronLeft, ChevronRight, Maximize2, X } from 'lucide'
     import { detectOs } from '../lib/os-detect'
-    createIcons({ icons: { ChevronLeft, ChevronRight, X } })
+
+    createIcons({ icons: { ChevronLeft, ChevronRight, Maximize2, X } })
 
     const { isMobile, isLinux } = detectOs()
     const label = document.getElementById('hero-dl-label')
     const icon = document.getElementById('hero-dl-icon') as HTMLImageElement | null
+    const other = document.getElementById('hero-other')
     if (isMobile) {
         if (label) label.textContent = 'Download'
         if (icon) icon.style.display = 'none'
-        const other = document.querySelector<HTMLElement>('.other-platforms')
-        if (other) other.style.display = 'none'
+        if (other) other.textContent = 'Downloads'
     } else if (isLinux) {
         if (label) label.textContent = 'Download for Linux'
         if (icon) icon.src = '/icons/linux-white.svg'
+        if (other) other.textContent = 'Windows and other downloads'
     }
 
-    const outer = document.getElementById('hero-outer')!
-    const track = document.getElementById('hero-track')!
-    const cards = Array.from(track.querySelectorAll<HTMLElement>('.shot-card'))
-    const hero = document.querySelector('.hero')!
-    const viewer = document.getElementById('image-viewer')!
-    const viewerOuter = document.getElementById('viewer-outer')!
-    const viewerTrack = document.getElementById('viewer-track')!
-    const viewerCards = Array.from(viewerTrack.querySelectorAll<HTMLElement>('.viewer-card'))
-    // slots: [...edge clones, ...real shots, ...edge clones]; the server marks
-    // the first real card active, so the clone count never needs restating here.
-    const REAL_FIRST = cards.findIndex((c) => c.classList.contains('active'))
-    const realCards = cards.slice(REAL_FIRST, cards.length - REAL_FIRST)
-    const GAP = 16
-    const STEP_MS = 450
-    const STEP_EASING = 'cubic-bezier(0.25, 0.46, 0.45, 0.94)'
+    const tabs = Array.from(document.querySelectorAll<HTMLButtonElement>('.tablist [role="tab"]'))
+    const stageShots = Array.from(document.querySelectorAll<HTMLElement>('.stage-shot'))
+    const viewerShots = Array.from(document.querySelectorAll<HTMLElement>('.viewer-shot'))
+    const panel = document.getElementById('stage-panel')!
+    const openButton = document.getElementById('stage-open')!
+    const viewer = document.getElementById('viewer') as HTMLDialogElement
+    let index = tabs.findIndex((tab) => tab.getAttribute('aria-selected') === 'true')
 
-    // Steps are driven by the Web Animations API, not a CSS transition: the
-    // committed transform always holds the step's final position (the animation
-    // only overlays the travel), so an interrupted step can never strand the
-    // track mid-flight, and completion is a guaranteed callback instead of a
-    // transitionend event that is lost when a transition is canceled or never
-    // starts. That event loss is what used to freeze the gallery.
-    function createCarousel(
-        outerEl: HTMLElement,
-        trackEl: HTMLElement,
-        cardEls: HTMLElement[],
-        onSettle?: (index: number) => void
-    ) {
-        const REAL_LAST = cardEls.length - 1 - REAL_FIRST
-        const SPAN = REAL_LAST - REAL_FIRST + 1
-        let index = REAL_FIRST
-        let anim: Animation | null = null
-
-        const stride = () => cardEls[REAL_FIRST].offsetWidth + GAP
-        const offsetFor = (i: number) =>
-            (outerEl.offsetWidth - cardEls[REAL_FIRST].offsetWidth) / 2 - i * stride()
-        const currentX = () => {
-            const t = getComputedStyle(trackEl).transform
-            return t === 'none' ? 0 : new DOMMatrixReadOnly(t).m41
-        }
-
-        function setActive(i: number) {
-            cardEls.forEach((c, k) => c.classList.toggle('active', k === i))
-        }
-
-        // Instant reposition. Card transitions are suppressed for two frames so
-        // a clone-to-twin teleport doesn't blink the active highlight.
-        function place(i: number) {
-            anim?.cancel()
-            anim = null
-            cardEls.forEach((c) => (c.style.transition = 'none'))
-            index = i
-            setActive(i)
-            trackEl.style.transform = `translateX(${offsetFor(i)}px)`
-            requestAnimationFrame(() =>
-                requestAnimationFrame(() => cardEls.forEach((c) => (c.style.transition = '')))
-            )
-        }
-
-        // Commits the target transform, then animates the travel on top of it.
-        // A canceled animation needs no handler: the committed transform already
-        // holds the final position.
-        function animateTo(from: number) {
-            const to = offsetFor(index)
-            trackEl.style.transform = `translateX(${to}px)`
-            anim = trackEl.animate(
-                [{ transform: `translateX(${from}px)` }, { transform: `translateX(${to}px)` }],
-                { duration: STEP_MS, easing: STEP_EASING }
-            )
-            anim.onfinish = () => {
-                anim = null
-                // landed on a clone: silently continue from its real twin
-                if (index === REAL_FIRST - 1) place(REAL_LAST)
-                else if (index === REAL_LAST + 1) place(REAL_FIRST)
-                onSettle?.(index)
-            }
-        }
-
-        function step(dir: number) {
-            let from = currentX()
-            anim?.cancel()
-            anim = null
-            // A pending clone teleport (rapid clicks can outrun onfinish) folds
-            // in here: the same visual position expressed on the real twin.
-            if (index === REAL_FIRST - 1) {
-                index = REAL_LAST
-                from -= SPAN * stride()
-            } else if (index === REAL_LAST + 1) {
-                index = REAL_FIRST
-                from += SPAN * stride()
-            }
-            index += dir
-            setActive(index)
-            animateTo(from)
-        }
-
-        // Layout shifts mid-step (scrollbar toggling from lazy content, mobile
-        // URL bar, window resize) must not hard-complete the step: keep the
-        // motion and retarget it at the recomputed destination.
-        function relayout() {
-            if (!anim) {
-                place(index)
-                return
-            }
-            const from = currentX()
-            anim.cancel()
-            anim = null
-            animateTo(from)
-        }
-
-        return {
-            place,
-            step,
-            relayout,
-            get index() {
-                return index
-            },
-        }
-    }
-
-    const gallery = createCarousel(outer, track, cards)
-    // The viewer mirrors its position onto the hero once a step settles, so
-    // closing the viewer leaves the hero on the same screenshot.
-    const viewerGallery = createCarousel(viewerOuter, viewerTrack, viewerCards, (i) =>
-        gallery.place(i)
-    )
-
-    function openViewer(index: number) {
-        viewer.classList.add('open')
-        hero.classList.add('viewer-open')
-        viewer.setAttribute('aria-hidden', 'false')
-        document.body.style.overflow = 'hidden'
-        viewerGallery.place(REAL_FIRST + index)
-        document.getElementById('viewer-close')?.focus()
-    }
-
-    function closeViewer() {
-        viewer.classList.remove('open')
-        hero.classList.remove('viewer-open')
-        viewer.setAttribute('aria-hidden', 'true')
-        document.body.style.overflow = ''
-    }
-
-    document.getElementById('hero-prev')!.addEventListener('click', () => gallery.step(-1))
-    document.getElementById('hero-next')!.addEventListener('click', () => gallery.step(1))
-    cards.slice(0, REAL_FIRST).forEach((c) => c.addEventListener('click', () => gallery.step(-1)))
-    cards
-        .slice(cards.length - REAL_FIRST)
-        .forEach((c) => c.addEventListener('click', () => gallery.step(1)))
-    // A real card beside the active one steps toward it, like the edge clones do.
-    realCards.forEach((card, index) =>
-        card.addEventListener('click', () => {
-            if (card.classList.contains('active')) openViewer(index)
-            else gallery.step(REAL_FIRST + index < gallery.index ? -1 : 1)
+    function show(next: number) {
+        index = (next + tabs.length) % tabs.length
+        const name = tabs[index].textContent?.trim() ?? ''
+        stageShots.forEach((shot, i) => shot.classList.toggle('active', i === index))
+        viewerShots.forEach((shot, i) => shot.classList.toggle('active', i === index))
+        tabs.forEach((tab, i) => {
+            const selected = i === index
+            tab.classList.toggle('active', selected)
+            tab.setAttribute('aria-selected', String(selected))
+            tab.tabIndex = selected ? 0 : -1
         })
-    )
-    document.getElementById('viewer-close')!.addEventListener('click', closeViewer)
-    document.getElementById('viewer-backdrop')!.addEventListener('click', closeViewer)
-    document.getElementById('viewer-prev')!.addEventListener('click', () => viewerGallery.step(-1))
-    document.getElementById('viewer-next')!.addEventListener('click', () => viewerGallery.step(1))
-    document.addEventListener('keydown', (event) => {
-        if (!viewer.classList.contains('open')) return
-        if (event.key === 'Escape') closeViewer()
-        if (event.key === 'ArrowLeft') viewerGallery.step(-1)
-        if (event.key === 'ArrowRight') viewerGallery.step(1)
-    })
+        document.querySelectorAll('[data-shot-name]').forEach((el) => (el.textContent = name))
+        document
+            .querySelectorAll('[data-shot-count]')
+            .forEach((el) => (el.textContent = `${index + 1} / ${tabs.length}`))
+        document
+            .querySelectorAll('[data-shot-desc]')
+            .forEach((el) => (el.textContent = tabs[index].dataset.desc ?? ''))
+        panel.setAttribute('aria-labelledby', tabs[index].id)
+        openButton.setAttribute('aria-label', `Open ${name} fullscreen`)
+    }
 
-    // init position (no animation)
-    gallery.place(REAL_FIRST)
-
-    const resizeObserver = new ResizeObserver(() => gallery.relayout())
-    resizeObserver.observe(outer)
-    const viewerResizeObserver = new ResizeObserver(() => {
-        if (viewer.classList.contains('open')) viewerGallery.relayout()
+    tabs.forEach((tab, i) => tab.addEventListener('click', () => show(i)))
+    document.querySelector<HTMLElement>('.tablist')!.addEventListener('keydown', (event) => {
+        const targets: Record<string, number> = {
+            ArrowLeft: index - 1,
+            ArrowRight: index + 1,
+            Home: 0,
+            End: -1,
+        }
+        const target = targets[event.key]
+        if (target === undefined) return
+        event.preventDefault()
+        show(target)
+        tabs[index].focus()
     })
-    viewerResizeObserver.observe(viewerOuter)
+    document
+        .querySelectorAll<HTMLButtonElement>('[data-step]')
+        .forEach((button) =>
+            button.addEventListener('click', () => show(index + Number(button.dataset.step)))
+        )
+
+    // Horizontal swipes step through the screenshots. Anything more vertical than
+    // horizontal is left alone so the page still scrolls.
+    function onSwipe(el: HTMLElement) {
+        let startX = 0
+        let startY = 0
+        el.addEventListener(
+            'touchstart',
+            (event) => {
+                startX = event.touches[0].clientX
+                startY = event.touches[0].clientY
+            },
+            { passive: true }
+        )
+        el.addEventListener('touchend', (event) => {
+            const dx = event.changedTouches[0].clientX - startX
+            const dy = event.changedTouches[0].clientY - startY
+            if (Math.abs(dx) < 40 || Math.abs(dx) < Math.abs(dy)) return
+            show(index + (dx < 0 ? 1 : -1))
+        })
+    }
+    onSwipe(panel)
+    onSwipe(document.getElementById('viewer-body')!)
+
+    // showModal makes the rest of the page inert and closes on Escape. Focus goes
+    // back to whatever opened the viewer, since not every browser restores it.
+    let opener: HTMLElement | null = null
+    function openViewer() {
+        opener = document.activeElement as HTMLElement | null
+        viewer.showModal()
+        document.body.style.overflow = 'hidden'
+    }
+    viewer.addEventListener('close', () => {
+        document.body.style.overflow = ''
+        opener?.focus()
+    })
+    openButton.addEventListener('click', openViewer)
+    document.getElementById('stage-fullscreen')!.addEventListener('click', openViewer)
+    document.getElementById('viewer-close')!.addEventListener('click', () => viewer.close())
+    document.getElementById('viewer-body')!.addEventListener('click', (event) => {
+        if (event.target === event.currentTarget) viewer.close()
+    })
+    viewer.addEventListener('keydown', (event) => {
+        if (event.key === 'ArrowLeft') show(index - 1)
+        if (event.key === 'ArrowRight') show(index + 1)
+    })
 </script>
 
 <style>
     .hero {
-        position: relative;
-        background: var(--color-surface);
-        border-bottom: 1px solid var(--color-border);
-        overflow: hidden;
+        padding: 64px 0 0;
     }
 
-    .hero-inner {
-        padding: 72px 0 48px;
-        text-align: center;
+    .hero-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+        gap: 48px;
+        align-items: center;
+    }
+
+    .hero-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+        gap: 48px;
+        align-items: center;
     }
 
     .hero-title {
+        margin: 0 0 20px;
         font-family: var(--font-display);
+        font-size: clamp(48px, 4.4vw, 64px);
+        font-weight: 400;
+        font-synthesis: none;
+        line-height: 0.95;
         letter-spacing: 0.01em;
-        line-height: 0.92;
-        font-size: clamp(56px, 8vw, 104px);
-        margin: 0;
         text-wrap: balance;
     }
 
-    .hero-title .accent {
-        color: var(--color-accent);
+    .nowrap {
+        white-space: nowrap;
     }
 
     .hero-sub {
-        width: min(100%, 620px);
-        margin: 22px auto 0;
-        font-size: 18px;
+        margin: 0;
+        max-width: 46ch;
+        font-size: 17px;
         line-height: 1.6;
         color: var(--text-secondary);
-        overflow-wrap: break-word;
     }
 
     .cta-row {
         display: flex;
         align-items: center;
-        justify-content: center;
-        gap: 12px;
-        margin-top: 32px;
         flex-wrap: wrap;
+        gap: 12px 20px;
+        margin-top: 24px;
     }
 
-    .version-pill {
-        display: inline-flex;
-        align-items: center;
-        gap: 10px;
-        margin-top: 20px;
-        padding: 7px 16px;
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius-sm);
-        background: var(--color-surface-raised);
+    .other-link {
+        font-size: 14px;
         color: var(--text-secondary);
-        font-size: 13px;
-        text-decoration: none;
-        transition: var(--transition-colors);
+        border-bottom: 1px solid var(--color-border);
+        padding-bottom: 1px;
     }
 
-    .version-pill:hover {
-        background: var(--color-surface-hover);
+    .other-link:hover {
+        color: var(--color-text);
         border-color: var(--color-surface-light);
-        color: var(--color-text);
-    }
-
-    .version-pill-tag {
-        font-weight: 600;
-        color: var(--color-text);
-    }
-
-    .version-pill-divider {
-        width: 1px;
-        height: 14px;
-        background: var(--color-border);
     }
 
     .hero-meta {
-        margin-top: 16px;
+        margin: 14px 0 0;
         font-size: 13px;
         color: var(--text-tertiary);
     }
 
-    .shot-row {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding-bottom: 56px;
-        scroll-margin-top: 72px;
+    .hero-meta a {
+        color: var(--text-secondary);
     }
 
-    .gallery-outer {
-        flex: 1;
+    .hero-meta a:hover {
+        color: var(--color-text);
+    }
+
+    .stage {
         min-width: 0;
-        overflow: hidden;
+        scroll-margin-top: 80px;
     }
 
-    /* Track motion is script-driven (Web Animations API); a CSS transition on
-       transform here would double-animate every position commit. */
-    .gallery-track {
-        display: flex;
-        gap: 16px;
-        will-change: transform;
-    }
-
-    .shot-card {
-        flex: 0 0 74%;
-        border-radius: var(--radius-xl);
+    .stage-frame {
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-lg);
         overflow: hidden;
-        border: 2px solid transparent;
         background: var(--color-surface-raised);
-        cursor: pointer;
-        opacity: 0.35;
-        transform: scale(0.97);
-        transition:
-            border-color 0.3s ease,
-            box-shadow 0.3s ease,
-            opacity 0.3s ease,
-            transform 0.3s ease;
     }
 
-    .shot-card.active {
-        border-color: var(--color-accent);
-        opacity: 1;
-        transform: scale(1);
-        box-shadow: 0 32px 80px -20px rgba(0, 0, 0, 0.8);
+    .stage-open {
+        display: block;
+        width: 100%;
+        padding: 0;
+        border: 0;
+        background: none;
         cursor: zoom-in;
     }
 
-    /* Picture wraps every screenshot; an inline wrapper would leave a baseline gap
-       under the card and break the measured card width the carousel steps by. */
-    .shot-card picture,
-    .shot-card img {
+    .stage-open:focus-visible {
+        outline: 2px solid var(--color-accent);
+        outline-offset: -2px;
+    }
+
+    /* Every screenshot shares one grid cell, so switching is instant and the frame
+       never changes height. Hidden ones still lazy-load once the stage is near. */
+    .shot-stack {
+        display: grid;
+    }
+
+    .stage-shot {
+        grid-area: 1 / 1;
+        visibility: hidden;
+    }
+
+    .stage-shot.active {
+        visibility: visible;
+    }
+
+    .stage-shot :global(picture),
+    .stage-shot :global(img) {
         display: block;
         width: 100%;
+        height: auto;
     }
 
-    .nav-btn {
-        flex-shrink: 0;
-        width: 36px;
-        height: 36px;
-        background: var(--color-surface-raised);
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius-lg);
+    .stage-tabs {
+        display: flex;
+        align-items: flex-end;
+        border-bottom: 1px solid var(--color-border);
+    }
+
+    .tablist {
+        display: flex;
+        gap: 4px;
+    }
+
+    .tab {
+        padding: 12px 12px 11px;
+        margin-bottom: -1px;
+        border: 0;
+        border-bottom: 2px solid transparent;
+        background: none;
+        font: inherit;
+        font-size: 13px;
+        color: var(--text-tertiary);
+        white-space: nowrap;
+        transition: var(--transition-colors);
+    }
+
+    .tab:hover {
         color: var(--text-secondary);
-        cursor: pointer;
+    }
+
+    .tab.active {
+        color: var(--color-accent-bright);
+        border-bottom-color: var(--color-accent);
+    }
+
+    .tab:focus-visible,
+    .fullscreen:focus-visible,
+    .seg button:focus-visible,
+    .viewer-close:focus-visible {
+        outline: 2px solid var(--color-accent);
+        outline-offset: -2px;
+    }
+
+    .fullscreen {
         display: flex;
         align-items: center;
-        justify-content: center;
-        transition:
-            background 0.15s ease,
-            border-color 0.15s ease,
-            color 0.15s ease;
+        gap: 8px;
+        height: 32px;
+        margin: 0 0 6px auto;
+        padding: 0 10px;
+        border: 0;
+        border-radius: var(--radius-sm);
+        background: none;
+        font: inherit;
+        font-size: 13px;
+        color: var(--text-secondary);
+        transition: var(--transition-colors);
     }
 
-    .nav-btn i,
-    .nav-btn svg {
+    .fullscreen:hover {
+        background: var(--color-surface-hover);
+        color: var(--color-text);
+    }
+
+    .fullscreen i,
+    .fullscreen svg,
+    .seg i,
+    .seg svg,
+    .viewer-close i,
+    .viewer-close svg {
         display: block;
-        width: 18px;
-        height: 18px;
+        width: 16px;
+        height: 16px;
     }
 
-    .nav-btn:hover {
-        background: var(--color-surface-active);
-        border-color: var(--color-accent);
-        color: var(--color-accent);
+    .stage-desc {
+        margin: 12px 0 0;
+        font-size: 14px;
+        color: var(--text-secondary);
     }
 
-    .hero.viewer-open .shot-row > .nav-btn {
-        opacity: 0;
-        pointer-events: none;
-    }
-
-    .image-viewer {
-        position: fixed;
-        inset: 0;
-        z-index: 100;
+    .stage-bar {
         display: none;
         align-items: center;
-        justify-content: center;
-        padding: 24px;
+        gap: 12px;
+        min-height: 56px;
+        padding: 0 6px 0 14px;
+        border-top: 1px solid var(--color-border);
     }
 
-    .image-viewer.open {
+    .shot-name {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--color-text);
+        white-space: nowrap;
+    }
+
+    .shot-count {
+        font-size: 12px;
+        color: var(--text-tertiary);
+        font-variant-numeric: tabular-nums;
+    }
+
+    .stage-bar .shot-count {
+        flex: 1;
+    }
+
+    .seg {
         display: flex;
+        flex: none;
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-sm);
+        overflow: hidden;
+        background: var(--color-surface-hover);
     }
 
-    .viewer-backdrop {
-        position: absolute;
-        inset: 0;
-        background: rgba(0, 0, 0, 0.78);
-        border: 0;
-        cursor: zoom-out;
-    }
-
-    .viewer-panel {
-        position: relative;
-        z-index: 1;
+    .seg button {
         display: flex;
         align-items: center;
-        gap: 12px;
-        width: min(100%, 1320px);
+        justify-content: center;
+        width: 36px;
+        height: 32px;
+        padding: 0;
+        border: 0;
+        background: none;
+        color: var(--text-secondary);
+        transition: var(--transition-colors);
     }
 
-    .viewer-outer {
-        flex: 1;
-        min-width: 0;
-        overflow: hidden;
+    .seg button + button {
+        border-left: 1px solid var(--color-border);
     }
 
-    .viewer-track {
+    .seg button:hover {
+        background: var(--color-surface-active);
+        color: var(--color-text);
+    }
+
+    .viewer {
+        width: 100%;
+        max-width: none;
+        height: 100%;
+        max-height: none;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        background: var(--color-surface);
+        color: var(--color-text);
+    }
+
+    .viewer[open] {
         display: flex;
-        gap: 16px;
-        will-change: transform;
+        flex-direction: column;
     }
 
-    .viewer-card {
-        flex: 0 0 82%;
-        overflow: hidden;
-        border: 2px solid transparent;
-        border-radius: var(--radius-xl);
-        background: var(--color-surface-raised);
-        opacity: 0.35;
-        transform: scale(0.97);
-        transition:
-            border-color 0.3s ease,
-            opacity 0.3s ease,
-            transform 0.3s ease;
+    .viewer::backdrop {
+        background: var(--color-surface);
     }
 
-    .viewer-card.active {
-        border-color: var(--color-accent);
-        opacity: 1;
-        transform: scale(1);
+    .viewer-bar {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        flex: none;
+        height: 52px;
+        padding: 0 12px 0 20px;
+        border-bottom: 1px solid var(--color-border);
     }
 
-    .viewer-card picture {
-        display: block;
-        width: 100%;
-    }
-
-    .viewer-card img {
-        display: block;
-        width: 100%;
-        max-height: calc(100dvh - 96px);
-        object-fit: contain;
+    .viewer-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-left: auto;
     }
 
     .viewer-close {
-        position: absolute;
-        top: 12px;
-        right: 12px;
-        z-index: 2;
         display: flex;
         align-items: center;
-        justify-content: center;
-        width: 36px;
-        height: 36px;
+        gap: 8px;
+        height: 32px;
+        padding: 0 10px;
         border: 1px solid var(--color-border);
-        border-radius: var(--radius-lg);
-        background: var(--color-surface-raised);
+        border-radius: var(--radius-sm);
+        background: var(--color-surface-hover);
+        font: inherit;
+        font-size: 13px;
         color: var(--color-text);
-        cursor: pointer;
+        transition: var(--transition-colors);
     }
 
-    .viewer-nav {
-        flex-shrink: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 36px;
-        height: 36px;
+    .viewer-close:hover {
+        background: var(--color-surface-active);
+    }
+
+    .viewer-close kbd {
+        padding: 1px 5px;
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-sm);
+        font-family: var(--font-mono);
+        font-size: 11px;
+        color: var(--text-tertiary);
+    }
+
+    .viewer-body {
+        display: grid;
+        flex: 1;
+        min-height: 0;
+        padding: 24px;
+        place-items: center;
+        cursor: zoom-out;
+    }
+
+    .viewer-shot {
+        grid-area: 1 / 1;
+        visibility: hidden;
+        cursor: default;
+    }
+
+    .viewer-shot.active {
+        visibility: visible;
+    }
+
+    .viewer-shot :global(picture) {
+        display: block;
+    }
+
+    .viewer-shot :global(img) {
+        display: block;
+        width: auto;
+        height: auto;
+        max-width: 100%;
+        max-height: calc(100dvh - 52px - 48px);
         border: 1px solid var(--color-border);
         border-radius: var(--radius-lg);
-        background: var(--color-surface-raised);
-        color: var(--text-secondary);
-        cursor: pointer;
-        transition:
-            background 0.15s ease,
-            border-color 0.15s ease,
-            color 0.15s ease;
     }
 
-    .viewer-nav:hover {
-        background: var(--color-surface-active);
-        border-color: var(--color-accent);
-        color: var(--color-accent);
+    /* With text and gallery side by side, the hero fills the first screen below the
+       61px nav, so a visitor sees the product before any of the page below it. */
+    @media (min-width: 1101px) {
+        .hero {
+            display: flex;
+            align-items: center;
+            min-height: calc(100svh - 61px);
+            padding: 48px 0;
+        }
+
+        .hero > .wrap {
+            width: 100%;
+        }
     }
 
-    .viewer-close i,
-    .viewer-close svg,
-    .viewer-nav i,
-    .viewer-nav svg {
-        display: block;
-        width: 18px;
-        height: 18px;
+    @media (max-width: 1100px) {
+        .hero-grid {
+            grid-template-columns: minmax(0, 1fr);
+            gap: 40px;
+        }
     }
 
     @media (max-width: 640px) {
-        .hero-inner {
-            padding: 40px 0 28px;
-            text-align: center;
+        .hero {
+            padding-top: 32px;
+        }
+
+        .hero-grid {
+            gap: 28px;
         }
 
         .hero-title {
-            font-size: clamp(46px, 13vw, 64px);
+            font-size: clamp(40px, 11vw, 48px);
         }
 
         .hero-sub {
             font-size: 16px;
-            margin-right: auto;
-            margin-left: auto;
         }
 
-        .cta-row {
+        #hero-dl {
             display: none;
         }
 
-        .version-pill {
+        .cta-row {
             margin-top: 16px;
         }
 
-        .shot-row {
-            position: relative;
-            gap: 0;
-            padding-bottom: 0;
-            margin-bottom: 32px;
+        .stage-tabs,
+        .stage-desc {
+            display: none;
         }
 
-        .shot-card {
-            flex: 0 0 88%;
+        .stage-bar {
+            display: flex;
         }
 
-        .shot-card.active {
-            box-shadow: none;
-        }
-
-        .nav-btn {
-            position: absolute;
-            z-index: 10;
+        .seg button {
             width: 44px;
             height: 44px;
-            background: rgba(0, 0, 0, 0.5);
-            backdrop-filter: blur(6px);
-            border-color: rgba(255, 255, 255, 0.12);
-            color: #fff;
         }
 
-        #hero-prev {
-            left: 6%;
-            top: 50%;
-            transform: translate(-50%, -50%);
+        .viewer-bar {
+            gap: 10px;
+            height: 60px;
+            padding: 0 8px 0 16px;
         }
 
-        #hero-next {
-            right: 6%;
-            top: 50%;
-            transform: translate(50%, -50%);
-        }
-
-        .image-viewer {
-            padding: 12px;
-        }
-
-        .viewer-nav {
-            position: absolute;
-            z-index: 3;
-            background: rgba(0, 0, 0, 0.5);
-            backdrop-filter: blur(6px);
-            border-color: rgba(255, 255, 255, 0.12);
-            color: #fff;
-            width: 44px;
-            height: 44px;
+        .viewer-actions {
+            gap: 6px;
         }
 
         .viewer-close {
-            width: 44px;
             height: 44px;
         }
 
-        #viewer-prev {
-            left: 6%;
-            top: 50%;
-            transform: translate(-50%, -50%);
+        .viewer-close kbd {
+            display: none;
         }
 
-        #viewer-next {
-            right: 6%;
-            top: 50%;
-            transform: translate(50%, -50%);
+        .viewer-body {
+            padding: 16px 0;
         }
 
-        .viewer-card {
-            flex: 0 0 88%;
+        .viewer-shot :global(img) {
+            max-height: calc(100dvh - 60px - 32px);
+            border-radius: 0;
+            border-width: 1px 0;
         }
     }
 </style>
