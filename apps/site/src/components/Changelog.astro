@@ -31,169 +31,80 @@ const entries = releases.map((release) => ({
         <section id="changelog">
             <div class="wrap">
                 <div class="sec-head">
-                    <span class="sec-eyebrow">Changelog</span>
-                    <h2 class="sec-title">What's new</h2>
-                    <p class="sec-sub">
-                        Every update ships with plain-language release notes. Here are the most
-                        recent.
-                    </p>
-                </div>
-                <div class="releases">
-                    {entries.map((entry, index) => (
-                        <article class="release">
-                            <header class="rel-head">
-                                <a
-                                    class="rel-version"
-                                    href={entry.url}
-                                    target="_blank"
-                                    rel="noopener"
-                                >
-                                    {entry.version}
-                                </a>
-                                {index === 0 && (
-                                    <span class="mdx-badge mdx-badge--accent">Latest</span>
-                                )}
-                                <time class="rel-date" datetime={entry.publishedAt}>
-                                    {entry.date}
-                                </time>
-                            </header>
-                            <div class="rel-body" set:html={entry.html} />
-                            <button
-                                class="rel-more mdx-btn mdx-btn--ghost"
-                                aria-expanded="false"
-                                hidden
-                            >
-                                <span>Show more</span>
-                                <i data-lucide="chevron-down" />
-                            </button>
-                        </article>
-                    ))}
-                </div>
-                <p class="cl-note">
+                    <h2 class="sec-title">Changelog</h2>
                     <a
-                        class="mdx-btn mdx-btn--md mdx-btn--ghost"
+                        class="all-releases"
                         href="https://github.com/modrexio/modrex/releases"
                         target="_blank"
                         rel="noopener"
                     >
-                        Full release history on GitHub
-                        <i data-lucide="arrow-up-right" />
+                        All releases on GitHub
                     </a>
-                </p>
+                </div>
+                {entries.map((entry) => (
+                    <article class="release">
+                        <header>
+                            <a class="rel-version" href={entry.url} target="_blank" rel="noopener">
+                                {entry.version}
+                            </a>
+                            <time class="rel-date" datetime={entry.publishedAt}>
+                                {entry.date}
+                            </time>
+                        </header>
+                        <div class="rel-body" set:html={entry.html} />
+                    </article>
+                ))}
             </div>
         </section>
     )
 }
 
-<script>
-    import { createIcons, ChevronDown, ArrowUpRight } from 'lucide'
-
-    createIcons({ icons: { ChevronDown, ArrowUpRight } })
-
-    const COLLAPSED_HEIGHT = 240
-
-    document.querySelectorAll<HTMLElement>('.release').forEach((card) => {
-        const body = card.querySelector<HTMLElement>('.rel-body')
-        const button = card.querySelector<HTMLButtonElement>('.rel-more')
-        if (!body || !button) return
-        // Only collapse when the hidden part is tall enough to be worth a button.
-        if (body.scrollHeight <= COLLAPSED_HEIGHT + 80) return
-
-        const label = button.querySelector('span')
-        body.classList.add('collapsed')
-        button.hidden = false
-        button.addEventListener('click', () => {
-            // Measure before canceling so a click mid-animation retargets from the
-            // current rendered height instead of snapping.
-            const start = body.offsetHeight
-            body.getAnimations().forEach((animation) => animation.cancel())
-            const collapsed = body.classList.toggle('collapsed')
-            const end = body.offsetHeight
-            button.setAttribute('aria-expanded', String(!collapsed))
-            if (label) label.textContent = collapsed ? 'Show more' : 'Show less'
-
-            if (matchMedia('(prefers-reduced-motion: reduce)').matches) return
-            // Animate max-height, not height: the collapsed class caps the box via
-            // max-height, and the animation must override that same property.
-            body.style.overflow = 'hidden'
-            const anim = body.animate([{ maxHeight: `${start}px` }, { maxHeight: `${end}px` }], {
-                duration: 300,
-                easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
-            })
-            anim.onfinish = () => {
-                body.style.overflow = ''
-            }
-        })
-    })
-</script>
-
 <style>
-    .releases {
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
-        max-width: 760px;
-        margin: 0 auto;
+    .all-releases {
+        margin-left: auto;
+        font-size: 14px;
+        color: var(--text-secondary);
+    }
+
+    .all-releases:hover {
+        color: var(--color-text);
     }
 
     .release {
-        background: var(--color-surface-raised);
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius-lg);
-        padding: 24px 28px;
+        display: grid;
+        grid-template-columns: 200px minmax(0, 1fr);
+        gap: 32px;
+        padding: 28px 0;
+        border-top: 1px solid var(--color-border);
     }
 
-    .rel-head {
-        display: flex;
-        align-items: center;
-        gap: 10px;
+    .release:last-child {
+        border-bottom: 1px solid var(--color-border);
     }
 
     .rel-version {
-        font-family: var(--font-mono);
+        display: block;
         font-size: 15px;
         font-weight: 600;
         color: var(--color-text);
     }
 
+    .rel-version:hover {
+        color: var(--color-accent-bright);
+    }
+
     .rel-date {
-        margin-left: auto;
+        display: block;
+        margin-top: 2px;
         font-size: 13px;
         color: var(--text-tertiary);
     }
 
-    .rel-body {
-        position: relative;
-        margin-top: 16px;
-    }
-
-    .rel-body.collapsed {
-        max-height: 240px;
-        overflow: hidden;
-    }
-
-    .rel-body::after {
-        content: '';
-        position: absolute;
-        inset: auto 0 0 0;
-        height: 72px;
-        background: linear-gradient(to bottom, transparent, var(--color-surface-raised));
-        pointer-events: none;
-        opacity: 0;
-        transition: opacity var(--duration) var(--ease);
-    }
-
-    .rel-body.collapsed::after {
-        opacity: 1;
-    }
-
     .rel-body :global(h3) {
-        font-size: 12px;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.1em;
-        color: var(--color-accent-bright);
-        margin: 20px 0 8px;
+        margin: 20px 0 6px;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--color-text);
     }
 
     .rel-body :global(h3:first-child) {
@@ -203,7 +114,7 @@ const entries = releases.map((release) => ({
     /* Tailwind preflight resets list-style to none, so restore the markers. */
     .rel-body :global(ul) {
         margin: 0;
-        padding-left: 20px;
+        padding-left: 18px;
         list-style: disc;
     }
 
@@ -212,14 +123,14 @@ const entries = releases.map((release) => ({
     }
 
     .rel-body :global(li) {
+        margin: 4px 0;
         font-size: 14px;
         line-height: 1.55;
         color: var(--text-secondary);
-        margin: 6px 0;
     }
 
     .rel-body :global(li::marker) {
-        color: var(--color-text-subtle);
+        color: var(--color-surface-light);
     }
 
     .rel-body :global(code) {
@@ -232,42 +143,11 @@ const entries = releases.map((release) => ({
         padding: 1px 5px;
     }
 
-    .release .rel-more {
-        display: flex;
-        margin: 12px auto 0;
-    }
-
-    .release .rel-more[hidden] {
-        display: none;
-    }
-
-    .rel-more i,
-    .rel-more svg {
-        display: block;
-        width: 14px;
-        height: 14px;
-        transition: transform var(--duration) var(--ease);
-    }
-
-    .rel-more[aria-expanded='true'] svg {
-        transform: rotate(180deg);
-    }
-
-    .cl-note {
-        text-align: center;
-        margin-top: 32px;
-    }
-
-    .cl-note i,
-    .cl-note svg {
-        display: block;
-        width: 15px;
-        height: 15px;
-    }
-
-    @media (max-width: 420px) {
+    @media (max-width: 640px) {
         .release {
-            padding: 20px;
+            grid-template-columns: minmax(0, 1fr);
+            gap: 12px;
+            padding: 24px 0;
         }
     }
 </style>
