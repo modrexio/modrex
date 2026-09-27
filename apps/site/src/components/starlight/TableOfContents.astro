@@ -1,0 +1,53 @@
+---
+import Default from '@astrojs/starlight/components/TableOfContents.astro'
+---
+
+<Default />
+
+<script>
+    // Starlight marks a heading current once it scrolls up under the nav, which the
+    // sections at the end of a short page never reach. At the bottom of the page the
+    // last heading on screen is current instead. Starlight re-marks a heading each
+    // time its observer fires, so a change it makes at the bottom is corrected at once.
+    type TocElement = HTMLElement & { current: HTMLAnchorElement }
+
+    const tocs = [...document.querySelectorAll<TocElement>('starlight-toc, mobile-starlight-toc')]
+
+    function lastLinkOnScreen(toc: TocElement) {
+        return [...toc.querySelectorAll('a')].findLast((link) => {
+            const heading = document.getElementById(decodeURIComponent(link.hash.slice(1)))
+            return heading !== null && heading.getBoundingClientRect().top < innerHeight
+        })
+    }
+
+    function sync() {
+        const { scrollHeight } = document.documentElement
+        if (scrollY + innerHeight < scrollHeight - 1) return
+
+        for (const toc of tocs) {
+            const link = lastLinkOnScreen(toc)
+            if (link && link.getAttribute('aria-current') !== 'true') toc.current = link
+        }
+    }
+
+    // Assigning current before the element upgrades would shadow its setter.
+    await Promise.all(tocs.map((toc) => customElements.whenDefined(toc.localName)))
+
+    let ticking = false
+    const onScroll = () => {
+        if (ticking) return
+        ticking = true
+        requestAnimationFrame(() => {
+            ticking = false
+            sync()
+        })
+    }
+
+    window.addEventListener('scroll', onScroll, { passive: true })
+    window.addEventListener('resize', onScroll, { passive: true })
+    const observer = new MutationObserver(sync)
+    for (const toc of tocs) {
+        observer.observe(toc, { subtree: true, attributeFilter: ['aria-current'] })
+    }
+    sync()
+</script>

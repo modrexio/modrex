@@ -67,6 +67,7 @@ export default defineConfig({
                 Head: './src/components/starlight/Head.astro',
                 Header: './src/components/starlight/Header.astro',
                 Sidebar: './src/components/starlight/Sidebar.astro',
+                TableOfContents: './src/components/starlight/TableOfContents.astro',
                 ThemeProvider: './src/components/starlight/DarkThemeProvider.astro',
             },
             social: [

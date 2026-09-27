@@ -180,6 +180,12 @@ const isDevelopment = import.meta.env.DEV
             '.docs-pagefind-search button[data-open-modal]'
         )
 
-        trigger?.addEventListener('click', () => searchButton?.click())
+        // Starlight closes its search on any click outside the dialog, and starts
+        // listening while this click is still bubbling, so it must stop here or the
+        // dialog closes the moment it opens.
+        trigger?.addEventListener('click', (event) => {
+            event.stopPropagation()
+            searchButton?.click()
+        })
     }
 </script>

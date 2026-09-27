@@ -63,6 +63,14 @@ body {
     position: static;
 }
 
+/* Docs pages never load global.css, so the header repeats the page wrap and the
+   button styles it needs to render exactly like the marketing pages. */
+.page > .header .wrap {
+    max-width: 1440px;
+    margin: 0 auto;
+    padding: 0 32px;
+}
+
 .page > .header .btn-lg {
     display: inline-flex;
     align-items: center;
@@ -98,9 +106,10 @@ body {
         display: flex;
     }
 
+    /* Sits 14px left of the site menu button, which follows the page wrap padding. */
     starlight-menu-button button {
         top: 12px;
-        inset-inline-end: 64px;
+        inset-inline-end: 80px;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -124,6 +133,10 @@ body {
 @media (max-width: 768px) {
     .page > .header .wrap {
         padding-inline: 16px;
+    }
+
+    starlight-menu-button button {
+        inset-inline-end: 64px;
     }
 }
 
@@ -214,6 +227,10 @@ body {
     color: var(--color-text);
     font-size: var(--sl-text-2xs);
     line-height: 1;
+}
+
+#starlight__sidebar .docs-filter-field:focus-within .docs-filter-shortcut {
+    visibility: hidden;
 }
 
 #starlight__sidebar .docs-pagefind-search > button[data-open-modal] {

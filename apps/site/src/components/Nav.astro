@@ -15,7 +15,7 @@ const linUrl =
 ---
 
 <nav>
-    <div class:list={['wrap', 'nav-inner', { docs: activePage === 'docs' }]}>
+    <div class="wrap nav-inner">
         <a href="/" class="modrex-wordmark">MOD<span>REX</span></a>
         <div class="nav-links">
             <a href="/#screenshots">Screenshots</a>
@@ -220,63 +220,8 @@ const linUrl =
         margin-left: 8px;
     }
 
-    /* Docs pages line the wordmark up over the Starlight sidebar, so the header is a
-       three-column grid there instead of the page wrap. Just above the hamburger
-       breakpoint the links outgrow the middle column, so every column keeps at least
-       its content width and the left one gives way instead of overlapping. */
-    .nav-inner.docs {
-        --header-side-width: var(--sl-sidebar-width, 17rem);
-        --header-wordmark-width: 5.5rem;
-
-        display: grid;
-        grid-template-columns:
-            minmax(max-content, var(--header-side-width))
-            minmax(max-content, 1fr)
-            minmax(max-content, var(--header-side-width));
-        gap: 0;
-        width: 100%;
-        max-width: none;
-        margin: 0;
-        padding: 0;
-    }
-
-    .docs .modrex-wordmark {
-        justify-self: center;
-    }
-
-    .docs .nav-links {
-        justify-self: center;
-        gap: clamp(12px, 2vw, 28px);
-        padding-inline: 8px;
-    }
-
-    .docs .nav-links a {
-        font-size: clamp(13px, 1.1vw, 14px);
-    }
-
-    .docs .nav-right {
-        justify-self: end;
-        gap: 8px;
-        margin-left: 0;
-        padding-inline-end: calc((var(--header-side-width) - var(--header-wordmark-width)) / 2);
-    }
-
-    .docs .nav-dl-btn {
-        margin-left: 0;
-    }
-
     .modrex-wordmark {
         font-size: 26px;
-    }
-
-    .docs .modrex-wordmark {
-        font-size: 28px;
-    }
-
-    .docs .nav-right .social-link {
-        width: 34px;
-        height: 34px;
-        flex-basis: 34px;
     }
 
     .social-link {
@@ -408,12 +353,6 @@ const linUrl =
     }
 
     @media (max-width: 50rem) {
-        .nav-inner.docs {
-            display: flex;
-            justify-content: space-between;
-            padding-inline: 16px;
-        }
-
         .nav-links,
         .nav-right {
             display: none;
