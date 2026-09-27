@@ -92,10 +92,11 @@ CORS rule on the R2 bucket (Cloudflare dashboard, not this repo) allowing `GET` 
 
 **Mobile breakpoints** (defined in `global.css` for shared utilities; in component `<style>` blocks for component-specific layout):
 
-- `768px` — nav switches to hamburger, `.wrap` padding shrinks to `16px` (docs-layout responsiveness is Starlight's own plus `starlight.css` overrides, not these breakpoints)
-- `860px` / `500px` — features grid: 3-col → 2-col → 1-col
-- `640px` — hero inner padding/font size reductions, download section 2-col → 1-col, gallery nav buttons switch to absolute overlays on the card edges
-- `480px` — section title font size floor (`32px`)
+- `50rem` — nav switches to the hamburger (matches Starlight's sidebar breakpoint, so docs and marketing pages switch together)
+- `1100px` — the hero stacks its text above the screenshot stage instead of beside it
+- `900px` — feature rows stack their text above the screenshot crop; the footer brand takes its own row
+- `768px` — `.wrap` padding shrinks to `16px`, section spacing to `64px` (docs-layout responsiveness is Starlight's own plus `starlight.css` overrides, not these breakpoints)
+- `640px` — hero drops the primary download button, the screenshot tabs give way to the name, count and previous/next bar under the image, download and changelog rows stack
 
 ### OS detection
 
@@ -138,14 +139,14 @@ Only the homepage carries a sitemap `lastmod`, set in the sitemap `serialize` in
 ### Images
 
 Screenshots are imported from `src/assets/screenshots/`, never served from `public/`. `Hero.astro`
-renders them through `<Picture>` with AVIF plus a WebP fallback at the widths in `SHOT_WIDTHS`; the
-first real card is `loading="eager"` with `fetchpriority="high"` and is the site's LCP element.
-There is deliberately **no** `<link rel="preload">` for it: a preload without a matching
-`imagesrcset`/`imagesizes` would double-download now that a srcset is in play.
+renders them through `<Picture>` with AVIF plus a WebP fallback at the widths in `STAGE_WIDTHS`; the
+screenshot shown first (`FIRST`) is `loading="eager"` with `fetchpriority="high"` and is the site's
+LCP element. There is deliberately **no** `<link rel="preload">` for it: a preload without a
+matching `imagesrcset`/`imagesizes` would double-download now that a srcset is in play.
 
-`.shot-card picture` and `.viewer-card picture` need `display: block` — `<picture>` is inline by
-default, which leaves a baseline gap in the card and perturbs the width the carousel measures to
-compute its step stride.
+`Features.astro` shows crops of the same screenshots rather than separate image files: `crop()`
+takes a rectangle in source pixels and scales and offsets the full image inside a fixed-ratio frame,
+with a `sizes` value scaled to match. Re-check the rectangles whenever the screenshots are retaken.
 
 ### Static assets
 
@@ -157,7 +158,9 @@ Lucide icons via the `lucide` package (not `lucide-react`). In each component th
 
 ### Nav mobile menu
 
-At `≤768px`, `.nav-links` and `.nav-right` are hidden and a hamburger button appears. Clicking it toggles `.open` on `#mobile-menu`, which drops down below the nav bar with all links plus a download button. The menu closes on any link click. The mobile download button mirrors the OS detection logic from the desktop button.
+At `≤50rem`, `.nav-links` and `.nav-right` are hidden and a hamburger button appears. Clicking it toggles `.open` on `#mobile-menu`, which drops down below the nav bar with all links. The menu closes on any link click.
+
+`Nav` has two layouts. Marketing pages put it on the page `.wrap`; docs pages (`activePage="docs"`) add `.docs`, a three-column grid whose side columns match the Starlight sidebar so the wordmark sits over it. Style changes meant for one layout must not leak into the other.
 
 ### Docs (Starlight)
 
@@ -173,9 +176,11 @@ At `≤768px`, `.nav-links` and `.nav-right` are hidden and a hamburger button a
 - The game tables/facts are driven by `src/data/docsGames.ts` (typed, per-game) — add or change game data there, not inline in MDX.
 - Docs-specific styling (including responsive layout) lives in `src/styles/starlight.css`, loaded via the starlight `customCss` option.
 
-### Hero gallery
+### Hero screenshot stage
 
-Infinite carousel in `Hero.astro`: slots carry **two clones per edge** (`CLONES` in the frontmatter) — a wrap step travels onto the first clone and the second keeps a neighbor sliver visible beyond it (one clone left a blank viewport edge during the wrap). The script derives the real range from which card the server marked `active`, so the clone count is stated once. One `createCarousel()` factory drives both the hero track and the fullscreen viewer track. Steps are animated with the **Web Animations API, not CSS transitions** (the tracks deliberately have no `transition: transform`): the committed `style.transform` is set to the step's final position up front and the animation only overlays the travel, so a canceled/interrupted step can never strand the track mid-flight, and completion is `anim.onfinish` — a guaranteed callback, unlike `transitionend`, which is silently lost when a transition is canceled (e.g. by the ResizeObserver repositioning mid-step) or never starts. That event loss froze the gallery in the old CSS-transition design; do not reintroduce a transition on the tracks or an `animating` lock flag. When a step lands on a clone, `onfinish` teleports to the real twin via `place()` (card transitions suppressed for two frames to avoid the highlight blink); a step _started_ from a not-yet-teleported clone folds the wrap into its start position (`from ± SPAN * stride()`). There is no step lock — rapid clicks retarget the animation from the current rendered position (`getComputedStyle` + `DOMMatrixReadOnly`). Card width is `74%` on desktop (`flex: 0 0 74%`) and `88%` on mobile (`flex: 0 0 88%`); the JS reads rendered width from the DOM (`cardEls[REAL_FIRST].offsetWidth`) so no ratio is hardcoded. On mobile (`≤640px`), the nav buttons are `position: absolute` overlays centered on the left/right edges of the active card (`left/right: 6%` — derived from `(100% - 88%) / 2`).
+`Hero.astro` shows one screenshot at a time. All five share one grid cell and only the active one is visible, so switching is instant and the frame never changes height. Desktop picks screens with an ARIA tablist under the frame (arrow keys, Home and End); at `≤640px` the tabs hide and a bar under the image shows the name, `n / 5` and joined previous/next buttons, and horizontal swipes step too. Nothing is drawn over the screenshot.
+
+The fullscreen viewer is a native `<dialog>` opened with `showModal()`, which makes the page inert and closes on Escape; the script restores focus to whatever opened it. The stage and the viewer share one `show()` index, so closing the viewer leaves the stage on the same screen.
 
 ## Local Pages Function testing
 
