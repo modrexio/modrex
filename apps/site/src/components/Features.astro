@@ -1,6 +1,9 @@
 ---
+import { Picture } from 'astro:assets'
 import type { ModIndexStats } from '../lib/mod-index'
 import type { NexusModCounts } from '../lib/nexus-mod-count'
+import browseMods from '../assets/screenshots/browse-mods-window.png'
+import installedMods from '../assets/screenshots/installed-mods-window.png'
 
 interface Props {
     indexStats: ModIndexStats | null
@@ -17,83 +20,131 @@ const nexusModsAvailable = nexusModCounts
     ? new Intl.NumberFormat('en-US').format(nexusModCounts.total)
     : null
 
-const features: [string, string, string][] = [
-    [
-        'compass',
-        'Browse ModWorkshop and Nexus Mods',
-        'Search ModWorkshop and Nexus Mods with categories, tags, sorting, rich mod pages, and dependencies.',
-    ],
-    [
-        'download',
-        'One-click install',
-        'Install, enable, disable, and remove in a click. Supports .pak, .zip, .7z, and .rar, with multi-file archives grouped as one.',
-    ],
-    [
-        'folder-tree',
-        'Organize in folders',
-        'Sort your library into nested folders of any depth, with drag-and-drop reordering that sticks.',
-    ],
-    [
-        'refresh-cw',
-        'Smart updates',
-        'Modrex detects out-of-date mods and lets you update them selectively - or all at once.',
-    ],
-    [
-        'play',
-        'Launch your way',
-        'Boot modded or vanilla straight from the app. Vanilla launches hide your mods and restore them on exit.',
-    ],
-    [
-        'crosshair',
-        'Auto-detects your install',
-        'Finds supported games across their launchers and picks up mods you added outside Modrex.',
-    ],
-]
+// Each crop is a window onto a full 2560x1368 screenshot, in source pixels, so the
+// evidence stays in sync with the screenshots instead of living in separate files.
+// The image is scaled up by 2560 / w and shifted so the rectangle fills the frame.
+const SOURCE_WIDTH = 2560
+const CROP_WIDTHS = [1180, 1960, 2560]
+
+function crop(x: number, y: number, w: number, h: number) {
+    const scale = SOURCE_WIDTH / w
+    // The frame is 7/12 of the content column beside the text (775px at the full
+    // 1440px wrap), and the whole column below 900px. The image renders scale
+    // times wider than its frame.
+    return {
+        frameStyle: `aspect-ratio: ${w} / ${h}`,
+        imgStyle: `width: ${scale * 100}%; left: ${(-x / w) * 100}%; top: ${(-y / h) * 100}%`,
+        sizes: [
+            `(max-width: 768px) calc((100vw - 32px) * ${scale})`,
+            `(max-width: 900px) calc((100vw - 64px) * ${scale})`,
+            `(max-width: 1440px) calc((100vw - 112px) * 7 / 12 * ${scale})`,
+            `${Math.round(775 * scale)}px`,
+        ].join(', '),
+    }
+}
+
+const launchCrop = crop(1760, 0, 800, 300)
+const browseCrop = crop(300, 70, 1120, 540)
+const installedCrop = crop(300, 80, 1100, 600)
 ---
 
 <section id="features">
     <div class="wrap">
         <div class="sec-head">
-            <h2 class="sec-title">Built for mod management</h2>
-            <p class="sec-sub">
-                Browse, install, update, and launch mods without dragging files by hand.
-            </p>
+            <h2 class="sec-title">Features</h2>
         </div>
-        <div class="features-grid">
-            <div class="index-count">
-                <p>Recognized mods</p>
-                <strong data-mod-index-count aria-live="polite">{supportedMods ?? '...'}</strong>
-                <span>known mods Modrex can match automatically</span>
-                <small>Helps Modrex detect mods already in your game folder.</small>
-                {
-                    nexusModsAvailable && (
-                        <small>
-                            Plus <strong class="nexus-count">{nexusModsAvailable}</strong> mods
-                            available on Nexus Mods.
-                        </small>
-                    )
-                }
+
+        <div class="rows">
+            <div class="row">
+                <div class="row-text">
+                    <h3>Launch modded or vanilla</h3>
+                    <p>
+                        Two buttons in the top bar. A vanilla launch hides your mods and puts them
+                        back when the game exits.
+                    </p>
+                </div>
+                <div class="crop" style={launchCrop.frameStyle}>
+                    <Picture
+                        src={installedMods}
+                        alt="The Launch without mods and Launch modded buttons in the Modrex top bar"
+                        widths={CROP_WIDTHS}
+                        sizes={launchCrop.sizes}
+                        formats={['avif']}
+                        fallbackFormat="webp"
+                        loading="lazy"
+                        style={launchCrop.imgStyle}
+                    />
+                </div>
             </div>
-            {
-                features.map(([icon, title, body], index) => (
-                    <div class:list={['feature', { 'feature-wide': !indexStats && index < 2 }]}>
-                        <div class="ic">
-                            <i data-lucide={icon} />
-                        </div>
-                        <h3>{title}</h3>
-                        <p>{body}</p>
-                    </div>
-                ))
-            }
+
+            <div class="row">
+                <div class="row-text">
+                    <h3>ModWorkshop and Nexus Mods in one place</h3>
+                    <p>
+                        Search both sites with categories, tags and sorting, read the mod page, and
+                        install from the result.{' '}
+                        {
+                            nexusModsAvailable && (
+                                <span>Nexus lists {nexusModsAvailable} mods for these games.</span>
+                            )
+                        }
+                    </p>
+                </div>
+                <div class="crop" style={browseCrop.frameStyle}>
+                    <Picture
+                        src={browseMods}
+                        alt="Browsing ModWorkshop mods in Modrex, with Install buttons on each result"
+                        widths={CROP_WIDTHS}
+                        sizes={browseCrop.sizes}
+                        formats={['avif']}
+                        fallbackFormat="webp"
+                        loading="lazy"
+                        style={browseCrop.imgStyle}
+                    />
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="row-text">
+                    <h3>Recognizes mods you already have</h3>
+                    <p>
+                        Modrex matches the files in your game folder against{' '}
+                        <strong data-mod-index-count aria-live="polite"
+                            >{supportedMods ?? '...'}</strong
+                        > known mods, so mods you installed by hand are detected too.
+                    </p>
+                </div>
+                <div class="crop" style={installedCrop.frameStyle}>
+                    <Picture
+                        src={installedMods}
+                        alt="The Modrex installed mods list, each mod with its own switch"
+                        widths={CROP_WIDTHS}
+                        sizes={installedCrop.sizes}
+                        formats={['avif']}
+                        fallbackFormat="webp"
+                        loading="lazy"
+                        style={installedCrop.imgStyle}
+                    />
+                </div>
+            </div>
         </div>
+
+        <ul class="also">
+            <li>
+                <strong>Archives</strong> in .pak, .zip, .7z, .rar, .tar.gz and .tar.xz, with multi-file
+                mods kept together
+            </li>
+            <li><strong>Folders</strong> of any depth, reordered by dragging</li>
+            <li><strong>Update checks</strong> for one mod or all of them at once</li>
+            <li>
+                <strong>Game detection</strong> across launchers, including mods added outside Modrex
+            </li>
+        </ul>
     </div>
 </section>
 
 <script>
-    import { createIcons, Compass, Download, FolderTree, RefreshCw, Play, Crosshair } from 'lucide'
     import { INDEX_STATS_URL, type ModIndexStatsPayload } from '../lib/mod-index-shared'
-
-    createIcons({ icons: { Compass, Download, FolderTree, RefreshCw, Play, Crosshair } })
 
     const countEl = document.querySelector<HTMLElement>('[data-mod-index-count]')
 
@@ -123,116 +174,101 @@ const features: [string, string, string][] = [
 </script>
 
 <style>
-    .features-grid {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 16px;
-    }
-
-    .feature {
-        grid-column: span 1;
-        background: var(--color-surface-raised);
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius-lg);
-        padding: 24px;
-    }
-
-    .feature-wide {
-        grid-column: span 2;
-    }
-
-    .ic {
-        width: 40px;
-        height: 40px;
-        border-radius: var(--radius-md);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: var(--accent-tint-10);
-        color: var(--color-accent-bright);
-        border: 1px solid var(--accent-tint-30);
-    }
-
-    .feature h3 {
-        font-size: 16px;
-        font-weight: 600;
-        margin: 16px 0 6px;
-    }
-
-    .feature p {
-        font-size: 14px;
-        line-height: 1.55;
-        color: var(--text-secondary);
-        margin: 0;
-    }
-
-    .index-count {
-        grid-column: span 2;
+    .rows {
         display: flex;
         flex-direction: column;
-        justify-content: space-between;
-        min-height: 100%;
-        padding: 24px;
+        gap: 56px;
+    }
+
+    .row {
+        display: grid;
+        grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+        gap: 48px;
+        align-items: center;
+    }
+
+    .row-text h3 {
+        margin: 0 0 8px;
+        font-size: 20px;
+        font-weight: 600;
+        line-height: 1.3;
+    }
+
+    .row-text p {
+        margin: 0;
+        max-width: 44ch;
+        font-size: 15px;
+        line-height: 1.6;
+        color: var(--text-secondary);
+    }
+
+    .row-text strong {
+        color: var(--color-text);
+        font-weight: 600;
+    }
+
+    .crop {
+        position: relative;
+        overflow: hidden;
         border: 1px solid var(--color-border);
         border-radius: var(--radius-lg);
         background: var(--color-surface-raised);
-        font-size: 14px;
-        font-weight: 600;
-        color: var(--text-secondary);
     }
 
-    .index-count p {
-        margin: 0 0 28px;
-        color: var(--color-accent-bright);
-        font-size: 13px;
-        font-weight: 700;
-    }
-
-    .index-count > strong {
-        font-family: var(--font-display);
-        font-size: clamp(52px, 7vw, 76px);
-        line-height: 1;
-        letter-spacing: 0.01em;
-        color: var(--color-text);
-    }
-
-    .index-count span {
-        margin-top: 2px;
-        color: var(--color-text);
-        font-size: 16px;
-        font-weight: 700;
-    }
-
-    .index-count small {
+    .crop :global(img) {
+        position: absolute;
         display: block;
-        max-width: 36ch;
-        margin-top: 16px;
+        max-width: none;
+        height: auto;
+    }
+
+    .also {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px 48px;
+        margin: 64px 0 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    .also li {
+        position: relative;
+        padding-left: 16px;
+        font-size: 15px;
+        line-height: 1.6;
         color: var(--text-secondary);
-        font-size: 14px;
-        font-weight: 400;
-        line-height: 1.55;
     }
 
-    .index-count .nexus-count {
-        color: var(--color-accent-bright);
-        font-weight: 700;
+    .also li::before {
+        content: '';
+        position: absolute;
+        top: 0.8em;
+        left: 0;
+        width: 6px;
+        height: 1px;
+        background: var(--color-surface-light);
     }
 
-    @media (max-width: 860px) {
-        .features-grid {
-            grid-template-columns: repeat(2, 1fr);
+    .also strong {
+        color: var(--color-text);
+        font-weight: 600;
+    }
+
+    @media (max-width: 900px) {
+        .row {
+            grid-template-columns: minmax(0, 1fr);
+            gap: 20px;
         }
 
-        .index-count,
-        .feature,
-        .feature-wide {
-            grid-column: span 1;
+        .rows {
+            gap: 48px;
         }
     }
 
-    @media (max-width: 500px) {
-        .features-grid {
-            grid-template-columns: 1fr;
+    @media (max-width: 640px) {
+        .also {
+            grid-template-columns: minmax(0, 1fr);
+            margin-top: 48px;
         }
     }
 </style>
