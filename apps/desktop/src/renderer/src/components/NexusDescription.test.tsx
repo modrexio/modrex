@@ -46,6 +46,14 @@ describe('NexusDescription', () => {
         expect(img?.classList.contains('inline-block')).toBe(true)
     })
 
+    it('renders a [left] block instead of leaking the tag', () => {
+        const { container, getByText } = render(
+            <NexusDescription text="[center]Intro[/center][left][i]Aligned[/i][/left]" />
+        )
+        expect(getByText('Aligned').closest('div')?.style.textAlign).toBe('left')
+        expect(container.textContent).toBe('IntroAligned')
+    })
+
     it('supports a self-closing image URL with dimensions and alignment', () => {
         const { container, getByText } = render(
             <NexusDescription text="[img=https://x.test/a.png width=640 height=360 align=center]after" />

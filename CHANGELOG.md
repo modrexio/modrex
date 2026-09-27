@@ -10,6 +10,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - Fixed UE4SS mods installing to a folder PAYDAY 3's UE4SS does not read.
 - Fixed images in mod descriptions not loading when hosted on sites like Imgur or Discord.
 - Fixed code blocks in Nexus mod descriptions showing `[br]` tags and escaped quotes instead of line breaks and quotes.
+- Fixed `[left]` tags showing as text in Nexus mod descriptions.
 
 ### Security
 

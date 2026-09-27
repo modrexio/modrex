@@ -196,6 +196,13 @@ class CodeTag extends Tag {
     }
 }
 
+// The library ships center and right but not left.
+class LeftTag extends Tag {
+    toReact() {
+        return <div style={{ textAlign: 'left' }}>{Children.toArray(this.getComponents())}</div>
+    }
+}
+
 class HeadingTag extends Tag {
     toReact() {
         return <h3>{Children.toArray(this.getComponents())}</h3>
@@ -307,6 +314,7 @@ parser.registerTag('br', BrTag)
 parser.registerTag('size', SizeTag)
 parser.registerTag('line', LineTag)
 parser.registerTag('code', CodeTag)
+parser.registerTag('left', LeftTag)
 parser.registerTag('heading', HeadingTag)
 parser.registerTag('font', FontTag)
 parser.registerTag('youtube', YoutubeTag)
