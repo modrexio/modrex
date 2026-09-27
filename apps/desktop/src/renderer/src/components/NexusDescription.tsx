@@ -152,17 +152,15 @@ class BrTag extends Tag {
     }
 }
 
-// Vortex's own size override, a relative scale in rem rather than the base library's
-// pixel size.
+// Nexus renders [size=N] as <font size=N>, so these are the browser's sizes 1 to 7.
+const FONT_SIZES_PX = [10, 13, 16, 18, 24, 32, 48]
+
 class SizeTag extends Tag {
     toReact() {
-        const size = Number(this.params.size)
+        const size = parseInt(this.params.size, 10)
         if (Number.isNaN(size)) return Children.toArray(this.getComponents())
-        return (
-            <span style={{ fontSize: `${1 + size * 0.1}rem` }}>
-                {Children.toArray(this.getComponents())}
-            </span>
-        )
+        const px = FONT_SIZES_PX[Math.min(Math.max(size, 1), 7) - 1]
+        return <span style={{ fontSize: `${px}px` }}>{Children.toArray(this.getComponents())}</span>
     }
 }
 

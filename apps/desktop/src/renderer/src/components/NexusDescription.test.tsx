@@ -26,9 +26,13 @@ describe('NexusDescription', () => {
         expect(bold.closest('span')?.style.color).toBe('green')
     })
 
-    it("uses Vortex's relative rem scale for [size], not a pixel size", () => {
-        const { getByText } = render(<NexusDescription text="[size=4]big[/size]" />)
-        expect(getByText('big').style.fontSize).toBe('1.4rem')
+    it('sizes [size] text like the Nexus site does', () => {
+        const { getByText } = render(
+            <NexusDescription text="[size=2]fine print[/size][size=4]big[/size][size=200]huge[/size]" />
+        )
+        expect(getByText('fine print').style.fontSize).toBe('13px')
+        expect(getByText('big').style.fontSize).toBe('18px')
+        expect(getByText('huge').style.fontSize).toBe('48px')
     })
 
     it('normalizes a literal <br> into a real line break with no doubling', () => {
