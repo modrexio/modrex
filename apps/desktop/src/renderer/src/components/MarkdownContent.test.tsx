@@ -139,11 +139,24 @@ describe('MarkdownContent sanitization', () => {
         expect(getByText('inner').style.color).toBe('rgb(0, 255, 0)')
     })
 
-    it('keeps a raw div style attribute (Nexus [center]/[right] compile to this)', () => {
+    it('drops div styles so a description cannot cover the app', () => {
         const { getByText } = render(
-            <MarkdownContent text={'<div style="text-align:center">centered</div>'} />
+            <MarkdownContent
+                text={'<div style="position:fixed;inset:0;z-index:99999">fake prompt</div>'}
+            />
         )
-        expect(getByText('centered').style.textAlign).toBe('center')
+        expect(getByText('fake prompt').getAttribute('style')).toBeNull()
+    })
+
+    it('keeps only the color of a raw span style', () => {
+        const { getByText } = render(
+            <MarkdownContent
+                text={'<span style="color:red;position:fixed;inset:0">overlay</span>'}
+            />
+        )
+        const span = getByText('overlay')
+        expect(span.style.color).toBe('red')
+        expect(span.style.position).toBe('')
     })
 
     it('handles long malformed color tags without backtracking', () => {

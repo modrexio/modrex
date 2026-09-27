@@ -18,11 +18,10 @@ const InsidePreContext = createContext(false)
 // Mod descriptions are attacker-controlled HTML (rehypeRaw), so they are sanitized
 // against the GitHub-style default schema. Must run AFTER rehypeRaw (there is no raw
 // HTML to sanitize before it) and BEFORE rehypeHighlight (so the hljs-* classes it
-// injects survive). Three deliberate carve-outs beyond the defaults:
+// injects survive). Two deliberate carve-outs beyond the defaults:
 // - span keeps the style attribute: parseColorTags compiles modworkshop's {#hex}(text)
-//   syntax to <span style="color:...">, and authors write the same tag raw.
-// - div keeps the style attribute too, for the same reason: a raw <div style> an
-//   author writes directly would otherwise silently lose it with no visible error.
+//   syntax to <span style="color:...">. The span component below keeps only color,
+//   so a description can't position anything over the app.
 // - iframe keeps only src (http/https enforced by the schema's protocol map): the
 //   iframe component below renders nothing unless detectEmbed matches an allowlisted
 //   video host, so unknown iframes are dropped even after passing sanitization.
@@ -32,7 +31,6 @@ const sanitizeSchema = {
     attributes: {
         ...defaultSchema.attributes,
         span: [...(defaultSchema.attributes?.span ?? []), 'style'],
-        div: [...(defaultSchema.attributes?.div ?? []), 'style'],
         iframe: ['src'],
     },
 }
@@ -257,13 +255,9 @@ function makeMdComponents(defs: EmbedDef[], onOpenDetail?: (modId: number) => vo
         td: ({ children }) => (
             <td className="border border-border px-3 py-1.5 text-text-muted">{children}</td>
         ),
-        div: ({ children, style, className }) => (
-            <div style={style} className={className}>
-                {children}
-            </div>
-        ),
+        div: ({ children, className }) => <div className={className}>{children}</div>,
         span: ({ children, style, className }) => (
-            <span style={style} className={className}>
+            <span style={style?.color ? { color: style.color } : undefined} className={className}>
                 {children}
             </span>
         ),
