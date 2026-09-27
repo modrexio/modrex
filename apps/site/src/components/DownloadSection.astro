@@ -57,41 +57,39 @@ const linuxFiles: DlFile[] = [
           }
         : { name: 'modrex_x86_64.rpm', url: fallbackUrl },
 ]
+
+const extension = (file: DlFile) => file.name.split('.').pop()
 ---
 
 <section id="download">
     <div class="wrap">
         <div class="sec-head">
-            <span class="sec-eyebrow">Get Modrex</span>
-            <h2 class="sec-title">Download &amp; install</h2>
-            <p class="sec-sub">
-                Grab the latest build for your platform. Auto-updates are built in - install once
-                and Modrex keeps itself current.
-            </p>
+            <h2 class="sec-title">Download</h2>
         </div>
-        <div class="dl-grid">
-            <div class="dl-card" id="dl-card-win">
-                <div class="os-header">
-                    <img src="/icons/windows-white.svg" alt="" width="26" height="26" />
-                    <h3>Windows</h3>
-                    <span class="os-badge" id="badge-win">Your OS</span>
-                </div>
-                <div class="files">
-                    {
-                        windowsFiles.map((f) => (
-                            <div class="dl-file">
-                                <span class="fname">{f.name}</span>
-                                {f.size && <span class="fsize">{f.size}</span>}
-                                <a class="dl-btn" href={f.url}>
-                                    <i data-lucide="download" />
-                                    Install (.{f.name.split('.').pop()})
+        <p class="sec-sub">Modrex updates itself after the first install.</p>
+
+        <div class="dl-table">
+            <div class="dl-row">
+                <h3 class="os">
+                    <img src="/icons/windows-white.svg" alt="" width="20" height="20" />
+                    Windows
+                </h3>
+                <div class="dl-body">
+                    <div class="files">
+                        {
+                            windowsFiles.map((f) => (
+                                <a
+                                    class="btn-lg primary dl-btn"
+                                    href={f.url}
+                                    data-os-main="windows"
+                                >
+                                    Download .{extension(f)}{' '}
+                                    {f.size && <span class="fsize">{f.size}</span>}
                                 </a>
-                            </div>
-                        ))
-                    }
-                </div>
-                <div class="cli">
-                    <span class="cli-label">Or with winget</span>
+                            ))
+                        }
+                    </div>
+                    <p class="cli-label">Or with winget</p>
                     <div class="quick-install">
                         <code><span class="tok-cmd">winget</span> install modrex</code>
                         <button
@@ -105,28 +103,28 @@ const linuxFiles: DlFile[] = [
                     </div>
                 </div>
             </div>
-            <div class="dl-card" id="dl-card-lin">
-                <div class="os-header">
-                    <img src="/icons/linux-white.svg" alt="" width="26" height="26" />
-                    <h3>Linux</h3>
-                    <span class="os-badge" id="badge-lin">Your OS</span>
-                </div>
-                <div class="files">
-                    {
-                        linuxFiles.map((f) => (
-                            <div class="dl-file">
-                                <span class="fname">{f.name}</span>
-                                {f.size && <span class="fsize">{f.size}</span>}
-                                <a class="dl-btn" href={f.url}>
-                                    <i data-lucide="download" />
-                                    Install (.{f.name.split('.').pop()})
+
+            <div class="dl-row">
+                <h3 class="os">
+                    <img src="/icons/linux-white.svg" alt="" width="20" height="20" />
+                    Linux
+                </h3>
+                <div class="dl-body">
+                    <div class="files">
+                        {
+                            linuxFiles.map((f, i) => (
+                                <a
+                                    class="btn-lg secondary dl-btn"
+                                    href={f.url}
+                                    data-os-main={i === 0 ? 'linux' : undefined}
+                                >
+                                    Download .{extension(f)}{' '}
+                                    {f.size && <span class="fsize">{f.size}</span>}
                                 </a>
-                            </div>
-                        ))
-                    }
-                </div>
-                <div class="cli">
-                    <span class="cli-label">Or with the install script</span>
+                            ))
+                        }
+                    </div>
+                    <p class="cli-label">Or with the install script</p>
                     <div class="quick-install">
                         <code
                             ><span class="tok-cmd">curl</span> -fsSL https://modrex.net/install.sh{
@@ -146,17 +144,20 @@ const linuxFiles: DlFile[] = [
                 </div>
             </div>
         </div>
+
         <p class="dl-note">
-            Supports Steam, Epic Games &amp; Xbox launchers on Windows. Steam on Linux. See the{' '}
-            <a href="/docs/">installation guide</a>.
+            Works with Steam, Epic Games and the Xbox app on Windows, and Steam on Linux. See the{
+                ' '
+            }
+            <a href="/docs/getting-started">installation guide</a>.
         </p>
     </div>
 </section>
 
 <script>
-    import { createIcons, Check, Copy, Download } from 'lucide'
+    import { createIcons, Check, Copy } from 'lucide'
     import { detectOs } from '../lib/os-detect'
-    createIcons({ icons: { Check, Copy, Download } })
+    createIcons({ icons: { Check, Copy } })
 
     document.querySelectorAll<HTMLElement>('.copy-btn').forEach((copyBtn) => {
         copyBtn.addEventListener('click', async () => {
@@ -175,100 +176,76 @@ const linuxFiles: DlFile[] = [
         })
     })
 
+    // Windows is the filled button in the markup. A desktop Linux visitor gets the
+    // AppImage filled instead, so there is only ever one primary download.
     const { isMobile, isLinux } = detectOs()
-    if (!isMobile) {
-        const cardId = isLinux ? 'dl-card-lin' : 'dl-card-win'
-        const badgeId = isLinux ? 'badge-lin' : 'badge-win'
-        document.getElementById(cardId)?.classList.add('os-match')
-        const badge = document.getElementById(badgeId)
-        if (badge) badge.style.display = 'inline-block'
+    if (!isMobile && isLinux) {
+        document.querySelectorAll<HTMLElement>('[data-os-main]').forEach((button) => {
+            const main = button.dataset.osMain === 'linux'
+            button.classList.toggle('primary', main)
+            button.classList.toggle('secondary', !main)
+        })
     }
 </script>
 
 <style>
-    #download {
-        background: var(--color-surface-raised);
+    /* Both platforms share the middle column, which is as wide as the widest row of
+       download buttons, so every command box ends where that button row ends. */
+    .dl-table {
+        display: grid;
+        grid-template-columns: 200px minmax(0, max-content) 1fr;
+        column-gap: 32px;
+    }
+
+    .dl-row {
+        display: grid;
+        grid-column: 1 / -1;
+        grid-template-columns: subgrid;
+        padding: 28px 0;
         border-top: 1px solid var(--color-border);
+    }
+
+    .dl-row + .dl-row {
         border-bottom: 1px solid var(--color-border);
     }
 
-    .dl-grid {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-        gap: 16px;
-        /* The actual constraint is the .dl-file row (filename + size badge +
-           "Install (.AppImage)" button), not the quick-install command — that's
-           short enough to fit even at the narrowest width here. 880px let
-           "modrex_x86_64.AppImage" wrap to two lines; this keeps real margin
-           above the point where that starts happening again. */
-        max-width: 980px;
-        margin: 0 auto;
-    }
-
-    .dl-card {
-        display: flex;
-        flex-direction: column;
-        background: var(--color-surface);
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius-lg);
-        padding: 28px;
-    }
-
-    .dl-card.os-match {
-        border-color: var(--color-accent);
-        box-shadow: 0 0 0 1px var(--color-accent);
-    }
-
-    .os-badge {
-        display: none;
-        font-size: 11px;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        color: var(--color-accent);
-        background: color-mix(in srgb, var(--color-accent) 15%, transparent);
-        border: 1px solid color-mix(in srgb, var(--color-accent) 40%, transparent);
-        border-radius: var(--radius-sm);
-        padding: 2px 8px;
-    }
-
-    .os-header {
+    .os {
         display: flex;
         align-items: center;
         gap: 12px;
-    }
-
-    .os-header h3 {
-        font-size: 18px;
+        height: 42px;
         margin: 0;
+        font-size: 17px;
         font-weight: 600;
     }
 
     .files {
         display: flex;
-        flex-direction: column;
+        flex-wrap: wrap;
         gap: 8px;
-        /* The bottom margin is the floor under the .cli block's margin-top: auto,
-           which collapses to zero in whichever card is the tallest. */
-        margin: 20px 0;
     }
 
-    /* The cards stretch to a shared height but hold different file counts, so the
-       slack goes above this block. That keeps the command line and the card
-       bottoms on one baseline across both cards. */
-    .cli {
-        margin-top: auto;
-        padding-top: 20px;
-        border-top: 1px solid var(--color-border);
+    .dl-btn {
+        padding: 10px 16px;
+        font-size: 14px;
+    }
+
+    .dl-btn.secondary {
+        font-weight: 500;
+    }
+
+    .fsize {
+        font-weight: 400;
+        color: rgba(255, 255, 255, 0.72);
+    }
+
+    .dl-btn.secondary .fsize {
+        color: var(--text-tertiary);
     }
 
     .cli-label {
-        display: block;
-        margin-bottom: 10px;
-        font-size: 11px;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
+        margin: 20px 0 8px;
+        font-size: 13px;
         color: var(--text-tertiary);
     }
 
@@ -276,17 +253,17 @@ const linuxFiles: DlFile[] = [
         display: flex;
         align-items: center;
         gap: 8px;
-        background: var(--color-surface-hover);
+        background: var(--color-surface-raised);
         border: 1px solid var(--color-border);
         border-radius: var(--radius-sm);
-        padding: 10px 14px;
+        padding: 6px 6px 6px 14px;
     }
 
     .quick-install code {
         flex: 1;
         min-width: 0;
         font-family: var(--font-mono);
-        font-size: 12px;
+        font-size: 13px;
         line-height: 1.7;
         color: var(--color-text);
         word-break: break-all;
@@ -314,14 +291,12 @@ const linuxFiles: DlFile[] = [
         border-radius: var(--radius-sm);
         color: var(--text-tertiary);
         cursor: pointer;
-        transition:
-            color 0.15s ease,
-            background 0.15s ease;
+        transition: var(--transition-colors);
     }
 
     .copy-btn:hover {
         color: var(--color-text);
-        background: var(--color-surface-active);
+        background: var(--color-surface-hover);
     }
 
     .copy-btn svg {
@@ -329,102 +304,33 @@ const linuxFiles: DlFile[] = [
         height: var(--copy-btn-icon);
     }
 
-    .dl-file {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        min-width: 0;
-        background: var(--color-surface-hover);
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius-sm);
-        padding: 10px 14px;
-    }
-
-    .fname {
-        flex: 1;
-        min-width: 0;
-        font-family: var(--font-mono);
-        font-size: 13px;
-        color: var(--color-text);
-        word-break: break-all;
-    }
-
-    .fsize {
-        font-size: 11px;
-        color: var(--text-tertiary);
-        background: var(--color-surface-active);
-        padding: 2px 6px;
-        border-radius: var(--radius-sm);
-    }
-
-    .dl-btn {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 6px;
-        padding: 6px 14px;
-        background: var(--color-accent-fill);
-        color: #fff;
-        border-radius: var(--radius-sm);
-        font-size: 13px;
-        font-weight: 500;
-        flex-shrink: 0;
-        transition: background-color var(--duration) var(--ease);
-    }
-
-    .dl-btn svg {
-        width: 14px;
-        height: 14px;
-    }
-
-    /* The global a:hover from tokens/base.css wins on hover otherwise,
-       turning the label orange on the orange fill. */
-    .dl-btn:hover {
-        background: var(--color-accent-fill-hover);
-        color: var(--on-accent);
-    }
-
     .dl-note {
-        text-align: center;
-        margin-top: 32px;
+        margin: 20px 0 0;
         font-size: 14px;
         color: var(--text-tertiary);
     }
 
-    .dl-note a {
-        color: var(--color-accent-bright);
-    }
-
     @media (max-width: 640px) {
-        .dl-grid {
-            grid-template-columns: 1fr;
+        .dl-table {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .dl-row {
+            row-gap: 16px;
+            padding: 24px 0;
+        }
+
+        .os {
+            height: auto;
+        }
+
+        .dl-btn {
+            flex: 1 1 100%;
+            min-height: 44px;
         }
 
         .quick-install {
-            padding: 8px 8px 8px 12px;
-        }
-
-        .dl-btn {
-            min-height: 44px;
-        }
-    }
-
-    @media (max-width: 420px) {
-        .dl-card {
-            padding: 20px;
-        }
-
-        .dl-file {
-            display: grid;
-            grid-template-columns: 1fr auto;
-        }
-
-        .fname {
-            grid-column: 1 / -1;
-        }
-
-        .dl-btn {
-            min-width: 104px;
+            padding-left: 12px;
         }
     }
 </style>
