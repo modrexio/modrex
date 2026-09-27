@@ -1,5 +1,5 @@
 import MarkdownIt from 'markdown-it'
-import type { RendererRule } from 'markdown-it'
+import type { RendererRule, StateInline } from 'markdown-it'
 import colorInline from 'markdown-it-color-inline'
 import taskLists from 'markdown-it-task-lists'
 import { markdownContainer } from './markdownContainer'
@@ -53,6 +53,26 @@ const underline: RendererRule = (tokens, idx, options, _env, self) => {
 }
 modworkshop.renderer.rules.strong_open = underline
 modworkshop.renderer.rules.strong_close = underline
+
+// @name links to that user's ModWorkshop page. It only counts at the start of the text or
+// after whitespace, so an email address stays plain.
+function mention(state: StateInline, silent: boolean) {
+    const start = state.pos
+    if (silent || state.src.charCodeAt(start) !== 0x40) return false
+    if (start > 0 && !/[ \t\n]/.test(state.src[start - 1])) return false
+
+    let end = start + 1
+    while (end < state.posMax && /[A-Za-z0-9_-]/.test(state.src[end])) end++
+    if (end === start + 1) return false
+
+    const name = state.src.slice(start + 1, end)
+    state.push('link_open', 'a', 1).attrs = [['href', `https://modworkshop.net/user/${name}`]]
+    state.push('text', '', 0).content = `@${name}`
+    state.push('link_close', 'a', -1)
+    state.pos = end
+    return true
+}
+modworkshop.inline.ruler.after('emphasis', 'mention', mention)
 
 // Release notes and other text that isn't ModWorkshop's.
 export function renderMarkdown(text: string): string {

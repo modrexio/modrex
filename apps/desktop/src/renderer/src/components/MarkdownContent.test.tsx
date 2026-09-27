@@ -251,11 +251,31 @@ describe('ModworkshopMarkup formatting', () => {
     })
 })
 
+describe('ModworkshopMarkup mentions', () => {
+    it('links @name to the user on ModWorkshop', () => {
+        const { getByText } = render(<ModworkshopMarkup text={'thanks @some_one for help'} />)
+        const anchor = getByText('@some_one')
+        expect(anchor.tagName).toBe('A')
+        fireEvent.click(anchor)
+        expect(vi.mocked(api.openExternal)).toHaveBeenCalledWith(
+            'https://modworkshop.net/user/some_one'
+        )
+    })
+
+    it('leaves an @ inside a word or address alone', () => {
+        const { container } = render(
+            <ModworkshopMarkup text={'mail me at author@site and see a@b'} />
+        )
+        expect(container.querySelector('a')).toBeNull()
+    })
+})
+
 describe('MarkdownContent', () => {
     it('reads text as plain markdown, without ModWorkshop syntax', () => {
         const { getByText, container } = render(
-            <MarkdownContent text={'__bold__ {red}(not a color) :::not centered:::'} />
+            <MarkdownContent text={'__bold__ {red}(not a color) :::not centered::: @nobody'} />
         )
+        expect(container.querySelector('a')).toBeNull()
         expect(getByText('bold').tagName).toBe('STRONG')
         expect(container.querySelector('[style]')).toBeNull()
         expect(container.textContent).toContain(':::not centered:::')
