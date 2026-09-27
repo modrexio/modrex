@@ -201,6 +201,24 @@ class LeftTag extends Tag {
     }
 }
 
+// Replaces the library's quote tag for its hardcoded English "wrote:".
+class QuoteTag extends Tag {
+    constructor(renderer: unknown, settings: unknown) {
+        super(renderer, settings)
+        this.STRIP_OUTER = true
+    }
+
+    toReact() {
+        const author = this.params.quote
+        return (
+            <blockquote>
+                {author && <small>{t('detail.quoteAuthor', { name: author })}</small>}
+                {Children.toArray(this.getComponents())}
+            </blockquote>
+        )
+    }
+}
+
 class HeadingTag extends Tag {
     toReact() {
         return <h3>{Children.toArray(this.getComponents())}</h3>
@@ -313,6 +331,7 @@ parser.registerTag('size', SizeTag)
 parser.registerTag('line', LineTag)
 parser.registerTag('code', CodeTag)
 parser.registerTag('left', LeftTag)
+parser.registerTag('quote', QuoteTag)
 parser.registerTag('heading', HeadingTag)
 parser.registerTag('font', FontTag)
 parser.registerTag('youtube', YoutubeTag)

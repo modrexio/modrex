@@ -13,6 +13,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - Fixed `[left]` tags showing as text in Nexus mod descriptions.
 - Fixed sized text in Nexus mod descriptions, where small print showed larger than normal text.
 - Fixed stray blank space inside tables in Nexus mod descriptions.
+- Fixed quote authors in Nexus mod descriptions always showing in English.
 
 ### Security
 

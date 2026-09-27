@@ -219,6 +219,12 @@ describe('NexusDescription', () => {
         expect(getByText('Body').style.fontFamily).toBe('Impact')
     })
 
+    it('renders a quote with its translated author line', () => {
+        const { getByText } = render(<NexusDescription text="[quote=Dallas]Quoted line[/quote]" />)
+        expect(getByText('Dallas wrote:').tagName).toBe('SMALL')
+        expect(getByText('Quoted line').closest('blockquote')).not.toBeNull()
+    })
+
     it('renders a Nexus spoiler as an expandable details element', () => {
         const { getByText } = render(
             <NexusDescription text="[spoiler label=Details]Hidden[/spoiler]" />
