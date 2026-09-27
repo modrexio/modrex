@@ -5,27 +5,11 @@
 <footer>
     <div class="wrap footer-inner">
         <div class="footer-brand">
-            <a href="/" class="modrex-wordmark" style="font-size: 20px">MOD<span>REX</span></a>
+            <a href="/" class="modrex-wordmark" style="font-size: 22px">MOD<span>REX</span></a>
             <p class="legal">
                 A free, open-source desktop mod manager powered by ModWorkshop and Nexus Mods. Not
                 affiliated with any game studio or publisher.
             </p>
-        </div>
-        <div class="footer-right">
-            <div class="links">
-                <a href="/docs/">Docs</a>
-                <a href="/docs/getting-started">Getting Started</a>
-                <a href="/docs/installing-mods">Installing Mods</a>
-                <a href="/docs/games/payday-3">PAYDAY 3</a>
-                <a href="/docs/games/crime-boss">Crime Boss</a>
-                <a href="https://modworkshop.net/" target="_blank" rel="noopener">ModWorkshop</a>
-                <a href="https://www.nexusmods.com/" target="_blank" rel="noopener">Nexus Mods</a>
-                <a href="https://github.com/modrexio/modrex/issues" target="_blank" rel="noopener"
-                    >Report a bug</a
-                >
-                <a href="/terms">Terms</a>
-                <a href="/privacy">Privacy</a>
-            </div>
             <div class="social">
                 <a
                     href="https://github.com/modrexio/modrex"
@@ -69,66 +53,89 @@
                 </a>
             </div>
         </div>
+        <nav class="group" aria-label="Documentation">
+            <h2>Docs</h2>
+            <a href="/docs/">Overview</a>
+            <a href="/docs/getting-started">Getting started</a>
+            <a href="/docs/installing-mods">Installing mods</a>
+            <a href="/docs/games/payday-3">PAYDAY 3</a>
+            <a href="/docs/games/crime-boss">Crime Boss</a>
+        </nav>
+        <nav class="group" aria-label="Mod sites">
+            <h2>Mod sites</h2>
+            <a href="https://modworkshop.net/" target="_blank" rel="noopener">ModWorkshop</a>
+            <a href="https://www.nexusmods.com/" target="_blank" rel="noopener">Nexus Mods</a>
+        </nav>
+        <nav class="group" aria-label="Project">
+            <h2>Project</h2>
+            <a href="https://github.com/modrexio/modrex/issues" target="_blank" rel="noopener"
+                >Report a bug</a
+            >
+            <a href="/terms">Terms</a>
+            <a href="/privacy">Privacy</a>
+        </nav>
     </div>
 </footer>
 
 <style>
     footer {
-        padding: 48px 0;
+        margin-top: 96px;
+        padding: 48px 0 56px;
         border-top: 1px solid var(--color-border);
     }
 
     .footer-inner {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        flex-wrap: wrap;
-        gap: 24px;
+        display: grid;
+        grid-template-columns: minmax(0, 5fr) repeat(3, minmax(0, 2fr));
+        gap: 32px;
     }
 
     .legal {
-        font-size: 12px;
+        max-width: 38ch;
+        margin: 12px 0 12px;
+        font-size: 13px;
+        line-height: 1.6;
         color: var(--text-tertiary);
-        max-width: 420px;
-        margin: 10px 0 0;
     }
 
-    .footer-right {
+    .group {
         display: flex;
-        align-items: center;
-        gap: 24px;
-        flex-wrap: wrap;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
     }
 
-    .links {
-        display: flex;
-        gap: 24px;
-        flex-wrap: wrap;
+    .group h2 {
+        margin: 2px 0 4px;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--color-text);
     }
 
-    .links a {
+    .group a {
         font-size: 14px;
         color: var(--text-secondary);
         text-decoration: none;
     }
 
-    .links a:hover {
+    .group a:hover {
         color: var(--color-text);
     }
 
     .social {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 4px;
+        margin-left: -8px;
     }
 
     .social-link {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 34px;
-        height: 34px;
-        flex: 0 0 34px;
+        width: 36px;
+        height: 36px;
+        flex: 0 0 36px;
         border-radius: var(--radius-sm);
         color: var(--color-text-muted);
         text-decoration: none;
@@ -178,57 +185,39 @@
         -webkit-mask-image: url('/icons/bluesky.svg');
     }
 
-    @media (max-width: 640px) {
-        footer {
-            padding: 40px 0;
-        }
-
-        .footer-inner,
-        .footer-right {
-            align-items: stretch;
-            flex-direction: column;
-            width: 100%;
+    @media (max-width: 900px) {
+        .footer-inner {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
         }
 
         .footer-brand {
-            padding-bottom: 24px;
-            border-bottom: 1px solid var(--color-border);
+            grid-column: 1 / -1;
+        }
+    }
+
+    @media (max-width: 640px) {
+        footer {
+            margin-top: 64px;
+            padding: 40px 0 48px;
         }
 
-        .legal {
-            max-width: 36ch;
-            margin-top: 12px;
-            line-height: 1.6;
-        }
-
-        .footer-right {
-            gap: 24px;
-        }
-
-        .links {
-            display: grid;
+        .footer-inner {
             grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 0;
+            gap: 32px 16px;
         }
 
-        .links a {
-            display: flex;
-            align-items: center;
-            min-height: 44px;
-            padding-right: 12px;
-            border-bottom: 1px solid var(--color-border);
-        }
-
-        .social {
-            gap: 12px;
+        .group a {
+            padding: 4px 0;
         }
 
         .social-link {
             width: 44px;
             height: 44px;
             flex-basis: 44px;
-            border: 1px solid var(--color-border);
-            background: var(--color-surface-hover);
+        }
+
+        .social {
+            margin-left: -12px;
         }
     }
 </style>
