@@ -323,12 +323,8 @@ const releasedOn = release
     function openViewer() {
         opener = document.activeElement as HTMLElement | null
         viewer.showModal()
-        document.body.style.overflow = 'hidden'
     }
-    viewer.addEventListener('close', () => {
-        document.body.style.overflow = ''
-        opener?.focus()
-    })
+    viewer.addEventListener('close', () => opener?.focus())
     openButton.addEventListener('click', openViewer)
     document.getElementById('stage-fullscreen')!.addEventListener('click', openViewer)
     document.getElementById('viewer-close')!.addEventListener('click', () => viewer.close())
@@ -443,19 +439,29 @@ const releasedOn = release
         outline-offset: -2px;
     }
 
-    /* Every screenshot shares one grid cell, so switching is instant and the frame
-       never changes height. Hidden ones still lazy-load once the stage is near. */
+    /* Every screenshot shares one grid cell, so switching crossfades in place and
+       the frame never changes height. Hidden ones still lazy-load once the stage is
+       near. visibility waits for the fade, which keeps the outgoing shot on screen
+       until it has faded and out of the tab order afterwards. */
     .shot-stack {
         display: grid;
     }
 
-    .stage-shot {
+    .stage-shot,
+    .viewer-shot {
         grid-area: 1 / 1;
         visibility: hidden;
+        opacity: 0;
+        transition:
+            opacity var(--duration) var(--ease),
+            visibility 0s linear var(--duration);
     }
 
-    .stage-shot.active {
+    .stage-shot.active,
+    .viewer-shot.active {
         visibility: visible;
+        opacity: 1;
+        transition-delay: 0s;
     }
 
     .stage-shot :global(picture),
@@ -601,6 +607,21 @@ const releasedOn = release
         color: var(--color-text);
     }
 
+    /* The page stays locked while the viewer is open. html, not body, has to hold
+       the lock because html clips its own overflow, which stops body's overflow
+       from reaching the window. The gutter keeps the page from shifting when the
+       scrollbar goes away. */
+    :global(html) {
+        scrollbar-gutter: stable;
+    }
+
+    :global(html:has(dialog.viewer[open])) {
+        overflow: hidden;
+    }
+
+    /* An overlay over the page rather than a new page: the same 90 percent black the
+       app's own image lightbox uses. It fades in and out, and display and overlay
+       are held until the fade ends so closing animates too. */
     .viewer {
         width: 100%;
         max-width: none;
@@ -609,19 +630,43 @@ const releasedOn = release
         margin: 0;
         padding: 0;
         border: 0;
-        background: var(--color-surface);
+        background: transparent;
         color: var(--color-text);
+        opacity: 0;
+        transition:
+            opacity var(--duration) var(--ease),
+            overlay var(--duration) allow-discrete,
+            display var(--duration) allow-discrete;
     }
 
     .viewer[open] {
         display: flex;
         flex-direction: column;
+        opacity: 1;
     }
 
     .viewer::backdrop {
-        background: var(--color-surface);
+        background: rgba(0, 0, 0, 0.9);
+        opacity: 0;
+        transition:
+            opacity var(--duration) var(--ease),
+            overlay var(--duration) allow-discrete,
+            display var(--duration) allow-discrete;
     }
 
+    .viewer[open]::backdrop {
+        opacity: 1;
+    }
+
+    @starting-style {
+        .viewer[open],
+        .viewer[open]::backdrop {
+            opacity: 0;
+        }
+    }
+
+    /* Solid, unlike the rest of the overlay: the page's own nav sits directly behind
+       this bar, and through the translucent overlay its links read as part of it. */
     .viewer-bar {
         display: flex;
         align-items: center;
@@ -629,6 +674,7 @@ const releasedOn = release
         flex: none;
         height: 52px;
         padding: 0 12px 0 20px;
+        background: var(--color-surface);
         border-bottom: 1px solid var(--color-border);
     }
 
@@ -677,13 +723,7 @@ const releasedOn = release
     }
 
     .viewer-shot {
-        grid-area: 1 / 1;
-        visibility: hidden;
         cursor: default;
-    }
-
-    .viewer-shot.active {
-        visibility: visible;
     }
 
     .viewer-shot :global(picture) {
@@ -761,10 +801,14 @@ const releasedOn = release
             height: 44px;
         }
 
+        /* On a phone the controls move under the image, within reach of a thumb. */
         .viewer-bar {
+            order: 1;
             gap: 10px;
             height: 60px;
             padding: 0 8px 0 16px;
+            border-top: 1px solid var(--color-border);
+            border-bottom: 0;
         }
 
         .viewer-actions {
@@ -787,6 +831,15 @@ const releasedOn = release
             max-height: calc(100dvh - 60px - 32px);
             border-radius: 0;
             border-width: 1px 0;
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .stage-shot,
+        .viewer-shot,
+        .viewer,
+        .viewer::backdrop {
+            transition: none;
         }
     }
 </style>
