@@ -10,40 +10,34 @@
 /* ---- Shared layout utilities ---- */
 
 .wrap {
-    max-width: 1120px;
+    max-width: 1440px;
     margin: 0 auto;
     padding: 0 32px;
 }
 
 section {
-    padding: 96px 0;
+    padding: 96px 0 0;
 }
 
 .sec-head {
-    text-align: center;
-    max-width: 640px;
-    margin: 0 auto 56px;
-}
-
-.sec-eyebrow {
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--color-accent-bright);
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    margin-bottom: 32px;
 }
 
 h2.sec-title {
-    font-family: var(--font-display);
-    font-size: 56px;
-    letter-spacing: 0.01em;
-    line-height: 1;
-    margin: 12px 0 0;
+    margin: 0;
+    font-size: 28px;
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
 }
 
 .sec-sub {
-    margin: 16px 0 0;
-    font-size: 16px;
+    margin: -24px 0 32px;
+    max-width: 60ch;
+    font-size: 15px;
     color: var(--text-secondary);
     line-height: 1.6;
 }
@@ -84,6 +78,7 @@ h2.sec-title {
 
 .btn-lg.secondary:hover {
     background: var(--color-surface-active);
+    color: var(--color-text);
 }
 
 /* ---- Docs prose ---- */
@@ -218,16 +213,19 @@ h2.sec-title {
     }
 
     section {
-        padding: 56px 0;
+        padding: 64px 0 0;
     }
 
     h2.sec-title {
-        font-size: 40px;
+        font-size: 24px;
     }
 
     .sec-head {
-        margin-bottom: 32px;
-        text-align: left;
+        margin-bottom: 24px;
+    }
+
+    .sec-sub {
+        margin: -16px 0 24px;
     }
 
     .doc-prose h1 {
@@ -243,10 +241,6 @@ h2.sec-title {
 }
 
 @media (max-width: 480px) {
-    h2.sec-title {
-        font-size: 32px;
-    }
-
     .doc-prose h1 {
         font-size: 32px;
     }

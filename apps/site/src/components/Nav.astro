@@ -15,8 +15,8 @@ const linUrl =
 ---
 
 <nav>
-    <div class="wrap nav-inner">
-        <a href="/" class="modrex-wordmark" style="font-size: 28px">MOD<span>REX</span></a>
+    <div class:list={['wrap', 'nav-inner', { docs: activePage === 'docs' }]}>
+        <a href="/" class="modrex-wordmark">MOD<span>REX</span></a>
         <div class="nav-links">
             <a href="/#screenshots">Screenshots</a>
             <a href="/#features">Features</a>
@@ -62,9 +62,8 @@ const linUrl =
             aria-label="Toggle navigation"
             aria-expanded="false"
         >
-            <span></span>
-            <span></span>
-            <span></span>
+            <i data-lucide="menu" class="icon-open"></i>
+            <i data-lucide="x" class="icon-close"></i>
         </button>
     </div>
     <div class="mobile-menu" id="mobile-menu" aria-hidden="true">
@@ -110,7 +109,10 @@ const linUrl =
 </nav>
 
 <script>
+    import { createIcons, Menu, X } from 'lucide'
     import { detectOs } from '../lib/os-detect'
+
+    createIcons({ icons: { Menu, X } })
 
     const navDlBtn = document.getElementById('nav-dl-btn') as HTMLAnchorElement | null
     const mobileDlBtn = document.getElementById('mobile-dl-btn') as HTMLAnchorElement | null
@@ -178,47 +180,26 @@ const linUrl =
         position: sticky;
         top: 0;
         z-index: 40;
-        background: color-mix(in srgb, var(--color-surface) 86%, transparent);
-        backdrop-filter: blur(10px);
+        background: var(--color-surface);
         border-bottom: 1px solid var(--color-border);
     }
 
     .nav-inner {
-        --header-side-width: var(--sl-sidebar-width, 17rem);
-        --header-wordmark-width: 5.5rem;
-
-        /* The side columns match the docs sidebar while there is room. Just above the
-           hamburger breakpoint the links outgrow the middle column, so every column keeps
-           at least its content width and the left one gives way instead of overlapping.
-           The padding on nav-links keeps the links clear of the icons once squeezed. */
-        display: grid;
-        grid-template-columns:
-            minmax(max-content, var(--header-side-width))
-            minmax(max-content, 1fr)
-            minmax(max-content, var(--header-side-width));
+        display: flex;
         align-items: center;
+        gap: 32px;
         height: 60px;
-        width: 100%;
-        max-width: none;
-        margin: 0;
-        padding: 0;
-    }
-
-    .modrex-wordmark {
-        justify-self: center;
     }
 
     .nav-links {
-        justify-self: center;
         display: flex;
         align-items: center;
-        gap: clamp(12px, 2vw, 28px);
-        padding-inline: 8px;
+        gap: 24px;
     }
 
     .nav-links a {
         color: var(--text-secondary);
-        font-size: clamp(13px, 1.1vw, 14px);
+        font-size: 14px;
         text-decoration: none;
         white-space: nowrap;
     }
@@ -229,20 +210,82 @@ const linUrl =
     }
 
     .nav-right {
-        justify-self: end;
+        margin-left: auto;
         display: flex;
         align-items: center;
+        gap: 4px;
+    }
+
+    .nav-dl-btn {
+        margin-left: 8px;
+    }
+
+    /* Docs pages line the wordmark up over the Starlight sidebar, so the header is a
+       three-column grid there instead of the page wrap. Just above the hamburger
+       breakpoint the links outgrow the middle column, so every column keeps at least
+       its content width and the left one gives way instead of overlapping. */
+    .nav-inner.docs {
+        --header-side-width: var(--sl-sidebar-width, 17rem);
+        --header-wordmark-width: 5.5rem;
+
+        display: grid;
+        grid-template-columns:
+            minmax(max-content, var(--header-side-width))
+            minmax(max-content, 1fr)
+            minmax(max-content, var(--header-side-width));
+        gap: 0;
+        width: 100%;
+        max-width: none;
+        margin: 0;
+        padding: 0;
+    }
+
+    .docs .modrex-wordmark {
+        justify-self: center;
+    }
+
+    .docs .nav-links {
+        justify-self: center;
+        gap: clamp(12px, 2vw, 28px);
+        padding-inline: 8px;
+    }
+
+    .docs .nav-links a {
+        font-size: clamp(13px, 1.1vw, 14px);
+    }
+
+    .docs .nav-right {
+        justify-self: end;
         gap: 8px;
+        margin-left: 0;
         padding-inline-end: calc((var(--header-side-width) - var(--header-wordmark-width)) / 2);
+    }
+
+    .docs .nav-dl-btn {
+        margin-left: 0;
+    }
+
+    .modrex-wordmark {
+        font-size: 26px;
+    }
+
+    .docs .modrex-wordmark {
+        font-size: 28px;
+    }
+
+    .docs .nav-right .social-link {
+        width: 34px;
+        height: 34px;
+        flex-basis: 34px;
     }
 
     .social-link {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 34px;
-        height: 34px;
-        flex: 0 0 34px;
+        width: 36px;
+        height: 36px;
+        flex: 0 0 36px;
         border-radius: var(--radius-sm);
         color: var(--color-text-muted);
         text-decoration: none;
@@ -284,23 +327,38 @@ const linUrl =
 
     .hamburger {
         display: none;
-        flex-direction: column;
+        align-items: center;
         justify-content: center;
-        gap: 4px;
-        width: 36px;
-        height: 36px;
-        background: none;
+        width: 44px;
+        height: 44px;
+        margin-left: auto;
+        margin-right: -10px;
+        padding: 0;
         border: none;
+        border-radius: var(--radius-sm);
+        background: none;
+        color: var(--color-text);
         cursor: pointer;
-        padding: 10px;
     }
 
-    .hamburger span {
+    .hamburger:hover {
+        background: var(--color-surface-hover);
+    }
+
+    .hamburger i,
+    .hamburger svg {
         display: block;
-        width: 100%;
-        height: 2px;
-        background: var(--color-text);
-        border-radius: 2px;
+        width: 20px;
+        height: 20px;
+    }
+
+    .hamburger .icon-close,
+    .hamburger[aria-expanded='true'] .icon-open {
+        display: none;
+    }
+
+    .hamburger[aria-expanded='true'] .icon-close {
+        display: block;
     }
 
     .mobile-menu {
@@ -310,7 +368,7 @@ const linUrl =
     .mobile-links {
         display: flex;
         flex-direction: column;
-        padding-top: 8px;
+        padding-top: 4px;
         padding-bottom: 16px;
     }
 
@@ -334,20 +392,15 @@ const linUrl =
     .mobile-actions {
         display: flex;
         align-items: center;
-        gap: 10px;
-        padding-top: 14px;
+        gap: 4px;
+        margin-left: -10px;
+        padding-top: 8px;
     }
 
     .mobile-actions .social-link {
-        width: 40px;
-        height: 40px;
-        flex-basis: 40px;
-        background: var(--color-surface-hover);
-        border: 1px solid var(--color-border);
-    }
-
-    .mobile-actions .social-link:hover {
-        background: var(--color-surface-active);
+        width: 44px;
+        height: 44px;
+        flex-basis: 44px;
     }
 
     .mobile-dl-btn {
@@ -355,7 +408,7 @@ const linUrl =
     }
 
     @media (max-width: 50rem) {
-        .nav-inner {
+        .nav-inner.docs {
             display: flex;
             justify-content: space-between;
             padding-inline: 16px;
@@ -377,99 +430,29 @@ const linUrl =
             left: 0;
             z-index: 1;
             display: block;
-            max-height: 0;
-            overflow: hidden;
             visibility: hidden;
             opacity: 0;
-            border-top: 1px solid transparent;
+            border-top: 1px solid var(--color-border);
+            border-bottom: 1px solid var(--color-border);
             background: var(--color-surface);
-            box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
-            transform: translateY(-6px);
+            box-shadow: var(--shadow-md);
+            transform: translateY(-4px);
             transition:
-                max-height 260ms var(--ease) 110ms,
-                opacity 180ms var(--ease) 90ms,
-                transform 220ms var(--ease) 90ms,
-                visibility 0s linear 370ms,
-                border-color 180ms var(--ease) 90ms;
+                opacity 150ms var(--ease),
+                transform 150ms var(--ease),
+                visibility 0s linear 150ms;
         }
 
         .mobile-menu.open {
-            max-height: calc(100dvh - 60px);
             visibility: visible;
             opacity: 1;
-            border-top-color: var(--color-border);
             transform: translateY(0);
             transition-delay: 0s;
-        }
-
-        .mobile-links > a,
-        .mobile-actions {
-            opacity: 0;
-            transform: translateY(-6px);
-            transition:
-                opacity 160ms var(--ease),
-                transform 200ms var(--ease);
-        }
-
-        .mobile-menu.open .mobile-links > a,
-        .mobile-menu.open .mobile-actions {
-            opacity: 1;
-            transform: translateY(0);
-        }
-
-        .mobile-menu.open .mobile-links > a:nth-child(1) {
-            transition-delay: 40ms;
-        }
-
-        .mobile-menu.open .mobile-links > a:nth-child(2) {
-            transition-delay: 65ms;
-        }
-
-        .mobile-menu.open .mobile-links > a:nth-child(3) {
-            transition-delay: 90ms;
-        }
-
-        .mobile-menu.open .mobile-links > a:nth-child(4) {
-            transition-delay: 115ms;
-        }
-
-        .mobile-menu.open .mobile-links > a:nth-child(5) {
-            transition-delay: 140ms;
-        }
-
-        .mobile-menu.open .mobile-actions {
-            transition-delay: 165ms;
-        }
-
-        .mobile-menu:not(.open) .mobile-actions {
-            transition-delay: 0ms;
-        }
-
-        .mobile-menu:not(.open) .mobile-links > a:nth-child(5) {
-            transition-delay: 20ms;
-        }
-
-        .mobile-menu:not(.open) .mobile-links > a:nth-child(4) {
-            transition-delay: 40ms;
-        }
-
-        .mobile-menu:not(.open) .mobile-links > a:nth-child(3) {
-            transition-delay: 60ms;
-        }
-
-        .mobile-menu:not(.open) .mobile-links > a:nth-child(2) {
-            transition-delay: 80ms;
-        }
-
-        .mobile-menu:not(.open) .mobile-links > a:nth-child(1) {
-            transition-delay: 100ms;
         }
     }
 
     @media (max-width: 50rem) and (prefers-reduced-motion: reduce) {
-        .mobile-menu,
-        .mobile-links > a,
-        .mobile-actions {
+        .mobile-menu {
             transition: none;
             transform: none;
         }
