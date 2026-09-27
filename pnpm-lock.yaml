@@ -222,6 +222,9 @@ importers:
       '@eslint/js':
         specifier: 10.0.1
         version: 10.0.1(eslint@10.9.1(jiti@2.7.0))
+      '@pagefind/default-ui':
+        specifier: 1.5.2
+        version: 1.5.2
       '@tailwindcss/vite':
         specifier: 4.3.3
         version: 4.3.3(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12)(yaml@2.9.0))
@@ -237,6 +240,9 @@ importers:
       marked:
         specifier: 18.0.11
         version: 18.0.11
+      pagefind:
+        specifier: 1.5.2
+        version: 1.5.2
       prettier:
         specifier: 3.9.6
         version: 3.9.6

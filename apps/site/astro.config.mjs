@@ -38,6 +38,7 @@ import mdx from '@astrojs/mdx'
 import sitemap from '@astrojs/sitemap'
 import starlight from '@astrojs/starlight'
 import tailwindcss from '@tailwindcss/vite'
+import devSearch from './src/integrations/dev-search'
 
 export default defineConfig({
     site: 'https://modrex.net',
@@ -134,6 +135,7 @@ export default defineConfig({
             ],
         }),
         mdx(),
+        devSearch(),
         sitemap({
             filter: (page) => !page.includes('/privacy') && !page.includes('/terms'),
             // Only the homepage gets a lastmod: it renders live release and mod-index data,

@@ -2,190 +2,78 @@
 import PagefindSearch from '@astrojs/starlight/components/Search.astro'
 
 const label = 'Search docs'
-const isDevelopment = import.meta.env.DEV
 ---
 
 <div class="docs-search">
-    {
-        isDevelopment ? (
-            <label class="docs-filter-field" data-docs-filter-field>
-                <svg
-                    aria-hidden="true"
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                >
-                    <circle cx="11" cy="11" r="8" />
-                    <path d="m21 21-4.35-4.35" />
-                </svg>
-                <input
-                    data-docs-filter-input
-                    type="search"
-                    placeholder={label}
-                    aria-label={label}
-                    autocomplete="off"
-                />
-                <kbd class="docs-filter-shortcut" aria-hidden="true">
-                    <>
-                        <kbd>{Astro.locals.t('search.ctrlKey')}</kbd>
-                        <kbd>K</kbd>
-                    </>
-                </kbd>
-            </label>
-        ) : (
-            <button type="button" class="docs-filter-field" data-docs-search-trigger>
-                <svg
-                    aria-hidden="true"
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                >
-                    <circle cx="11" cy="11" r="8" />
-                    <path d="m21 21-4.35-4.35" />
-                </svg>
-                <span>{label}</span>
-                <kbd class="docs-filter-shortcut" aria-hidden="true">
-                    <>
-                        <kbd>{Astro.locals.t('search.ctrlKey')}</kbd>
-                        <kbd>K</kbd>
-                    </>
-                </kbd>
-            </button>
-        )
-    }
-    {!isDevelopment && <PagefindSearch class="docs-pagefind-search" />}
-    {
-        isDevelopment && (
-            <p data-docs-filter-empty class="docs-filter-empty" hidden>
-                No matching docs
-            </p>
-        )
-    }
+    <button type="button" class="docs-search-field" data-docs-search-trigger>
+        <svg
+            aria-hidden="true"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+        >
+            <circle cx="11" cy="11" r="8"></circle>
+            <path d="m21 21-4.35-4.35"></path>
+        </svg>
+        <span>{label}</span>
+        <kbd class="docs-search-shortcut" aria-hidden="true">
+            <kbd>{Astro.locals.t('search.ctrlKey')}</kbd>
+            <kbd>K</kbd>
+        </kbd>
+    </button>
+    <PagefindSearch class="docs-pagefind-search" />
 </div>
 
 <script>
-    const input = document.querySelector<HTMLInputElement>('[data-docs-filter-input]')
+    const trigger = document.querySelector<HTMLButtonElement>('[data-docs-search-trigger]')!
+    const searchButton = document.querySelector<HTMLButtonElement>(
+        '.docs-pagefind-search button[data-open-modal]'
+    )!
 
-    if (input) {
-        const sidebar =
-            input.closest('#starlight__sidebar') ?? document.getElementById('starlight__sidebar')
-        const navigation = sidebar?.querySelector<HTMLElement>('ul.top-level')
-        const field = document.querySelector<HTMLElement>('[data-docs-filter-field]')
-        const shortcut = document.querySelector<HTMLElement>('.docs-filter-shortcut')
-        const platformKey = shortcut?.querySelector('kbd')
-        const empty = document.querySelector<HTMLElement>('[data-docs-filter-empty]')
+    if (/(Mac|iPhone|iPod|iPad)/i.test(navigator.platform)) {
+        trigger.querySelector('.docs-search-shortcut kbd')!.textContent = '⌘'
+    }
 
-        if (navigation) {
-            if (platformKey && /(Mac|iPhone|iPod|iPad)/i.test(navigator.platform)) {
-                platformKey.textContent = '⌘'
-            }
+    // Starlight closes its search on any click outside the dialog, and starts
+    // listening while this click is still bubbling, so it must stop here or the
+    // dialog closes the moment it opens.
+    trigger.addEventListener('click', (event) => {
+        event.stopPropagation()
+        searchButton.click()
+    })
 
-            const details = Array.from(navigation.querySelectorAll('details'))
-            const initialOpen = new WeakMap<HTMLDetailsElement, boolean>()
-            for (const detail of details) initialOpen.set(detail, detail.open)
+    // Starlight never starts Pagefind under astro dev and shows a notice instead.
+    // The dev-search integration serves an index there, so the notice is swapped
+    // for the search box and started the way Starlight starts it in a build.
+    if (import.meta.env.DEV) {
+        const siteSearch = searchButton.closest<HTMLElement>('site-search')!
+        const notice = siteSearch.querySelector('.dialog-frame > div')!
+        // Starlight scopes its search styles to its own component, so the new
+        // elements carry the notice's scope class or the field loses its width.
+        const scope = notice.className
+        const container = document.createElement('div')
+        container.className = `search-container ${scope}`
+        container.innerHTML = `<div id="starlight__search" class="${scope}"></div>`
+        notice.replaceWith(container)
 
-            const normalize = (value: string) => value.trim().toLowerCase()
-            const matches = (text: string, terms: string[]) => {
-                const value = normalize(text)
-                return terms.every((term) => value.includes(term))
-            }
-
-            const restoreNavigation = () => {
-                navigation.removeAttribute('data-docs-filtering')
-                for (const item of navigation.querySelectorAll<HTMLLIElement>('li'))
-                    item.hidden = false
-                for (const detail of details) detail.open = initialOpen.get(detail) ?? detail.open
-                if (empty) empty.hidden = true
-            }
-
-            const filterNavigation = () => {
-                const terms = normalize(input.value).split(/\s+/).filter(Boolean)
-                if (terms.length === 0) {
-                    restoreNavigation()
-                    return
-                }
-
-                navigation.setAttribute('data-docs-filtering', '')
-
-                for (const item of navigation.querySelectorAll<HTMLLIElement>('li')) {
-                    const directLink = item.querySelector<HTMLAnchorElement>(':scope > a[href]')
-                    if (directLink) item.hidden = !matches(directLink.textContent ?? '', terms)
-                }
-
-                const groups = Array.from(navigation.querySelectorAll('details'))
-                    .map((detail) => detail.closest<HTMLLIElement>('li'))
-                    .filter((item): item is HTMLLIElement => item !== null)
-                    .reverse()
-
-                for (const item of groups) {
-                    const summary = item.querySelector<HTMLElement>(':scope > details > summary')
-                    const detail = item.querySelector<HTMLDetailsElement>(':scope > details')
-                    const groupMatches = matches(summary?.textContent ?? '', terms)
-                    const children = Array.from(item.querySelectorAll<HTMLLIElement>('li'))
-
-                    if (groupMatches) {
-                        item.hidden = false
-                        for (const child of children) child.hidden = false
-                    } else {
-                        item.hidden = !children.some((child) => child.hidden === false)
-                    }
-
-                    if (detail) detail.open = !item.hidden
-                }
-
-                const hasMatch = Array.from(navigation.children).some(
-                    (child) => child instanceof HTMLLIElement && child.hidden === false
-                )
-                if (empty) empty.hidden = hasMatch
-            }
-
-            input.addEventListener('input', filterNavigation)
-            field?.addEventListener('pointerdown', (event) => {
-                if (event.target !== input) {
-                    event.preventDefault()
-                    input.focus()
-                }
-            })
-            input.addEventListener('keydown', (event) => {
-                if (event.key === 'Escape' && input.value) {
-                    input.value = ''
-                    restoreNavigation()
-                    event.preventDefault()
-                }
-            })
-            window.addEventListener('keydown', (event) => {
-                if (
-                    (event.metaKey === true || event.ctrlKey === true) &&
-                    event.key.toLowerCase() === 'k'
-                ) {
-                    input.focus()
-                    input.select()
-                    event.preventDefault()
-                }
-            })
-        }
-    } else {
-        const trigger = document.querySelector<HTMLButtonElement>('[data-docs-search-trigger]')
-        const searchButton = document.querySelector<HTMLButtonElement>(
-            '.docs-pagefind-search button[data-open-modal]'
-        )
-
-        // Starlight closes its search on any click outside the dialog, and starts
-        // listening while this click is still bubbling, so it must stop here or the
-        // dialog closes the moment it opens.
-        trigger?.addEventListener('click', (event) => {
-            event.stopPropagation()
-            searchButton?.click()
+        // Starlight's ranking settings, so results come back in the same order.
+        // @ts-expect-error Starlight declares this module for its own sources only.
+        const { pagefindUserConfig } = await import('virtual:starlight/pagefind-config')
+        // @ts-expect-error The package ships no type declarations.
+        const { PagefindUI } = await import('@pagefind/default-ui')
+        new PagefindUI({
+            ...pagefindUserConfig,
+            element: '#starlight__search',
+            baseUrl: '/',
+            bundlePath: '/pagefind/',
+            showImages: false,
+            showSubResults: true,
+            translations: JSON.parse(siteSearch.dataset.translations!),
         })
     }
 </script>
