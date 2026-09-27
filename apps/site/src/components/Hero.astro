@@ -93,8 +93,7 @@ const releasedOn = release
                     />
                     <span id="hero-dl-label">Download for Windows</span>
                 </a>
-                <a href="/#download" id="hero-other" class="other-link">Linux and other downloads</a
-                >
+                <a href="/#download" class="other-link">Download options</a>
             </div>
             <p class="hero-meta">
                 Free and open source.{' '}
@@ -231,17 +230,16 @@ const releasedOn = release
     createIcons({ icons: { ChevronLeft, ChevronRight, Maximize2, X } })
 
     const { isMobile, isLinux } = detectOs()
+    const button = document.getElementById('hero-dl')
     const label = document.getElementById('hero-dl-label')
     const icon = document.getElementById('hero-dl-icon') as HTMLImageElement | null
-    const other = document.getElementById('hero-other')
+    // Phones and tablets cannot run either installer, so only the link to the
+    // download section stays.
     if (isMobile) {
-        if (label) label.textContent = 'Download'
-        if (icon) icon.style.display = 'none'
-        if (other) other.textContent = 'Downloads'
+        if (button) button.style.display = 'none'
     } else if (isLinux) {
         if (label) label.textContent = 'Download for Linux'
         if (icon) icon.src = '/icons/linux-white.svg'
-        if (other) other.textContent = 'Windows and other downloads'
     }
 
     const tabs = Array.from(document.querySelectorAll<HTMLButtonElement>('.tablist [role="tab"]'))

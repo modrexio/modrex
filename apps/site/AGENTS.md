@@ -102,7 +102,7 @@ CORS rule on the R2 bucket (Cloudflare dashboard, not this repo) allowing `GET` 
 
 Client-side OS detection is shared: `detectOs()` in `src/lib/os-detect.ts` returns `{ isMobile, isLinux }` and is imported by the three components with download buttons — `Hero.astro`, `DownloadSection.astro`, `Nav.astro`. The `isMobile` check is two-part: a UA pattern for standard mobile devices plus a `maxTouchPoints` branch for iPadOS 13+, which reports its user agent as macOS.
 
-On mobile: no OS highlight or badge is shown, and the hero button shows a generic "Download" label. On desktop Linux: switch to Linux assets (the install command is the one-liner served by `functions/install.sh.ts`). On desktop Windows/other: default to Windows assets. Change detection logic only in `os-detect.ts`.
+On mobile: no OS highlight or badge is shown, and the hero hides its download button, keeping only the link to the download section. On desktop Linux: switch to Linux assets (the install command is the one-liner served by `functions/install.sh.ts`). On desktop Windows/other: default to Windows assets. Change detection logic only in `os-detect.ts`.
 
 ### Analytics & consent
 
