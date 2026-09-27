@@ -124,7 +124,7 @@ Only remove comments that repeat nearby code or describe basic syntax.
 Fix these when found:
 
 - hardcoded Tailwind color classes (`zinc-*`, `red-*`, `gray-*`) — use semantic tokens from `src/renderer/src/index.css`
-- bare `ReactMarkdown` — use `components/MarkdownContent.tsx`
+- bare markdown-it rendering — use `components/MarkdownContent.tsx`
 - native `<select>` — use `components/Select.tsx`
 - bare string literals in JSX — use `t('key')` from `../i18n`
 - direct `api.getMod`, `api.listModFiles`, or `api.listModLinks` calls in renderer components — use `getCachedMod`, `getCachedModFiles`, or `getCachedModLinks`

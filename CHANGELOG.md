@@ -4,6 +4,10 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 ## Unreleased
 
+### Changed
+
+- ModWorkshop mod descriptions show raw HTML as text, the same way ModWorkshop does.
+
 ### Fixed
 
 - Fixed Restart & Install not restarting Modrex on Linux after installing an update.
@@ -15,6 +19,8 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - Fixed stray blank space inside tables in Nexus mod descriptions.
 - Fixed quote authors in Nexus mod descriptions always showing in English.
 - Fixed Nexus file descriptions showing doubled line breaks and raw formatting tags.
+- Fixed videos in ModWorkshop mod descriptions breaking inside spoilers, quotes, lists and tables.
+- Fixed some ModWorkshop spoilers showing as plain text with their `!!!` markers.
 
 ### Security
 

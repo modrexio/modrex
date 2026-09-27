@@ -6,34 +6,37 @@ import { api } from '../api'
 
 vi.mock('../api', () => ({ api: { openExternal: vi.fn() } }))
 
+const YOUTUBE_THUMB = 'img[src="https://img.youtube.com/vi/dQw4w9WgXcQ/hqdefault.jpg"]'
+
+afterEach(() => {
+    cleanup()
+    vi.clearAllMocks()
+})
+
 // Mod descriptions come from modworkshop authors, i.e. they are attacker-controlled.
-// These tests feed hostile payloads through the full component to pin both layers:
-// rehype-sanitize (schema) and the component-level gates (scheme allowlist, embed
-// host allowlist).
+// These tests feed hostile payloads through the full component to pin every layer:
+// markdown-it escaping raw HTML, rehype-sanitize, and the component-level gates.
 describe('MarkdownContent sanitization', () => {
-    afterEach(() => {
-        cleanup()
-        vi.clearAllMocks()
-    })
-
-    it('strips <script> elements while keeping surrounding text', () => {
-        const { container, getByText } = render(
-            <MarkdownContent text={'before<script>window.pwned = true</script>after'} />
-        )
-        expect(container.querySelector('script')).toBeNull()
-        expect(getByText(/before/)).toBeTruthy()
-        expect(getByText(/after/)).toBeTruthy()
-    })
-
-    it('strips inline event handlers but keeps the image', () => {
+    it('shows raw HTML as text instead of rendering it', () => {
         const { container } = render(
             <MarkdownContent
-                text={'<img src="https://example.com/a.png" onerror="window.pwned = true">'}
+                text={
+                    'before<script>window.pwned = true</script>after <img src="https://example.com/a.png" onerror="window.pwned = true">'
+                }
             />
         )
-        const img = container.querySelector('img')
-        expect(img?.getAttribute('src')).toBe('https://example.com/a.png')
-        expect(img?.getAttribute('onerror')).toBeNull()
+        expect(container.querySelector('script')).toBeNull()
+        expect(container.querySelector('img')).toBeNull()
+        expect(container.textContent).toContain('<img src=')
+    })
+
+    it('cannot draw over the app with raw styled markup', () => {
+        const { container } = render(
+            <MarkdownContent
+                text={'<div style="position:fixed;inset:0;z-index:99999">fake prompt</div>'}
+            />
+        )
+        expect(container.querySelector('[style*="fixed"]')).toBeNull()
     })
 
     it('removes style, object, and embed elements', () => {
@@ -50,11 +53,9 @@ describe('MarkdownContent sanitization', () => {
     })
 
     it('renders javascript: links as plain text, not anchors', () => {
-        const { container, getByText } = render(
-            <MarkdownContent text={'[click me](javascript:alert(1))'} />
-        )
+        const { container } = render(<MarkdownContent text={'[click me](javascript:alert(1))'} />)
         expect(container.querySelector('a')).toBeNull()
-        expect(getByText('click me')).toBeTruthy()
+        expect(container.textContent).toContain('click me')
     })
 
     it('routes safe link clicks through the gated external opener', () => {
@@ -95,26 +96,82 @@ describe('MarkdownContent sanitization', () => {
         expect(vi.mocked(api.openExternal)).toHaveBeenCalledWith('https://modworkshop.net/game/1')
     })
 
-    it('drops iframes from hosts outside the embed allowlist', () => {
-        const { container } = render(
-            <MarkdownContent text={'<iframe src="https://evil.example/payload"></iframe>'} />
-        )
-        expect(container.querySelector('iframe')).toBeNull()
-    })
-
-    it('renders allowlisted video iframes as the click-to-play player, not a live iframe', () => {
+    it('never renders a raw iframe', () => {
         const { container } = render(
             <MarkdownContent
                 text={'<iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ"></iframe>'}
             />
         )
         expect(container.querySelector('iframe')).toBeNull()
-        const thumb = container.querySelector('img')
-        expect(thumb?.getAttribute('src')).toBe(
-            'https://img.youtube.com/vi/dQw4w9WgXcQ/hqdefault.jpg'
+    })
+})
+
+describe('MarkdownContent embeds', () => {
+    it('renders a video image as the click-to-play player, not a live iframe', () => {
+        const { container } = render(
+            <MarkdownContent text={'![](https://www.youtube.com/watch?v=dQw4w9WgXcQ)'} />
         )
+        expect(container.querySelector('iframe')).toBeNull()
+        expect(container.querySelector(YOUTUBE_THUMB)).not.toBeNull()
     })
 
+    it('embeds a video inside a spoiler', () => {
+        const { container } = render(
+            <MarkdownContent text={'!!!Videos\n![](https://youtu.be/dQw4w9WgXcQ)\n!!!'} />
+        )
+        expect(container.querySelector(`details ${YOUTUBE_THUMB}`)).not.toBeNull()
+    })
+
+    it('keeps a quoted video inside its quote', () => {
+        const { container } = render(
+            <MarkdownContent text={'> ![](https://www.youtube.com/watch?v=dQw4w9WgXcQ)'} />
+        )
+        expect(container.querySelector(`blockquote ${YOUTUBE_THUMB}`)).not.toBeNull()
+    })
+
+    it('keeps the rest of a table after a video cell', () => {
+        const { container } = render(
+            <MarkdownContent
+                text={'| a | b |\n|---|---|\n| x | ![](https://youtu.be/dQw4w9WgXcQ) |\n| y | z |'}
+            />
+        )
+        expect(container.querySelectorAll('tbody tr')).toHaveLength(2)
+        expect(container.querySelector(`td ${YOUTUBE_THUMB}`)).not.toBeNull()
+    })
+})
+
+describe('MarkdownContent spoilers', () => {
+    it('uses the text after the markers as the title', () => {
+        const { getByText } = render(<MarkdownContent text={'!!! Changes\nbody\n!!!'} />)
+        expect(getByText('Changes').tagName).toBe('SUMMARY')
+        expect(getByText('body').closest('details')).not.toBeNull()
+    })
+
+    it('closes on a longer marker run and falls back to the default title', () => {
+        const { container } = render(<MarkdownContent text={'!!!!\nbody\n!!!!'} />)
+        expect(container.querySelector('summary')?.textContent).toBe('Spoiler!')
+        expect(container.textContent).not.toContain('!!!!')
+    })
+
+    it('reads !!!text!!! on one line as a spoiler', () => {
+        const { getByText } = render(<MarkdownContent text={'!!!secret!!!'} />)
+        expect(getByText('secret').closest('details')).not.toBeNull()
+    })
+
+    it('runs an unclosed spoiler to the end of the text', () => {
+        const { getByText } = render(<MarkdownContent text={'intro\n\n!!!Title\nbody to end'} />)
+        expect(getByText('body to end').closest('details')).not.toBeNull()
+        expect(getByText('intro').closest('details')).toBeNull()
+    })
+
+    it('leaves markers inside a code block alone', () => {
+        const { container } = render(<MarkdownContent text={'```\n!!!\nnot a spoiler\n!!!\n```'} />)
+        expect(container.querySelector('details')).toBeNull()
+        expect(container.querySelector('pre')?.textContent).toContain('!!!')
+    })
+})
+
+describe('MarkdownContent formatting', () => {
     it('keeps modworkshop color tags working', () => {
         const { getByText } = render(<MarkdownContent text={'{#ff0000}(hot text)'} />)
         expect(getByText('hot text').style.color).toBe('rgb(255, 0, 0)')
@@ -125,10 +182,9 @@ describe('MarkdownContent sanitization', () => {
     // the color on any bold plus colored combination. strong must carry no color of its
     // own, so it inherits whatever the surrounding text uses.
     it('lets bold text inherit an ancestor color instead of overriding it', () => {
-        const { getByText } = render(
-            <MarkdownContent text={'<span style="color:green"><strong>bold</strong></span>'} />
-        )
+        const { getByText } = render(<MarkdownContent text={'{green}(**bold**)'} />)
         expect(getByText('bold').className).toBe('font-semibold')
+        expect(getByText('bold').closest('span')?.style.color).toBe('green')
     })
 
     it('handles nested color tags and parentheses', () => {
@@ -139,34 +195,25 @@ describe('MarkdownContent sanitization', () => {
         expect(getByText('inner').style.color).toBe('rgb(0, 255, 0)')
     })
 
-    it('drops div styles so a description cannot cover the app', () => {
-        const { getByText } = render(
-            <MarkdownContent
-                text={'<div style="position:fixed;inset:0;z-index:99999">fake prompt</div>'}
-            />
-        )
-        expect(getByText('fake prompt').getAttribute('style')).toBeNull()
-    })
-
-    it('keeps only the color of a raw span style', () => {
-        const { getByText } = render(
-            <MarkdownContent
-                text={'<span style="color:red;position:fixed;inset:0">overlay</span>'}
-            />
-        )
-        const span = getByText('overlay')
-        expect(span.style.color).toBe('red')
-        expect(span.style.position).toBe('')
+    it('leaves color tags inside code alone', () => {
+        const { container } = render(<MarkdownContent text={'```lua\nlocal c = {red}(x)\n```'} />)
+        expect(container.querySelector('pre')?.textContent).toContain('{red}(x)')
+        expect(container.querySelector('[style]')).toBeNull()
     })
 
     it('handles long malformed color tags without backtracking', () => {
         const text = '{Red}(' + '()'.repeat(2_000)
         const { container } = render(<MarkdownContent text={text} />)
-        expect(container.textContent).toBe(text)
+        expect(container.textContent?.trim()).toBe(text)
     })
 
     it('keeps syntax-highlight classes (sanitize must run before rehype-highlight)', () => {
         const { container } = render(<MarkdownContent text={'```js\nconst x = 1\n```'} />)
         expect(container.querySelector('.hljs-keyword')).not.toBeNull()
+    })
+
+    it('keeps table column alignment', () => {
+        const { getByText } = render(<MarkdownContent text={'| n |\n|--:|\n| 1 |'} />)
+        expect(getByText('1').style.textAlign).toBe('right')
     })
 })

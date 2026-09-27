@@ -1,13 +1,13 @@
 import { useMemo, createContext, useContext, type ReactNode } from 'react'
-import ReactMarkdown from 'react-markdown'
-import rehypeRaw from 'rehype-raw'
+import { Fragment, jsx, jsxs } from 'react/jsx-runtime'
+import { unified } from 'unified'
+import rehypeParse from 'rehype-parse'
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize'
 import rehypeHighlight from 'rehype-highlight'
-import remarkGfm from 'remark-gfm'
-import remarkBreaks from 'remark-breaks'
-import type { Components } from 'react-markdown'
+import { toJsxRuntime, type Components } from 'hast-util-to-jsx-runtime'
 import { t } from '../i18n'
-import { detectEmbed, EMBEDS, type Embed, type EmbedDef } from '../embeds'
+import { detectEmbed } from '../embeds'
+import { renderMarkdown } from '../markdown'
 import 'highlight.js/styles/github-dark.css'
 import { api } from '../api'
 import { parseModworkshopModId } from '../modLinks'
@@ -15,143 +15,21 @@ import { EmbedPlayer } from './EmbedPlayer'
 
 const InsidePreContext = createContext(false)
 
-// Mod descriptions are attacker-controlled HTML (rehypeRaw), so they are sanitized
-// against the GitHub-style default schema. Must run AFTER rehypeRaw (there is no raw
-// HTML to sanitize before it) and BEFORE rehypeHighlight (so the hljs-* classes it
-// injects survive). Two deliberate carve-outs beyond the defaults:
-// - span keeps the style attribute: parseColorTags compiles modworkshop's {#hex}(text)
-//   syntax to <span style="color:...">. The span component below keeps only color,
-//   so a description can't position anything over the app.
-// - iframe keeps only src (http/https enforced by the schema's protocol map): the
-//   iframe component below renders nothing unless detectEmbed matches an allowlisted
-//   video host, so unknown iframes are dropped even after passing sanitization.
+// Defense in depth: markdown-it already escapes raw HTML, so this only ever sees markup
+// the parser and its plugins wrote. Must run before rehypeHighlight so its hljs classes
+// survive. span keeps data-color, which the span component turns into a color.
 const sanitizeSchema = {
     ...defaultSchema,
-    tagNames: [...(defaultSchema.tagNames ?? []), 'iframe', 'figure', 'figcaption'],
     attributes: {
         ...defaultSchema.attributes,
-        span: [...(defaultSchema.attributes?.span ?? []), 'style'],
-        iframe: ['src'],
+        span: [...(defaultSchema.attributes?.span ?? []), 'dataColor'],
     },
 }
 
-type Part =
-    | { type: 'text'; text: string }
-    | { type: 'embed'; embed: Embed }
-    | { type: 'collapsible'; title: string; body: string }
-
-function splitEmbeds(text: string, defs: EmbedDef[]): Part[] {
-    const parts: Part[] = []
-    const re = /!\[[^\]]*\]\(([^)]+)\)/g
-    let lastIndex = 0
-    let match: RegExpExecArray | null
-
-    while ((match = re.exec(text)) !== null) {
-        const embed = detectEmbed(match[1], defs)
-        if (!embed) continue
-
-        if (match.index > lastIndex) {
-            parts.push({ type: 'text', text: text.slice(lastIndex, match.index) })
-        }
-        parts.push({ type: 'embed', embed })
-        lastIndex = match.index + match[0].length
-    }
-
-    if (lastIndex < text.length) {
-        parts.push({ type: 'text', text: text.slice(lastIndex) })
-    }
-
-    return parts.length > 0 ? parts : [{ type: 'text', text }]
-}
-
-interface ColorFrame {
-    color: string
-    tokenIndex: number
-    parenDepth: number
-}
-
-function colorTagAt(text: string, start: number): { color: string; end: number } | null {
-    if (text[start] !== '{') return null
-
-    let i = start + 1
-    if (text[i] === '#') {
-        const hexStart = ++i
-        while (i - hexStart < 9 && /[0-9A-Fa-f]/.test(text[i] ?? '')) i++
-        if (i - hexStart < 3 || i - hexStart > 8) return null
-    } else {
-        const nameStart = i
-        while (/[A-Za-z]/.test(text[i] ?? '')) i++
-        if (i === nameStart) return null
-    }
-
-    if (text[i] !== '}' || text[i + 1] !== '(') return null
-    return { color: text.slice(start + 1, i), end: i + 2 }
-}
-
-// Modworkshop uses {#HEX}(text) or {ColorName}(text) for inline colored text.
-// Parse it with a stack so nested tags and parentheses remain linear in the input size.
-function parseColorTags(text: string): string {
-    const output: string[] = []
-    const stack: ColorFrame[] = []
-
-    for (let i = 0; i < text.length;) {
-        const tag = colorTagAt(text, i)
-        if (tag) {
-            const tokenIndex = output.length
-            output.push(text.slice(i, tag.end))
-            stack.push({
-                color: tag.color,
-                tokenIndex,
-                parenDepth: 0,
-            })
-            i = tag.end
-            continue
-        }
-
-        const frame = stack.at(-1)
-        const char = text[i]
-        if (frame && char === '(') {
-            frame.parenDepth++
-        } else if (frame && char === ')') {
-            if (frame.parenDepth === 0) {
-                stack.pop()
-                output[frame.tokenIndex] = `<span style="color:${frame.color}">`
-                output.push('</span>')
-                i++
-                continue
-            }
-            frame.parenDepth--
-        }
-
-        output.push(char)
-        i++
-    }
-
-    return output.join('')
-}
-
-// Modworkshop uses !!! Title ... !!! as a collapsible section syntax not in standard markdown.
-// Collapsibles are split at the React level so their body is still parsed as markdown.
-function splitParts(text: string, defs: EmbedDef[]): Part[] {
-    const result: Part[] = []
-    const re = /^!!!(?: ?(.+))?\n([\s\S]*?)^!!!$/gm
-    let lastIndex = 0
-    let match: RegExpExecArray | null
-
-    while ((match = re.exec(text)) !== null) {
-        if (match.index > lastIndex) {
-            result.push(...splitEmbeds(text.slice(lastIndex, match.index), defs))
-        }
-        result.push({ type: 'collapsible', title: match[1]?.trim() ?? '', body: match[2] })
-        lastIndex = match.index + match[0].length
-    }
-
-    if (lastIndex < text.length) {
-        result.push(...splitEmbeds(text.slice(lastIndex), defs))
-    }
-
-    return result.length > 0 ? result : splitEmbeds(text, defs)
-}
+const processor = unified()
+    .use(rehypeParse, { fragment: true })
+    .use(rehypeSanitize, sanitizeSchema)
+    .use(rehypeHighlight)
 
 function Code({ children }: { children?: ReactNode }) {
     const inPre = useContext(InsidePreContext)
@@ -164,7 +42,7 @@ function Code({ children }: { children?: ReactNode }) {
     )
 }
 
-function makeMdComponents(defs: EmbedDef[], onOpenDetail?: (modId: number) => void): Components {
+function makeComponents(onOpenDetail?: (modId: number) => void): Components {
     return {
         p: ({ children }) => (
             <div className="text-sm text-text-muted leading-relaxed mb-2">{children}</div>
@@ -184,8 +62,10 @@ function makeMdComponents(defs: EmbedDef[], onOpenDetail?: (modId: number) => vo
         ul: ({ children }) => (
             <ul className="list-disc ml-5 mb-2 text-sm text-text-muted">{children}</ul>
         ),
-        ol: ({ children }) => (
-            <ol className="list-decimal ml-5 mb-2 text-sm text-text-muted">{children}</ol>
+        ol: ({ children, start }) => (
+            <ol start={start} className="list-decimal ml-5 mb-2 text-sm text-text-muted">
+                {children}
+            </ol>
         ),
         li: ({ children }) => <li className="mb-0.5">{children}</li>,
         a: ({ href, children }) => {
@@ -234,8 +114,11 @@ function makeMdComponents(defs: EmbedDef[], onOpenDetail?: (modId: number) => vo
                 </pre>
             </InsidePreContext.Provider>
         ),
+        // ModWorkshop embeds a video by writing it as an image.
         img: ({ src, alt }) => {
-            if (!src) return null
+            if (typeof src !== 'string' || !src) return null
+            const embed = detectEmbed(src)
+            if (embed) return <EmbedPlayer embed={embed} />
             return <img src={src} alt={alt} loading="lazy" className="max-w-full rounded my-2" />
         },
         hr: () => <hr className="border-t border-border my-3" />,
@@ -247,95 +130,55 @@ function makeMdComponents(defs: EmbedDef[], onOpenDetail?: (modId: number) => vo
         table: ({ children }) => (
             <table className="w-full text-sm text-left border-collapse my-2">{children}</table>
         ),
-        th: ({ children }) => (
-            <th className="border border-border px-3 py-1.5 text-text font-semibold bg-surface-raised">
+        // style here is only the text-align that toJsxRuntime makes from the align attribute.
+        th: ({ children, style }) => (
+            <th
+                style={style}
+                className="border border-border px-3 py-1.5 text-text font-semibold bg-surface-raised"
+            >
                 {children}
             </th>
         ),
-        td: ({ children }) => (
-            <td className="border border-border px-3 py-1.5 text-text-muted">{children}</td>
-        ),
-        div: ({ children, className }) => <div className={className}>{children}</div>,
-        span: ({ children, style, className }) => (
-            <span style={style?.color ? { color: style.color } : undefined} className={className}>
+        td: ({ children, style }) => (
+            <td style={style} className="border border-border px-3 py-1.5 text-text-muted">
                 {children}
-            </span>
+            </td>
         ),
-        section: ({ children }) => <section>{children}</section>,
-        figure: ({ children }) => <figure className="my-2">{children}</figure>,
-        figcaption: ({ children }) => (
-            <figcaption className="text-xs text-text-subtle mt-1">{children}</figcaption>
-        ),
-        br: () => <br />,
-        iframe: ({ src }) => {
-            if (!src) return null
-            const embed = detectEmbed(src, defs)
-            return embed ? <EmbedPlayer embed={embed} /> : null
+        span: ({ children, className, node }) => {
+            const color = node?.properties.dataColor
+            return (
+                <span
+                    style={typeof color === 'string' ? { color } : undefined}
+                    className={className}
+                >
+                    {children}
+                </span>
+            )
         },
-        script: () => null,
-        style: () => null,
-        object: () => null,
-        embed: () => null,
+        details: ({ children }) => (
+            <details className="my-2 border border-border rounded-lg overflow-hidden [&>div]:px-3">
+                {children}
+            </details>
+        ),
+        summary: ({ children }) => (
+            <summary className="cursor-pointer px-3 py-2 text-sm font-semibold text-text bg-surface-raised hover:bg-surface-hover transition-colors select-none">
+                {children ?? t('detail.spoiler')}
+            </summary>
+        ),
     }
 }
 
 export function MarkdownContent({
     text,
-    embeds = EMBEDS,
     onOpenDetail,
 }: {
     text: string
-    embeds?: EmbedDef[]
     onOpenDetail?: (modId: number) => void
 }) {
-    const components = useMemo(() => makeMdComponents(embeds, onOpenDetail), [embeds, onOpenDetail])
-    const normalized = text.replace(/\r\n/g, '\n')
-    const parts = splitParts(parseColorTags(normalized), embeds)
-
-    return (
-        <div>
-            {parts.map((part, i) => {
-                if (part.type === 'embed') return <EmbedPlayer key={i} embed={part.embed} />
-                if (part.type === 'collapsible') {
-                    return (
-                        <details
-                            key={i}
-                            className="my-2 border border-border rounded-lg overflow-hidden"
-                        >
-                            <summary className="cursor-pointer px-3 py-2 text-sm font-semibold text-text bg-surface-raised hover:bg-surface-hover transition-colors select-none">
-                                {part.title || t('detail.spoiler')}
-                            </summary>
-                            <div className="px-3">
-                                <ReactMarkdown
-                                    remarkPlugins={[remarkGfm, remarkBreaks]}
-                                    rehypePlugins={[
-                                        rehypeRaw,
-                                        [rehypeSanitize, sanitizeSchema],
-                                        rehypeHighlight,
-                                    ]}
-                                    components={components}
-                                >
-                                    {part.body}
-                                </ReactMarkdown>
-                            </div>
-                        </details>
-                    )
-                }
-                return (
-                    <ReactMarkdown
-                        key={i}
-                        remarkPlugins={[remarkGfm, remarkBreaks]}
-                        rehypePlugins={[
-                            rehypeRaw,
-                            [rehypeSanitize, sanitizeSchema],
-                            rehypeHighlight,
-                        ]}
-                        components={components}
-                    >
-                        {part.text}
-                    </ReactMarkdown>
-                )
-            })}
-        </div>
-    )
+    const components = useMemo(() => makeComponents(onOpenDetail), [onOpenDetail])
+    const content = useMemo(() => {
+        const tree = processor.runSync(processor.parse(renderMarkdown(text)))
+        return toJsxRuntime(tree, { Fragment, jsx, jsxs, components, passNode: true })
+    }, [text, components])
+    return <div>{content}</div>
 }
