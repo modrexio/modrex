@@ -1,7 +1,7 @@
 import { getImage } from 'astro:assets'
 import browseMods from '../assets/screenshots/browse-mods-window.png'
 
-// Derived from the screenshot rather than pointing at it: the source is a 2MB 2560px
+// Derived from the screenshot rather than pointing at it: the source is a 1MB 1706px
 // PNG, and scrapers that fetch og:image commonly give up on files that size. Generated
 // at build time so it can never drift from the screenshot it is cut from. JPEG, not
 // PNG, because Astro's PNG encoder does not quantize and lands around 780kB here;

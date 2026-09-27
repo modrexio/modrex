@@ -20,11 +20,11 @@ const nexusModsAvailable = nexusModCounts
     ? new Intl.NumberFormat('en-US').format(nexusModCounts.total)
     : null
 
-// Each crop is a window onto a full 2560x1368 screenshot, in source pixels, so the
+// Each crop is a window onto a full 1706x912 screenshot, in source pixels, so the
 // evidence stays in sync with the screenshots instead of living in separate files.
-// The image is scaled up by 2560 / w and shifted so the rectangle fills the frame.
-const SOURCE_WIDTH = 2560
-const CROP_WIDTHS = [1180, 1960, 2560]
+// The image is scaled up by 1706 / w and shifted so the rectangle fills the frame.
+const SOURCE_WIDTH = 1706
+const CROP_WIDTHS = [1180, 1706]
 
 function crop(x: number, y: number, w: number, h: number) {
     const scale = SOURCE_WIDTH / w
@@ -43,9 +43,9 @@ function crop(x: number, y: number, w: number, h: number) {
     }
 }
 
-const launchCrop = crop(1760, 0, 800, 300)
-const browseCrop = crop(300, 70, 1120, 540)
-const installedCrop = crop(300, 80, 1100, 600)
+const launchCrop = crop(1173, 0, 533, 104)
+const browseCrop = crop(200, 47, 746, 400)
+const installedCrop = crop(200, 53, 746, 400)
 ---
 
 <section id="features">

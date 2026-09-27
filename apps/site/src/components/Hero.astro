@@ -14,7 +14,7 @@ interface Props {
 const { release = null } = Astro.props
 
 // Imported rather than served from public/ so astro:assets emits AVIF and WebP at
-// several widths. The sources are 2560px PNG screenshots, two megabytes each; the
+// several widths. The sources are 1706px PNG screenshots, about a megabyte each; the
 // first one shown is the largest contentful paint of the whole site.
 const shots = [
     {
@@ -44,8 +44,8 @@ const shots = [
     {
         src: settings,
         name: 'Settings',
-        alt: 'Modrex settings: game path, launcher and launch options',
-        desc: 'Game path, launcher and launch options.',
+        alt: 'Modrex application settings: language, accent color, updates, usage analytics and Discord Rich Presence',
+        desc: 'Language, accent color, updates, analytics and Discord presence.',
     },
 ]
 
@@ -55,14 +55,14 @@ const FIRST = 1
 
 // The stage is 7/12 of the content column beside the hero text (775px at the full
 // 1440px wrap), and the whole column once the hero stacks below 1100px.
-const STAGE_WIDTHS = [640, 1180, 1960]
+const STAGE_WIDTHS = [640, 1180, 1706]
 const STAGE_SIZES = [
     '(max-width: 768px) calc(100vw - 32px)',
     '(max-width: 1100px) calc(100vw - 64px)',
     '(max-width: 1440px) calc((100vw - 112px) * 7 / 12)',
     '775px',
 ].join(', ')
-const VIEWER_WIDTHS = [1180, 1960, 2560]
+const VIEWER_WIDTHS = [1180, 1706]
 
 const releasedOn = release
     ? new Intl.DateTimeFormat('en-US', {
