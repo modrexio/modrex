@@ -263,4 +263,16 @@ describe('NexusDescription', () => {
         expect(getByText('Name').tagName).toBe('TH')
         expect(getByText('Value').tagName).toBe('TD')
     })
+
+    it('keeps Nexus line breaks out of the table structure', () => {
+        const { container } = render(
+            <NexusDescription
+                text={
+                    '[table]\n<br />[tr]\n<br />[td]a[/td]\n<br />[td]b[/td]\n<br />[/tr]\n<br />[/table]'
+                }
+            />
+        )
+        expect(container.querySelectorAll('table br')).toHaveLength(0)
+        expect(container.querySelectorAll('td')).toHaveLength(2)
+    })
 })

@@ -364,12 +364,19 @@ function stripTrailingBreaks(nodes: ReactNode[]): ReactNode[] {
     return result
 }
 
+// The library drops text between table rows and cells but keeps tag nodes, so every
+// Nexus line break there would become a br inside the table structure.
+const TABLE_PARTS = new Set(['table', 'thead', 'tbody', 'tfoot', 'tr'])
+
 function normalizeNode(node: ReactNode): ReactNode {
     if (!isValidElement<{ children?: ReactNode }>(node)) return node
     if (node.props.children === undefined) return node
 
     let children = normalizeNodes(Children.toArray(node.props.children))
     if (node.type === 'li') children = stripTrailingBreaks(children)
+    if (typeof node.type === 'string' && TABLE_PARTS.has(node.type)) {
+        children = children.filter((child) => !isBr(child))
+    }
     return cloneElement(node, undefined, children)
 }
 

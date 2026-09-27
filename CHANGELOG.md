@@ -12,6 +12,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - Fixed code blocks in Nexus mod descriptions showing `[br]` tags and escaped quotes instead of line breaks and quotes.
 - Fixed `[left]` tags showing as text in Nexus mod descriptions.
 - Fixed sized text in Nexus mod descriptions, where small print showed larger than normal text.
+- Fixed stray blank space inside tables in Nexus mod descriptions.
 
 ### Security
 
