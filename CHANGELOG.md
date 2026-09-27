@@ -22,6 +22,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - Fixed videos in ModWorkshop mod descriptions breaking inside spoilers, quotes, lists and tables.
 - Fixed some ModWorkshop spoilers showing as plain text with their `!!!` markers.
 - Fixed ModWorkshop mod descriptions showing `:::` markers instead of centered text, which also turned the text above a divider into a heading.
+- Fixed `__text__` in ModWorkshop mod descriptions showing bold instead of underlined.
 
 ### Security
 

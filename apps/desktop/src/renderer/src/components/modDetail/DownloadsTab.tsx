@@ -23,7 +23,7 @@ import { t } from '../../i18n'
 import { isUnsupportedFormat } from '../../formatCheck'
 import { handleInstallOutcome } from '../../installSentinels'
 import { useCrimeBossInstallTarget } from '../../hooks/useCrimeBossInstallTarget'
-import { MarkdownContent } from '../MarkdownContent'
+import { ModworkshopMarkup } from '../MarkdownContent'
 import { NexusDescription } from '../NexusDescription'
 import { Tooltip } from '../Tooltip'
 import { CrimeBossInstallTargetModal } from '../CrimeBossInstallTargetModal'
@@ -276,7 +276,7 @@ export function DownloadsTab({
                             {isNexus ? (
                                 <NexusDescription text={file.desc} onOpenDetail={onOpenDetail} />
                             ) : (
-                                <MarkdownContent text={file.desc} onOpenDetail={onOpenDetail} />
+                                <ModworkshopMarkup text={file.desc} onOpenDetail={onOpenDetail} />
                             )}
                         </div>
                     )}
@@ -563,7 +563,7 @@ export function DownloadsTab({
                                     </span>
                                     {link.desc && (
                                         <div className="text-xs text-text-muted mt-1 [&_a]:text-accent-bright [&_a]:hover:underline">
-                                            <MarkdownContent
+                                            <ModworkshopMarkup
                                                 text={link.desc}
                                                 onOpenDetail={onOpenDetail}
                                             />

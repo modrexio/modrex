@@ -1,5 +1,5 @@
 import type { Mod, ModSummary } from '../../../../shared/types'
-import { MarkdownContent } from '../MarkdownContent'
+import { ModworkshopMarkup } from '../MarkdownContent'
 import { t } from '../../i18n'
 
 export function DescriptionTab({
@@ -12,7 +12,7 @@ export function DescriptionTab({
     return (
         <div>
             {mod.desc ? (
-                <MarkdownContent text={mod.desc} onOpenDetail={onOpenDetail} />
+                <ModworkshopMarkup text={mod.desc} onOpenDetail={onOpenDetail} />
             ) : (
                 <p className="text-sm text-text-subtle">{t('detail.description.noDescription')}</p>
             )}
@@ -29,7 +29,7 @@ export function ChangelogTab({
 }) {
     return (
         <div>
-            <MarkdownContent text={mod.changelog!} onOpenDetail={onOpenDetail} />
+            <ModworkshopMarkup text={mod.changelog!} onOpenDetail={onOpenDetail} />
         </div>
     )
 }
@@ -43,7 +43,7 @@ export function LicenseTab({
 }) {
     return (
         <div>
-            <MarkdownContent text={mod.license!} onOpenDetail={onOpenDetail} />
+            <ModworkshopMarkup text={mod.license!} onOpenDetail={onOpenDetail} />
         </div>
     )
 }

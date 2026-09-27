@@ -7,7 +7,7 @@ import type {
     GameId,
     InstructsTemplate,
 } from '../../../../shared/types'
-import { MarkdownContent } from '../MarkdownContent'
+import { ModworkshopMarkup } from '../MarkdownContent'
 import { Tooltip } from '../Tooltip'
 import { t } from '../../i18n'
 import { useThumbnail } from '../../hooks/useThumbnail'
@@ -92,14 +92,14 @@ export function DepsTab({
                         {t('detail.deps.instructions')}
                     </h2>
                     {instructsTemplate?.instructions && (
-                        <MarkdownContent
+                        <ModworkshopMarkup
                             text={instructsTemplate.instructions}
                             onOpenDetail={onOpenDetail}
                         />
                     )}
                     {instructions && (
                         <div className="mt-3">
-                            <MarkdownContent text={instructions} onOpenDetail={onOpenDetail} />
+                            <ModworkshopMarkup text={instructions} onOpenDetail={onOpenDetail} />
                         </div>
                     )}
                 </section>

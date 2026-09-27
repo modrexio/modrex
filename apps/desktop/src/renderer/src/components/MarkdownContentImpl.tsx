@@ -7,7 +7,7 @@ import rehypeHighlight from 'rehype-highlight'
 import { toJsxRuntime, type Components } from 'hast-util-to-jsx-runtime'
 import { t } from '../i18n'
 import { detectEmbed } from '../embeds'
-import { renderMarkdown } from '../markdown'
+import { renderMarkdown, renderModworkshopMarkdown } from '../markdown'
 import 'highlight.js/styles/github-dark.css'
 import { api } from '../api'
 import { parseModworkshopModId } from '../modLinks'
@@ -21,6 +21,7 @@ const InsidePreContext = createContext(false)
 // keeps the class of a ::: block.
 const sanitizeSchema: SanitizeOptions = {
     ...defaultSchema,
+    tagNames: [...(defaultSchema.tagNames ?? []), 'u'],
     attributes: {
         ...defaultSchema.attributes,
         span: [...(defaultSchema.attributes?.span ?? []), 'dataColor'],
@@ -175,17 +176,27 @@ function makeComponents(onOpenDetail?: (modId: number) => void): Components {
     }
 }
 
-export function MarkdownContent({
+function Markup({ html, onOpenDetail }: { html: string; onOpenDetail?: (modId: number) => void }) {
+    const components = useMemo(() => makeComponents(onOpenDetail), [onOpenDetail])
+    const content = useMemo(() => {
+        const tree = processor.runSync(processor.parse(html))
+        return toJsxRuntime(tree, { Fragment, jsx, jsxs, components, passNode: true })
+    }, [html, components])
+    return <div>{content}</div>
+}
+
+export function MarkdownContent({ text }: { text: string }) {
+    const html = useMemo(() => renderMarkdown(text), [text])
+    return <Markup html={html} />
+}
+
+export function ModworkshopMarkup({
     text,
     onOpenDetail,
 }: {
     text: string
     onOpenDetail?: (modId: number) => void
 }) {
-    const components = useMemo(() => makeComponents(onOpenDetail), [onOpenDetail])
-    const content = useMemo(() => {
-        const tree = processor.runSync(processor.parse(renderMarkdown(text)))
-        return toJsxRuntime(tree, { Fragment, jsx, jsxs, components, passNode: true })
-    }, [text, components])
-    return <div>{content}</div>
+    const html = useMemo(() => renderModworkshopMarkdown(text), [text])
+    return <Markup html={html} onOpenDetail={onOpenDetail} />
 }

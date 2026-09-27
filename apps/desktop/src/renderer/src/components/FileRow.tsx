@@ -1,7 +1,7 @@
 import { Tag, Download, Clock, AlertTriangle } from 'lucide-react'
 import type { ModFile } from '../../../shared/types'
 import { t } from '../i18n'
-import { MarkdownContent } from './MarkdownContent'
+import { ModworkshopMarkup } from './MarkdownContent'
 import { isUnsupportedFormat } from '../formatCheck'
 
 function formatBytes(bytes: number): string {
@@ -57,7 +57,7 @@ export function FileRow({ file, checked, installed, locked, disabled, status, on
                 </div>
                 {file.desc && (
                     <div className="text-xs text-text-muted mt-1 [&_a]:text-accent-bright [&_a]:hover:underline">
-                        <MarkdownContent text={file.desc} />
+                        <ModworkshopMarkup text={file.desc} />
                     </div>
                 )}
                 <div className="flex items-center flex-wrap gap-x-3 gap-y-1 mt-1.5 text-xs text-text-subtle">

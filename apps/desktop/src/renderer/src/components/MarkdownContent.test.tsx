@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, fireEvent, cleanup } from '@testing-library/react'
-import { MarkdownContent } from './MarkdownContentImpl'
+import { MarkdownContent, ModworkshopMarkup } from './MarkdownContentImpl'
 import { api } from '../api'
 
 vi.mock('../api', () => ({ api: { openExternal: vi.fn() } }))
@@ -16,10 +16,10 @@ afterEach(() => {
 // Mod descriptions come from modworkshop authors, i.e. they are attacker-controlled.
 // These tests feed hostile payloads through the full component to pin every layer:
 // markdown-it escaping raw HTML, rehype-sanitize, and the component-level gates.
-describe('MarkdownContent sanitization', () => {
+describe('ModworkshopMarkup sanitization', () => {
     it('shows raw HTML as text instead of rendering it', () => {
         const { container } = render(
-            <MarkdownContent
+            <ModworkshopMarkup
                 text={
                     'before<script>window.pwned = true</script>after <img src="https://example.com/a.png" onerror="window.pwned = true">'
                 }
@@ -32,7 +32,7 @@ describe('MarkdownContent sanitization', () => {
 
     it('cannot draw over the app with raw styled markup', () => {
         const { container } = render(
-            <MarkdownContent
+            <ModworkshopMarkup
                 text={'<div style="position:fixed;inset:0;z-index:99999">fake prompt</div>'}
             />
         )
@@ -41,7 +41,7 @@ describe('MarkdownContent sanitization', () => {
 
     it('removes style, object, and embed elements', () => {
         const { container } = render(
-            <MarkdownContent
+            <ModworkshopMarkup
                 text={
                     '<style>body{display:none}</style><object data="https://example.com/x"></object><embed src="https://example.com/x">'
                 }
@@ -53,13 +53,13 @@ describe('MarkdownContent sanitization', () => {
     })
 
     it('renders javascript: links as plain text, not anchors', () => {
-        const { container } = render(<MarkdownContent text={'[click me](javascript:alert(1))'} />)
+        const { container } = render(<ModworkshopMarkup text={'[click me](javascript:alert(1))'} />)
         expect(container.querySelector('a')).toBeNull()
         expect(container.textContent).toContain('click me')
     })
 
     it('routes safe link clicks through the gated external opener', () => {
-        const { container } = render(<MarkdownContent text={'[site](https://example.com/)'} />)
+        const { container } = render(<ModworkshopMarkup text={'[site](https://example.com/)'} />)
         const anchor = container.querySelector('a')
         expect(anchor).not.toBeNull()
         // No real href, so navigation is impossible even if the click handler regressed
@@ -71,7 +71,7 @@ describe('MarkdownContent sanitization', () => {
     it('intercepts modworkshop mod links and triggers onOpenDetail in-app', () => {
         const onOpenDetail = vi.fn()
         const { getByText } = render(
-            <MarkdownContent
+            <ModworkshopMarkup
                 text={'[another mod](https://modworkshop.net/mod/45678)'}
                 onOpenDetail={onOpenDetail}
             />
@@ -85,7 +85,7 @@ describe('MarkdownContent sanitization', () => {
     it('routes non-mod modworkshop links through api.openExternal', () => {
         const onOpenDetail = vi.fn()
         const { getByText } = render(
-            <MarkdownContent
+            <ModworkshopMarkup
                 text={'[game page](https://modworkshop.net/game/1)'}
                 onOpenDetail={onOpenDetail}
             />
@@ -98,7 +98,7 @@ describe('MarkdownContent sanitization', () => {
 
     it('never renders a raw iframe', () => {
         const { container } = render(
-            <MarkdownContent
+            <ModworkshopMarkup
                 text={'<iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ"></iframe>'}
             />
         )
@@ -106,10 +106,10 @@ describe('MarkdownContent sanitization', () => {
     })
 })
 
-describe('MarkdownContent embeds', () => {
+describe('ModworkshopMarkup embeds', () => {
     it('renders a video image as the click-to-play player, not a live iframe', () => {
         const { container } = render(
-            <MarkdownContent text={'![](https://www.youtube.com/watch?v=dQw4w9WgXcQ)'} />
+            <ModworkshopMarkup text={'![](https://www.youtube.com/watch?v=dQw4w9WgXcQ)'} />
         )
         expect(container.querySelector('iframe')).toBeNull()
         expect(container.querySelector(YOUTUBE_THUMB)).not.toBeNull()
@@ -117,21 +117,21 @@ describe('MarkdownContent embeds', () => {
 
     it('embeds a video inside a spoiler', () => {
         const { container } = render(
-            <MarkdownContent text={'!!!Videos\n![](https://youtu.be/dQw4w9WgXcQ)\n!!!'} />
+            <ModworkshopMarkup text={'!!!Videos\n![](https://youtu.be/dQw4w9WgXcQ)\n!!!'} />
         )
         expect(container.querySelector(`details ${YOUTUBE_THUMB}`)).not.toBeNull()
     })
 
     it('keeps a quoted video inside its quote', () => {
         const { container } = render(
-            <MarkdownContent text={'> ![](https://www.youtube.com/watch?v=dQw4w9WgXcQ)'} />
+            <ModworkshopMarkup text={'> ![](https://www.youtube.com/watch?v=dQw4w9WgXcQ)'} />
         )
         expect(container.querySelector(`blockquote ${YOUTUBE_THUMB}`)).not.toBeNull()
     })
 
     it('keeps the rest of a table after a video cell', () => {
         const { container } = render(
-            <MarkdownContent
+            <ModworkshopMarkup
                 text={'| a | b |\n|---|---|\n| x | ![](https://youtu.be/dQw4w9WgXcQ) |\n| y | z |'}
             />
         )
@@ -140,43 +140,45 @@ describe('MarkdownContent embeds', () => {
     })
 })
 
-describe('MarkdownContent spoilers', () => {
+describe('ModworkshopMarkup spoilers', () => {
     it('uses the text after the markers as the title', () => {
-        const { getByText } = render(<MarkdownContent text={'!!! Changes\nbody\n!!!'} />)
+        const { getByText } = render(<ModworkshopMarkup text={'!!! Changes\nbody\n!!!'} />)
         expect(getByText('Changes').tagName).toBe('SUMMARY')
         expect(getByText('body').closest('details')).not.toBeNull()
     })
 
     it('closes on a longer marker run and falls back to the default title', () => {
-        const { container } = render(<MarkdownContent text={'!!!!\nbody\n!!!!'} />)
+        const { container } = render(<ModworkshopMarkup text={'!!!!\nbody\n!!!!'} />)
         expect(container.querySelector('summary')?.textContent).toBe('Spoiler!')
         expect(container.textContent).not.toContain('!!!!')
     })
 
     it('reads !!!text!!! on one line as a spoiler', () => {
-        const { getByText } = render(<MarkdownContent text={'!!!secret!!!'} />)
+        const { getByText } = render(<ModworkshopMarkup text={'!!!secret!!!'} />)
         expect(getByText('secret').closest('details')).not.toBeNull()
     })
 
     it('runs an unclosed spoiler to the end of the text', () => {
-        const { getByText } = render(<MarkdownContent text={'intro\n\n!!!Title\nbody to end'} />)
+        const { getByText } = render(<ModworkshopMarkup text={'intro\n\n!!!Title\nbody to end'} />)
         expect(getByText('body to end').closest('details')).not.toBeNull()
         expect(getByText('intro').closest('details')).toBeNull()
     })
 
     it('leaves markers inside a code block alone', () => {
-        const { container } = render(<MarkdownContent text={'```\n!!!\nnot a spoiler\n!!!\n```'} />)
+        const { container } = render(
+            <ModworkshopMarkup text={'```\n!!!\nnot a spoiler\n!!!\n```'} />
+        )
         expect(container.querySelector('details')).toBeNull()
         expect(container.querySelector('pre')?.textContent).toContain('!!!')
     })
 })
 
-describe('MarkdownContent centering', () => {
+describe('ModworkshopMarkup centering', () => {
     // GIVE ME THE POWER (modworkshop 57954) opens like this. Without ::: blocks the
     // ---- under the text turned both lines into a heading.
     it('centers ::: lines and keeps the rule under them', () => {
         const { container, getByText } = render(
-            <MarkdownContent
+            <ModworkshopMarkup
                 text={
                     ':::![](https://storage.modworkshop.net/mods/images/logo.webp):::\n----\n:::is a simple mod:::\n::: Rebalancing most of them.:::'
                 }
@@ -191,14 +193,14 @@ describe('MarkdownContent centering', () => {
     })
 
     it('centers a ::: block across several lines', () => {
-        const { getByText } = render(<MarkdownContent text={'::::::\n**centered**\n::::::'} />)
+        const { getByText } = render(<ModworkshopMarkup text={'::::::\n**centered**\n::::::'} />)
         expect(getByText('centered').closest('.text-center')).not.toBeNull()
     })
 })
 
-describe('MarkdownContent formatting', () => {
+describe('ModworkshopMarkup formatting', () => {
     it('keeps modworkshop color tags working', () => {
-        const { getByText } = render(<MarkdownContent text={'{#ff0000}(hot text)'} />)
+        const { getByText } = render(<ModworkshopMarkup text={'{#ff0000}(hot text)'} />)
         expect(getByText('hot text').style.color).toBe('rgb(255, 0, 0)')
     })
 
@@ -207,38 +209,55 @@ describe('MarkdownContent formatting', () => {
     // the color on any bold plus colored combination. strong must carry no color of its
     // own, so it inherits whatever the surrounding text uses.
     it('lets bold text inherit an ancestor color instead of overriding it', () => {
-        const { getByText } = render(<MarkdownContent text={'{green}(**bold**)'} />)
+        const { getByText } = render(<ModworkshopMarkup text={'{green}(**bold**)'} />)
         expect(getByText('bold').className).toBe('font-semibold')
         expect(getByText('bold').closest('span')?.style.color).toBe('green')
     })
 
     it('handles nested color tags and parentheses', () => {
         const { getByText } = render(
-            <MarkdownContent text={'{Red}(outer (text) {#00ff00}(inner))'} />
+            <ModworkshopMarkup text={'{Red}(outer (text) {#00ff00}(inner))'} />
         )
         expect(getByText(/outer/).style.color).toBe('red')
         expect(getByText('inner').style.color).toBe('rgb(0, 255, 0)')
     })
 
     it('leaves color tags inside code alone', () => {
-        const { container } = render(<MarkdownContent text={'```lua\nlocal c = {red}(x)\n```'} />)
+        const { container } = render(<ModworkshopMarkup text={'```lua\nlocal c = {red}(x)\n```'} />)
         expect(container.querySelector('pre')?.textContent).toContain('{red}(x)')
         expect(container.querySelector('[style]')).toBeNull()
     })
 
     it('handles long malformed color tags without backtracking', () => {
         const text = '{Red}(' + '()'.repeat(2_000)
-        const { container } = render(<MarkdownContent text={text} />)
+        const { container } = render(<ModworkshopMarkup text={text} />)
         expect(container.textContent?.trim()).toBe(text)
     })
 
     it('keeps syntax-highlight classes (sanitize must run before rehype-highlight)', () => {
-        const { container } = render(<MarkdownContent text={'```js\nconst x = 1\n```'} />)
+        const { container } = render(<ModworkshopMarkup text={'```js\nconst x = 1\n```'} />)
         expect(container.querySelector('.hljs-keyword')).not.toBeNull()
     })
 
     it('keeps table column alignment', () => {
-        const { getByText } = render(<MarkdownContent text={'| n |\n|--:|\n| 1 |'} />)
+        const { getByText } = render(<ModworkshopMarkup text={'| n |\n|--:|\n| 1 |'} />)
         expect(getByText('1').style.textAlign).toBe('right')
+    })
+
+    it('underlines __text__ and keeps **text** bold', () => {
+        const { getByText } = render(<ModworkshopMarkup text={'__under__ and **bold**'} />)
+        expect(getByText('under').tagName).toBe('U')
+        expect(getByText('bold').tagName).toBe('STRONG')
+    })
+})
+
+describe('MarkdownContent', () => {
+    it('reads text as plain markdown, without ModWorkshop syntax', () => {
+        const { getByText, container } = render(
+            <MarkdownContent text={'__bold__ {red}(not a color) :::not centered:::'} />
+        )
+        expect(getByText('bold').tagName).toBe('STRONG')
+        expect(container.querySelector('[style]')).toBeNull()
+        expect(container.textContent).toContain(':::not centered:::')
     })
 })

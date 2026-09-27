@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Button } from './ui/Button'
 import { Dialog, DialogHeader } from './Dialog'
-import { MarkdownContent } from './MarkdownContent'
+import { ModworkshopMarkup } from './MarkdownContent'
 import { t } from '../i18n'
 import { getCachedMod } from '../modCache'
 import { SkeletonText } from './Skeleton'
@@ -51,7 +51,7 @@ export function UnrecognizedArchiveModal({ modId, onClose }: Props) {
                     <SkeletonText />
                 ) : instructions ? (
                     <div className="rounded-lg border border-border bg-surface-hover px-4 py-3 text-sm">
-                        <MarkdownContent text={instructions} />
+                        <ModworkshopMarkup text={instructions} />
                     </div>
                 ) : (
                     <p className="text-sm text-text-subtle">{t('unrecognized.noInstructions')}</p>
