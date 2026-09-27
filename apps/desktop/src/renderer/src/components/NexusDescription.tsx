@@ -180,6 +180,22 @@ class LineTag extends Tag {
     }
 }
 
+// The library's own code tag prints raw content, which shows preprocess's [br][/br]
+// literally and the library's escapes as &quot; and &amp;.
+class CodeTag extends Tag {
+    toReact() {
+        const code = decodeContentEscape(this.getContent(true))
+            .replaceAll('[br][/br]', '\n')
+            .replace(/^\n+|\n+$/g, '')
+        if (this.params.code === 'inline') return <code>{code}</code>
+        return (
+            <pre>
+                <code>{code}</code>
+            </pre>
+        )
+    }
+}
+
 class HeadingTag extends Tag {
     toReact() {
         return <h3>{Children.toArray(this.getComponents())}</h3>
@@ -290,6 +306,7 @@ const parser = new Parser()
 parser.registerTag('br', BrTag)
 parser.registerTag('size', SizeTag)
 parser.registerTag('line', LineTag)
+parser.registerTag('code', CodeTag)
 parser.registerTag('heading', HeadingTag)
 parser.registerTag('font', FontTag)
 parser.registerTag('youtube', YoutubeTag)

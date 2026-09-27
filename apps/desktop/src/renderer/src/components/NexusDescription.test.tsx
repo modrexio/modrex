@@ -225,6 +225,25 @@ describe('NexusDescription', () => {
         expect(container.querySelector('iframe')).toBeNull()
     })
 
+    it('keeps line breaks and quotes inside a code block', () => {
+        const { container } = render(
+            <NexusDescription
+                text={
+                    '[code]Mods&#92;\n<br />└── main.lua\n<br />["id"] = a &lt; b &amp;&amp; c[/code]'
+                }
+            />
+        )
+        expect(container.querySelector('pre > code')?.textContent).toBe(
+            'Mods\\\n└── main.lua\n["id"] = a < b && c'
+        )
+    })
+
+    it('renders [code=inline] as inline code', () => {
+        const { container } = render(<NexusDescription text="run [code=inline]a && b[/code] now" />)
+        expect(container.querySelector('pre')).toBeNull()
+        expect(container.querySelector('code')?.textContent).toBe('a && b')
+    })
+
     it('preserves semantic table markup for scoped description styling', () => {
         const { getByText } = render(
             <NexusDescription text="[table][tr][th]Name[/th][td]Value[/td][/tr][/table]" />
