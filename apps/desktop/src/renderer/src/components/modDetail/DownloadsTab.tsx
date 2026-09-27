@@ -24,6 +24,7 @@ import { isUnsupportedFormat } from '../../formatCheck'
 import { handleInstallOutcome } from '../../installSentinels'
 import { useCrimeBossInstallTarget } from '../../hooks/useCrimeBossInstallTarget'
 import { MarkdownContent } from '../MarkdownContent'
+import { NexusDescription } from '../NexusDescription'
 import { Tooltip } from '../Tooltip'
 import { CrimeBossInstallTargetModal } from '../CrimeBossInstallTargetModal'
 import { ZipPickerModal } from '../ZipPickerModal'
@@ -272,7 +273,11 @@ export function DownloadsTab({
                     </div>
                     {file.desc && (
                         <div className="text-xs text-text-muted mt-1 [&_a]:text-accent-bright [&_a]:hover:underline">
-                            <MarkdownContent text={file.desc} onOpenDetail={onOpenDetail} />
+                            {isNexus ? (
+                                <NexusDescription text={file.desc} onOpenDetail={onOpenDetail} />
+                            ) : (
+                                <MarkdownContent text={file.desc} onOpenDetail={onOpenDetail} />
+                            )}
                         </div>
                     )}
                     <div className="flex items-center flex-wrap gap-x-3 gap-y-1 mt-1.5 text-xs text-text-subtle">
