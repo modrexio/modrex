@@ -153,10 +153,14 @@ const linUrl =
 
         const updateActive = () => {
             ticking = false
-            // Active = the last section whose top has passed under the sticky nav.
+            // Active = the last section whose anchor position has reached the sticky
+            // nav. The section's own scroll-margin counts, so a nav link always
+            // lights up the section it scrolled to.
             let currentId = ''
             for (const section of sections) {
-                if (section.getBoundingClientRect().top <= 80) currentId = section.id
+                const { top } = section.getBoundingClientRect()
+                const margin = parseFloat(getComputedStyle(section).scrollMarginTop)
+                if (top - margin <= 80) currentId = section.id
             }
             spyLinks.forEach((link) =>
                 link.classList.toggle('active', link.hash === `#${currentId}`)
@@ -171,6 +175,10 @@ const linUrl =
 
         window.addEventListener('scroll', onScroll, { passive: true })
         window.addEventListener('resize', onScroll, { passive: true })
+        // Some browser extensions hide the page while it loads, so every section
+        // measures zero and the last one wins. Rechecking when the page changes
+        // size corrects it once the page appears, without waiting for a scroll.
+        new ResizeObserver(onScroll).observe(document.body)
         updateActive()
     }
 </script>

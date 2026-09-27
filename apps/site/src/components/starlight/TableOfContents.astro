@@ -20,9 +20,12 @@ import Default from '@astrojs/starlight/components/TableOfContents.astro'
         })
     }
 
+    // A page that has not been scrolled is never at the bottom. Without that check,
+    // a page hidden while it loads, as some browser extensions do, measures zero
+    // tall and marks its last heading current.
     function sync() {
         const { scrollHeight } = document.documentElement
-        if (scrollY + innerHeight < scrollHeight - 1) return
+        if (scrollY === 0 || scrollY + innerHeight < scrollHeight - 1) return
 
         for (const toc of tocs) {
             const link = lastLinkOnScreen(toc)
