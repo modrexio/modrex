@@ -24,6 +24,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - Fixed ModWorkshop mod descriptions showing `:::` markers instead of centered text, which also turned the text above a divider into a heading.
 - Fixed `__text__` in ModWorkshop mod descriptions showing bold instead of underlined.
 - Fixed @mentions in ModWorkshop mod descriptions not linking to the user's page.
+- Fixed text in ModWorkshop mod descriptions colored too dark to read. It shows in the normal color, as on ModWorkshop.
 
 ### Security
 

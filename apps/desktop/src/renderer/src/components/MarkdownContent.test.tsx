@@ -222,6 +222,15 @@ describe('ModworkshopMarkup formatting', () => {
         expect(getByText('inner').style.color).toBe('rgb(0, 255, 0)')
     })
 
+    it('drops hex colors too dark to read, like ModWorkshop does', () => {
+        const { getByText } = render(
+            <ModworkshopMarkup text={'{#000000}(black) {#333}(grey) {#5a8dee}(blue)'} />
+        )
+        expect(getByText('black').style.color).toBe('')
+        expect(getByText('grey').style.color).toBe('')
+        expect(getByText('blue').style.color).toBe('rgb(90, 141, 238)')
+    })
+
     it('leaves color tags inside code alone', () => {
         const { container } = render(<ModworkshopMarkup text={'```lua\nlocal c = {red}(x)\n```'} />)
         expect(container.querySelector('pre')?.textContent).toContain('{red}(x)')

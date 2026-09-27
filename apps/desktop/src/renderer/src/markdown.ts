@@ -34,10 +34,33 @@ modworkshop.use(colorInline)
 modworkshop.use(markdownContainer, 'spoiler', '!')
 modworkshop.use(markdownContainer, 'center', ':')
 
+function luminance(hex: string) {
+    const full = hex.length === 3 ? [...hex].map((c) => c + c).join('') : hex
+    const [r, g, b] = [0, 2, 4].map((i) => {
+        const v = parseInt(full.slice(i, i + 2), 16) / 255
+        return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4
+    })
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+}
+
+// ModWorkshop drops a hex color whose contrast against its page, #2b3036, is below 2.9,
+// and authors pick colors against that. Named colors are never checked there either.
+const PAGE_LUMINANCE = luminance('2b3036')
+
+function readableColor(color: string) {
+    const hex = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(color)?.[1]
+    if (!hex) return true
+    const l = luminance(hex)
+    return (Math.max(l, PAGE_LUMINANCE) + 0.05) / (Math.min(l, PAGE_LUMINANCE) + 0.05) >= 2.9
+}
+
 // {color}(text). The span component turns data-color into a style, so no author text
 // ever reaches a style attribute directly.
-modworkshop.renderer.rules.color_open = (tokens, idx) =>
-    `<span data-color="${modworkshop.utils.escapeHtml(tokens[idx].info)}">`
+modworkshop.renderer.rules.color_open = (tokens, idx) => {
+    const color = tokens[idx].info
+    if (!readableColor(color)) return '<span>'
+    return `<span data-color="${modworkshop.utils.escapeHtml(color)}">`
+}
 
 modworkshop.renderer.rules.container_spoiler_open = (tokens, idx) =>
     `<details><summary>${modworkshop.utils.escapeHtml(tokens[idx].info.trim())}</summary><div>`
