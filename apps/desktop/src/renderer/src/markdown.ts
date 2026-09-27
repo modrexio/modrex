@@ -12,6 +12,7 @@ md.linkify.add('//', null)
 md.use(colorInline)
 md.use(taskLists)
 md.use(markdownContainer, 'spoiler', '!')
+md.use(markdownContainer, 'center', ':')
 
 // {color}(text). The span component turns data-color into a style, so no author text
 // ever reaches a style attribute directly.
@@ -21,6 +22,8 @@ md.renderer.rules.color_open = (tokens, idx) =>
 md.renderer.rules.container_spoiler_open = (tokens, idx) =>
     `<details><summary>${md.utils.escapeHtml(tokens[idx].info.trim())}</summary><div>`
 md.renderer.rules.container_spoiler_close = () => '</div></details>'
+md.renderer.rules.container_center_open = () => '<div class="center">'
+md.renderer.rules.container_center_close = () => '</div>'
 
 // Column alignment comes out as a style attribute, which the sanitizer strips.
 const alignCell: RendererRule = (tokens, idx, options, _env, self) => {

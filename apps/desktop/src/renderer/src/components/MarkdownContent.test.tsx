@@ -171,6 +171,31 @@ describe('MarkdownContent spoilers', () => {
     })
 })
 
+describe('MarkdownContent centering', () => {
+    // GIVE ME THE POWER (modworkshop 57954) opens like this. Without ::: blocks the
+    // ---- under the text turned both lines into a heading.
+    it('centers ::: lines and keeps the rule under them', () => {
+        const { container, getByText } = render(
+            <MarkdownContent
+                text={
+                    ':::![](https://storage.modworkshop.net/mods/images/logo.webp):::\n----\n:::is a simple mod:::\n::: Rebalancing most of them.:::'
+                }
+            />
+        )
+        expect(container.querySelector('h2')).toBeNull()
+        expect(container.querySelectorAll('hr')).toHaveLength(1)
+        expect(container.querySelector('.text-center img')).not.toBeNull()
+        expect(getByText('is a simple mod').className).toBe('text-center [&_div]:mx-auto')
+        expect(getByText('Rebalancing most of them.')).toBeTruthy()
+        expect(container.textContent).not.toContain(':::')
+    })
+
+    it('centers a ::: block across several lines', () => {
+        const { getByText } = render(<MarkdownContent text={'::::::\n**centered**\n::::::'} />)
+        expect(getByText('centered').closest('.text-center')).not.toBeNull()
+    })
+})
+
 describe('MarkdownContent formatting', () => {
     it('keeps modworkshop color tags working', () => {
         const { getByText } = render(<MarkdownContent text={'{#ff0000}(hot text)'} />)

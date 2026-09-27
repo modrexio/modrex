@@ -21,6 +21,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - Fixed Nexus file descriptions showing doubled line breaks and raw formatting tags.
 - Fixed videos in ModWorkshop mod descriptions breaking inside spoilers, quotes, lists and tables.
 - Fixed some ModWorkshop spoilers showing as plain text with their `!!!` markers.
+- Fixed ModWorkshop mod descriptions showing `:::` markers instead of centered text, which also turned the text above a divider into a heading.
 
 ### Security
 

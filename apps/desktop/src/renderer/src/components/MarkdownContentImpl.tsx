@@ -2,7 +2,7 @@ import { useMemo, createContext, useContext, type ReactNode } from 'react'
 import { Fragment, jsx, jsxs } from 'react/jsx-runtime'
 import { unified } from 'unified'
 import rehypeParse from 'rehype-parse'
-import rehypeSanitize, { defaultSchema } from 'rehype-sanitize'
+import rehypeSanitize, { defaultSchema, type Options as SanitizeOptions } from 'rehype-sanitize'
 import rehypeHighlight from 'rehype-highlight'
 import { toJsxRuntime, type Components } from 'hast-util-to-jsx-runtime'
 import { t } from '../i18n'
@@ -17,12 +17,14 @@ const InsidePreContext = createContext(false)
 
 // Defense in depth: markdown-it already escapes raw HTML, so this only ever sees markup
 // the parser and its plugins wrote. Must run before rehypeHighlight so its hljs classes
-// survive. span keeps data-color, which the span component turns into a color.
-const sanitizeSchema = {
+// survive. span keeps data-color, which the span component turns into a color, and div
+// keeps the class of a ::: block.
+const sanitizeSchema: SanitizeOptions = {
     ...defaultSchema,
     attributes: {
         ...defaultSchema.attributes,
         span: [...(defaultSchema.attributes?.span ?? []), 'dataColor'],
+        div: [...(defaultSchema.attributes?.div ?? []), ['className', 'center']],
     },
 }
 
@@ -155,6 +157,11 @@ function makeComponents(onOpenDetail?: (modId: number) => void): Components {
                 </span>
             )
         },
+        div: ({ children, className }) => (
+            <div className={className === 'center' ? 'text-center [&_div]:mx-auto' : undefined}>
+                {children}
+            </div>
+        ),
         details: ({ children }) => (
             <details className="my-2 border border-border rounded-lg overflow-hidden [&>div]:px-3">
                 {children}
