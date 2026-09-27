@@ -1,11 +1,14 @@
-// Registry of video embed platforms used by MarkdownContent to detect and render inline players
+// Registry of video and audio embed platforms used by MarkdownContent to detect and render inline players
 
 export interface EmbedDef {
     type: string
     detect: (url: string) => string | null
-    thumbnailUrl: (id: string) => string
+    // Absent where the host has no static thumbnail URL.
+    thumbnailUrl?: (id: string) => string
     embedUrl: (id: string) => string
     watchUrl: (id: string) => string
+    // Fixed player height for audio widgets. Video players stay 16:9.
+    height?: number
 }
 
 export interface Embed {
@@ -35,7 +38,7 @@ export const YOUTUBE_EMBED: EmbedDef = {
 const streamable: EmbedDef = {
     type: 'streamable',
     detect(url) {
-        const m = url.match(/streamable\.com\/(?!e\/)([a-zA-Z0-9]+)(?:[?#].*)?$/)
+        const m = url.match(/streamable\.com\/(?:[es]\/)?([a-zA-Z0-9]+)(?:[?#].*)?$/)
         return m ? m[1] : null
     },
     thumbnailUrl: (id) => `https://cdn-cf-east.streamable.com/image/${id}.jpg`,
@@ -43,7 +46,42 @@ const streamable: EmbedDef = {
     watchUrl: (id) => `https://streamable.com/${id}`,
 }
 
-export const EMBEDS: EmbedDef[] = [YOUTUBE_EMBED, streamable]
+const vimeo: EmbedDef = {
+    type: 'vimeo',
+    detect(url) {
+        const m = url.match(/vimeo\.com\/(?:video\/)?(\d+)/)
+        return m ? m[1] : null
+    },
+    embedUrl: (id) => `https://player.vimeo.com/video/${id}?autoplay=1`,
+    watchUrl: (id) => `https://vimeo.com/${id}`,
+}
+
+// The id is the user/track path, soundcloud.com/<user>/<track>.
+const soundcloud: EmbedDef = {
+    type: 'soundcloud',
+    detect(url) {
+        const m = url.match(/soundcloud\.com\/([\w-]+\/[\w-]+)/)
+        return m ? m[1] : null
+    },
+    embedUrl: (id) =>
+        `https://w.soundcloud.com/player/?url=${encodeURIComponent(`https://soundcloud.com/${id}`)}&auto_play=true`,
+    watchUrl: (id) => `https://soundcloud.com/${id}`,
+    height: 166,
+}
+
+export const EMBEDS: EmbedDef[] = [YOUTUBE_EMBED, streamable, vimeo, soundcloud]
+
+// ModWorkshop plays an image link to an audio or video file in place, going by extension.
+const AUDIO_EXTENSIONS = ['aac', 'm4a', 'mp3', 'oga', 'ogg', 'wav']
+const VIDEO_EXTENSIONS = ['mp4', 'm4v', 'ogv', 'webm', 'mpg', 'mpeg', 'avi']
+
+export function mediaKind(url: string): 'audio' | 'video' | null {
+    const ext = /\.([^/.]+)$/.exec(url)?.[1].toLowerCase()
+    if (!ext) return null
+    if (AUDIO_EXTENSIONS.includes(ext)) return 'audio'
+    if (VIDEO_EXTENSIONS.includes(ext)) return 'video'
+    return null
+}
 
 export function detectEmbed(src: string, defs = EMBEDS): Embed | null {
     // Normalize double-protocol bug: "https://https://youtu.be/..." becomes "https://youtu.be/..."

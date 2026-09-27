@@ -8,7 +8,10 @@ export function EmbedPlayer({ embed }: { embed: Embed }) {
 
     return (
         <div className="my-3 overflow-hidden border border-border bg-surface max-w-xl">
-            <div className="relative" style={{ aspectRatio: '16 / 9' }}>
+            <div
+                className="relative"
+                style={def.height ? { height: def.height } : { aspectRatio: '16 / 9' }}
+            >
                 {playing ? (
                     <iframe
                         src={def.embedUrl(id)}
@@ -19,12 +22,14 @@ export function EmbedPlayer({ embed }: { embed: Embed }) {
                     />
                 ) : (
                     <>
-                        <img
-                            src={def.thumbnailUrl(id)}
-                            alt={t('embed.videoThumbnail')}
-                            draggable={false}
-                            className="absolute inset-0 w-full h-full object-cover pointer-events-none"
-                        />
+                        {def.thumbnailUrl && (
+                            <img
+                                src={def.thumbnailUrl(id)}
+                                alt={t('embed.videoThumbnail')}
+                                draggable={false}
+                                className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+                            />
+                        )}
                         <button
                             className="absolute inset-0 flex items-center justify-center group"
                             onClick={() => setPlaying(true)}

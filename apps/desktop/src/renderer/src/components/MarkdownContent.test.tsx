@@ -140,6 +140,56 @@ describe('ModworkshopMarkup embeds', () => {
     })
 })
 
+describe('ModworkshopMarkup media', () => {
+    // (UE5) Escape From Tarkov Cops & (male) Heisters VO, modworkshop 59215.
+    it('embeds a SoundCloud track behind click-to-play', () => {
+        const { container } = render(
+            <ModworkshopMarkup
+                text={'![Cops & SWAT](https://soundcloud.com/kazmer-337245286/02-cops-and-swat-2)'}
+            />
+        )
+        expect(container.querySelector('img')).toBeNull()
+        fireEvent.click(container.querySelector('button')!)
+        expect(container.querySelector('iframe')?.getAttribute('src')).toBe(
+            'https://w.soundcloud.com/player/?url=https%3A%2F%2Fsoundcloud.com%2Fkazmer-337245286%2F02-cops-and-swat-2&auto_play=true'
+        )
+    })
+
+    it('embeds a Vimeo video', () => {
+        const { container } = render(<ModworkshopMarkup text={'![](https://vimeo.com/76979871)'} />)
+        fireEvent.click(container.querySelector('button')!)
+        expect(container.querySelector('iframe')?.getAttribute('src')).toBe(
+            'https://player.vimeo.com/video/76979871?autoplay=1'
+        )
+    })
+
+    it('embeds a streamable.com/e/ link', () => {
+        const { container } = render(
+            <ModworkshopMarkup text={'![](https://streamable.com/e/u8nid1)'} />
+        )
+        expect(
+            container.querySelector(
+                'img[src="https://cdn-cf-east.streamable.com/image/u8nid1.jpg"]'
+            )
+        ).not.toBeNull()
+    })
+
+    it('plays linked video and audio files in place', () => {
+        const { container } = render(
+            <ModworkshopMarkup
+                text={'![](https://files.catbox.moe/1bdqjs.mp4)\n![](https://x.test/song.MP3)'}
+            />
+        )
+        expect(container.querySelector('video')?.getAttribute('src')).toBe(
+            'https://files.catbox.moe/1bdqjs.mp4'
+        )
+        expect(container.querySelector('audio')?.getAttribute('src')).toBe(
+            'https://x.test/song.MP3'
+        )
+        expect(container.querySelector('img')).toBeNull()
+    })
+})
+
 describe('ModworkshopMarkup spoilers', () => {
     it('uses the text after the markers as the title', () => {
         const { getByText } = render(<ModworkshopMarkup text={'!!! Changes\nbody\n!!!'} />)

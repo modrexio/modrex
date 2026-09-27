@@ -42,8 +42,8 @@
             }
         ],
         "security": {
-            "csp": "default-src 'self'; img-src 'self' thumb: http://thumb.localhost https: data:; media-src 'self' https:; frame-src https://www.youtube.com https://streamable.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self'; connect-src 'self' ipc: http://ipc.localhost; object-src 'none'; base-uri 'self'",
-            "devCsp": "default-src 'self'; img-src 'self' thumb: http://thumb.localhost https: data:; media-src 'self' https:; frame-src https://www.youtube.com https://streamable.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self' 'unsafe-inline' 'unsafe-eval'; connect-src 'self' ipc: http://ipc.localhost ws://localhost:* http://localhost:* ws://127.0.0.1:* http://127.0.0.1:*; object-src 'none'; base-uri 'self'",
+            "csp": "default-src 'self'; img-src 'self' thumb: http://thumb.localhost https: data:; media-src 'self' https:; frame-src https://www.youtube.com https://streamable.com https://player.vimeo.com https://w.soundcloud.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self'; connect-src 'self' ipc: http://ipc.localhost; object-src 'none'; base-uri 'self'",
+            "devCsp": "default-src 'self'; img-src 'self' thumb: http://thumb.localhost https: data:; media-src 'self' https:; frame-src https://www.youtube.com https://streamable.com https://player.vimeo.com https://w.soundcloud.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self' 'unsafe-inline' 'unsafe-eval'; connect-src 'self' ipc: http://ipc.localhost ws://localhost:* http://localhost:* ws://127.0.0.1:* http://127.0.0.1:*; object-src 'none'; base-uri 'self'",
             "dangerousDisableAssetCspModification": ["style-src"]
         }
     },

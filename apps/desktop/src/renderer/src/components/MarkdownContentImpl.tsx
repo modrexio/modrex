@@ -6,7 +6,7 @@ import rehypeSanitize, { defaultSchema, type Options as SanitizeOptions } from '
 import rehypeHighlight from 'rehype-highlight'
 import { toJsxRuntime, type Components } from 'hast-util-to-jsx-runtime'
 import { t } from '../i18n'
-import { detectEmbed } from '../embeds'
+import { detectEmbed, mediaKind } from '../embeds'
 import { renderMarkdown, renderModworkshopMarkdown } from '../markdown'
 import 'highlight.js/styles/github-dark.css'
 import { api } from '../api'
@@ -117,11 +117,22 @@ function makeComponents(onOpenDetail?: (modId: number) => void): Components {
                 </pre>
             </InsidePreContext.Provider>
         ),
-        // ModWorkshop embeds a video by writing it as an image.
+        // ModWorkshop embeds a video or audio track by writing it as an image.
         img: ({ src, alt }) => {
             if (typeof src !== 'string' || !src) return null
             const embed = detectEmbed(src)
             if (embed) return <EmbedPlayer embed={embed} />
+            const media = mediaKind(src)
+            if (media === 'video') {
+                return (
+                    <video src={src} controls preload="metadata" className="max-w-xl w-full my-2" />
+                )
+            }
+            if (media === 'audio') {
+                return (
+                    <audio src={src} controls preload="metadata" className="max-w-xl w-full my-2" />
+                )
+            }
             return <img src={src} alt={alt} loading="lazy" className="max-w-full rounded my-2" />
         },
         hr: () => <hr className="border-t border-border my-3" />,
