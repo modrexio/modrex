@@ -360,8 +360,17 @@ pub async fn get_installed(app: AppHandle, game_id: String) -> Result<InstalledR
             &mut state.mods,
             index.as_ref(),
         );
-        let (mods, any_checked) = mark_archive_files(&game_path, &state.folders, state.mods, cfg);
-        if any_checked || any_upgraded || discovered_hosts || cb_resynced || identified {
+        let (mut mods, any_checked) =
+            mark_archive_files(&game_path, &state.folders, state.mods, cfg);
+        let containers_changed =
+            mark_containers(&game_path, game_id, cfg, &state.folders, &mut mods);
+        if any_checked
+            || any_upgraded
+            || discovered_hosts
+            || cb_resynced
+            || identified
+            || containers_changed
+        {
             writeback.save(
                 &state_path,
                 &ModsState {
@@ -371,7 +380,6 @@ pub async fn get_installed(app: AppHandle, game_id: String) -> Result<InstalledR
                 "refreshed identities",
             );
         }
-        let mut mods = mods;
         push_installed_loaders(cfg, &game_path, &settings, &mut mods);
         return Ok(InstalledResponse {
             mods,
@@ -404,7 +412,8 @@ pub async fn get_installed(app: AppHandle, game_id: String) -> Result<InstalledR
     let folders = state.folders;
     let mut mods = mods;
     identity::ensure_identities(&game_path, cfg, &folders, &mut mods, index.as_ref());
-    let (mods, _) = mark_archive_files(&game_path, &folders, mods, cfg);
+    let (mut mods, _) = mark_archive_files(&game_path, &folders, mods, cfg);
+    mark_containers(&game_path, game_id, cfg, &folders, &mut mods);
     writeback.save(
         &state_path,
         &ModsState {
@@ -413,7 +422,6 @@ pub async fn get_installed(app: AppHandle, game_id: String) -> Result<InstalledR
         },
         "the scanned state",
     );
-    let mut mods = mods;
     push_installed_loaders(cfg, &game_path, &settings, &mut mods);
     Ok(InstalledResponse {
         mods,
@@ -421,6 +429,21 @@ pub async fn get_installed(app: AppHandle, game_id: String) -> Result<InstalledR
         mods_hidden: false,
         state_unreadable: writeback.blocked(),
     })
+}
+
+fn mark_containers(
+    game_path: &str,
+    game_id: &str,
+    cfg: &ModEngineConfig,
+    folders: &[ModFolder],
+    mods: &mut [InstalledMod],
+) -> bool {
+    let Some(crate::game_package::PackageReaderBinding::Unreal { aes_key }) =
+        crate::commands::games::game_spec(game_id).and_then(|spec| spec.package_reader)
+    else {
+        return false;
+    };
+    companions::mark_container_missing(game_path, cfg, folders, mods, aes_key)
 }
 
 #[tauri::command]

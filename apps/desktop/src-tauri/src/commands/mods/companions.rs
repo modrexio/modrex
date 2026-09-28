@@ -6,6 +6,7 @@ use super::paths::{disabled_base, installed_mod_path, mods_base};
 use super::state::get_folder_path;
 use super::types::{InstalledMod, ModFolder};
 use crate::commands::mod_index;
+use crate::commands::pak_viewer::pak_entries;
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -234,6 +235,66 @@ pub(crate) fn rejoin_split_companions(
         }
     }
     rejoined
+}
+
+/// Flags each tracked pak that lists no assets of its own while every companion it needs is
+/// gone. Only a reinstall brings those files back.
+pub(crate) fn mark_container_missing(
+    game_path: &str,
+    cfg: &ModEngineConfig,
+    folders: &[ModFolder],
+    mods: &mut [InstalledMod],
+    aes_key: &str,
+) -> bool {
+    let mut changed = false;
+    for m in mods.iter_mut() {
+        let missing = container_missing(game_path, cfg, folders, m, aes_key);
+        if m.container_missing != missing {
+            m.container_missing = missing;
+            changed = true;
+        }
+    }
+    changed
+}
+
+fn container_missing(
+    game_path: &str,
+    cfg: &ModEngineConfig,
+    folders: &[ModFolder],
+    m: &InstalledMod,
+    aes_key: &str,
+) -> Option<bool> {
+    if m.missing == Some(true)
+        || m.archive_broken == Some(true)
+        || m.location
+            .as_deref()
+            .is_some_and(|l| l.starts_with("host:"))
+    {
+        return None;
+    }
+    let target = cfg.target_for(m.location.as_deref());
+    let ModUnit::File { extension, .. } = &target.unit else {
+        return None;
+    };
+    if target.companions.is_empty() {
+        return None;
+    }
+    let rel = get_folder_path(folders, m.folder_id.as_deref());
+    let pak = installed_mod_path(game_path, &m.filename, rel.as_deref(), target, m.enabled);
+    let has_companion = target
+        .companions
+        .iter()
+        .any(|c| sidecar_path(&pak, extension, c).is_some_and(|p| p.exists()));
+    if has_companion {
+        return None;
+    }
+    match pak_entries(&pak, aes_key) {
+        Ok(entries) => entries.is_empty().then_some(true),
+        Err(e) => {
+            log::warn!("companions: {e}");
+            None
+        }
+    }
 }
 
 fn all_identical(sets: &[&CompanionSet]) -> bool {

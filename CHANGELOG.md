@@ -4,6 +4,10 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 ## Unreleased
 
+### Added
+
+- Health Check lists mods whose .ucas and .utoc files are missing under Missing files, where they can be reinstalled.
+
 ### Changed
 
 - Mod descriptions now look the way they do on ModWorkshop and Nexus.

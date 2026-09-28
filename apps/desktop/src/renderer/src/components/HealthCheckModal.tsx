@@ -346,7 +346,11 @@ export function HealthCheckModal({
                                         thumbnailFile={modData.get(item.id)?.thumbnail?.file}
                                         source={item.mods[0]?.source}
                                         name={item.name}
-                                        secondary={t('installed.health.missingFileHint')}
+                                        secondary={
+                                            item.mods.some((m) => m.missing)
+                                                ? t('installed.health.missingFileHint')
+                                                : t('installed.health.containerMissingHint')
+                                        }
                                         clickable={hasCatalogLink(item.mods[0])}
                                         onOpen={
                                             hasCatalogLink(item.mods[0])

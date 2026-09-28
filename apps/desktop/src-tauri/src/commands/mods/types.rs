@@ -113,6 +113,10 @@ pub struct InstalledMod {
     pub folder_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub archive_broken: Option<bool>,
+    // The pak lists nothing of its own and every companion it needs is gone, so the game
+    // mounts it and loads nothing. Worked out again on every scan.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub container_missing: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub location: Option<String>,
     #[serde(default, skip_serializing_if = "UpdateStatus::is_known")]
@@ -177,6 +181,7 @@ impl Default for InstalledMod {
             missing: None,
             folder_id: None,
             archive_broken: None,
+            container_missing: None,
             location: None,
             update_status: UpdateStatus::Known,
             nexus_content_missed: None,

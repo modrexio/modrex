@@ -308,3 +308,76 @@ fn a_nexus_file_id_is_not_looked_up_in_the_modworkshop_index() {
 
     assert_eq!(rejoined, 1);
 }
+
+// ── mark_container_missing ──────────────────────────────────────────────────
+
+const KEY: &str = "0000000000000000000000000000000000000000000000000000000000000000";
+
+fn write_pak(path: &Path, entries: &[&str]) {
+    fs::create_dir_all(path.parent().unwrap()).unwrap();
+    let file = fs::File::create(path).unwrap();
+    let mut writer =
+        repak::PakBuilder::new().writer(file, repak::Version::V11, "../../../".into(), None);
+    for entry in entries {
+        writer.write_file(entry, false, b"asset").unwrap();
+    }
+    writer.write_index().unwrap();
+}
+
+fn flag(game: &Game, m: InstalledMod) -> Option<bool> {
+    let mut mods = [m];
+    mark_container_missing(&game.path, game.cfg, &[], &mut mods, KEY);
+    let [m] = mods;
+    m.container_missing
+}
+
+#[test]
+fn a_stub_with_nothing_beside_it_is_flagged() {
+    let game = Game::pd3();
+    write_pak(&game.active().join("006_Portraits_P.pak"), &[]);
+
+    assert_eq!(
+        flag(&game, record("1", "006_Portraits_P.pak", true)),
+        Some(true)
+    );
+}
+
+#[test]
+fn a_pak_with_its_own_assets_is_not_flagged() {
+    let game = Game::pd3();
+    write_pak(
+        &game.active().join("005_Sounds.pak"),
+        &["PAYDAY3/Content/Hit.uasset"],
+    );
+
+    assert_eq!(flag(&game, record("1", "005_Sounds.pak", true)), None);
+}
+
+#[test]
+fn a_stub_with_its_companions_is_not_flagged() {
+    let game = Game::pd3();
+    write_pak(&game.disabled().join("048_Judge_P.pak.disabled"), &[]);
+    companions(&game.disabled(), "048_Judge_P", ".disabled", "judge");
+
+    assert_eq!(flag(&game, record("1", "048_Judge_P.pak", false)), None);
+}
+
+#[test]
+fn the_flag_clears_once_the_companions_are_back() {
+    let game = Game::pd3();
+    write_pak(&game.active().join("006_Portraits_P.pak"), &[]);
+    let mut stale = record("1", "006_Portraits_P.pak", true);
+    stale.container_missing = Some(true);
+    companions(&game.active(), "006_Portraits_P", "", "portraits");
+
+    assert_eq!(flag(&game, stale), None);
+}
+
+#[test]
+fn a_missing_pak_is_left_to_the_missing_flag() {
+    let game = Game::pd3();
+    let mut m = record("1", "006_Portraits_P.pak", true);
+    m.missing = Some(true);
+
+    assert_eq!(flag(&game, m), None);
+}

@@ -471,6 +471,13 @@ describe('computeHealthSummary', () => {
         expect(summary.missing[0].id).toBe(1)
     })
 
+    it('flags a mod whose .ucas and .utoc are gone as missing files', () => {
+        const mods = [makeMod('a', 1, 'A', { containerMissing: true }), makeMod('b', 2, 'B')]
+        const summary = computeHealthSummary(mods)
+        expect(summary.missing).toHaveLength(1)
+        expect(summary.missing[0].id).toBe(1)
+    })
+
     it('flags a group as archiveBroken when any of its files is broken', () => {
         const mods = [makeMod('a', 1, 'A', { archiveBroken: true })]
         expect(computeHealthSummary(mods).archiveBroken).toHaveLength(1)

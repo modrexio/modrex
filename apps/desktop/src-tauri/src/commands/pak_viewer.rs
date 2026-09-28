@@ -30,13 +30,16 @@ pub(crate) fn pak_entries(pak_path: &Path, aes_key: &str) -> Result<Vec<String>,
     let key_bytes = hex::decode(aes_key).map_err(|e| format!("invalid AES key: {e}"))?;
     let key = aes::Aes256::new_from_slice(&key_bytes)
         .map_err(|_| "invalid AES key length".to_string())?;
-    let mut input = BufReader::new(
-        File::open(pak_path).map_err(|e| format!("failed to open {}: {e}", pak_path.display()))?,
-    );
+    let name = pak_path
+        .file_name()
+        .map(|name| name.to_string_lossy())
+        .unwrap_or_default();
+    let mut input =
+        BufReader::new(File::open(pak_path).map_err(|e| format!("failed to open {name}: {e}"))?);
     let pak = repak::PakBuilder::new()
         .key(key)
         .reader(&mut input)
-        .map_err(|e| format!("failed to read {}: {e}", pak_path.display()))?;
+        .map_err(|e| format!("failed to read {name}: {e}"))?;
     Ok(pak.files())
 }
 

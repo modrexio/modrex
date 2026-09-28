@@ -247,6 +247,7 @@
             "noUpdates": "Everything is up to date.",
             "noMissingDeps": "Every installed mod has its dependencies met.",
             "missingFileHint": "File missing from disk",
+            "containerMissingHint": "Its .ucas and .utoc files are missing from disk",
             "brokenArchiveHint": "Archive could not be verified",
             "outdatedHint": "Reinstall recommended",
             "unidentifiedRowHint": "Not recognized",
