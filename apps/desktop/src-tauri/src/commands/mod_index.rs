@@ -1,5 +1,5 @@
 use sha2::Digest;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Manager};
 
@@ -290,6 +290,37 @@ pub(crate) fn query_mod_by_id(
         },
     )
     .ok()
+}
+
+/// Hashes the index recorded for the companion entries of these files.
+pub(crate) fn companion_hashes_for_files(
+    conn: &rusqlite::Connection,
+    file_remote_ids: &[i64],
+    game_name: &str,
+    companions: &[&str],
+) -> rusqlite::Result<HashSet<String>> {
+    let mut stmt = conn.prepare(
+        "SELECT f.sha256, f.entry_name
+         FROM files f
+         JOIN mods m ON m.id = f.mod_id
+         JOIN sources s ON s.id = m.source_id
+         JOIN games g ON g.id = s.game_id
+         WHERE f.remote_id = ?1 AND g.name = ?2",
+    )?;
+    let mut hashes = HashSet::new();
+    for id in file_remote_ids {
+        let rows = stmt.query_map(rusqlite::params![id, game_name], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })?;
+        for row in rows {
+            let (sha256, entry) = row?;
+            let entry = entry.to_lowercase();
+            if companions.iter().any(|c| entry.ends_with(&format!(".{c}"))) {
+                hashes.insert(sha256);
+            }
+        }
+    }
+    Ok(hashes)
 }
 
 /// Whether needle sits in haystack without either end landing inside a word. LIKE has no

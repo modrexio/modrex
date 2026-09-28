@@ -818,6 +818,17 @@ fn make_uid_without_file_id_unprefixed() {
     assert_eq!(make_uid(None, "foo.pak"), "foo.pak");
 }
 
+#[test]
+fn install_file_id_reads_both_modworkshop_uid_shapes_and_nothing_else() {
+    assert_eq!(install_file_id("102527"), Some(102527));
+    assert_eq!(install_file_id("102627_Loader-ZF_P"), Some(102627));
+    assert_eq!(install_file_id("nexus:197:842"), None);
+    assert_eq!(install_file_id("Foo_P.pak"), None);
+    assert_eq!(install_file_id("+5"), None);
+    assert_eq!(install_file_id("0"), None);
+    assert_eq!(install_file_id(""), None);
+}
+
 // ── get_folder_path ───────────────────────────────────────────────────────
 
 fn folder(id: &str, disk_name: &str, parent_id: Option<&str>) -> ModFolder {

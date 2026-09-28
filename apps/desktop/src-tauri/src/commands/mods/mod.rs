@@ -1,4 +1,5 @@
 mod cleanup;
+mod companions;
 mod crimeboss_settings;
 mod decisions;
 mod diesel_signals;
@@ -79,7 +80,7 @@ pub(crate) use self::crimeboss_settings::{
 pub(crate) use self::engine::{disabled_dir, mods_dir, Activation};
 #[cfg(test)]
 pub(crate) use self::naming::{
-    apply_priority_prefix, derive_content_segment, make_uid, mod_folder_name,
+    apply_priority_prefix, derive_content_segment, install_file_id, make_uid, mod_folder_name,
     recover_published_filename,
 };
 #[cfg(test)]
@@ -229,6 +230,16 @@ pub async fn get_installed(app: AppHandle, game_id: String) -> Result<InstalledR
     let mods_hidden = backup_dir(&game_path, cfg.primary()).exists();
 
     let (mut state, writeback) = load_for_scan(&game_path, &state_path, cfg);
+    if !mods_hidden {
+        let index = mod_index::open_index(&app, cfg.game_id);
+        companions::rejoin_split_companions(
+            &game_path,
+            cfg,
+            &state.folders,
+            &state.mods,
+            index.as_ref(),
+        );
+    }
     let any_upgraded = upgrade_negative_ids(&app, &game_path, cfg, &state.folders, &mut state.mods);
     regroup_negative_ids_by_name_suffix(&mut state.mods);
 

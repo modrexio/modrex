@@ -307,3 +307,30 @@ fn several_files_of_one_mod_resolve_to_the_newest() {
     assert_eq!(hit.file_remote_id, 502);
     assert_eq!(hit.version, "2.0.0");
 }
+
+// ── companion_hashes_for_files ─────────────────────────────────────────────
+
+#[test]
+fn companion_hashes_come_from_the_named_files_in_this_game_only() {
+    let conn = setup_db();
+    conn.execute_batch(
+        "INSERT INTO files VALUES (10, 1, 900, 'ucas-a', '1.0', 'Mod/Skin_P.ucas');
+         INSERT INTO files VALUES (11, 1, 900, 'utoc-a', '1.0', 'Mod/Skin_P.UTOC');
+         INSERT INTO files VALUES (12, 1, 900, 'pak-a', '1.0', 'Mod/Skin_P.pak');
+         INSERT INTO files VALUES (13, 1, 901, 'ucas-b', '2.0', 'Skin_P.ucas');
+         INSERT INTO files VALUES (14, 3, 900, 'ucas-pd2', '1.0', 'Other.ucas');",
+    )
+    .unwrap();
+
+    let hashes = companion_hashes_for_files(&conn, &[900], "PAYDAY 3", &["ucas", "utoc"]).unwrap();
+
+    assert_eq!(
+        hashes,
+        HashSet::from(["ucas-a".to_string(), "utoc-a".to_string()])
+    );
+    assert!(
+        companion_hashes_for_files(&conn, &[42], "PAYDAY 3", &["ucas"])
+            .unwrap()
+            .is_empty()
+    );
+}

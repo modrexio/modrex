@@ -12,7 +12,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 - Fixed Restart & Install not restarting Modrex on Linux after installing an update.
 - Fixed UE4SS mods installing to a folder PAYDAY 3's UE4SS does not read.
-- Fixed reordering or moving PAYDAY 3 and Crime Boss mods leaving their .ucas and .utoc files behind, which stopped those mods loading in game.
+- Fixed reordering or moving PAYDAY 3 and Crime Boss mods leaving their .ucas and .utoc files behind, which stopped those mods loading in game. Mods this already happened to are repaired automatically.
 - Fixed deleting a folder also deleting the .ucas and .utoc files of the mods inside it, and any other files in it.
 - Fixed a failed drag or folder delete on the Installed tab showing no error.
 - Fixed broken formatting, images and videos in mod descriptions.
