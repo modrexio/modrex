@@ -1,11 +1,9 @@
 // Registry of video embed platforms used by MarkdownContent to detect and render inline players
 
 export interface EmbedDef {
-    type: string
     detect: (url: string) => string | null
     thumbnailUrl?: (id: string) => string
     embedUrl: (id: string) => string
-    watchUrl: (id: string) => string
     height?: number
 }
 
@@ -15,7 +13,6 @@ export interface Embed {
 }
 
 export const YOUTUBE_EMBED: EmbedDef = {
-    type: 'youtube',
     detect(url) {
         const patterns = [
             /youtu\.be\/([^/?&]+)/,
@@ -30,39 +27,32 @@ export const YOUTUBE_EMBED: EmbedDef = {
     },
     thumbnailUrl: (id) => `https://img.youtube.com/vi/${id}/hqdefault.jpg`,
     embedUrl: (id) => `https://www.youtube.com/embed/${id}?autoplay=1&rel=0`,
-    watchUrl: (id) => `https://www.youtube.com/watch?v=${id}`,
 }
 
 const streamable: EmbedDef = {
-    type: 'streamable',
     detect(url) {
         const m = url.match(/streamable\.com\/(?:[es]\/)?([a-zA-Z0-9]+)(?:[?#].*)?$/)
         return m ? m[1] : null
     },
     thumbnailUrl: (id) => `https://cdn-cf-east.streamable.com/image/${id}.jpg`,
     embedUrl: (id) => `https://streamable.com/e/${id}`,
-    watchUrl: (id) => `https://streamable.com/${id}`,
 }
 
 const vimeo: EmbedDef = {
-    type: 'vimeo',
     detect(url) {
         const m = url.match(/vimeo\.com\/(?:video\/)?(\d+)/)
         return m ? m[1] : null
     },
     embedUrl: (id) => `https://player.vimeo.com/video/${id}?autoplay=1`,
-    watchUrl: (id) => `https://vimeo.com/${id}`,
 }
 
 const soundcloud: EmbedDef = {
-    type: 'soundcloud',
     detect(url) {
         const m = url.match(/soundcloud\.com\/([\w-]+\/[\w-]+)/)
         return m ? m[1] : null
     },
     embedUrl: (id) =>
         `https://w.soundcloud.com/player/?url=${encodeURIComponent(`https://soundcloud.com/${id}`)}&auto_play=true`,
-    watchUrl: (id) => `https://soundcloud.com/${id}`,
     height: 166,
 }
 

@@ -139,7 +139,7 @@ function renderTag(tag: Tag, inner: string, raw: string) {
         case 'color':
             return inner ? colorSpan(tag.attr, inner) : ''
         case 'size': {
-            // The span stays even for an unknown size, markdown reads the lines around it differently without it.
+            // An unknown size keeps its span, markdown needs it to read the next lines.
             const size = SIZES[tag.attr.toLowerCase()]
             return `<span${size ? ` data-size="${size}"` : ''}>${inner}</span>`
         }

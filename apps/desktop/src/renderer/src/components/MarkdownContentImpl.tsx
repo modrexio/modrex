@@ -176,7 +176,8 @@ function makeComponents(onOpenDetail?: (modId: number) => void): Components {
             </td>
         ),
         span: ({ children, className, node }) => {
-            const { dataColor, dataSize } = node?.properties ?? {}
+            const dataColor = node?.properties.dataColor
+            const dataSize = node?.properties.dataSize
             return (
                 <span
                     style={{

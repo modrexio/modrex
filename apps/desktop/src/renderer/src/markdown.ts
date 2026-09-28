@@ -17,7 +17,6 @@ const alignCell: RendererRule = (tokens, idx, options, _env, self) => {
     return self.renderToken(tokens, idx, options)
 }
 
-// Same options as ModWorkshop.
 function createMarkdown() {
     const md = new MarkdownIt({ breaks: true, linkify: true })
     md.linkify.set({ fuzzyLink: false })
