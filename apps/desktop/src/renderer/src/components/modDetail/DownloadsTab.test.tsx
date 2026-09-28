@@ -13,6 +13,7 @@ const mod: ModSummary = {
     name: 'Enhanced Stockpile Shotgun Skill',
     desc: '',
     short_desc: '',
+    legacy_markup: false,
     downloads: 0,
     likes: 0,
     views: 0,

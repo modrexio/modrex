@@ -77,6 +77,8 @@ struct WireModSummary {
     #[serde(deserialize_with = "null_default")]
     short_desc: String,
     #[serde(deserialize_with = "null_default")]
+    parser_version: i64,
+    #[serde(deserialize_with = "null_default")]
     downloads: i64,
     #[serde(deserialize_with = "null_default")]
     likes: i64,
@@ -155,6 +157,9 @@ pub struct ModSummary {
     pub name: String,
     pub desc: String,
     pub short_desc: String,
+    /// Text ModWorkshop still renders with its legacy parser, parser_version 1, which mixes
+    /// BBCode into markdown. Always false for Nexus.
+    pub legacy_markup: bool,
     pub downloads: i64,
     pub likes: i64,
     pub views: i64,
@@ -223,6 +228,7 @@ impl From<WireModSummary> for ModSummary {
             name: w.name,
             desc: w.desc,
             short_desc: w.short_desc,
+            legacy_markup: w.parser_version == 1,
             downloads: w.downloads,
             likes: w.likes,
             views: w.views,
@@ -588,6 +594,7 @@ pub struct ModDetail {
     pub name: String,
     pub desc: String,
     pub short_desc: String,
+    pub legacy_markup: bool,
     pub version: String,
     pub downloads: i64,
     pub likes: i64,
@@ -688,6 +695,7 @@ impl From<WireModDetail> for ModDetail {
             name: s.name,
             desc: s.desc,
             short_desc: s.short_desc,
+            legacy_markup: s.legacy_markup,
             version: w.version,
             downloads: s.downloads,
             likes: s.likes,
@@ -772,6 +780,7 @@ fn nexus_node_to_summary(w: WireNexusNode) -> ModSummary {
         name: w.name,
         desc: summary.clone(),
         short_desc: summary,
+        legacy_markup: false,
         downloads: w.downloads,
         likes: w.endorsements,
         views: 0,
@@ -863,6 +872,7 @@ pub fn parse_nexus_detail(value: serde_json::Value) -> Result<ModDetail, String>
         name: w.name,
         desc: w.description.unwrap_or_else(|| short_desc.clone()),
         short_desc,
+        legacy_markup: false,
         version: w.version,
         downloads: w.mod_unique_downloads,
         likes: w.endorsement_count,
@@ -1061,6 +1071,18 @@ mod tests {
         assert!(!m.has_download);
         assert!(m.thumbnail.is_none());
         assert_eq!(m.user.name, "");
+    }
+
+    #[test]
+    fn only_parser_version_1_is_legacy_markup() {
+        let page = parse(
+            r#"{"data":[{"id":1,"parser_version":1},{"id":2,"parser_version":2},{"id":3}],"meta":{}}"#,
+        );
+        let legacy: Vec<bool> = page.data.iter().map(|m| m.legacy_markup).collect();
+        assert_eq!(legacy, [true, false, false]);
+        let detail =
+            parse_mod_detail(serde_json::json!({"id":1,"version":"1","parser_version":1})).unwrap();
+        assert!(detail.legacy_markup);
     }
 
     #[test]

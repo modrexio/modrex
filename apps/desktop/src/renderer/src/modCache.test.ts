@@ -26,6 +26,7 @@ function makeMod(id: number): Mod {
         desc: '',
         short_desc: '',
         version: '1.0',
+        legacy_markup: false,
         downloads: 0,
         likes: 0,
         views: 0,
@@ -259,11 +260,9 @@ describe('loadFromStorage', () => {
         expect(freshCache.getModCacheEntry(99)).toBeUndefined()
     })
 
-    it('skips entries stored before the download fields existed', async () => {
+    it('skips entries stored by an older build', async () => {
         const older: Record<string, unknown> = { ...makeMod(99) }
-        delete older.download_id
-        delete older.files_are_versions
-        delete older.download_type
+        delete older.legacy_markup
         storage.setItem(STORAGE_KEY, JSON.stringify({ '99': { mod: older, fetchedAt: 0 } }))
         storage.setItem(
             'modrex:installed-meta-cache',

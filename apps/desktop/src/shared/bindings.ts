@@ -728,6 +728,7 @@ export type ModDetail = {
 	name: string,
 	desc: string,
 	short_desc: string,
+	legacy_markup: boolean,
 	version: string,
 	downloads: number,
 	likes: number,
@@ -868,6 +869,11 @@ export type ModSummary = {
 	name: string,
 	desc: string,
 	short_desc: string,
+	/**
+	 *  Text ModWorkshop still renders with its legacy parser, parser_version 1, which mixes
+	 *  BBCode into markdown. Always false for Nexus.
+	 */
+	legacy_markup: boolean,
 	downloads: number,
 	likes: number,
 	views: number,

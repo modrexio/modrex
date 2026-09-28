@@ -96,6 +96,7 @@ export function syntheticMod(ins: InstalledMod): ModSummary {
         short_desc: external
             ? `Installed from ${SOURCE_LABELS[source] ?? source}`
             : 'Manually installed — not on ModWorkshop',
+        legacy_markup: false,
         downloads: 0,
         likes: 0,
         views: 0,

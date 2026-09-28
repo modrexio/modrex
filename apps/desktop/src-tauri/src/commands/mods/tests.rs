@@ -142,6 +142,7 @@ fn sample_nexus_detail() -> crate::commands::domain::ModDetail {
         name: "RinoHud".to_string(),
         desc: String::new(),
         short_desc: String::new(),
+        legacy_markup: false,
         version: "1.8".to_string(),
         downloads: 0,
         likes: 0,

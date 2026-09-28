@@ -24,6 +24,7 @@ const summary: ModSummary = {
     name: 'BeardLib',
     desc: '',
     short_desc: '',
+    legacy_markup: false,
     downloads: 0,
     likes: 0,
     views: 0,

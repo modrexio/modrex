@@ -9,6 +9,7 @@ function makeMod(id: number): Mod {
         desc: '',
         short_desc: '',
         version: '1.0',
+        legacy_markup: false,
         downloads: 0,
         likes: 0,
         views: 0,

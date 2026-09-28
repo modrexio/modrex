@@ -67,6 +67,7 @@ export interface ModSummary {
     name: string
     desc: string
     short_desc: string
+    legacy_markup: boolean
     downloads: number
     likes: number
     views: number
