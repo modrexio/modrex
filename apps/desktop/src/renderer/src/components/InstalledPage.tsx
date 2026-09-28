@@ -202,10 +202,17 @@ export function InstalledPage({
 
     useAutoIdentifyNexusMods({ installed, gamePath, activeGame, onRefreshInstalled })
 
-    const folderActions = useFolderActions(gamePath, onRefreshInstalled, activeGame)
+    const folderActions = useFolderActions(gamePath, folders, onRefreshInstalled, activeGame)
 
-    const { dragItem, dropTarget, scrollContainerRef, onModPointerDown, onFolderPointerDown } =
-        useDragDrop({ installed, folders, gamePath, modData, onRefreshInstalled, activeGame })
+    const {
+        dragItem,
+        dropTarget,
+        dropError,
+        clearDropError,
+        scrollContainerRef,
+        onModPointerDown,
+        onFolderPointerDown,
+    } = useDragDrop({ installed, folders, gamePath, modData, onRefreshInstalled, activeGame })
 
     const isFiltering = filterQuery.trim().length > 0
     const { mods: displayMods, visibleFolderIds } = isFiltering
@@ -493,6 +500,17 @@ export function InstalledPage({
                         <span className="truncate">{modActionError}</span>
                         <button
                             onClick={clearModActionError}
+                            className="shrink-0 hover:opacity-70 transition-opacity"
+                        >
+                            <X className="w-3.5 h-3.5" />
+                        </button>
+                    </div>
+                )}
+                {dropError && (
+                    <div className="px-6 py-2 shrink-0 flex items-center justify-between gap-3 bg-danger/10 border-b border-danger/30 text-danger text-xs">
+                        <span className="truncate">{dropError}</span>
+                        <button
+                            onClick={clearDropError}
                             className="shrink-0 hover:opacity-70 transition-opacity"
                         >
                             <X className="w-3.5 h-3.5" />
