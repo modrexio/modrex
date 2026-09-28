@@ -4696,6 +4696,87 @@ fn reordering_legacy_crime_boss_paks_renames_their_companions() {
 }
 
 #[test]
+fn deleting_a_folder_moves_its_mods_and_companions_to_the_parent() {
+    let cfg = engine_for_game("pd3").unwrap();
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let sp = get_state_path(game, cfg);
+    let active = mods_dir(game, cfg.primary());
+    let disabled = disabled_dir(game, cfg.primary());
+    write_triplet(&active, "001_R_P", "");
+    write_triplet(&active.join("002_Skins"), "001_S_P", "");
+    write_triplet(&disabled.join("002_Skins"), "002_T_P", ".disabled");
+    write_triplet(&active.join("002_Skins").join("001_Sub"), "001_U_P", "");
+    save_state(
+        &sp,
+        &ModsState {
+            folders: vec![
+                folder("f", "002_Skins", None),
+                folder("g", "001_Sub", Some("f")),
+            ],
+            mods: vec![
+                pak_record("r", "001_R_P.pak", true, 1),
+                InstalledMod {
+                    folder_id: Some("f".into()),
+                    ..pak_record("s", "001_S_P.pak", true, 1)
+                },
+                InstalledMod {
+                    folder_id: Some("f".into()),
+                    ..pak_record("t", "002_T_P.pak", false, 2)
+                },
+                InstalledMod {
+                    folder_id: Some("g".into()),
+                    ..pak_record("u", "001_U_P.pak", true, 1)
+                },
+            ],
+        },
+    )
+    .unwrap();
+
+    delete_folder_op(game, &sp, "f", cfg).unwrap();
+
+    assert_triplet(&active, "002_S_P", "", "001_S_P");
+    assert_triplet(&disabled, "003_T_P", ".disabled", "002_T_P");
+    assert_triplet(&active.join("004_Sub"), "001_U_P", "", "001_U_P");
+    assert!(!active.join("002_Skins").exists());
+    assert!(!disabled.join("002_Skins").exists());
+    let state = read_state(&sp).unwrap();
+    assert_eq!(state.folders.len(), 1);
+    assert_eq!(state.folders[0].disk_name, "004_Sub");
+}
+
+#[test]
+fn deleting_a_folder_keeps_files_no_mod_tracks() {
+    let cfg = engine_for_game("pd3").unwrap();
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let sp = get_state_path(game, cfg);
+    let active = mods_dir(game, cfg.primary());
+    write_triplet(&active.join("001_Skins"), "001_S_P", "");
+    fs::write(active.join("001_Skins").join("notes.txt"), "mine").unwrap();
+    save_state(
+        &sp,
+        &ModsState {
+            folders: vec![folder("f", "001_Skins", None)],
+            mods: vec![InstalledMod {
+                folder_id: Some("f".into()),
+                ..pak_record("s", "001_S_P.pak", true, 1)
+            }],
+        },
+    )
+    .unwrap();
+
+    delete_folder_op(game, &sp, "f", cfg).unwrap();
+
+    assert_triplet(&active, "001_S_P", "", "001_S_P");
+    assert_eq!(
+        fs::read_to_string(active.join("001_Skins").join("notes.txt")).unwrap(),
+        "mine"
+    );
+    assert!(read_state(&sp).unwrap().folders.is_empty());
+}
+
+#[test]
 fn a_reorder_blocked_by_a_stray_file_changes_nothing() {
     let cfg = engine_for_game("pd3").unwrap();
     let tmp = TempDir::new().unwrap();
