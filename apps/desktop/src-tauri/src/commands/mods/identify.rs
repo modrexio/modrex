@@ -4,7 +4,8 @@
 
 use super::crimeboss_settings;
 use super::engine;
-use super::naming::log_name;
+use super::naming::{install_file_id, log_name};
+use super::paths::installed_mod_path;
 use super::*;
 use crate::commands::mod_index;
 use chrono::Utc;
@@ -349,6 +350,91 @@ pub(crate) fn regroup_negative_ids_by_name_suffix(mods: &mut [InstalledMod]) {
             }
         }
     }
+}
+
+/// Gives a record back the mod it was installed as when a rewrite of the state file replaced
+/// it with another. Builds before 0.15.0 identified by a pak's hash alone, and an Unreal
+/// container stub is byte-identical across unrelated mods, so running one on a newer state
+/// file relabeled those installs. A record changes only when its own files hash, without
+/// ambiguity, to the mod its uid was minted from.
+pub(crate) fn restore_install_identities(
+    index: &rusqlite::Connection,
+    game_path: &str,
+    cfg: &ModEngineConfig,
+    folders: &[ModFolder],
+    mods: &mut [InstalledMod],
+) -> bool {
+    let mut restored = false;
+    for m in mods.iter_mut() {
+        if m.source != "modworkshop" || is_host_pack_location(m.location.as_deref()) {
+            continue;
+        }
+        let evidence = m.identity.as_ref().map(|identity| identity.evidence);
+        if !matches!(evidence, None | Some(IdentityEvidence::CatalogReference)) {
+            continue;
+        }
+        let Some(recorded) = m.remote_id.clone() else {
+            continue;
+        };
+        let target = cfg.target_for(m.location.as_deref());
+        let engine::ModUnit::File { extension, .. } = &target.unit else {
+            continue;
+        };
+        let Some(install_file) = install_file_id(&m.uid) else {
+            continue;
+        };
+        if m.file_id == Some(install_file) {
+            continue;
+        }
+        let Some(installed) = mod_index::query_file(index, install_file, cfg.index_game_name)
+        else {
+            continue;
+        };
+        if recorded == installed.mod_remote_id.to_string() {
+            continue;
+        }
+
+        let rel = get_folder_path(folders, m.folder_id.as_deref());
+        let pak = installed_mod_path(game_path, &m.filename, rel.as_deref(), target, m.enabled);
+        let mut own_files: Vec<std::path::PathBuf> = target
+            .companions
+            .iter()
+            .filter_map(|c| sidecar_path(&pak, extension, c))
+            .collect();
+        own_files.push(pak);
+        own_files.sort_by_key(|p| std::fs::metadata(p).map(|m| m.len()).unwrap_or(u64::MAX));
+        let proven = own_files.iter().any(|path| match hash_file(path) {
+            Ok(Some(hash)) => mod_index::query_sha256(index, &hash, cfg.index_game_name)
+                .is_some_and(|hit| hit.mod_remote_id == installed.mod_remote_id),
+            Ok(None) => false,
+            Err(e) => {
+                log::warn!("identity: reading {}: {e}", log_name(path));
+                false
+            }
+        });
+        if !proven {
+            continue;
+        }
+
+        log::info!(
+            "identity: {} ({}) is {}, not {}",
+            m.uid,
+            m.filename,
+            installed.mod_name,
+            m.name
+        );
+        m.attach_catalog(
+            "modworkshop",
+            installed.mod_remote_id.to_string(),
+            IdentityEvidence::CatalogHash,
+        );
+        m.name = installed.mod_name;
+        m.version = installed.version;
+        m.file_id = Some(install_file);
+        m.update_status = UpdateStatus::Known;
+        restored = true;
+    }
+    restored
 }
 
 /// Crime Boss mods can be toggled from the game's own Options > Mods screen, which writes

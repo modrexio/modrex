@@ -4787,6 +4787,163 @@ fn deleting_a_folder_keeps_files_no_mod_tracks() {
     assert!(read_state(&sp).unwrap().folders.is_empty());
 }
 
+// ── restore_install_identities ──────────────────────────────────────────────
+
+struct Relabeled {
+    _tmp: TempDir,
+    game: String,
+    cfg: &'static ModEngineConfig,
+    index: rusqlite::Connection,
+    record: InstalledMod,
+}
+
+/// A disabled mod installed from file 102527 of mod 53507, relabeled as Real HUD Icons
+/// (mod 49168, file 102103) whose pak stub carries the same bytes.
+fn relabeled() -> Relabeled {
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap().to_string();
+    let cfg = engine_for_game("pd3").unwrap();
+    let disabled = disabled_dir(&game, cfg.primary());
+    fs::create_dir_all(&disabled).unwrap();
+    fs::write(disabled.join("003_Dust_P.pak.disabled"), "shared stub").unwrap();
+    fs::write(disabled.join("003_Dust_P.ucas.disabled"), "dust ucas").unwrap();
+    fs::write(disabled.join("003_Dust_P.utoc.disabled"), "dust utoc").unwrap();
+    let hash = |name: &str| hash_file(&disabled.join(name)).unwrap().unwrap();
+
+    let index = rusqlite::Connection::open_in_memory().unwrap();
+    index
+        .execute_batch(
+            "CREATE TABLE games (id INTEGER PRIMARY KEY, name TEXT);
+             CREATE TABLE sources (id INTEGER PRIMARY KEY, game_id INTEGER);
+             CREATE TABLE mods (id INTEGER PRIMARY KEY, source_id INTEGER, remote_id INTEGER, name TEXT);
+             CREATE TABLE files (id INTEGER PRIMARY KEY, mod_id INTEGER, remote_id INTEGER, sha256 TEXT, version TEXT, entry_name TEXT NOT NULL DEFAULT '');
+             INSERT INTO games VALUES (1, 'PAYDAY 3');
+             INSERT INTO sources VALUES (1, 1);
+             INSERT INTO mods VALUES (1, 1, 49168, 'Real HUD Icons');
+             INSERT INTO mods VALUES (2, 1, 53507, 'remove KU-59 dust cover');",
+        )
+        .unwrap();
+    let stub = hash("003_Dust_P.pak.disabled");
+    index
+        .execute(
+            "INSERT INTO files (mod_id, remote_id, sha256, version, entry_name) VALUES
+             (1, 102103, ?1, '3.0', 'RealHudIcons_P.pak'),
+             (2, 102527, ?1, '1.2', 'no dust cover ku59_P.pak'),
+             (2, 102527, ?2, '1.2', 'no dust cover ku59_P.ucas')",
+            rusqlite::params![stub, hash("003_Dust_P.ucas.disabled")],
+        )
+        .unwrap();
+
+    let mut record = InstalledMod {
+        uid: "102527".into(),
+        name: "Real HUD Icons".into(),
+        version: "3.0".into(),
+        filename: "003_Dust_P.pak".into(),
+        enabled: false,
+        file_id: Some(102103),
+        ..InstalledMod::default()
+    };
+    record.attach_catalog(
+        "modworkshop",
+        "49168".into(),
+        IdentityEvidence::CatalogReference,
+    );
+    Relabeled {
+        _tmp: tmp,
+        game,
+        cfg,
+        index,
+        record,
+    }
+}
+
+impl Relabeled {
+    fn restore(&self, record: InstalledMod) -> (bool, InstalledMod) {
+        let mut mods = [record];
+        let restored =
+            restore_install_identities(&self.index, &self.game, self.cfg, &[], &mut mods);
+        let [record] = mods;
+        (restored, record)
+    }
+}
+
+#[test]
+fn a_relabeled_record_gets_back_the_mod_it_was_installed_as() {
+    let case = relabeled();
+    let (restored, m) = case.restore(case.record.clone());
+
+    assert!(restored);
+    assert_eq!(m.remote_id.as_deref(), Some("53507"));
+    assert_eq!(m.name, "remove KU-59 dust cover");
+    assert_eq!(m.version, "1.2");
+    assert_eq!(m.file_id, Some(102527));
+    assert_eq!(
+        m.id,
+        crate::commands::sources::source_native_local_id("modworkshop", "53507")
+    );
+    assert_eq!(m.identity.unwrap().evidence, IdentityEvidence::CatalogHash);
+    assert_eq!(m.uid, "102527");
+    assert_eq!(m.filename, "003_Dust_P.pak");
+}
+
+#[test]
+fn a_record_is_not_restored_on_a_hash_other_mods_share() {
+    let case = relabeled();
+    fs::write(
+        disabled_dir(&case.game, case.cfg.primary()).join("003_Dust_P.ucas.disabled"),
+        "bytes the index never saw",
+    )
+    .unwrap();
+
+    let (restored, m) = case.restore(case.record.clone());
+
+    assert!(!restored);
+    assert_eq!(m.remote_id.as_deref(), Some("49168"));
+}
+
+#[test]
+fn an_installed_or_non_modworkshop_record_is_never_relabeled_back() {
+    let case = relabeled();
+    let mut installed = case.record.clone();
+    installed.attach_catalog(
+        "modworkshop",
+        "49168".into(),
+        IdentityEvidence::InstallProvenance,
+    );
+    let mut nexus = case.record.clone();
+    nexus.attach_catalog("nexus", "49168".into(), IdentityEvidence::CatalogReference);
+
+    assert!(!case.restore(installed).0);
+    assert!(!case.restore(nexus).0);
+}
+
+#[test]
+fn a_record_whose_uid_and_file_agree_is_left_alone() {
+    let case = relabeled();
+    let mut m = case.record.clone();
+    m.file_id = Some(102527);
+
+    assert!(!case.restore(m).0);
+}
+
+#[test]
+fn an_archive_entry_reinstalled_in_place_keeps_its_newer_file() {
+    let case = relabeled();
+    let mut m = case.record.clone();
+    m.uid = "102527_Dust_P".into();
+    m.file_id = Some(102999);
+    m.attach_catalog(
+        "modworkshop",
+        "53507".into(),
+        IdentityEvidence::CatalogReference,
+    );
+
+    let (restored, m) = case.restore(m);
+
+    assert!(!restored);
+    assert_eq!(m.file_id, Some(102999));
+}
+
 #[test]
 fn a_reorder_blocked_by_a_stray_file_changes_nothing() {
     let cfg = engine_for_game("pd3").unwrap();

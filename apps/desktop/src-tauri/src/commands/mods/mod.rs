@@ -44,7 +44,8 @@ use self::identify::staged_content_sha256;
 pub(crate) use self::identify::{embedded_modworkshop_id, upgrade_negative_ids_with_conn};
 pub(crate) use self::identify::{
     ensure_untracked_folders, hash_untracked, hashable_file_for_mod_dir, identify_untracked,
-    regroup_negative_ids_by_name_suffix, resync_crimeboss_enabled_flags, upgrade_negative_ids,
+    regroup_negative_ids_by_name_suffix, restore_install_identities,
+    resync_crimeboss_enabled_flags, upgrade_negative_ids,
 };
 pub(crate) use self::ue4ss_modstxt::entry_name as ue4ss_entry_name;
 use crate::commands::analytics::track_mod_installed;
@@ -230,7 +231,9 @@ pub async fn get_installed(app: AppHandle, game_id: String) -> Result<InstalledR
     let mods_hidden = backup_dir(&game_path, cfg.primary()).exists();
 
     let (mut state, writeback) = load_for_scan(&game_path, &state_path, cfg);
-    if !mods_hidden {
+    let identities_restored = if mods_hidden {
+        false
+    } else {
         let index = mod_index::open_index(&app, cfg.game_id);
         companions::rejoin_split_companions(
             &game_path,
@@ -239,8 +242,12 @@ pub async fn get_installed(app: AppHandle, game_id: String) -> Result<InstalledR
             &state.mods,
             index.as_ref(),
         );
-    }
-    let any_upgraded = upgrade_negative_ids(&app, &game_path, cfg, &state.folders, &mut state.mods);
+        index.as_ref().is_some_and(|conn| {
+            restore_install_identities(conn, &game_path, cfg, &state.folders, &mut state.mods)
+        })
+    };
+    let any_upgraded = upgrade_negative_ids(&app, &game_path, cfg, &state.folders, &mut state.mods)
+        || identities_restored;
     regroup_negative_ids_by_name_suffix(&mut state.mods);
 
     // The player can also toggle mods from Crime Boss's own Options > Mods screen, so pull

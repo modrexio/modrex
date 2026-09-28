@@ -292,6 +292,33 @@ pub(crate) fn query_mod_by_id(
     .ok()
 }
 
+/// The mod a ModWorkshop file id belongs to, with that file's version.
+pub(crate) fn query_file(
+    conn: &rusqlite::Connection,
+    file_remote_id: i64,
+    game_name: &str,
+) -> Option<IndexMatch> {
+    conn.query_row(
+        "SELECT m.remote_id, m.name, f.remote_id, f.version
+         FROM files f
+         JOIN mods m ON m.id = f.mod_id
+         JOIN sources s ON s.id = m.source_id
+         JOIN games g ON g.id = s.game_id
+         WHERE f.remote_id = ?1 AND g.name = ?2
+         LIMIT 1",
+        rusqlite::params![file_remote_id, game_name],
+        |row| {
+            Ok(IndexMatch {
+                mod_remote_id: row.get(0)?,
+                mod_name: row.get(1)?,
+                file_remote_id: row.get(2)?,
+                version: row.get(3)?,
+            })
+        },
+    )
+    .ok()
+}
+
 /// Hashes the index recorded for the companion entries of these files.
 pub(crate) fn companion_hashes_for_files(
     conn: &rusqlite::Connection,

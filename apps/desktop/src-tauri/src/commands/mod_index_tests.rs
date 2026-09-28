@@ -308,6 +308,19 @@ fn several_files_of_one_mod_resolve_to_the_newest() {
     assert_eq!(hit.version, "2.0.0");
 }
 
+// ── query_file ─────────────────────────────────────────────────────────────
+
+#[test]
+fn a_file_id_resolves_to_its_mod_in_this_game_only() {
+    let conn = setup_db();
+    let hit = query_file(&conn, 600, "PAYDAY 3").unwrap();
+    assert_eq!(hit.mod_remote_id, 200);
+    assert_eq!(hit.mod_name, "Dark Matter Skins");
+    assert_eq!(hit.version, "2.0.0");
+    assert!(query_file(&conn, 700, "PAYDAY 3").is_none());
+    assert!(query_file(&conn, 12345, "PAYDAY 3").is_none());
+}
+
 // ── companion_hashes_for_files ─────────────────────────────────────────────
 
 #[test]
