@@ -174,15 +174,6 @@ const releasedOn = release
                         ))
                     }
                 </div>
-                <button
-                    type="button"
-                    class="fullscreen"
-                    id="stage-fullscreen"
-                    aria-label="Fullscreen"
-                    title="Fullscreen"
-                >
-                    <i data-lucide="maximize-2"></i>
-                </button>
             </div>
             <p class="stage-desc" data-shot-desc>{shots[FIRST].desc}</p>
         </div>
@@ -234,10 +225,10 @@ const releasedOn = release
 </header>
 
 <script>
-    import { createIcons, ChevronLeft, ChevronRight, Maximize2, X } from 'lucide'
+    import { createIcons, ChevronLeft, ChevronRight, X } from 'lucide'
     import { detectOs } from '../lib/os-detect'
 
-    createIcons({ icons: { ChevronLeft, ChevronRight, Maximize2, X } })
+    createIcons({ icons: { ChevronLeft, ChevronRight, X } })
 
     const { isMobile, isLinux } = detectOs()
     const button = document.getElementById('hero-dl')
@@ -334,7 +325,6 @@ const releasedOn = release
     }
     viewer.addEventListener('close', () => opener?.focus())
     openButton.addEventListener('click', openViewer)
-    document.getElementById('stage-fullscreen')!.addEventListener('click', openViewer)
     document.getElementById('viewer-close')!.addEventListener('click', () => viewer.close())
     document.getElementById('viewer-body')!.addEventListener('click', (event) => {
         if (event.target === event.currentTarget) viewer.close()
@@ -481,25 +471,23 @@ const releasedOn = release
 
     .stage-tabs {
         display: flex;
-        align-items: flex-end;
-        border-bottom: 1px solid var(--color-border);
+        margin-top: 14px;
     }
 
     .tablist {
         display: flex;
-        gap: 4px;
+        gap: 20px;
     }
 
     .tab {
-        padding: 12px 12px 11px;
-        margin-bottom: -1px;
+        padding: 0;
         border: 0;
-        border-bottom: 2px solid transparent;
         background: none;
         font: inherit;
         font-size: 13px;
         color: var(--text-tertiary);
         white-space: nowrap;
+        cursor: pointer;
         transition: var(--transition-colors);
     }
 
@@ -508,40 +496,20 @@ const releasedOn = release
     }
 
     .tab.active {
-        color: var(--color-accent-bright);
-        border-bottom-color: var(--color-accent);
+        color: var(--color-text);
     }
 
-    .tab:focus-visible,
-    .fullscreen:focus-visible,
+    .tab:focus-visible {
+        outline: 2px solid var(--color-accent);
+        outline-offset: 4px;
+    }
+
     .seg button:focus-visible,
     .viewer-close:focus-visible {
         outline: 2px solid var(--color-accent);
         outline-offset: -2px;
     }
 
-    .fullscreen {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 36px;
-        height: 32px;
-        margin: 0 0 6px auto;
-        padding: 0;
-        border: 0;
-        border-radius: var(--radius-sm);
-        background: none;
-        color: var(--text-secondary);
-        transition: var(--transition-colors);
-    }
-
-    .fullscreen:hover {
-        background: var(--color-surface-hover);
-        color: var(--color-text);
-    }
-
-    .fullscreen i,
-    .fullscreen svg,
     .seg i,
     .seg svg,
     .viewer-close i,
