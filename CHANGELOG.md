@@ -16,6 +16,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - Fixed deleting a folder also deleting the .ucas and .utoc files of the mods inside it, and any other files in it.
 - Fixed a failed drag or folder delete on the Installed tab showing no error.
 - Fixed PAYDAY 3 mods that an older Modrex version relabeled as another mod keeping that mod's name and updates.
+- Fixed the pak contents viewer showing no assets, instead of saying why, for a mod whose .ucas and .utoc files are missing.
 - Fixed broken formatting, images and videos in mod descriptions.
 
 ### Security
