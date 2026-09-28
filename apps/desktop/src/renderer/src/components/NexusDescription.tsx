@@ -152,7 +152,7 @@ class BrTag extends Tag {
     }
 }
 
-// Nexus renders [size=N] as <font size=N>, so these are the browser's sizes 1 to 7.
+// Nexus renders [size=N] as <font size=N>.
 const FONT_SIZES_PX = [10, 13, 16, 18, 24, 32, 48]
 
 class SizeTag extends Tag {
@@ -178,8 +178,6 @@ class LineTag extends Tag {
     }
 }
 
-// The library's own code tag prints raw content, which shows preprocess's [br][/br]
-// literally and the library's escapes as &quot; and &amp;.
 class CodeTag extends Tag {
     toReact() {
         const code = decodeContentEscape(this.getContent(true))
@@ -194,14 +192,12 @@ class CodeTag extends Tag {
     }
 }
 
-// The library ships center and right but not left.
 class LeftTag extends Tag {
     toReact() {
         return <div style={{ textAlign: 'left' }}>{Children.toArray(this.getComponents())}</div>
     }
 }
 
-// Replaces the library's quote tag for its hardcoded English "wrote:".
 class QuoteTag extends Tag {
     constructor(renderer: unknown, settings: unknown) {
         super(renderer, settings)
@@ -209,13 +205,7 @@ class QuoteTag extends Tag {
     }
 
     toReact() {
-        const author = this.params.quote
-        return (
-            <blockquote>
-                {author && <small>{t('detail.quoteAuthor', { name: author })}</small>}
-                {Children.toArray(this.getComponents())}
-            </blockquote>
-        )
+        return <blockquote>{Children.toArray(this.getComponents())}</blockquote>
     }
 }
 
@@ -383,8 +373,6 @@ function stripTrailingBreaks(nodes: ReactNode[]): ReactNode[] {
     return result
 }
 
-// The library drops text between table rows and cells but keeps tag nodes, so every
-// Nexus line break there would become a br inside the table structure.
 const TABLE_PARTS = new Set(['table', 'thead', 'tbody', 'tfoot', 'tr'])
 
 function normalizeNode(node: ReactNode): ReactNode {
