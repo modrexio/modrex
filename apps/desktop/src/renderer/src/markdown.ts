@@ -3,6 +3,8 @@ import type { RendererRule, StateInline } from 'markdown-it'
 import colorInline from 'markdown-it-color-inline'
 import taskLists from 'markdown-it-task-lists'
 import { markdownContainer } from './markdownContainer'
+import { contrastRatio } from './colorContrast'
+import { legacyBbcodeToHtml } from './legacyBbcode'
 
 // Column alignment comes out as a style attribute, which the sanitizer strips.
 const alignCell: RendererRule = (tokens, idx, options, _env, self) => {
@@ -34,24 +36,11 @@ modworkshop.use(colorInline)
 modworkshop.use(markdownContainer, 'spoiler', '!')
 modworkshop.use(markdownContainer, 'center', ':')
 
-function luminance(hex: string) {
-    const full = hex.length === 3 ? [...hex].map((c) => c + c).join('') : hex
-    const [r, g, b] = [0, 2, 4].map((i) => {
-        const v = parseInt(full.slice(i, i + 2), 16) / 255
-        return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4
-    })
-    return 0.2126 * r + 0.7152 * g + 0.0722 * b
-}
-
 // ModWorkshop drops a hex color whose contrast against its page, #2b3036, is below 2.9,
 // and authors pick colors against that. Named colors are never checked there either.
-const PAGE_LUMINANCE = luminance('2b3036')
-
 function readableColor(color: string) {
     const hex = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(color)?.[1]
-    if (!hex) return true
-    const l = luminance(hex)
-    return (Math.max(l, PAGE_LUMINANCE) + 0.05) / (Math.min(l, PAGE_LUMINANCE) + 0.05) >= 2.9
+    return !hex || contrastRatio(hex, '2b3036') >= 2.9
 }
 
 // {color}(text). The span component turns data-color into a style, so no author text
@@ -97,11 +86,52 @@ function mention(state: StateInline, silent: boolean) {
 }
 modworkshop.inline.ruler.after('emphasis', 'mention', mention)
 
+// ModWorkshop's legacy parser, parser_version 1, which mod text keeps until it is edited.
+// It lets HTML through, but only the HTML legacyBbcodeToHtml writes, since author text is
+// escaped first.
+const legacy = createMarkdown()
+legacy.set({ html: true })
+// Unlike the current parser it also links bare domains like crime.net.
+legacy.linkify.set({ fuzzyLink: true })
+legacy.renderer.rules.strong_open = underline
+legacy.renderer.rules.strong_close = underline
+legacy.inline.ruler.after('emphasis', 'mention', mention)
+
+// The legacy :::text::: is inline, so it also centers inside a heading or a quote.
+const LEGACY_CENTER = /^ {0,3}(:::+) *([\s\S]*?)\n? {0,3}\1/
+
+function legacyCenter(state: StateInline, silent: boolean) {
+    const match = LEGACY_CENTER.exec(state.src.slice(state.pos, state.posMax))
+    if (!match) return false
+    if (!silent) {
+        state.push('html_inline', '', 0).content =
+            `<span class="center">${legacy.renderInline(match[2])}</span>`
+    }
+    state.pos += match[0].length
+    return true
+}
+legacy.inline.ruler.push('legacy_center', legacyCenter)
+
+const LEGACY_SPOILER = /(?:^|\n) {0,3}(\|\|+) *([\s\S]*?)\n? {0,3}\1/g
+
+function renderLegacy(text: string) {
+    const html = legacyBbcodeToHtml(legacy.utils.escapeHtml(text))
+        // Restored so markdown quotes and link titles still work on escaped text.
+        .replaceAll('&gt;', '>')
+        .replaceAll('&quot;', '"')
+        .replace(
+            LEGACY_SPOILER,
+            (_match: string, _run: string, body: string) =>
+                `\n\n<details><summary></summary><div>${legacy.render(body)}</div></details>\n\n`
+        )
+    return legacy.render(html)
+}
+
 // Release notes and other text that isn't ModWorkshop's.
 export function renderMarkdown(text: string): string {
     return plain.render(text)
 }
 
-export function renderModworkshopMarkdown(text: string): string {
-    return modworkshop.render(text)
+export function renderModworkshopMarkdown(text: string, legacyMarkup: boolean): string {
+    return legacyMarkup ? renderLegacy(text) : modworkshop.render(text)
 }

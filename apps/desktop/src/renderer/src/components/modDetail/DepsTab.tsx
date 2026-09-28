@@ -18,6 +18,7 @@ import { useModVersions } from '../../hooks/useModVersions'
 
 export function DepsTab({
     instructions,
+    legacyMarkup,
     instructsTemplate,
     deps,
     installed,
@@ -30,6 +31,7 @@ export function DepsTab({
     onOpenDetail,
 }: {
     instructions: string | null
+    legacyMarkup: boolean
     instructsTemplate: InstructsTemplate | null
     deps: ModDependency[]
     installed: InstalledMod[]
@@ -94,12 +96,17 @@ export function DepsTab({
                     {instructsTemplate?.instructions && (
                         <ModworkshopMarkup
                             text={instructsTemplate.instructions}
+                            legacy={legacyMarkup}
                             onOpenDetail={onOpenDetail}
                         />
                     )}
                     {instructions && (
                         <div className="mt-3">
-                            <ModworkshopMarkup text={instructions} onOpenDetail={onOpenDetail} />
+                            <ModworkshopMarkup
+                                text={instructions}
+                                legacy={legacyMarkup}
+                                onOpenDetail={onOpenDetail}
+                            />
                         </div>
                     )}
                 </section>

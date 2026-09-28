@@ -12,7 +12,11 @@ export function DescriptionTab({
     return (
         <div>
             {mod.desc ? (
-                <ModworkshopMarkup text={mod.desc} onOpenDetail={onOpenDetail} />
+                <ModworkshopMarkup
+                    text={mod.desc}
+                    legacy={mod.legacy_markup}
+                    onOpenDetail={onOpenDetail}
+                />
             ) : (
                 <p className="text-sm text-text-subtle">{t('detail.description.noDescription')}</p>
             )}
@@ -29,7 +33,11 @@ export function ChangelogTab({
 }) {
     return (
         <div>
-            <ModworkshopMarkup text={mod.changelog!} onOpenDetail={onOpenDetail} />
+            <ModworkshopMarkup
+                text={mod.changelog!}
+                legacy={mod.legacy_markup}
+                onOpenDetail={onOpenDetail}
+            />
         </div>
     )
 }
@@ -43,7 +51,11 @@ export function LicenseTab({
 }) {
     return (
         <div>
-            <ModworkshopMarkup text={mod.license!} onOpenDetail={onOpenDetail} />
+            <ModworkshopMarkup
+                text={mod.license!}
+                legacy={mod.legacy_markup}
+                onOpenDetail={onOpenDetail}
+            />
         </div>
     )
 }

@@ -329,6 +329,95 @@ describe('ModworkshopMarkup mentions', () => {
     })
 })
 
+describe('ModworkshopMarkup legacy text', () => {
+    // Opening of Meth Helper Updated (modworkshop 25950), still on the legacy parser.
+    const METH_HELPER =
+        "An updated version of Kangaroo's [url=http://modwork.shop/14050]Meth Helper[/url].\n\n[hr]\n\n### [color=ffd700]About This Mod[/color]\n\n[b]Meth Helper Updated[/b] can display:\n[list]\n[*]The next ingredient\n[*]Which ingredients were added\n[/list]"
+
+    it('renders BBCode mixed into markdown', () => {
+        const { container, getByText } = render(
+            <ModworkshopMarkup text={METH_HELPER} legacy onOpenDetail={vi.fn()} />
+        )
+        expect(getByText('Meth Helper').tagName).toBe('A')
+        expect(container.querySelector('hr')).not.toBeNull()
+        expect(getByText('About This Mod').style.color).toBe('rgb(255, 215, 0)')
+        expect(getByText('Meth Helper Updated').tagName).toBe('STRONG')
+        expect(container.querySelectorAll('ul li')).toHaveLength(2)
+        expect(container.textContent).not.toMatch(/\[\/?(url|hr|color|b|list|\*)/)
+    })
+
+    it('shows the same text literally on the current parser', () => {
+        const { container } = render(<ModworkshopMarkup text={'[b]plain[/b]'} />)
+        expect(container.textContent).toContain('[b]plain[/b]')
+    })
+
+    it('reads ||text|| as a spoiler', () => {
+        const { getByText } = render(<ModworkshopMarkup text={'||\nhidden\n||'} legacy />)
+        expect(getByText('hidden').closest('details')).not.toBeNull()
+    })
+
+    it('centers :::text::: even inside a heading', () => {
+        const { getByText } = render(
+            <ModworkshopMarkup text={'# :::**Installation**:::\n\n:::Extract it:::'} legacy />
+        )
+        expect(getByText('Installation').closest('h1 .text-center')).not.toBeNull()
+        expect(getByText('Extract it').className).toBe('block text-center')
+    })
+
+    it('leaves unpaired tags as written and repairs crossed ones', () => {
+        const { container, getByText } = render(
+            <ModworkshopMarkup
+                text={'[u]never closed [b]open and [i]crossed[/b] after[/i]'}
+                legacy
+            />
+        )
+        expect(container.textContent?.trim()).toBe('[u]never closed open and crossed after')
+        expect(getByText('crossed').tagName).toBe('EM')
+        expect(getByText('crossed').parentElement?.tagName).toBe('STRONG')
+    })
+
+    it('still shows raw HTML as text', () => {
+        const { container } = render(<ModworkshopMarkup text={'<b>x</b> [b]y[/b]'} legacy />)
+        expect(container.querySelector('b')).toBeNull()
+        expect(container.textContent).toContain('<b>x</b>')
+    })
+
+    it('cannot break out of a tag attribute', () => {
+        const { container } = render(
+            <ModworkshopMarkup
+                text={
+                    '[url=https://x.test" onmouseover="alert(1)]link[/url][img=a" onerror="alert(1)]https://x.test/a.png[/img]'
+                }
+                legacy
+            />
+        )
+        expect(container.querySelector('[onmouseover], [onerror]')).toBeNull()
+    })
+
+    it('renders images, videos, code and sizes', () => {
+        const { container, getByText } = render(
+            <ModworkshopMarkup
+                text={
+                    '[img]https://x.test/a.png[/img]\n[video=youtube]dQw4w9WgXcQ[/video]\n[code]a\nb[/code]\n[size=large]big[/size]'
+                }
+                legacy
+            />
+        )
+        expect(container.querySelector('img[src="https://x.test/a.png"]')).not.toBeNull()
+        expect(container.querySelector(YOUTUBE_THUMB)).not.toBeNull()
+        expect(container.querySelector('pre')?.textContent).toBe('a\nb')
+        expect(getByText('big').style.fontSize).toBe('large')
+    })
+
+    it('drops a hex color too dark to read, like the legacy parser', () => {
+        const { getByText } = render(
+            <ModworkshopMarkup text={'[color=#111111]dark[/color] [color=red]red[/color]'} legacy />
+        )
+        expect(getByText(/dark/).style.color).toBe('')
+        expect(getByText('red').style.color).toBe('red')
+    })
+})
+
 describe('MarkdownContent', () => {
     it('reads text as plain markdown, without ModWorkshop syntax', () => {
         const { getByText, container } = render(

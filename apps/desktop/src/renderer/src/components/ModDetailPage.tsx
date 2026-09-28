@@ -1080,6 +1080,7 @@ export function ModDetailPage({
                                 <Tabs.Content value="deps" className="py-5 focus:outline-none">
                                     <DepsTab
                                         instructions={detail?.instructions ?? null}
+                                        legacyMarkup={detail?.legacy_markup ?? false}
                                         instructsTemplate={detail?.instructs_template ?? null}
                                         deps={allDeps}
                                         installed={installed}

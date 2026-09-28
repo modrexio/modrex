@@ -55,6 +55,7 @@ it('shows only a known authoritative dependency version', () => {
         <TooltipProvider>
             <DepsTab
                 instructions={null}
+                legacyMarkup={false}
                 instructsTemplate={null}
                 deps={[dependency]}
                 installed={[]}
@@ -73,6 +74,7 @@ it('shows only a known authoritative dependency version', () => {
         <TooltipProvider>
             <DepsTab
                 instructions={null}
+                legacyMarkup={false}
                 instructsTemplate={null}
                 deps={[dependency]}
                 installed={[]}

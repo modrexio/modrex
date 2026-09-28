@@ -17,15 +17,20 @@ const InsidePreContext = createContext(false)
 
 // Defense in depth: markdown-it already escapes raw HTML, so this only ever sees markup
 // the parser and its plugins wrote. Must run before rehypeHighlight so its hljs classes
-// survive. span keeps data-color, which the span component turns into a color, and div
-// keeps the class of a ::: block.
+// survive. span keeps data-color and data-size, which the span component turns into a
+// style, and span and div keep the alignment class of ::: text or a legacy [center].
 const sanitizeSchema: SanitizeOptions = {
     ...defaultSchema,
     tagNames: [...(defaultSchema.tagNames ?? []), 'u'],
     attributes: {
         ...defaultSchema.attributes,
-        span: [...(defaultSchema.attributes?.span ?? []), 'dataColor'],
-        div: [...(defaultSchema.attributes?.div ?? []), ['className', 'center']],
+        span: [
+            ...(defaultSchema.attributes?.span ?? []),
+            'dataColor',
+            'dataSize',
+            ['className', 'center'],
+        ],
+        div: [...(defaultSchema.attributes?.div ?? []), ['className', 'center', 'left', 'right']],
     },
 }
 
@@ -43,6 +48,12 @@ function Code({ children }: { children?: ReactNode }) {
             {children}
         </code>
     )
+}
+
+const ALIGN: Record<string, string> = {
+    center: 'text-center [&_div]:mx-auto',
+    left: 'text-left',
+    right: 'text-right',
 }
 
 function makeComponents(onOpenDetail?: (modId: number) => void): Components {
@@ -159,18 +170,21 @@ function makeComponents(onOpenDetail?: (modId: number) => void): Components {
             </td>
         ),
         span: ({ children, className, node }) => {
-            const color = node?.properties.dataColor
+            const { dataColor, dataSize } = node?.properties ?? {}
             return (
                 <span
-                    style={typeof color === 'string' ? { color } : undefined}
-                    className={className}
+                    style={{
+                        color: typeof dataColor === 'string' ? dataColor : undefined,
+                        fontSize: typeof dataSize === 'string' ? dataSize : undefined,
+                    }}
+                    className={className === 'center' ? 'block text-center' : className}
                 >
                     {children}
                 </span>
             )
         },
         div: ({ children, className }) => (
-            <div className={className === 'center' ? 'text-center [&_div]:mx-auto' : undefined}>
+            <div className={typeof className === 'string' ? ALIGN[className] : undefined}>
                 {children}
             </div>
         ),
@@ -203,11 +217,14 @@ export function MarkdownContent({ text }: { text: string }) {
 
 export function ModworkshopMarkup({
     text,
+    legacy = false,
     onOpenDetail,
 }: {
     text: string
+    // Mod text ModWorkshop still renders with its legacy parser, see ModSummary.legacy_markup.
+    legacy?: boolean
     onOpenDetail?: (modId: number) => void
 }) {
-    const html = useMemo(() => renderModworkshopMarkdown(text), [text])
+    const html = useMemo(() => renderModworkshopMarkdown(text, legacy), [text, legacy])
     return <Markup html={html} onOpenDetail={onOpenDetail} />
 }

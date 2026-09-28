@@ -18,6 +18,7 @@ interface Props {
  */
 export function UnrecognizedArchiveModal({ modId, onClose }: Props) {
     const [instructions, setInstructions] = useState<string | null>(null)
+    const [legacyMarkup, setLegacyMarkup] = useState(false)
 
     useEffect(() => {
         let cancelled = false
@@ -25,6 +26,7 @@ export function UnrecognizedArchiveModal({ modId, onClose }: Props) {
             .then((m) => {
                 if (!cancelled) {
                     setInstructions(m.instructs_template?.instructions || m.instructions || '')
+                    setLegacyMarkup(m.legacy_markup)
                 }
             })
             .catch(() => {
@@ -51,7 +53,7 @@ export function UnrecognizedArchiveModal({ modId, onClose }: Props) {
                     <SkeletonText />
                 ) : instructions ? (
                     <div className="rounded-lg border border-border bg-surface-hover px-4 py-3 text-sm">
-                        <ModworkshopMarkup text={instructions} />
+                        <ModworkshopMarkup text={instructions} legacy={legacyMarkup} />
                     </div>
                 ) : (
                     <p className="text-sm text-text-subtle">{t('unrecognized.noInstructions')}</p>

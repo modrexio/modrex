@@ -18,7 +18,11 @@ export function MarkdownContent(props: { text: string }) {
 }
 
 // Mod text from ModWorkshop, in its own markdown dialect.
-export function ModworkshopMarkup(props: { text: string; onOpenDetail?: (modId: number) => void }) {
+export function ModworkshopMarkup(props: {
+    text: string
+    legacy?: boolean
+    onOpenDetail?: (modId: number) => void
+}) {
     return (
         <Suspense fallback={<SkeletonText />}>
             <ModworkshopImpl {...props} />
