@@ -1,12 +1,7 @@
 import { contrastRatio } from './colorContrast'
 
-// ModWorkshop's legacy parser turns BBCode into HTML before markdown runs, and text comes
-// in already HTML-escaped. [*] and [hr] stand alone, other tags need a closing tag of the
-// same name, and anything left unpaired stays as written. Tags that cross, like
-// [b][i]x[/b][/i], close the way a browser repairs the same HTML, which is what
-// ModWorkshop's own output ends up as. Line breaks inside a tag become br, a line break
-// right after an opening tag is dropped, and [code], [img], [video] and [noparse] take
-// their content verbatim.
+// Input is already HTML-escaped. Unpaired tags stay as written, and crossed tags close
+// the way a browser repairs the same HTML, which is what ModWorkshop ends up showing.
 
 interface Tag {
     name: string
@@ -63,8 +58,7 @@ const VIDEO_PAGES: Record<string, (id: string) => string> = {
     vimeo: (id) => `https://vimeo.com/${id}`,
 }
 
-// Values are escaped already. The caller turns &quot; back into a quote afterwards, so a
-// quote inside an attribute is kept in a form that survives that.
+// The caller turns &quot; back into a quote afterwards, which must not reopen an attribute.
 function attr(value: string) {
     return value.replaceAll('&quot;', '&#34;')
 }
@@ -104,7 +98,7 @@ function tokenize(text: string): Tag[] {
 function colorSpan(value: string, inner: string) {
     if (/^#?[0-9a-f]{6}$/i.test(value)) {
         const hex = value.replace('#', '')
-        // The legacy parser keeps a hex color only above 3.2 contrast against #1a1c1e.
+        // ModWorkshop's legacy threshold.
         if (contrastRatio(hex, '1a1c1e') <= 3.2) return inner
         return `<span data-color="#${hex}">${inner}</span>`
     }
@@ -145,8 +139,7 @@ function renderTag(tag: Tag, inner: string, raw: string) {
         case 'color':
             return inner ? colorSpan(tag.attr, inner) : ''
         case 'size': {
-            // Even an unknown size keeps its span, which decides how markdown reads the
-            // lines around it.
+            // The span stays even for an unknown size, markdown reads the lines around it differently without it.
             const size = SIZES[tag.attr.toLowerCase()]
             return `<span${size ? ` data-size="${size}"` : ''}>${inner}</span>`
         }
@@ -155,7 +148,6 @@ function renderTag(tag: Tag, inner: string, raw: string) {
         case 'video':
             return videoImage(tag.attr, raw)
         default:
-            // font, email and noparse keep their content and drop the tag.
             return inner
     }
 }
@@ -187,8 +179,7 @@ function renderRange(
             out += textPart(text.slice(tag.start, tag.end), inTag)
             continue
         }
-        // Reached only when its opening tag crossed out of an enclosing tag and was
-        // already closed at that tag's end.
+        // Its opening tag crossed out of a parent and was closed there.
         if (tag.closing) continue
 
         const crosses = tag.pair >= to

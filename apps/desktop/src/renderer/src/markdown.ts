@@ -6,7 +6,7 @@ import { markdownContainer } from './markdownContainer'
 import { contrastRatio } from './colorContrast'
 import { legacyBbcodeToHtml } from './legacyBbcode'
 
-// Column alignment comes out as a style attribute, which the sanitizer strips.
+// The sanitizer strips style.
 const alignCell: RendererRule = (tokens, idx, options, _env, self) => {
     const token = tokens[idx]
     const style = token.attrGet('style')
@@ -17,8 +17,7 @@ const alignCell: RendererRule = (tokens, idx, options, _env, self) => {
     return self.renderToken(tokens, idx, options)
 }
 
-// The parser and options ModWorkshop renders mod text with, so a description lays out the
-// way its author saw it on the site. Raw HTML stays off, as it is there.
+// Same options as ModWorkshop.
 function createMarkdown() {
     const md = new MarkdownIt({ breaks: true, linkify: true })
     md.linkify.set({ fuzzyLink: false })
@@ -36,15 +35,12 @@ modworkshop.use(colorInline)
 modworkshop.use(markdownContainer, 'spoiler', '!')
 modworkshop.use(markdownContainer, 'center', ':')
 
-// ModWorkshop drops a hex color whose contrast against its page, #2b3036, is below 2.9,
-// and authors pick colors against that. Named colors are never checked there either.
+// ModWorkshop's threshold against its page color.
 function readableColor(color: string) {
     const hex = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(color)?.[1]
     return !hex || contrastRatio(hex, '2b3036') >= 2.9
 }
 
-// {color}(text). The span component turns data-color into a style, so no author text
-// ever reaches a style attribute directly.
 modworkshop.renderer.rules.color_open = (tokens, idx) => {
     const color = tokens[idx].info
     if (!readableColor(color)) return '<span>'
@@ -57,7 +53,6 @@ modworkshop.renderer.rules.container_spoiler_close = () => '</div></details>'
 modworkshop.renderer.rules.container_center_open = () => '<div class="center">'
 modworkshop.renderer.rules.container_center_close = () => '</div>'
 
-// ModWorkshop reads __text__ as underline, not bold.
 const underline: RendererRule = (tokens, idx, options, _env, self) => {
     const token = tokens[idx]
     if (token.markup === '__') token.tag = 'u'
@@ -66,8 +61,6 @@ const underline: RendererRule = (tokens, idx, options, _env, self) => {
 modworkshop.renderer.rules.strong_open = underline
 modworkshop.renderer.rules.strong_close = underline
 
-// @name links to that user's ModWorkshop page. It only counts at the start of the text or
-// after whitespace, so an email address stays plain.
 function mention(state: StateInline, silent: boolean) {
     const start = state.pos
     if (silent || state.src.charCodeAt(start) !== 0x40) return false
@@ -86,18 +79,14 @@ function mention(state: StateInline, silent: boolean) {
 }
 modworkshop.inline.ruler.after('emphasis', 'mention', mention)
 
-// ModWorkshop's legacy parser, parser_version 1, which mod text keeps until it is edited.
-// It lets HTML through, but only the HTML legacyBbcodeToHtml writes, since author text is
-// escaped first.
+// html is safe here only because author text is escaped before legacyBbcodeToHtml.
 const legacy = createMarkdown()
 legacy.set({ html: true })
-// Unlike the current parser it also links bare domains like crime.net.
 legacy.linkify.set({ fuzzyLink: true })
 legacy.renderer.rules.strong_open = underline
 legacy.renderer.rules.strong_close = underline
 legacy.inline.ruler.after('emphasis', 'mention', mention)
 
-// The legacy :::text::: is inline, so it also centers inside a heading or a quote.
 const LEGACY_CENTER = /^ {0,3}(:::+) *([\s\S]*?)\n? {0,3}\1/
 
 function legacyCenter(state: StateInline, silent: boolean) {
@@ -116,7 +105,6 @@ const LEGACY_SPOILER = /(?:^|\n) {0,3}(\|\|+) *([\s\S]*?)\n? {0,3}\1/g
 
 function renderLegacy(text: string) {
     const html = legacyBbcodeToHtml(legacy.utils.escapeHtml(text))
-        // Restored so markdown quotes and link titles still work on escaped text.
         .replaceAll('&gt;', '>')
         .replaceAll('&quot;', '"')
         .replace(
@@ -127,7 +115,6 @@ function renderLegacy(text: string) {
     return legacy.render(html)
 }
 
-// Release notes and other text that isn't ModWorkshop's.
 export function renderMarkdown(text: string): string {
     return plain.render(text)
 }

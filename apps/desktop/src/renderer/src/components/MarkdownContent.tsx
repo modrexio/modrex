@@ -8,7 +8,6 @@ const ModworkshopImpl = lazy(() => loadImpl().then((m) => ({ default: m.Modworks
 // warm the chunk during startup idle so the null fallback window rarely ever shows
 setTimeout(() => void loadImpl(), 2000)
 
-// Plain markdown, for text that isn't ModWorkshop's, like release notes.
 export function MarkdownContent(props: { text: string }) {
     return (
         <Suspense fallback={<SkeletonText />}>
@@ -17,7 +16,6 @@ export function MarkdownContent(props: { text: string }) {
     )
 }
 
-// Mod text from ModWorkshop, in its own markdown dialect.
 export function ModworkshopMarkup(props: {
     text: string
     legacy?: boolean

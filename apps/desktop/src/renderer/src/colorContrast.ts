@@ -7,7 +7,6 @@ function luminance(hex: string) {
     return 0.2126 * r + 0.7152 * g + 0.0722 * b
 }
 
-/** WCAG contrast ratio between two 3 or 6 digit hex colors, written without the #. */
 export function contrastRatio(a: string, b: string) {
     const la = luminance(a)
     const lb = luminance(b)

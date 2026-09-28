@@ -15,10 +15,7 @@ import { EmbedPlayer } from './EmbedPlayer'
 
 const InsidePreContext = createContext(false)
 
-// Defense in depth: markdown-it already escapes raw HTML, so this only ever sees markup
-// the parser and its plugins wrote. Must run before rehypeHighlight so its hljs classes
-// survive. span keeps data-color and data-size, which the span component turns into a
-// style, and span and div keep the alignment class of ::: text or a legacy [center].
+// Must run before rehypeHighlight so its hljs classes survive.
 const sanitizeSchema: SanitizeOptions = {
     ...defaultSchema,
     tagNames: [...(defaultSchema.tagNames ?? []), 'u'],
@@ -130,7 +127,6 @@ function makeComponents(onOpenDetail?: (modId: number) => void): Components {
                 </pre>
             </InsidePreContext.Provider>
         ),
-        // ModWorkshop embeds a video or audio track by writing it as an image.
         img: ({ src, alt }) => {
             if (typeof src !== 'string' || !src) return null
             const embed = detectEmbed(src)
@@ -166,7 +162,6 @@ function makeComponents(onOpenDetail?: (modId: number) => void): Components {
                 {children}
             </table>
         ),
-        // style here is only the text-align that toJsxRuntime makes from the align attribute.
         th: ({ children, style }) => (
             <th
                 style={style}
@@ -232,7 +227,6 @@ export function ModworkshopMarkup({
     onOpenDetail,
 }: {
     text: string
-    // Mod text ModWorkshop still renders with its legacy parser, see ModSummary.legacy_markup.
     legacy?: boolean
     onOpenDetail?: (modId: number) => void
 }) {

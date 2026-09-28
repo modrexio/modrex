@@ -141,7 +141,6 @@ describe('ModworkshopMarkup embeds', () => {
 })
 
 describe('ModworkshopMarkup media', () => {
-    // (UE5) Escape From Tarkov Cops & (male) Heisters VO, modworkshop 59215.
     it('embeds a SoundCloud track behind click-to-play', () => {
         const { container } = render(
             <ModworkshopMarkup
@@ -224,8 +223,6 @@ describe('ModworkshopMarkup spoilers', () => {
 })
 
 describe('ModworkshopMarkup centering', () => {
-    // GIVE ME THE POWER (modworkshop 57954) opens like this. Without ::: blocks the
-    // ---- under the text turned both lines into a heading.
     it('centers ::: lines and keeps the rule under them', () => {
         const { container, getByText } = render(
             <ModworkshopMarkup
@@ -330,7 +327,6 @@ describe('ModworkshopMarkup mentions', () => {
 })
 
 describe('ModworkshopMarkup legacy text', () => {
-    // Opening of Meth Helper Updated (modworkshop 25950), still on the legacy parser.
     const METH_HELPER =
         "An updated version of Kangaroo's [url=http://modwork.shop/14050]Meth Helper[/url].\n\n[hr]\n\n### [color=ffd700]About This Mod[/color]\n\n[b]Meth Helper Updated[/b] can display:\n[list]\n[*]The next ingredient\n[*]Which ingredients were added\n[/list]"
 

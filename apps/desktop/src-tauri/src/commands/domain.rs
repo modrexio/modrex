@@ -157,8 +157,7 @@ pub struct ModSummary {
     pub name: String,
     pub desc: String,
     pub short_desc: String,
-    /// Text ModWorkshop still renders with its legacy parser, parser_version 1, which mixes
-    /// BBCode into markdown. Always false for Nexus.
+    /// ModWorkshop parser_version 1, which mixes BBCode into markdown.
     pub legacy_markup: bool,
     pub downloads: i64,
     pub likes: i64,

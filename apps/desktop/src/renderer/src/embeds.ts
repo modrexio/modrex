@@ -1,13 +1,11 @@
-// Registry of video and audio embed platforms used by MarkdownContent to detect and render inline players
+// Registry of video embed platforms used by MarkdownContent to detect and render inline players
 
 export interface EmbedDef {
     type: string
     detect: (url: string) => string | null
-    // Absent where the host has no static thumbnail URL.
     thumbnailUrl?: (id: string) => string
     embedUrl: (id: string) => string
     watchUrl: (id: string) => string
-    // Fixed player height for audio widgets. Video players stay 16:9.
     height?: number
 }
 
@@ -56,7 +54,6 @@ const vimeo: EmbedDef = {
     watchUrl: (id) => `https://vimeo.com/${id}`,
 }
 
-// The id is the user/track path, soundcloud.com/<user>/<track>.
 const soundcloud: EmbedDef = {
     type: 'soundcloud',
     detect(url) {
@@ -71,7 +68,6 @@ const soundcloud: EmbedDef = {
 
 export const EMBEDS: EmbedDef[] = [YOUTUBE_EMBED, streamable, vimeo, soundcloud]
 
-// ModWorkshop plays an image link to an audio or video file in place, going by extension.
 const AUDIO_EXTENSIONS = ['aac', 'm4a', 'mp3', 'oga', 'ogg', 'wav']
 const VIDEO_EXTENSIONS = ['mp4', 'm4v', 'ogv', 'webm', 'mpg', 'mpeg', 'avi']
 

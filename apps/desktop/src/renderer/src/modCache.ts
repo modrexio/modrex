@@ -58,7 +58,6 @@ function loadFromStorage(): void {
         if (raw) {
             const stored = JSON.parse(raw) as Record<string, ModCacheEntry>
             for (const [key, entry] of Object.entries(stored)) {
-                // An entry without the newest field was stored by an older build.
                 if (now - entry.fetchedAt < STORAGE_TTL_MS && 'legacy_markup' in entry.mod) {
                     modCache.set(Number(key), entry)
                 }

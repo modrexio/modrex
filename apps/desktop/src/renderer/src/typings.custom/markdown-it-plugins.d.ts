@@ -1,4 +1,3 @@
-// Neither plugin ships types.
 declare module 'markdown-it-color-inline' {
     import type MarkdownIt from 'markdown-it'
     const plugin: (md: MarkdownIt) => void

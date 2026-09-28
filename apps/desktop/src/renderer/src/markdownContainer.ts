@@ -1,9 +1,7 @@
 import type MarkdownIt from 'markdown-it'
 import type { StateBlock } from 'markdown-it'
 
-// ModWorkshop's block containers, !!! for spoilers and ::: for centered text. A run of
-// three or more markers opens one and a run at least as long closes it. With no closing
-// run it lasts to the end of the text, and !!!text!!! on one line is a whole container.
+// A closing run must be at least as long as the opening one. Unclosed runs to the end.
 export function markdownContainer(md: MarkdownIt, name: string, marker: string) {
     const code = marker.charCodeAt(0)
 
