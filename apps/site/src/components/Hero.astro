@@ -21,31 +21,26 @@ const shots = [
         src: gamePicker,
         name: 'Game picker',
         alt: 'Choosing a game in Modrex: PAYDAY 3, PAYDAY 2, PAYDAY: The Heist, Crime Boss and RAID',
-        desc: 'Pick the game you want to mod.',
     },
     {
         src: browseMods,
         name: 'Browse mods',
         alt: 'Browsing ModWorkshop and Nexus Mods inside Modrex',
-        desc: 'ModWorkshop and Nexus Mods side by side, with categories, tags and sorting.',
     },
     {
         src: installedMods,
         name: 'Installed',
         alt: 'The Modrex installed mods list, each mod with its own switch',
-        desc: 'Every installed mod, each with its own on and off switch.',
     },
     {
         src: news,
         name: 'News',
         alt: 'The Modrex news tab showing the latest posts for the active game',
-        desc: 'The latest posts for the game you picked.',
     },
     {
         src: settings,
         name: 'Settings',
         alt: 'Modrex application settings: language, accent color, updates, usage analytics and Discord Rich Presence',
-        desc: 'Language, accent color, updates, analytics and Discord presence.',
     },
 ]
 
@@ -167,7 +162,6 @@ const releasedOn = release
                                 aria-controls="stage-panel"
                                 aria-selected={i === FIRST ? 'true' : 'false'}
                                 tabindex={i === FIRST ? 0 : -1}
-                                data-desc={s.desc}
                             >
                                 {s.name}
                             </button>
@@ -175,7 +169,6 @@ const releasedOn = release
                     }
                 </div>
             </div>
-            <p class="stage-desc" data-shot-desc>{shots[FIRST].desc}</p>
         </div>
     </div>
 
@@ -266,9 +259,6 @@ const releasedOn = release
         document
             .querySelectorAll('[data-shot-count]')
             .forEach((el) => (el.textContent = `${index + 1} / ${tabs.length}`))
-        document
-            .querySelectorAll('[data-shot-desc]')
-            .forEach((el) => (el.textContent = tabs[index].dataset.desc ?? ''))
         panel.setAttribute('aria-labelledby', tabs[index].id)
         openButton.setAttribute('aria-label', `Open ${name} fullscreen`)
     }
@@ -519,12 +509,6 @@ const releasedOn = release
         height: 16px;
     }
 
-    .stage-desc {
-        margin: 12px 0 0;
-        font-size: 14px;
-        color: var(--text-secondary);
-    }
-
     .stage-bar {
         display: none;
         align-items: center;
@@ -747,8 +731,7 @@ const releasedOn = release
             margin-top: 16px;
         }
 
-        .stage-tabs,
-        .stage-desc {
+        .stage-tabs {
             display: none;
         }
 
