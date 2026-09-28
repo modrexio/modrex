@@ -11,6 +11,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 ### Changed
 
 - ModWorkshop mod descriptions show raw HTML as text, the same way ModWorkshop does.
+- Mod descriptions use brighter text, clearer bold, real heading sizes and more list spacing, closer to how ModWorkshop and Nexus show them. Wide tables scroll instead of overflowing.
 
 ### Fixed
 

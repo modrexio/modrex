@@ -215,7 +215,7 @@ describe('NexusDescription', () => {
         const { getByText } = render(
             <NexusDescription text="[heading]Title[/heading][font=Impact]Body[/font]" />
         )
-        expect(getByText('Title').tagName).toBe('H3')
+        expect(getByText('Title').tagName).toBe('H2')
         expect(getByText('Body').style.fontFamily).toBe('Impact')
     })
 

@@ -221,7 +221,7 @@ class QuoteTag extends Tag {
 
 class HeadingTag extends Tag {
     toReact() {
-        return <h3>{Children.toArray(this.getComponents())}</h3>
+        return <h2>{Children.toArray(this.getComponents())}</h2>
     }
 }
 

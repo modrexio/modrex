@@ -59,29 +59,31 @@ const ALIGN: Record<string, string> = {
 function makeComponents(onOpenDetail?: (modId: number) => void): Components {
     return {
         p: ({ children }) => (
-            <div className="text-sm text-text-muted leading-relaxed mb-2">{children}</div>
+            <div className="text-sm text-text leading-relaxed mb-2">{children}</div>
         ),
         h1: ({ children }) => (
-            <h1 className="text-sm font-semibold text-text mt-4 mb-1">{children}</h1>
+            <h1 className="text-[1.75rem] font-semibold text-text mt-4 mb-3 pb-2 border-b border-border">
+                {children}
+            </h1>
         ),
         h2: ({ children }) => (
-            <h2 className="text-sm font-semibold text-text mt-4 mb-1">{children}</h2>
+            <h2 className="text-[1.3125rem] font-semibold text-text mt-4 mb-3 pb-2 border-b border-border">
+                {children}
+            </h2>
         ),
         h3: ({ children }) => (
-            <h3 className="text-sm font-semibold text-text mt-4 mb-1">{children}</h3>
+            <h3 className="text-base font-semibold text-text mt-4 mb-2">{children}</h3>
         ),
         h4: ({ children }) => (
-            <h4 className="text-sm font-semibold text-text mt-4 mb-1">{children}</h4>
+            <h4 className="text-sm font-semibold text-text mt-4 mb-2">{children}</h4>
         ),
-        ul: ({ children }) => (
-            <ul className="list-disc ml-5 mb-2 text-sm text-text-muted">{children}</ul>
-        ),
+        ul: ({ children }) => <ul className="list-disc ml-5 mb-2 text-sm text-text">{children}</ul>,
         ol: ({ children, start }) => (
-            <ol start={start} className="list-decimal ml-5 mb-2 text-sm text-text-muted">
+            <ol start={start} className="list-decimal ml-5 mb-2 text-sm text-text">
                 {children}
             </ol>
         ),
-        li: ({ children }) => <li className="mb-0.5">{children}</li>,
+        li: ({ children }) => <li className="mb-2">{children}</li>,
         a: ({ href, children }) => {
             if (!href) return <>{children}</>
             const modId = onOpenDetail ? parseModworkshopModId(href) : null
@@ -118,7 +120,7 @@ function makeComponents(onOpenDetail?: (modId: number) => void): Components {
         // style, which silently defeats any colored wrapper around bold text.
         // Letting it inherit is also correct in the plain case, since the surrounding
         // text already sets the base color.
-        strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+        strong: ({ children }) => <strong className="font-bold">{children}</strong>,
         em: ({ children }) => <em className="italic">{children}</em>,
         code: Code,
         pre: ({ children }) => (
@@ -144,7 +146,14 @@ function makeComponents(onOpenDetail?: (modId: number) => void): Components {
                     <audio src={src} controls preload="metadata" className="max-w-xl w-full my-2" />
                 )
             }
-            return <img src={src} alt={alt} loading="lazy" className="max-w-full rounded my-2" />
+            return (
+                <img
+                    src={src}
+                    alt={alt}
+                    loading="lazy"
+                    className="max-w-full max-h-[250px] rounded my-2"
+                />
+            )
         },
         hr: () => <hr className="border-t border-border my-3" />,
         blockquote: ({ children }) => (
@@ -153,7 +162,9 @@ function makeComponents(onOpenDetail?: (modId: number) => void): Components {
             </blockquote>
         ),
         table: ({ children }) => (
-            <table className="w-full text-sm text-left border-collapse my-2">{children}</table>
+            <table className="block max-w-full overflow-x-auto text-sm text-left border-collapse my-2">
+                {children}
+            </table>
         ),
         // style here is only the text-align that toJsxRuntime makes from the align attribute.
         th: ({ children, style }) => (
@@ -165,7 +176,7 @@ function makeComponents(onOpenDetail?: (modId: number) => void): Components {
             </th>
         ),
         td: ({ children, style }) => (
-            <td style={style} className="border border-border px-3 py-1.5 text-text-muted">
+            <td style={style} className="border border-border px-3 py-1.5 text-text">
                 {children}
             </td>
         ),

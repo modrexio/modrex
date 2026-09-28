@@ -260,7 +260,7 @@ describe('ModworkshopMarkup formatting', () => {
     // own, so it inherits whatever the surrounding text uses.
     it('lets bold text inherit an ancestor color instead of overriding it', () => {
         const { getByText } = render(<ModworkshopMarkup text={'{green}(**bold**)'} />)
-        expect(getByText('bold').className).toBe('font-semibold')
+        expect(getByText('bold').className).toBe('font-bold')
         expect(getByText('bold').closest('span')?.style.color).toBe('green')
     })
 
