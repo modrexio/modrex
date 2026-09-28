@@ -560,14 +560,8 @@ const releasedOn = release
         color: var(--color-text);
     }
 
-    /* The page stays locked while the viewer is open. html, not body, has to hold
-       the lock because html clips its own overflow, which stops body's overflow
-       from reaching the window. The gutter keeps the page from shifting when the
-       scrollbar goes away. */
-    :global(html) {
-        scrollbar-gutter: stable;
-    }
-
+    /* The viewer's scroll lock sits on html because html clips its own overflow,
+       which stops body's overflow from reaching the window. */
     :global(html:has(dialog.viewer[open])) {
         overflow: hidden;
     }

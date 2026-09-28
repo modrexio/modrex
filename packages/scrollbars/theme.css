@@ -1,0 +1,17 @@
+@import 'overlayscrollbars/overlayscrollbars.scriptingenabled.css';
+
+.os-theme-modrex {
+    --os-size: 10px;
+    --os-padding-perpendicular: 2px;
+    --os-padding-axis: 2px;
+    --os-track-border-radius: 9999px;
+    --os-handle-border-radius: 9999px;
+    --os-handle-bg: var(--color-surface-light);
+    --os-handle-bg-hover: var(--color-text-subtle);
+    --os-handle-bg-active: var(--color-text-muted);
+    --os-handle-min-size: 32px;
+    --os-handle-perpendicular-size: 60%;
+    --os-handle-perpendicular-size-hover: 100%;
+    --os-handle-perpendicular-size-active: 100%;
+    --os-handle-interactive-area-offset: 4px;
+}

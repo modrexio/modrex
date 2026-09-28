@@ -53,6 +53,8 @@ export default defineConfig({
             expressiveCode: {
                 themes: [modrexCodeTheme],
                 useStarlightUiThemeColors: true,
+                // Wrapped code never scrolls sideways, see Scrollbars.astro.
+                defaultProps: { wrap: true },
                 styleOverrides: {
                     borderRadius: 'var(--radius-sm)',
                     borderColor: 'var(--color-border)',

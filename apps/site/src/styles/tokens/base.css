@@ -1,7 +1,7 @@
 /* ============================================================
    Modrex — base element defaults
-   Mirrors the app's global resets (cursor on buttons, custom
-   scrollbars) and sets the dark canvas + system-sans body.
+   Mirrors the app's global resets (cursor on buttons) and sets
+   the dark canvas + system-sans body.
    ============================================================ */
 
 *,
@@ -40,22 +40,6 @@ body {
 button:not(:disabled),
 input[type='checkbox']:not(:disabled) {
     cursor: pointer;
-}
-
-/* The app's custom scrollbars — thin, surface-colored */
-::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-}
-::-webkit-scrollbar-track {
-    background: var(--color-surface-raised);
-}
-::-webkit-scrollbar-thumb {
-    background: var(--color-surface-light);
-    border-radius: 3px;
-}
-::-webkit-scrollbar-thumb:hover {
-    background: var(--color-text-subtle);
 }
 
 /* Selection picks up the accent */
