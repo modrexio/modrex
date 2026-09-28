@@ -8,6 +8,7 @@ mod host_mods;
 mod identify;
 pub mod identity;
 mod install;
+mod moves;
 mod naming;
 mod nexus_content;
 mod paths;

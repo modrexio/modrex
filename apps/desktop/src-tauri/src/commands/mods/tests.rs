@@ -4524,6 +4524,207 @@ fn reorder_applies_priority_prefix_for_targets_that_use_it() {
     assert_eq!(filenames, vec!["001_Foo.pak", "002_Bar.pak"]);
 }
 
+// ── renames carry .ucas and .utoc ────────────────────────────────────────────
+
+fn write_triplet(dir: &Path, stem: &str, suffix: &str) {
+    fs::create_dir_all(dir).unwrap();
+    for ext in ["pak", "ucas", "utoc"] {
+        fs::write(
+            dir.join(format!("{stem}.{ext}{suffix}")),
+            format!("{stem} {ext}"),
+        )
+        .unwrap();
+    }
+}
+
+fn assert_triplet(dir: &Path, stem: &str, suffix: &str, content_stem: &str) {
+    for ext in ["pak", "ucas", "utoc"] {
+        let path = dir.join(format!("{stem}.{ext}{suffix}"));
+        assert_eq!(
+            fs::read_to_string(&path).unwrap_or_else(|e| panic!("{path:?}: {e}")),
+            format!("{content_stem} {ext}")
+        );
+    }
+}
+
+fn pak_record(uid: &str, filename: &str, enabled: bool, priority: i64) -> InstalledMod {
+    InstalledMod {
+        uid: uid.into(),
+        filename: filename.into(),
+        enabled,
+        priority: Some(priority),
+        ..InstalledMod::default()
+    }
+}
+
+#[test]
+fn reorder_in_folder_renames_companions_of_enabled_and_disabled_mods() {
+    let cfg = engine_for_game("pd3").unwrap();
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let sp = get_state_path(game, cfg);
+    let active = mods_dir(game, cfg.primary());
+    let disabled = disabled_dir(game, cfg.primary());
+    write_triplet(&active, "005_A_P", "");
+    write_triplet(&disabled, "009_B_P", ".disabled");
+    save_state(
+        &sp,
+        &ModsState {
+            folders: vec![],
+            mods: vec![
+                pak_record("a", "005_A_P.pak", true, 5),
+                pak_record("b", "009_B_P.pak", false, 9),
+            ],
+        },
+    )
+    .unwrap();
+
+    reorder_mods_in_folder_op(game, &sp, None, &["a".into(), "b".into()], cfg).unwrap();
+
+    assert_triplet(&active, "002_A_P", "", "005_A_P");
+    assert_triplet(&disabled, "001_B_P", ".disabled", "009_B_P");
+    let names: Vec<String> = read_state(&sp)
+        .unwrap()
+        .mods
+        .into_iter()
+        .map(|m| m.filename)
+        .collect();
+    assert_eq!(names, vec!["002_A_P.pak", "001_B_P.pak"]);
+}
+
+#[test]
+fn reorder_children_renames_companions_and_folders_together() {
+    let cfg = engine_for_game("pd3").unwrap();
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let sp = get_state_path(game, cfg);
+    let active = mods_dir(game, cfg.primary());
+    write_triplet(&active, "001_A_P", "");
+    write_triplet(&active.join("002_Skins"), "001_S_P", "");
+    save_state(
+        &sp,
+        &ModsState {
+            folders: vec![folder("f", "002_Skins", None)],
+            mods: vec![
+                pak_record("a", "001_A_P.pak", true, 1),
+                InstalledMod {
+                    folder_id: Some("f".into()),
+                    ..pak_record("s", "001_S_P.pak", true, 1)
+                },
+            ],
+        },
+    )
+    .unwrap();
+
+    reorder_children_op(
+        game,
+        &sp,
+        None,
+        &[
+            TopLevelItem::Mod { id: "a".into() },
+            TopLevelItem::Folder { id: "f".into() },
+        ],
+        cfg,
+    )
+    .unwrap();
+
+    assert_triplet(&active, "002_A_P", "", "001_A_P");
+    assert_triplet(&active.join("001_Skins"), "001_S_P", "", "001_S_P");
+    assert!(!active.join("002_Skins").exists());
+}
+
+#[test]
+fn moving_a_mod_into_a_folder_takes_its_companions() {
+    let cfg = engine_for_game("pd3").unwrap();
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let sp = get_state_path(game, cfg);
+    let active = mods_dir(game, cfg.primary());
+    let disabled = disabled_dir(game, cfg.primary());
+    write_triplet(&active, "003_A_P", "");
+    write_triplet(&disabled, "004_B_P", ".disabled");
+    fs::create_dir_all(active.join("001_Skins")).unwrap();
+    save_state(
+        &sp,
+        &ModsState {
+            folders: vec![folder("f", "001_Skins", None)],
+            mods: vec![
+                pak_record("a", "003_A_P.pak", true, 3),
+                pak_record("b", "004_B_P.pak", false, 4),
+            ],
+        },
+    )
+    .unwrap();
+
+    move_mod_to_folder_op(game, &sp, "a", Some("f".into()), 0, cfg).unwrap();
+    move_mod_to_folder_op(game, &sp, "b", Some("f".into()), 0, cfg).unwrap();
+
+    assert_triplet(&active.join("001_Skins"), "001_A_P", "", "003_A_P");
+    assert_triplet(
+        &disabled.join("001_Skins"),
+        "002_B_P",
+        ".disabled",
+        "004_B_P",
+    );
+    assert_eq!(fs::read_dir(&active).unwrap().count(), 3);
+}
+
+#[test]
+fn reordering_legacy_crime_boss_paks_renames_their_companions() {
+    let cfg = engine_for_game("cb").unwrap();
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let sp = get_state_path(game, cfg);
+    let legacy = cfg.target_for(Some("paks"));
+    let active = mods_dir(game, legacy);
+    write_triplet(&active, "004_Loose", "");
+    save_state(
+        &sp,
+        &ModsState {
+            folders: vec![],
+            mods: vec![InstalledMod {
+                location: Some("paks".into()),
+                ..pak_record("l", "004_Loose.pak", true, 4)
+            }],
+        },
+    )
+    .unwrap();
+
+    reorder_mods_in_folder_op(game, &sp, None, &["l".into()], cfg).unwrap();
+
+    assert_triplet(&active, "001_Loose", "", "004_Loose");
+}
+
+#[test]
+fn a_reorder_blocked_by_a_stray_file_changes_nothing() {
+    let cfg = engine_for_game("pd3").unwrap();
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let sp = get_state_path(game, cfg);
+    let active = mods_dir(game, cfg.primary());
+    write_triplet(&active, "005_A_P", "");
+    fs::write(active.join("001_A_P.utoc"), "stray").unwrap();
+    save_state(
+        &sp,
+        &ModsState {
+            folders: vec![],
+            mods: vec![pak_record("a", "005_A_P.pak", true, 5)],
+        },
+    )
+    .unwrap();
+    let before = fs::read(&sp).unwrap();
+
+    let err = reorder_mods_in_folder_op(game, &sp, None, &["a".into()], cfg).unwrap_err();
+
+    assert!(err.contains("001_A_P.utoc"), "{err}");
+    assert_eq!(fs::read(&sp).unwrap(), before);
+    assert_triplet(&active, "005_A_P", "", "005_A_P");
+    assert_eq!(
+        fs::read_to_string(active.join("001_A_P.utoc")).unwrap(),
+        "stray"
+    );
+}
+
 // ── move_crimeboss_mod_target_op ──────────────────────────────────────────────
 
 fn write_skeleton_pak(skeleton_root: &Path, pak_name: &str, content: &[u8]) {
