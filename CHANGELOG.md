@@ -4,34 +4,15 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 ## Unreleased
 
-### Added
-
-- ModWorkshop mod descriptions now play SoundCloud tracks, Vimeo videos and linked video and audio files in place, as on ModWorkshop.
-
 ### Changed
 
-- ModWorkshop mod descriptions show raw HTML as text, the same way ModWorkshop does.
-- Mod descriptions use brighter text, clearer bold, real heading sizes and more list spacing, closer to how ModWorkshop and Nexus show them. Wide tables scroll instead of overflowing.
+- Mod descriptions now look the way they do on ModWorkshop and Nexus.
 
 ### Fixed
 
 - Fixed Restart & Install not restarting Modrex on Linux after installing an update.
 - Fixed UE4SS mods installing to a folder PAYDAY 3's UE4SS does not read.
-- Fixed images in mod descriptions not loading when hosted on sites like Imgur or Discord.
-- Fixed code blocks in Nexus mod descriptions showing `[br]` tags and escaped quotes instead of line breaks and quotes.
-- Fixed `[left]` tags showing as text in Nexus mod descriptions.
-- Fixed sized text in Nexus mod descriptions, where small print showed larger than normal text.
-- Fixed stray blank space inside tables in Nexus mod descriptions.
-- Fixed quote authors in Nexus mod descriptions always showing in English.
-- Fixed Nexus file descriptions showing doubled line breaks and raw formatting tags.
-- Fixed videos in ModWorkshop mod descriptions breaking inside spoilers, quotes, lists and tables.
-- Fixed older ModWorkshop mod descriptions showing raw BBCode like `[b]` and `[url]` instead of formatted text.
-- Fixed Streamable videos linked as `streamable.com/e/...` not playing in mod descriptions.
-- Fixed some ModWorkshop spoilers showing as plain text with their `!!!` markers.
-- Fixed ModWorkshop mod descriptions showing `:::` markers instead of centered text, which also turned the text above a divider into a heading.
-- Fixed `__text__` in ModWorkshop mod descriptions showing bold instead of underlined.
-- Fixed @mentions in ModWorkshop mod descriptions not linking to the user's page.
-- Fixed text in ModWorkshop mod descriptions colored too dark to read. It shows in the normal color, as on ModWorkshop.
+- Fixed broken formatting, images and videos in mod descriptions.
 
 ### Security
 
