@@ -14,9 +14,19 @@ import type { InstalledGroup } from '../hooks/installedUtils'
 import type { HealthItem, MissingDepRef } from '../hooks/healthCheck'
 import type { InstalledMod, ModSummary } from '../../../shared/types'
 import { useThumbnail } from '../hooks/useThumbnail'
-import { api } from '../api'
+import { api, type LeftoverFiles } from '../api'
 import { uninstallablePromptMessage } from '../installSentinels'
+import { formatBytes } from './modDetail/format'
 import NexusIcon from '../../../../assets/icons/nexusmods.svg?react'
+
+export interface Leftovers {
+    sets: LeftoverFiles[]
+    error: string | null
+}
+
+function leftoverKey(l: LeftoverFiles): string {
+    return `${l.target}|${l.disabled}|${l.folder}|${l.stem}`
+}
 
 interface LocalHealthItem {
     id: number
@@ -32,6 +42,9 @@ interface Props {
     modData: Map<number, ModSummary>
     missingDeps: HealthItem[]
     showDepsTab: boolean
+    leftovers: Leftovers
+    showLeftoversTab: boolean
+    onLeftoversChanged: () => Promise<void>
     gamePath: string | null
     gameId: string
     loadingMod: string | null
@@ -134,6 +147,9 @@ export function HealthCheckModal({
     modData,
     missingDeps,
     showDepsTab,
+    leftovers,
+    showLeftoversTab,
+    onLeftoversChanged,
     gamePath,
     gameId,
     loadingMod,
@@ -148,6 +164,24 @@ export function HealthCheckModal({
     const [installingDepId, setInstallingDepId] = useState<number | null>(null)
     const [installingAll, setInstallingAll] = useState(false)
     const [depInstallError, setDepInstallError] = useState<string | null>(null)
+    // A delete asks twice: the first click arms it, the second deletes.
+    const [armedLeftover, setArmedLeftover] = useState<string | null>(null)
+    const [deletingLeftovers, setDeletingLeftovers] = useState(false)
+    const [leftoverError, setLeftoverError] = useState<string | null>(null)
+
+    async function deleteLeftovers(sets: LeftoverFiles[]) {
+        setDeletingLeftovers(true)
+        setLeftoverError(null)
+        try {
+            await api.deleteLeftoverFiles(sets, gameId)
+        } catch (e) {
+            setLeftoverError(t('installed.health.deleteLeftoversFailed', { error: String(e) }))
+        } finally {
+            setArmedLeftover(null)
+            setDeletingLeftovers(false)
+        }
+        await onLeftoversChanged()
+    }
 
     async function installDep(depId: number) {
         if (!gamePath || installingDepId !== null || installingAll) return
@@ -239,11 +273,63 @@ export function HealthCheckModal({
             id: 'unidentified',
             label: t('installed.health.unidentifiedCount', { count: unidentifiedItems.length }),
         },
+        ...(showLeftoversTab
+            ? [
+                  {
+                      id: 'leftovers',
+                      label: t('installed.health.leftoversCount', {
+                          count: leftovers.sets.length,
+                      }),
+                  },
+              ]
+            : []),
         {
             id: 'updates',
             label: t('installed.health.updatesCount', { count: updatable.length }),
         },
     ]
+
+    function leftoversContent() {
+        if (leftovers.error !== null) {
+            return (
+                <EmptyTab>
+                    {t('installed.health.leftoversLoadFailed', { error: leftovers.error })}
+                </EmptyTab>
+            )
+        }
+        if (leftovers.sets.length === 0) {
+            return <EmptyTab>{t('installed.health.noLeftovers')}</EmptyTab>
+        }
+        return leftovers.sets.map((l) => {
+            const key = leftoverKey(l)
+            const armed = armedLeftover === key
+            return (
+                <HealthRow
+                    key={key}
+                    name={l.folder ? `${l.folder}/${l.stem}` : l.stem}
+                    secondary={t('installed.health.leftoverHint', {
+                        files: l.files.join(', '),
+                        size: formatBytes(l.bytes),
+                    })}
+                    action={
+                        <Button
+                            variant={armed ? 'danger' : 'secondary'}
+                            size="sm"
+                            disabled={deletingLeftovers}
+                            onClick={() =>
+                                armed ? void deleteLeftovers([l]) : setArmedLeftover(key)
+                            }
+                            className="px-2.5 shrink-0"
+                        >
+                            {armed
+                                ? t('installed.health.confirmDelete')
+                                : t('installed.health.deleteLeftover')}
+                        </Button>
+                    }
+                />
+            )
+        })
+    }
 
     return (
         <Dialog
@@ -470,6 +556,14 @@ export function HealthCheckModal({
                             ))
                         )}
                     </Tabs.Content>
+                    {showLeftoversTab && (
+                        <Tabs.Content
+                            value="leftovers"
+                            className="focus:outline-none flex flex-col gap-0.5"
+                        >
+                            {leftoversContent()}
+                        </Tabs.Content>
+                    )}
                     <Tabs.Content
                         value="updates"
                         className="focus:outline-none flex flex-col gap-0.5"
@@ -558,6 +652,31 @@ export function HealthCheckModal({
                     >
                         {t('installed.health.reinstallAll')}
                     </Button>
+                )}
+                {activeTab === 'leftovers' && (
+                    <>
+                        {leftoverError && (
+                            <span className="text-xs text-danger-text truncate">
+                                {leftoverError}
+                            </span>
+                        )}
+                        {leftovers.sets.length > 0 && (
+                            <Button
+                                variant={armedLeftover === 'all' ? 'danger' : 'accent'}
+                                size="md"
+                                disabled={deletingLeftovers}
+                                onClick={() =>
+                                    armedLeftover === 'all'
+                                        ? void deleteLeftovers(leftovers.sets)
+                                        : setArmedLeftover('all')
+                                }
+                            >
+                                {armedLeftover === 'all'
+                                    ? t('installed.health.confirmDeleteAll')
+                                    : t('installed.health.deleteAllLeftovers')}
+                            </Button>
+                        )}
+                    </>
                 )}
                 {activeTab === 'updates' && updatable.length > 0 && (
                     <Button variant="accent" size="md" onClick={onReviewUpdates}>

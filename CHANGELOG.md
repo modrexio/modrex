@@ -7,6 +7,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 ### Added
 
 - Health Check lists mods whose .ucas and .utoc files are missing under Missing files, where they can be reinstalled.
+- Health Check lists leftover .ucas and .utoc files that no installed mod uses, and can delete them.
 
 ### Changed
 

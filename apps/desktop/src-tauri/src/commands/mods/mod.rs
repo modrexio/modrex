@@ -24,6 +24,7 @@ mod ue4ss_modstxt;
 mod zip;
 
 // Public API used by lib.rs, launchers/, and other modules
+pub use self::companions::LeftoverFiles;
 pub use self::engine::{
     backup_dir, engine_for_game, ModEngineConfig, ModUnit, ScanTarget, StoreLayout,
 };
@@ -429,6 +430,39 @@ pub async fn get_installed(app: AppHandle, game_id: String) -> Result<InstalledR
         mods_hidden: false,
         state_unreadable: writeback.blocked(),
     })
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn list_leftover_files(
+    app: AppHandle,
+    game_id: String,
+) -> Result<Vec<LeftoverFiles>, String> {
+    let cfg = engine_for_game(&game_id)?;
+    let settings = read_settings(&app);
+    let Some(game_path) = game_settings(&settings, &game_id).and_then(|gs| gs.game_path.clone())
+    else {
+        return Ok(vec![]);
+    };
+    let _state_guard = lock_game_state(&app, &game_id).await;
+    Ok(companions::leftover_sets(&game_path, cfg))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn delete_leftover_files(
+    app: AppHandle,
+    game_id: String,
+    sets: Vec<LeftoverFiles>,
+) -> Result<(), String> {
+    let cfg = engine_for_game(&game_id)?;
+    let settings = read_settings(&app);
+    let Some(game_path) = game_settings(&settings, &game_id).and_then(|gs| gs.game_path.clone())
+    else {
+        return Err(format!("{game_id} has no configured game path"));
+    };
+    let _state_guard = lock_game_state(&app, &game_id).await;
+    companions::delete_leftover_sets(&game_path, cfg, &sets)
 }
 
 fn mark_containers(

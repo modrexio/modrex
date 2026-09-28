@@ -255,7 +255,16 @@
             "installDep": "Install",
             "installAllDeps": "Install All Dependencies",
             "installDepFailed": "Some dependencies couldn't be installed automatically.",
-            "reinstallAll": "Reinstall All"
+            "reinstallAll": "Reinstall All",
+            "leftoversCount": "Leftover files ({count})",
+            "noLeftovers": "No leftover files.",
+            "leftoversLoadFailed": "Leftover files couldn't be listed: {error}",
+            "leftoverHint": "{files}, {size}. No installed mod uses these files.",
+            "deleteLeftover": "Delete",
+            "confirmDelete": "Confirm",
+            "deleteAllLeftovers": "Delete All",
+            "confirmDeleteAll": "Confirm Delete All",
+            "deleteLeftoversFailed": "Some leftover files couldn't be deleted: {error}"
         }
     },
     "news": {

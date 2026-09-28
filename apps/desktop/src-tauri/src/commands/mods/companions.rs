@@ -7,6 +7,7 @@ use super::state::get_folder_path;
 use super::types::{InstalledMod, ModFolder};
 use crate::commands::mod_index;
 use crate::commands::pak_viewer::pak_entries;
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -17,6 +18,19 @@ pub(crate) struct CompanionSet {
     pub stem: String,
     pub disabled: bool,
     pub files: Vec<(&'static str, PathBuf)>,
+}
+
+/// A companion set no pak uses, as Health Check lists it. target, disabled, folder and stem
+/// name the set; files and bytes are for display only.
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct LeftoverFiles {
+    pub target: String,
+    pub disabled: bool,
+    pub folder: String,
+    pub stem: String,
+    pub files: Vec<String>,
+    pub bytes: u64,
 }
 
 impl CompanionSet {
@@ -144,13 +158,10 @@ pub(crate) fn rejoin_split_companions(
     index: Option<&rusqlite::Connection>,
 ) -> usize {
     let mut rejoined = 0;
-    for target in cfg.targets {
+    for target in companion_targets(game_path, cfg) {
         let ModUnit::File { extension, .. } = &target.unit else {
             continue;
         };
-        if target.companions.is_empty() || backup_dir(game_path, target).exists() {
-            continue;
-        }
         let scan = scan(game_path, target);
         let orphans = orphans(&scan);
         if orphans.is_empty() {
@@ -235,6 +246,102 @@ pub(crate) fn rejoin_split_companions(
         }
     }
     rejoined
+}
+
+fn companion_targets<'a>(
+    game_path: &'a str,
+    cfg: &'a ModEngineConfig,
+) -> impl Iterator<Item = &'static ScanTarget> + 'a {
+    cfg.targets.iter().filter(move |target| {
+        matches!(target.unit, ModUnit::File { .. })
+            && !target.companions.is_empty()
+            && !backup_dir(game_path, target).exists()
+    })
+}
+
+fn leftover_key(target: &ScanTarget, set: &CompanionSet, game_path: &str) -> LeftoverFiles {
+    let root = if set.disabled {
+        disabled_base(game_path, target)
+    } else {
+        mods_base(game_path, target)
+    };
+    let folder = set
+        .dir
+        .strip_prefix(&root)
+        .map(|rel| rel.to_string_lossy().replace('\\', "/"))
+        .unwrap_or_default();
+    let mut files: Vec<String> = set
+        .files
+        .iter()
+        .filter_map(|(_, p)| p.file_name().map(|n| n.to_string_lossy().into_owned()))
+        .collect();
+    files.sort();
+    LeftoverFiles {
+        target: target.tag.to_string(),
+        disabled: set.disabled,
+        folder,
+        stem: set.stem.clone(),
+        files,
+        bytes: set
+            .files
+            .iter()
+            .filter_map(|(_, p)| fs::metadata(p).ok())
+            .map(|m| m.len())
+            .sum(),
+    }
+}
+
+/// Every companion set that no pak beside it uses. The game never mounts these.
+pub(crate) fn leftover_sets(game_path: &str, cfg: &ModEngineConfig) -> Vec<LeftoverFiles> {
+    let mut leftovers: Vec<LeftoverFiles> = companion_targets(game_path, cfg)
+        .flat_map(|target| {
+            let scan = scan(game_path, target);
+            orphans(&scan)
+                .into_iter()
+                .map(|set| leftover_key(target, set, game_path))
+                .collect::<Vec<_>>()
+        })
+        .collect();
+    leftovers.sort_by(|a, b| (&a.folder, &a.stem).cmp(&(&b.folder, &b.stem)));
+    leftovers
+}
+
+/// Deletes the requested sets that are still leftovers. What gets deleted comes from a fresh
+/// scan, never from the request, so a set a pak took back in the meantime is refused.
+pub(crate) fn delete_leftover_sets(
+    game_path: &str,
+    cfg: &ModEngineConfig,
+    requested: &[LeftoverFiles],
+) -> Result<(), String> {
+    let same = |a: &LeftoverFiles, b: &LeftoverFiles| {
+        a.target == b.target && a.disabled == b.disabled && a.folder == b.folder && a.stem == b.stem
+    };
+    let mut current: Vec<(LeftoverFiles, Vec<PathBuf>)> = Vec::new();
+    for target in companion_targets(game_path, cfg) {
+        let scan = scan(game_path, target);
+        for set in orphans(&scan) {
+            let paths = set.files.iter().map(|(_, p)| p.clone()).collect();
+            current.push((leftover_key(target, set, game_path), paths));
+        }
+    }
+
+    let mut problems = Vec::new();
+    for want in requested {
+        let Some((_, paths)) = current.iter().find(|(have, _)| same(have, want)) else {
+            problems.push(format!("{} is no longer a leftover", want.stem));
+            continue;
+        };
+        for path in paths {
+            match fs::remove_file(path) {
+                Ok(()) => log::info!("companions: deleted leftover {}", log_name(path)),
+                Err(e) => problems.push(format!("{}: {e}", log_name(path))),
+            }
+        }
+    }
+    if problems.is_empty() {
+        return Ok(());
+    }
+    Err(problems.join("; "))
 }
 
 /// Flags each tracked pak that lists no assets of its own while every companion it needs is

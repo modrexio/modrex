@@ -381,3 +381,95 @@ fn a_missing_pak_is_left_to_the_missing_flag() {
 
     assert_eq!(flag(&game, m), None);
 }
+
+// ── leftovers ───────────────────────────────────────────────────────────────
+
+fn leftovers_fixture() -> Game {
+    let game = Game::pd3();
+    put(&game.active(), "002_Mine_P.pak", "stub");
+    companions(&game.active(), "002_Mine_P", "", "mine");
+    companions(&game.active(), "018_BagTracker_P", "", "bag");
+    companions(
+        &game.disabled().join("Skins"),
+        "003_Old_P",
+        ".disabled",
+        "old",
+    );
+    game
+}
+
+#[test]
+fn only_sets_no_pak_uses_are_leftovers() {
+    let game = leftovers_fixture();
+
+    let leftovers = leftover_sets(&game.path, game.cfg);
+
+    let names: Vec<(&str, &str, bool)> = leftovers
+        .iter()
+        .map(|l| (l.folder.as_str(), l.stem.as_str(), l.disabled))
+        .collect();
+    assert_eq!(
+        names,
+        vec![
+            ("", "018_BagTracker_P", false),
+            ("Skins", "003_Old_P", true)
+        ]
+    );
+    assert_eq!(
+        leftovers[0].files,
+        vec!["018_BagTracker_P.ucas", "018_BagTracker_P.utoc"]
+    );
+    assert_eq!(
+        leftovers[0].bytes,
+        ("bag ucas".len() + "bag utoc".len()) as u64
+    );
+}
+
+#[test]
+fn deleting_a_leftover_removes_only_that_set() {
+    let game = leftovers_fixture();
+    let bag = leftover_sets(&game.path, game.cfg).remove(0);
+
+    delete_leftover_sets(&game.path, game.cfg, &[bag]).unwrap();
+
+    assert!(!game.active().join("018_BagTracker_P.ucas").exists());
+    assert!(!game.active().join("018_BagTracker_P.utoc").exists());
+    assert!(game.active().join("002_Mine_P.ucas").exists());
+    assert!(game
+        .disabled()
+        .join("Skins")
+        .join("003_Old_P.ucas.disabled")
+        .exists());
+}
+
+#[test]
+fn a_set_a_pak_took_back_is_not_deleted() {
+    let game = leftovers_fixture();
+    let bag = leftover_sets(&game.path, game.cfg).remove(0);
+    put(&game.active(), "018_BagTracker_P.pak", "stub");
+
+    let err = delete_leftover_sets(&game.path, game.cfg, &[bag]).unwrap_err();
+
+    assert!(err.contains("018_BagTracker_P"), "{err}");
+    assert!(game.active().join("018_BagTracker_P.ucas").exists());
+}
+
+#[test]
+fn the_files_to_delete_come_from_the_scan_not_the_request() {
+    let game = leftovers_fixture();
+    let mut bag = leftover_sets(&game.path, game.cfg).remove(0);
+    bag.files = vec!["002_Mine_P.ucas".into()];
+
+    delete_leftover_sets(&game.path, game.cfg, &[bag]).unwrap();
+
+    assert!(game.active().join("002_Mine_P.ucas").exists());
+    assert!(!game.active().join("018_BagTracker_P.ucas").exists());
+}
+
+#[test]
+fn no_leftovers_are_listed_while_the_mods_folder_is_set_aside() {
+    let game = leftovers_fixture();
+    fs::create_dir_all(backup_dir(&game.path, game.cfg.primary())).unwrap();
+
+    assert!(leftover_sets(&game.path, game.cfg).is_empty());
+}

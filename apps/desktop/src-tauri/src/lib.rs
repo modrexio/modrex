@@ -86,6 +86,8 @@ fn ipc_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::mods::create_folder,
             commands::mods::rename_folder,
             commands::mods::delete_folder,
+            commands::mods::list_leftover_files,
+            commands::mods::delete_leftover_files,
             commands::mods::open_mods_folder,
             commands::mods::list_mod_folders,
             commands::mods::open_mod_folder,

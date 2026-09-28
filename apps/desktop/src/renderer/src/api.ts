@@ -10,6 +10,7 @@ import {
 } from '../../shared/bindings'
 import type {
     DetectedInstall,
+    LeftoverFiles,
     LoaderInfo,
     SourceInfo,
     NexusArchiveIdentity,
@@ -22,6 +23,7 @@ export type { LoaderPage, LoaderPresence, ReplacementPlan }
 export type {
     InstallOutcome,
     DetectedInstall,
+    LeftoverFiles,
     LoaderInfo,
     SourceInfo,
     NexusArchiveIdentity,
@@ -546,6 +548,14 @@ export const api = {
     },
     async deleteFolder(folderId: string, gamePath: string, gameId: string): Promise<void> {
         await commands.deleteFolder(gamePath, folderId, gameId)
+    },
+
+    listLeftoverFiles(gameId: string): Promise<LeftoverFiles[]> {
+        return commands.listLeftoverFiles(gameId)
+    },
+
+    async deleteLeftoverFiles(sets: LeftoverFiles[], gameId: string): Promise<void> {
+        await commands.deleteLeftoverFiles(gameId, sets)
     },
 
     isPd2Diesel3(gamePath: string): Promise<boolean> {
