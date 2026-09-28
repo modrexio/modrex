@@ -869,10 +869,7 @@ export type ModSummary = {
 	name: string,
 	desc: string,
 	short_desc: string,
-	/**
-	 *  Text ModWorkshop still renders with its legacy parser, parser_version 1, which mixes
-	 *  BBCode into markdown. Always false for Nexus.
-	 */
+	/**  ModWorkshop parser_version 1, which mixes BBCode into markdown. */
 	legacy_markup: boolean,
 	downloads: number,
 	likes: number,
