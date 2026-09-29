@@ -13,15 +13,21 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 /// Companion files sharing one stem in one directory.
-pub(crate) struct CompanionSet {
-    pub dir: PathBuf,
-    pub stem: String,
-    pub disabled: bool,
-    pub files: Vec<(&'static str, PathBuf)>,
+struct CompanionSet {
+    dir: PathBuf,
+    stem: String,
+    disabled: bool,
+    files: Vec<(&'static str, PathBuf)>,
+}
+
+impl CompanionSet {
+    fn key(&self) -> (PathBuf, String, bool) {
+        (self.dir.clone(), self.stem.clone(), self.disabled)
+    }
 }
 
 /// A companion set no pak uses, as Health Check lists it. target, disabled, folder and stem
-/// name the set; files and bytes are for display only.
+/// name the set. files and bytes are only for display.
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct LeftoverFiles {
@@ -31,12 +37,6 @@ pub struct LeftoverFiles {
     pub stem: String,
     pub files: Vec<String>,
     pub bytes: u64,
-}
-
-impl CompanionSet {
-    fn key(&self) -> (PathBuf, String, bool) {
-        (self.dir.clone(), self.stem.clone(), self.disabled)
-    }
 }
 
 struct Scan {
@@ -260,7 +260,7 @@ fn companion_targets<'a>(
     })
 }
 
-fn leftover_key(target: &ScanTarget, set: &CompanionSet, game_path: &str) -> LeftoverFiles {
+fn to_leftover(target: &ScanTarget, set: &CompanionSet, game_path: &str) -> LeftoverFiles {
     let root = if set.disabled {
         disabled_base(game_path, target)
     } else {
@@ -304,7 +304,7 @@ pub(crate) fn leftover_sets(
         leftovers.extend(
             orphans(&scan)
                 .into_iter()
-                .map(|set| leftover_key(target, set, game_path)),
+                .map(|set| to_leftover(target, set, game_path)),
         );
     }
     leftovers.sort_by(|a, b| (&a.folder, &a.stem).cmp(&(&b.folder, &b.stem)));
@@ -326,7 +326,7 @@ pub(crate) fn delete_leftover_sets(
         let scan = scan(game_path, target)?;
         for set in orphans(&scan) {
             let paths = set.files.iter().map(|(_, p)| p.clone()).collect();
-            current.push((leftover_key(target, set, game_path), paths));
+            current.push((to_leftover(target, set, game_path), paths));
         }
     }
 

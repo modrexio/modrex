@@ -352,11 +352,10 @@ pub(crate) fn regroup_negative_ids_by_name_suffix(mods: &mut [InstalledMod]) {
     }
 }
 
-/// Gives a record back the mod it was installed as when a rewrite of the state file replaced
-/// it with another. Builds before 0.15.0 identified by a pak's hash alone, and an Unreal
-/// container stub is byte-identical across unrelated mods, so running one on a newer state
-/// file relabeled those installs. A record changes only when its own files hash, without
-/// ambiguity, to the mod its uid was minted from.
+/// Gives a record back the mod its uid was minted from when the state file names another. A
+/// build before 0.15.0 run on this state file relabels installs by a container stub's hash,
+/// which unrelated mods share. A record changes only when its own files hash, without
+/// ambiguity, to the mod its uid names.
 pub(crate) fn restore_install_identities(
     index: &rusqlite::Connection,
     game_path: &str,

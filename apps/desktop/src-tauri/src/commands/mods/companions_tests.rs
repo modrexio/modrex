@@ -154,6 +154,36 @@ fn a_mod_moved_into_a_folder_takes_its_leftovers_from_the_parent() {
 }
 
 #[test]
+fn a_mod_two_folders_deep_is_found_by_its_scanned_path() {
+    let game = Game::pd3();
+    let folders = [
+        ModFolder {
+            id: "f".into(),
+            disk_name: "001_Skins".into(),
+            display_name: "Skins".into(),
+            priority: 1,
+            parent_id: None,
+        },
+        ModFolder {
+            id: "g".into(),
+            disk_name: "001_Guns".into(),
+            display_name: "Guns".into(),
+            priority: 1,
+            parent_id: Some("f".into()),
+        },
+    ];
+    let nested = game.active().join("001_Skins").join("001_Guns");
+    put(&nested, "002_Gun_P.pak", "stub");
+    companions(&nested, "006_Gun_P", "", "gun");
+    let mut m = record("1", "002_Gun_P.pak", true);
+    m.folder_id = Some("g".into());
+
+    assert_eq!(game.rejoin(&folders, &[m]), 1);
+
+    assert_eq!(read(nested.join("002_Gun_P.ucas")), "gun ucas");
+}
+
+#[test]
 fn copies_that_differ_are_left_alone() {
     let game = Game::pd3();
     put(&game.active(), "022_Slate_P.pak", "stub");

@@ -605,7 +605,7 @@ export type InstructsTemplate = {
 
 /**
  *  A companion set no pak uses, as Health Check lists it. target, disabled, folder and stem
- *  name the set; files and bytes are for display only.
+ *  name the set. files and bytes are only for display.
  */
 export type LeftoverFiles = {
 	target: string,

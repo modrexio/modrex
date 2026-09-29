@@ -93,6 +93,7 @@ export function InstalledPage({
     )
     const [healthMissingDeps, setHealthMissingDeps] = useState<HealthItem[]>([])
     const [healthLeftovers, setHealthLeftovers] = useState<Leftovers>({ sets: [], error: null })
+    // Set per scan, so the tab stays open after its last row is deleted.
     const [showLeftoversTab, setShowLeftoversTab] = useState(false)
     const cancelHealthRef = useRef(false)
     const showDepsTab = !!gamePath && modworkshopRemoteIds(installed).length > 0

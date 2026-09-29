@@ -232,23 +232,9 @@ pub async fn get_installed(app: AppHandle, game_id: String) -> Result<InstalledR
     let mods_hidden = backup_dir(&game_path, cfg.primary()).exists();
 
     let (mut state, writeback) = load_for_scan(&game_path, &state_path, cfg);
-    let identities_restored = if mods_hidden {
-        false
-    } else {
-        let index = mod_index::open_index(&app, cfg.game_id);
-        companions::rejoin_split_companions(
-            &game_path,
-            cfg,
-            &state.folders,
-            &state.mods,
-            index.as_ref(),
-        );
-        index.as_ref().is_some_and(|conn| {
-            restore_install_identities(conn, &game_path, cfg, &state.folders, &mut state.mods)
-        })
-    };
-    let any_upgraded = upgrade_negative_ids(&app, &game_path, cfg, &state.folders, &mut state.mods)
-        || identities_restored;
+    let repaired = !mods_hidden && repair_installs(&app, &game_path, cfg, &mut state);
+    let any_upgraded =
+        upgrade_negative_ids(&app, &game_path, cfg, &state.folders, &mut state.mods) || repaired;
     regroup_negative_ids_by_name_suffix(&mut state.mods);
 
     // The player can also toggle mods from Crime Boss's own Options > Mods screen, so pull
@@ -463,6 +449,29 @@ pub async fn delete_leftover_files(
     };
     let _state_guard = lock_game_state(&app, &game_id).await;
     companions::delete_leftover_sets(&game_path, cfg, &sets)
+}
+
+/// Puts back what earlier releases broke before anything reads the records: companions a
+/// reorder split from their pak, and identities an older build rewrote. True when a record
+/// changed. The index stays open only for this, since the index refresh cannot replace a
+/// database file that is open on Windows.
+fn repair_installs(
+    app: &AppHandle,
+    game_path: &str,
+    cfg: &ModEngineConfig,
+    state: &mut ModsState,
+) -> bool {
+    let index = mod_index::open_index(app, cfg.game_id);
+    companions::rejoin_split_companions(
+        game_path,
+        cfg,
+        &state.folders,
+        &state.mods,
+        index.as_ref(),
+    );
+    index.as_ref().is_some_and(|conn| {
+        restore_install_identities(conn, game_path, cfg, &state.folders, &mut state.mods)
+    })
 }
 
 fn mark_containers(

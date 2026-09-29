@@ -103,7 +103,7 @@ pub struct Applied(Vec<Vec<(PathBuf, PathBuf)>>);
 
 impl Applied {
     /// Saves the state that describes the moved files, or puts the files back when it cannot
-    /// be saved, since the old record would then point at names that no longer exist.
+    /// be saved, since the record on disk would then name files that are not there.
     pub fn save(self, state_path: &Path, state: &ModsState) -> Result<(), String> {
         let Err(e) = save_state(state_path, state) else {
             return Ok(());
