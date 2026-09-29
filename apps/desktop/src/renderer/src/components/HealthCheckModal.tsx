@@ -43,7 +43,6 @@ interface Props {
     missingDeps: HealthItem[]
     showDepsTab: boolean
     leftovers: Leftovers
-    showLeftoversTab: boolean
     onLeftoversChanged: () => Promise<void>
     gamePath: string | null
     gameId: string
@@ -148,7 +147,6 @@ export function HealthCheckModal({
     missingDeps,
     showDepsTab,
     leftovers,
-    showLeftoversTab,
     onLeftoversChanged,
     gamePath,
     gameId,
@@ -273,16 +271,10 @@ export function HealthCheckModal({
             id: 'unidentified',
             label: t('installed.health.unidentifiedCount', { count: unidentifiedItems.length }),
         },
-        ...(showLeftoversTab
-            ? [
-                  {
-                      id: 'leftovers',
-                      label: t('installed.health.leftoversCount', {
-                          count: leftovers.sets.length,
-                      }),
-                  },
-              ]
-            : []),
+        {
+            id: 'leftovers',
+            label: t('installed.health.leftoversCount', { count: leftovers.sets.length }),
+        },
         {
             id: 'updates',
             label: t('installed.health.updatesCount', { count: updatable.length }),
@@ -556,14 +548,12 @@ export function HealthCheckModal({
                             ))
                         )}
                     </Tabs.Content>
-                    {showLeftoversTab && (
-                        <Tabs.Content
-                            value="leftovers"
-                            className="focus:outline-none flex flex-col gap-0.5"
-                        >
-                            {leftoversContent()}
-                        </Tabs.Content>
-                    )}
+                    <Tabs.Content
+                        value="leftovers"
+                        className="focus:outline-none flex flex-col gap-0.5"
+                    >
+                        {leftoversContent()}
+                    </Tabs.Content>
                     <Tabs.Content
                         value="updates"
                         className="focus:outline-none flex flex-col gap-0.5"
