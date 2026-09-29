@@ -1,6 +1,7 @@
 ---
 import Default from '@astrojs/starlight/components/Head.astro'
 import { getOgImage } from '../../lib/og-image'
+import Scrollbars from '../Scrollbars.astro'
 
 // Starlight emits twitter:card as summary_large_image but supplies no image of its own,
 // which renders every shared docs link as a bare text card. Same generated file the rest
@@ -155,6 +156,7 @@ const faqPage = {
 ---
 
 <Default {...Astro.props} />
+<Scrollbars />
 <meta property="og:image" content={ogImageUrl} />
 <meta property="og:image:alt" content={ogImageAlt} />
 <meta property="og:image:width" content="1200" />

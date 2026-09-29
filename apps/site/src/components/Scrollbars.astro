@@ -1,0 +1,11 @@
+<!-- Hides the native page scrollbar before the overlay one replaces it. -->
+<script is:inline>
+    document.documentElement.setAttribute('data-overlayscrollbars-initialize', '')
+</script>
+<script>
+    import { overlayPageScrollbar, overlayScrollContainers } from '@modrex/scrollbars'
+
+    overlayPageScrollbar()
+    // Expressive Code's all: revert wipes the scrollbar styles, so its blocks wrap instead.
+    overlayScrollContainers('.expressive-code')
+</script>

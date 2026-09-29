@@ -1,11 +1,13 @@
 import ReactDOM from 'react-dom/client'
 import { error as logError } from '@tauri-apps/plugin-log'
+import { overlayScrollContainers } from '@modrex/scrollbars'
 import App from './App'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { initAccentColor } from './accentColor'
 import './index.css'
 
 initAccentColor()
+overlayScrollContainers()
 
 window.onerror = (_msg, _src, _line, _col, err) => {
     logError(`Uncaught error: ${err?.stack ?? err}`)
