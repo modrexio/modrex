@@ -366,7 +366,7 @@ pub(crate) fn restore_install_identities(
 ) -> bool {
     let mut restored = false;
     for m in mods.iter_mut() {
-        if m.source != "modworkshop" || is_host_pack_location(m.location.as_deref()) {
+        if m.source != "modworkshop" {
             continue;
         }
         let evidence = m.identity.as_ref().map(|identity| identity.evidence);

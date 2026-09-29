@@ -45,8 +45,10 @@ struct Scan {
 }
 
 /// Every pak and companion set of a file target, active and disabled. Only the canonical
-/// forms count: unsuffixed in the active tree, suffixed in the disabled one.
-fn scan(game_path: &str, target: &ScanTarget) -> Scan {
+/// forms count: unsuffixed in the active tree, suffixed in the disabled one. A scan that
+/// cannot see every file fails, since a pak it missed would make that pak's own companions
+/// look like leftovers.
+fn scan(game_path: &str, target: &ScanTarget) -> Result<Scan, String> {
     let mut scan = Scan {
         sets: Vec::new(),
         paks: HashSet::new(),
@@ -57,17 +59,17 @@ fn scan(game_path: &str, target: &ScanTarget) -> Scan {
         ..
     } = &target.unit
     else {
-        return scan;
+        return Ok(scan);
     };
     let mut by_key: HashMap<(PathBuf, String, bool), usize> = HashMap::new();
     let mut files = Vec::new();
-    walk(&mods_base(game_path, target), true, &mut files);
+    walk(&mods_base(game_path, target), true, &mut files)?;
     let mut disabled_files = Vec::new();
     walk(
         &disabled_base(game_path, target),
         false,
         &mut disabled_files,
-    );
+    )?;
 
     for (path, disabled) in files
         .into_iter()
@@ -109,34 +111,32 @@ fn scan(game_path: &str, target: &ScanTarget) -> Scan {
         });
         scan.sets[index].files.push((ext, path));
     }
-    scan
+    Ok(scan)
 }
 
 /// Collects every file under dir. The top-level disabled folder is the disabled tree, walked
 /// on its own, exactly as the untracked scan treats it.
-fn walk(dir: &Path, skip_disabled: bool, out: &mut Vec<PathBuf>) {
+fn walk(dir: &Path, skip_disabled: bool, out: &mut Vec<PathBuf>) -> Result<(), String> {
+    let unreadable = |e: std::io::Error| format!("could not read {}: {e}", log_name(dir));
     let entries = match fs::read_dir(dir) {
         Ok(entries) => entries,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return,
-        Err(e) => {
-            log::warn!("companions: read {}: {e}", log_name(dir));
-            return;
-        }
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(e) => return Err(unreadable(e)),
     };
-    for entry in entries.flatten() {
-        let Ok(file_type) = entry.file_type() else {
-            continue;
-        };
+    for entry in entries {
+        let entry = entry.map_err(unreadable)?;
+        let file_type = entry.file_type().map_err(unreadable)?;
         let path = entry.path();
         if file_type.is_dir() {
             if skip_disabled && entry.file_name() == "disabled" {
                 continue;
             }
-            walk(&path, false, out);
+            walk(&path, false, out)?;
         } else if file_type.is_file() {
             out.push(path);
         }
     }
+    Ok(())
 }
 
 fn orphans(scan: &Scan) -> Vec<&CompanionSet> {
@@ -162,19 +162,23 @@ pub(crate) fn rejoin_split_companions(
         let ModUnit::File { extension, .. } = &target.unit else {
             continue;
         };
-        let scan = scan(game_path, target);
+        let scan = match scan(game_path, target) {
+            Ok(scan) => scan,
+            Err(e) => {
+                log::warn!("companions: {e}");
+                continue;
+            }
+        };
         let orphans = orphans(&scan);
         if orphans.is_empty() {
             continue;
         }
+        let with_companions: HashSet<(PathBuf, String, bool)> =
+            scan.sets.iter().map(CompanionSet::key).collect();
 
         let mut needy: HashMap<&str, Vec<(&InstalledMod, PathBuf)>> = HashMap::new();
         for m in mods {
-            if !std::ptr::eq(cfg.target_for(m.location.as_deref()), target)
-                || m.location
-                    .as_deref()
-                    .is_some_and(|l| l.starts_with("host:"))
-            {
+            if !std::ptr::eq(cfg.target_for(m.location.as_deref()), target) {
                 continue;
             }
             let Some(stem) = m.filename.strip_suffix(&format!(".{extension}")) else {
@@ -182,14 +186,11 @@ pub(crate) fn rejoin_split_companions(
             };
             let rel = get_folder_path(folders, m.folder_id.as_deref());
             let pak = installed_mod_path(game_path, &m.filename, rel.as_deref(), target, m.enabled);
-            if !pak.is_file() {
+            let Some(dir) = pak.parent() else {
                 continue;
-            }
-            let has_companion = target
-                .companions
-                .iter()
-                .any(|c| sidecar_path(&pak, extension, c).is_some_and(|p| p.exists()));
-            if !has_companion {
+            };
+            let key = (dir.to_path_buf(), stem.to_string(), !m.enabled);
+            if scan.paks.contains(&key) && !with_companions.contains(&key) {
                 needy
                     .entry(strip_priority_prefix(stem))
                     .or_default()
@@ -268,8 +269,9 @@ fn leftover_key(target: &ScanTarget, set: &CompanionSet, game_path: &str) -> Lef
     let folder = set
         .dir
         .strip_prefix(&root)
-        .map(|rel| rel.to_string_lossy().replace('\\', "/"))
-        .unwrap_or_default();
+        .expect("a scanned set lies inside the tree it was scanned from")
+        .to_string_lossy()
+        .replace('\\', "/");
     let mut files: Vec<String> = set
         .files
         .iter()
@@ -292,18 +294,21 @@ fn leftover_key(target: &ScanTarget, set: &CompanionSet, game_path: &str) -> Lef
 }
 
 /// Every companion set that no pak beside it uses. The game never mounts these.
-pub(crate) fn leftover_sets(game_path: &str, cfg: &ModEngineConfig) -> Vec<LeftoverFiles> {
-    let mut leftovers: Vec<LeftoverFiles> = companion_targets(game_path, cfg)
-        .flat_map(|target| {
-            let scan = scan(game_path, target);
+pub(crate) fn leftover_sets(
+    game_path: &str,
+    cfg: &ModEngineConfig,
+) -> Result<Vec<LeftoverFiles>, String> {
+    let mut leftovers = Vec::new();
+    for target in companion_targets(game_path, cfg) {
+        let scan = scan(game_path, target)?;
+        leftovers.extend(
             orphans(&scan)
                 .into_iter()
-                .map(|set| leftover_key(target, set, game_path))
-                .collect::<Vec<_>>()
-        })
-        .collect();
+                .map(|set| leftover_key(target, set, game_path)),
+        );
+    }
     leftovers.sort_by(|a, b| (&a.folder, &a.stem).cmp(&(&b.folder, &b.stem)));
-    leftovers
+    Ok(leftovers)
 }
 
 /// Deletes the requested sets that are still leftovers. What gets deleted comes from a fresh
@@ -318,7 +323,7 @@ pub(crate) fn delete_leftover_sets(
     };
     let mut current: Vec<(LeftoverFiles, Vec<PathBuf>)> = Vec::new();
     for target in companion_targets(game_path, cfg) {
-        let scan = scan(game_path, target);
+        let scan = scan(game_path, target)?;
         for set in orphans(&scan) {
             let paths = set.files.iter().map(|(_, p)| p.clone()).collect();
             current.push((leftover_key(target, set, game_path), paths));
@@ -371,12 +376,7 @@ fn container_missing(
     m: &InstalledMod,
     aes_key: &str,
 ) -> Option<bool> {
-    if m.missing == Some(true)
-        || m.archive_broken == Some(true)
-        || m.location
-            .as_deref()
-            .is_some_and(|l| l.starts_with("host:"))
-    {
+    if m.missing == Some(true) || m.archive_broken == Some(true) {
         return None;
     }
     let target = cfg.target_for(m.location.as_deref());
@@ -388,12 +388,19 @@ fn container_missing(
     }
     let rel = get_folder_path(folders, m.folder_id.as_deref());
     let pak = installed_mod_path(game_path, &m.filename, rel.as_deref(), target, m.enabled);
-    let has_companion = target
+    for companion in target
         .companions
         .iter()
-        .any(|c| sidecar_path(&pak, extension, c).is_some_and(|p| p.exists()));
-    if has_companion {
-        return None;
+        .filter_map(|c| sidecar_path(&pak, extension, c))
+    {
+        match companion.try_exists() {
+            Ok(true) => return None,
+            Ok(false) => {}
+            Err(e) => {
+                log::warn!("companions: could not check {}: {e}", log_name(&companion));
+                return None;
+            }
+        }
     }
     match pak_entries(&pak, aes_key) {
         Ok(entries) => entries.is_empty().then_some(true),

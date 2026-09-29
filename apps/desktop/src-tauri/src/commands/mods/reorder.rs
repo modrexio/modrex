@@ -1,5 +1,5 @@
 use super::engine::ModEngineConfig;
-use super::moves::Moves;
+use super::moves::{exists, Moves};
 use super::naming::{apply_priority_prefix, strip_priority_prefix};
 use super::paths::{disabled_base, installed_mod_path, mods_base};
 use super::state::{get_folder_path, read_state};
@@ -40,7 +40,7 @@ pub fn reorder_mods_in_folder_op(
             target,
             m.enabled,
         );
-        if from.exists() {
+        if exists(&from)? {
             let to = installed_mod_path(
                 game_path,
                 &filename,
@@ -122,7 +122,7 @@ pub fn move_mod_to_folder_op(
             tgt_rel.as_deref()
         };
         let from = installed_mod_path(game_path, &m.filename, cur_rel, target, m.enabled);
-        if from.exists() {
+        if exists(&from)? {
             let to =
                 installed_mod_path(game_path, &filename, tgt_rel.as_deref(), target, m.enabled);
             moves.unit(target, from, to);
@@ -172,7 +172,7 @@ pub fn reorder_children_op(
                 };
                 for base in [&mods_dir, &dis_dir] {
                     let from = base.join(&f.disk_name);
-                    if from.exists() {
+                    if exists(&from)? {
                         moves.path(from, base.join(&disk_name));
                     }
                 }
@@ -192,7 +192,7 @@ pub fn reorder_children_op(
                 let rel = get_folder_path(&folders_before, m.folder_id.as_deref());
                 let from =
                     installed_mod_path(game_path, &m.filename, rel.as_deref(), target, m.enabled);
-                if from.exists() {
+                if exists(&from)? {
                     let to =
                         installed_mod_path(game_path, &filename, rel.as_deref(), target, m.enabled);
                     moves.unit(target, from, to);

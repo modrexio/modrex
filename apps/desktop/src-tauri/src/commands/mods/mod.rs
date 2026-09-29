@@ -445,7 +445,7 @@ pub async fn list_leftover_files(
         return Ok(vec![]);
     };
     let _state_guard = lock_game_state(&app, &game_id).await;
-    Ok(companions::leftover_sets(&game_path, cfg))
+    companions::leftover_sets(&game_path, cfg)
 }
 
 #[tauri::command]

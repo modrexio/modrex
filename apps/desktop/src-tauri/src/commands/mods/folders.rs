@@ -1,5 +1,5 @@
 use super::engine::ModEngineConfig;
-use super::moves::Moves;
+use super::moves::{exists, Moves};
 use super::naming::log_name;
 use super::naming::{apply_priority_prefix, strip_priority_prefix};
 use super::paths::{disabled_base, installed_mod_path, mods_base};
@@ -291,7 +291,7 @@ pub fn delete_folder_op(
             m.filename.clone()
         };
         let old = installed_mod_path(game_path, &m.filename, Some(&folder_rel), target, m.enabled);
-        if old.exists() {
+        if exists(&old)? {
             let new = installed_mod_path(
                 game_path,
                 &new_filename,
@@ -331,12 +331,12 @@ pub fn delete_folder_op(
         let old_rel = get_folder_path(&state.folders, Some(cf_id)).unwrap_or_default();
 
         let old_a = mods_b.join(&old_rel);
-        if old_a.exists() {
+        if exists(&old_a)? {
             moves.path(old_a, into_parent(&mods_b).join(&new_disk));
             into_active = true;
         }
         let old_d = dis_b.join(&old_rel);
-        if old_d.exists() {
+        if exists(&old_d)? {
             moves.path(old_d, into_parent(&dis_b).join(&new_disk));
             into_disabled = true;
         }

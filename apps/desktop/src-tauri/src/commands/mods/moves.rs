@@ -54,7 +54,7 @@ impl Moves {
         for unit in self.0 {
             let mut files = unit.files;
             for (a, b) in unit.companions {
-                if occupied(&a)? {
+                if exists(&a)? {
                     files.push((a, b));
                 }
             }
@@ -69,7 +69,7 @@ impl Moves {
             if !destinations.insert(to.as_path()) {
                 return Err(format!("two files would both be named {}", log_name(to)));
             }
-            if !sources.contains(to.as_path()) && occupied(to)? {
+            if !sources.contains(to.as_path()) && exists(to)? {
                 return Err(format!(
                     "{} is in the way. Move or delete it, then try again.",
                     log_name(to)
@@ -81,7 +81,7 @@ impl Moves {
         for (n, files) in units.iter().enumerate() {
             for (from, _) in files {
                 let staged = staging_path(from, n);
-                if occupied(&staged).map_err(|e| undone(&done, e))? {
+                if exists(&staged).map_err(|e| undone(&done, e))? {
                     return Err(undone(
                         &done,
                         format!("{} is in the way", log_name(&staged)),
@@ -135,7 +135,7 @@ fn staging_path(path: &Path, n: usize) -> PathBuf {
     path.with_file_name(format!("__modrex_move_{n}__{name}"))
 }
 
-fn occupied(path: &Path) -> Result<bool, String> {
+pub(super) fn exists(path: &Path) -> Result<bool, String> {
     path.try_exists()
         .map_err(|e| format!("could not check {}: {e}", log_name(path)))
 }

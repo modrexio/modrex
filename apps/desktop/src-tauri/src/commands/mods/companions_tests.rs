@@ -402,7 +402,7 @@ fn leftovers_fixture() -> Game {
 fn only_sets_no_pak_uses_are_leftovers() {
     let game = leftovers_fixture();
 
-    let leftovers = leftover_sets(&game.path, game.cfg);
+    let leftovers = leftover_sets(&game.path, game.cfg).unwrap();
 
     let names: Vec<(&str, &str, bool)> = leftovers
         .iter()
@@ -428,7 +428,7 @@ fn only_sets_no_pak_uses_are_leftovers() {
 #[test]
 fn deleting_a_leftover_removes_only_that_set() {
     let game = leftovers_fixture();
-    let bag = leftover_sets(&game.path, game.cfg).remove(0);
+    let bag = leftover_sets(&game.path, game.cfg).unwrap().remove(0);
 
     delete_leftover_sets(&game.path, game.cfg, &[bag]).unwrap();
 
@@ -445,7 +445,7 @@ fn deleting_a_leftover_removes_only_that_set() {
 #[test]
 fn a_set_a_pak_took_back_is_not_deleted() {
     let game = leftovers_fixture();
-    let bag = leftover_sets(&game.path, game.cfg).remove(0);
+    let bag = leftover_sets(&game.path, game.cfg).unwrap().remove(0);
     put(&game.active(), "018_BagTracker_P.pak", "stub");
 
     let err = delete_leftover_sets(&game.path, game.cfg, &[bag]).unwrap_err();
@@ -457,7 +457,7 @@ fn a_set_a_pak_took_back_is_not_deleted() {
 #[test]
 fn the_files_to_delete_come_from_the_scan_not_the_request() {
     let game = leftovers_fixture();
-    let mut bag = leftover_sets(&game.path, game.cfg).remove(0);
+    let mut bag = leftover_sets(&game.path, game.cfg).unwrap().remove(0);
     bag.files = vec!["002_Mine_P.ucas".into()];
 
     delete_leftover_sets(&game.path, game.cfg, &[bag]).unwrap();
@@ -471,5 +471,5 @@ fn no_leftovers_are_listed_while_the_mods_folder_is_set_aside() {
     let game = leftovers_fixture();
     fs::create_dir_all(backup_dir(&game.path, game.cfg.primary())).unwrap();
 
-    assert!(leftover_sets(&game.path, game.cfg).is_empty());
+    assert!(leftover_sets(&game.path, game.cfg).unwrap().is_empty());
 }
