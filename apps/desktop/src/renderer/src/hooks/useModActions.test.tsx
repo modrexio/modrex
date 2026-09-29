@@ -190,4 +190,21 @@ describe('useModActions reinstall', () => {
         await result.current.chooseReinstallFile(12)
         expect(installMod).toHaveBeenCalledWith(7, 'C:/game', 'pd3', 12)
     })
+
+    // Health Check collects these to report a whole batch, so each call has to say how it went.
+    it('resolves to the failure, or null when it installed or waits on a choice', async () => {
+        const useModActions = await loadHook()
+        const { result } = renderHook(() =>
+            useModActions('C:/game', vi.fn().mockResolvedValue(undefined), 'pd3')
+        )
+
+        getCachedModFiles.mockReset().mockResolvedValue([{ id: 11 }])
+        expect(await result.current.handleReinstall([installed])).toBeNull()
+
+        installMod.mockRejectedValueOnce('the download failed')
+        expect(await result.current.handleReinstall([installed])).toBe('the download failed')
+
+        getCachedModFiles.mockReset().mockResolvedValue([{ id: 13 }, { id: 12 }])
+        expect(await result.current.handleReinstall([installed])).toBeNull()
+    })
 })

@@ -17,6 +17,7 @@ import { useThumbnail } from '../hooks/useThumbnail'
 import { api, type LeftoverFiles } from '../api'
 import { uninstallablePromptMessage } from '../installSentinels'
 import { formatBytes } from './modDetail/format'
+import { describeFailures, type ActionFailure } from '../bulkAction'
 import NexusIcon from '../../../../assets/icons/nexusmods.svg?react'
 
 export interface Leftovers {
@@ -49,7 +50,7 @@ interface Props {
     loadingMod: string | null
     visible: boolean
     onOpenDetail: (modId: number, source?: 'nexus') => void
-    onReinstall: (mods: InstalledMod[]) => void
+    onReinstall: (mods: InstalledMod[]) => Promise<string | null>
     onDepInstalled: () => Promise<void>
     onReviewUpdates: () => void
     onClose: () => void
@@ -181,6 +182,26 @@ export function HealthCheckModal({
         await onLeftoversChanged()
     }
 
+    const [reinstalling, setReinstalling] = useState(false)
+    const [reinstallFailure, setReinstallFailure] = useState<string | null>(null)
+
+    // One at a time: reinstalls share one loading slot, and every failure is kept to show here.
+    async function reinstallItems(items: LocalHealthItem[]) {
+        setReinstalling(true)
+        setReinstallFailure(null)
+        const failures: ActionFailure[] = []
+        for (const item of items) {
+            try {
+                const failure = await onReinstall(item.mods)
+                if (failure) failures.push({ name: item.name, error: failure })
+            } catch (e) {
+                failures.push({ name: item.name, error: String(e) })
+            }
+        }
+        setReinstalling(false)
+        setReinstallFailure(describeFailures(failures))
+    }
+
     async function installDep(depId: number) {
         if (!gamePath || installingDepId !== null || installingAll) return
         setInstallingDepId(depId)
@@ -228,9 +249,7 @@ export function HealthCheckModal({
         setInstallingAll(false)
         if (hadError || blockedMessage) {
             setDepInstallError(hadError ? t('installed.health.installDepFailed') : blockedMessage)
-            return
         }
-        onClose()
     }
 
     function toItems(groups: InstalledGroup[]): LocalHealthItem[] {
@@ -438,8 +457,8 @@ export function HealthCheckModal({
                                         action={
                                             hasCatalogLink(item.mods[0]) ? (
                                                 <button
-                                                    onClick={() => onReinstall(item.mods)}
-                                                    disabled={isLoading}
+                                                    onClick={() => void reinstallItems([item])}
+                                                    disabled={isLoading || reinstalling}
                                                     className="text-xs px-2.5 py-1 rounded bg-surface-active hover:bg-surface-light shrink-0 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                                                 >
                                                     {isLoading
@@ -480,8 +499,8 @@ export function HealthCheckModal({
                                         action={
                                             hasCatalogLink(item.mods[0]) ? (
                                                 <button
-                                                    onClick={() => onReinstall(item.mods)}
-                                                    disabled={isLoading}
+                                                    onClick={() => void reinstallItems([item])}
+                                                    disabled={isLoading || reinstalling}
                                                     className="text-xs px-2.5 py-1 rounded bg-surface-active hover:bg-surface-light shrink-0 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                                                 >
                                                     {isLoading
@@ -517,8 +536,8 @@ export function HealthCheckModal({
                                         onOpen={() => onOpenDetail(...detailNavArgs(item.mods[0]))}
                                         action={
                                             <button
-                                                onClick={() => onReinstall(item.mods)}
-                                                disabled={isLoading}
+                                                onClick={() => void reinstallItems([item])}
+                                                disabled={isLoading || reinstalling}
                                                 className="text-xs px-2.5 py-1 rounded bg-surface-active hover:bg-surface-light shrink-0 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                                             >
                                                 {isLoading
@@ -599,18 +618,20 @@ export function HealthCheckModal({
                             </Button>
                         </>
                     )}
+                {['missing', 'broken', 'outdated'].includes(activeTab) && reinstallFailure && (
+                    <span className="text-xs text-danger-text truncate">{reinstallFailure}</span>
+                )}
                 {activeTab === 'missing' &&
                     missingItems.some((item) => hasCatalogLink(item.mods[0])) && (
                         <Button
                             variant="accent"
                             size="md"
-                            disabled={loadingMod !== null}
-                            onClick={() => {
-                                missingItems
-                                    .filter((item) => hasCatalogLink(item.mods[0]))
-                                    .forEach((item) => onReinstall(item.mods))
-                                onClose()
-                            }}
+                            disabled={loadingMod !== null || reinstalling}
+                            onClick={() =>
+                                void reinstallItems(
+                                    missingItems.filter((item) => hasCatalogLink(item.mods[0]))
+                                )
+                            }
                         >
                             {t('installed.health.reinstallAll')}
                         </Button>
@@ -620,13 +641,12 @@ export function HealthCheckModal({
                         <Button
                             variant="accent"
                             size="md"
-                            disabled={loadingMod !== null}
-                            onClick={() => {
-                                brokenItems
-                                    .filter((item) => hasCatalogLink(item.mods[0]))
-                                    .forEach((item) => onReinstall(item.mods))
-                                onClose()
-                            }}
+                            disabled={loadingMod !== null || reinstalling}
+                            onClick={() =>
+                                void reinstallItems(
+                                    brokenItems.filter((item) => hasCatalogLink(item.mods[0]))
+                                )
+                            }
                         >
                             {t('installed.health.reinstallAll')}
                         </Button>
@@ -635,10 +655,8 @@ export function HealthCheckModal({
                     <Button
                         variant="accent"
                         size="md"
-                        disabled={loadingMod !== null}
-                        onClick={() => {
-                            outdatedItems.forEach((item) => onReinstall(item.mods))
-                        }}
+                        disabled={loadingMod !== null || reinstalling}
+                        onClick={() => void reinstallItems(outdatedItems)}
                     >
                         {t('installed.health.reinstallAll')}
                     </Button>
