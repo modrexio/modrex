@@ -6,8 +6,8 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 ### Added
 
-- Health Check lists mods whose .ucas and .utoc files are missing under Missing files, where they can be reinstalled.
-- Health Check lists leftover .ucas and .utoc files that no installed mod uses, and can delete them.
+- Added a Health Check warning for mods missing their .ucas and .utoc files.
+- Added a Leftover files tab to Health Check for removing unused .ucas and .utoc files.
 
 ### Changed
 
@@ -17,11 +17,8 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 - Fixed Restart & Install not restarting Modrex on Linux after installing an update.
 - Fixed UE4SS mods installing to a folder PAYDAY 3's UE4SS does not read.
-- Fixed reordering or moving PAYDAY 3 and Crime Boss mods leaving their .ucas and .utoc files behind, which stopped those mods loading in game. Mods this already happened to are repaired automatically.
-- Fixed deleting a folder also deleting the .ucas and .utoc files of the mods inside it, and any other files in it.
-- Fixed a failed drag or folder delete on the Installed tab showing no error.
-- Fixed PAYDAY 3 mods that an older Modrex version relabeled as a different mod showing that mod's name and updates.
-- Fixed the pak contents viewer showing no assets, instead of saying why, for a mod whose .ucas and .utoc files are missing.
+- Fixed reordering or moving PAYDAY 3 and Crime Boss mods leaving their .ucas and .utoc files behind.
+- Fixed deleting a folder also deleting its mods' .ucas and .utoc files.
 - Fixed broken formatting, images and videos in mod descriptions.
 
 ### Security
