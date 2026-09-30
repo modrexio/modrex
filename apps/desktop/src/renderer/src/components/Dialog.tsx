@@ -22,7 +22,18 @@ interface Props {
     className?: string
     size?: keyof typeof sizeClasses
     onOpenAutoFocus?: (event: Event) => void
-    onPointerDownOutside?: ComponentProps<typeof RadixDialog.Content>['onPointerDownOutside']
+}
+
+const keepOpenOnWindowChrome: ComponentProps<typeof RadixDialog.Content>['onPointerDownOutside'] = (
+    event
+) => {
+    const target = event.detail.originalEvent.target
+    if (
+        target instanceof Element &&
+        target.closest('[data-tauri-drag-region], [data-window-resize]')
+    ) {
+        event.preventDefault()
+    }
 }
 
 export function Dialog({
@@ -33,7 +44,6 @@ export function Dialog({
     className,
     size = 'auto',
     onOpenAutoFocus,
-    onPointerDownOutside,
 }: Props) {
     return (
         <RadixDialog.Root open={open} onOpenChange={onOpenChange}>
@@ -41,7 +51,7 @@ export function Dialog({
                 <RadixDialog.Overlay className="fixed inset-0 z-50 bg-black/60" />
                 <RadixDialog.Content
                     onOpenAutoFocus={onOpenAutoFocus}
-                    onPointerDownOutside={onPointerDownOutside}
+                    onPointerDownOutside={keepOpenOnWindowChrome}
                     className={`fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2 bg-surface-raised border border-border rounded-xl shadow-xl flex flex-col overflow-hidden focus:outline-none text-text ${sizeClasses[size]} ${className ?? ''}`}
                 >
                     <RadixDialog.Title className="sr-only">{title}</RadixDialog.Title>
