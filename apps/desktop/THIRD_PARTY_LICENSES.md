@@ -6042,7 +6042,7 @@ limitations under the License.
 
 ## Apache License 2.0
 
-Used by: dpi 0.1.2, tao 0.35.3
+Used by: dpi 0.1.2, tao 0.37.1
 
 ```
 Apache License
@@ -6354,7 +6354,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 
 ## BSD 3-Clause "New" or "Revised" License
 
-Used by: alloc-no-stdlib 2.0.4, brotli 8.0.4
+Used by: alloc-no-stdlib 2.0.4, alloc-no-stdlib 3.0.0, brotli 8.0.4, brotli 9.0.0
 
 ```
 Copyright (c) 2016 Dropbox, Inc.
@@ -6415,7 +6415,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ## BSD 3-Clause "New" or "Revised" License
 
-Used by: alloc-stdlib 0.2.4
+Used by: alloc-stdlib 0.2.4, alloc-stdlib 0.3.0
 
 ```
 Copyright (c) <year> <owner>. 
@@ -6888,7 +6888,7 @@ DEALINGS IN THE SOFTWARE.
 
 ## MIT License
 
-Used by: brotli 8.0.4
+Used by: brotli 8.0.4, brotli 9.0.0
 
 ```
 Copyright (c) 2009, 2010, 2013-2016 by the Brotli Authors.
@@ -7322,7 +7322,7 @@ DEALINGS IN THE SOFTWARE.
 
 ## MIT License
 
-Used by: uuid 1.26.0
+Used by: uuid 1.26.1
 
 ```
 Copyright (c) 2014 The Rust Project Developers
@@ -7394,7 +7394,7 @@ DEALINGS IN THE SOFTWARE.
 
 ## MIT License
 
-Used by: html5ever 0.38.0, html5ever 0.39.0, markup5ever 0.38.0, markup5ever 0.39.0, web_atoms 0.2.4
+Used by: html5ever 0.39.0, markup5ever 0.39.0, web_atoms 0.2.4
 
 ```
 Copyright (c) 2014 The html5ever Project Developers
@@ -7863,7 +7863,7 @@ SOFTWARE.
 
 ## MIT License
 
-Used by: png 0.17.16
+Used by: png 0.17.16, png 0.18.1
 
 ```
 Copyright (c) 2015 nwin
@@ -8553,7 +8553,7 @@ DEALINGS IN THE SOFTWARE.
 
 ## MIT License
 
-Used by: reqwest 0.13.4
+Used by: reqwest 0.13.5
 
 ```
 Copyright (c) 2016-2026 Sean McArthur
@@ -8826,7 +8826,7 @@ DEALINGS IN THE SOFTWARE.
 
 ## MIT License
 
-Used by: keyboard-types 0.7.0
+Used by: keyboard-types 0.8.3
 
 ```
 Copyright (c) 2017 Pyfisch
@@ -9370,7 +9370,7 @@ DEALINGS IN THE SOFTWARE.
 
 ## MIT License
 
-Used by: dirs-sys 0.5.0, dirs 6.0.0
+Used by: dirs-sys 0.5.0, dirs 6.0.0, dirs 7.0.0
 
 ```
 Copyright (c) 2018-2019 dirs-rs contributors
@@ -10525,7 +10525,7 @@ DEALINGS IN THE SOFTWARE.
 
 ## MIT License
 
-Used by: anstream 1.0.0, anstyle-parse 1.0.0, anstyle-query 1.1.5, anstyle-wincon 3.0.11, anstyle 1.0.14, clap 4.6.6, clap_builder 4.6.6, clap_derive 4.6.4, clap_lex 1.1.0, colorchoice 1.0.5, is_terminal_polyfill 1.70.2, once_cell_polyfill 1.70.2, serde_spanned 0.6.9, serde_spanned 1.1.1, toml 0.8.2, toml 0.9.12+spec-1.1.0, toml 1.1.2+spec-1.1.0, toml_datetime 0.7.5+spec-1.1.0, toml_datetime 1.1.1+spec-1.1.0, toml_edit 0.19.15, toml_edit 0.20.2, toml_edit 0.25.12+spec-1.1.0, toml_parser 1.1.2+spec-1.1.0, toml_writer 1.1.1+spec-1.1.0
+Used by: anstream 1.0.0, anstyle-parse 1.0.0, anstyle-query 1.1.5, anstyle-wincon 3.0.11, anstyle 1.0.14, clap 4.6.6, clap_builder 4.6.6, clap_derive 4.6.4, clap_lex 1.1.0, colorchoice 1.0.5, is_terminal_polyfill 1.70.2, once_cell_polyfill 1.70.2, serde_spanned 0.6.9, serde_spanned 1.1.1, toml 0.8.2, toml 1.1.3+spec-1.1.0, toml_datetime 1.1.1+spec-1.1.0, toml_edit 0.19.15, toml_edit 0.20.2, toml_edit 0.25.12+spec-1.1.0, toml_parser 1.1.2+spec-1.1.0, toml_writer 1.1.2+spec-1.1.0
 
 ```
 Copyright (c) Individual contributors
@@ -10813,7 +10813,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ## MIT License
 
-Used by: rand 0.10.2
+Used by: rand 0.10.3
 
 ```
 Copyright 2018 Developers of the Rand project
@@ -11011,6 +11011,37 @@ SOFTWARE.
 
 ## MIT License
 
+Used by: tauri-build 2.7.1, tauri-codegen 2.7.1, tauri-macros 2.7.1, tauri-runtime-wry 2.12.1, tauri-runtime 2.12.1, tauri-utils 2.10.1, tauri 2.12.0
+
+```
+MIT License
+
+Copyright (c) 2017 - Present Tauri Apps Contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+```
+
+---
+
+## MIT License
+
 Used by: precomputed-hash 0.1.1
 
 ```
@@ -11042,7 +11073,7 @@ SOFTWARE.
 
 ## MIT License
 
-Used by: json-patch 3.0.1
+Used by: json-patch 4.2.0
 
 ```
 MIT License
@@ -11073,7 +11104,7 @@ SOFTWARE.
 
 ## MIT License
 
-Used by: cfb 0.7.3
+Used by: cfb 0.14.0, cfb 0.7.3
 
 ```
 MIT License
@@ -11321,7 +11352,7 @@ SOFTWARE.
 
 ## MIT License
 
-Used by: infer 0.19.0
+Used by: infer 0.19.0, infer 0.22.0
 
 ```
 MIT License
@@ -11558,7 +11589,7 @@ SOFTWARE.
 
 ## MIT License
 
-Used by: window-vibrancy 0.6.0
+Used by: window-vibrancy 0.8.1
 
 ```
 MIT License
@@ -11589,7 +11620,7 @@ SOFTWARE.
 
 ## MIT License
 
-Used by: wry 0.55.1
+Used by: wry 0.57.0
 
 ```
 MIT License
@@ -11651,7 +11682,7 @@ SOFTWARE.
 
 ## MIT License
 
-Used by: urlpattern 0.3.0
+Used by: urlpattern 0.6.0
 
 ```
 MIT License
@@ -11744,7 +11775,7 @@ SOFTWARE.
 
 ## MIT License
 
-Used by: jsonptr 0.6.3
+Used by: jsonptr 0.7.1
 
 ```
 MIT License
@@ -11805,7 +11836,7 @@ SOFTWARE.
 
 ## MIT License
 
-Used by: muda 0.19.2
+Used by: muda 0.20.0
 
 ```
 MIT License
@@ -11836,7 +11867,7 @@ SOFTWARE.
 
 ## MIT License
 
-Used by: dom_query 0.27.0
+Used by: dom_query 0.28.0
 
 ```
 MIT License
@@ -11903,6 +11934,37 @@ SOFTWARE.
 
 ## MIT License
 
+Used by: web-time 1.1.0
+
+```
+MIT License
+
+Copyright (c) 2023 dAxpeDDa
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+```
+
+---
+
+## MIT License
+
 Used by: unit-prefix 0.5.2
 
 ```
@@ -11934,7 +11996,7 @@ SOFTWARE.
 
 ## MIT License
 
-Used by: jmap 0.1.0, oodle_loader 0.2.3, repak 0.2.3, retoc 0.1.5, ser-hex 0.1.0, modrex 0.15.2, modrex-game-package 0.0.0, brotli-decompressor 5.0.3, cargo_toml 0.22.3, chrono 0.4.45, dlopen2 0.8.2, dlopen2_derive 0.4.3, dpi 0.1.2, minisign-verify 0.2.5, pariter 0.5.1, siphasher 1.0.3, specta-macros 2.0.0-rc.25, specta-serde 0.0.12, specta-typescript 0.0.12, specta-util 0.0.12, specta 2.0.0-rc.25, tauri-build 2.6.3, tauri-codegen 2.6.3, tauri-macros 2.6.3, tauri-plugin-deep-link 2.4.9, tauri-plugin-dialog 2.7.2, tauri-plugin-fs 2.5.1, tauri-plugin-log 2.9.0, tauri-plugin-single-instance 2.4.3, tauri-plugin-updater 2.10.1, tauri-plugin 2.6.2, tauri-runtime-wry 2.11.4, tauri-runtime 2.11.3, tauri-specta-macros 2.0.0-rc.25, tauri-specta 2.0.0-rc.25, tauri-utils 2.9.3, tauri 2.11.5, unic-char-property 0.9.0, unic-char-range 0.9.0, unic-common 0.9.0, unic-ucd-ident 0.9.0, unic-ucd-version 0.9.0, unrar_sys 0.5.8, webview2-com-macros 0.8.1, webview2-com-sys 0.38.2, webview2-com 0.38.2, windows-collections 0.2.0, windows-collections 0.3.2, windows-core 0.61.2, windows-core 0.62.2, windows-future 0.2.1, windows-future 0.3.2, windows-implement 0.60.2, windows-interface 0.59.3, windows-link 0.1.3, windows-link 0.2.1, windows-numerics 0.2.0, windows-numerics 0.3.1, windows-registry 0.5.3, windows-registry 0.6.1, windows-result 0.3.4, windows-result 0.4.1, windows-strings 0.4.2, windows-strings 0.5.1, windows-sys 0.52.0, windows-sys 0.59.0, windows-sys 0.60.2, windows-sys 0.61.2, windows-targets 0.52.6, windows-targets 0.53.5, windows-threading 0.1.0, windows-threading 0.2.1, windows-version 0.1.7, windows 0.61.3, windows 0.62.2, windows_x86_64_gnu 0.52.6, windows_x86_64_gnu 0.53.1, windows_x86_64_msvc 0.52.6, windows_x86_64_msvc 0.53.1
+Used by: jmap 0.1.0, oodle_loader 0.2.3, repak 0.2.3, retoc 0.1.5, ser-hex 0.1.0, modrex 0.15.2, modrex-game-package 0.0.0, brotli-decompressor 5.0.3, brotli-decompressor 6.0.1, cargo_toml 1.0.1, chrono 0.4.45, dlopen2 0.8.2, dlopen2_derive 0.4.3, dpi 0.1.2, minisign-verify 0.2.5, pariter 0.5.1, siphasher 1.0.3, specta-macros 2.0.0-rc.25, specta-serde 0.0.12, specta-typescript 0.0.12, specta-util 0.0.12, specta 2.0.0-rc.25, tauri-plugin-deep-link 2.5.0, tauri-plugin-dialog 2.8.0, tauri-plugin-fs 2.6.0, tauri-plugin-log 2.10.0, tauri-plugin-single-instance 2.5.0, tauri-plugin-updater 2.13.0, tauri-plugin 2.7.1, tauri-specta-macros 2.0.0-rc.25, tauri-specta 2.0.0-rc.25, unrar_sys 0.5.8, webview2-com-macros 0.8.1, webview2-com-sys 0.39.1, webview2-com 0.39.1, windows-collections 0.3.2, windows-core 0.62.2, windows-future 0.3.2, windows-implement 0.60.2, windows-interface 0.59.3, windows-link 0.1.3, windows-link 0.2.1, windows-numerics 0.3.1, windows-registry 0.5.3, windows-registry 0.6.1, windows-result 0.3.4, windows-result 0.4.1, windows-strings 0.4.2, windows-strings 0.5.1, windows-sys 0.52.0, windows-sys 0.59.0, windows-sys 0.60.2, windows-sys 0.61.2, windows-targets 0.52.6, windows-targets 0.53.5, windows-threading 0.2.1, windows-version 0.1.7, windows 0.62.2, windows_x86_64_gnu 0.52.6, windows_x86_64_gnu 0.53.1, windows_x86_64_msvc 0.52.6, windows_x86_64_msvc 0.53.1
 
 ```
 MIT License
@@ -12252,7 +12314,7 @@ DEALINGS IN THE SOFTWARE.
 
 ## MIT License
 
-Used by: winnow 0.5.40, winnow 0.7.15, winnow 1.0.3
+Used by: winnow 0.5.40, winnow 1.0.3
 
 ```
 Permission is hereby granted, free of charge, to any person obtaining
@@ -12362,7 +12424,7 @@ SOFTWARE.
 
 ## MIT License
 
-Used by: ctor-proc-macro 0.0.7, ctor 0.8.0
+Used by: ctor 1.0.13
 
 ```
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
@@ -13754,7 +13816,7 @@ Exhibit B - "Incompatible With Secondary Licenses" Notice
 
 ## Mozilla Public License 2.0
 
-Used by: cssparser-macros 0.6.1, cssparser-macros 0.7.0, cssparser 0.36.0, cssparser 0.37.0
+Used by: cssparser-macros 0.7.0, cssparser 0.37.0
 
 ```
 Mozilla Public License Version 2.0
@@ -14137,7 +14199,7 @@ Exhibit B - "Incompatible With Secondary Licenses" Notice
 
 ## Mozilla Public License 2.0
 
-Used by: option-ext 0.2.0, selectors 0.36.1, selectors 0.38.0
+Used by: option-ext 0.2.0, selectors 0.38.0
 
 ```
 Mozilla Public License Version 2.0
