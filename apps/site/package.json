@@ -18,7 +18,7 @@
     },
     "devDependencies": {
         "@astrojs/check": "0.9.10",
-        "@astrojs/mdx": "7.0.8",
+        "@astrojs/mdx": "8.0.2",
         "@eslint/js": "10.0.1",
         "@pagefind/default-ui": "1.5.2",
         "@tailwindcss/vite": "4.3.3",
