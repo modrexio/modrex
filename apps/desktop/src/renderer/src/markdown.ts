@@ -10,7 +10,7 @@ import { legacyBbcodeToHtml } from './legacyBbcode'
 const alignCell: RendererRule = (tokens, idx, options, _env, self) => {
     const token = tokens[idx]
     const style = token.attrGet('style')
-    if (style) {
+    if (typeof style === 'string') {
         token.attrs = token.attrs!.filter(([name]) => name !== 'style')
         token.attrSet('align', style.replace('text-align:', ''))
     }
