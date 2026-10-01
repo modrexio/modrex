@@ -25,6 +25,11 @@ updates:
           interval: monthly
       commit-message:
           prefix: chore(deps)
+      # repak's PakBuilder::key takes the aes major it depends on.
+      ignore:
+          - dependency-name: aes
+            update-types:
+                - version-update:semver-major
       groups:
           cargo-all:
               patterns:
