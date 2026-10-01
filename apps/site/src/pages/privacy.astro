@@ -6,7 +6,7 @@ import { formatLastUpdated } from '../lib/legal'
 
 // Bump when the wording below changes in substance. `pnpm check-legal-dates` fails the
 // build if this page is committed with a date older than the commit touching it.
-const LAST_UPDATED = '2026-09-08'
+const LAST_UPDATED = '2026-10-01'
 ---
 
 <BaseLayout
@@ -32,32 +32,37 @@ const LAST_UPDATED = '2026-09-08'
                 </p>
                 <ul>
                     <li>
-                        <strong>Opt-in only.</strong> You are asked once on first launch and can change
-                        your choice at any time in Settings.
+                        <strong>Opt-in only.</strong> You are asked once on first launch and can
+                        change your choice at any time in Settings.
                     </li>
                     <li>
-                        <strong>What is collected if you opt in:</strong> anonymous usage events (features
-                        used, mods installed, app version, operating system). A random per-install ID
-                        is generated locally — it is never linked to your name, email, or any account.
+                        <strong>What is collected if you opt in:</strong> anonymous usage events
+                        (features used, mods installed, app version, operating system). A random
+                        per-install ID is generated locally — it is never linked to your name,
+                        email, or any account.
                     </li>
                     <li>
-                        <strong>What is never collected:</strong> file paths, the text you type into mod
-                        search (only its length), game save data, your account credentials, or your name
-                        or email address.
+                        <strong>What is never collected:</strong> file paths, the text you type into
+                        mod search (only its length), game save data, your account credentials, or
+                        your name or email address.
                     </li>
                     <li>
-                        <strong>Processor, and your IP address:</strong> analytics events are sent to
-                        Google Analytics 4 through a proxy at modrex.net, running on Cloudflare Pages.
-                        The proxy reads the IP address your connection arrives from and forwards it to
-                        Google in the same request, so that country-level statistics reflect where you
-                        are rather than where the proxy is. The proxy does not store it and Modrex keeps
-                        no database of it. An IP address can count as personal data in some jurisdictions,
-                        so it is disclosed here even though it is used only for approximate location.
-                        See <a
+                        <strong>Processor, and your IP address:</strong> analytics events are sent
+                        to Google Analytics 4 through a proxy at modrex.net, running on Cloudflare
+                        Pages. The proxy reads the IP address your connection arrives from and
+                        forwards it to Google in the same request, so that country-level statistics
+                        reflect where you are rather than where the proxy is. The proxy does not
+                        store it and Modrex keeps no database of it. An IP address can count as
+                        personal data in some jurisdictions, so it is disclosed here even though it
+                        is used only for approximate location. See{' '}
+                        <a
                             href="https://policies.google.com/privacy"
                             target="_blank"
-                            rel="noopener">Google's Privacy Policy</a
-                        >.
+                            rel="noopener"
+                        >
+                            Google's Privacy Policy
+                        </a>
+                        .
                     </li>
                 </ul>
                 <p>
@@ -90,10 +95,10 @@ const LAST_UPDATED = '2026-09-08'
                     </li>
                     <li>
                         <strong>The download host a mod loader is published on</strong>, when you
-                        install a loader, and <strong
-                            >the update address a mod itself declares</strong
-                        >, when Modrex checks that mod for a newer version. These hosts are chosen
-                        by the loader and mod authors, not by Modrex.
+                        install a loader, and{' '}
+                        <strong>the update address a mod itself declares</strong>, when Modrex
+                        checks that mod for a newer version. These hosts are chosen by the loader
+                        and mod authors, not by Modrex.
                     </li>
                 </ul>
                 <p>
@@ -110,40 +115,45 @@ const LAST_UPDATED = '2026-09-08'
                 </p>
                 <ul>
                     <li>
-                        <strong>What is stored:</strong> the access token and refresh token that Nexus
-                        issues, plus the time the access token expires. No password and no profile information
-                        is stored.
+                        <strong>What is stored:</strong> the access token and refresh token that
+                        Nexus issues, plus the time the access token expires. No password and no
+                        profile information is stored.
                     </li>
                     <li>
-                        <strong>Where it is stored:</strong> in your operating system's credential store
-                        (Windows Credential Manager, or a Secret Service provider such as gnome-keyring
-                        or KWallet on Linux). Only the expiry time is written to Modrex's own settings
-                        file.
+                        <strong>Where it is stored:</strong> in your operating system's credential
+                        store (Windows Credential Manager, or a Secret Service provider such as
+                        gnome-keyring or KWallet on Linux). Only the expiry time is written to
+                        Modrex's own settings file.
                     </li>
                     <li>
-                        <strong>Where it is sent:</strong> only to Nexus Mods, to authorize your own requests
-                        to their API. These tokens are never transmitted to modrex.net or to any other
-                        server operated by Modrex.
+                        <strong>Where it is sent:</strong> only to Nexus Mods, to authorize your own
+                        requests to their API. These tokens are never transmitted to modrex.net or
+                        to any other server operated by Modrex.
                     </li>
                     <li>
-                        <strong>On Linux with no credential store:</strong> if no Secret Service provider
-                        is running, Modrex falls back to storing both tokens in plain text in its configuration
-                        file (<code>~/.config/modrex/settings.json</code>), where other users of the
-                        same computer may be able to read them. Modrex shows a warning in Settings
-                        whenever this is the case. Installing and enabling gnome-keyring or KWallet
-                        and restarting Modrex moves the tokens into the credential store.
+                        <strong>On Linux with no credential store:</strong> if no Secret Service
+                        provider is running, Modrex falls back to storing both tokens in plain text
+                        in its configuration file (<code>~/.config/modrex/settings.json</code>),
+                        where other users of the same computer may be able to read them. Modrex
+                        shows a warning in Settings whenever this is the case. Installing and
+                        enabling gnome-keyring or KWallet and restarting Modrex moves the tokens
+                        into the credential store.
                     </li>
                     <li>
-                        <strong>Removing it:</strong> signing out in Settings deletes both tokens from
-                        the credential store and from the settings file.
+                        <strong>Removing it:</strong> signing out in Settings deletes both tokens
+                        from the credential store and from the settings file.
                     </li>
                 </ul>
                 <p>
-                    Your use of Nexus Mods is also governed by their own <a
+                    Your use of Nexus Mods is also governed by their own{' '}
+                    <a
                         href="https://help.nexusmods.com/article/20-privacy-policy"
                         target="_blank"
-                        rel="noopener">Privacy Policy</a
-                    >.
+                        rel="noopener"
+                    >
+                        Privacy Policy
+                    </a>
+                    .
                 </p>
 
                 <h2>Website (modrex.net)</h2>
@@ -169,15 +179,19 @@ const LAST_UPDATED = '2026-09-08'
 
                 <h2>Contact</h2>
                 <p>
-                    Questions? Open an issue on <a
+                    Questions? Open an issue on{' '}
+                    <a
                         href="https://github.com/modrexio/modrex/issues"
                         target="_blank"
-                        rel="noopener">GitHub</a
-                    > or join our <a
-                        href="https://discord.gg/QM2rDgy43Y"
-                        target="_blank"
-                        rel="noopener">Discord</a
-                    >.
+                        rel="noopener"
+                    >
+                        GitHub
+                    </a>{' '}
+                    or join our{' '}
+                    <a href="https://discord.gg/QM2rDgy43Y" target="_blank" rel="noopener">
+                        Discord
+                    </a>
+                    .
                 </p>
             </div>
         </div>

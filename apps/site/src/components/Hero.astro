@@ -72,7 +72,9 @@ const releasedOn = release
 <header class="hero">
     <div class="wrap hero-grid">
         <div class="hero-text">
-            <h1 class="hero-title">Modrex <span class="nowrap">Mod Manager</span></h1>
+            <h1 class="hero-title">
+                Modrex <span class="nowrap">Mod Manager</span>
+            </h1>
             <p class="hero-sub">
                 Browse ModWorkshop and Nexus Mods, install in one click, and launch the game modded
                 or vanilla from the same window.
@@ -88,20 +90,20 @@ const releasedOn = release
                     />
                     <span id="hero-dl-label">Download for Windows</span>
                 </a>
-                <a href="/#download" class="other-link">Download options</a>
+                <a href="/#download" class="other-link">
+                    Download options
+                </a>
             </div>
             <p class="hero-meta">
                 Free and open source.{' '}
-                {
-                    release && (
-                        <span>
-                            <a href={release.html_url} target="_blank" rel="noopener">
-                                {release.tag_name}
-                            </a>
-                            <span>, released {releasedOn}.</span>
-                        </span>
-                    )
-                }
+                {release && (
+                    <span>
+                        <a href={release.html_url} target="_blank" rel="noopener">
+                            {release.tag_name}
+                        </a>
+                        <span>, released {releasedOn}.</span>
+                    </span>
+                )}
             </p>
         </div>
 
@@ -119,27 +121,29 @@ const releasedOn = release
                     aria-label={`Open ${shots[FIRST].name} fullscreen`}
                 >
                     <span class="shot-stack">
-                        {
-                            shots.map((s, i) => (
-                                <span class:list={['stage-shot', { active: i === FIRST }]}>
-                                    <Picture
-                                        src={s.src}
-                                        alt={s.alt}
-                                        widths={STAGE_WIDTHS}
-                                        sizes={STAGE_SIZES}
-                                        formats={['avif']}
-                                        fallbackFormat="webp"
-                                        loading={i === FIRST ? 'eager' : 'lazy'}
-                                        fetchpriority={i === FIRST ? 'high' : 'auto'}
-                                    />
-                                </span>
-                            ))
-                        }
+                        {shots.map((s, i) => (
+                            <span class:list={['stage-shot', { active: i === FIRST }]}>
+                                <Picture
+                                    src={s.src}
+                                    alt={s.alt}
+                                    widths={STAGE_WIDTHS}
+                                    sizes={STAGE_SIZES}
+                                    formats={['avif']}
+                                    fallbackFormat="webp"
+                                    loading={i === FIRST ? 'eager' : 'lazy'}
+                                    fetchpriority={i === FIRST ? 'high' : 'auto'}
+                                />
+                            </span>
+                        ))}
                     </span>
                 </button>
                 <div class="stage-bar">
-                    <span class="shot-name" data-shot-name>{shots[FIRST].name}</span>
-                    <span class="shot-count" data-shot-count>{FIRST + 1} / {shots.length}</span>
+                    <span class="shot-name" data-shot-name>
+                        {shots[FIRST].name}
+                    </span>
+                    <span class="shot-count" data-shot-count>
+                        {FIRST + 1} / {shots.length}
+                    </span>
                     <div class="seg">
                         <button type="button" data-step="-1" aria-label="Previous screenshot">
                             <i data-lucide="chevron-left"></i>
@@ -152,21 +156,19 @@ const releasedOn = release
             </div>
             <div class="stage-tabs">
                 <div class="tablist" role="tablist" aria-label="Screenshots">
-                    {
-                        shots.map((s, i) => (
-                            <button
-                                type="button"
-                                role="tab"
-                                id={`shot-tab-${i}`}
-                                class:list={['tab', { active: i === FIRST }]}
-                                aria-controls="stage-panel"
-                                aria-selected={i === FIRST ? 'true' : 'false'}
-                                tabindex={i === FIRST ? 0 : -1}
-                            >
-                                {s.name}
-                            </button>
-                        ))
-                    }
+                    {shots.map((s, i) => (
+                        <button
+                            type="button"
+                            role="tab"
+                            id={`shot-tab-${i}`}
+                            class:list={['tab', { active: i === FIRST }]}
+                            aria-controls="stage-panel"
+                            aria-selected={i === FIRST ? 'true' : 'false'}
+                            tabindex={i === FIRST ? 0 : -1}
+                        >
+                            {s.name}
+                        </button>
+                    ))}
                 </div>
             </div>
         </div>
@@ -174,8 +176,12 @@ const releasedOn = release
 
     <dialog class="viewer" id="viewer" aria-label="Screenshot viewer">
         <div class="viewer-bar">
-            <span class="shot-name" data-shot-name>{shots[FIRST].name}</span>
-            <span class="shot-count" data-shot-count>{FIRST + 1} / {shots.length}</span>
+            <span class="shot-name" data-shot-name>
+                {shots[FIRST].name}
+            </span>
+            <span class="shot-count" data-shot-count>
+                {FIRST + 1} / {shots.length}
+            </span>
             <div class="viewer-actions">
                 <div class="seg">
                     <button type="button" data-step="-1" aria-label="Previous screenshot">
@@ -198,21 +204,19 @@ const releasedOn = release
             </div>
         </div>
         <div class="viewer-body" id="viewer-body">
-            {
-                shots.map((s, i) => (
-                    <div class:list={['viewer-shot', { active: i === FIRST }]}>
-                        <Picture
-                            src={s.src}
-                            alt={s.alt}
-                            widths={VIEWER_WIDTHS}
-                            sizes="100vw"
-                            formats={['avif']}
-                            fallbackFormat="webp"
-                            loading="lazy"
-                        />
-                    </div>
-                ))
-            }
+            {shots.map((s, i) => (
+                <div class:list={['viewer-shot', { active: i === FIRST }]}>
+                    <Picture
+                        src={s.src}
+                        alt={s.alt}
+                        widths={VIEWER_WIDTHS}
+                        sizes="100vw"
+                        formats={['avif']}
+                        fallbackFormat="webp"
+                        loading="lazy"
+                    />
+                </div>
+            ))}
         </div>
     </dialog>
 </header>

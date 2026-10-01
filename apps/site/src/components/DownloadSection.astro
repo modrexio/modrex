@@ -76,22 +76,18 @@ const extension = (file: DlFile) => file.name.split('.').pop()
                 </h3>
                 <div class="dl-body">
                     <div class="files">
-                        {
-                            windowsFiles.map((f) => (
-                                <a
-                                    class="btn-lg primary dl-btn"
-                                    href={f.url}
-                                    data-os-main="windows"
-                                >
-                                    Download .{extension(f)}{' '}
-                                    {f.size && <span class="fsize">{f.size}</span>}
-                                </a>
-                            ))
-                        }
+                        {windowsFiles.map((f) => (
+                            <a class="btn-lg primary dl-btn" href={f.url} data-os-main="windows">
+                                Download .{extension(f)}{' '}
+                                {f.size && <span class="fsize">{f.size}</span>}
+                            </a>
+                        ))}
                     </div>
                     <p class="cli-label">Or with winget</p>
                     <div class="quick-install">
-                        <code><span class="tok-cmd">winget</span> install modrex</code>
+                        <code>
+                            <span class="tok-cmd">winget</span> install modrex
+                        </code>
                         <button
                             class="copy-btn"
                             data-cmd={wingetCmd}
@@ -111,27 +107,23 @@ const extension = (file: DlFile) => file.name.split('.').pop()
                 </h3>
                 <div class="dl-body">
                     <div class="files">
-                        {
-                            linuxFiles.map((f, i) => (
-                                <a
-                                    class="btn-lg secondary dl-btn"
-                                    href={f.url}
-                                    data-os-main={i === 0 ? 'linux' : undefined}
-                                >
-                                    Download .{extension(f)}{' '}
-                                    {f.size && <span class="fsize">{f.size}</span>}
-                                </a>
-                            ))
-                        }
+                        {linuxFiles.map((f, i) => (
+                            <a
+                                class="btn-lg secondary dl-btn"
+                                href={f.url}
+                                data-os-main={i === 0 ? 'linux' : undefined}
+                            >
+                                Download .{extension(f)}{' '}
+                                {f.size && <span class="fsize">{f.size}</span>}
+                            </a>
+                        ))}
                     </div>
                     <p class="cli-label">Or with the install script</p>
                     <div class="quick-install">
-                        <code
-                            ><span class="tok-cmd">curl</span> -fsSL https://modrex.net/install.sh{
-                                ' '
-                            }<span class="tok-pipe">|</span>{' '}<span class="tok-cmd">sh</span
-                            ></code
-                        >
+                        <code>
+                            <span class="tok-cmd">curl</span> -fsSL https://modrex.net/install.sh{' '}
+                            <span class="tok-pipe">|</span> <span class="tok-cmd">sh</span>
+                        </code>
                         <button
                             class="copy-btn"
                             data-cmd={installCmd}
@@ -146,9 +138,7 @@ const extension = (file: DlFile) => file.name.split('.').pop()
         </div>
 
         <p class="dl-note">
-            Works with Steam, Epic Games and the Xbox app on Windows, and Steam on Linux. See the{
-                ' '
-            }
+            Works with Steam, Epic Games and the Xbox app on Windows, and Steam on Linux. See the{' '}
             <a href="/docs/getting-started">installation guide</a>.
         </p>
     </div>

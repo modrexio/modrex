@@ -19,18 +19,16 @@ const supportedLaunchers = new Set(GAMES[Astro.props.game].launchers)
         </tr>
     </thead>
     <tbody>
-        {
-            LAUNCHERS.map((launcher) => (
-                <tr>
-                    <td>
-                        <LauncherIcon launcher={launcher} />
-                        {launcher}
-                    </td>
-                    <td>
-                        <SupportBadge supported={supportedLaunchers.has(launcher)} />
-                    </td>
-                </tr>
-            ))
-        }
+        {LAUNCHERS.map((launcher) => (
+            <tr>
+                <td>
+                    <LauncherIcon launcher={launcher} />
+                    {launcher}
+                </td>
+                <td>
+                    <SupportBadge supported={supportedLaunchers.has(launcher)} />
+                </td>
+            </tr>
+        ))}
     </tbody>
 </table>

@@ -9,28 +9,24 @@ import LauncherIcon from './LauncherIcon.astro'
     <thead>
         <tr>
             <th>Game</th>
-            {
-                LAUNCHERS.map((launcher) => (
-                    <th>
-                        <LauncherIcon launcher={launcher} />
-                        {launcher}
-                    </th>
-                ))
-            }
+            {LAUNCHERS.map((launcher) => (
+                <th>
+                    <LauncherIcon launcher={launcher} />
+                    {launcher}
+                </th>
+            ))}
         </tr>
     </thead>
     <tbody>
-        {
-            docsGames.map((game) => (
-                <tr>
-                    <td>{GAMES[game.id].name}</td>
-                    {LAUNCHERS.map((launcher) => (
-                        <td>
-                            <SupportBadge supported={GAMES[game.id].launchers.includes(launcher)} />
-                        </td>
-                    ))}
-                </tr>
-            ))
-        }
+        {docsGames.map((game) => (
+            <tr>
+                <td>{GAMES[game.id].name}</td>
+                {LAUNCHERS.map((launcher) => (
+                    <td>
+                        <SupportBadge supported={GAMES[game.id].launchers.includes(launcher)} />
+                    </td>
+                ))}
+            </tr>
+        ))}
     </tbody>
 </table>

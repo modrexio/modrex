@@ -26,38 +26,36 @@ const entries = releases.map((release) => ({
 }))
 ---
 
-{
-    entries.length > 0 && (
-        <section id="changelog">
-            <div class="wrap">
-                <div class="sec-head">
-                    <h2 class="sec-title">Changelog</h2>
-                    <a
-                        class="all-releases"
-                        href="https://github.com/modrexio/modrex/releases"
-                        target="_blank"
-                        rel="noopener"
-                    >
-                        All releases on GitHub
-                    </a>
-                </div>
-                {entries.map((entry) => (
-                    <article class="release">
-                        <header>
-                            <a class="rel-version" href={entry.url} target="_blank" rel="noopener">
-                                {entry.version}
-                            </a>
-                            <time class="rel-date" datetime={entry.publishedAt}>
-                                {entry.date}
-                            </time>
-                        </header>
-                        <div class="rel-body" set:html={entry.html} />
-                    </article>
-                ))}
+{entries.length > 0 && (
+    <section id="changelog">
+        <div class="wrap">
+            <div class="sec-head">
+                <h2 class="sec-title">Changelog</h2>
+                <a
+                    class="all-releases"
+                    href="https://github.com/modrexio/modrex/releases"
+                    target="_blank"
+                    rel="noopener"
+                >
+                    All releases on GitHub
+                </a>
             </div>
-        </section>
-    )
-}
+            {entries.map((entry) => (
+                <article class="release">
+                    <header>
+                        <a class="rel-version" href={entry.url} target="_blank" rel="noopener">
+                            {entry.version}
+                        </a>
+                        <time class="rel-date" datetime={entry.publishedAt}>
+                            {entry.date}
+                        </time>
+                    </header>
+                    <div class="rel-body" set:html={entry.html} />
+                </article>
+            ))}
+        </div>
+    </section>
+)}
 
 <style>
     .all-releases {

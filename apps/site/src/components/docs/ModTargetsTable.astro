@@ -27,22 +27,20 @@ const targetPath = (targetId: ModTargetId) => {
         </tr>
     </thead>
     <tbody>
-        {
-            game.targets.map((target) => (
-                <tr>
-                    <td>{target.label}</td>
-                    <td>
-                        {'targetId' in target || target.pathIsCode !== false ? (
-                            <code>
-                                {'targetId' in target ? targetPath(target.targetId) : target.path}
-                            </code>
-                        ) : (
-                            target.path
-                        )}
-                    </td>
-                    <td>{target.notes}</td>
-                </tr>
-            ))
-        }
+        {game.targets.map((target) => (
+            <tr>
+                <td>{target.label}</td>
+                <td>
+                    {'targetId' in target || target.pathIsCode !== false ? (
+                        <code>
+                            {'targetId' in target ? targetPath(target.targetId) : target.path}
+                        </code>
+                    ) : (
+                        target.path
+                    )}
+                </td>
+                <td>{target.notes}</td>
+            </tr>
+        ))}
     </tbody>
 </table>

@@ -83,11 +83,9 @@ const installedCrop = crop(200, 53, 746, 400)
                     <p>
                         Search both sites with categories, tags and sorting, read the mod page, and
                         install from the result.{' '}
-                        {
-                            nexusModsAvailable && (
-                                <span>Nexus lists {nexusModsAvailable} mods for these games.</span>
-                            )
-                        }
+                        {nexusModsAvailable && (
+                            <span>Nexus lists {nexusModsAvailable} mods for these games.</span>
+                        )}
                     </p>
                 </div>
                 <div class="crop" style={browseCrop.frameStyle}>
@@ -109,9 +107,10 @@ const installedCrop = crop(200, 53, 746, 400)
                     <h3>Recognizes mods you already have</h3>
                     <p>
                         Modrex matches the files in your game folder against{' '}
-                        <strong data-mod-index-count aria-live="polite"
-                            >{supportedMods ?? '...'}</strong
-                        > known mods, so mods you installed by hand are detected too.
+                        <strong data-mod-index-count aria-live="polite">
+                            {supportedMods ?? '...'}
+                        </strong>{' '}
+                        known mods, so mods you installed by hand are detected too.
                     </p>
                 </div>
                 <div class="crop" style={installedCrop.frameStyle}>
@@ -131,13 +130,18 @@ const installedCrop = crop(200, 53, 746, 400)
 
         <ul class="also">
             <li>
-                <strong>Archives</strong> in .pak, .zip, .7z, .rar, .tar.gz and .tar.xz, with multi-file
-                mods kept together
+                <strong>Archives</strong> in .pak, .zip, .7z, .rar, .tar.gz and .tar.xz, with
+                multi-file mods kept together
             </li>
-            <li><strong>Folders</strong> of any depth, reordered by dragging</li>
-            <li><strong>Update checks</strong> for one mod or all of them at once</li>
             <li>
-                <strong>Game detection</strong> across launchers, including mods added outside Modrex
+                <strong>Folders</strong> of any depth, reordered by dragging
+            </li>
+            <li>
+                <strong>Update checks</strong> for one mod or all of them at once
+            </li>
+            <li>
+                <strong>Game detection</strong> across launchers, including mods added outside
+                Modrex
             </li>
         </ul>
     </div>
