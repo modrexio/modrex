@@ -60,7 +60,7 @@ tauri-plugin-deep-link = "2"
 rand = "0.10"
 base64 = "0.23"
 keyring = "4"
-aes = "0.8"
+aes = "0.9"
 repak = { git = "https://github.com/trumank/repak.git", version = "=0.2.3" }
 # retoc follows jmap's moving branch; Cargo.lock keeps it on the compatible 0.1.0 revision.
 retoc = { git = "https://github.com/trumank/retoc.git", tag = "v0.1.5" }
