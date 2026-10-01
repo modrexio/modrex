@@ -76,6 +76,11 @@ jobs:
                   pnpm --dir apps/index migrate:postgres
                   pnpm --dir apps/index verify:postgres-catalog
                   pnpm --dir apps/index sync:postgres-listings
+                  case "${GAME}" in
+                      all|auto) publish_games='pd3 pd2 pdth cb raid' ;;
+                      pd3|pd2|pdth|cb|raid) publish_games="${GAME}" ;;
+                      *) exit 1 ;;
+                  esac
                   if [ "${GAME}" = auto ]; then
                       GAME="$(pnpm --dir apps/index exec tsx postgres/select-game.ts)"
                       if [ -z "${GAME}" ]; then
@@ -91,11 +96,21 @@ jobs:
                   mkdir -p apps/index/artifacts
                   for game in ${games}; do
                       pnpm --dir apps/index process:postgres-content -- --game="${game}" --limit="${LIMIT}"
+                  done
+                  for game in ${publish_games}; do
                       database="apps/index/artifacts/${game}.db"
-                      pnpm --dir apps/index export:postgres-sqlite -- --game="${game}" --output="artifacts/${game}.db" --require-files
-                      sha256="$(sha256sum "${database}" | cut -d ' ' -f 1)"
                       aws s3 cp "s3://${R2_BUCKET}/catalog/latest.json" latest.json --endpoint-url "${R2_ENDPOINT}"
+                      previous_key="$(jq -r --arg game "${game}" '.games[$game].key // empty' latest.json)"
                       previous_sha256="$(jq -r --arg game "${game}" '.games[$game].sha256 // empty' latest.json)"
+                      previous_args=()
+                      if [ -n "${previous_key}" ] || [ -n "${previous_sha256}" ]; then
+                          test -n "${previous_key}"
+                          test -n "${previous_sha256}"
+                          aws s3 cp "s3://${R2_BUCKET}/${previous_key}" "apps/index/artifacts/${game}.previous.db" --endpoint-url "${R2_ENDPOINT}"
+                          previous_args=(--previous="artifacts/${game}.previous.db" --previous-sha256="${previous_sha256}")
+                      fi
+                      pnpm --dir apps/index export:postgres-sqlite -- --game="${game}" --output="artifacts/${game}.db" --require-files "${previous_args[@]}"
+                      sha256="$(sha256sum "${database}" | cut -d ' ' -f 1)"
                       if [ "${sha256}" = "${previous_sha256}" ]; then
                           printf 'No content change for %s; keeping the current generation.\n' "${game}"
                           continue

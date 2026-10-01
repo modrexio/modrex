@@ -1,7 +1,15 @@
 import { GAME_IDS, isGameId } from '@modrex/games'
 import { neon } from '@neondatabase/serverless'
 
-import { writeSnapshot, type SnapshotRow, type SnapshotSource } from './snapshot.js'
+import { writeSnapshot, type SnapshotSource } from './snapshot.js'
+import {
+    applySnapshotDelta,
+    readPreviousSnapshot,
+    snapshotFingerprints,
+    snapshotDeltaQuery,
+    snapshotSourceQuery,
+    type SnapshotDelta,
+} from './snapshot-delta.js'
 
 const databaseUrl = process.env.INDEX_DATABASE_URL
 if (!databaseUrl) throw new Error('INDEX_DATABASE_URL is required')
@@ -12,31 +20,33 @@ if (!isGameId(game)) throw new Error(`--game must be one of ${GAME_IDS.join(', '
 const output = process.argv.find((argument) => argument.startsWith('--output='))?.slice(9)
 if (!output) throw new Error('--output is required')
 const requireFiles = process.argv.includes('--require-files')
+const previousPath = process.argv.find((argument) => argument.startsWith('--previous='))?.slice(11)
+const previousSha256 = process.argv
+    .find((argument) => argument.startsWith('--previous-sha256='))
+    ?.slice(18)
+if (Boolean(previousPath) !== Boolean(previousSha256))
+    throw new Error('--previous and --previous-sha256 must be supplied together')
 
+const previous =
+    previousPath && previousSha256
+        ? readPreviousSnapshot(previousPath, previousSha256, game).rows
+        : []
 const sql = neon(databaseUrl)
 
-const rows = (await sql`
-    SELECT mods.id AS mod_id, mods.remote_id AS mod_remote_id, mods.name AS mod_name, mods.url AS mod_url,
-           files.id AS file_id, files.sha256 AS file_sha256, files.remote_id AS file_remote_id,
-           files.version AS file_version, files.indexed_at AS file_indexed_at, files.entry_name AS file_entry_name
-    FROM files
-    JOIN mods ON mods.id = files.mod_id
-    JOIN sources ON sources.id = mods.source_id
-    JOIN games ON games.id = sources.game_id
-    WHERE games.slug = ${game}
-    ORDER BY files.id
-`) as SnapshotRow[]
+// Both queries must observe the same database snapshot, including concurrent catalog edits.
+const [catalog, changes] = (await sql.transaction(
+    [
+        sql.query(snapshotSourceQuery, [game]),
+        sql.query(snapshotDeltaQuery, [game, JSON.stringify(snapshotFingerprints(previous))]),
+    ],
+    { isolationLevel: 'RepeatableRead', readOnly: true }
+)) as [SnapshotSource[], SnapshotDelta[]]
+if (catalog.length !== 1) throw new Error(`missing ModWorkshop catalog source for ${game}`)
+const rows = applySnapshotDelta(previous, changes)
 if (requireFiles && rows.length === 0) throw new Error(`no indexed file records exist for ${game}`)
 
-const catalog = (await sql`
-    SELECT games.id AS game_id, games.name AS game_name, games.slug AS game_slug,
-           sources.id AS source_id, sources.name AS source_name,
-           sources.base_url AS source_base_url, sources.game_ref AS source_game_ref
-    FROM sources
-    JOIN games ON games.id = sources.game_id
-    WHERE games.slug = ${game} AND sources.name = 'modworkshop'
-`) as SnapshotSource[]
-if (catalog.length !== 1) throw new Error(`missing ModWorkshop catalog source for ${game}`)
-
 const outputPath = writeSnapshot(output, game, catalog[0], rows)
-console.log(`Exported ${rows.length} file records for ${game} to ${outputPath}`)
+const transferred = changes.filter((change) => change.record !== null).length
+console.log(
+    `Exported ${rows.length} file records for ${game} to ${outputPath}; fetched ${transferred} records, removed ${changes.length - transferred} records`
+)

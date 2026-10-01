@@ -19,6 +19,7 @@
         "test:process-failure": "tsx test-process-failure.ts",
         "test:postgres-architecture": "tsx test-postgres-architecture.ts",
         "test:postgres-queries": "tsx test-postgres-queries.ts",
+        "test:snapshot-delta": "tsx test-snapshot-delta.ts",
         "test:staged-rebuild": "node test-staged-rebuild.mjs"
     },
     "dependencies": {
