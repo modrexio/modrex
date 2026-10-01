@@ -13,26 +13,24 @@ import { docsGames } from '../../data/docsGames'
             </tr>
         </thead>
         <tbody>
-            {
-                docsGames.map((game) => (
-                    <tr>
-                        <td>
-                            {game.hasPage ? (
-                                <a href={`/docs/games/${game.slug}`}>{GAMES[game.id].name}</a>
-                            ) : (
-                                GAMES[game.id].name
-                            )}
-                        </td>
-                        <td>{GAMES[game.id].launchers.join(', ')}</td>
-                        <td>
-                            {game.targets
-                                .filter((target) => 'targetId' in target)
-                                .map((target) => target.label)
-                                .join(', ')}
-                        </td>
-                    </tr>
-                ))
-            }
+            {docsGames.map((game) => (
+                <tr>
+                    <td>
+                        {game.hasPage ? (
+                            <a href={`/docs/games/${game.slug}`}>{GAMES[game.id].name}</a>
+                        ) : (
+                            GAMES[game.id].name
+                        )}
+                    </td>
+                    <td>{GAMES[game.id].launchers.join(', ')}</td>
+                    <td>
+                        {game.targets
+                            .filter((target) => 'targetId' in target)
+                            .map((target) => target.label)
+                            .join(', ')}
+                    </td>
+                </tr>
+            ))}
         </tbody>
     </table>
 </div>
