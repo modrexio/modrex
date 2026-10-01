@@ -29,7 +29,7 @@
     "devDependencies": {
         "@electric-sql/pglite": "^0.5.8",
         "@types/adm-zip": "^0.5.8",
-        "@types/better-sqlite3": "^7.6.13",
+        "@types/better-sqlite3": "^9.6.0",
         "@types/emscripten": "^1.41.6",
         "@types/node": "^26.6.3",
         "adm-zip": "^0.6.1",
