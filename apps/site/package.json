@@ -28,7 +28,7 @@
         "marked": "18.0.14",
         "pagefind": "1.5.2",
         "prettier": "3.9.9",
-        "prettier-plugin-astro": "0.14.1",
+        "prettier-plugin-astro": "1.1.0",
         "sharp": "0.35.5",
         "tailwindcss": "4.3.3",
         "typescript": "6.0.3",
