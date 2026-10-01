@@ -1263,7 +1263,7 @@ MIT License
 
 ---
 
-### @types/react 19.2.18
+### @types/react 19.3.0
 
 **License:** MIT
 
@@ -1293,7 +1293,7 @@ MIT License
 
 ---
 
-### @types/react-dom 19.2.5
+### @types/react-dom 19.3.0
 
 **License:** MIT
 
@@ -2667,7 +2667,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ---
 
-### mdast-util-to-markdown 2.1.2
+### mdast-util-to-markdown 2.1.3
 
 **License:** MIT
 
@@ -2783,7 +2783,7 @@ IN THE SOFTWARE.
 
 ---
 
-### micromark 4.0.2
+### micromark 4.0.3
 
 **License:** MIT
 
@@ -2814,7 +2814,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ---
 
-### micromark-core-commonmark 2.0.3
+### micromark-core-commonmark 2.0.4
 
 **License:** MIT
 
@@ -2907,7 +2907,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ---
 
-### micromark-factory-space 2.0.1
+### micromark-factory-space 2.1.0
 
 **License:** MIT
 
@@ -3186,6 +3186,37 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ---
 
+### micromark-util-edit-map 1.0.0
+
+**License:** MIT
+
+```
+(The MIT License)
+
+Copyright (c) Titus Wormer <tituswormer@gmail.com>
+
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of this software and associated documentation files (the
+'Software'), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so, subject to
+the following conditions:
+
+The above copyright notice and this permission notice shall be
+included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+```
+
+---
+
 ### micromark-util-encode 2.0.1
 
 **License:** MIT
@@ -3403,7 +3434,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ---
 
-### micromark-util-types 2.0.2
+### micromark-util-types 2.0.3
 
 **License:** MIT
 
@@ -3561,7 +3592,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ---
 
-### react 19.2.8
+### react 19.3.0
 
 **License:** MIT
 
@@ -3591,7 +3622,7 @@ SOFTWARE.
 
 ---
 
-### react-dom 19.2.8
+### react-dom 19.3.0
 
 **License:** MIT
 
@@ -3780,7 +3811,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ---
 
-### scheduler 0.27.0
+### scheduler 0.28.0
 
 **License:** MIT
 
@@ -3934,7 +3965,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ---
 
-### tailwind-merge 3.6.0
+### tailwind-merge 3.7.0
 
 **License:** MIT
 
@@ -4453,14 +4484,14 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ---
 
-### @tauri-apps/api 2.11.1
+### @tauri-apps/api 2.12.0
 
 **License:** Apache-2.0 OR MIT
 
 
 ---
 
-### @tauri-apps/plugin-log 2.9.0
+### @tauri-apps/plugin-log 2.10.0
 
 **License:** MIT OR Apache-2.0
 
@@ -4491,7 +4522,7 @@ PERFORMANCE OF THIS SOFTWARE.
 
 ---
 
-### lucide-react 1.35.0
+### lucide-react 1.48.0
 
 **License:** ISC
 
@@ -5085,7 +5116,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ---
 
-### simple-icons 16.29.0
+### simple-icons 16.33.0
 
 **License:** CC0-1.0
 
