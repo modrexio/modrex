@@ -166,6 +166,91 @@ function scriptedAnswers(values) {
     }
 }
 
+for (const [form, committedValue, editedValue] of [
+    ['NFC', '\u00e9', 'e\u0301'],
+    ['NFD', 'e\u0301', '\u00e9'],
+]) {
+    for (const [request, committedMarker, workingValue] of [
+        ['an unmarked target', false, undefined],
+        ['an uncommitted review marker', false, `? ${committedValue}`],
+        ['an uncommitted normalized target', false, editedValue],
+        ['a committed review marker', true, undefined],
+    ]) {
+        test(`normalization from ${form} requires observable acceptance with ${request}`, async () => {
+            await withRepository(async (directory) => {
+                const baseline = commitLocales(
+                    directory,
+                    { en: { value: 'A' }, de: { value: committedValue } },
+                    'baseline'
+                )
+                commitLocales(
+                    directory,
+                    {
+                        en: { value: 'B' },
+                        de: { value: committedMarker ? `? ${committedValue}` : committedValue },
+                    },
+                    'source change'
+                )
+                if (workingValue !== undefined)
+                    writeLocales(directory, { de: { value: workingValue } })
+                const review = prepareI18nReview({
+                    ...reviewOptions(directory, baseline),
+                    localeId: 'de',
+                })
+                const candidate = review.candidates[0]
+                if (committedMarker) {
+                    assert.deepEqual(reviewEditProblems(candidate, editedValue), [])
+                    const action = applyReviewAction(candidate, REVIEW_ACTION.EDIT, editedValue)
+                    commitLocales(directory, { de: { value: action.storedValue } }, 'accept source')
+                    const history = analyzeCommittedHistory(reviewOptions(directory, baseline))
+                    const entry = summarizeHistory(history).locales.get('de').entries.get('value')
+                    assert.equal(entry.effectiveState, 'accepted')
+                    assert.equal(entry.checkpoint.sourceText, 'B')
+                    assert.equal(history.events.at(-1).kind, 'keep')
+                    return
+                }
+                assert.match(
+                    reviewEditProblems(candidate, editedValue).join('\n'),
+                    /canonically identical/
+                )
+                assert.throws(
+                    () => applyReviewAction(candidate, REVIEW_ACTION.EDIT, editedValue),
+                    /canonically identical/
+                )
+                assert.throws(
+                    () => applyReviewAction(candidate, REVIEW_ACTION.KEEP),
+                    /no acceptance could be recorded/
+                )
+                const localePath = join(directory, LOCALE_DIR, 'de.json')
+                const before = readFileSync(localePath)
+                const indexBefore = git(directory, ['write-tree'])
+                let writes = 0
+                const output = captureStream()
+                assert.deepEqual(
+                    await reviewLocaleSession({
+                        review,
+                        ask: scriptedAnswers(['e', editedValue, '']),
+                        stdout: output.stream,
+                        write() {
+                            writes += 1
+                        },
+                    }),
+                    { edited: 0, kept: 0, skipped: 1 }
+                )
+                assert.match(output.value(), /canonically identical/)
+                assert.equal(writes, 0)
+                assert.deepEqual(readFileSync(localePath), before)
+                assert.equal(git(directory, ['write-tree']), indexBefore)
+                const history = analyzeCommittedHistory(reviewOptions(directory, baseline))
+                assert.equal(
+                    summarizeHistory(history).locales.get('de').entries.get('value').effectiveState,
+                    'review'
+                )
+            })
+        })
+    }
+}
+
 test('candidate context uses carried checkpoint English and current source and target', () => {
     const candidate = candidateFor([
         { en: { value: 'A' }, de: { value: 'X' } },

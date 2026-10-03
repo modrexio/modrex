@@ -2,6 +2,7 @@ import type { CliIO, CliOutput } from './i18n-io.mts'
 import type { LocaleBundle } from './i18n-files.mts'
 import type { HistoryAnalysis, HistoryOptions } from './i18n-history.mts'
 import type { HistorySnapshot } from './i18n-history-events.mts'
+import { normalize } from './i18n-history-events.mts'
 import type { Inspection } from './i18n-inspection.mts'
 import { existsSync } from 'node:fs'
 import { dirname, relative, resolve } from 'node:path'
@@ -142,12 +143,10 @@ function acceptanceRecordingInstruction(candidate: Candidate) {
     return 'Run pnpm i18n:sync and commit the review marker first.'
 }
 
-// A decision only exists if it changes the committed file. Writing back exactly what is
-// already committed leaves no diff, so Git would record no acceptance and the reviewer would
-// report work that did not happen.
+// i18n-review.test.mjs enforces normalized edits and committed marker removal.
 function wouldRecordAcceptance(candidate: Candidate, storedValue: string) {
     if (candidate.committedValue === undefined) return true
-    return storedValue !== candidate.committedValue
+    return normalize(storedValue) !== normalize(candidate.committedValue)
 }
 
 export function reviewEditProblems(candidate: Candidate, targetText: string) {
@@ -184,7 +183,8 @@ export function reviewEditProblems(candidate: Candidate, targetText: string) {
     }
     if (!wouldRecordAcceptance(candidate, targetText)) {
         problems.push(
-            'This is identical to the committed value, so Git would record no acceptance.'
+            'This is canonically identical to the committed value, so Git would record no acceptance. ' +
+                acceptanceRecordingInstruction(candidate)
         )
     }
     return problems
@@ -206,7 +206,7 @@ export function applyReviewAction(
         }
         if (!wouldRecordAcceptance(candidate, candidate.currentTargetText)) {
             throw new Error(
-                'Keep would not change the committed file, so no acceptance could be recorded. ' +
+                'Keep is canonically identical to the committed value, so no acceptance could be recorded. ' +
                     acceptanceRecordingInstruction(candidate)
             )
         }
@@ -343,7 +343,7 @@ function formatCandidate(
     ].join('\n')
 }
 
-const KEEP_UNRECORDABLE = 'the committed file already holds this text, so nothing would be recorded'
+const KEEP_UNRECORDABLE = 'the target is canonically identical to the committed value'
 
 function keepBlockedReason(candidate: Candidate) {
     if (!candidate.placeholderCompatible) return 'runtime currently uses English'

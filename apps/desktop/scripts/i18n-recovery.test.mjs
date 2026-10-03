@@ -215,6 +215,30 @@ test('an explicit committed review marker resolves a gap without automatic marke
     assert.deepEqual(synchronizeI18n(options).written, [])
 })
 
+test('normalization cannot resolve a history gap but a later translated edit can', (t) => {
+    const options = fixture(t, [
+        { en: { a: 'A' }, de: { a: '\u00e9' } },
+        { de: '{' },
+        { en: { a: 'B' }, de: { a: '\u00e9' } },
+    ])
+    const candidate = prepareI18nReview({ ...options, localeId: 'de' }).candidates[0]
+    assert.equal(candidate.evidenceIncomplete, true)
+    assert.throws(
+        () => applyReviewAction(candidate, 'edit', 'e\u0301'),
+        /canonically identical.*explicit review marker/
+    )
+    assert.throws(() => applyReviewAction(candidate, 'keep'), /explicit review marker/)
+    const edited = applyReviewAction(candidate, 'edit', 'Y')
+    writeFileSync(join(options.cwd, 'i18n/de.json'), JSON.stringify({ a: edited.storedValue }))
+    git(options.cwd, ['add', '-A'])
+    git(options.cwd, ['commit', '-qm', 'translate current source'])
+    const history = analyzeCommittedHistory(options)
+    assert.equal(entry(history).effectiveState, 'accepted')
+    assert.equal(entry(history).checkpoint.sourceText, 'B')
+    assert.equal(entry(history).checkpoint.rawTargetText, 'Y')
+    assert.deepEqual(entry(history).gapIds, [])
+})
+
 test('invalid UTF-8 historical evidence is scoped and a repair creates no acceptance', (t) => {
     const options = fixture(t, [baseline])
     writeFileSync(join(options.cwd, 'i18n/de.json'), Buffer.from([0xc3, 0x28]))

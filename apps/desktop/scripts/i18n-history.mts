@@ -234,7 +234,7 @@ function parseTargets(flat: Record<string, string>, label: string) {
 function createBundleCache(counters: { bundleParses: number }) {
     const syntax = new Map<string, BundleObservation>()
     const flats = new Map<string, Record<string, string>>()
-    const targets = new Map()
+    const targets = new Map<string, Map<string, TargetValue>>()
     return {
         parse(id: string, text: string | GitBlobDecodeError): BundleObservation {
             if (syntax.has(id)) return syntax.get(id)!
