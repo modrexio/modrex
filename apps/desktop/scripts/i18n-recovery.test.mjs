@@ -17,7 +17,7 @@ import {
 } from './i18n-history.mts'
 import { PENDING_PROVENANCE } from './i18n-history-events.mts'
 import { synchronizeI18n, planI18nSync } from './i18n-sync.mts'
-import { prepareI18nReview, applyReviewAction } from './i18n-review.mts'
+import { prepareI18nReview, applyReviewAction, buildReviewCandidates } from './i18n-review.mts'
 import { checkI18nSemantics, checkStagedI18n } from './i18n-enforcement.mts'
 
 function git(cwd, args) {
@@ -604,6 +604,13 @@ test(
         assert.equal(debt.effectiveState, 'review')
         assert.equal(debt.pendingProvenance, PENDING_PROVENANCE.SOURCE_CHANGE)
         assert.deepEqual(debt.gapIds, [])
+        const candidates = buildReviewCandidates(changed, 'it', history.snapshot)
+        assert.equal(candidates.length, 1)
+        assert.equal(candidates[0].key, 'common.beta')
+        assert.equal(candidates[0].checkpointRevision, originalRevision)
+        assert.equal(candidates[0].lastAcceptedSourceText, debt.checkpoint.rawSourceText)
+        assert.equal(candidates[0].lastAcceptedTargetText, debt.checkpoint.rawTargetText)
+        assert.equal(candidates[0].evidenceIncomplete, false)
         assert.deepEqual(
             planI18nSync({
                 history: changed,

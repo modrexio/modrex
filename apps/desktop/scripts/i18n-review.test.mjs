@@ -921,7 +921,14 @@ test(
                     const targetBlob = paths.get(I18N_LOCALE_DIR + '/' + locale.id + '.json')
                     assert.ok(sourceBlob)
                     assert.ok(targetBlob)
-                    const blobs = historyGit.readBlobs([sourceBlob, targetBlob])
+                    const recovery = history.recoveries.find(
+                        (value) =>
+                            value.revision === candidate.checkpointRevision &&
+                            value.locale === locale.id &&
+                            value.blob === targetBlob
+                    )
+                    const readableTargetBlob = recovery?.repairedBlob ?? targetBlob
+                    const blobs = historyGit.readBlobs([sourceBlob, readableTargetBlob])
                     const sourceErrors = []
                     const targetErrors = []
                     const source = flattenBundle(
@@ -930,7 +937,7 @@ test(
                         sourceErrors
                     )
                     const target = flattenBundle(
-                        JSON.parse(blobs.get(targetBlob)),
+                        JSON.parse(blobs.get(readableTargetBlob)),
                         locale.id,
                         targetErrors
                     )
