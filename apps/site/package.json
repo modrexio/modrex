@@ -10,11 +10,12 @@
         "typecheck:functions": "tsc -p functions/tsconfig.json",
         "check-legal-dates": "node scripts/check-legal-dates.mjs",
         "test": "vitest",
-        "test:run": "vitest run",
+        "test:run": "pnpm test:cache-security && vitest run",
         "lint": "eslint src/",
         "lint:fix": "eslint src/ --fix",
         "format": "prettier --write .",
-        "format:check": "prettier --check ."
+        "format:check": "prettier --check .",
+        "test:cache-security": "node --test scripts/http-cache-semantics.test.mjs"
     },
     "devDependencies": {
         "@astrojs/check": "0.9.10",
