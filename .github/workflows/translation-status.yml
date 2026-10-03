@@ -8,9 +8,10 @@ on:
             - 'apps/desktop/translation-contributors.generated.json'
             # The derived output depends on this logic, so changing it has to regenerate too.
             - 'apps/desktop/scripts/i18n-*.mjs'
-            - 'apps/desktop/scripts/check-i18n.mjs'
-            - 'apps/desktop/scripts/update-i18n-*.mjs'
-            - 'apps/desktop/src/shared/i18n-values.js'
+            - 'apps/desktop/scripts/i18n-*.mts'
+            - 'apps/desktop/scripts/check-i18n.mts'
+            - 'apps/desktop/scripts/update-i18n-*.mts'
+            - 'apps/desktop/src/shared/i18n-values.mts'
             - '.github/workflows/translation-status.yml'
     schedule:
         - cron: '17 4 * * 1'
@@ -65,26 +66,26 @@ jobs:
                     echo "Base revision: $BASE"
 
                     # The source commit has to be valid on its own before anything is written.
-                    must node apps/desktop/scripts/i18n-enforcement.mjs
+                    must node apps/desktop/scripts/i18n-enforcement.mts
 
-                    must node apps/desktop/scripts/check-i18n.mjs --sync
-                    must node apps/desktop/scripts/update-i18n-contributors.mjs
-                    must node apps/desktop/scripts/i18n-presentation-lifecycle.mjs --write
+                    must node apps/desktop/scripts/check-i18n.mts --sync
+                    must node apps/desktop/scripts/update-i18n-contributors.mts
+                    must node apps/desktop/scripts/i18n-presentation-lifecycle.mts --write
 
                     # Strict now: after the writer has run, stale derived state is a real failure.
-                    must node apps/desktop/scripts/i18n-enforcement.mjs --synchronized
-                    must node apps/desktop/scripts/i18n-presentation-lifecycle.mjs --check
+                    must node apps/desktop/scripts/i18n-enforcement.mts --synchronized
+                    must node apps/desktop/scripts/i18n-presentation-lifecycle.mts --check
 
                     # A second pass must find nothing left to do, or the generators disagree
                     # with each other and the result is not a fixed point.
-                    must node apps/desktop/scripts/i18n-tree-state.mjs > /tmp/i18n-pass-one.txt
-                    must node apps/desktop/scripts/check-i18n.mjs --sync
-                    must node apps/desktop/scripts/i18n-presentation-lifecycle.mjs --write
-                    must node apps/desktop/scripts/i18n-tree-state.mjs > /tmp/i18n-pass-two.txt
+                    must node apps/desktop/scripts/i18n-tree-state.mts > /tmp/i18n-pass-one.txt
+                    must node apps/desktop/scripts/check-i18n.mts --sync
+                    must node apps/desktop/scripts/i18n-presentation-lifecycle.mts --write
+                    must node apps/desktop/scripts/i18n-tree-state.mts > /tmp/i18n-pass-two.txt
                     must diff /tmp/i18n-pass-one.txt /tmp/i18n-pass-two.txt
 
                     # Exactly which paths changed, and that no translation was touched.
-                    must node apps/desktop/scripts/i18n-writer-guard.mjs "$BASE"
+                    must node apps/desktop/scripts/i18n-writer-guard.mts "$BASE"
 
                     # Stage the owned paths by name as well: anything else the runner somehow
                     # produced stays out of the commit even though the guard above passed.

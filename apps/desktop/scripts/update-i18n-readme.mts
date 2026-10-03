@@ -1,12 +1,22 @@
+import type { CliIO } from './i18n-io.mts'
+import type { Inspection } from './i18n-inspection.mts'
+import type {
+    StatusSummaries,
+    SourceStatusSummary,
+    TargetStatusSummary,
+} from './i18n-presentation.mts'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { inspectLocales, localeNativeName } from './i18n-inspection.mjs'
+import { inspectLocales, localeNativeName } from './i18n-inspection.mts'
 import {
     buildStatusSummaries,
     deriveTargetStatus,
     targetFallbackLabel,
-} from './i18n-presentation.mjs'
+} from './i18n-presentation.mts'
+
+export type TranslationContributors = Record<string, string[]>
+type Metadata = { names: Record<string, string>; contributors: TranslationContributors }
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
 const README_PATH = resolve(SCRIPT_DIR, '../../..', 'README.md')
@@ -18,7 +28,7 @@ const TRANSLATION_GUIDE =
 const GITHUB_USERNAME = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$/
 const PRETTIER_IGNORE = '<!-- prettier-ignore -->'
 
-function escapeMarkdownLinkText(value) {
+function escapeMarkdownLinkText(value: unknown) {
     return String(value)
         .replaceAll('\\', '\\\\')
         .replaceAll('&', '&amp;')
@@ -31,7 +41,7 @@ function escapeMarkdownLinkText(value) {
         .replaceAll(')', '\\)')
 }
 
-function escapeHtmlAttribute(value) {
+function escapeHtmlAttribute(value: unknown) {
     return String(value)
         .replaceAll('&', '&amp;')
         .replaceAll('<', '&lt;')
@@ -39,8 +49,8 @@ function escapeHtmlAttribute(value) {
         .replaceAll('"', '&quot;')
 }
 
-export function readTranslationContributors(path = CONTRIBUTORS_PATH) {
-    let contributors
+export function readTranslationContributors(path = CONTRIBUTORS_PATH): TranslationContributors {
+    let contributors: unknown
     try {
         contributors = JSON.parse(readFileSync(path, 'utf8'))
     } catch (error) {
@@ -65,10 +75,10 @@ export function readTranslationContributors(path = CONTRIBUTORS_PATH) {
         }
     }
 
-    return contributors
+    return contributors as TranslationContributors
 }
 
-function contributorLinks(usernames) {
+function contributorLinks(usernames: string[] | undefined) {
     if (!usernames) return '-'
     return [...usernames]
         .sort()
@@ -76,7 +86,7 @@ function contributorLinks(usernames) {
         .join(', ')
 }
 
-function buildLocaleRows(inspection, contributors) {
+function buildLocaleRows(inspection: Inspection, contributors: TranslationContributors) {
     const localeIds = new Set([
         inspection.sourceLocale,
         ...inspection.locales.map((locale) => locale.id),
@@ -97,18 +107,18 @@ function buildLocaleRows(inspection, contributors) {
     }
 }
 
-function renderImage(locale, alt) {
+function renderImage(locale: string, alt: string) {
     return `<img src="assets/i18n/status/${locale}.svg" alt="${escapeHtmlAttribute(alt)}">`
 }
 
-function renderSourceRow(summary, metadata) {
+function renderSourceRow(summary: SourceStatusSummary, metadata: Metadata) {
     const rawName = metadata.names[summary.locale]
     const name = escapeMarkdownLinkText(rawName)
     const alt = `English source: ${summary.total} valid strings.`
     return `| [${name} (${summary.locale})](apps/desktop/src/renderer/src/i18n/${summary.locale}.json) | ${renderImage(summary.locale, alt)} Complete | ${contributorLinks(metadata.contributors[summary.locale])} |`
 }
 
-function renderTargetRow(summary, metadata) {
+function renderTargetRow(summary: TargetStatusSummary, metadata: Metadata) {
     const status = deriveTargetStatus(summary)
     const rawName = metadata.names[summary.locale]
     const name = escapeMarkdownLinkText(rawName)
@@ -126,7 +136,11 @@ function renderLegend() {
     return '<div class="i18n-status-legend"><img src="assets/i18n/status/legend/accepted.svg" alt=""> Accepted <img src="assets/i18n/status/legend/review.svg" alt=""> Review <img src="assets/i18n/status/legend/missing.svg" alt=""> Missing</div>'
 }
 
-export function renderTranslationStatusReadme({ summaries, names, contributors }) {
+export function renderTranslationStatusReadme({
+    summaries,
+    names,
+    contributors,
+}: Metadata & { summaries: StatusSummaries }) {
     if (!summaries?.source || !Array.isArray(summaries.targets)) {
         throw new Error('README renderer requires source and target summaries')
     }
@@ -143,7 +157,7 @@ export function renderTranslationStatusReadme({ summaries, names, contributors }
     // GitHub centers a block-level child of an align="center" div, which text-align alone does
     // not do for a table. The blank lines are what make the table inside parse as Markdown, and
     // the ignore comment has to sit directly above the table or Prettier repads its columns and
-    // the generated block no longer matches this output.
+    // the generated block does not match this output.
     const centered = [
         '<div align="center">',
         '',
@@ -158,15 +172,15 @@ export function renderTranslationStatusReadme({ summaries, names, contributors }
 }
 
 export function buildTranslationTable(
-    inspection,
-    contributors,
+    inspection: Inspection,
+    contributors: TranslationContributors,
     summaries = buildStatusSummaries(inspection)
 ) {
     const metadata = buildLocaleRows(inspection, contributors)
     return renderTranslationStatusReadme({ summaries, ...metadata })
 }
 
-export function replaceTranslationTable(readme, table) {
+export function replaceTranslationTable(readme: string, table: string) {
     const start = readme.indexOf(START_MARKER)
     const end = readme.indexOf(END_MARKER)
     if (start === -1 || end === -1 || end < start) {
@@ -178,7 +192,7 @@ export function replaceTranslationTable(readme, table) {
     return `${before}\n\n${table}\n\n${after}`
 }
 
-export function expectedReadme(readme) {
+export function expectedReadme(readme: string) {
     const inspection = inspectLocales()
     if (inspection.errors.length > 0) {
         throw new Error(
@@ -197,14 +211,18 @@ export function materializeReadme(readmePath = README_PATH) {
 }
 
 export function runReadmeCommand(
-    args,
-    { readmePath = README_PATH, stdout = process.stdout, stderr = process.stderr } = {}
+    args: string[],
+    {
+        readmePath = README_PATH,
+        stdout = process.stdout,
+        stderr = process.stderr,
+    }: CliIO & { readmePath?: string } = {}
 ) {
     const supported =
         args.length === 0 ||
-        (args.length === 1 && ['--stdout', '--check', '--write'].includes(args[0]))
+        (args.length === 1 && ['--stdout', '--check', '--write'].includes(args[0]!))
     if (!supported) {
-        stderr.write('Usage: update-i18n-readme.mjs [--stdout|--check|--write]\n')
+        stderr.write('Usage: update-i18n-readme.mts [--stdout|--check|--write]\n')
         return 2
     }
 

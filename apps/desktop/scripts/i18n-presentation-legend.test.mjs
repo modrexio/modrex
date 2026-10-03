@@ -3,12 +3,12 @@ import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'n
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import test from 'node:test'
-import { inspectLocales, SOURCE_LOCALE } from './i18n-inspection.mjs'
+import { inspectLocales, SOURCE_LOCALE } from './i18n-inspection.mts'
 import {
     expectedReadme,
     materializeReadme,
     readTranslationContributors,
-} from './update-i18n-readme.mjs'
+} from './update-i18n-readme.mts'
 
 const ROOT = resolve(import.meta.dirname, '../../..')
 const README_PATH = resolve(ROOT, 'README.md')

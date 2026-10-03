@@ -1,8 +1,12 @@
+import type { SourceStatusSummary, TargetStatusSummary } from './i18n-presentation.mts'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { buildStatusSummaries } from './i18n-presentation.mjs'
-import { inspectLocales, I18N_DIR } from './i18n-inspection.mjs'
+import { buildStatusSummaries } from './i18n-presentation.mts'
+import { inspectLocales, I18N_DIR } from './i18n-inspection.mts'
+
+type Summary = SourceStatusSummary | TargetStatusSummary
+type Palette = Record<'accepted' | 'review' | 'missing', string>
 
 const SVG_WIDTH = 168
 const SVG_HEIGHT = 10
@@ -12,16 +16,16 @@ const DEFAULT_PALETTE = Object.freeze({
     review: '#D4A72C',
     missing: '#C94A4A',
 })
-const STATES = Object.freeze(['accepted', 'review', 'missing'])
+const STATES = Object.freeze(['accepted', 'review', 'missing'] as const)
 
-function assertCount(name, value) {
+function assertCount(name: string, value: number) {
     if (!Number.isInteger(value) || value < 0) {
         throw new Error(`Invalid SVG count '${name}': ${value}`)
     }
     return value
 }
 
-function summaryCounts(summary) {
+function summaryCounts(summary: Summary) {
     if (summary.kind === 'source') {
         assertCount('total', summary.total)
         if (summary.total <= 0) throw new Error('SVG source total must be positive')
@@ -44,13 +48,13 @@ function summaryCounts(summary) {
     return counts
 }
 
-function formatNumber(value) {
+function formatNumber(value: number) {
     if (!Number.isFinite(value)) throw new Error(`Invalid SVG number: ${value}`)
     const rounded = Number(value.toFixed(SVG_PRECISION))
     return Object.is(rounded, -0) ? '0' : String(rounded)
 }
 
-export function escapeXml(value) {
+export function escapeXml(value: unknown) {
     return String(value)
         .replaceAll('&', '&amp;')
         .replaceAll('<', '&lt;')
@@ -59,7 +63,7 @@ export function escapeXml(value) {
         .replaceAll("'", '&apos;')
 }
 
-export function calculateSvgGeometry(summary, width = SVG_WIDTH) {
+export function calculateSvgGeometry(summary: Summary, width = SVG_WIDTH) {
     assertCount('width', width)
     if (width <= 0) throw new Error(`SVG width must be positive: ${width}`)
     const counts = summaryCounts(summary)
@@ -75,9 +79,9 @@ export function calculateSvgGeometry(summary, width = SVG_WIDTH) {
     return { width, height: SVG_HEIGHT, counts, segments }
 }
 
-function paletteValues(palette) {
+function paletteValues(palette?: Partial<Palette>) {
     const values = { ...DEFAULT_PALETTE, ...palette }
-    for (const state of ['accepted', 'review', 'missing']) {
+    for (const state of STATES) {
         if (typeof values[state] !== 'string' || values[state].length === 0) {
             throw new Error(`Invalid SVG palette value '${state}'`)
         }
@@ -85,16 +89,24 @@ function paletteValues(palette) {
     return values
 }
 
-function segmentFill(state, palette) {
+function segmentFill(state: (typeof STATES)[number], palette: Palette) {
     return palette[state]
 }
 
-function serializeSegment(segment, palette, serializedStart, serializedWidth) {
+function serializeSegment(
+    segment: ReturnType<typeof calculateSvgGeometry>['segments'][number],
+    palette: Palette,
+    serializedStart: number,
+    serializedWidth: number
+) {
     if (segment.count === 0) return ''
     return `<rect x="${formatNumber(serializedStart)}" y="0" width="${formatNumber(serializedWidth)}" height="${SVG_HEIGHT}" fill="${escapeXml(segmentFill(segment.state, palette))}"/>`
 }
 
-export function renderStatusSvg(summary, options = {}) {
+export function renderStatusSvg(
+    summary: Summary,
+    options: { width?: number; palette?: Partial<Palette> } = {}
+) {
     const geometry = calculateSvgGeometry(summary, options.width ?? SVG_WIDTH)
     const palette = paletteValues(options.palette)
     const visibleSegments = geometry.segments.filter((segment) => segment.count > 0)
@@ -104,7 +116,7 @@ export function renderStatusSvg(summary, options = {}) {
             const nextStart =
                 index === visibleSegments.length - 1
                     ? geometry.width
-                    : Number(formatNumber(visibleSegments[index + 1].start))
+                    : Number(formatNumber(visibleSegments[index + 1]!.start))
             return serializeSegment(segment, palette, serializedStart, nextStart - serializedStart)
         })
         .join('')
@@ -120,7 +132,10 @@ export function renderStatusSvg(summary, options = {}) {
 const SCRIPT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../..')
 export const STATUS_ASSET_DIR = resolve(SCRIPT_ROOT, 'assets/i18n/status')
 
-export function generateStatusAssets({ i18nDir = I18N_DIR, outputDir = STATUS_ASSET_DIR } = {}) {
+export function generateStatusAssets({
+    i18nDir = I18N_DIR,
+    outputDir = STATUS_ASSET_DIR,
+}: { i18nDir?: string; outputDir?: string } = {}) {
     const inspection = inspectLocales(i18nDir)
     const summaries = buildStatusSummaries(inspection)
     const all = [summaries.source, ...summaries.targets]
@@ -144,7 +159,9 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
             `i18n: rendered ${result.summaries.targets.length + 1} SVG status asset(s) in ${STATUS_ASSET_DIR}\n`
         )
     } catch (error) {
-        process.stderr.write(`i18n: SVG rendering failed: ${error.message}\n`)
+        process.stderr.write(
+            `i18n: SVG rendering failed: ${error instanceof Error ? error.message : String(error)}\n`
+        )
         process.exitCode = 1
     }
 }

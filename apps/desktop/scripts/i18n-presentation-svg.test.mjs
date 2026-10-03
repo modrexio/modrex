@@ -7,9 +7,9 @@ import {
     calculateSvgGeometry,
     generateStatusAssets,
     renderStatusSvg,
-} from './i18n-presentation-svg.mjs'
-import { buildStatusSummaries } from './i18n-presentation.mjs'
-import { inspectLocales, validateLocaleId } from './i18n-inspection.mjs'
+} from './i18n-presentation-svg.mts'
+import { buildStatusSummaries } from './i18n-presentation.mts'
+import { inspectLocales, validateLocaleId } from './i18n-inspection.mts'
 
 const REVIEW = '#D4A72C'
 

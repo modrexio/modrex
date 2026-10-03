@@ -1,15 +1,21 @@
+import type { CliIO } from './i18n-io.mts'
+import type { TargetValue } from '../src/shared/i18n-values.mts'
 import { readFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { TARGET_VALUE_KIND } from '../src/shared/i18n-values.js'
-import { createGitAdapter } from './i18n-git.mjs'
-import { I18N_LOCALE_DIR, snapshotFromBundles } from './i18n-history.mjs'
+import { TARGET_VALUE_KIND } from '../src/shared/i18n-values.mts'
+import { createGitAdapter } from './i18n-git.mts'
+import { I18N_LOCALE_DIR, snapshotFromBundles } from './i18n-history.mts'
 
-// The translation-status workflow may write derived output and nothing else. It runs on main
-// with write access, so "it only meant to touch markers" is not good enough: this compares the
-// tree it is about to commit against the commit it started from and refuses anything the bot
-// is not allowed to have done. Every rule here is about what changed, never about who changed
-// it, so a machine identity is never evidence of anything.
+type WriterOptions = {
+    base?: string
+    cwd?: string
+    localeDir?: string
+    git?: Pick<ReturnType<typeof createGitAdapter>, 'changedPathsSince' | 'treeBlobs' | 'readBlobs'>
+}
+
+// The writer has access to main, so its output must be checked against the starting commit.
+// Machine identity cannot prove that only derived markers and presentation files changed.
 
 const REPOSITORY_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../..')
 
@@ -21,11 +27,11 @@ const STATUS_ASSET_DIR = 'assets/i18n/status'
 const README_START = '<!-- TRANSLATION_STATUS_START -->'
 const README_END = '<!-- TRANSLATION_STATUS_END -->'
 
-function normalizePath(path) {
+function normalizePath(path: string) {
     return path.replaceAll('\\', '/')
 }
 
-export function classifyWriterPath(path, localeDir = I18N_LOCALE_DIR) {
+export function classifyWriterPath(path: string, localeDir = I18N_LOCALE_DIR) {
     const normalized = normalizePath(path)
     if (normalized === README_PATH) return 'readme'
     if (normalized === CONTRIBUTORS_PATH) return 'contributors'
@@ -45,7 +51,7 @@ export function classifyWriterPath(path, localeDir = I18N_LOCALE_DIR) {
     return undefined
 }
 
-export function checkChangedPaths(paths, localeDir = I18N_LOCALE_DIR) {
+export function checkChangedPaths(paths: string[], localeDir = I18N_LOCALE_DIR) {
     const errors = []
     const locales = []
     for (const path of paths) {
@@ -59,13 +65,13 @@ export function checkChangedPaths(paths, localeDir = I18N_LOCALE_DIR) {
     return { errors, locales }
 }
 
-function describe(value) {
+function describe(value: TargetValue | undefined) {
     if (!value || value.kind === TARGET_VALUE_KIND.ABSENT) return 'absent'
     if (value.kind === TARGET_VALUE_KIND.UNTRANSLATED_SCAFFOLD) return 'scaffold'
     return value.kind
 }
 
-function translatedText(value) {
+function translatedText(value: TargetValue | undefined) {
     if (value?.kind === TARGET_VALUE_KIND.ACCEPTED) return value.targetText
     if (value?.kind === TARGET_VALUE_KIND.PENDING) return value.targetText
     return undefined
@@ -74,7 +80,11 @@ function translatedText(value) {
 // The bot may add or remove a '? ' marker and rewrite an English scaffold. It may never create,
 // edit or delete translated text, and it may never turn an English scaffold into a translation:
 // that would hand mechanical work the credit for a translation nobody wrote.
-export function checkLocalePayloads(localeId, before, after) {
+export function checkLocalePayloads(
+    localeId: string,
+    before: Map<string, TargetValue>,
+    after: Map<string, TargetValue>
+) {
     const errors = []
     const keys = new Set([...before.keys(), ...after.keys()])
     for (const key of [...keys].sort()) {
@@ -100,7 +110,7 @@ export function checkLocalePayloads(localeId, before, after) {
     return errors
 }
 
-function generatedBlock(text, label) {
+function generatedBlock(text: string, label: string) {
     const start = text.indexOf(README_START)
     const end = text.indexOf(README_END)
     if (start === -1 || end === -1 || end < start) {
@@ -109,7 +119,7 @@ function generatedBlock(text, label) {
     return { before: text.slice(0, start), after: text.slice(end + README_END.length) }
 }
 
-export function checkReadmeProse(before, after) {
+export function checkReadmeProse(before: string, after: string) {
     const from = generatedBlock(before, 'the base README')
     const to = generatedBlock(after, 'the generated README')
     const errors = []
@@ -118,23 +128,23 @@ export function checkReadmeProse(before, after) {
     return errors
 }
 
-function localeTargets(text, localeId, label) {
+function localeTargets(text: string, localeId: string, label: string) {
     const snapshot = snapshotFromBundles(label, { [localeId]: JSON.parse(text) })
-    return snapshot.locales.get(localeId).targets
+    return snapshot.locales.get(localeId)!.targets
 }
 
-function readAt(git, revision, path) {
+function readAt(git: NonNullable<WriterOptions['git']>, revision: string, path: string) {
     const blobs = git.treeBlobs(revision, path)
     const id = blobs.get(normalizePath(path))
     if (id === undefined) return undefined
     return git.readBlobs([id]).get(id)
 }
 
-function readWorking(cwd, path) {
+function readWorking(cwd: string, path: string) {
     try {
         return readFileSync(join(cwd, path), 'utf8')
     } catch (error) {
-        if (error.code === 'ENOENT') return undefined
+        if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return undefined
         throw error
     }
 }
@@ -144,7 +154,7 @@ export function checkWriterOutput({
     cwd = REPOSITORY_ROOT,
     localeDir = I18N_LOCALE_DIR,
     git = createGitAdapter({ cwd }),
-} = {}) {
+}: WriterOptions = {}) {
     if (!base) throw new Error('A base revision is required')
     const changed = git.changedPathsSince(base)
     const { errors, locales } = checkChangedPaths(changed, localeDir)
@@ -184,11 +194,11 @@ export function checkWriterOutput({
 }
 
 export function runI18nWriterGuard(
-    args,
-    { stdout = process.stdout, stderr = process.stderr, ...options } = {}
+    args: string[],
+    { stdout = process.stdout, stderr = process.stderr, ...options }: CliIO & WriterOptions = {}
 ) {
     if (args.length !== 1) {
-        stderr.write('Usage: node scripts/i18n-writer-guard.mjs <base-revision>\n')
+        stderr.write('Usage: node scripts/i18n-writer-guard.mts <base-revision>\n')
         return 2
     }
     try {
@@ -207,7 +217,9 @@ export function runI18nWriterGuard(
         )
         return 0
     } catch (error) {
-        stderr.write(`i18n: writer guard: ${error.message}\n`)
+        stderr.write(
+            `i18n: writer guard: ${error instanceof Error ? error.message : String(error)}\n`
+        )
         return 1
     }
 }

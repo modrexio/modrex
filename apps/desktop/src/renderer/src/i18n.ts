@@ -1,5 +1,9 @@
 import { useSyncExternalStore } from 'react'
-import { parseSourceValue, parseTargetValue, resolveTargetValue } from '../../shared/i18n-values.js'
+import {
+    parseSourceValue,
+    parseTargetValue,
+    resolveTargetValue,
+} from '../../shared/i18n-values.mts'
 import en from './i18n/en.json'
 import { LOCALE_IDS, RAW_BUNDLES, isLocaleId, matchLocale, type LocaleId } from './locales'
 

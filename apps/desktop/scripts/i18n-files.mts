@@ -2,11 +2,13 @@ import { randomUUID } from 'node:crypto'
 import { existsSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs'
 import { basename, dirname, resolve } from 'node:path'
 
-export function serializeLocale(locale) {
+export type LocaleBundle = { [key: string]: string | LocaleBundle }
+
+export function serializeLocale(locale: LocaleBundle): string {
     return `${JSON.stringify(locale, null, 4)}\n`
 }
 
-export function writeSerializedFileAtomically(filePath, serialized) {
+export function writeSerializedFileAtomically(filePath: string, serialized: string): boolean {
     if (existsSync(filePath) && readFileSync(filePath, 'utf8') === serialized) return false
 
     const temporaryPath = resolve(dirname(filePath), `.${basename(filePath)}.${randomUUID()}.tmp`)
@@ -20,7 +22,8 @@ export function writeSerializedFileAtomically(filePath, serialized) {
         } catch (cleanupError) {
             throw new AggregateError(
                 [error, cleanupError],
-                `Failed to replace '${filePath}' and remove temporary file '${temporaryPath}'`
+                `Failed to replace '${filePath}' and remove temporary file '${temporaryPath}'`,
+                { cause: cleanupError }
             )
         }
         throw new Error(`Failed to replace locale file '${filePath}'`, { cause: error })
@@ -28,6 +31,6 @@ export function writeSerializedFileAtomically(filePath, serialized) {
     return true
 }
 
-export function writeLocaleAtomically(filePath, locale) {
+export function writeLocaleAtomically(filePath: string, locale: LocaleBundle): boolean {
     return writeSerializedFileAtomically(filePath, serializeLocale(locale))
 }

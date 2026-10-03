@@ -4,15 +4,61 @@ import {
     placeholderDifferences,
     TARGET_VALUE_KIND,
     UNTRANSLATED_PREFIX,
-} from '../src/shared/i18n-values.js'
-import { inspectUnicode } from './i18n-diagnostics.mjs'
+    type TargetValue,
+} from '../src/shared/i18n-values.mts'
+import { inspectUnicode, type UnicodeFinding } from './i18n-diagnostics.mts'
+import type { LocaleBundle } from './i18n-files.mts'
+import type { Inspection } from './i18n-inspection.mts'
 
-function isPlainObject(value) {
+type IssueContext = { key?: string; message?: string; detail?: string }
+export type LocaleIssue = IssueContext &
+    (
+        | {
+              type:
+                  | 'invalid-root'
+                  | 'empty-source'
+                  | 'empty'
+                  | 'invalid-value'
+                  | 'invalid-marker'
+                  | 'empty-marker'
+                  | 'invalid-json'
+                  | 'obsolete-target'
+              localeValue?: unknown
+          }
+        | { type: 'unknown-key'; key: string; localeValue: string }
+        | { type: 'stale-scaffold'; key: string; sourceValue: string; localeValue: string }
+        | {
+              type: 'placeholder' | 'pending-placeholder'
+              key: string
+              sourceValue: string
+              localeValue: string
+              missing: string[]
+              unexpected: string[]
+          }
+        | ({ type: 'unicode'; key: string } & UnicodeFinding)
+    )
+export type FillPlan =
+    | { errors: LocaleIssue[] }
+    | {
+          errors: []
+          bundle: LocaleBundle
+          addedScaffolds: number
+          refreshedScaffolds: number
+          removedScaffolds: number
+      }
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-export function flattenBundle(value, localeId, errors, prefix = '', issues = []) {
-    const flat = Object.create(null)
+export function flattenBundle(
+    value: unknown,
+    localeId: string,
+    errors: string[],
+    prefix = '',
+    issues: LocaleIssue[] = []
+): Record<string, string> {
+    const flat: Record<string, string> = Object.create(null)
     if (!isPlainObject(value)) {
         errors.push(`'${localeId}' must contain a JSON object`)
         issues.push({ type: 'invalid-root' })
@@ -39,9 +85,17 @@ export function flattenBundle(value, localeId, errors, prefix = '', issues = [])
     return flat
 }
 
-function appendUnicodeFindings(value, key, localeId, source, errors, issues, warnings) {
+function appendUnicodeFindings(
+    value: string,
+    key: string,
+    localeId: string,
+    source: boolean,
+    errors: string[],
+    issues: LocaleIssue[],
+    warnings: LocaleIssue[]
+) {
     for (const finding of inspectUnicode(value, { source })) {
-        const diagnostic = { type: 'unicode', key, ...finding }
+        const diagnostic: LocaleIssue = { type: 'unicode', key, ...finding }
         if (finding.severity === 'error') {
             errors.push(
                 `'${localeId}' key '${key}' contains ${finding.codePoint ?? finding.description}`
@@ -53,22 +107,36 @@ function appendUnicodeFindings(value, key, localeId, source, errors, issues, war
     }
 }
 
-function parseTargetForInspection(id, key, storedValue, errors, issues) {
+function parseTargetForInspection(
+    id: string,
+    key: string,
+    storedValue: string | undefined,
+    errors: string[],
+    issues: LocaleIssue[]
+): TargetValue | undefined {
     try {
         return parseTargetValue(storedValue)
     } catch (error) {
-        errors.push(`'${id}' key '${key}' has invalid workflow marker syntax: ${error.message}`)
+        errors.push(
+            `'${id}' key '${key}' has invalid workflow marker syntax: ${error instanceof Error ? error.message : String(error)}`
+        )
         issues.push({
             type: 'invalid-marker',
             key,
             localeValue: storedValue,
-            detail: error.message,
+            detail: error instanceof Error ? error.message : String(error),
         })
         return undefined
     }
 }
 
-function placeholderIssue(key, sourceText, targetText, targetContract, sourceContract) {
+function placeholderIssue(
+    key: string,
+    sourceText: string,
+    targetText: string,
+    targetContract: string[],
+    sourceContract: string[]
+) {
     const { missing, unexpected } = placeholderDifferences(sourceContract, targetContract)
     if (missing.length === 0 && unexpected.length === 0) return undefined
     return {
@@ -80,7 +148,7 @@ function placeholderIssue(key, sourceText, targetText, targetContract, sourceCon
     }
 }
 
-function workflowMarkerPayload(targetValue) {
+function workflowMarkerPayload(targetValue: TargetValue | undefined) {
     if (targetValue?.kind === TARGET_VALUE_KIND.PENDING) return targetValue.targetText
     if (targetValue?.kind === TARGET_VALUE_KIND.UNTRANSLATED_SCAFFOLD) {
         return targetValue.sourceText
@@ -88,10 +156,10 @@ function workflowMarkerPayload(targetValue) {
     return undefined
 }
 
-export function inspectSourceBundle(bundle, id) {
-    const errors = []
-    const issues = []
-    const warnings = []
+export function inspectSourceBundle(bundle: unknown, id: string) {
+    const errors: string[] = []
+    const issues: LocaleIssue[] = []
+    const warnings: LocaleIssue[] = []
     const strings = flattenBundle(bundle, id, errors, '', issues)
     const keys = Object.keys(strings)
     if (keys.length === 0) {
@@ -108,26 +176,34 @@ export function inspectSourceBundle(bundle, id) {
 // refreshed and an obsolete key holding only a scaffold gets removed, so neither is a
 // contributor's problem. An obsolete key holding real translated text is not in this set:
 // nothing may delete a translation mechanically.
-export function isMechanicalSyncDebt(locale, issue) {
+export function isMechanicalSyncDebt(
+    locale: Pick<LocaleInspection, 'targetValues'>,
+    issue: LocaleIssue
+) {
     if (issue.type === 'stale-scaffold') return true
     if (issue.type !== 'unknown-key') return false
-    return locale.targetValues[issue.key]?.kind === TARGET_VALUE_KIND.UNTRANSLATED_SCAFFOLD
+    return locale.targetValues[issue.key!]?.kind === TARGET_VALUE_KIND.UNTRANSLATED_SCAFFOLD
 }
 
-export function singularPluralPairs(sourceKeys) {
+export function singularPluralPairs(sourceKeys: string[]) {
     return sourceKeys
         .filter((key) => key.endsWith('Single'))
-        .map((single) => [single.slice(0, -'Single'.length), single])
+        .map((single): [string, string] => [single.slice(0, -'Single'.length), single])
         .filter(([plural]) => sourceKeys.includes(plural))
 }
 
-export function inspectTranslationBundle(id, bundle, sourceFlat, sourceKeys) {
-    const errors = []
-    const issues = []
-    const warnings = []
-    const reviewNotices = []
+export function inspectTranslationBundle(
+    id: string,
+    bundle: unknown,
+    sourceFlat: Record<string, string>,
+    sourceKeys: string[]
+) {
+    const errors: string[] = []
+    const issues: LocaleIssue[] = []
+    const warnings: LocaleIssue[] = []
+    const reviewNotices: LocaleIssue[] = []
     const bundleFlat = flattenBundle(bundle, id, errors, '', issues)
-    const targetValues = Object.create(null)
+    const targetValues: Record<string, TargetValue | undefined> = Object.create(null)
     for (const key of sourceKeys) {
         targetValues[key] = parseTargetForInspection(id, key, bundleFlat[key], errors, issues)
     }
@@ -160,12 +236,12 @@ export function inspectTranslationBundle(id, bundle, sourceFlat, sourceKeys) {
     for (const key of extraKeys) {
         const message = `'${id}' key '${key}' is not present in en.json`
         errors.push(message)
-        issues.push({ type: 'unknown-key', key, localeValue: bundleFlat[key], message })
+        issues.push({ type: 'unknown-key', key, localeValue: bundleFlat[key]!, message })
     }
 
     const pendingPlaceholderIncompatibleKeys = []
     for (const key of sourceKeys) {
-        const sourceValue = parseSourceValue(sourceFlat[key])
+        const sourceValue = parseSourceValue(sourceFlat[key]!)
         const targetValue = targetValues[key]
         if (!targetValue) continue
         if (workflowMarkerPayload(targetValue)?.trim().length === 0) continue
@@ -239,12 +315,16 @@ export function inspectTranslationBundle(id, bundle, sourceFlat, sourceKeys) {
     }
 }
 
-export function buildOrderedLocale(source, translated, prefix = '') {
-    const locale = {}
+export function buildOrderedLocale(
+    source: LocaleBundle,
+    translated: Record<string, string>,
+    prefix = ''
+): LocaleBundle {
+    const locale: LocaleBundle = {}
     for (const [key, value] of Object.entries(source)) {
         const path = prefix ? `${prefix}.${key}` : key
         if (typeof value === 'string') {
-            if (Object.hasOwn(translated, path)) locale[key] = translated[path]
+            if (Object.hasOwn(translated, path)) locale[key] = translated[path]!
             continue
         }
 
@@ -254,7 +334,7 @@ export function buildOrderedLocale(source, translated, prefix = '') {
     return locale
 }
 
-export function planFilledLocale(inspection, locale) {
+export function planFilledLocale(inspection: Inspection, locale: LocaleInspection): FillPlan {
     const blockingIssues = locale.issues.filter((issue) => {
         if (issue.type === 'stale-scaffold') return false
         return issue.type !== 'unknown-key'
@@ -277,7 +357,7 @@ export function planFilledLocale(inspection, locale) {
         }
     }
 
-    const strings = Object.create(null)
+    const strings: Record<string, string> = Object.create(null)
     let addedScaffolds = 0
     let refreshedScaffolds = 0
     for (const key of inspection.sourceKeys) {
@@ -286,7 +366,7 @@ export function planFilledLocale(inspection, locale) {
             targetValue?.kind === TARGET_VALUE_KIND.ACCEPTED ||
             targetValue?.kind === TARGET_VALUE_KIND.PENDING
         ) {
-            strings[key] = locale.strings[key]
+            strings[key] = locale.strings[key]!
             continue
         }
 
@@ -297,9 +377,11 @@ export function planFilledLocale(inspection, locale) {
 
     return {
         errors: [],
-        bundle: buildOrderedLocale(inspection.sourceBundle, strings),
+        bundle: buildOrderedLocale(inspection.sourceBundle as LocaleBundle, strings),
         addedScaffolds,
         refreshedScaffolds,
         removedScaffolds: locale.extraKeys.length,
     }
 }
+
+export type LocaleInspection = ReturnType<typeof inspectTranslationBundle> & { bundle?: unknown }

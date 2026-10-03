@@ -1,3 +1,8 @@
+import type { CliIO, CliOutput } from './i18n-io.mts'
+import type { LocaleBundle } from './i18n-files.mts'
+import type { HistoryAnalysis, HistoryOptions } from './i18n-history.mts'
+import type { HistorySnapshot } from './i18n-history-events.mts'
+import type { Inspection } from './i18n-inspection.mts'
 import { existsSync } from 'node:fs'
 import { dirname, relative, resolve } from 'node:path'
 import { createInterface } from 'node:readline/promises'
@@ -9,15 +14,15 @@ import {
     placeholderDifferences,
     PENDING_PREFIX,
     TARGET_VALUE_KIND,
-} from '../src/shared/i18n-values.js'
-import { inspectUnicode } from './i18n-diagnostics.mjs'
-import { writeLocaleAtomically } from './i18n-files.mjs'
+} from '../src/shared/i18n-values.mts'
+import { inspectUnicode } from './i18n-diagnostics.mts'
+import { writeLocaleAtomically } from './i18n-files.mts'
 import {
     createSemanticStyles,
     detectCliCapabilities,
     renderPlaceholderText,
-} from './i18n-presentation-cli.mjs'
-import { isMechanicalSyncDebt } from './i18n-current.mjs'
+} from './i18n-presentation-cli.mts'
+import { isMechanicalSyncDebt } from './i18n-current.mts'
 import {
     analyzeCommittedHistory,
     analyzeRepairableProspective,
@@ -26,16 +31,23 @@ import {
     I18N_HISTORY_BASELINE,
     I18N_LOCALE_DIR,
     summarizeHistory,
+    canDeferPlaceholderMismatch,
     workingTreeSnapshot,
-} from './i18n-history.mjs'
+} from './i18n-history.mts'
 import {
-    I18N_DIR,
     inspectLocales,
     localeEnglishName,
     localeNativeName,
     SOURCE_LOCALE,
     validateLocaleId,
-} from './i18n-inspection.mjs'
+} from './i18n-inspection.mts'
+
+type Candidate = ReturnType<typeof buildReviewCandidates>[number]
+type Review = ReturnType<typeof prepareI18nReview>
+type Ask = (question: string) => Promise<string>
+type ReviewWriter = (path: string, bundle: LocaleBundle) => unknown
+type ReviewOptions = HistoryOptions &
+    CliIO & { i18nDir?: string; ask?: Ask; stdin?: NodeJS.ReadableStream; write?: ReviewWriter }
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
 const REPOSITORY_ROOT = resolve(SCRIPT_DIR, '../../..')
@@ -44,28 +56,30 @@ export const REVIEW_ACTION = Object.freeze({
     EDIT: 'edit',
     KEEP: 'keep',
     SKIP: 'skip',
-})
+} as const)
 
 export class I18nReviewValidationError extends Error {
-    constructor(errors) {
+    errors: string[]
+
+    constructor(errors: string[]) {
         super(['i18n:review validation failed:', ...errors.map((error) => `  ${error}`)].join('\n'))
         this.name = 'I18nReviewValidationError'
         this.errors = errors
     }
 }
 
-function formatSourceText(value, styles) {
+function formatSourceText(value: string, styles: ReturnType<typeof createSemanticStyles>) {
     return value
         .split('\n')
         .map((line) => `  ${renderPlaceholderText(line, styles)}`)
         .join('\n')
 }
 
-function formatPlaceholderNames(names) {
+function formatPlaceholderNames(names: string[]) {
     return names.map((name) => `{${name}}`).join(', ')
 }
 
-function placeholderStatus(sourceText, targetText) {
+function placeholderStatus(sourceText: string, targetText: string) {
     const differences = placeholderDifferences(
         placeholderContract(sourceText),
         placeholderContract(targetText)
@@ -79,7 +93,11 @@ function placeholderStatus(sourceText, targetText) {
 // Acceptance is evidence in Git, so what the committed tree holds decides whether a decision
 // can be recorded at all. Reading that from the working tree instead would let an uncommitted
 // marker make a Keep look real when committing it would produce an empty diff.
-export function buildReviewCandidates(history, localeId, committedSnapshot = history.snapshot) {
+export function buildReviewCandidates(
+    history: HistoryAnalysis,
+    localeId: string,
+    committedSnapshot: HistorySnapshot = history.snapshot
+) {
     const locale = summarizeHistory(history).locales.get(localeId)
     if (!locale) throw new Error(`Authoritative history has no target locale '${localeId}'`)
     const committedTargets = committedSnapshot.locales.get(localeId)?.targets
@@ -90,23 +108,25 @@ export function buildReviewCandidates(history, localeId, committedSnapshot = his
         // A translation whose English moved needs review whether or not the bot has written
         // its marker yet, so the review list is built from the effective state.
         if (entry?.effectiveState !== EFFECTIVE_STATE.REVIEW) continue
-        if (!entry.lineageCheckpoint) {
+        if (!entry.lineageCheckpoint && entry.gapIds.length === 0) {
             throw new Error(`Review '${localeId}' key '${key}' has no accepted lineage`)
         }
 
-        const placeholders = placeholderStatus(entry.sourceText, entry.canonicalTarget)
+        const checkpoint = entry.lineageCheckpoint ?? entry.lastProvenCheckpoint
+        const placeholders = placeholderStatus(entry.sourceText!, entry.canonicalTarget)
         candidates.push({
             locale: localeId,
             key,
-            lastAcceptedSourceText: entry.lineageCheckpoint.rawSourceText,
-            lastAcceptedTargetText: entry.lineageCheckpoint.rawTargetText,
-            checkpointRevision: entry.lineageCheckpoint.revision,
-            currentSourceText: entry.sourceText,
+            lastAcceptedSourceText: checkpoint?.rawSourceText ?? null,
+            lastAcceptedTargetText: checkpoint?.rawTargetText ?? null,
+            checkpointRevision: checkpoint?.revision ?? null,
+            currentSourceText: entry.sourceText!,
             currentTargetText: entry.canonicalTarget,
             pendingProvenance: entry.effectiveProvenance,
             committedValue: committedTargets?.has(key)
-                ? formatTargetValue(committedTargets.get(key))
+                ? formatTargetValue(committedTargets.get(key)!)
                 : undefined,
+            evidenceIncomplete: entry.gapIds.length > 0,
             materialized: committedTargets?.get(key)?.kind === TARGET_VALUE_KIND.PENDING,
             placeholderCompatible: placeholders.compatible,
             missingPlaceholders: placeholders.missing,
@@ -116,22 +136,30 @@ export function buildReviewCandidates(history, localeId, committedSnapshot = his
     return candidates
 }
 
+function acceptanceRecordingInstruction(candidate: Candidate) {
+    if (candidate.evidenceIncomplete)
+        return 'First commit an explicit review marker for this key, then review it again.'
+    return 'Run pnpm i18n:sync and commit the review marker first.'
+}
+
 // A decision only exists if it changes the committed file. Writing back exactly what is
 // already committed leaves no diff, so Git would record no acceptance and the reviewer would
 // report work that did not happen.
-function wouldRecordAcceptance(candidate, storedValue) {
+function wouldRecordAcceptance(candidate: Candidate, storedValue: string) {
     if (candidate.committedValue === undefined) return true
     return storedValue !== candidate.committedValue
 }
 
-export function reviewEditProblems(candidate, targetText) {
+export function reviewEditProblems(candidate: Candidate, targetText: string) {
     if (targetText.trim().length === 0) return ['Target text must not be empty.']
 
     let parsed
     try {
         parsed = parseTargetValue(targetText)
     } catch (error) {
-        return [`Invalid workflow marker syntax: ${error.message}`]
+        return [
+            `Invalid workflow marker syntax: ${error instanceof Error ? error.message : String(error)}`,
+        ]
     }
     if (parsed.kind !== TARGET_VALUE_KIND.ACCEPTED) {
         return ['An edited target must not begin with the reserved "! " or "? " prefix.']
@@ -162,7 +190,11 @@ export function reviewEditProblems(candidate, targetText) {
     return problems
 }
 
-export function applyReviewAction(candidate, action, editedTarget) {
+export function applyReviewAction(
+    candidate: Candidate,
+    action: (typeof REVIEW_ACTION)[keyof typeof REVIEW_ACTION],
+    editedTarget?: string
+) {
     if (action === REVIEW_ACTION.SKIP) {
         return { changed: false, storedValue: `${PENDING_PREFIX}${candidate.currentTargetText}` }
     }
@@ -175,13 +207,14 @@ export function applyReviewAction(candidate, action, editedTarget) {
         if (!wouldRecordAcceptance(candidate, candidate.currentTargetText)) {
             throw new Error(
                 'Keep would not change the committed file, so no acceptance could be recorded. ' +
-                    'Run pnpm i18n:sync and commit the review marker first.'
+                    acceptanceRecordingInstruction(candidate)
             )
         }
         return { changed: true, storedValue: candidate.currentTargetText }
     }
     if (action !== REVIEW_ACTION.EDIT) throw new Error(`Unknown review action '${action}'`)
 
+    if (editedTarget === undefined) throw new Error('An Edit action requires target text')
     const problems = reviewEditProblems(candidate, editedTarget)
     if (problems.length > 0) throw new I18nReviewValidationError(problems)
     return { changed: true, storedValue: editedTarget }
@@ -191,14 +224,18 @@ export function applyReviewAction(candidate, action, editedTarget) {
 // look like an accepted value whose placeholders disagree. The second case is the whole reason
 // this command exists, so it must not block review. Keep stays unavailable there instead, and
 // the runtime already falls back to English.
-function blockingReviewIssues(locale, summary) {
+function blockingReviewIssues(
+    locale: Inspection['locales'][number],
+    summary: ReturnType<typeof summarizeHistory>
+) {
     const entries = summary.locales.get(locale.id)?.entries
     const problems = []
     for (const issue of locale.issues) {
         if (isMechanicalSyncDebt(locale, issue)) continue
         if (
             issue.type === 'placeholder' &&
-            entries?.get(issue.key)?.effectiveState === EFFECTIVE_STATE.REVIEW
+            (canDeferPlaceholderMismatch(entries?.get(issue.key)) ||
+                (entries?.get(issue.key)?.gapIds.length ?? 0) > 0)
         ) {
             continue
         }
@@ -208,7 +245,7 @@ function blockingReviewIssues(locale, summary) {
     return problems
 }
 
-function targetLocale(inspection, localeId) {
+function targetLocale(inspection: Inspection, localeId: string) {
     const locale = inspection.locales.find(({ id }) => id === localeId)
     if (!locale) {
         const available = inspection.locales.map(({ id }) => id).join(', ')
@@ -217,11 +254,11 @@ function targetLocale(inspection, localeId) {
     return locale
 }
 
-function replaceTargetLeaf(bundle, targetKey, storedValue) {
+function replaceTargetLeaf(bundle: LocaleBundle, targetKey: string, storedValue: string) {
     let replacements = 0
 
-    function replace(value, prefix = '') {
-        const result = {}
+    function replace(value: LocaleBundle, prefix = ''): LocaleBundle {
+        const result: LocaleBundle = {}
         for (const [key, child] of Object.entries(value)) {
             const path = prefix ? `${prefix}.${key}` : key
             if (typeof child === 'string') {
@@ -242,11 +279,13 @@ function replaceTargetLeaf(bundle, targetKey, storedValue) {
     return updated
 }
 
-export function prepareI18nReview(options) {
+export function prepareI18nReview(
+    options: HistoryOptions & { localeId: string; i18nDir?: string }
+) {
     const cwd = options.cwd ?? REPOSITORY_ROOT
     const localeDir = options.localeDir ?? I18N_LOCALE_DIR
     const i18nDir = options.i18nDir ?? resolve(cwd, localeDir)
-    const inspection = inspectLocales(i18nDir)
+    const inspection = inspectLocales(i18nDir, options.localeId)
     if (inspection.sourceErrors.length > 0) {
         throw new I18nReviewValidationError(inspection.sourceErrors)
     }
@@ -258,10 +297,11 @@ export function prepareI18nReview(options) {
         baseline: options.baseline ?? I18N_HISTORY_BASELINE,
         localeDir,
         revision: options.revision,
+        localeId: options.localeId,
     })
     const history = analyzeRepairableProspective(
         committedHistory,
-        workingTreeSnapshot(cwd, localeDir)
+        workingTreeSnapshot(cwd, localeDir, options.localeId)
     )
 
     const blocking = blockingReviewIssues(locale, summarizeHistory(history))
@@ -276,7 +316,12 @@ export function prepareI18nReview(options) {
     }
 }
 
-function formatCandidate(candidate, position, total, styles) {
+function formatCandidate(
+    candidate: Candidate,
+    position: number,
+    total: number,
+    styles: ReturnType<typeof createSemanticStyles>
+) {
     const status = candidate.placeholderCompatible
         ? 'compatible'
         : 'incompatible (runtime uses English)'
@@ -284,7 +329,9 @@ function formatCandidate(candidate, position, total, styles) {
         `[${position}/${total}] ${candidate.key}`,
         '',
         'English at last accepted checkpoint:',
-        formatSourceText(candidate.lastAcceptedSourceText, styles),
+        candidate.lastAcceptedSourceText === null
+            ? '  No proven acceptance is available.'
+            : formatSourceText(candidate.lastAcceptedSourceText, styles),
         '',
         'Current English:',
         formatSourceText(candidate.currentSourceText, styles),
@@ -298,13 +345,13 @@ function formatCandidate(candidate, position, total, styles) {
 
 const KEEP_UNRECORDABLE = 'the committed file already holds this text, so nothing would be recorded'
 
-function keepBlockedReason(candidate) {
+function keepBlockedReason(candidate: Candidate) {
     if (!candidate.placeholderCompatible) return 'runtime currently uses English'
     if (!wouldRecordAcceptance(candidate, candidate.currentTargetText)) return KEEP_UNRECORDABLE
     return undefined
 }
 
-async function promptAction(candidate, ask, stdout) {
+async function promptAction(candidate: Candidate, ask: Ask, stdout: CliOutput) {
     const blocked = keepBlockedReason(candidate)
     const choices = blocked
         ? `[e] Edit, [s] Skip (Keep unavailable: ${blocked})`
@@ -319,7 +366,7 @@ async function promptAction(candidate, ask, stdout) {
             stdout.write(
                 `Keep is unavailable because ${blocked}.` +
                     (blocked === KEEP_UNRECORDABLE
-                        ? ' Run pnpm i18n:sync and commit the review marker first.'
+                        ? ' ' + acceptanceRecordingInstruction(candidate)
                         : '') +
                     '\n\n'
             )
@@ -329,7 +376,12 @@ async function promptAction(candidate, ask, stdout) {
     }
 }
 
-async function promptEditedTarget(candidate, englishName, ask, stdout) {
+async function promptEditedTarget(
+    candidate: Candidate,
+    englishName: string,
+    ask: Ask,
+    stdout: CliOutput
+) {
     stdout.write(`\nNew ${englishName} target (Enter to skip):\n`)
     while (true) {
         const answer = await ask('> ')
@@ -342,7 +394,13 @@ async function promptEditedTarget(candidate, englishName, ask, stdout) {
     }
 }
 
-function saveReviewedValue(review, bundle, candidate, storedValue, write) {
+function saveReviewedValue(
+    review: Review,
+    bundle: LocaleBundle,
+    candidate: Candidate,
+    storedValue: string,
+    write: ReviewWriter
+) {
     const updatedBundle = replaceTargetLeaf(bundle, candidate.key, storedValue)
     write(review.localePath, updatedBundle)
     return updatedBundle
@@ -354,7 +412,7 @@ export async function reviewLocaleSession({
     stdout = process.stdout,
     env = process.env,
     write = writeLocaleAtomically,
-}) {
+}: CliIO & { ask: Ask; review: Review; write?: ReviewWriter }) {
     const localeName = localeNativeName(review.locale.id)
     if (review.candidates.length === 0) {
         stdout.write(`${localeName} (${review.locale.id}): no translations need review.\n`)
@@ -365,11 +423,11 @@ export async function reviewLocaleSession({
         `${localeName} (${review.locale.id}): ${review.candidates.length} review-pending translation(s)\nPath: ${relative(process.cwd(), review.localePath).replaceAll('\\\\', '/')}\n\nReview actions record your decision; they do not prove linguistic correctness.\nPress Ctrl+C to cancel.\n\n`
     )
     const counts = { edited: 0, kept: 0, skipped: 0 }
-    let bundle = review.locale.bundle
+    let bundle = review.locale.bundle as LocaleBundle
     const englishName = localeEnglishName(review.locale.id)
     const styles = createSemanticStyles(detectCliCapabilities({ stdout, env }).color)
 
-    const writeSummary = (label) => {
+    const writeSummary = (label: string) => {
         const saved = counts.edited + counts.kept
         const remaining = review.candidates.length - saved - counts.skipped
         stdout.write(
@@ -389,14 +447,15 @@ export async function reviewLocaleSession({
                 continue
             }
 
-            let editedTarget
+            let editedTarget: string | undefined
             if (action === REVIEW_ACTION.EDIT) {
-                editedTarget = await promptEditedTarget(candidate, englishName, ask, stdout)
-                if (editedTarget === null) {
+                const answer = await promptEditedTarget(candidate, englishName, ask, stdout)
+                if (answer === null) {
                     counts.skipped += 1
                     stdout.write('\nSkipped\n\n')
                     continue
                 }
+                editedTarget = answer
             }
 
             const result = applyReviewAction(candidate, action, editedTarget)
@@ -413,7 +472,7 @@ export async function reviewLocaleSession({
     return counts
 }
 
-async function runSession(review, options) {
+async function runSession(review: Review, options: ReviewOptions) {
     if (options.ask) {
         return reviewLocaleSession({
             ask: options.ask,
@@ -424,7 +483,10 @@ async function runSession(review, options) {
         })
     }
 
-    const input = createInterface({ input: options.stdin, output: options.stdout })
+    const input = createInterface({
+        input: options.stdin ?? process.stdin,
+        output: options.stdout as NodeJS.WritableStream,
+    })
     try {
         return await reviewLocaleSession({
             ask: (question) => input.question(question),
@@ -439,7 +501,7 @@ async function runSession(review, options) {
 }
 
 export async function runI18nReview(
-    args,
+    args: string[],
     {
         ask,
         cwd = REPOSITORY_ROOT,
@@ -450,18 +512,18 @@ export async function runI18nReview(
         stderr = process.stderr,
         write = writeLocaleAtomically,
         ...historyOptions
-    } = {}
+    }: ReviewOptions = {}
 ) {
     if (args.length !== 1) {
         stderr.write('Usage: pnpm i18n:review <locale>\n')
         return 2
     }
 
-    const localeId = args[0]
+    const localeId = args[0]!
     try {
         validateLocaleId(localeId)
     } catch (error) {
-        stderr.write(`i18n:review: ${error.message}\n`)
+        stderr.write(`i18n:review: ${error instanceof Error ? error.message : String(error)}\n`)
         return 2
     }
     if (localeId === SOURCE_LOCALE) {
@@ -484,7 +546,7 @@ export async function runI18nReview(
         await runSession(review, { ask, stdin, stdout, write })
         return 0
     } catch (error) {
-        stderr.write(`i18n:review: ${error.message}\n`)
+        stderr.write(`i18n:review: ${error instanceof Error ? error.message : String(error)}\n`)
         if (error instanceof I18nHistoryUnavailableError) {
             stderr.write('Full i18n history through the audited baseline is required.\n')
         }

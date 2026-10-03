@@ -1,42 +1,53 @@
+import type { CliIO } from './i18n-io.mts'
 import { mkdirSync, readFileSync, readdirSync, unlinkSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { writeSerializedFileAtomically } from './i18n-files.mjs'
-import { I18N_DIR, inspectLocales } from './i18n-inspection.mjs'
-import { buildStatusSummaries } from './i18n-presentation.mjs'
-import { renderStatusSvg, STATUS_ASSET_DIR } from './i18n-presentation-svg.mjs'
+import { writeSerializedFileAtomically } from './i18n-files.mts'
+import { I18N_DIR, inspectLocales } from './i18n-inspection.mts'
+import { buildStatusSummaries } from './i18n-presentation.mts'
+import { renderStatusSvg, STATUS_ASSET_DIR } from './i18n-presentation-svg.mts'
 import {
     buildTranslationTable,
     readTranslationContributors,
     replaceTranslationTable,
-} from './update-i18n-readme.mjs'
+} from './update-i18n-readme.mts'
+
+type PresentationOptions = {
+    i18nDir?: string
+    readmePath?: string
+    statusAssetDir?: string
+    contributorsPath?: string
+}
+type Operation =
+    | { type: 'write-readme' | 'delete-asset'; path: string }
+    | { type: 'write-asset'; path: string; locale: string }
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
 const DEFAULT_README_PATH = resolve(SCRIPT_DIR, '../../..', 'README.md')
 
-function readIfExists(path) {
+function readIfExists(path: string) {
     try {
         return readFileSync(path, 'utf8')
     } catch (error) {
-        if (error.code === 'ENOENT') return null
+        if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return null
         throw error
     }
 }
 
-function classify(current, expected) {
+function classify(current: string | null, expected: string): 'missing' | 'stale' | 'unchanged' {
     if (current === null) return 'missing'
     if (current !== expected) return 'stale'
     return 'unchanged'
 }
 
-// Direct-child SVG files in the status directory are lifecycle-owned; nested directories,
+// Direct-child SVG files in the status directory belong to the lifecycle. Nested directories,
 // such as legend/, are outside locale asset discovery.
-function listOwnedSvgFilenames(statusAssetDir) {
+function listOwnedSvgFilenames(statusAssetDir: string) {
     let entries
     try {
         entries = readdirSync(statusAssetDir, { withFileTypes: true })
     } catch (error) {
-        if (error.code === 'ENOENT') return []
+        if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return []
         throw error
     }
     return entries
@@ -44,21 +55,17 @@ function listOwnedSvgFilenames(statusAssetDir) {
         .map((entry) => entry.name)
 }
 
-function comparePaths(a, b) {
+function comparePaths(a: string, b: string) {
     return a < b ? -1 : a > b ? 1 : 0
 }
 
-/**
- * Builds the complete expected i18n presentation state (README + per-locale status SVGs)
- * from one shared summary snapshot, and classifies every owned output against the
- * current filesystem as missing, stale, obsolete, or unchanged. Performs no writes.
- */
+/** Builds a read-only presentation plan from one shared summary snapshot. */
 export function buildI18nPresentationPlan({
     i18nDir = I18N_DIR,
     readmePath = DEFAULT_README_PATH,
     statusAssetDir = STATUS_ASSET_DIR,
     contributorsPath,
-} = {}) {
+}: PresentationOptions = {}) {
     const inspection = inspectLocales(i18nDir)
     const summaries = buildStatusSummaries(inspection)
     const contributors = contributorsPath
@@ -78,7 +85,7 @@ export function buildI18nPresentationPlan({
         status: currentReadme === expectedReadme ? 'unchanged' : 'stale',
     }
 
-    const expectedFilenames = new Set()
+    const expectedFilenames = new Set<string>()
     const assets = [summaries.source, ...summaries.targets].map((summary) => {
         const filename = `${summary.locale}.svg`
         expectedFilenames.add(filename)
@@ -102,11 +109,17 @@ export function buildI18nPresentationPlan({
         .sort((a, b) => comparePaths(a.path, b.path))
 
     const operations = [
-        ...(readme.status !== 'unchanged' ? [{ type: 'write-readme', path: readme.path }] : []),
+        ...(readme.status !== 'unchanged'
+            ? [{ type: 'write-readme' as const, path: readme.path }]
+            : []),
         ...assets
             .filter((asset) => asset.status !== 'unchanged')
-            .map((asset) => ({ type: 'write-asset', path: asset.path, locale: asset.locale })),
-        ...obsolete.map((item) => ({ type: 'delete-asset', path: item.path })),
+            .map((asset) => ({
+                type: 'write-asset' as const,
+                path: asset.path,
+                locale: asset.locale,
+            })),
+        ...obsolete.map((item) => ({ type: 'delete-asset' as const, path: item.path })),
     ].sort((a, b) => comparePaths(a.path, b.path))
 
     return {
@@ -120,12 +133,8 @@ export function buildI18nPresentationPlan({
     }
 }
 
-/**
- * Applies an already-built plan's operations in deterministic path order. Never re-plans;
- * a caller must have successfully built the plan first, so a planning failure never
- * reaches this function and never causes a partial mutation.
- */
-export function applyI18nPresentationPlan(plan) {
+/** Applies a validated presentation plan in deterministic path order without replanning. */
+export function applyI18nPresentationPlan(plan: ReturnType<typeof buildI18nPresentationPlan>) {
     const written = []
     const deleted = []
     if (plan.operations.some((operation) => operation.type === 'write-asset')) {
@@ -139,7 +148,7 @@ export function applyI18nPresentationPlan(plan) {
             continue
         }
         if (operation.type === 'write-asset') {
-            const asset = plan.assets.find((item) => item.path === operation.path)
+            const asset = plan.assets.find((item) => item.path === operation.path)!
             if (writeSerializedFileAtomically(asset.path, asset.expected)) {
                 written.push(operation.path)
             }
@@ -151,19 +160,23 @@ export function applyI18nPresentationPlan(plan) {
     return { written, deleted }
 }
 
-function describeDrift(plan, operation) {
+function describeDrift(plan: ReturnType<typeof buildI18nPresentationPlan>, operation: Operation) {
     if (operation.type === 'write-readme') return 'stale'
     if (operation.type === 'delete-asset') return 'obsolete'
     return plan.assets.find((asset) => asset.path === operation.path)?.status ?? 'stale'
 }
 
 export function runI18nPresentationLifecycle(
-    args,
-    { stdout = process.stdout, stderr = process.stderr, ...options } = {}
+    args: string[],
+    {
+        stdout = process.stdout,
+        stderr = process.stderr,
+        ...options
+    }: CliIO & PresentationOptions = {}
 ) {
     const mode = args.length === 1 ? args[0] : undefined
     if (mode !== '--check' && mode !== '--write') {
-        stderr.write('Usage: node scripts/i18n-presentation-lifecycle.mjs --check|--write\n')
+        stderr.write('Usage: node scripts/i18n-presentation-lifecycle.mts --check|--write\n')
         return 2
     }
 
@@ -171,7 +184,9 @@ export function runI18nPresentationLifecycle(
     try {
         plan = buildI18nPresentationPlan(options)
     } catch (error) {
-        stderr.write(`i18n: presentation lifecycle planning failed: ${error.message}\n`)
+        stderr.write(
+            `i18n: presentation lifecycle planning failed: ${error instanceof Error ? error.message : String(error)}\n`
+        )
         return 1
     }
 

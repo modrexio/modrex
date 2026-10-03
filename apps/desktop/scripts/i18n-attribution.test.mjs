@@ -7,8 +7,9 @@ import assert from 'node:assert/strict'
 import {
     applyMaintainerAttribution,
     collectTranslationContributors,
+    fetchGitHubCommits,
     localeJsonChanged,
-} from './update-i18n-contributors.mjs'
+} from './update-i18n-contributors.mts'
 
 async function collectContributorsOnly(...args) {
     const { contributors } = await collectTranslationContributors(...args)
@@ -469,4 +470,128 @@ test('the oldest commit for a locale is reported as its creator', async () => {
         () => true
     )
     assert.deepEqual(creators, { uk: 'ShevRuslan1' })
+})
+
+for (const count of [0, 99, 100, 101, 200]) {
+    test('creator attribution survives ' + count + ' paginated commits', async () => {
+        const commits = Array.from({ length: count }, (_, index) => ({
+            sha: 'commit-' + index,
+            parents: [],
+            author: { type: 'User', login: index === count - 1 ? 'Creator' : 'Translator' },
+        }))
+        const pages = []
+        const { contributors, creators } = await collectTranslationContributors(
+            ['de'],
+            (_localeId, page) => {
+                pages.push(page)
+                return commits.slice((page - 1) * 100, page * 100)
+            },
+            () => true
+        )
+        assert.deepEqual(creators, count === 0 ? {} : { de: 'Creator' })
+        assert.deepEqual(
+            applyMaintainerAttribution(contributors, new Set(['Creator']), creators),
+            count === 0 ? {} : { de: ['Creator', 'Translator'] }
+        )
+        assert.deepEqual(
+            pages,
+            Array.from({ length: Math.floor(count / 100) + 1 }, (_, i) => i + 1)
+        )
+    })
+}
+
+test('every commit API page is pinned to the resolved checkout', async (t) => {
+    const urls = []
+    t.mock.method(globalThis, 'fetch', async (url) => {
+        urls.push(new URL(url))
+        return { ok: true, json: async () => [] }
+    })
+    const revision = 'a'.repeat(40)
+    for (const page of [1, 2]) {
+        await fetchGitHubCommits('owner/repository', 'fixture-token', revision, 'de', page)
+    }
+    for (const [index, url] of urls.entries()) {
+        assert.equal(url.searchParams.get('sha'), revision)
+        assert.equal(url.searchParams.get('path'), 'apps/desktop/src/renderer/src/i18n/de.json')
+        assert.equal(url.searchParams.get('page'), String(index + 1))
+        assert.equal(url.searchParams.get('per_page'), '100')
+    }
+})
+
+for (const status of [401, 403, 429, 500]) {
+    test(
+        'commit API failure ' + status + ' aborts instead of returning empty history',
+        async (t) => {
+            t.mock.method(globalThis, 'fetch', async () => ({ ok: false, status }))
+            await assert.rejects(
+                fetchGitHubCommits('owner/repo', 'token', 'a'.repeat(40), 'de', 1),
+                new RegExp('status ' + status)
+            )
+        }
+    )
+}
+
+for (const failureAt of ['fetch', 'json']) {
+    test('commit API propagates ' + failureAt + ' failure', async (t) => {
+        const failure = new Error(failureAt + ' failed')
+        t.mock.method(globalThis, 'fetch', async () => {
+            if (failureAt === 'fetch') throw failure
+            return {
+                ok: true,
+                json: async () => {
+                    throw failure
+                },
+            }
+        })
+        await assert.rejects(
+            fetchGitHubCommits('owner/repo', 'token', 'a'.repeat(40), 'de', 1),
+            (error) => error === failure
+        )
+    })
+}
+
+test('pagination aborts on malformed later pages', async () => {
+    const fullPage = Array.from({ length: 100 }, () => ({ sha: 'a', parents: [], author: null }))
+    for (const invalidPage of [{}, [{ sha: 42, parents: [] }], [{ sha: 'a', parents: null }]]) {
+        await assert.rejects(
+            collectTranslationContributors(
+                ['de'],
+                (_locale, page) => (page === 1 ? fullPage : invalidPage),
+                () => true
+            ),
+            /invalid commit/
+        )
+    }
+})
+
+for (const author of [null, { type: 'Bot', login: 'Robot' }]) {
+    test('unlinked or bot creator at a full-page boundary does not credit a newer maintainer', async () => {
+        const commits = Array.from({ length: 100 }, (_, index) => ({
+            sha: 'commit-' + index,
+            parents: [],
+            author: index === 99 ? author : { type: 'User', login: 'Maintainer' },
+        }))
+        const { contributors, creators } = await collectTranslationContributors(
+            ['de'],
+            (_locale, page) => (page === 1 ? commits : []),
+            () => true
+        )
+        assert.deepEqual(creators, {})
+        assert.deepEqual(
+            applyMaintainerAttribution(contributors, new Set(['Maintainer']), creators),
+            {}
+        )
+    })
+}
+
+test('an empty locale history cannot inherit the preceding locale creator', async () => {
+    const result = await collectTranslationContributors(
+        ['de', 'fr'],
+        (locale) =>
+            locale === 'de'
+                ? [{ sha: 'first', parents: [], author: { type: 'User', login: 'Creator' } }]
+                : [],
+        () => true
+    )
+    assert.deepEqual(result, { contributors: { de: ['Creator'] }, creators: { de: 'Creator' } })
 })

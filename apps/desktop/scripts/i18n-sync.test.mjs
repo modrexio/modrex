@@ -13,16 +13,16 @@ import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
-import { PENDING_PREFIX } from '../src/shared/i18n-values.js'
-import { writeSerializedFileAtomically } from './i18n-files.mjs'
+import { PENDING_PREFIX } from '../src/shared/i18n-values.mts'
+import { writeSerializedFileAtomically } from './i18n-files.mts'
 import {
     analyzeRepairableProspective,
     describeHistoryAvailability,
     I18N_LOCALE_DIR,
     snapshotFromBundles,
     summarizeHistory,
-} from './i18n-history.mjs'
-import { applyBaseline, createHistoryState, PENDING_PROVENANCE } from './i18n-history-events.mjs'
+} from './i18n-history.mts'
+import { applyBaseline, createHistoryState, PENDING_PROVENANCE } from './i18n-history-events.mts'
 import {
     applySyncWrites,
     formatSyncSummary,
@@ -31,7 +31,7 @@ import {
     runI18nSync,
     SYNC_OPERATION,
     synchronizeI18n,
-} from './i18n-sync.mjs'
+} from './i18n-sync.mts'
 
 const LOCALE_DIR = 'i18n'
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))

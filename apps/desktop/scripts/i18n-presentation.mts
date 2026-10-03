@@ -1,14 +1,33 @@
+import type { Inspection } from './i18n-inspection.mts'
+import type { LocaleInspection } from './i18n-current.mts'
+
+export type SourceStatusSummary = { kind: 'source'; locale: string; total: number }
+export type TargetStatusSummary = {
+    kind: 'target'
+    locale: string
+    total: number
+    accepted: number
+    pendingCompatible: number
+    pendingPlaceholderIncompatible: number
+    missing: number
+}
+
 const SOURCE_LOCALE = 'en'
 
-function assertCount(name, value) {
+function assertCount(name: string, value: number) {
     if (!Number.isInteger(value) || value < 0) {
         throw new Error(`Invalid presentation count '${name}': ${value}`)
     }
     return value
 }
 
-function assertSummaryInvariant(summary) {
-    const counts = ['accepted', 'pendingCompatible', 'pendingPlaceholderIncompatible', 'missing']
+function assertSummaryInvariant(summary: TargetStatusSummary) {
+    const counts = [
+        'accepted',
+        'pendingCompatible',
+        'pendingPlaceholderIncompatible',
+        'missing',
+    ] as const
     for (const name of counts) assertCount(name, summary[name])
     assertCount('total', summary.total)
     if (summary.total <= 0) throw new Error(`Invalid presentation total: ${summary.total}`)
@@ -20,7 +39,7 @@ function assertSummaryInvariant(summary) {
     }
 }
 
-export function formatPresentationPercentage(translated, total) {
+export function formatPresentationPercentage(translated: number, total: number) {
     assertCount('translated', translated)
     assertCount('total', total)
     if (total <= 0 || translated > total) {
@@ -30,19 +49,26 @@ export function formatPresentationPercentage(translated, total) {
     return Number.isInteger(percentage) ? `${percentage}%` : `${percentage.toFixed(1)}%`
 }
 
-export function buildSourceStatusSummary(inspection) {
+export function buildSourceStatusSummary(inspection: Inspection): SourceStatusSummary {
     if (inspection.sourceErrors.length > 0) {
         throw new Error(`Source validation failed:\n${inspection.sourceErrors.join('\n')}`)
     }
-    const summary = { kind: 'source', locale: SOURCE_LOCALE, total: inspection.totalCount }
+    const summary: SourceStatusSummary = {
+        kind: 'source',
+        locale: SOURCE_LOCALE,
+        total: inspection.totalCount,
+    }
     assertCount('total', summary.total)
     if (summary.total <= 0) throw new Error('Source presentation total must be positive')
     return summary
 }
 
-export function buildTargetStatusSummary(locale, total) {
+export function buildTargetStatusSummary(
+    locale: LocaleInspection,
+    total: number
+): TargetStatusSummary {
     const pendingPlaceholderIncompatible = locale.pendingPlaceholderIncompatibleCount
-    const summary = {
+    const summary: TargetStatusSummary = {
         kind: 'target',
         locale: locale.id,
         total,
@@ -55,7 +81,7 @@ export function buildTargetStatusSummary(locale, total) {
     return summary
 }
 
-export function buildStatusSummaries(inspection) {
+export function buildStatusSummaries(inspection: Inspection) {
     const source = buildSourceStatusSummary(inspection)
     if (inspection.locales.some((locale) => locale.errors.length > 0)) {
         const errors = inspection.locales.flatMap((locale) => locale.errors)
@@ -67,7 +93,7 @@ export function buildStatusSummaries(inspection) {
     }
 }
 
-export function deriveTargetStatus(summary) {
+export function deriveTargetStatus(summary: TargetStatusSummary) {
     assertSummaryInvariant(summary)
     const pending = summary.pendingCompatible + summary.pendingPlaceholderIncompatible
     const translated = summary.accepted + pending
@@ -84,7 +110,10 @@ export function deriveTargetStatus(summary) {
     }
 }
 
-export function targetFallbackLabel(count) {
+export function targetFallbackLabel(count: number) {
     assertCount('fallback', count)
     return `${count} ${count === 1 ? 'uses' : 'use'} English fallback`
 }
+
+export type StatusSummaries = ReturnType<typeof buildStatusSummaries>
+export type TargetStatus = ReturnType<typeof deriveTargetStatus>

@@ -1,4 +1,12 @@
-const HARD_CONTROL_RANGES = [
+export type UnicodeFinding = {
+    severity: 'error' | 'warning'
+    description: string
+    codePoint?: string
+    name?: string
+    position?: number
+}
+
+const HARD_CONTROL_RANGES: [number, number][] = [
     [0x0000, 0x0008],
     [0x000b, 0x000c],
     [0x000e, 0x001f],
@@ -27,15 +35,15 @@ const CODE_POINT_NAMES = new Map([
     [0xfffd, 'replacement character'],
 ])
 
-function codePointLabel(codePoint) {
+function codePointLabel(codePoint: number) {
     return `U+${codePoint.toString(16).toUpperCase().padStart(4, '0')}`
 }
 
-function isInRanges(codePoint, ranges) {
+function isInRanges(codePoint: number, ranges: [number, number][]) {
     return ranges.some(([start, end]) => codePoint >= start && codePoint <= end)
 }
 
-function isPrivateUse(codePoint) {
+function isPrivateUse(codePoint: number) {
     return (
         (codePoint >= 0xe000 && codePoint <= 0xf8ff) ||
         (codePoint >= 0xf0000 && codePoint <= 0xffffd) ||
@@ -43,7 +51,12 @@ function isPrivateUse(codePoint) {
     )
 }
 
-function finding(severity, codePoint, position, description) {
+function finding(
+    severity: UnicodeFinding['severity'],
+    codePoint: number,
+    position: number,
+    description: string
+): UnicodeFinding {
     return {
         severity,
         codePoint: codePointLabel(codePoint),
@@ -53,11 +66,14 @@ function finding(severity, codePoint, position, description) {
     }
 }
 
-export function inspectUnicode(value, { source = false } = {}) {
-    const findings = []
+export function inspectUnicode(
+    value: string,
+    { source = false }: { source?: boolean } = {}
+): UnicodeFinding[] {
+    const findings: UnicodeFinding[] = []
     let position = 0
     for (const character of value) {
-        const codePoint = character.codePointAt(0)
+        const codePoint = character.codePointAt(0)!
         if (
             isInRanges(codePoint, HARD_CONTROL_RANGES) ||
             codePoint === 0xfeff ||
@@ -97,11 +113,12 @@ export function inspectUnicode(value, { source = false } = {}) {
     }
 
     if (source) {
-        for (const [character, description] of [
+        const preferences: [string, string][] = [
             ['…', "prefer '...' over U+2026 horizontal ellipsis"],
             ['—', 'review U+2014 em dash punctuation'],
             ['→', "use '>' for simple textual navigation paths"],
-        ]) {
+        ]
+        for (const [character, description] of preferences) {
             if (!value.includes(character)) continue
             findings.push({ severity: 'warning', description })
         }

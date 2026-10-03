@@ -11,10 +11,10 @@ import {
     formatWorkflowSummary,
     runI18nEnforcement,
     summarizeWorkflow,
-} from './i18n-enforcement.mjs'
-import { createGitAdapter } from './i18n-git.mjs'
-import { HISTORY_EVENT } from './i18n-history-events.mjs'
-import { stagedSnapshot } from './i18n-history.mjs'
+} from './i18n-enforcement.mts'
+import { createGitAdapter } from './i18n-git.mts'
+import { HISTORY_EVENT } from './i18n-history-events.mts'
+import { stagedSnapshot } from './i18n-history.mts'
 
 // Whether the bot has caught up is asked of the staged index the same way the semantic gate
 // reads it, so the two gates never disagree about which tree they are judging.

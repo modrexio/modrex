@@ -3,15 +3,15 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
-import { inspectLocales, localeNativeName } from './i18n-inspection.mjs'
-import { buildStatusSummaries, deriveTargetStatus } from './i18n-presentation.mjs'
+import { inspectLocales, localeNativeName } from './i18n-inspection.mts'
+import { buildStatusSummaries, deriveTargetStatus } from './i18n-presentation.mts'
 import {
     buildTranslationTable,
     readTranslationContributors,
     renderTranslationStatusReadme,
     replaceTranslationTable,
     runReadmeCommand,
-} from './update-i18n-readme.mjs'
+} from './update-i18n-readme.mts'
 
 const names = { en: 'English', de: 'Deutsch', ru: 'Русский', uk: 'Українська' }
 const contributors = {

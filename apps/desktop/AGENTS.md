@@ -170,7 +170,7 @@ i18n:presentation-write` materializes them. `pnpm i18n:check-sync` is the equiva
 markers. All three are the bot's checks: they answer "has the writer caught up", which is never
 a contributor's problem. The `translation-status` workflow runs the writer after locale or
 English changes reach `main`, verifies its own output with those commands plus
-`scripts/i18n-writer-guard.mjs`, and only then commits, so manual edits inside the generated
+`scripts/i18n-writer-guard.mts`, and only then commits, so manual edits inside the generated
 README block or to a status SVG are overwritten on the next run.
 
 ## Rules

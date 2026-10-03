@@ -3,21 +3,23 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'no
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
-import { formatMissingReport, inspectLocales, runCheckI18n, runI18nCli } from './check-i18n.mjs'
+import { formatMissingReport, inspectLocales, runCheckI18n, runI18nCli } from './check-i18n.mts'
 import {
+    formatTargetValue,
+    resolveTargetValue,
     parseSourceValue,
     parseTargetValue,
     placeholderContract,
     TARGET_VALUE_KIND,
-} from '../src/shared/i18n-values.js'
+} from '../src/shared/i18n-values.mts'
 import {
     expectedReadme,
     renderTranslationStatusReadme,
     readTranslationContributors,
     replaceTranslationTable,
     runReadmeCommand,
-} from './update-i18n-readme.mjs'
-import { collectTranslationContributors, localeJsonChanged } from './update-i18n-contributors.mjs'
+} from './update-i18n-readme.mts'
+import { collectTranslationContributors, localeJsonChanged } from './update-i18n-contributors.mts'
 
 test('target values parse into accepted, scaffold, and pending states', () => {
     assert.deepEqual(parseTargetValue('Hallo'), {
@@ -1310,5 +1312,29 @@ test('--check detects stale and current README content without modifying it', ()
         assert.equal(readFileSync(readmePath, 'utf8'), current)
     } finally {
         rmSync(directory, { recursive: true, force: true })
+    }
+})
+
+test('typed parser boundaries reject every non-string JSON value', () => {
+    for (const value of [null, false, 0, [], {}]) {
+        assert.throws(() => parseSourceValue(value), TypeError)
+        assert.throws(() => parseTargetValue(value), TypeError)
+    }
+    assert.throws(() => parseSourceValue(undefined), TypeError)
+})
+
+test('all target forms round-trip and resolve using the source placeholder contract', () => {
+    const source = parseSourceValue('English {name}')
+    for (const [stored, resolved] of [
+        [undefined, 'English {name}'],
+        ['! Stale English', 'English {name}'],
+        ['Hallo {name}', 'Hallo {name}'],
+        ['? Hallo {name}', 'Hallo {name}'],
+        ['Hallo', 'English {name}'],
+        ['? Hallo {name} {extra}', 'English {name}'],
+    ]) {
+        const target = parseTargetValue(stored)
+        assert.equal(formatTargetValue(target), stored)
+        assert.equal(resolveTargetValue(source, target), resolved)
     }
 })

@@ -4,8 +4,8 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
-import { createGitAdapter, GitBlobDecodeError, GitCommandError } from './i18n-git.mjs'
-import { entryId, HISTORY_EVENT, PENDING_PROVENANCE } from './i18n-history-events.mjs'
+import { createGitAdapter, GitBlobDecodeError, GitCommandError } from './i18n-git.mts'
+import { entryId, HISTORY_EVENT, PENDING_PROVENANCE } from './i18n-history-events.mts'
 import {
     analyzeCommittedHistory,
     analyzeStaged,
@@ -18,7 +18,7 @@ import {
     I18nHistoryUnavailableError,
     I18N_HISTORY_BASELINE,
     summarizeHistory,
-} from './i18n-history.mjs'
+} from './i18n-history.mts'
 
 const LOCALE_DIR = 'i18n'
 const REPO_ROOT = join(import.meta.dirname, '../../..')

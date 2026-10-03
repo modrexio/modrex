@@ -1,3 +1,8 @@
+import type { CliIO, CliOutput } from './i18n-io.mts'
+import type { LocaleBundle } from './i18n-files.mts'
+import type { LocaleIssue, LocaleInspection } from './i18n-current.mts'
+import type { Inspection } from './i18n-inspection.mts'
+import type { HistoryOptions, HistorySummary } from './i18n-history.mts'
 import { existsSync } from 'node:fs'
 import { dirname, relative, resolve } from 'node:path'
 import { createInterface } from 'node:readline/promises'
@@ -8,22 +13,22 @@ import {
     placeholderDifferences,
     TARGET_VALUE_KIND,
     UNTRANSLATED_PREFIX,
-} from '../src/shared/i18n-values.js'
+} from '../src/shared/i18n-values.mts'
 import {
     buildOrderedLocale,
     inspectTranslationBundle,
     isMechanicalSyncDebt,
     planFilledLocale,
-} from './i18n-current.mjs'
-import { inspectUnicode } from './i18n-diagnostics.mjs'
-import { writeLocaleAtomically } from './i18n-files.mjs'
-import { buildStatusSummaries } from './i18n-presentation.mjs'
+} from './i18n-current.mts'
+import { inspectUnicode } from './i18n-diagnostics.mts'
+import { writeLocaleAtomically } from './i18n-files.mts'
+import { buildStatusSummaries } from './i18n-presentation.mts'
 import {
     createSemanticStyles,
     detectCliCapabilities,
     renderPlaceholderText,
     renderStatus,
-} from './i18n-presentation-cli.mjs'
+} from './i18n-presentation-cli.mts'
 import {
     I18N_DIR,
     inspectLocales,
@@ -31,35 +36,62 @@ import {
     localeNativeName,
     SOURCE_LOCALE,
     validateLocaleId,
-} from './i18n-inspection.mjs'
+} from './i18n-inspection.mts'
 
-export { I18N_DIR, inspectLocales, localeNativeName } from './i18n-inspection.mjs'
+type Styles = ReturnType<typeof createSemanticStyles>
+type Ask = (question: string) => Promise<string>
+type CliOptions = CliIO &
+    HistoryOptions & { i18nDir?: string; ask?: Ask; stdin?: NodeJS.ReadableStream }
+type Unit =
+    | { type: 'single'; key: string; position: number; counterpart?: string }
+    | { type: 'pair'; plural: string; single: string; positions: number[] }
+type TranslationContext = {
+    ask: Ask
+    englishName: string
+    inspection: Inspection
+    stdout: CliOutput
+    styles: Styles
+    locale: LocaleInspection
+    totalMissing: number
+}
+type TranslationSession = {
+    inspection: Inspection
+    locale: LocaleInspection
+    localePath: string
+    stdout: CliOutput
+    env?: NodeJS.ProcessEnv
+}
+type HistoryCandidate = {
+    locale: string
+    issue: Extract<LocaleIssue, { type: 'placeholder' | 'pending-placeholder' }>
+}
+
+export { I18N_DIR, inspectLocales, localeNativeName } from './i18n-inspection.mts'
 
 const REPOSITORY_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../..')
 
-export function isUntranslatedValue(value) {
+export function isUntranslatedValue(value: string) {
     return parseTargetValue(value).kind === TARGET_VALUE_KIND.UNTRANSLATED_SCAFFOLD
 }
 
-export function formatPercentage(translated, total) {
+export function formatPercentage(translated: number, total: number) {
     const percentage = Math.round((translated / total) * 1000) / 10
     return Number.isInteger(percentage) ? `${percentage}%` : `${percentage.toFixed(1)}%`
 }
 
-function validationErrors(inspection) {
+function validationErrors(inspection: { errors: string[] }) {
     return ['check-i18n: found problems:', ...inspection.errors.map((error) => `  ${error}`)].join(
         '\n'
     )
 }
 
-// Stored markers lag behind meaning between a source change and the bot's next run, so the
-// counts come from the history summary whenever one is available.
-//
-// unwrittenFallback carries the entries that are effectively Review with placeholders that
-// disagree with English, but whose '? ' the bot has not written yet. Those render English at
-// runtime exactly like a written one, so the fallback notice has to include them: it describes
-// what the app shows now, not what the locale files have caught up to.
-function localeCounts(locale, summary, unwrittenFallback) {
+// Effective counts include review debt whose marker is not written yet. The fallback count
+// also includes those unmarked targets when their placeholders require English at runtime.
+function localeCounts(
+    locale: LocaleInspection,
+    summary: HistorySummary | undefined,
+    unwrittenFallback: Map<string, number>
+) {
     const fallback =
         locale.pendingPlaceholderIncompatibleCount + (unwrittenFallback.get(locale.id) ?? 0)
     const effective = summary?.locales.get(locale.id)?.effective
@@ -81,7 +113,11 @@ function localeCounts(locale, summary, unwrittenFallback) {
     }
 }
 
-export function formatInspection(inspection, summary, unwrittenFallback = new Map()) {
+export function formatInspection(
+    inspection: Inspection,
+    summary?: HistorySummary,
+    unwrittenFallback: Map<string, number> = new Map()
+) {
     const lines = [`check-i18n: ${inspection.totalCount} source keys`]
     if (inspection.sourceWarnings.length > 0) {
         lines.push(`  en: ${inspection.sourceWarnings.length} warning(s)`)
@@ -90,8 +126,21 @@ export function formatInspection(inspection, summary, unwrittenFallback = new Ma
         const counts = localeCounts(locale, summary, unwrittenFallback)
         const percentage = formatPercentage(counts.translated, locale.totalCount)
         lines.push(
-            `  ${locale.id}: ${counts.translated}/${locale.totalCount} (${percentage}), ${counts.accepted} accepted, ${counts.review} review, ${counts.missing} missing`
+            `  ${locale.id}: ${counts.translated}/${locale.totalCount} (${percentage}), ${counts.accepted} ${summary ? 'accepted' : 'unmarked'}, ${counts.review} review, ${counts.missing} missing`
         )
+        const uncertain = [...(summary?.locales.get(locale.id)?.entries.values() ?? [])].filter(
+            (entry) => entry.gapIds.length > 0
+        )
+        if (uncertain.length > 0) {
+            lines.push(
+                '    ' +
+                    uncertain.length +
+                    ' translation(s) have incomplete historical evidence. Automatic decisions are blocked.'
+            )
+            const ids = new Set(uncertain.flatMap((entry) => entry.gapIds))
+            for (const gap of summary!.gaps.filter((gap) => ids.has(gap.id)))
+                lines.push('    ' + gap.locale + '.json@' + gap.revision + ': ' + gap.kind)
+        }
         if (counts.fallback > 0) {
             lines.push(
                 `    ${counts.fallback} review-pending ${counts.fallback === 1 ? 'translation uses' : 'translations use'} English fallback`
@@ -124,7 +173,7 @@ export function formatInspection(inspection, summary, unwrittenFallback = new Ma
     return lines.join('\n')
 }
 
-function translationLocale(inspection, localeId) {
+function translationLocale(inspection: Inspection, localeId: string) {
     const locale = inspection.locales.find(({ id }) => id === localeId)
     if (!locale) {
         const available = inspection.locales.map(({ id }) => id).join(', ')
@@ -138,7 +187,7 @@ export function runI18nStatus({
     stdout = process.stdout,
     stderr = process.stderr,
     env = process.env,
-} = {}) {
+}: CliOptions = {}) {
     let inspection
     try {
         inspection = inspectLocales(i18nDir)
@@ -151,16 +200,16 @@ export function runI18nStatus({
         })
         return 0
     } catch (error) {
-        stderr.write(`check-i18n: ${error.message}\n`)
+        stderr.write(`check-i18n: ${error instanceof Error ? error.message : String(error)}\n`)
         return 1
     }
 }
 
-function formatPlaceholderNames(names) {
+function formatPlaceholderNames(names: string[]) {
     return names.map((name) => `{${name}}`).join(', ')
 }
 
-function formatLocaleIssue(issue, localeName) {
+function formatLocaleIssue(issue: LocaleIssue, localeName: string) {
     switch (issue.type) {
         case 'invalid-json':
             return ['File:', '  invalid JSON', `  ${issue.detail ?? 'Could not parse the file'}`]
@@ -248,11 +297,11 @@ function formatLocaleIssue(issue, localeName) {
             ]
         }
         default:
-            throw new Error(`Unknown locale validation issue '${issue.type}'`)
+            throw new Error(`Unknown locale validation issue '${(issue as LocaleIssue).type}'`)
     }
 }
 
-export function formatLocaleReport(inspection, localeId) {
+export function formatLocaleReport(inspection: Inspection, localeId: string) {
     const locale = translationLocale(inspection, localeId)
     const localeName = localeNativeName(locale.id)
     const percentage = formatPercentage(locale.translatedCount, locale.totalCount)
@@ -292,7 +341,7 @@ export function formatLocaleReport(inspection, localeId) {
     return lines.join('\n')
 }
 
-function formatSourceReport(inspection) {
+function formatSourceReport(inspection: Inspection) {
     const lines = [`${inspection.sourceLocale}.json`]
     if (inspection.sourceIssues.length === 0) {
         lines.push('Valid')
@@ -311,7 +360,7 @@ function formatSourceReport(inspection) {
     return lines.join('\n')
 }
 
-export function formatMissingReport(inspection, localeId, styles) {
+export function formatMissingReport(inspection: Inspection, localeId: string, styles?: Styles) {
     const locale = translationLocale(inspection, localeId)
 
     const percentage = formatPercentage(locale.translatedCount, locale.totalCount)
@@ -332,19 +381,21 @@ export function formatMissingReport(inspection, localeId, styles) {
     return lines.join('\n')
 }
 
-function formatSourceText(value, styles) {
+function formatSourceText(value: string, styles: Styles) {
     return value
         .split('\n')
         .map((line) => `  ${renderPlaceholderText(line, styles)}`)
         .join('\n')
 }
 
-function formatTranslationProblems(sourceValue, localeValue) {
+function formatTranslationProblems(sourceValue: string, localeValue: string) {
     let targetValue
     try {
         targetValue = parseTargetValue(localeValue)
     } catch (error) {
-        return [`  Invalid workflow marker syntax: ${error.message}`]
+        return [
+            `  Invalid workflow marker syntax: ${error instanceof Error ? error.message : String(error)}`,
+        ]
     }
     if (targetValue.kind !== TARGET_VALUE_KIND.ACCEPTED) {
         return ['  A translation must not begin with the reserved "! " or "? " prefix.']
@@ -377,6 +428,13 @@ async function promptTranslation({
     sourceValue,
     translationLabel,
     styles,
+}: {
+    ask: Ask
+    stdout: CliOutput
+    sourceLabel: string
+    sourceValue: string
+    translationLabel: string
+    styles: Styles
 }) {
     stdout.write(
         `${sourceLabel}:\n${formatSourceText(sourceValue, styles)}\n\n${translationLabel} (Enter to skip):\n`
@@ -395,7 +453,7 @@ async function promptTranslation({
     }
 }
 
-function translationUnits(missingKeys, pairedKeys) {
+function translationUnits(missingKeys: string[], pairedKeys: [string, string][]): Unit[] {
     const pairByKey = new Map()
     for (const [plural, single] of pairedKeys) {
         pairByKey.set(plural, { plural, single })
@@ -405,11 +463,11 @@ function translationUnits(missingKeys, pairedKeys) {
     const positions = new Map(missingKeys.map((key, index) => [key, index + 1]))
     const missingKeySet = new Set(missingKeys)
     const handledPairs = new Set()
-    const units = []
+    const units: Unit[] = []
     for (const key of missingKeys) {
         const pair = pairByKey.get(key)
         if (!pair) {
-            units.push({ type: 'single', key, position: positions.get(key) })
+            units.push({ type: 'single', key, position: positions.get(key)! })
             continue
         }
         if (handledPairs.has(pair.plural)) continue
@@ -418,10 +476,10 @@ function translationUnits(missingKeys, pairedKeys) {
         const bothMissing = missingKeySet.has(pair.plural) && missingKeySet.has(pair.single)
         if (!bothMissing) {
             const counterpart = key === pair.plural ? pair.single : pair.plural
-            units.push({ type: 'single', key, position: positions.get(key), counterpart })
+            units.push({ type: 'single', key, position: positions.get(key)!, counterpart })
             continue
         }
-        const pairPositions = [positions.get(pair.plural), positions.get(pair.single)].sort(
+        const pairPositions = [positions.get(pair.plural)!, positions.get(pair.single)!].sort(
             (a, b) => a - b
         )
         units.push({ type: 'pair', ...pair, positions: pairPositions })
@@ -429,14 +487,17 @@ function translationUnits(missingKeys, pairedKeys) {
     return units
 }
 
-async function promptPair(unit, context) {
+async function promptPair(
+    unit: Extract<Unit, { type: 'pair' }>,
+    context: TranslationContext
+): Promise<[string, string][] | null> {
     const { ask, englishName, inspection, stdout, styles } = context
     while (true) {
         const singular = await promptTranslation({
             ask,
             stdout,
             sourceLabel: 'Singular English source',
-            sourceValue: inspection.sourceStrings[unit.single],
+            sourceValue: inspection.sourceStrings[unit.single]!,
             translationLabel: `${englishName} singular translation`,
             styles,
         })
@@ -445,7 +506,7 @@ async function promptPair(unit, context) {
             ask,
             stdout,
             sourceLabel: 'Plural English source',
-            sourceValue: inspection.sourceStrings[unit.plural],
+            sourceValue: inspection.sourceStrings[unit.plural]!,
             translationLabel: `${englishName} plural translation`,
             styles,
         })
@@ -464,7 +525,10 @@ async function promptPair(unit, context) {
     }
 }
 
-async function promptUnit(unit, context) {
+async function promptUnit(
+    unit: Unit,
+    context: TranslationContext
+): Promise<[string, string][] | null> {
     const { ask, englishName, inspection, stdout, styles } = context
     if (unit.type === 'pair') {
         const [first, second] = unit.positions
@@ -478,27 +542,27 @@ async function promptUnit(unit, context) {
     if (unit.counterpart) {
         const counterpart = context.locale.targetValues[unit.counterpart]
         stdout.write(
-            `Existing counterpart (${unit.counterpart}):\n${formatSourceText(counterpart.targetText, styles)}\n\n`
+            `Existing counterpart (${unit.counterpart}):\n${formatSourceText((counterpart as Extract<typeof counterpart, { kind: 'accepted' | 'pending' }>).targetText, styles)}\n\n`
         )
     }
     const translation = await promptTranslation({
         ask,
         stdout,
         sourceLabel: 'English source',
-        sourceValue: inspection.sourceStrings[unit.key],
+        sourceValue: inspection.sourceStrings[unit.key]!,
         translationLabel: `${englishName} translation`,
         styles,
     })
     return translation === null ? null : [[unit.key, translation]]
 }
 
-function formatInteractiveStatus(localeName, locale) {
+function formatInteractiveStatus(localeName: string, locale: LocaleInspection) {
     const percentage = formatPercentage(locale.translatedCount, locale.totalCount)
     const missingLabel = locale.missingKeys.length === 1 ? 'missing key' : 'missing keys'
     return `${localeName} (${locale.id})\n\n${locale.translatedCount}/${locale.totalCount} translated - ${percentage}\n${locale.missingKeys.length} ${missingLabel}`
 }
 
-function localeDisplayPath(localePath) {
+function localeDisplayPath(localePath: string) {
     return relative(process.cwd(), localePath).replaceAll('\\', '/')
 }
 
@@ -509,7 +573,7 @@ async function translateLocaleSession({
     localePath,
     stdout,
     env = process.env,
-}) {
+}: TranslationSession & { ask: Ask }) {
     const localeName = localeNativeName(locale.id)
     const englishName = localeEnglishName(locale.id)
 
@@ -526,7 +590,7 @@ async function translateLocaleSession({
         `\n${locale.translatedCount}/${locale.totalCount} translated - ${locale.missingKeys.length} missing\nMarker reminder: ! means translate this; no prefix means accepted translation.\n\nPress Ctrl+C to cancel.\n\n`
     )
 
-    let current = locale
+    let current: LocaleInspection = locale
     let saved = 0
     let skipped = 0
     const units = translationUnits(locale.missingKeys, inspection.pairedKeys)
@@ -550,13 +614,12 @@ async function translateLocaleSession({
 
         const translated = { ...current.strings }
         for (const [key, value] of completed) translated[key] = value
-        const ordered = buildOrderedLocale(inspection.sourceBundle, translated)
+        const ordered = buildOrderedLocale(inspection.sourceBundle as LocaleBundle, translated)
         const candidate = inspectTranslationBundle(
             locale.id,
             ordered,
             inspection.sourceStrings,
-            inspection.sourceKeys,
-            inspection.pairedKeys
+            inspection.sourceKeys
         )
         if (candidate.errors.length > 0) {
             throw new Error(validationErrors(candidate))
@@ -584,7 +647,7 @@ function usageText() {
         '',
         'Inspect',
         '  pnpm i18n:help               Show this workflow guide',
-        '  pnpm i18n:status             Show all languages and key coverage',
+        '  pnpm i18n:status             Show stored marker coverage for all languages',
         '  pnpm i18n:check [locale]     Validate the source or one locale',
         '  pnpm i18n:missing <locale>   List missing keys with English source text',
         '',
@@ -600,14 +663,14 @@ function usageText() {
 }
 
 function runScaffoldI18n(
-    command,
-    localeId,
-    { i18nDir = I18N_DIR, stdout = process.stdout, stderr = process.stderr } = {}
+    command: string,
+    localeId: string,
+    { i18nDir = I18N_DIR, stdout = process.stdout, stderr = process.stderr }: CliOptions = {}
 ) {
     try {
         validateLocaleId(localeId)
     } catch (error) {
-        stderr.write(`check-i18n: ${error.message}\n`)
+        stderr.write(`check-i18n: ${error instanceof Error ? error.message : String(error)}\n`)
         return 2
     }
 
@@ -620,7 +683,7 @@ function runScaffoldI18n(
     try {
         inspection = inspectLocales(i18nDir)
     } catch (error) {
-        stderr.write(`check-i18n: ${error.message}\n`)
+        stderr.write(`check-i18n: ${error instanceof Error ? error.message : String(error)}\n`)
         return 1
     }
     if (inspection.sourceErrors.length > 0) {
@@ -648,7 +711,7 @@ function runScaffoldI18n(
         ? translationLocale(inspection, localeId)
         : inspectTranslationBundle(localeId, {}, inspection.sourceStrings, inspection.sourceKeys)
     const plan = planFilledLocale(inspection, locale)
-    if (plan.errors.length > 0) {
+    if (!('bundle' in plan)) {
         const localeName = localeNativeName(locale.id)
         const problemLabel = plan.errors.length === 1 ? 'validation problem' : 'validation problems'
         const lines = [`${locale.id}.json`, `${plan.errors.length} ${problemLabel}`]
@@ -673,7 +736,7 @@ function runScaffoldI18n(
     try {
         changed = writeLocaleAtomically(localePath, ordered)
     } catch (error) {
-        stderr.write(`check-i18n: ${error.message}\n`)
+        stderr.write(`check-i18n: ${error instanceof Error ? error.message : String(error)}\n`)
         return 1
     }
     const action = create ? 'Created' : 'Updated'
@@ -689,11 +752,16 @@ function runScaffoldI18n(
 }
 
 export function runCheckI18n(
-    args,
-    { i18nDir = I18N_DIR, stdout = process.stdout, stderr = process.stderr, env = process.env } = {}
+    args: string[],
+    {
+        i18nDir = I18N_DIR,
+        stdout = process.stdout,
+        stderr = process.stderr,
+        env = process.env,
+    }: CliOptions = {}
 ) {
     const usage = usageText()
-    if (args.length === 1 && ['--help', '-h'].includes(args[0])) {
+    if (args.length === 1 && ['--help', '-h'].includes(args[0]!)) {
         stdout.write(`${usage}\n`)
         return 0
     }
@@ -701,7 +769,7 @@ export function runCheckI18n(
     const supported =
         args.length === 0 ||
         (args.length === 1 && args[0] === '--status') ||
-        (args.length === 2 && ['--missing', '--locale'].includes(args[0]))
+        (args.length === 2 && ['--missing', '--locale'].includes(args[0]!))
     if (!supported) {
         stderr.write(`${usage}\n`)
         return 2
@@ -713,7 +781,7 @@ export function runCheckI18n(
     try {
         inspection = inspectLocales(i18nDir)
     } catch (error) {
-        stderr.write(`check-i18n: ${error.message}\n`)
+        stderr.write(`check-i18n: ${error instanceof Error ? error.message : String(error)}\n`)
         return 1
     }
 
@@ -734,7 +802,7 @@ export function runCheckI18n(
         }
 
         try {
-            const locale = translationLocale(inspection, args[1])
+            const locale = translationLocale(inspection, args[1]!)
             const report = `${formatLocaleReport(inspection, locale.id)}\n`
             if (locale.issues.length > 0) {
                 stderr.write(report)
@@ -743,7 +811,7 @@ export function runCheckI18n(
             stdout.write(report)
             return 0
         } catch (error) {
-            stderr.write(`check-i18n: ${error.message}\n`)
+            stderr.write(`check-i18n: ${error instanceof Error ? error.message : String(error)}\n`)
             return 2
         }
     }
@@ -754,7 +822,7 @@ export function runCheckI18n(
             return 1
         }
         try {
-            const locale = translationLocale(inspection, args[1])
+            const locale = translationLocale(inspection, args[1]!)
             if (locale.issues.length > 0) {
                 stderr.write(`${formatLocaleReport(inspection, locale.id)}\n`)
                 return 1
@@ -763,7 +831,7 @@ export function runCheckI18n(
             stdout.write(`${formatMissingReport(inspection, locale.id, styles)}\n`)
             return 0
         } catch (error) {
-            stderr.write(`check-i18n: ${error.message}\n`)
+            stderr.write(`check-i18n: ${error instanceof Error ? error.message : String(error)}\n`)
             return 2
         }
     }
@@ -781,10 +849,16 @@ export function runCheckI18n(
     throw new Error('Supported i18n arguments were not handled')
 }
 
-async function runSessionWithInput(session, { ask, stdin, stdout }) {
+async function runSessionWithInput(
+    session: TranslationSession,
+    { ask, stdin, stdout }: CliOptions
+) {
     if (ask) return translateLocaleSession({ ...session, ask })
 
-    const input = createInterface({ input: stdin, output: stdout })
+    const input = createInterface({
+        input: stdin ?? process.stdin,
+        output: stdout as NodeJS.WritableStream,
+    })
     try {
         return await translateLocaleSession({
             ...session,
@@ -796,7 +870,7 @@ async function runSessionWithInput(session, { ask, stdin, stdout }) {
 }
 
 async function runInteractiveI18n(
-    localeId,
+    localeId: string,
     {
         ask,
         i18nDir = I18N_DIR,
@@ -804,12 +878,12 @@ async function runInteractiveI18n(
         stdout = process.stdout,
         stderr = process.stderr,
         env = process.env,
-    } = {}
+    }: CliOptions = {}
 ) {
     try {
         validateLocaleId(localeId)
     } catch (error) {
-        stderr.write(`check-i18n: ${error.message}\n`)
+        stderr.write(`check-i18n: ${error instanceof Error ? error.message : String(error)}\n`)
         return 2
     }
 
@@ -832,7 +906,7 @@ async function runInteractiveI18n(
     try {
         inspection = inspectLocales(i18nDir)
     } catch (error) {
-        stderr.write(`check-i18n: ${error.message}\n`)
+        stderr.write(`check-i18n: ${error instanceof Error ? error.message : String(error)}\n`)
         return 1
     }
     if (inspection.sourceErrors.length > 0) {
@@ -853,7 +927,7 @@ async function runInteractiveI18n(
         )
         return 0
     } catch (error) {
-        stderr.write(`check-i18n: ${error.message}\n`)
+        stderr.write(`check-i18n: ${error instanceof Error ? error.message : String(error)}\n`)
         return 1
     }
 }
@@ -863,9 +937,9 @@ async function runInteractiveI18n(
 // whose Review marker the bot has not written yet. Only Git separates those.
 const HISTORY_DEPENDENT_ISSUE = 'placeholder'
 
-function deferrableIssues(inspection) {
+function deferrableIssues(inspection: Inspection) {
     const mechanical = []
-    const historyDependent = []
+    const historyDependent: HistoryCandidate[] = []
     for (const locale of inspection.locales) {
         for (const issue of locale.issues) {
             if (!issue.message) continue
@@ -882,47 +956,63 @@ function deferrableIssues(inspection) {
 
 // The history module is loaded here rather than at the top of the file so every other command,
 // including the history-independent scaffolding ones, keeps working with no Git at all.
-async function resolveWithHistory(candidates, options) {
-    const history = await import('./i18n-history.mjs')
+async function resolveWithHistory(candidates: HistoryCandidate[], options: CliOptions) {
+    const history = await import('./i18n-history.mts')
     const cwd = options.cwd ?? REPOSITORY_ROOT
     const localeDir = options.localeDir ?? history.I18N_LOCALE_DIR
+    if (options.i18nDir && resolve(options.i18nDir) !== resolve(cwd, localeDir)) {
+        return {
+            summary: undefined,
+            review: undefined,
+            unavailable:
+                'The locale directory is outside the configured history scope. Supply cwd and localeDir.',
+        }
+    }
     try {
         const committed = history.analyzeCommittedHistory({
             cwd,
             localeDir,
             baseline: options.baseline,
+            localeId: options.localeId,
         })
-        const summary = history.summarizeHistory(
-            history.analyzeRepairableProspective(
-                committed,
-                history.workingTreeSnapshot(cwd, localeDir)
-            )
+        const prospective = history.analyzeRepairableProspective(
+            committed,
+            history.workingTreeSnapshot(cwd, localeDir, options.localeId)
         )
-        const review = candidates.filter(
-            ({ locale, issue }) =>
-                summary.locales.get(locale)?.entries.get(issue.key)?.effectiveState ===
-                history.EFFECTIVE_STATE.REVIEW
+        history.assertHistoryDecisionEvidence(prospective)
+        const summary = history.summarizeHistory(prospective)
+        const review = candidates.filter(({ locale, issue }) =>
+            history.canDeferPlaceholderMismatch(summary.locales.get(locale)?.entries.get(issue.key))
         )
-        return { summary, review }
+        return { summary, review, unavailable: undefined }
     } catch (error) {
         if (!(error instanceof history.I18nHistoryUnavailableError)) throw error
-        return { unavailable: error.message.split('\n')[0] }
+        return { summary: undefined, review: undefined, unavailable: error.message.split('\n')[0] }
     }
 }
 
-export async function runI18nValidation(options = {}) {
+export async function runI18nValidation(options: CliOptions = {}) {
     const { i18nDir = I18N_DIR, stdout = process.stdout, stderr = process.stderr } = options
     let inspection
     try {
-        inspection = inspectLocales(i18nDir)
+        inspection = inspectLocales(i18nDir, options.localeId)
     } catch (error) {
-        stderr.write(`check-i18n: ${error.message}\n`)
+        stderr.write(`check-i18n: ${error instanceof Error ? error.message : String(error)}\n`)
         return 1
     }
 
     const { mechanical, historyDependent } = deferrableIssues(inspection)
     const deferred = new Set(mechanical.map(({ issue }) => issue.message))
-    const { summary, review, unavailable } = await resolveWithHistory(historyDependent, options)
+    let resolved: Awaited<ReturnType<typeof resolveWithHistory>>
+    try {
+        resolved = await resolveWithHistory(historyDependent, options)
+    } catch (error) {
+        stderr.write(
+            'check-i18n: ' + (error instanceof Error ? error.message : String(error)) + '\n'
+        )
+        return 1
+    }
+    const { summary, review, unavailable } = resolved
     const unwrittenFallback = new Map()
     for (const { locale, issue } of review ?? []) {
         deferred.add(issue.message)
@@ -957,31 +1047,59 @@ export async function runI18nValidation(options = {}) {
             `check-i18n: ${deferred.size} derived marker update(s) pending; the translation-status workflow writes them.\n`
         )
     }
+    if (options.localeId) {
+        const reportInspection = {
+            ...inspection,
+            locales: inspection.locales.map((locale) => ({
+                ...locale,
+                issues: locale.issues.filter((issue) => !deferred.has(issue.message)),
+            })),
+        }
+        stdout.write(formatLocaleReport(reportInspection, options.localeId) + '\n')
+    }
     stdout.write(`${formatInspection(inspection, summary, unwrittenFallback)}\n`)
     if (!summary) stdout.write(`check-i18n: effective state unverified (${unavailable})\n`)
     return 0
 }
 
-export async function runI18nCli(args, options = {}) {
-    const localeCheck = args.length === 1 && !args[0].startsWith('-')
-    if (localeCheck) return runCheckI18n(['--locale', args[0]], options)
+export async function runI18nCli(args: string[], options: CliOptions = {}) {
+    const localeCheck =
+        (args.length === 1 && !args[0]!.startsWith('-')) ||
+        (args.length === 2 && args[0] === '--locale')
+    if (localeCheck) {
+        const localeId = args.length === 1 ? args[0]! : args[1]!
+        if (localeId === SOURCE_LOCALE) return runCheckI18n(['--locale', localeId], options)
+        try {
+            validateLocaleId(localeId)
+            if (!existsSync(resolve(options.i18nDir ?? I18N_DIR, localeId + '.json'))) {
+                throw new Error('Unknown translation locale: ' + localeId)
+            }
+        } catch (error) {
+            const stderr = options.stderr ?? process.stderr
+            stderr.write(
+                'check-i18n: ' + (error instanceof Error ? error.message : String(error)) + '\n'
+            )
+            return 2
+        }
+        return runI18nValidation({ ...options, localeId })
+    }
 
     if (args[0] === '--sync') {
-        const { runI18nSync } = await import('./i18n-sync.mjs')
+        const { runI18nSync } = await import('./i18n-sync.mts')
         return runI18nSync(args.slice(1), options)
     }
 
     if (args[0] === '--review') {
-        const { runI18nReview } = await import('./i18n-review.mjs')
+        const { runI18nReview } = await import('./i18n-review.mts')
         return runI18nReview(args.slice(1), options)
     }
 
-    if (args.length === 2 && ['--fill', '--create'].includes(args[0])) {
-        return runScaffoldI18n(args[0], args[1], options)
+    if (args.length === 2 && ['--fill', '--create'].includes(args[0]!)) {
+        return runScaffoldI18n(args[0]!, args[1]!, options)
     }
 
     if (args.length === 2 && args[0] === '--translate') {
-        return runInteractiveI18n(args[1], options)
+        return runInteractiveI18n(args[1]!, options)
     }
     if (args.length === 0) return runI18nValidation(options)
     return runCheckI18n(args, options)

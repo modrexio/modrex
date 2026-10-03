@@ -1,39 +1,61 @@
+import type { CliIO } from './i18n-io.mts'
+import type { LocaleBundle } from './i18n-files.mts'
+import type { HistoryAnalysis, HistoryGit } from './i18n-history.mts'
+import type { HistorySnapshot } from './i18n-history-events.mts'
+import type { SyncPlan, SyncOperation } from './i18n-sync.mts'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-
-import { serializeLocale } from './i18n-files.mjs'
-import { formatTargetValue, TARGET_VALUE_KIND } from '../src/shared/i18n-values.js'
-import { HISTORY_EVENT } from './i18n-history-events.mjs'
+import { serializeLocale } from './i18n-files.mts'
+import { formatTargetValue, TARGET_VALUE_KIND } from '../src/shared/i18n-values.mts'
+import { HISTORY_EVENT } from './i18n-history-events.mts'
 import {
     analyzeCommittedHistory,
     analyzeRepairableProspective,
     I18N_HISTORY_BASELINE,
     I18N_LOCALE_DIR,
     stagedSnapshot,
+    assertHistoryDecisionEvidence,
     workingTreeSnapshot,
-} from './i18n-history.mjs'
-import { createGitAdapter } from './i18n-git.mjs'
-import { planI18nSync, validatePlannedBundles } from './i18n-sync.mjs'
+} from './i18n-history.mts'
+import { createGitAdapter } from './i18n-git.mts'
+import { planI18nSync, validatePlannedBundles } from './i18n-sync.mts'
+
+type EnforcementOptions = {
+    cwd?: string
+    localeDir?: string
+    baseline?: string
+    snapshot?: HistorySnapshot
+    git?: HistoryGit & Pick<ReturnType<typeof createGitAdapter>, 'stagedChangedPaths'>
+}
+type EnforcementResult = {
+    pass: boolean
+    skipped: boolean
+    operations: { locale: string; key: string; kind: string }[]
+    allOperations: SyncOperation[]
+    workflowSummary?: ReturnType<typeof summarizeWorkflow>
+    unsynchronized?: { locale: string; key: string; kind: string }[]
+}
+type WorkflowItem = { locale?: string; key: string }
 
 const REPOSITORY_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../..')
 
-function setPath(root, dottedKey, value) {
+function setPath(root: LocaleBundle, dottedKey: string, value: string) {
     const parts = dottedKey.split('.')
     let cursor = root
     for (const part of parts.slice(0, -1)) {
         cursor[part] ??= {}
-        cursor = cursor[part]
+        cursor = cursor[part] as LocaleBundle
     }
-    cursor[parts.at(-1)] = value
+    cursor[parts.at(-1)!] = value
 }
 
-function snapshotBundles(snapshot) {
-    const sourceBundle = {}
+function snapshotBundles(snapshot: HistorySnapshot) {
+    const sourceBundle: LocaleBundle = {}
     for (const [key, value] of snapshot.source) setPath(sourceBundle, key, value)
 
-    const locales = new Map()
+    const locales = new Map<string, LocaleBundle>()
     for (const [localeId, locale] of snapshot.locales) {
-        const bundle = {}
+        const bundle: LocaleBundle = {}
         for (const [key, value] of locale.targets) {
             const stored = formatTargetValue(value)
             if (stored !== undefined) setPath(bundle, key, stored)
@@ -43,7 +65,7 @@ function snapshotBundles(snapshot) {
     return { sourceBundle, locales }
 }
 
-function relevantPath(path, localeDir) {
+function relevantPath(path: string, localeDir: string) {
     const normalized = path.replaceAll('\\', '/')
     return (
         normalized === `${localeDir}/en.json` ||
@@ -51,9 +73,9 @@ function relevantPath(path, localeDir) {
     )
 }
 
-function comparePlan(plan, current) {
+function comparePlan(plan: SyncPlan, current: { locales: Map<string, LocaleBundle> }) {
     const operations = plan.locales.flatMap((locale) => locale.operations)
-    const differences = []
+    const differences: { locale: string; key: string; kind: string }[] = []
     for (const locale of plan.locales) {
         const expected = serializeLocale(locale.bundle)
         const actual = serializeLocale(current.locales.get(locale.id) ?? {})
@@ -68,15 +90,32 @@ function comparePlan(plan, current) {
     return { differences, operations }
 }
 
-const TARGET_EDIT_EVENTS = new Set([
+const TARGET_EDIT_EVENTS = new Set<string>([
     HISTORY_EVENT.FIRST_TRANSLATION,
     HISTORY_EVENT.ACCEPTED_EDIT,
     HISTORY_EVENT.EDIT_FROM_PENDING,
     HISTORY_EVENT.PENDING_EDIT,
 ])
 
-export function summarizeWorkflow({ history, baseSnapshot, currentSnapshot }) {
-    const summary = {
+export function summarizeWorkflow({
+    history,
+    baseSnapshot,
+    currentSnapshot,
+}: {
+    history: HistoryAnalysis
+    baseSnapshot?: HistorySnapshot
+    currentSnapshot: HistorySnapshot
+}) {
+    const summary: Record<
+        | 'targetContentEdits'
+        | 'keeps'
+        | 'newlyPending'
+        | 'scaffoldsAdded'
+        | 'scaffoldsRefreshed'
+        | 'scaffoldsRemoved'
+        | 'sourceReturnClears',
+        WorkflowItem[]
+    > = {
         targetContentEdits: [],
         keeps: [],
         newlyPending: [],
@@ -112,7 +151,7 @@ export function summarizeWorkflow({ history, baseSnapshot, currentSnapshot }) {
     return summary
 }
 
-export function formatWorkflowSummary(summary) {
+export function formatWorkflowSummary(summary: ReturnType<typeof summarizeWorkflow>) {
     const labels = [
         ['targetContentEdits', 'target-content edits'],
         ['keeps', 'accepted unchanged / Keeps'],
@@ -121,21 +160,25 @@ export function formatWorkflowSummary(summary) {
         ['scaffoldsRefreshed', 'scaffolds refreshed'],
         ['scaffoldsRemoved', 'scaffolds removed'],
         ['sourceReturnClears', 'source-return clears'],
-    ]
+    ] as const
     return labels
         .filter(([key]) => summary[key].length > 0)
         .map(([key, label]) => `${label}: ${summary[key].length}`)
         .join(', ')
 }
 
-export function summarizeEnforcementOperations(operations) {
+export function summarizeEnforcementOperations(operations: { kind: string }[]) {
     const counts = new Map()
     for (const operation of operations)
         counts.set(operation.kind, (counts.get(operation.kind) ?? 0) + 1)
     return [...counts.entries()].map(([kind, count]) => `${kind}: ${count}`).join(', ')
 }
 
-export function stagedI18nPaths({ cwd = process.cwd(), localeDir = I18N_LOCALE_DIR, git } = {}) {
+export function stagedI18nPaths({
+    cwd = process.cwd(),
+    localeDir = I18N_LOCALE_DIR,
+    git,
+}: EnforcementOptions = {}) {
     const adapter = git ?? createGitAdapter({ cwd })
     return adapter.stagedChangedPaths().filter((path) => relevantPath(path, localeDir))
 }
@@ -149,7 +192,7 @@ function analyzeSnapshot({
     baseline = I18N_HISTORY_BASELINE,
     snapshot,
     git,
-} = {}) {
+}: EnforcementOptions = {}) {
     const adapter = git ?? createGitAdapter({ cwd })
     const committed = analyzeCommittedHistory({ cwd, localeDir, baseline, git: adapter })
     const currentSnapshot = snapshot ?? workingTreeSnapshot(cwd, localeDir)
@@ -163,19 +206,18 @@ function analyzeSnapshot({
         throw new Error(`Staged/current target locale is missing: ${missingLocales.join(', ')}`)
     }
     const prospective = analyzeRepairableProspective(committed, currentSnapshot)
+    assertHistoryDecisionEvidence(prospective)
     const { sourceBundle, locales } = snapshotBundles(currentSnapshot)
 
-    // The plan is what the tree means once derived markers are resolved, so validating it is
-    // what separates a real translation error from marker work the bot has not done yet. A
-    // wrong placeholder against unchanged English stays accepted in the plan and fails here;
-    // the same wrong placeholder after an English change becomes Review and does not.
+    // Plan validation distinguishes translation errors from derived marker debt. Deferring a
+    // placeholder mismatch requires proven source-change provenance.
     const plan = planI18nSync({ history: prospective, sourceBundle })
     validatePlannedBundles(plan)
 
     return {
         history: prospective,
         plan,
-        comparison: comparePlan(plan, { sourceBundle, locales }),
+        comparison: comparePlan(plan, { locales }),
         workflowSummary: summarizeWorkflow({
             history: prospective,
             baseSnapshot: committed.snapshot,
@@ -186,11 +228,11 @@ function analyzeSnapshot({
 
 // Is this tree valid translation data? A source-only change is, and so is a translation whose
 // English moved before the bot wrote its marker. Reaching this return means the plan validated.
-export function checkI18nSemantics(options = {}) {
+export function checkI18nSemantics(options: EnforcementOptions = {}) {
     const analysis = analyzeSnapshot(options)
     return {
         pass: true,
-        skipped: false,
+        skipped: false as const,
         history: analysis.history,
         plan: analysis.plan,
         operations: [],
@@ -202,7 +244,7 @@ export function checkI18nSemantics(options = {}) {
 
 // Has the bot caught up? Only the writer's own post-generation check and an explicit local
 // run ask this. It must never gate a contributor's commit.
-export function checkI18nSnapshot(options = {}) {
+export function checkI18nSnapshot(options: EnforcementOptions = {}) {
     const analysis = analyzeSnapshot(options)
     return {
         pass: analysis.comparison.differences.length === 0,
@@ -215,12 +257,12 @@ export function checkI18nSnapshot(options = {}) {
     }
 }
 
-export function checkStagedI18n(options = {}) {
+export function checkStagedI18n(options: EnforcementOptions = {}) {
     const cwd = options.cwd ?? REPOSITORY_ROOT
     const localeDir = options.localeDir ?? I18N_LOCALE_DIR
     const git = options.git ?? createGitAdapter({ cwd })
     if (stagedI18nPaths({ cwd, localeDir, git }).length === 0) {
-        return { pass: true, skipped: true, operations: [], allOperations: [] }
+        return { pass: true, skipped: true as const, operations: [], allOperations: [] }
     }
     return checkI18nSemantics({
         ...options,
@@ -231,7 +273,9 @@ export function checkStagedI18n(options = {}) {
     })
 }
 
-export function formatEnforcementFailure(result) {
+export function formatEnforcementFailure(result: {
+    operations: { locale: string; key: string; kind: string }[]
+}) {
     const lines = ['Derived i18n markers are not synchronized.', '']
     if (result.operations.length > 0) {
         lines.push('Planned operations:')
@@ -247,17 +291,21 @@ export function formatEnforcementFailure(result) {
 const MODES = new Set(['--staged', '--synchronized'])
 
 export function runI18nEnforcement(
-    args,
-    { stdout = process.stdout, stderr = process.stderr, ...options } = {}
+    args: string[],
+    {
+        stdout = process.stdout,
+        stderr = process.stderr,
+        ...options
+    }: CliIO & EnforcementOptions = {}
 ) {
-    if (args.length > 1 || (args.length === 1 && !MODES.has(args[0]))) {
-        stderr.write('Usage: node scripts/i18n-enforcement.mjs [--staged|--synchronized]\n')
+    if (args.length > 1 || (args.length === 1 && !MODES.has(args[0]!))) {
+        stderr.write('Usage: node scripts/i18n-enforcement.mts [--staged|--synchronized]\n')
         return 2
     }
     const synchronized = args[0] === '--synchronized'
     const label = synchronized ? 'synchronization check' : 'semantic check'
     try {
-        const result = synchronized
+        const result: EnforcementResult = synchronized
             ? checkI18nSnapshot(options)
             : args[0] === '--staged'
               ? checkStagedI18n(options)
@@ -276,14 +324,14 @@ export function runI18nEnforcement(
         ].filter(Boolean)
         stdout.write(`i18n: ${label} passed${details.length ? ` (${details.join('; ')})` : ''}.\n`)
         // Marker work the bot still owes is reported, never charged to this tree.
-        if (result.unsynchronized?.length > 0) {
+        if (result.unsynchronized && result.unsynchronized.length > 0) {
             stdout.write(
                 `i18n: ${result.unsynchronized.length} derived marker update(s) pending; the translation-status workflow writes them.\n`
             )
         }
         return 0
     } catch (error) {
-        stderr.write(`i18n: ${label}: ${error.message}\n`)
+        stderr.write(`i18n: ${label}: ${error instanceof Error ? error.message : String(error)}\n`)
         return 1
     }
 }

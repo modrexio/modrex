@@ -1,3 +1,4 @@
+import type { CliIO } from './i18n-io.mts'
 import { readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -5,13 +6,14 @@ import {
     PENDING_PREFIX,
     TARGET_VALUE_KIND,
     UNTRANSLATED_PREFIX,
-} from '../src/shared/i18n-values.js'
+    type TargetValue,
+} from '../src/shared/i18n-values.mts'
 import {
     buildOrderedLocale,
     inspectSourceBundle,
     inspectTranslationBundle,
-} from './i18n-current.mjs'
-import { serializeLocale, writeSerializedFileAtomically } from './i18n-files.mjs'
+} from './i18n-current.mts'
+import { serializeLocale, writeSerializedFileAtomically, type LocaleBundle } from './i18n-files.mts'
 import {
     analyzeCommittedHistory,
     analyzeProspective,
@@ -21,10 +23,35 @@ import {
     I18N_LOCALE_DIR,
     snapshotFromBundles,
     summarizeHistory,
+    canDeferPlaceholderMismatch,
+    assertHistoryDecisionEvidence,
     workingTreeSnapshot,
-} from './i18n-history.mjs'
-import { PENDING_PROVENANCE } from './i18n-history-events.mjs'
-import { inspectLocales } from './i18n-inspection.mjs'
+    type HistoryAnalysis,
+    type HistorySummary,
+    type HistoryOptions,
+} from './i18n-history.mts'
+import { PENDING_PROVENANCE } from './i18n-history-events.mts'
+import { inspectLocales, type Inspection } from './i18n-inspection.mts'
+
+type SyncKind = (typeof SYNC_OPERATION)[keyof typeof SYNC_OPERATION]
+export type SyncOperation = { kind: SyncKind; locale: string; key: string }
+type ObsoleteTarget = {
+    locale: string
+    key: string
+    state: TargetValue['kind']
+    targetText: string
+}
+export type SyncLocalePlan = { id: string; bundle: LocaleBundle; operations: SyncOperation[] }
+export type SyncPlan = { sourceBundle: LocaleBundle; locales: SyncLocalePlan[] }
+export type SyncWrite = SyncLocalePlan & { path: string; serialized: string; changed: boolean }
+export type SyncResult = {
+    plan: SyncPlan
+    writes: SyncWrite[]
+    written: string[]
+    finalHistory: HistoryAnalysis
+}
+type Write = (path: string, serialized: string) => boolean | void
+export type SyncOptions = HistoryOptions & CliIO & { i18nDir?: string; write?: Write }
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
 const REPOSITORY_ROOT = resolve(SCRIPT_DIR, '../../..')
@@ -35,10 +62,11 @@ export const SYNC_OPERATION = Object.freeze({
     SCAFFOLD_REMOVED: 'scaffold-removed',
     REVIEW_REQUESTED: 'review-requested',
     SOURCE_RETURN_CLEARED: 'source-return-cleared',
-})
+} as const)
 
 export class I18nSyncPlanError extends Error {
-    constructor(issues) {
+    issues: ObsoleteTarget[]
+    constructor(issues: ObsoleteTarget[]) {
         super(
             [
                 'i18n:sync cannot delete target-language content:',
@@ -52,34 +80,40 @@ export class I18nSyncPlanError extends Error {
 }
 
 export class I18nSyncValidationError extends Error {
-    constructor(errors) {
+    errors: string[]
+    constructor(errors: string[]) {
         super(['i18n:sync validation failed:', ...errors.map((error) => `  ${error}`)].join('\n'))
         this.name = 'I18nSyncValidationError'
         this.errors = errors
     }
 }
 
-function formatIssue(issue) {
+function formatIssue(issue: ObsoleteTarget) {
     return `  ${issue.locale} ${issue.key} (${issue.state}): ${JSON.stringify(issue.targetText)}`
 }
 
-function operation(kind, locale, key) {
+function operation(kind: SyncKind, locale: string, key: string): SyncOperation {
     return { kind, locale, key }
 }
 
-function targetTextForStorage(value) {
+function targetTextForStorage(value: TargetValue) {
     if (value.kind === TARGET_VALUE_KIND.PENDING) return `${PENDING_PREFIX}${value.targetText}`
     if (value.kind === TARGET_VALUE_KIND.ACCEPTED) return value.targetText
     return undefined
 }
 
-function planLocale(history, summary, localeId, sourceKeys) {
-    const locale = history.snapshot.locales.get(localeId)
+function planLocale(
+    history: HistoryAnalysis,
+    summary: HistorySummary,
+    localeId: string,
+    sourceKeys: string[]
+) {
+    const locale = history.snapshot.locales.get(localeId)!
     const entries = summary.locales.get(localeId)?.entries
     const sourceKeySet = new Set(sourceKeys)
-    const strings = Object.create(null)
-    const operations = []
-    const obsoleteTargets = []
+    const strings: Record<string, string> = Object.create(null)
+    const operations: SyncOperation[] = []
+    const obsoleteTargets: ObsoleteTarget[] = []
 
     for (const [key, value] of locale.targets) {
         if (sourceKeySet.has(key)) continue
@@ -133,12 +167,19 @@ function planLocale(history, summary, localeId, sourceKeys) {
     return { localeId, strings, operations, obsoleteTargets }
 }
 
-export function planI18nSync({ history, sourceBundle }) {
+export function planI18nSync({
+    history,
+    sourceBundle,
+}: {
+    history: HistoryAnalysis
+    sourceBundle: LocaleBundle
+}): SyncPlan {
+    assertHistoryDecisionEvidence(history)
     const summary = summarizeHistory(history)
     const sourceKeys = [...history.snapshot.source.keys()]
     const localeIds = [...history.snapshot.locales.keys()].sort()
-    const localePlans = []
-    const obsoleteTargets = []
+    const localePlans: SyncLocalePlan[] = []
+    const obsoleteTargets: ObsoleteTarget[] = []
 
     for (const localeId of localeIds) {
         const localePlan = planLocale(history, summary, localeId, sourceKeys)
@@ -154,9 +195,9 @@ export function planI18nSync({ history, sourceBundle }) {
     return { sourceBundle, locales: localePlans }
 }
 
-function currentInputErrors(inspection, history) {
+function currentInputErrors(inspection: Inspection, history: HistoryAnalysis) {
     const summary = summarizeHistory(history)
-    const errors = []
+    const errors: string[] = []
     for (const locale of inspection.locales) {
         for (const issue of locale.issues) {
             if (issue.type === 'stale-scaffold' || issue.type === 'unknown-key') continue
@@ -164,7 +205,7 @@ function currentInputErrors(inspection, history) {
                 // Placeholders that disagree with English are an error against a translation
                 // still accepted, and expected debt against one whose English has moved.
                 const entry = summary.locales.get(locale.id)?.entries.get(issue.key)
-                if (entry?.effectiveState === EFFECTIVE_STATE.REVIEW) continue
+                if (canDeferPlaceholderMismatch(entry)) continue
             }
             const key = issue.key ? ` key '${issue.key}'` : ''
             errors.push(`'${locale.id}'${key}: ${issue.detail ?? issue.type}`)
@@ -173,12 +214,12 @@ function currentInputErrors(inspection, history) {
     return errors
 }
 
-function validateCurrentInput(inspection, history) {
+function validateCurrentInput(inspection: Inspection, history: HistoryAnalysis) {
     const errors = currentInputErrors(inspection, history)
     if (errors.length > 0) throw new I18nSyncValidationError(errors)
 }
 
-export function validatePlannedBundles(plan) {
+export function validatePlannedBundles(plan: SyncPlan) {
     const source = inspectSourceBundle(plan.sourceBundle, 'en')
     const errors = [...source.errors]
     for (const locale of plan.locales) {
@@ -199,17 +240,17 @@ export function validatePlannedBundles(plan) {
     if (errors.length > 0) throw new I18nSyncValidationError(errors)
 }
 
-function plannedSnapshot(plan) {
+function plannedSnapshot(plan: SyncPlan) {
     return snapshotFromBundles(
         'sync-plan',
-        new Map([
+        new Map<string, unknown>([
             ['en', plan.sourceBundle],
-            ...plan.locales.map((locale) => [locale.id, locale.bundle]),
+            ...plan.locales.map((locale): [string, LocaleBundle] => [locale.id, locale.bundle]),
         ])
     )
 }
 
-function validateAuthoritativePlan(committedHistory, plan) {
+function validateAuthoritativePlan(committedHistory: HistoryAnalysis, plan: SyncPlan) {
     const finalHistory = analyzeProspective(committedHistory, plannedSnapshot(plan))
     const summary = summarizeHistory(finalHistory)
     const errors = []
@@ -231,7 +272,7 @@ function validateAuthoritativePlan(committedHistory, plan) {
     return finalHistory
 }
 
-function prepareWrites(plan, i18nDir) {
+function prepareWrites(plan: SyncPlan, i18nDir: string): SyncWrite[] {
     return plan.locales.map((locale) => {
         const path = resolve(i18nDir, `${locale.id}.json`)
         const serialized = serializeLocale(locale.bundle)
@@ -244,8 +285,8 @@ function prepareWrites(plan, i18nDir) {
     })
 }
 
-export function applySyncWrites(writes, write = writeSerializedFileAtomically) {
-    const written = []
+export function applySyncWrites(writes: SyncWrite[], write: Write = writeSerializedFileAtomically) {
+    const written: string[] = []
     for (const file of writes) {
         if (!file.changed) continue
         const replaced = write(file.path, file.serialized)
@@ -254,7 +295,7 @@ export function applySyncWrites(writes, write = writeSerializedFileAtomically) {
     return written
 }
 
-export function synchronizeI18n(options = {}) {
+export function synchronizeI18n(options: SyncOptions = {}): SyncResult {
     const cwd = options.cwd ?? REPOSITORY_ROOT
     const localeDir = options.localeDir ?? I18N_LOCALE_DIR
     const i18nDir = options.i18nDir ?? resolve(cwd, localeDir)
@@ -271,8 +312,12 @@ export function synchronizeI18n(options = {}) {
     })
     const workingSnapshot = workingTreeSnapshot(cwd, localeDir)
     const workingHistory = analyzeRepairableProspective(committedHistory, workingSnapshot)
+    assertHistoryDecisionEvidence(workingHistory)
     validateCurrentInput(inspection, workingHistory)
-    const plan = planI18nSync({ history: workingHistory, sourceBundle: inspection.sourceBundle })
+    const plan = planI18nSync({
+        history: workingHistory,
+        sourceBundle: inspection.sourceBundle as LocaleBundle,
+    })
     validatePlannedBundles(plan)
     const finalHistory = validateAuthoritativePlan(committedHistory, plan)
     const writes = prepareWrites(plan, i18nDir)
@@ -280,11 +325,11 @@ export function synchronizeI18n(options = {}) {
     return { plan, writes, written, finalHistory }
 }
 
-function countOperations(locale, kind) {
+function countOperations(locale: Pick<SyncLocalePlan, 'operations'>, kind: SyncKind) {
     return locale.operations.filter((item) => item.kind === kind).length
 }
 
-export function formatSyncSummary(result) {
+export function formatSyncSummary(result: SyncResult) {
     const lines = ['i18n:sync']
     for (const file of result.writes) {
         lines.push(
@@ -310,8 +355,8 @@ export function formatSyncSummary(result) {
 }
 
 export function runI18nSync(
-    args,
-    { stdout = process.stdout, stderr = process.stderr, ...options } = {}
+    args: string[],
+    { stdout = process.stdout, stderr = process.stderr, ...options }: SyncOptions = {}
 ) {
     if (args.length > 0) {
         stderr.write('Usage: pnpm i18n:sync\n')
@@ -322,7 +367,7 @@ export function runI18nSync(
         stdout.write(`${formatSyncSummary(result)}\n`)
         return 0
     } catch (error) {
-        stderr.write(`i18n:sync: ${error.message}\n`)
+        stderr.write(`i18n:sync: ${error instanceof Error ? error.message : String(error)}\n`)
         return 1
     }
 }

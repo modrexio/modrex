@@ -1,15 +1,41 @@
-import { placeholderContract } from '../src/shared/i18n-values.js'
-import { deriveTargetStatus } from './i18n-presentation.mjs'
+import type { CliIO, CliOutput } from './i18n-io.mts'
+import type { StatusSummaries } from './i18n-presentation.mts'
+import { placeholderContract } from '../src/shared/i18n-values.mts'
+import { deriveTargetStatus } from './i18n-presentation.mts'
+
+type Counts = { accepted: number; pending: number; missing: number; total: number }
+type SemanticStyles = Record<
+    | 'heading'
+    | 'key'
+    | 'command'
+    | 'placeholder'
+    | 'accepted'
+    | 'review'
+    | 'missing'
+    | 'warning'
+    | 'error'
+    | 'secondary',
+    (value: string) => string
+>
+type BarStyles = { bar(state: (typeof STATES)[number], text: string): string }
+type StatusRow = Counts & {
+    locale: string
+    kind: 'source' | 'target'
+    usesEnglishFallback: number
+    label: string
+    labelWidth: number
+    displayLabel: string
+}
 
 const PREFERRED_BAR_WIDTH = 40
 const MINIMUM_BAR_WIDTH = 32
-const STATES = ['accepted', 'review', 'missing']
+const STATES = ['accepted', 'review', 'missing'] as const
 const STATUS_COLUMN_WIDTH = 8
 const LABEL_SEPARATOR_WIDTH = 1
 const STATUS_SEPARATOR_WIDTH = 1
 const BAR_TRAILING_SPACE_WIDTH = 1
 
-export function detectCliCapabilities({ stdout = process.stdout, env = process.env } = {}) {
+export function detectCliCapabilities({ stdout = process.stdout, env = process.env }: CliIO = {}) {
     const ci = env.CI !== undefined && env.CI !== '' && env.CI !== '0'
     const tty = stdout.isTTY === true
     const dumb = env.TERM === 'dumb'
@@ -25,17 +51,17 @@ export function detectCliCapabilities({ stdout = process.stdout, env = process.e
         dumb,
         color: !noColor,
         rich: tty && !ci && !dumb,
-        columns: Number.isFinite(stdout.columns) ? stdout.columns : 0,
+        columns: Number.isFinite(stdout.columns) ? stdout.columns! : 0,
     }
 }
 
-function identity(value) {
+function identity(value: string) {
     return value
 }
 
-export function renderPlaceholderText(value, styles) {
+export function renderPlaceholderText(value: string, styles?: SemanticStyles) {
     if (!styles) return value
-    const remaining = new Map()
+    const remaining = new Map<string, number>()
     for (const name of placeholderContract(value)) {
         remaining.set(name, (remaining.get(name) ?? 0) + 1)
     }
@@ -47,7 +73,7 @@ export function renderPlaceholderText(value, styles) {
     })
 }
 
-export function createSemanticStyles(color) {
+export function createSemanticStyles(color: boolean): SemanticStyles {
     if (!color) {
         return Object.fromEntries(
             [
@@ -62,7 +88,7 @@ export function createSemanticStyles(color) {
                 'error',
                 'secondary',
             ].map((name) => [name, identity])
-        )
+        ) as SemanticStyles
     }
     const ansi = {
         heading: '\u001b[1m',
@@ -77,28 +103,32 @@ export function createSemanticStyles(color) {
         secondary: '\u001b[2m',
     }
     return Object.fromEntries(
-        Object.entries(ansi).map(([name, code]) => [name, (value) => `${code}${value}\u001b[0m`])
-    )
+        Object.entries(ansi).map(([name, code]) => [
+            name,
+            (value: string) => `${code}${value}\u001b[0m`,
+        ])
+    ) as SemanticStyles
 }
 
-export function allocateStatusBar(summary, width = PREFERRED_BAR_WIDTH) {
+export function allocateStatusBar(summary: Counts, width = PREFERRED_BAR_WIDTH) {
     if (!Number.isInteger(width) || width < MINIMUM_BAR_WIDTH) {
         throw new Error(`Status bar width must be at least ${MINIMUM_BAR_WIDTH} cells`)
     }
     const counts = [summary.accepted, summary.pending, summary.missing]
     const nonzero = counts.filter((count) => count > 0).length
-    const cells = counts.map((count) => (count > 0 ? 1 : 0))
+    const cells: number[] = counts.map((count) => (count > 0 ? 1 : 0))
     const remaining = width - nonzero
     const quotas = counts.map((count) => (remaining * count) / summary.total)
     const floors = quotas.map((quota) => Math.floor(quota))
-    for (let index = 0; index < cells.length; index += 1) cells[index] += floors[index]
+    for (let index = 0; index < cells.length; index += 1)
+        cells[index] = cells[index]! + floors[index]!
     let leftover = width - cells.reduce((sum, count) => sum + count, 0)
     const order = quotas
         .map((quota, index) => ({ index, remainder: quota - Math.floor(quota) }))
         .sort((left, right) => right.remainder - left.remainder || left.index - right.index)
     for (const { index } of order) {
         if (leftover === 0) break
-        cells[index] += 1
+        cells[index] = cells[index]! + 1
         leftover -= 1
     }
     if (cells.reduce((sum, count) => sum + count, 0) !== width) {
@@ -109,19 +139,19 @@ export function allocateStatusBar(summary, width = PREFERRED_BAR_WIDTH) {
 
 const BAR_GLYPH = '━'
 
-export function renderStatusBar(summary, styles, width = PREFERRED_BAR_WIDTH) {
+export function renderStatusBar(summary: Counts, styles?: BarStyles, width = PREFERRED_BAR_WIDTH) {
     const cells = allocateStatusBar(summary, width)
     return cells
         .map((count, index) => {
             if (count === 0) return ''
             const text = BAR_GLYPH.repeat(count)
             if (!styles) return text
-            return styles.bar(STATES[index], text)
+            return styles.bar(STATES[index]!, text)
         })
         .join('')
 }
 
-function compactCounts(status) {
+function compactCounts(status: Counts & { usesEnglishFallback: number }) {
     const counts = []
     if (status.accepted > 0) counts.push(`${status.accepted} accepted`)
     if (status.pending > 0) counts.push(`${status.pending} review`)
@@ -130,11 +160,11 @@ function compactCounts(status) {
     return counts.join(', ')
 }
 
-function rowCounts(status) {
+function rowCounts(status: StatusRow) {
     return status.kind === 'source' ? `${status.total} source` : compactCounts(status)
 }
 
-function rowWidthWithoutBar(status) {
+function rowWidthWithoutBar(status: StatusRow) {
     return (
         status.labelWidth +
         LABEL_SEPARATOR_WIDTH +
@@ -144,7 +174,7 @@ function rowWidthWithoutBar(status) {
     )
 }
 
-export function resolveSharedBarWidth(rows, columns) {
+export function resolveSharedBarWidth(rows: StatusRow[], columns: number) {
     if (rows.length === 0) return 0
     const maxNonBarWidth = Math.max(...rows.map(rowWidthWithoutBar))
     const available = columns - maxNonBarWidth - BAR_TRAILING_SPACE_WIDTH
@@ -153,19 +183,24 @@ export function resolveSharedBarWidth(rows, columns) {
     return 0
 }
 
-function renderRichRow(label, status, styles, width) {
+function renderRichRow(
+    label: string,
+    status: StatusRow,
+    styles: SemanticStyles & BarStyles,
+    width: number
+) {
     const boldLabel = styles.heading(label.padEnd(status.labelWidth))
     const bar = width > 0 ? `${renderStatusBar(status, styles, width)} ` : ''
     const counts = rowCounts(status)
     return `${boldLabel} ${bar}${status.label.padEnd(STATUS_COLUMN_WIDTH)} ${counts}`.trimEnd()
 }
 
-function renderPlainRow(label, status) {
+function renderPlainRow(label: string, status: StatusRow) {
     const counts = compactCounts(status)
     return `${label}: ${status.label}; ${status.kind === 'source' ? `source=${status.total}` : counts}`
 }
 
-function createBarStyles(color) {
+function createBarStyles(color: boolean): BarStyles {
     if (!color) return { bar: (_state, text) => text }
     const foregrounds = { accepted: '\u001b[32m', review: '\u001b[33m', missing: '\u001b[31m' }
     return {
@@ -173,7 +208,7 @@ function createBarStyles(color) {
     }
 }
 
-function statusRows(summaries, nativeName) {
+function statusRows(summaries: StatusSummaries, nativeName: (id: string) => string): StatusRow[] {
     const source = {
         ...summaries.source,
         accepted: summaries.source.total,
@@ -181,11 +216,11 @@ function statusRows(summaries, nativeName) {
         missing: 0,
         usesEnglishFallback: 0,
         label: 'Complete',
-        kind: 'source',
+        kind: 'source' as const,
     }
     const targets = summaries.targets.map((summary) => ({
         ...deriveTargetStatus(summary),
-        kind: 'target',
+        kind: 'target' as const,
     }))
     const labels = [source, ...targets].map(
         (status) => `${nativeName(status.locale)} (${status.locale})`
@@ -194,7 +229,7 @@ function statusRows(summaries, nativeName) {
     return [source, ...targets].map((status, index) => ({
         ...status,
         labelWidth,
-        displayLabel: labels[index],
+        displayLabel: labels[index]!,
     }))
 }
 
@@ -203,7 +238,12 @@ export function renderStatus({
     capabilities,
     nativeName = (id) => id,
     stdout = process.stdout,
-} = {}) {
+}: {
+    summaries: StatusSummaries
+    capabilities: ReturnType<typeof detectCliCapabilities>
+    nativeName?: (id: string) => string
+    stdout?: CliOutput
+}) {
     const styles = {
         ...createSemanticStyles(capabilities.color),
         ...createBarStyles(capabilities.color),

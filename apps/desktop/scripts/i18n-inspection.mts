@@ -5,21 +5,24 @@ import {
     inspectSourceBundle,
     inspectTranslationBundle,
     singularPluralPairs,
-} from './i18n-current.mjs'
+    type LocaleIssue,
+    type LocaleInspection,
+} from './i18n-current.mts'
 
 export const SOURCE_LOCALE = 'en'
+const UTF8_DECODER = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true })
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
 export const I18N_DIR = resolve(SCRIPT_DIR, '../src/renderer/src/i18n')
 
-function parseBundle(path, localeId) {
+function parseBundle(path: string, localeId: string): unknown {
     try {
-        return JSON.parse(readFileSync(path, 'utf8'))
+        return JSON.parse(UTF8_DECODER.decode(readFileSync(path)))
     } catch (error) {
         throw new Error(`Failed to parse locale '${localeId}' at ${path}`, { cause: error })
     }
 }
 
-export function validateLocaleId(id) {
+export function validateLocaleId(id: string) {
     let canonical
     try {
         canonical = Intl.getCanonicalLocales(id)[0]
@@ -35,21 +38,24 @@ export function validateLocaleId(id) {
     }
 }
 
-export function localeNativeName(localeId) {
+export function localeNativeName(localeId: string) {
     const name = new Intl.DisplayNames([localeId], { type: 'language' }).of(localeId)
     if (!name) throw new Error(`Intl.DisplayNames could not name locale '${localeId}'`)
     return name.charAt(0).toLocaleUpperCase(localeId) + name.slice(1)
 }
 
-export function localeEnglishName(localeId) {
+export function localeEnglishName(localeId: string) {
     const name = new Intl.DisplayNames(['en'], { type: 'language' }).of(localeId)
     if (!name) throw new Error(`Intl.DisplayNames could not name locale '${localeId}' in English`)
     return name.charAt(0).toUpperCase() + name.slice(1)
 }
 
-export function inspectLocales(i18nDir = I18N_DIR) {
+export function inspectLocales(i18nDir = I18N_DIR, localeId?: string) {
     const localeIds = readdirSync(i18nDir)
         .filter((file) => file.endsWith('.json'))
+        .filter(
+            (file) => localeId === undefined || file === 'en.json' || file === localeId + '.json'
+        )
         .map((file) => file.replace(/\.json$/, ''))
         .sort((a, b) => {
             if (a === SOURCE_LOCALE) return -1
@@ -70,20 +76,26 @@ export function inspectLocales(i18nDir = I18N_DIR) {
     const pairedKeys = singularPluralPairs(sourceKeys)
     const sourceErrors = [...errors]
 
-    const locales = []
+    const locales: LocaleInspection[] = []
     for (const id of localeIds) {
         if (id === SOURCE_LOCALE) continue
 
-        const issues = []
+        const issues: LocaleIssue[] = []
         let bundle
         try {
             bundle = parseBundle(resolve(i18nDir, `${id}.json`), id)
         } catch (error) {
-            errors.push(error.message)
-            issues.push({ type: 'invalid-json', detail: error.cause?.message })
+            errors.push(error instanceof Error ? error.message : String(error))
+            issues.push({
+                type: 'invalid-json',
+                detail:
+                    error instanceof Error && error.cause instanceof Error
+                        ? error.cause.message
+                        : undefined,
+            })
             locales.push({
                 id,
-                errors: [error.message],
+                errors: [error instanceof Error ? error.message : String(error)],
                 issues,
                 warnings: [],
                 reviewNotices: [],
@@ -124,3 +136,5 @@ export function inspectLocales(i18nDir = I18N_DIR) {
         totalCount: sourceKeys.length,
     }
 }
+
+export type Inspection = ReturnType<typeof inspectLocales>

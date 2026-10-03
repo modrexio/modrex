@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, rmSync, unlinkSync, writeFileSync } from 'node:
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
-import { serializeLocale } from './i18n-files.mjs'
+import { serializeLocale } from './i18n-files.mts'
 import {
     checkChangedPaths,
     checkLocalePayloads,
@@ -12,9 +12,9 @@ import {
     checkWriterOutput,
     classifyWriterPath,
     runI18nWriterGuard,
-} from './i18n-writer-guard.mjs'
-import { snapshotFromBundles } from './i18n-history.mjs'
-import { describeWorkingTree } from './i18n-tree-state.mjs'
+} from './i18n-writer-guard.mts'
+import { snapshotFromBundles } from './i18n-history.mts'
+import { describeWorkingTree } from './i18n-tree-state.mts'
 
 const LOCALE_DIR = 'apps/desktop/src/renderer/src/i18n'
 const README = (block) =>
@@ -230,7 +230,7 @@ test('the CLI reports a usage error without a base revision', () => {
         },
     }
     assert.equal(runI18nWriterGuard([], { stderr, stdout: { write() {} } }), 2)
-    assert.match(stderr.value, /Usage: node scripts\/i18n-writer-guard\.mjs/u)
+    assert.match(stderr.value, /Usage: node scripts\/i18n-writer-guard\.mts/u)
 })
 
 test('an untracked file is writer output too, because staging a directory would commit it', () => {

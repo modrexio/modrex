@@ -9,15 +9,15 @@ import {
     buildTargetStatusSummary,
     deriveTargetStatus,
     formatPresentationPercentage,
-} from './i18n-presentation.mjs'
+} from './i18n-presentation.mts'
 import {
     allocateStatusBar,
     detectCliCapabilities,
     renderStatus,
     renderStatusBar,
     resolveSharedBarWidth,
-} from './i18n-presentation-cli.mjs'
-import { inspectLocales, runI18nStatus } from './check-i18n.mjs'
+} from './i18n-presentation-cli.mts'
+import { inspectLocales, runI18nStatus } from './check-i18n.mts'
 
 function inspection(sourceCount, locales = []) {
     return {

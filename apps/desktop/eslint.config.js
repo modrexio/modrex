@@ -15,6 +15,11 @@ const tailwindColor =
 export default tseslint.config(
     { ignores: ['node_modules/**', 'out/**', 'src-tauri/**', 'src/shared/bindings.ts'] },
     {
+        files: ['scripts/**/*.mts', 'src/shared/i18n-values.mts'],
+        extends: [js.configs.recommended, ...tseslint.configs.recommended],
+        languageOptions: { globals: globals.node },
+    },
+    {
         files: ['src/renderer/{src,preview}/**/*.{ts,tsx}'],
         extends: [js.configs.recommended, ...tseslint.configs.recommended],
         plugins: { 'react-hooks': reactHooks },

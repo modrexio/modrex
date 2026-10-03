@@ -8,18 +8,18 @@ import {
     parseSourceValue,
     parseTargetValue,
     resolveTargetValue,
-} from '../src/shared/i18n-values.js'
-import { serializeLocale } from './i18n-files.mjs'
-import { HISTORY_EVENT, PENDING_PROVENANCE } from './i18n-history-events.mjs'
-import { analyzeCommittedHistory, summarizeHistory } from './i18n-history.mjs'
-import { runI18nValidation } from './check-i18n.mjs'
+} from '../src/shared/i18n-values.mts'
+import { serializeLocale } from './i18n-files.mts'
+import { HISTORY_EVENT, PENDING_PROVENANCE } from './i18n-history-events.mts'
+import { analyzeCommittedHistory, summarizeHistory } from './i18n-history.mts'
+import { runI18nValidation } from './check-i18n.mts'
 import {
     applyReviewAction,
     prepareI18nReview,
     reviewEditProblems,
     REVIEW_ACTION,
-} from './i18n-review.mjs'
-import { synchronizeI18n } from './i18n-sync.mjs'
+} from './i18n-review.mts'
+import { synchronizeI18n } from './i18n-sync.mts'
 
 // Contributors change English alone and a separate bot commit materializes the derived
 // markers later. Every scenario here therefore commits English by itself first, then runs
