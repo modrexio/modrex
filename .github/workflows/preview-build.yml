@@ -15,13 +15,11 @@ jobs:
         steps:
             - uses: actions/checkout@v7
 
-            - uses: pnpm/action-setup@v6
-            - uses: actions/setup-node@v7
+            - uses: oven-sh/setup-bun@v2
               with:
-                  node-version: 22
-                  cache: pnpm
-            - run: pnpm install --frozen-lockfile
-            - run: pnpm site:build
+                  bun-version-file: package.json
+            - run: bun install --frozen-lockfile
+            - run: bun run site:build
 
             # Function tests would become routes, so they stay out.
             - run: |
@@ -41,13 +39,11 @@ jobs:
         steps:
             - uses: actions/checkout@v7
 
-            - uses: pnpm/action-setup@v6
-            - uses: actions/setup-node@v7
+            - uses: oven-sh/setup-bun@v2
               with:
-                  node-version: 22
-                  cache: pnpm
-            - run: pnpm install --frozen-lockfile
-            - run: pnpm --filter modrex build-preview
+                  bun-version-file: package.json
+            - run: bun install --frozen-lockfile
+            - run: bun --bun run --cwd apps/desktop build-preview
             - uses: actions/upload-artifact@v7
               with:
                   name: app-preview

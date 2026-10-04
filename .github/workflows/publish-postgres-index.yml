@@ -29,17 +29,12 @@ jobs:
         steps:
             - uses: actions/checkout@v7
 
-            - uses: pnpm/action-setup@v6
+            - uses: oven-sh/setup-bun@v2
               with:
-                  version: 10.32.1
-
-            - uses: actions/setup-node@v7
-              with:
-                  node-version: 22
-                  cache: pnpm
+                  bun-version-file: package.json
 
             - name: Install dependencies
-              run: pnpm install --frozen-lockfile
+              run: bun install --frozen-lockfile
 
             - name: Install AWS CLI
               run: |
@@ -50,7 +45,7 @@ jobs:
             - name: Apply Postgres schema migrations
               env:
                   INDEX_DATABASE_URL: ${{ secrets.INDEX_DATABASE_URL }}
-              run: pnpm --dir apps/index migrate:postgres
+              run: bun run --cwd apps/index migrate:postgres
 
             - name: Export and publish immutable generation
               env:
@@ -72,7 +67,7 @@ jobs:
                       aws s3 cp "s3://${R2_BUCKET}/${previous_key}" "apps/index/artifacts/${GAME}.previous.db" --endpoint-url "${R2_ENDPOINT}"
                       previous_args=(--previous="artifacts/${GAME}.previous.db" --previous-sha256="${previous_sha256}")
                   fi
-                  pnpm --dir apps/index export:postgres-sqlite -- --game="${GAME}" --output="artifacts/${GAME}.db" --require-files "${previous_args[@]}"
+                  bun run --cwd apps/index export:postgres-sqlite --game="${GAME}" --output="artifacts/${GAME}.db" --require-files "${previous_args[@]}"
                   sha256="$(sha256sum "${database}" | cut -d ' ' -f 1)"
                   size="$(wc -c < "${database}")"
                   if [ "${sha256}" = "${previous_sha256}" ]; then
