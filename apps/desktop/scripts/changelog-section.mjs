@@ -2,7 +2,7 @@ import { readFileSync } from 'fs'
 
 const version = process.argv[2]
 if (!version) {
-    console.error('Usage: node scripts/changelog-section.mjs <version>')
+    console.error('Usage: bun scripts/changelog-section.mjs <version>')
     process.exit(1)
 }
 

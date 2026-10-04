@@ -65,10 +65,10 @@ jobs:
                     sleep 10
                   done
 
-            - uses: actions/setup-node@v7
+            - uses: oven-sh/setup-bun@v2
               with:
-                  node-version: 22
-            - run: node scripts/check-version.mjs "$GITHUB_REF_NAME"
+                  bun-version-file: package.json
+            - run: bun scripts/check-version.mjs "$GITHUB_REF_NAME"
               working-directory: apps/desktop
 
     build-windows:
@@ -77,11 +77,9 @@ jobs:
         steps:
             - uses: actions/checkout@v7
 
-            - uses: pnpm/action-setup@v6
-            - uses: actions/setup-node@v7
+            - uses: oven-sh/setup-bun@v2
               with:
-                  node-version: 22
-                  cache: pnpm
+                  bun-version-file: package.json
 
             - uses: dtolnay/rust-toolchain@stable
             - uses: swatinem/rust-cache@v2
@@ -89,10 +87,10 @@ jobs:
               with:
                   workspaces: apps/desktop/src-tauri
 
-            - run: pnpm install --frozen-lockfile
-            - run: pnpm typecheck
+            - run: bun install --frozen-lockfile
+            - run: bun run typecheck
             - run: cargo install artifact-signing-cli --version 0.11.0
-            - run: pnpm build:signed
+            - run: bun run build:signed
               env:
                   AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
                   AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
@@ -219,21 +217,19 @@ jobs:
                     rpm \
                     minisign
 
-            - uses: pnpm/action-setup@v6
-            - uses: actions/setup-node@v7
+            - uses: oven-sh/setup-bun@v2
               with:
-                  node-version: 22
-                  cache: pnpm
+                  bun-version-file: package.json
 
             - uses: dtolnay/rust-toolchain@stable
             - uses: swatinem/rust-cache@v2
               with:
                   workspaces: apps/desktop/src-tauri
 
-            - run: pnpm install --frozen-lockfile
-            - run: pnpm typecheck
-            - run: pnpm test
-            - run: pnpm build:signed
+            - run: bun install --frozen-lockfile
+            - run: bun run typecheck
+            - run: bun run test
+            - run: bun run build:signed
               env:
                   TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
                   TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
@@ -276,7 +272,7 @@ jobs:
 
                   # The bundler signed the bytes this step just replaced, so without a fresh
                   # signature every installed Linux client rejects the update.
-                  pnpm --dir "$GITHUB_WORKSPACE/apps/desktop" exec tauri signer sign "$PWD/$APPIMAGE"
+                  bun run --cwd "$GITHUB_WORKSPACE/apps/desktop" tauri signer sign "$PWD/$APPIMAGE"
 
             - name: Verify repacked AppImage
               working-directory: apps/desktop/src-tauri/target/release/bundle/appimage
@@ -329,6 +325,10 @@ jobs:
         steps:
             - uses: actions/checkout@v7
 
+            - uses: oven-sh/setup-bun@v2
+              with:
+                  bun-version-file: package.json
+
             - uses: actions/download-artifact@v8
 
             - name: Extract version
@@ -337,7 +337,7 @@ jobs:
 
             - name: Extract changelog section
               working-directory: apps/desktop
-              run: node scripts/changelog-section.mjs "${{ steps.ver.outputs.version }}" > ../../RELEASE_BODY.md
+              run: bun scripts/changelog-section.mjs "${{ steps.ver.outputs.version }}" > ../../RELEASE_BODY.md
 
             - name: Rename updater artifacts to stable arch-suffixed names
               run: |

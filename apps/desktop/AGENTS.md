@@ -182,11 +182,11 @@ README block or to a status SVG are overwritten on the next run.
 
 ## Releasing
 
-With a clean tracked tree, run `pnpm version patch|minor|major` from
-the repository root. Running it from this directory is blocked.
-The command bumps `package.json`, commits as `chore(release): X.Y.Z`, and creates an
-annotated `vX.Y.Z` tag. It also stamps the root `CHANGELOG.md` file's
-`## Unreleased` section into `## X.Y.Z` and stages it in the release commit.
+With a clean tracked tree, run `bun release patch|minor|major` from the repository root
+(`scripts/release.mjs`). `bun pm version` is blocked in both packages because it bumps one
+`package.json` only. The command bumps the root and desktop packages, Tauri and Cargo, commits
+as `chore(release): X.Y.Z`, and creates an annotated `vX.Y.Z` tag. It also stamps the root
+`CHANGELOG.md` file's `## Unreleased` section into `## X.Y.Z` in the release commit.
 
 `git push --follow-tags` pushes the release commit and annotated tag. The release
 workflow waits for CI to pass on that exact commit, builds the signed updater artifacts,

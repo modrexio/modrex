@@ -36,7 +36,7 @@
         "i18n:presentation-write": "bun scripts/i18n-presentation-lifecycle.mts --write",
         "update-i18n-readme": "bun scripts/update-i18n-readme.mts",
         "checks": "bun run check-version && bun run check-commands && bun run check-csp && bun run check-updater && bun run check-i18n && bun run format:check && bun run lint && bun run typecheck && bun run test",
-        "preversion": "node -e \"console.error('Run pnpm version patch, minor, or major from the repository root.'); process.exit(1)\"",
+        "preversion": "bun -e \"console.error('Run bun release patch, minor, or major from the repository root.'); process.exit(1)\"",
         "test": "bun run test:scripts && cargo test --manifest-path src-tauri/Cargo.toml && vitest run && bun run test:preview",
         "test:scripts": "bun test --timeout 60000 ./scripts",
         "test:renderer": "vitest run",
