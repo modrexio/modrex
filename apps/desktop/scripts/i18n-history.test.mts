@@ -18,12 +18,13 @@ import {
     I18nHistoryUnavailableError,
     I18N_HISTORY_BASELINE,
     summarizeHistory,
+    type HistoryAnalysis,
 } from './i18n-history.mts'
 
 const LOCALE_DIR = 'i18n'
 const REPO_ROOT = join(import.meta.dirname, '../../..')
 
-function git(cwd, args) {
+function git(cwd: string, args: string[]) {
     return execFileSync('git', args, { cwd, encoding: 'utf8' }).trim()
 }
 
@@ -38,7 +39,8 @@ function createRepo() {
     return dir
 }
 
-function writeLocales(dir, locales) {
+// Values are deliberately unconstrained: several tests commit malformed locale content.
+function writeLocales(dir: string, locales: Record<string, unknown>) {
     for (const [id, bundle] of Object.entries(locales)) {
         const path = join(dir, LOCALE_DIR, `${id}.json`)
         if (bundle === null) {
@@ -49,19 +51,19 @@ function writeLocales(dir, locales) {
     }
 }
 
-function commit(dir, message) {
+function commit(dir: string, message: string) {
     git(dir, ['add', '-A'])
     git(dir, ['commit', '-q', '-m', message])
     return git(dir, ['rev-parse', 'HEAD'])
 }
 
-function commitLocales(dir, locales, message) {
+function commitLocales(dir: string, locales: Record<string, unknown>, message: string) {
     writeLocales(dir, locales)
     return commit(dir, message)
 }
 
 // Every synthetic repository starts from an audited baseline the same way production does.
-function withRepo(run) {
+function withRepo(run: (dir: string) => void) {
     const dir = createRepo()
     try {
         return run(dir)
@@ -70,16 +72,18 @@ function withRepo(run) {
     }
 }
 
-function analyze(dir, baseline, options = {}) {
+function analyze(dir: string, baseline: string, options = {}) {
     return analyzeCommittedHistory({ cwd: dir, baseline, localeDir: LOCALE_DIR, ...options })
 }
 
-function eventsFor(history, locale, key) {
+function eventsFor(history: HistoryAnalysis, locale: string, key: string) {
     return history.events.filter((event) => event.locale === locale && event.key === key)
 }
 
-function entryOf(history, locale, key) {
-    return summarizeHistory(history).locales.get(locale).entries.get(key)
+function entryOf(history: HistoryAnalysis, locale: string, key: string) {
+    const entry = summarizeHistory(history).locales.get(locale)?.entries.get(key)
+    assert.ok(entry, `no history entry for ${locale} key ${key}`)
+    return entry
 }
 
 test('baseline accepts ordinary targets and ignores scaffolds', () => {
@@ -91,8 +95,8 @@ test('baseline accepts ordinary targets and ignores scaffolds', () => {
         )
         const history = analyze(dir, baseline)
 
-        assert.equal(entryOf(history, 'de', 'greet').checkpoint.targetText, 'Hallo')
-        assert.equal(entryOf(history, 'de', 'greet').checkpoint.sourceText, 'Hello')
+        assert.equal(entryOf(history, 'de', 'greet').checkpoint!.targetText, 'Hallo')
+        assert.equal(entryOf(history, 'de', 'greet').checkpoint!.sourceText, 'Hello')
         assert.equal(entryOf(history, 'de', 'bye').checkpoint, null)
         assert.equal(entryOf(history, 'de', 'bye').state, 'scaffold')
     })
@@ -127,7 +131,8 @@ test('a baseline that is not an ancestor refuses', () => {
         assert.notEqual(unrelated, baseline)
         assert.throws(
             () => analyze(dir, baseline, { revision: 'other' }),
-            (error) => error.reason === HISTORY_UNAVAILABLE.BASELINE_NOT_ANCESTOR
+            (error: I18nHistoryUnavailableError) =>
+                error.reason === HISTORY_UNAVAILABLE.BASELINE_NOT_ANCESTOR
         )
     })
 })
@@ -146,7 +151,8 @@ test('a baseline reachable only through a second parent is not authoritative', (
 
         assert.throws(
             () => analyze(dir, baseline),
-            (error) => error.reason === HISTORY_UNAVAILABLE.BASELINE_NOT_FIRST_PARENT
+            (error: I18nHistoryUnavailableError) =>
+                error.reason === HISTORY_UNAVAILABLE.BASELINE_NOT_FIRST_PARENT
         )
     })
 })
@@ -163,7 +169,8 @@ test('replacement ancestry cannot fabricate the authoritative baseline', () => {
         assert.equal(git(dir, ['merge-base', '--is-ancestor', baseline, mainHead]), '')
         assert.throws(
             () => analyze(dir, baseline, { revision: mainHead }),
-            (error) => error.reason === HISTORY_UNAVAILABLE.BASELINE_NOT_ANCESTOR
+            (error: I18nHistoryUnavailableError) =>
+                error.reason === HISTORY_UNAVAILABLE.BASELINE_NOT_ANCESTOR
         )
     })
 })
@@ -178,7 +185,8 @@ test('legacy graft metadata refuses authoritative history', () => {
 
         assert.throws(
             () => analyze(dir, baseline),
-            (error) => error.reason === HISTORY_UNAVAILABLE.LEGACY_GRAFTS
+            (error: I18nHistoryUnavailableError) =>
+                error.reason === HISTORY_UNAVAILABLE.LEGACY_GRAFTS
         )
     })
 })
@@ -194,7 +202,7 @@ test('a shallow checkout without the baseline refuses and names the shallow caus
             execFileSync('git', ['clone', '-q', '--depth=1', url, clone], { encoding: 'utf8' })
             assert.throws(
                 () => analyze(clone, baseline),
-                (error) =>
+                (error: I18nHistoryUnavailableError) =>
                     error.reason === HISTORY_UNAVAILABLE.BASELINE_MISSING &&
                     error.message.includes('shallow')
             )
@@ -218,7 +226,8 @@ test('a shallow checkout with only the baseline object still refuses an incomple
 
             assert.throws(
                 () => analyze(clone, baseline),
-                (error) => error.reason === HISTORY_UNAVAILABLE.HISTORY_INCOMPLETE
+                (error: I18nHistoryUnavailableError) =>
+                    error.reason === HISTORY_UNAVAILABLE.HISTORY_INCOMPLETE
             )
         } finally {
             rmSync(clone, { recursive: true, force: true })
@@ -261,7 +270,7 @@ test('nested and flat serialisations of the same leaves are equivalent', () => {
         )
         const history = analyze(dir, baseline)
         assert.deepEqual(history.events, [])
-        assert.equal(entryOf(history, 'de', 'menu.open').checkpoint.targetText, 'Offen')
+        assert.equal(entryOf(history, 'de', 'menu.open').checkpoint!.targetText, 'Offen')
     })
 })
 
@@ -276,7 +285,7 @@ test('commits that do not touch locales are skipped without losing later events'
 
         const history = analyze(dir, baseline)
         assert.equal(history.revisions.length, 2)
-        assert.equal(eventsFor(history, 'de', 'a')[0].kind, HISTORY_EVENT.ACCEPTED_EDIT)
+        assert.equal(eventsFor(history, 'de', 'a')[0]!.kind, HISTORY_EVENT.ACCEPTED_EDIT)
     })
 })
 
@@ -293,8 +302,8 @@ test('first parent decides history, so branch detail arrives as one merge transi
         assert.equal(history.revisions.length, 2, 'baseline plus the merge commit')
         const events = eventsFor(history, 'de', 'a')
         assert.equal(events.length, 1)
-        assert.equal(events[0].kind, HISTORY_EVENT.ACCEPTED_EDIT)
-        assert.equal(entryOf(history, 'de', 'a').checkpoint.sourceText, 'B')
+        assert.equal(events[0]!.kind, HISTORY_EVENT.ACCEPTED_EDIT)
+        assert.equal(entryOf(history, 'de', 'a').checkpoint!.sourceText, 'B')
     })
 })
 
@@ -303,8 +312,8 @@ test('a first translation over a scaffold accepts against the current source', (
         const baseline = commitLocales(dir, { en: { a: 'A' }, de: { a: '! A' } }, 'baseline')
         commitLocales(dir, { en: { a: 'A' }, de: { a: 'Ah' } }, 'translate')
         const history = analyze(dir, baseline)
-        assert.equal(eventsFor(history, 'de', 'a')[0].kind, HISTORY_EVENT.FIRST_TRANSLATION)
-        assert.equal(entryOf(history, 'de', 'a').checkpoint.sourceText, 'A')
+        assert.equal(eventsFor(history, 'de', 'a')[0]!.kind, HISTORY_EVENT.FIRST_TRANSLATION)
+        assert.equal(entryOf(history, 'de', 'a').checkpoint!.sourceText, 'A')
     })
 })
 
@@ -313,8 +322,8 @@ test('a direct target edit accepts the new text against the current source', () 
         const baseline = commitLocales(dir, { en: { a: 'A' }, de: { a: 'Ah' } }, 'baseline')
         commitLocales(dir, { en: { a: 'A' }, de: { a: 'Aha' } }, 'edit')
         const history = analyze(dir, baseline)
-        assert.equal(eventsFor(history, 'de', 'a')[0].kind, HISTORY_EVENT.ACCEPTED_EDIT)
-        assert.equal(entryOf(history, 'de', 'a').checkpoint.targetText, 'Aha')
+        assert.equal(eventsFor(history, 'de', 'a')[0]!.kind, HISTORY_EVENT.ACCEPTED_EDIT)
+        assert.equal(entryOf(history, 'de', 'a').checkpoint!.targetText, 'Aha')
     })
 })
 
@@ -326,7 +335,7 @@ test('removing a pending marker is a Keep that accepts the current source', () =
         const history = analyze(dir, baseline)
         const kinds = eventsFor(history, 'de', 'a').map((event) => event.kind)
         assert.deepEqual(kinds, [HISTORY_EVENT.SOURCE_TRIGGERED_PENDING, HISTORY_EVENT.KEEP])
-        assert.equal(entryOf(history, 'de', 'a').checkpoint.sourceText, 'B')
+        assert.equal(entryOf(history, 'de', 'a').checkpoint!.sourceText, 'B')
         assert.equal(entryOf(history, 'de', 'a').pendingProvenance, null)
     })
 })
@@ -338,9 +347,9 @@ test('editing out of pending accepts the edited text', () => {
         commitLocales(dir, { en: { a: 'B' }, de: { a: 'Beh' } }, 'edit')
         const history = analyze(dir, baseline)
         const events = eventsFor(history, 'de', 'a')
-        assert.equal(events[1].kind, HISTORY_EVENT.EDIT_FROM_PENDING)
-        assert.equal(entryOf(history, 'de', 'a').checkpoint.targetText, 'Beh')
-        assert.equal(entryOf(history, 'de', 'a').checkpoint.sourceText, 'B')
+        assert.equal(events[1]!.kind, HISTORY_EVENT.EDIT_FROM_PENDING)
+        assert.equal(entryOf(history, 'de', 'a').checkpoint!.targetText, 'Beh')
+        assert.equal(entryOf(history, 'de', 'a').checkpoint!.sourceText, 'B')
     })
 })
 
@@ -349,7 +358,7 @@ test('source and target changing together accept against the resulting source', 
         const baseline = commitLocales(dir, { en: { a: 'A' }, de: { a: 'Ah' } }, 'baseline')
         commitLocales(dir, { en: { a: 'B' }, de: { a: 'Beh' } }, 'both change')
         const history = analyze(dir, baseline)
-        const checkpoint = entryOf(history, 'de', 'a').checkpoint
+        const checkpoint = entryOf(history, 'de', 'a').checkpoint!
         assert.equal(checkpoint.sourceText, 'B')
         assert.equal(checkpoint.targetText, 'Beh')
     })
@@ -363,7 +372,7 @@ test('a source change with an unchanged ordinary target is not an implicit Keep'
 
         assert.deepEqual(eventsFor(history, 'de', 'a'), [])
         const entry = entryOf(history, 'de', 'a')
-        assert.equal(entry.checkpoint.sourceText, 'A', 'checkpoint stays on the reviewed source')
+        assert.equal(entry.checkpoint!.sourceText, 'A', 'checkpoint stays on the reviewed source')
         assert.equal(entry.sourceMatchesCheckpoint, false, 'sync can see that review is owed')
     })
 })
@@ -373,7 +382,7 @@ test('a source change turns an accepted target into source-triggered pending', (
         const baseline = commitLocales(dir, { en: { a: 'A' }, de: { a: 'Ah' } }, 'baseline')
         commitLocales(dir, { en: { a: 'B' }, de: { a: '? Ah' } }, 'source change')
         const history = analyze(dir, baseline)
-        assert.equal(eventsFor(history, 'de', 'a')[0].kind, HISTORY_EVENT.SOURCE_TRIGGERED_PENDING)
+        assert.equal(eventsFor(history, 'de', 'a')[0]!.kind, HISTORY_EVENT.SOURCE_TRIGGERED_PENDING)
         const entry = entryOf(history, 'de', 'a')
         assert.equal(entry.pendingProvenance, PENDING_PROVENANCE.SOURCE_CHANGE)
         assert.equal(entry.hasAcceptedLineage, true)
@@ -387,12 +396,12 @@ test('an unchanged source with a new marker is an explicit review request', () =
         const history = analyze(dir, baseline)
 
         const event = eventsFor(history, 'de', 'a')[0]
-        assert.equal(event.kind, HISTORY_EVENT.EXPLICIT_REVIEW_REQUESTED)
+        assert.ok(event?.kind === HISTORY_EVENT.EXPLICIT_REVIEW_REQUESTED)
         assert.equal(event.sourceChanged, false)
         assert.equal(event.canonicalChanged, false)
         const entry = entryOf(history, 'de', 'a')
         assert.equal(entry.pendingProvenance, PENDING_PROVENANCE.EXPLICIT_REQUEST)
-        assert.equal(entry.checkpoint.targetText, 'Ah', 'the earlier acceptance is still context')
+        assert.equal(entry.checkpoint!.targetText, 'Ah', 'the earlier acceptance is still context')
     })
 })
 
@@ -423,11 +432,11 @@ test('editing a pending target keeps it pending and accepts nothing', () => {
         const history = analyze(dir, baseline)
 
         const events = eventsFor(history, 'de', 'a')
-        assert.equal(events[1].kind, HISTORY_EVENT.PENDING_EDIT)
+        assert.equal(events[1]!.kind, HISTORY_EVENT.PENDING_EDIT)
         const entry = entryOf(history, 'de', 'a')
         assert.equal(entry.state, 'pending')
         assert.equal(entry.canonicalTarget, 'Beh')
-        assert.equal(entry.checkpoint.targetText, 'Ah', 'the edit accepted nothing')
+        assert.equal(entry.checkpoint!.targetText, 'Ah', 'the edit accepted nothing')
         assert.equal(entry.pendingProvenance, PENDING_PROVENANCE.SOURCE_CHANGE)
     })
 })
@@ -442,7 +451,7 @@ test('further source changes do not stack another marker or new provenance', () 
 
         const events = eventsFor(history, 'de', 'a')
         assert.equal(events.length, 1)
-        assert.equal(events[0].kind, HISTORY_EVENT.SOURCE_TRIGGERED_PENDING)
+        assert.equal(events[0]!.kind, HISTORY_EVENT.SOURCE_TRIGGERED_PENDING)
         assert.equal(entryOf(history, 'de', 'a').canonicalTarget, 'Ah')
     })
 })
@@ -486,8 +495,8 @@ test('a later source-return clear restores the historical checkpoint without acc
         const history = analyze(dir, baseline)
 
         const events = eventsFor(history, 'de', 'a')
-        assert.equal(events.at(-1).kind, HISTORY_EVENT.SOURCE_RETURN_CLEARED)
-        assert.equal(entryOf(history, 'de', 'a').checkpoint.revision, baseline)
+        assert.equal(events.at(-1)!.kind, HISTORY_EVENT.SOURCE_RETURN_CLEARED)
+        assert.equal(entryOf(history, 'de', 'a').checkpoint!.revision, baseline)
     })
 })
 
@@ -498,8 +507,11 @@ test('a source return and marker clear in one transition restores the old checkp
         commitLocales(dir, { en: { a: 'A' }, de: { a: 'X' } }, 'return and clear')
         const history = analyze(dir, baseline)
 
-        assert.equal(eventsFor(history, 'de', 'a').at(-1).kind, HISTORY_EVENT.SOURCE_RETURN_CLEARED)
-        assert.equal(entryOf(history, 'de', 'a').checkpoint.revision, baseline)
+        assert.equal(
+            eventsFor(history, 'de', 'a').at(-1)!.kind,
+            HISTORY_EVENT.SOURCE_RETURN_CLEARED
+        )
+        assert.equal(entryOf(history, 'de', 'a').checkpoint!.revision, baseline)
     })
 })
 
@@ -510,8 +522,8 @@ test('resolving an explicit review request is a human Keep', () => {
         const kept = commitLocales(dir, { en: { a: 'B' }, de: { a: 'X' } }, 'keep')
         const history = analyze(dir, baseline)
 
-        assert.equal(eventsFor(history, 'de', 'a').at(-1).kind, HISTORY_EVENT.KEEP)
-        assert.equal(entryOf(history, 'de', 'a').checkpoint.revision, kept)
+        assert.equal(eventsFor(history, 'de', 'a').at(-1)!.kind, HISTORY_EVENT.KEEP)
+        assert.equal(entryOf(history, 'de', 'a').checkpoint!.revision, kept)
     })
 })
 
@@ -523,9 +535,9 @@ test('a changed pending target cannot source-return-clear an unaccepted pair', (
         const kept = commitLocales(dir, { en: { a: 'A' }, de: { a: 'Y' } }, 'human keep')
         const history = analyze(dir, baseline)
 
-        assert.equal(eventsFor(history, 'de', 'a').at(-1).kind, HISTORY_EVENT.KEEP)
-        assert.equal(entryOf(history, 'de', 'a').checkpoint.revision, kept)
-        assert.equal(entryOf(history, 'de', 'a').checkpoint.targetText, 'Y')
+        assert.equal(eventsFor(history, 'de', 'a').at(-1)!.kind, HISTORY_EVENT.KEEP)
+        assert.equal(entryOf(history, 'de', 'a').checkpoint!.revision, kept)
+        assert.equal(entryOf(history, 'de', 'a').checkpoint!.targetText, 'Y')
     })
 })
 
@@ -537,7 +549,7 @@ test('a historically accepted pair clears only source-triggered pending', () => 
         commitLocales(dir, { en: { a: 'A' }, de: { a: 'Y' } }, 'return and clear')
         const sourceHistory = analyze(dir, baseline)
         assert.equal(
-            eventsFor(sourceHistory, 'de', 'a').at(-1).kind,
+            eventsFor(sourceHistory, 'de', 'a').at(-1)!.kind,
             HISTORY_EVENT.SOURCE_RETURN_CLEARED
         )
 
@@ -549,10 +561,10 @@ test('a historically accepted pair clears only source-triggered pending', () => 
         const kept = commitLocales(dir, { en: { a: 'A' }, de: { a: 'Y' } }, 'explicit keep')
         const explicitHistory = analyze(dir, baseline)
         const lastTwo = eventsFor(explicitHistory, 'de', 'a').slice(-2)
-        assert.equal(lastTwo[0].revision, explicitRevision)
-        assert.equal(lastTwo[0].kind, HISTORY_EVENT.EXPLICIT_REVIEW_REQUESTED)
-        assert.equal(lastTwo[1].kind, HISTORY_EVENT.KEEP)
-        assert.equal(entryOf(explicitHistory, 'de', 'a').checkpoint.revision, kept)
+        assert.equal(lastTwo[0]!.revision, explicitRevision)
+        assert.equal(lastTwo[0]!.kind, HISTORY_EVENT.EXPLICIT_REVIEW_REQUESTED)
+        assert.equal(lastTwo[1]!.kind, HISTORY_EVENT.KEEP)
+        assert.equal(entryOf(explicitHistory, 'de', 'a').checkpoint!.revision, kept)
     })
 })
 
@@ -576,10 +588,10 @@ test('an unchanged-source target edit into pending is not an explicit review req
         commitLocales(dir, { en: { a: 'A' }, de: { a: '? Y' } }, 'edit while pending')
         const history = analyze(dir, baseline)
 
-        assert.equal(eventsFor(history, 'de', 'a')[0].kind, HISTORY_EVENT.PENDING_EDIT)
+        assert.equal(eventsFor(history, 'de', 'a')[0]!.kind, HISTORY_EVENT.PENDING_EDIT)
         assert.equal(explicitReviewRequests(history).length, 0)
         assert.equal(entryOf(history, 'de', 'a').pendingProvenance, PENDING_PROVENANCE.MANUAL_EDIT)
-        assert.equal(entryOf(history, 'de', 'a').checkpoint.targetText, 'X')
+        assert.equal(entryOf(history, 'de', 'a').checkpoint!.targetText, 'X')
         assert.equal(entryOf(history, 'de', 'a').canonicalTarget, 'Y')
     })
 })
@@ -596,7 +608,10 @@ test('NFC-equivalent marker insertion is an explicit review request', () => {
         commitLocales(dir, { en: { a: 'Green' }, de: { a: `? ${composed}` } }, 'request')
         const history = analyze(dir, baseline)
 
-        assert.equal(eventsFor(history, 'de', 'a')[0].kind, HISTORY_EVENT.EXPLICIT_REVIEW_REQUESTED)
+        assert.equal(
+            eventsFor(history, 'de', 'a')[0]!.kind,
+            HISTORY_EVENT.EXPLICIT_REVIEW_REQUESTED
+        )
     })
 })
 
@@ -606,12 +621,12 @@ test('withdrawal clears the active checkpoint but keeps the accepted pair on rec
         commitLocales(dir, { en: { a: 'A' }, de: { a: '! A' } }, 'withdraw')
         const history = analyze(dir, baseline)
 
-        assert.equal(eventsFor(history, 'de', 'a')[0].kind, HISTORY_EVENT.TRANSLATION_WITHDRAWN)
+        assert.equal(eventsFor(history, 'de', 'a')[0]!.kind, HISTORY_EVENT.TRANSLATION_WITHDRAWN)
         const entry = entryOf(history, 'de', 'a')
         assert.equal(entry.state, 'scaffold')
         assert.equal(entry.checkpoint, null)
 
-        const historical = history.state.entries.get(entryId('de', 'a'))
+        const historical = history.state.entries.get(entryId('de', 'a'))!
         assert.equal(historical.acceptedPairs.size, 1, 'the pair index survives a withdrawal')
     })
 })
@@ -628,7 +643,7 @@ test('a target removed and recreated is reaccepted rather than resumed', () => {
             HISTORY_EVENT.TRANSLATION_WITHDRAWN,
             HISTORY_EVENT.FIRST_TRANSLATION,
         ])
-        assert.equal(entryOf(history, 'de', 'a').checkpoint.targetText, 'Z')
+        assert.equal(entryOf(history, 'de', 'a').checkpoint!.targetText, 'Z')
     })
 })
 
@@ -647,7 +662,7 @@ test('a key deleted and recreated reports both source events', () => {
             .filter((event) => event.locale === undefined && event.key === 'a')
             .map((event) => event.kind)
         assert.deepEqual(sourceKinds, [HISTORY_EVENT.SOURCE_REMOVED, HISTORY_EVENT.SOURCE_ADDED])
-        assert.equal(entryOf(history, 'de', 'a').checkpoint.sourceText, 'A2')
+        assert.equal(entryOf(history, 'de', 'a').checkpoint!.sourceText, 'A2')
     })
 })
 
@@ -657,9 +672,9 @@ test('a locale created after the baseline starts from its own first translations
         commitLocales(dir, { en: { a: 'A' }, de: { a: 'X' }, uk: { a: 'U' } }, 'add locale')
         const history = analyze(dir, baseline)
 
-        assert.equal(eventsFor(history, 'uk', 'a')[0].kind, HISTORY_EVENT.FIRST_TRANSLATION)
-        assert.equal(entryOf(history, 'uk', 'a').checkpoint.sourceText, 'A')
-        assert.equal(summarizeHistory(history).locales.get('uk').accepted, 1)
+        assert.equal(eventsFor(history, 'uk', 'a')[0]!.kind, HISTORY_EVENT.FIRST_TRANSLATION)
+        assert.equal(entryOf(history, 'uk', 'a').checkpoint!.sourceText, 'A')
+        assert.equal(summarizeHistory(history).locales.get('uk')!.accepted, 1)
     })
 })
 
@@ -677,14 +692,14 @@ test('checkpoints store NFC identity while preserving raw persisted text', () =>
             'baseline'
         )
         const history = analyze(dir, baseline)
-        const checkpoint = entryOf(history, 'de', 'a').checkpoint
+        const checkpoint = entryOf(history, 'de', 'a').checkpoint!
 
         assert.equal(checkpoint.sourceText, 'Café')
         assert.equal(checkpoint.targetText, 'Grün')
         assert.equal(checkpoint.rawSourceText, rawSource)
         assert.equal(checkpoint.rawTargetText, rawTarget)
         assert.equal(entryOf(history, 'de', 'a').acceptedPairSeen, true)
-        assert.equal(entryOf(history, 'de', 'b').checkpoint.targetText, compatibilityTarget)
+        assert.equal(entryOf(history, 'de', 'b').checkpoint!.targetText, compatibilityTarget)
     })
 })
 
@@ -714,7 +729,7 @@ test('repaired intermediate malformed workflow values fail at the malformed revi
         ['empty Pending', '? '],
         ['nested Pending', '? ? X'],
         ['empty scaffold', '! '],
-    ]) {
+    ] satisfies [string, string][]) {
         await t.test(name, () => {
             withRepo((dir) => {
                 const baseline = commitLocales(dir, { en: { a: 'A' }, de: { a: 'X' } }, 'baseline')
@@ -893,7 +908,7 @@ test('ordinary recreation establishes fresh lineage for later Pending', () => {
         assert.equal(entry.state, 'pending')
         assert.equal(entry.pendingProvenance, PENDING_PROVENANCE.SOURCE_CHANGE)
         assert.equal(entry.hasAcceptedLineage, true)
-        assert.equal(entry.checkpoint.revision, recreation)
+        assert.equal(entry.checkpoint!.revision, recreation)
     })
 })
 
@@ -969,7 +984,7 @@ test('a squashed branch cannot invent the Keep its final tree erased', () => {
 
         assert.deepEqual(eventsFor(history, 'de', 'a'), [])
         const entry = entryOf(history, 'de', 'a')
-        assert.equal(entry.checkpoint.sourceText, 'A')
+        assert.equal(entry.checkpoint!.sourceText, 'A')
         assert.equal(entry.sourceMatchesCheckpoint, false)
     })
 })
@@ -995,7 +1010,7 @@ test('an uncommitted Keep is read from the working tree', () => {
         const history = analyzeWorkingTree({ cwd: dir, baseline, localeDir: LOCALE_DIR })
         const entry = entryOf(history, 'de', 'a')
         assert.equal(entry.state, 'accepted')
-        assert.equal(entry.checkpoint.sourceText, 'B')
+        assert.equal(entry.checkpoint!.sourceText, 'B')
         assert.equal(entry.pendingProvenance, null)
     })
 })
@@ -1006,7 +1021,7 @@ test('an uncommitted target edit is read from the working tree', () => {
         writeLocales(dir, { en: { a: 'A' }, de: { a: 'Z' } })
 
         const history = analyzeWorkingTree({ cwd: dir, baseline, localeDir: LOCALE_DIR })
-        assert.equal(entryOf(history, 'de', 'a').checkpoint.targetText, 'Z')
+        assert.equal(entryOf(history, 'de', 'a').checkpoint!.targetText, 'Z')
     })
 })
 
@@ -1028,7 +1043,7 @@ test('a no-op working overlay preserves committed events and committed state', (
         const baseline = commitLocales(dir, { en: { a: 'A' }, de: { a: 'X' } }, 'baseline')
         commitLocales(dir, { en: { a: 'B' }, de: { a: '? X' } }, 'source change')
         const committed = analyze(dir, baseline)
-        const checkpoint = committed.state.entries.get(entryId('de', 'a')).checkpoint
+        const checkpoint = committed.state.entries.get(entryId('de', 'a'))!.checkpoint
         const working = analyzeWorkingTree({
             cwd: dir,
             localeDir: LOCALE_DIR,
@@ -1039,7 +1054,7 @@ test('a no-op working overlay preserves committed events and committed state', (
         assert.deepEqual(working.events, committed.events)
         assert.deepEqual(working.prospectiveEvents, [])
         assert.notEqual(working.state, committed.state)
-        assert.equal(committed.state.entries.get(entryId('de', 'a')).checkpoint, checkpoint)
+        assert.equal(committed.state.entries.get(entryId('de', 'a'))!.checkpoint, checkpoint)
     })
 })
 
@@ -1057,11 +1072,11 @@ test('a staged Keep is recognised and unstaged work is ignored', () => {
         const entry = entryOf(staged, 'de', 'a')
         assert.equal(entry.state, 'accepted')
         assert.equal(entry.canonicalTarget, 'X')
-        assert.equal(entry.checkpoint.sourceText, 'B')
+        assert.equal(entry.checkpoint!.sourceText, 'B')
         assert.equal(staged.committedEvents.length, 2)
-        assert.equal(staged.prospectiveEvents.length, 1)
+        assert.equal(staged.prospectiveEvents!.length, 1)
         assert.equal(staged.events.length, 3)
-        assert.equal(staged.prospectiveEvents[0].kind, HISTORY_EVENT.KEEP)
+        assert.equal(staged.prospectiveEvents![0]!.kind, HISTORY_EVENT.KEEP)
 
         const working = analyzeWorkingTree({ cwd: dir, baseline, localeDir: LOCALE_DIR })
         assert.equal(entryOf(working, 'de', 'a').canonicalTarget, 'UNSTAGED')
@@ -1091,9 +1106,9 @@ test('a staged pending edit ignores a different unstaged target', () => {
         writeLocales(dir, { en: { a: 'B' }, de: { a: 'UNSTAGED' } })
 
         const staged = analyzeStaged({ cwd: dir, baseline, localeDir: LOCALE_DIR })
-        assert.equal(staged.prospectiveEvents[0].kind, HISTORY_EVENT.EDIT_FROM_PENDING)
+        assert.equal(staged.prospectiveEvents![0]!.kind, HISTORY_EVENT.EDIT_FROM_PENDING)
         assert.equal(entryOf(staged, 'de', 'a').canonicalTarget, 'Y')
-        assert.equal(entryOf(staged, 'de', 'a').checkpoint.targetText, 'Y')
+        assert.equal(entryOf(staged, 'de', 'a').checkpoint!.targetText, 'Y')
     })
 })
 
@@ -1112,10 +1127,10 @@ test('staged additions and deletions are reconstructed prospectively', () => {
         git(dir, ['add', '-A'])
         const staged = analyzeStaged({ cwd: dir, baseline, localeDir: LOCALE_DIR })
 
-        assert.equal(staged.state.entries.get(entryId('de', 'b')).checkpoint, null)
-        assert.equal(entryOf(staged, 'uk', 'a').checkpoint.targetText, 'U')
-        assert.equal(entryOf(staged, 'uk', 'b').checkpoint.targetText, 'V')
-        assert.ok(staged.prospectiveEvents.length >= 3)
+        assert.equal(staged.state.entries.get(entryId('de', 'b'))!.checkpoint, null)
+        assert.equal(entryOf(staged, 'uk', 'a').checkpoint!.targetText, 'U')
+        assert.equal(entryOf(staged, 'uk', 'b').checkpoint!.targetText, 'V')
+        assert.ok(staged.prospectiveEvents!.length >= 3)
     })
 })
 
@@ -1143,7 +1158,7 @@ test('staged conflict diagnostics deduplicate the conflicted path', () => {
 
         assert.throws(
             () => analyzeStaged({ cwd: dir, baseline, localeDir: LOCALE_DIR }),
-            (error) => {
+            (error: Error) => {
                 const path = `${LOCALE_DIR}/de.json`
                 return error.message.split(path).length - 1 === 1
             }

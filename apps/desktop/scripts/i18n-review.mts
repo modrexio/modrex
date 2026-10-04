@@ -146,7 +146,7 @@ function acceptanceRecordingInstruction(candidate: Candidate) {
     return 'Run pnpm i18n:sync and commit the review marker first.'
 }
 
-// i18n-review.test.mjs enforces normalized edits and committed marker removal.
+// i18n-review.test.mts enforces normalized edits and committed marker removal.
 function wouldRecordAcceptance(candidate: Candidate, storedValue: string) {
     if (candidate.committedValue === undefined) return true
     return normalize(storedValue) !== normalize(candidate.committedValue)

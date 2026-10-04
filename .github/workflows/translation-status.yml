@@ -7,7 +7,6 @@ on:
             - 'apps/desktop/src/renderer/src/i18n/*.json'
             - 'apps/desktop/translation-contributors.generated.json'
             # The derived output depends on this logic, so changing it has to regenerate too.
-            - 'apps/desktop/scripts/i18n-*.mjs'
             - 'apps/desktop/scripts/i18n-*.mts'
             - 'apps/desktop/scripts/check-i18n.mts'
             - 'apps/desktop/scripts/update-i18n-*.mts'

@@ -4,17 +4,23 @@ import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import test from 'node:test'
-import { analyzeCommittedHistory, analyzeWorkingTree, summarizeHistory } from './i18n-history.mts'
+import test, { type TestContext } from 'node:test'
+import {
+    analyzeCommittedHistory,
+    analyzeWorkingTree,
+    summarizeHistory,
+    type HistoryAnalysis,
+} from './i18n-history.mts'
+import type { LocaleBundle } from './i18n-files.mts'
 import { PENDING_PROVENANCE } from './i18n-history-events.mts'
 import { synchronizeI18n, planI18nSync } from './i18n-sync.mts'
 import { prepareI18nReview, applyReviewAction } from './i18n-review.mts'
 import { checkI18nSemantics, checkStagedI18n } from './i18n-enforcement.mts'
 
-function git(cwd, args) {
+function git(cwd: string, args: string[]) {
     return execFileSync('git', args, { cwd, encoding: 'utf8' }).trim()
 }
-function fixture(t, states) {
+function fixture(t: TestContext, states: Record<string, string | LocaleBundle>[]) {
     const cwd = mkdtempSync(join(tmpdir(), 'modrex-i18n-recovery-'))
     t.after(() => rmSync(cwd, { recursive: true, force: true }))
     git(cwd, ['init', '-q', '-b', 'main'])
@@ -23,7 +29,7 @@ function fixture(t, states) {
     git(cwd, ['config', 'commit.gpgsign', 'false'])
     git(cwd, ['config', 'core.autocrlf', 'false'])
     mkdirSync(join(cwd, 'i18n'))
-    const revisions = []
+    const revisions: string[] = []
     for (const [index, state] of states.entries()) {
         for (const [locale, bundle] of Object.entries(state))
             writeFileSync(
@@ -34,10 +40,12 @@ function fixture(t, states) {
         git(cwd, ['commit', '-qm', 'revision ' + index])
         revisions.push(git(cwd, ['rev-parse', 'HEAD']))
     }
-    return { cwd, baseline: revisions[0], localeDir: 'i18n', revisions }
+    return { cwd, baseline: revisions[0]!, localeDir: 'i18n', revisions }
 }
-function entry(history, locale = 'de') {
-    return summarizeHistory(history).locales.get(locale).entries.get('a')
+function entry(history: HistoryAnalysis, locale = 'de') {
+    const result = summarizeHistory(history).locales.get(locale)?.entries.get('a')
+    assert.ok(result, `no history entry for ${locale}`)
+    return result
 }
 const baseline = { en: { a: 'A' }, de: { a: 'X' }, it: { a: 'Y' } }
 
@@ -49,12 +57,12 @@ test('a broken locale does not erase readable source and other locale acceptance
     ])
     const history = analyzeCommittedHistory(options)
     assert.equal(entry(history, 'it').effectiveState, 'review')
-    assert.equal(entry(history, 'it').checkpoint.sourceText, 'B')
-    assert.equal(entry(history, 'it').checkpoint.revision, options.revisions[1])
+    assert.equal(entry(history, 'it').checkpoint!.sourceText, 'B')
+    assert.equal(entry(history, 'it').checkpoint!.revision, options.revisions[1])
     assert.deepEqual(entry(history, 'it').gapIds, [])
     assert.equal(entry(history).effectiveProvenance, 'history-gap')
-    assert.equal(entry(history).checkpoint.revision, options.baseline)
-    assert.equal(history.gaps[0].locale, 'de')
+    assert.equal(entry(history).checkpoint!.revision, options.baseline)
+    assert.equal(history.gaps[0]!.locale, 'de')
     assert.equal(history.snapshot.revision, options.revisions.at(-1))
 })
 
@@ -67,7 +75,7 @@ for (const recovered of ['X', 'Z', '? X']) {
         ])
         const history = analyzeCommittedHistory(options)
         assert.equal(entry(history).effectiveState, 'review')
-        assert.equal(entry(history).lastProvenCheckpoint.revision, options.baseline)
+        assert.equal(entry(history).lastProvenCheckpoint!.revision, options.baseline)
         assert.ok(entry(history).gapIds.length > 0)
         assert.equal(
             history.events.some(
@@ -82,7 +90,7 @@ test('same-source repair remains Review until a later observable acceptance', (t
     const options = fixture(t, [baseline, { de: '{' }, { de: { a: 'X' } }, { de: { a: 'Z' } }])
     const history = analyzeCommittedHistory(options)
     assert.equal(entry(history).effectiveState, 'accepted')
-    assert.equal(entry(history).checkpoint.revision, options.revisions[3])
+    assert.equal(entry(history).checkpoint!.revision, options.revisions[3])
     assert.deepEqual(entry(history).gapIds, [])
     assert.equal(history.gaps.length, 1)
 })
@@ -112,9 +120,9 @@ test('unreadable English scopes a gap to every dependent target', (t) => {
     for (const locale of ['de', 'it']) {
         assert.equal(entry(history, locale).effectiveState, 'review')
         assert.ok(entry(history, locale).gapIds.length > 0)
-        assert.equal(entry(history, locale).checkpoint.revision, options.baseline)
+        assert.equal(entry(history, locale).checkpoint!.revision, options.baseline)
     }
-    assert.equal(history.gaps[0].locale, 'en')
+    assert.equal(history.gaps[0]!.locale, 'en')
 })
 
 for (const recovered of ['! B', undefined, '? X']) {
@@ -128,7 +136,7 @@ for (const recovered of ['! B', undefined, '? X']) {
         assert.equal(entry(history).effectiveState, recovered === '? X' ? 'review' : 'missing')
         assert.equal(entry(history).checkpoint, null)
         if (recovered === '? X') {
-            const candidate = prepareI18nReview({ ...options, localeId: 'de' }).candidates[0]
+            const candidate = prepareI18nReview({ ...options, localeId: 'de' }).candidates[0]!
             assert.equal(candidate.lastAcceptedSourceText, null)
             assert.equal(candidate.checkpointRevision, null)
         }
@@ -185,22 +193,22 @@ for (const target of ['X', '? X']) {
 
 test('an explicit committed review marker resolves a gap without automatic marker writes', (t) => {
     const options = fixture(t, [baseline, { de: '{' }, { en: { a: 'B' }, de: { a: 'X' } }])
-    const before = prepareI18nReview({ ...options, localeId: 'de' }).candidates[0]
+    const before = prepareI18nReview({ ...options, localeId: 'de' }).candidates[0]!
     assert.throws(() => applyReviewAction(before, 'keep'), /explicit review marker/)
     assert.throws(() => synchronizeI18n(options), /Insufficient historical evidence/)
     writeFileSync(join(options.cwd, 'i18n/de.json'), JSON.stringify({ a: '? X' }))
-    const uncommitted = prepareI18nReview({ ...options, localeId: 'de' }).candidates[0]
+    const uncommitted = prepareI18nReview({ ...options, localeId: 'de' }).candidates[0]!
     assert.throws(() => applyReviewAction(uncommitted, 'keep'), /no acceptance could be recorded/)
     git(options.cwd, ['add', '-A'])
     git(options.cwd, ['commit', '-qm', 'request explicit review'])
-    const candidate = prepareI18nReview({ ...options, localeId: 'de' }).candidates[0]
+    const candidate = prepareI18nReview({ ...options, localeId: 'de' }).candidates[0]!
     const kept = applyReviewAction(candidate, 'keep')
     writeFileSync(join(options.cwd, 'i18n/de.json'), JSON.stringify({ a: kept.storedValue }))
     git(options.cwd, ['add', '-A'])
     git(options.cwd, ['commit', '-qm', 'accept current English'])
     const history = analyzeCommittedHistory(options)
     assert.equal(entry(history).effectiveState, 'accepted')
-    assert.equal(entry(history).checkpoint.sourceText, 'B')
+    assert.equal(entry(history).checkpoint!.sourceText, 'B')
     assert.deepEqual(entry(history).gapIds, [])
     synchronizeI18n(options)
     assert.deepEqual(synchronizeI18n(options).written, [])
@@ -212,7 +220,7 @@ test('normalization cannot resolve a history gap but a later translated edit can
         { de: '{' },
         { en: { a: 'B' }, de: { a: '\u00e9' } },
     ])
-    const candidate = prepareI18nReview({ ...options, localeId: 'de' }).candidates[0]
+    const candidate = prepareI18nReview({ ...options, localeId: 'de' }).candidates[0]!
     assert.equal(candidate.evidenceIncomplete, true)
     assert.throws(
         () => applyReviewAction(candidate, 'edit', 'e\u0301'),
@@ -225,8 +233,8 @@ test('normalization cannot resolve a history gap but a later translated edit can
     git(options.cwd, ['commit', '-qm', 'translate current source'])
     const history = analyzeCommittedHistory(options)
     assert.equal(entry(history).effectiveState, 'accepted')
-    assert.equal(entry(history).checkpoint.sourceText, 'B')
-    assert.equal(entry(history).checkpoint.rawTargetText, 'Y')
+    assert.equal(entry(history).checkpoint!.sourceText, 'B')
+    assert.equal(entry(history).checkpoint!.rawTargetText, 'Y')
     assert.deepEqual(entry(history).gapIds, [])
 })
 
@@ -241,10 +249,10 @@ test('invalid UTF-8 historical evidence is scoped and a repair creates no accept
     git(options.cwd, ['add', '-A'])
     git(options.cwd, ['commit', '-qm', 'repair'])
     const history = analyzeCommittedHistory(options)
-    assert.equal(history.gaps[0].kind, 'invalid-utf8')
+    assert.equal(history.gaps[0]!.kind, 'invalid-utf8')
     assert.equal(entry(history).effectiveState, 'review')
     assert.equal(entry(history, 'it').effectiveState, 'accepted')
-    assert.equal(entry(history, 'it').checkpoint.revision, italianAcceptance)
+    assert.equal(entry(history, 'it').checkpoint!.revision, italianAcceptance)
 })
 
 test('requested HEAD identity includes unrelated commits after a readable recovery', (t) => {
@@ -261,7 +269,7 @@ test('requested HEAD identity includes unrelated commits after a readable recove
 function capture() {
     let value = ''
     return {
-        write(text) {
+        write(text: string) {
             value += text
         },
         value() {
@@ -399,7 +407,7 @@ for (const target of ['X', 'Z', '? X']) {
     test('unresolved compatible history blocks every automatic decision: ' + target, async (t) => {
         const options = fixture(t, [baseline, { de: '{' }, { de: { a: target } }])
         const history = analyzeCommittedHistory(options)
-        const checkpoint = entry(history).lastProvenCheckpoint
+        const checkpoint = entry(history).lastProvenCheckpoint!
         assert.equal(checkpoint.revision, options.baseline)
         assert.equal(entry(history).effectiveState, 'review')
         let writes = 0
@@ -456,15 +464,15 @@ test('a gap records uncertainty without inventing pending workflow provenance', 
     assert.equal(target.pendingProvenance, null)
     assert.equal(target.effectiveProvenance, 'history-gap')
     assert.equal(target.lineageCheckpoint, null)
-    assert.equal(target.checkpoint.revision, options.baseline)
+    assert.equal(target.checkpoint!.revision, options.baseline)
 })
 
 test('a readable target edit during English repair establishes fresh acceptance', (t) => {
     const options = fixture(t, [baseline, { en: '{' }, { en: { a: 'B' }, de: { a: 'Z' } }])
     const history = analyzeCommittedHistory(options)
     assert.equal(entry(history).effectiveState, 'accepted')
-    assert.equal(entry(history).checkpoint.sourceText, 'B')
-    assert.equal(entry(history).checkpoint.revision, options.revisions[2])
+    assert.equal(entry(history).checkpoint!.sourceText, 'B')
+    assert.equal(entry(history).checkpoint!.revision, options.revisions[2])
     assert.deepEqual(entry(history).gapIds, [])
     assert.equal(entry(history, 'it').effectiveState, 'review')
     assert.throws(
@@ -483,7 +491,8 @@ test('new unproven translation across a gap cannot acquire acceptance or bot rev
 })
 
 test('withdrawal and scaffolds resolve target gaps as Missing without accepting translations', (t) => {
-    for (const bundle of [{}, { a: '! A' }]) {
+    const bundles: LocaleBundle[] = [{}, { a: '! A' }]
+    for (const bundle of bundles) {
         const options = fixture(t, [baseline, { de: '{' }, { de: bundle }])
         const history = analyzeCommittedHistory(options)
         assert.equal(entry(history).effectiveState, 'missing')
@@ -491,7 +500,7 @@ test('withdrawal and scaffolds resolve target gaps as Missing without accepting 
         assert.equal(checkI18nSemantics(options).pass, true)
         assert.equal(
             planI18nSync({ history, sourceBundle: { a: 'A' } })
-                .locales.find((l) => l.id === 'de')
+                .locales.find((l) => l.id === 'de')!
                 .operations.some((o) => o.kind === 'review-requested'),
             false
         )
@@ -506,7 +515,7 @@ test('marker removal during English repair is a visible acceptance against the r
     ])
     const history = analyzeCommittedHistory(options)
     assert.equal(entry(history).effectiveState, 'accepted')
-    assert.equal(entry(history).checkpoint.sourceText, 'B')
-    assert.equal(entry(history).checkpoint.revision, options.revisions[2])
+    assert.equal(entry(history).checkpoint!.sourceText, 'B')
+    assert.equal(entry(history).checkpoint!.revision, options.revisions[2])
     assert.deepEqual(entry(history).gapIds, [])
 })
