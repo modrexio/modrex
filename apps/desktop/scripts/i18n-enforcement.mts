@@ -1,7 +1,7 @@
 import { errorMessage, type CliIO } from './i18n-io.mts'
 import type { LocaleBundle } from './i18n-files.mts'
-import type { HistoryAnalysis, HistoryGit } from './i18n-history.mts'
-import type { HistorySnapshot } from './i18n-history-events.mts'
+import type { HistoryGit } from './i18n-history.mts'
+import type { HistoryEvent, HistorySnapshot } from './i18n-history-events.mts'
 import type { SyncPlan, SyncOperation } from './i18n-sync.mts'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -102,9 +102,9 @@ export function summarizeWorkflow({
     baseSnapshot,
     currentSnapshot,
 }: {
-    history: HistoryAnalysis
-    baseSnapshot?: HistorySnapshot
-    currentSnapshot: HistorySnapshot
+    history: { prospectiveEvents?: Pick<HistoryEvent, 'kind' | 'locale' | 'key'>[] }
+    baseSnapshot?: Pick<HistorySnapshot, 'locales'>
+    currentSnapshot: Pick<HistorySnapshot, 'locales'>
 }) {
     const summary: Record<
         | 'targetContentEdits'

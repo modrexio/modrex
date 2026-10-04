@@ -285,7 +285,10 @@ function prepareWrites(plan: SyncPlan, i18nDir: string): SyncWrite[] {
     })
 }
 
-export function applySyncWrites(writes: SyncWrite[], write: Write = writeSerializedFileAtomically) {
+export function applySyncWrites(
+    writes: Pick<SyncWrite, 'id' | 'path' | 'serialized' | 'changed'>[],
+    write: Write = writeSerializedFileAtomically
+) {
     const written: string[] = []
     for (const file of writes) {
         if (!file.changed) continue
