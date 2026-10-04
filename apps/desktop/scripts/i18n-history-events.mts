@@ -50,8 +50,8 @@ export type HistorySnapshot = {
     revision: string
     source: Map<string, string>
     locales: Map<string, { targets: Map<string, TargetValue> }>
-    gaps?: EvidenceGap[]
-    recoveries?: EvidenceRecovery[]
+    gaps: EvidenceGap[]
+    recoveries: EvidenceRecovery[]
 }
 export type Checkpoint = {
     sourceText: string | undefined
@@ -254,8 +254,8 @@ function sourceEvents(
 ): SourceEvent[] {
     const events: SourceEvent[] = []
     if (
-        previous.gaps?.some((gap) => gap.locale === 'en') ||
-        next.gaps?.some((gap) => gap.locale === 'en')
+        previous.gaps.some((gap) => gap.locale === 'en') ||
+        next.gaps.some((gap) => gap.locale === 'en')
     )
         return events
     const keys = new Set([...previous.source.keys(), ...next.source.keys()])
@@ -291,8 +291,8 @@ function targetEvent(
     revision: string
 ): TargetEvent | undefined {
     if (
-        next.gaps?.some((gap) => gap.locale === 'en' || gap.locale === localeId) ||
-        previous.gaps?.some((gap) => gap.locale === localeId)
+        next.gaps.some((gap) => gap.locale === 'en' || gap.locale === localeId) ||
+        previous.gaps.some((gap) => gap.locale === localeId)
     )
         return undefined
     const before = targetAt(previous, localeId, key)
@@ -596,7 +596,7 @@ export function applyEvidenceGaps(
     previous: HistorySnapshot,
     next: HistorySnapshot
 ) {
-    for (const gap of [...(previous.gaps ?? []), ...(next.gaps ?? [])]) {
+    for (const gap of [...previous.gaps, ...next.gaps]) {
         const localeIds =
             gap.locale === 'en'
                 ? new Set([
@@ -619,7 +619,7 @@ export function applyEvidenceGaps(
                 const entry = entryFor(state, localeId, key)
                 entry.gapIds.add(gap.id)
                 const value = targetAt(next, localeId, key)
-                const targetUnavailable = next.gaps?.some((item) => item.locale === localeId)
+                const targetUnavailable = next.gaps.some((item) => item.locale === localeId)
                 if (
                     !targetUnavailable &&
                     (value.kind === TARGET_VALUE_KIND.ABSENT ||

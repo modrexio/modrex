@@ -71,7 +71,6 @@ export type HistoryAnalysis = {
         bundleParses: number
     }
 }
-type ObservedSnapshot = HistorySnapshot & { gaps: EvidenceGap[] }
 type BundleObservation =
     { kind: 'parsed'; value: unknown } | { kind: 'invalid-json' | 'invalid-utf8'; cause: unknown }
 export type EffectiveState = 'accepted' | 'review' | 'missing'
@@ -299,8 +298,14 @@ function buildSnapshot(
     contents: ReadonlyMap<string, string | GitBlobDecodeError>,
     cache: ReturnType<typeof createBundleCache>,
     recoverHistory = false
-): ObservedSnapshot {
-    const snapshot: ObservedSnapshot = { revision, source: new Map(), locales: new Map(), gaps: [] }
+): HistorySnapshot {
+    const snapshot: HistorySnapshot = {
+        revision,
+        source: new Map(),
+        locales: new Map(),
+        gaps: [],
+        recoveries: [],
+    }
     let sourceSeen = false
     for (const [path, id] of blobPaths) {
         if (!path.endsWith('.json')) continue
@@ -312,7 +317,6 @@ function buildSnapshot(
         const parseId = recovery?.repairedBlob ?? id
         const parsed = cache.parse(parseId, recovery?.text ?? text)
         if (recovery) {
-            snapshot.recoveries ??= []
             snapshot.recoveries.push({
                 locale: localeId,
                 revision,
@@ -360,7 +364,7 @@ function buildSnapshot(
     return snapshot
 }
 
-function assertReadableSnapshot(snapshot: ObservedSnapshot) {
+function assertReadableSnapshot(snapshot: HistorySnapshot) {
     if (snapshot.gaps.length === 0) return snapshot
     const gap = snapshot.gaps[0]!
     if (gap.cause instanceof GitBlobDecodeError) throw gap.cause
@@ -371,7 +375,13 @@ export function snapshotFromBundles(
     revision: string,
     bundles: Map<string, unknown> | Record<string, unknown>
 ): HistorySnapshot {
-    const snapshot: HistorySnapshot = { revision, source: new Map(), locales: new Map() }
+    const snapshot: HistorySnapshot = {
+        revision,
+        source: new Map(),
+        locales: new Map(),
+        gaps: [],
+        recoveries: [],
+    }
     const entries = bundles instanceof Map ? bundles.entries() : Object.entries(bundles)
     for (const [localeId, bundle] of entries) {
         const label = `${localeId}.json@${revision}`
@@ -550,7 +560,7 @@ export function analyzeCommittedHistory(options: HistoryOptions = {}): HistoryAn
         revisions,
         snapshot: { ...snapshots[snapshots.length - 1]!, revision: head },
         gaps: snapshots.flatMap((snapshot) => snapshot.gaps),
-        recoveries: snapshots.flatMap((snapshot) => snapshot.recoveries ?? []),
+        recoveries: snapshots.flatMap((snapshot) => snapshot.recoveries),
         state,
         events,
         committedEvents: events,
@@ -755,8 +765,8 @@ export function summarizeHistory(history: HistoryAnalysis): HistorySummary {
         baseline: history.baseline,
         revision: history.revision,
         locales,
-        gaps: history.gaps ?? [],
-        recoveries: history.recoveries ?? [],
+        gaps: history.gaps,
+        recoveries: history.recoveries,
     }
 }
 
