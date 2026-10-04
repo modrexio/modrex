@@ -1,11 +1,10 @@
-import { errorMessage, type CliIO, type CliOutput } from './i18n-io.mts'
+import { errorMessage, withPrompt, type Ask, type CliIO, type CliOutput } from './i18n-io.mts'
 import type { LocaleBundle } from './i18n-files.mts'
 import type { LocaleIssue, LocaleInspection } from './i18n-current.mts'
 import type { Inspection } from './i18n-inspection.mts'
 import type { HistoryOptions, HistorySummary } from './i18n-history.mts'
 import { existsSync } from 'node:fs'
 import { dirname, relative, resolve } from 'node:path'
-import { createInterface } from 'node:readline/promises'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import {
     parseTargetValue,
@@ -39,7 +38,6 @@ import {
 } from './i18n-inspection.mts'
 
 type Styles = ReturnType<typeof createSemanticStyles>
-type Ask = (question: string) => Promise<string>
 type CliOptions = CliIO &
     HistoryOptions & { i18nDir?: string; ask?: Ask; stdin?: NodeJS.ReadableStream }
 type Unit =
@@ -853,18 +851,9 @@ async function runSessionWithInput(
 ) {
     if (ask) return translateLocaleSession({ ...session, ask })
 
-    const input = createInterface({
-        input: stdin ?? process.stdin,
-        output: stdout as NodeJS.WritableStream,
-    })
-    try {
-        return await translateLocaleSession({
-            ...session,
-            ask: (question) => input.question(question),
-        })
-    } finally {
-        input.close()
-    }
+    return withPrompt(stdin ?? process.stdin, stdout ?? process.stdout, (prompt) =>
+        translateLocaleSession({ ...session, ask: prompt })
+    )
 }
 
 async function runInteractiveI18n(

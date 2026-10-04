@@ -1,4 +1,4 @@
-import { errorMessage, type CliIO, type CliOutput } from './i18n-io.mts'
+import { errorMessage, withPrompt, type Ask, type CliIO, type CliOutput } from './i18n-io.mts'
 import type { LocaleBundle } from './i18n-files.mts'
 import type { HistoryAnalysis, HistoryOptions } from './i18n-history.mts'
 import type { HistorySnapshot } from './i18n-history-events.mts'
@@ -6,7 +6,6 @@ import { normalize } from './i18n-history-events.mts'
 import type { Inspection } from './i18n-inspection.mts'
 import { existsSync } from 'node:fs'
 import { dirname, relative, resolve } from 'node:path'
-import { createInterface } from 'node:readline/promises'
 import { fileURLToPath } from 'node:url'
 import {
     formatTargetValue,
@@ -48,7 +47,6 @@ type Review = ReturnType<typeof prepareI18nReview>
 type ReviewSession = Pick<Review, 'localePath' | 'candidates'> & {
     locale: Pick<Review['locale'], 'id' | 'bundle'>
 }
-type Ask = (question: string) => Promise<string>
 type ReviewWriter = (path: string, bundle: LocaleBundle) => unknown
 type ReviewOptions = HistoryOptions &
     CliIO & { i18nDir?: string; ask?: Ask; stdin?: NodeJS.ReadableStream; write?: ReviewWriter }
@@ -484,21 +482,15 @@ async function runSession(review: Review, options: ReviewOptions) {
         })
     }
 
-    const input = createInterface({
-        input: options.stdin ?? process.stdin,
-        output: options.stdout as NodeJS.WritableStream,
-    })
-    try {
-        return await reviewLocaleSession({
-            ask: (question) => input.question(question),
+    return withPrompt(options.stdin ?? process.stdin, options.stdout ?? process.stdout, (ask) =>
+        reviewLocaleSession({
+            ask,
             review,
             stdout: options.stdout,
             env: options.env,
             write: options.write,
         })
-    } finally {
-        input.close()
-    }
+    )
 }
 
 export async function runI18nReview(

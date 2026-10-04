@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { Readable } from 'node:stream'
 import test from 'node:test'
 import { formatMissingReport, inspectLocales, runCheckI18n, runI18nCli } from './check-i18n.mts'
 import {
@@ -898,6 +899,30 @@ test('translate preserves existing values and restores English key order', async
                 common: { first: 'Erste', second: 'Zweite', third: 'Dritte' },
             })
             assert.deepEqual(inspectLocales(directory).errors, [])
+        }
+    )
+})
+
+test('input ending mid-translation stops with saved progress instead of hanging', async () => {
+    await withLocalesAsync(
+        {
+            'en.json': { common: { first: 'First', second: 'Second', third: 'Third' } },
+            'de.json': { common: { second: 'Zweite' } },
+        },
+        async (directory) => {
+            const stderr = captureStream()
+            const status = await runI18nCli(['--translate', 'de'], {
+                i18nDir: directory,
+                stdin: Readable.from(['Erste\n']),
+                stdout: captureStream().stream,
+                stderr: stderr.stream,
+            })
+
+            assert.equal(status, 1)
+            assert.match(stderr.value(), /Input ended before the session finished/)
+            assert.deepEqual(JSON.parse(readFileSync(join(directory, 'de.json'), 'utf8')), {
+                common: { first: 'Erste', second: 'Zweite' },
+            })
         }
     )
 })

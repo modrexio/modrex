@@ -11,6 +11,7 @@ import {
 } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
+import { Readable } from 'node:stream'
 import test from 'node:test'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import {
@@ -489,6 +490,33 @@ test('multi-entry session saves Keep and Edit incrementally while Skip remains P
             second: 'Neu {name}',
             third: '? Z',
         })
+    })
+})
+
+test('input ending mid-review stops with saved decisions instead of hanging', async () => {
+    await withRepository(async (directory) => {
+        const baseline = commitLocales(
+            directory,
+            { en: { first: 'A', second: 'B' }, de: { first: 'X', second: 'Y' } },
+            'baseline'
+        )
+        commitLocales(
+            directory,
+            { en: { first: 'AA', second: 'BB' }, de: { first: '? X', second: '? Y' } },
+            'pending'
+        )
+        const stdout = captureStream()
+        const stderr = captureStream()
+        const status = await runI18nReview(['de'], {
+            ...reviewOptions(directory, baseline),
+            stdin: Readable.from(['k\n']),
+            stdout: stdout.stream,
+            stderr: stderr.stream,
+        })
+        assert.equal(status, 1)
+        assert.match(stdout.value(), /Review interrupted: 0 edited, 1 kept\./)
+        assert.match(stderr.value(), /Input ended before the session finished/)
+        assert.deepEqual(readLocale(directory, 'de'), { first: 'X', second: '? Y' })
     })
 })
 
