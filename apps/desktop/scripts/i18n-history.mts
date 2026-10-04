@@ -25,6 +25,7 @@ import {
     type EvidenceGap,
     type Checkpoint,
     type HistoryEntry,
+    type TargetEvent,
 } from './i18n-history-events.mts'
 
 type Adapter = ReturnType<typeof createGitAdapter>
@@ -721,7 +722,10 @@ function sameSource(left: string | undefined, right: string | undefined) {
 }
 
 export function explicitReviewRequests(history: HistoryAnalysis) {
-    return history.events.filter((event) => event.kind === HISTORY_EVENT.EXPLICIT_REVIEW_REQUESTED)
+    return history.events.filter(
+        (event): event is TargetEvent & { kind: typeof HISTORY_EVENT.EXPLICIT_REVIEW_REQUESTED } =>
+            event.kind === HISTORY_EVENT.EXPLICIT_REVIEW_REQUESTED
+    )
 }
 
 export function canDeferPlaceholderMismatch(entry: EffectiveEntry | undefined) {
