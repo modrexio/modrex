@@ -8,18 +8,22 @@ import {
     generateStatusAssets,
     renderStatusSvg,
 } from './i18n-presentation-svg.mts'
-import { buildStatusSummaries } from './i18n-presentation.mts'
+import {
+    buildStatusSummaries,
+    type SourceStatusSummary,
+    type TargetStatusSummary,
+} from './i18n-presentation.mts'
 import { inspectLocales, validateLocaleId } from './i18n-inspection.mts'
 
 const REVIEW = '#D4A72C'
 
 const target = (
-    accepted,
-    pendingCompatible,
-    pendingPlaceholderIncompatible,
-    missing,
+    accepted: number,
+    pendingCompatible: number,
+    pendingPlaceholderIncompatible: number,
+    missing: number,
     locale = 'de'
-) => ({
+): TargetStatusSummary => ({
     kind: 'target',
     locale,
     total: accepted + pendingCompatible + pendingPlaceholderIncompatible + missing,
@@ -43,7 +47,10 @@ test('SVG output is deterministic, compact, square-cornered, and newline-stable'
 })
 
 test('full source and accepted target use only solid Accepted geometry', () => {
-    for (const summary of [{ kind: 'source', locale: 'en', total: 422 }, target(422, 0, 0, 0)]) {
+    for (const summary of [
+        { kind: 'source', locale: 'en', total: 422 } satisfies SourceStatusSummary,
+        target(422, 0, 0, 0),
+    ]) {
         const geometry = calculateSvgGeometry(summary)
         assert.deepEqual(
             geometry.segments.map(({ state, count, start, width }) => ({
@@ -75,15 +82,16 @@ test('Review and Missing use plain solid colors in fixed order', () => {
 
 test('mixed geometry remains exactly proportional and ends at W', () => {
     const geometry = calculateSvgGeometry(target(390, 20, 0, 12))
-    assert.equal(geometry.segments[0].width, (390 * 168) / 422)
-    assert.ok(Math.abs(geometry.segments[1].width - (20 * 168) / 422) < 1e-12)
-    assert.ok(Math.abs(geometry.segments[2].width - (12 * 168) / 422) < 1e-12)
+    assert.equal(geometry.segments[0]!.width, (390 * 168) / 422)
+    assert.ok(Math.abs(geometry.segments[1]!.width - (20 * 168) / 422) < 1e-12)
+    assert.ok(Math.abs(geometry.segments[2]!.width - (12 * 168) / 422) < 1e-12)
     assert.ok(
         Math.abs(
-            geometry.segments[2].start - (geometry.segments[0].width + geometry.segments[1].width)
+            geometry.segments[2]!.start -
+                (geometry.segments[0]!.width + geometry.segments[1]!.width)
         ) < 1e-12
     )
-    assert.ok(Math.abs(geometry.segments[2].start + geometry.segments[2].width - 168) < 1e-12)
+    assert.ok(Math.abs(geometry.segments[2]!.start + geometry.segments[2]!.width - 168) < 1e-12)
     const svg = renderStatusSvg(target(390, 20, 0, 12))
     assert.match(svg, new RegExp(`fill="${REVIEW}"`, 'u'))
     assert.match(svg, /fill="#C94A4A"/u)
@@ -92,10 +100,10 @@ test('mixed geometry remains exactly proportional and ends at W', () => {
 
 test('fractional tiny states remain true proportional segments without overlays', () => {
     const geometry = calculateSvgGeometry(target(420, 1, 0, 1))
-    assert.ok(geometry.segments[1].width < 1)
-    assert.ok(geometry.segments[2].width < 1)
-    assert.ok(Math.abs(geometry.segments[1].width - 168 / 422) < 1e-12)
-    assert.ok(Math.abs(geometry.segments[2].width - 168 / 422) < 1e-12)
+    assert.ok(geometry.segments[1]!.width < 1)
+    assert.ok(geometry.segments[2]!.width < 1)
+    assert.ok(Math.abs(geometry.segments[1]!.width - 168 / 422) < 1e-12)
+    assert.ok(Math.abs(geometry.segments[2]!.width - 168 / 422) < 1e-12)
     const svg = renderStatusSvg(target(420, 1, 0, 1))
     assert.equal((svg.match(/<rect /gu) ?? []).length, 3)
     assert.doesNotMatch(svg, /marker|pattern|<line|clipPath|\brx=/u)
@@ -132,9 +140,9 @@ test('broad geometry coverage preserves proportional order and exact serialized 
                 assert.equal(rects.length, visible.length)
                 let serializedEnd = 0
                 for (const [index, rect] of rects.entries()) {
-                    assert.equal(rect.x, Number(visible[index].start.toFixed(3)))
+                    assert.equal(rect.x, Number(visible[index]!.start.toFixed(3)))
                     assert.ok(rect.width >= 0)
-                    assert.ok(Math.abs(rect.width - (168 * visible[index].count) / total) <= 0.001)
+                    assert.ok(Math.abs(rect.width - (168 * visible[index]!.count) / total) <= 0.001)
                     assert.ok(rect.x >= serializedEnd - 1e-9)
                     serializedEnd = rect.x + rect.width
                 }

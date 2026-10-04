@@ -19,7 +19,7 @@ const LEGEND_COLORS = {
     missing: '#C94A4A',
 }
 
-function readLegend(name) {
+function readLegend(name: string) {
     return readFileSync(resolve(LEGEND_DIR, `${name}.svg`), 'utf8')
 }
 
@@ -54,7 +54,7 @@ test('the generated README block owns its markers and resolves every legend imag
         readme.indexOf('<!-- TRANSLATION_STATUS_END -->')
     )
     const imagePaths = [...generated.matchAll(/src="(assets\/i18n\/status\/[^"?]+\.svg)"/gu)].map(
-        ([, path]) => path
+        ([, path]) => path!
     )
     const targetIds = inspectLocales().locales.map((locale) => locale.id)
     assert.deepEqual(

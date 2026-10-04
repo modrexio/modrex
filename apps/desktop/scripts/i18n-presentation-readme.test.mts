@@ -4,9 +4,12 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
 import { inspectLocales, localeNativeName } from './i18n-inspection.mts'
-import { buildStatusSummaries, deriveTargetStatus } from './i18n-presentation.mts'
 import {
-    buildTranslationTable,
+    buildStatusSummaries,
+    deriveTargetStatus,
+    type TargetStatusSummary,
+} from './i18n-presentation.mts'
+import {
     readTranslationContributors,
     renderTranslationStatusReadme,
     replaceTranslationTable,
@@ -20,7 +23,13 @@ const contributors = {
     uk: ['UkrainianTranslator'],
 }
 
-function target(locale, accepted, pendingCompatible, pendingPlaceholderIncompatible, missing) {
+function target(
+    locale: string,
+    accepted: number,
+    pendingCompatible: number,
+    pendingPlaceholderIncompatible: number,
+    missing: number
+): TargetStatusSummary {
     return {
         kind: 'target',
         locale,
@@ -59,7 +68,7 @@ test('README renderer emits three columns, canonical order, links, and bar-first
     for (const row of rows.slice(2)) {
         assert.equal((row.match(/\|/gu) ?? []).length, 4)
         assert.doesNotMatch(row, /\]\(<img/u)
-        const translation = row.split('|')[2]
+        const translation = row.split('|')[2]!
         assert.match(translation.trim(), /^<img /u)
     }
     assert.match(output, /\[Deutsch \(de\)\]\(apps\/desktop\/src\/renderer\/src\/i18n\/de\.json\)/u)
@@ -130,7 +139,7 @@ test('Step 6 command rendering does not write README.md', () => {
     try {
         const stdout = {
             value: '',
-            write(chunk) {
+            write(chunk: string) {
                 this.value += chunk
             },
         }

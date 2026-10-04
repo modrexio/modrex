@@ -9,6 +9,7 @@ import {
     buildTargetStatusSummary,
     deriveTargetStatus,
     formatPresentationPercentage,
+    type StatusSummaries,
 } from './i18n-presentation.mts'
 import {
     allocateStatusBar,
@@ -16,10 +17,12 @@ import {
     renderStatus,
     renderStatusBar,
     resolveSharedBarWidth,
+    type StatusRow,
 } from './i18n-presentation-cli.mts'
+import type { CliOutput } from './i18n-io.mts'
 import { inspectLocales, runI18nStatus } from './check-i18n.mts'
 
-function inspection(sourceCount, locales = []) {
+function inspection(sourceCount: number, locales: ReturnType<typeof locale>[] = []) {
     return {
         sourceErrors: [],
         totalCount: sourceCount,
@@ -27,10 +30,13 @@ function inspection(sourceCount, locales = []) {
     }
 }
 
-function locale(id, values) {
+function locale(
+    id: string,
+    values: { accepted?: number; pending?: number; fallback?: number; missing?: number }
+) {
     return {
         id,
-        errors: [],
+        errors: [] as string[],
         acceptedCount: values.accepted ?? 0,
         pendingCount: values.pending ?? 0,
         pendingPlaceholderIncompatibleCount: values.fallback ?? 0,
@@ -38,22 +44,38 @@ function locale(id, values) {
     }
 }
 
-function outputStream(capabilities = {}) {
+function outputStream(capabilities: Pick<CliOutput, 'isTTY' | 'columns'> = {}) {
     let value = ''
-    return {
-        stream: {
-            ...capabilities,
-            write(chunk) {
-                value += chunk
-            },
+    const stream: CliOutput = {
+        ...capabilities,
+        write(chunk) {
+            value += chunk
         },
+    }
+    return {
+        stream,
         value: () => value,
     }
 }
 
 const ANSI_PATTERN = /\[[0-9;]*m/gu
 
-function stripAnsi(text) {
+// Width tests only depend on the row fields they set, so the rest stay neutral.
+function statusRow(row: Partial<StatusRow> & Pick<StatusRow, 'kind' | 'labelWidth'>): StatusRow {
+    return {
+        locale: 'en',
+        label: '',
+        displayLabel: '',
+        accepted: 0,
+        pending: 0,
+        missing: 0,
+        total: 0,
+        usesEnglishFallback: 0,
+        ...row,
+    }
+}
+
+function stripAnsi(text: string) {
     return text.replace(ANSI_PATTERN, '')
 }
 
@@ -157,13 +179,13 @@ test('status bars use exact deterministic 40-cell allocation and state order', (
         )
         assert.equal(renderStatusBar(summary).length, 40)
         for (const [index, count] of [counts.accepted, counts.pending, counts.missing].entries()) {
-            if (count > 0) assert.ok(cells[index] > 0)
+            if (count > 0) assert.ok(cells[index]! > 0)
         }
     }
 })
 
 test('resolveSharedBarWidth accounts for the full row: preferred, reduced, minimum, and below-minimum', () => {
-    const row = { kind: 'source', labelWidth: 12, total: 422 }
+    const row = statusRow({ kind: 'source', labelWidth: 12, total: 422 })
     // nonBarWidth = labelWidth(12) + 1 + STATUS_COLUMN_WIDTH(8) + 1 + "422 source".length(10) = 32
     // available = columns - nonBarWidth - 1
     assert.equal(resolveSharedBarWidth([row], 73), 40) // available = 40, exactly preferred
@@ -175,15 +197,15 @@ test('resolveSharedBarWidth accounts for the full row: preferred, reduced, minim
 })
 
 test('resolveSharedBarWidth uses the worst-case row so all locales share one bar width', () => {
-    const shortRow = { kind: 'source', labelWidth: 12, total: 422 }
-    const longRow = {
+    const shortRow = statusRow({ kind: 'source', labelWidth: 12, total: 422 })
+    const longRow = statusRow({
         kind: 'target',
         labelWidth: 12,
         accepted: 400,
         pending: 13,
         missing: 9,
         usesEnglishFallback: 3,
-    }
+    })
     // longRow counts = "400 accepted, 13 review, 9 missing, fallback=3" (46 chars)
     // its nonBarWidth = 12 + 1 + 8 + 1 + 46 = 68, dominating the short row's 32
     assert.equal(resolveSharedBarWidth([shortRow, longRow], 100), 0) // longRow still too wide
@@ -193,7 +215,7 @@ test('resolveSharedBarWidth uses the worst-case row so all locales share one bar
 })
 
 test('resolveSharedBarWidth never returns a width below the approved minimum or above the preferred width', () => {
-    const row = { kind: 'source', labelWidth: 15, total: 422 }
+    const row = statusRow({ kind: 'source', labelWidth: 15, total: 422 })
     for (let columns = 0; columns <= 200; columns += 1) {
         const width = resolveSharedBarWidth([row], columns)
         assert.ok(width === 0 || (width >= 32 && width <= 40))
@@ -233,7 +255,7 @@ test('rich bars use ordered ANSI foreground segments for all nonzero states', ()
 })
 
 test('plain and rich status renderers preserve the same semantic facts', () => {
-    const summaries = {
+    const summaries: StatusSummaries = {
         source: { kind: 'source', locale: 'en', total: 422 },
         targets: [
             {
@@ -273,7 +295,7 @@ test('plain and rich status renderers preserve the same semantic facts', () => {
 })
 
 test('a wide TTY with NO_COLOR falls back to compact bar-free rows, not an uncolored bar', () => {
-    const summaries = {
+    const summaries: StatusSummaries = {
         source: { kind: 'source', locale: 'en', total: 10 },
         targets: [
             {
@@ -332,7 +354,7 @@ test('absent and scaffold target leaves both count as Missing', () => {
             writeFileSync(join(directory, 'en.json'), JSON.stringify({ key: 'English' }))
             writeFileSync(join(directory, 'de.json'), JSON.stringify(target))
             const summaries = buildStatusSummaries(inspectLocales(directory))
-            const summary = summaries.targets[0]
+            const summary = summaries.targets[0]!
             assert.equal(summary.accepted, 0)
             assert.equal(summary.pendingCompatible, 0)
             assert.equal(summary.pendingPlaceholderIncompatible, 0)
@@ -381,7 +403,7 @@ test('status is independent of Git history', () => {
 })
 
 test('rich bar boundaries retain styling and omit only the bar', () => {
-    const summary = {
+    const summary: StatusSummaries = {
         source: { kind: 'source', locale: 'en', total: 10 },
         targets: [
             {
@@ -418,7 +440,7 @@ test('rich bar boundaries retain styling and omit only the bar', () => {
 })
 
 test('disabling color also disables the bar even on an otherwise-eligible wide TTY', () => {
-    const summaries = {
+    const summaries: StatusSummaries = {
         source: { kind: 'source', locale: 'en', total: 10 },
         targets: [
             {
@@ -456,7 +478,7 @@ test('disabling color also disables the bar even on an otherwise-eligible wide T
 })
 
 test('no supported capability state renders a bar without color', () => {
-    const summaries = {
+    const summaries: StatusSummaries = {
         source: { kind: 'source', locale: 'en', total: 422 },
         targets: [
             {
@@ -500,8 +522,8 @@ test('tiny nonzero Review and Missing states remain visible', () => {
         assert.equal(bar.length, 40)
         assert.match(bar, /^━+$/u)
         const cells = allocateStatusBar(summary)
-        if (counts.pending > 0) assert.ok(cells[1] > 0)
-        if (counts.missing > 0) assert.ok(cells[2] > 0)
+        if (counts.pending > 0) assert.ok(cells[1]! > 0)
+        if (counts.missing > 0) assert.ok(cells[2]! > 0)
     }
 })
 
@@ -509,11 +531,11 @@ test('the real German/Russian tiny-Review fixture (420/2/0/422) remains visible 
     const summary = { accepted: 420, pending: 2, missing: 0, total: 422 }
     for (const width of [40, 32]) {
         const cells = allocateStatusBar(summary, width)
-        assert.equal(cells[0] + cells[1] + cells[2], width)
-        assert.ok(cells[1] > 0, `Review must receive a visible cell at width ${width}`)
+        assert.equal(cells[0]! + cells[1]! + cells[2]!, width)
+        assert.ok(cells[1]! > 0, `Review must receive a visible cell at width ${width}`)
         assert.equal(cells[2], 0)
     }
-    const styles = { bar: (state, text) => `<${state}:${text}>` }
+    const styles = { bar: (state: string, text: string) => `<${state}:${text}>` }
     for (const width of [40, 32]) {
         const rendered = renderStatusBar(summary, styles, width)
         assert.match(rendered, /<review:━+>/u)
@@ -540,7 +562,7 @@ test('status bar allocation satisfies deterministic properties across count trip
 })
 
 test('fallback wording and stable plain fallback field are correct', () => {
-    for (const [count] of [[0], [1], [2]]) {
+    for (const count of [0, 1, 2]) {
         const stream = outputStream()
         renderStatus({
             summaries: {
@@ -590,7 +612,7 @@ test('status rows never include next-action recommendations', () => {
 })
 
 test('rich output renders exactly one logical line per locale summary', () => {
-    const summaries = {
+    const summaries: StatusSummaries = {
         source: { kind: 'source', locale: 'en', total: 422 },
         targets: [
             {
@@ -622,8 +644,13 @@ test('rich output renders exactly one logical line per locale summary', () => {
             },
         ],
     }
-    const nativeName = (id) =>
-        ({ en: 'English', de: 'Deutsch', ru: 'Русский', uk: 'Українська' })[id] ?? id
+    const names: Record<string, string> = {
+        en: 'English',
+        de: 'Deutsch',
+        ru: 'Русский',
+        uk: 'Українська',
+    }
+    const nativeName = (id: string) => names[id] ?? id
     const stream = outputStream({ isTTY: true, columns: 120 })
     renderStatus({
         summaries,
@@ -768,7 +795,7 @@ test('bold styling applies only to the locale label, not the whole row', () => {
         assert.match(output, /\[1mde \(de\)\[0m/u)
         // Status text and counts must never be wrapped in a semantic bar color.
         for (const line of output.split('\n').filter(Boolean)) {
-            const afterBar = line.split('[0m').pop()
+            const afterBar = line.split('[0m').pop()!
             assert.doesNotMatch(stripAnsi(afterBar), /^$/u)
             assert.doesNotMatch(afterBar, /\[3[123]m/u)
         }
@@ -800,7 +827,7 @@ test('status bar allocation is presentation-only and never alters underlying sem
 })
 
 test('plain status output is deterministic and omits zero counts and actions', () => {
-    const summaries = {
+    const summaries: StatusSummaries = {
         source: { kind: 'source', locale: 'en', total: 2 },
         targets: [
             {
@@ -814,7 +841,7 @@ test('plain status output is deterministic and omits zero counts and actions', (
             },
         ],
     }
-    const outputs = []
+    const outputs: string[] = []
     for (let index = 0; index < 2; index += 1) {
         const stream = outputStream()
         renderStatus({
@@ -825,8 +852,8 @@ test('plain status output is deterministic and omits zero counts and actions', (
         outputs.push(stream.value())
     }
     assert.equal(outputs[0], outputs[1])
-    assert.match(outputs[0], /en \(en\)/u)
-    assert.match(outputs[0], /de \(de\): 50%; 1 review, 1 missing/u)
-    assert.doesNotMatch(outputs[0], /Next:|pnpm i18n:(?:translate|review)/u)
-    assert.doesNotMatch(outputs[0], /\[/u)
+    assert.match(outputs[0]!, /en \(en\)/u)
+    assert.match(outputs[0]!, /de \(de\): 50%; 1 review, 1 missing/u)
+    assert.doesNotMatch(outputs[0]!, /Next:|pnpm i18n:(?:translate|review)/u)
+    assert.doesNotMatch(outputs[0]!, /\[/u)
 })

@@ -22,12 +22,19 @@ import { renderStatusSvg } from './i18n-presentation-svg.mts'
 const README_FIXTURE =
     '# Fixture\n\n<!-- TRANSLATION_STATUS_START -->\nstale placeholder\n<!-- TRANSLATION_STATUS_END -->\n\nAfter marker text.\n'
 
+type FixtureOptions = {
+    locales?: Record<string, Record<string, string>>
+    contributors?: Record<string, string[]>
+    readme?: string
+    withStatusDir?: boolean
+}
+
 function makeFixture({
     locales = { en: { key: 'English' }, de: { key: 'Deutsch' } },
     contributors = { de: ['FixtureUser'] },
     readme = README_FIXTURE,
     withStatusDir = false,
-} = {}) {
+}: FixtureOptions = {}) {
     const root = mkdtempSync(join(tmpdir(), 'modrex-i18n-lifecycle-'))
     const i18nDir = join(root, 'i18n')
     const statusAssetDir = join(root, 'status')
@@ -53,7 +60,9 @@ function makeFixture({
     }
 }
 
-function withFixture(overrides, callback) {
+type Fixture = ReturnType<typeof makeFixture>
+
+function withFixture(overrides: FixtureOptions, callback: (fixture: Fixture) => void) {
     const fixture = makeFixture(overrides)
     try {
         return callback(fixture)
@@ -62,11 +71,11 @@ function withFixture(overrides, callback) {
     }
 }
 
-function addLocale(fixture, id, content) {
+function addLocale(fixture: Fixture, id: string, content: Record<string, string>) {
     writeFileSync(join(fixture.i18nDir, `${id}.json`), JSON.stringify(content))
 }
 
-function removeLocale(fixture, id) {
+function removeLocale(fixture: Fixture, id: string) {
     unlinkSync(join(fixture.i18nDir, `${id}.json`))
 }
 
@@ -93,7 +102,7 @@ test('stale README: check reports stale, apply corrects it while preserving surr
         )
 
         const check = { value: '' }
-        const checkStream = { write: (chunk) => (check.value += chunk) }
+        const checkStream = { write: (chunk: string) => (check.value += chunk) }
         const checkStatus = runI18nPresentationLifecycle(['--check'], {
             stdout: checkStream,
             stderr: checkStream,
@@ -118,7 +127,7 @@ test('missing status SVG: check reports missing, apply creates exact expected by
         unlinkSync(join(fixture.statusAssetDir, 'de.svg'))
 
         const plan = buildI18nPresentationPlan(fixture.options)
-        const deAsset = plan.assets.find((asset) => asset.locale === 'de')
+        const deAsset = plan.assets.find((asset) => asset.locale === 'de')!
         assert.equal(deAsset.status, 'missing')
 
         applyI18nPresentationPlan(plan)
@@ -134,7 +143,7 @@ test('stale status SVG: check reports stale, apply restores canonical bytes', ()
         writeFileSync(enPath, 'not a real svg')
 
         const plan = buildI18nPresentationPlan(fixture.options)
-        const enAsset = plan.assets.find((asset) => asset.locale === 'en')
+        const enAsset = plan.assets.find((asset) => asset.locale === 'en')!
         assert.equal(enAsset.status, 'stale')
 
         applyI18nPresentationPlan(plan)
@@ -202,7 +211,7 @@ test('top-level status SVGs outside the expected locale set are obsolete regardl
         )
 
         const checkOutput = { value: '' }
-        const checkStream = { write: (chunk) => (checkOutput.value += chunk) }
+        const checkStream = { write: (chunk: string) => (checkOutput.value += chunk) }
         const checkStatus = runI18nPresentationLifecycle(['--check'], {
             stdout: checkStream,
             stderr: checkStream,
@@ -278,7 +287,7 @@ test('unchanged file preservation: already-current files are not rewritten and k
         assert.equal(statSync(enPath).mtimeMs, before)
         assert.equal(
             readFileSync(enPath, 'utf8'),
-            plan.assets.find((a) => a.locale === 'en').expected
+            plan.assets.find((a) => a.locale === 'en')!.expected
         )
     })
 })
@@ -353,10 +362,10 @@ test('same summary snapshot: README and SVG expected bytes derive from the ident
         (fixture) => {
             const plan = buildI18nPresentationPlan(fixture.options)
             for (const summary of [plan.summaries.source, ...plan.summaries.targets]) {
-                const asset = plan.assets.find((item) => item.locale === summary.locale)
+                const asset = plan.assets.find((item) => item.locale === summary.locale)!
                 assert.equal(asset.expected, renderStatusSvg(summary))
             }
-            const deSummary = plan.summaries.targets.find((s) => s.locale === 'de')
+            const deSummary = plan.summaries.targets.find((s) => s.locale === 'de')!
             const status = deriveTargetStatus(deSummary)
             assert.match(plan.readme.expected, new RegExp(`de\\.svg[^\\n]*> ${status.label}`, 'u'))
         }
@@ -380,7 +389,7 @@ test('check mode performs zero writes and zero deletes even with known drift pre
         }
 
         const output = { value: '' }
-        const stream = { write: (chunk) => (output.value += chunk) }
+        const stream = { write: (chunk: string) => (output.value += chunk) }
         const status = runI18nPresentationLifecycle(['--check'], {
             stdout: stream,
             stderr: stream,
@@ -426,10 +435,10 @@ test('locale addition: a newly added locale gains a deterministic expected SVG w
         )
 
         const plan = buildI18nPresentationPlan(fixture.options)
-        const ukAsset = plan.assets.find((asset) => asset.locale === 'uk')
+        const ukAsset = plan.assets.find((asset) => asset.locale === 'uk')!
         assert.equal(ukAsset.status, 'missing')
-        const enAsset = plan.assets.find((asset) => asset.locale === 'en')
-        const deAsset = plan.assets.find((asset) => asset.locale === 'de')
+        const enAsset = plan.assets.find((asset) => asset.locale === 'en')!
+        const deAsset = plan.assets.find((asset) => asset.locale === 'de')!
         assert.equal(enAsset.status, 'unchanged')
         assert.equal(deAsset.status, 'unchanged')
         assert.equal(enAsset.expected, enBefore)
@@ -464,7 +473,7 @@ test('locale removal: a removed locale disappears from the expected README row a
 test('check-then-write convergence: read-only check never mutates and --write only ever needs one pass to converge', () => {
     withFixture({}, (fixture) => {
         const checkOutput = { value: '' }
-        const checkStream = { write: (chunk) => (checkOutput.value += chunk) }
+        const checkStream = { write: (chunk: string) => (checkOutput.value += chunk) }
         const checkStatus = runI18nPresentationLifecycle(['--check'], {
             stdout: checkStream,
             stderr: checkStream,
@@ -473,7 +482,7 @@ test('check-then-write convergence: read-only check never mutates and --write on
         assert.equal(checkStatus, 1)
 
         const writeOutput = { value: '' }
-        const writeStream = { write: (chunk) => (writeOutput.value += chunk) }
+        const writeStream = { write: (chunk: string) => (writeOutput.value += chunk) }
         const writeStatus = runI18nPresentationLifecycle(['--write'], {
             stdout: writeStream,
             stderr: writeStream,
@@ -482,7 +491,7 @@ test('check-then-write convergence: read-only check never mutates and --write on
         assert.equal(writeStatus, 0)
 
         const secondCheckOutput = { value: '' }
-        const secondCheckStream = { write: (chunk) => (secondCheckOutput.value += chunk) }
+        const secondCheckStream = { write: (chunk: string) => (secondCheckOutput.value += chunk) }
         const secondCheckStatus = runI18nPresentationLifecycle(['--check'], {
             stdout: secondCheckStream,
             stderr: secondCheckStream,
@@ -496,7 +505,7 @@ test('check-then-write convergence: read-only check never mutates and --write on
 test('CLI usage: unsupported arguments fail with exit 2 and do not touch the filesystem', () => {
     withFixture({}, (fixture) => {
         const output = { value: '' }
-        const stream = { write: (chunk) => (output.value += chunk) }
+        const stream = { write: (chunk: string) => (output.value += chunk) }
         for (const args of [[], ['--bogus'], ['--check', '--write']]) {
             const status = runI18nPresentationLifecycle(args, {
                 stdout: stream,
@@ -512,7 +521,7 @@ test('CLI usage: unsupported arguments fail with exit 2 and do not touch the fil
 test('planning failure via CLI reports exit 1 with a descriptive message and no writes', () => {
     withFixture({ readme: '# broken\n' }, (fixture) => {
         const output = { value: '' }
-        const stream = { write: (chunk) => (output.value += chunk) }
+        const stream = { write: (chunk: string) => (output.value += chunk) }
         const status = runI18nPresentationLifecycle(['--check'], {
             stdout: stream,
             stderr: stream,
