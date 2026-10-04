@@ -4,14 +4,14 @@ import crypto from 'node:crypto'
 import { syncBuiltinESMExports } from 'node:module'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import test from 'node:test'
+import test, { type TestContext } from 'node:test'
 import {
     serializeLocale,
     writeLocaleAtomically,
     writeSerializedFileAtomically,
 } from './i18n-files.mts'
 
-function fixture(t) {
+function fixture(t: TestContext) {
     const directory = fs.mkdtempSync(join(tmpdir(), 'modrex-i18n-files-'))
     t.after(() => {
         t.mock.restoreAll()
@@ -49,7 +49,7 @@ test('failed replacement preserves the destination and removes the temporary fil
     syncBuiltinESMExports()
     assert.throws(
         () => writeSerializedFileAtomically(path, 'replacement'),
-        (error) => {
+        (error: Error) => {
             assert.match(error.message, /Failed to replace locale file/)
             assert.equal(error.cause, failure)
             return true
@@ -73,7 +73,7 @@ test('failed cleanup retains both errors and identifies the recoverable temporar
     syncBuiltinESMExports()
     assert.throws(
         () => writeSerializedFileAtomically(path, 'replacement'),
-        (error) => {
+        (error: Error) => {
             assert.ok(error instanceof AggregateError)
             assert.deepEqual(error.errors, [replacementError, cleanupError])
             assert.equal(error.cause, cleanupError)

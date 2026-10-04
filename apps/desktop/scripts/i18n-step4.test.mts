@@ -5,15 +5,18 @@ import { join } from 'node:path'
 import test from 'node:test'
 import { formatMissingReport, inspectLocales, runCheckI18n, runI18nCli } from './check-i18n.mts'
 import { formatSyncSummary, SYNC_OPERATION } from './i18n-sync.mts'
-import { reviewLocaleSession } from './i18n-review.mts'
+import { reviewLocaleSession, type Candidate } from './i18n-review.mts'
 import { createSemanticStyles, renderPlaceholderText } from './i18n-presentation-cli.mts'
+import type { CliOutput } from './i18n-io.mts'
+import type { LocaleBundle } from './i18n-files.mts'
 
 function stream() {
     let value = ''
-    return { stream: { write: (chunk) => (value += chunk) }, value: () => value }
+    const output: CliOutput = { write: (chunk) => (value += chunk) }
+    return { stream: output, value: () => value }
 }
 
-function withLocales(files, callback) {
+function withLocales<T>(files: Record<string, unknown>, callback: (directory: string) => T): T {
     const directory = mkdtempSync(join(tmpdir(), 'modrex-i18n-step4-'))
     const cleanup = () => rmSync(directory, { recursive: true, force: true })
     try {
@@ -21,7 +24,7 @@ function withLocales(files, callback) {
             writeFileSync(join(directory, name), JSON.stringify(value, null, 2) + '\n')
         }
         const result = callback(directory)
-        if (result && typeof result.then === 'function') return result.finally(cleanup)
+        if (result instanceof Promise) return result.finally(cleanup) as T
         cleanup()
         return result
     } catch (error) {
@@ -37,7 +40,7 @@ test('help leads with workflow grammar and grouped public commands', () => {
     const output = stdout.value()
     assert.match(
         output,
-        /^Modrex translation CLI\n\n!  translate this\n\?  review this\nno prefix  accepted translation/u
+        /^Modrex translation CLI\n\n! {2}translate this\n\? {2}review this\nno prefix {2}accepted translation/u
     )
     assert.match(output, /Inspect[\s\S]*pnpm i18n:status[\s\S]*pnpm i18n:missing/u)
     assert.match(output, /Prepare[\s\S]*pnpm i18n:fill[\s\S]*pnpm i18n:sync/u)
@@ -56,7 +59,7 @@ test('missing report is numbered and offers only a conditional translate action'
             const inspection = inspectLocales(directory)
             const report = formatMissingReport(inspection, 'de')
             assert.match(report, /1 missing key/u)
-            assert.match(report, /1\. first\n  English: "First"/u)
+            assert.match(report, /1\. first\n {2}English: "First"/u)
             assert.match(report, /Next: pnpm i18n:translate de/u)
         }
     )
@@ -64,7 +67,7 @@ test('missing report is numbered and offers only a conditional translate action'
         { 'en.json': { first: 'First', second: 'Second' }, 'de.json': { second: 'Zweite' } },
         (directory) => {
             const report = formatMissingReport(inspectLocales(directory), 'de')
-            assert.match(report, /1\. first\n  English: "First"/u)
+            assert.match(report, /1\. first\n {2}English: "First"/u)
             assert.match(report, /Next: pnpm i18n:translate de/u)
         }
     )
@@ -89,7 +92,10 @@ test('fill and create summaries preserve target text and use a translation actio
             assert.match(stdout.value(), /Scaffolds added: 1/u)
             assert.match(stdout.value(), /Target-language text preserved\./u)
             assert.match(stdout.value(), /Next: pnpm i18n:translate de/u)
-            assert.equal(JSON.parse(readFileSync(join(directory, 'de.json'))).first, 'Erste')
+            assert.equal(
+                JSON.parse(readFileSync(join(directory, 'de.json'), 'utf8')).first,
+                'Erste'
+            )
         }
     )
     await withLocales({ 'en.json': { first: 'First' } }, async (directory) => {
@@ -115,8 +121,8 @@ test('sync summary names workflow maintenance and zero target-content edits', ()
                 id: 'de',
                 changed: true,
                 operations: [
-                    { kind: SYNC_OPERATION.SCAFFOLD_ADDED },
-                    { kind: SYNC_OPERATION.REVIEW_REQUESTED },
+                    { kind: SYNC_OPERATION.SCAFFOLD_ADDED, locale: 'de', key: 'first' },
+                    { kind: SYNC_OPERATION.REVIEW_REQUESTED, locale: 'de', key: 'second' },
                 ],
             },
         ],
@@ -153,11 +159,10 @@ test('translate and review sessions expose paths, counters, and completion count
             localePath: 'apps/desktop/src/renderer/src/i18n/de.json',
             candidates: [
                 {
-                    key: 'key',
+                    ...reviewCandidate('key'),
                     lastAcceptedSourceText: 'A',
                     currentSourceText: 'B',
-                    currentTargetText: 'X',
-                    placeholderCompatible: true,
+                    materialized: false,
                 },
             ],
         },
@@ -175,19 +180,27 @@ test('translate and review sessions expose paths, counters, and completion count
     assert.match(stdout.value(), /Saved: 0\nSkipped: 1\nRemaining: 0/u)
 })
 
-function reviewCandidate(key, target = 'X', compatible = true) {
+function reviewCandidate(key: string, target = 'X', compatible = true): Candidate {
     return {
+        locale: 'de',
         key,
         lastAcceptedSourceText: 'Accepted {name}',
+        lastAcceptedTargetText: null,
+        checkpointRevision: null,
         currentSourceText: 'Current {name}',
         currentTargetText: target,
+        pendingProvenance: null,
+        committedValue: undefined,
+        evidenceIncomplete: false,
         placeholderCompatible: compatible,
+        missingPlaceholders: [],
+        unexpectedPlaceholders: [],
         // reviewFixture stores every candidate with its marker, so Keep is available.
         materialized: true,
     }
 }
 
-function reviewFixture(candidates) {
+function reviewFixture(candidates: Candidate[]) {
     return {
         locale: {
             id: 'de',
@@ -203,11 +216,11 @@ function reviewFixture(candidates) {
 test('review reports saved, skipped, and remaining for mixed decisions', async () => {
     const candidates = [reviewCandidate('edit'), reviewCandidate('keep'), reviewCandidate('skip')]
     const stdout = stream()
-    const writes = []
+    const writes: LocaleBundle[] = []
     const answers = ['e', 'Bear {name}', 'k', 's']
     const result = await reviewLocaleSession({
         review: reviewFixture(candidates),
-        ask: async () => answers.shift(),
+        ask: async () => answers.shift()!,
         stdout: stdout.stream,
         write: (_path, bundle) => writes.push(bundle),
     })
@@ -224,7 +237,7 @@ test('review interruption preserves prior decisions and reports remaining work',
         reviewCandidate('later-two'),
     ]
     const stdout = stream()
-    const writes = []
+    const writes: LocaleBundle[] = []
     let answer = 0
     await assert.rejects(
         reviewLocaleSession({
@@ -242,7 +255,7 @@ test('review interruption preserves prior decisions and reports remaining work',
         /interrupted/u
     )
     assert.equal(writes.length, 1)
-    assert.equal(writes[0].edit, 'Bear {name}')
+    assert.equal(writes[0]!.edit, 'Bear {name}')
     assert.match(stdout.value(), /Review interrupted[\s\S]*Saved: 1\nSkipped: 1\nRemaining: 2/u)
 })
 
@@ -252,7 +265,7 @@ test('incompatible Keep remains unavailable and is not saved', async () => {
     const answers = ['k', 's']
     const result = await reviewLocaleSession({
         review: reviewFixture([candidate]),
-        ask: async () => answers.shift(),
+        ask: async () => answers.shift()!,
         stdout: stdout.stream,
         write: () => assert.fail('incompatible Keep must not write'),
     })
@@ -292,7 +305,7 @@ test('review and translate rich displays highlight foundation placeholders', asy
     const reviewAnswers = ['s']
     await reviewLocaleSession({
         review: { ...reviewFixture([reviewCandidate('key')]), localePath: 'de.json' },
-        ask: async () => reviewAnswers.shift(),
+        ask: async () => reviewAnswers.shift()!,
         stdout: reviewOutput.stream,
         env: { TERM: 'xterm' },
         write: () => {},
@@ -364,7 +377,11 @@ test('check pending fallback stays successful on stdout and blocking errors stay
 })
 
 test('sync summaries cover every maintenance category without target edits', () => {
-    const operations = Object.values(SYNC_OPERATION).map((kind) => ({ kind }))
+    const operations = Object.values(SYNC_OPERATION).map((kind) => ({
+        kind,
+        locale: 'de',
+        key: kind,
+    }))
     const output = formatSyncSummary({
         writes: [{ id: 'de', changed: true, operations }],
         written: ['de'],

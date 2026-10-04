@@ -11,26 +11,28 @@ import {
     localeJsonChanged,
 } from './update-i18n-contributors.mts'
 
-async function collectContributorsOnly(...args) {
+async function collectContributorsOnly(...args: Parameters<typeof collectTranslationContributors>) {
     const { contributors } = await collectTranslationContributors(...args)
     return contributors
 }
 
-function locale(value) {
+function locale(value: string | undefined) {
     return value === undefined ? undefined : JSON.stringify({ key: value })
 }
 
-function runGit(directory, args) {
+function runGit(directory: string, args: string[]) {
     return execFileSync('git', args, { cwd: directory, encoding: 'utf8' }).trim()
 }
 
-function temporaryHistory(states) {
+type HistoryState = { source: string; target: string | undefined; author: string; message?: string }
+
+function temporaryHistory(states: HistoryState[]) {
     const directory = mkdtempSync(join(tmpdir(), 'modrex-i18n-attribution-'))
     runGit(directory, ['init', '-q'])
     runGit(directory, ['config', 'user.name', 'Fixture Default'])
     runGit(directory, ['config', 'user.email', 'fixture@example.test'])
     runGit(directory, ['config', 'core.autocrlf', 'false'])
-    const commits = []
+    const commits: { sha: string; parent: string | undefined; author: string }[] = []
     try {
         for (const state of states) {
             writeFileSync(join(directory, 'en.json'), JSON.stringify({ key: state.source }))
@@ -69,9 +71,9 @@ function temporaryHistory(states) {
                     }))
                 return collectContributorsOnly(
                     ['de'],
-                    (_localeId, page) => (page === 1 ? apiCommits : []),
+                    async (_localeId, page) => (page === 1 ? apiCommits : []),
                     (_localeId, commit) => {
-                        const snapshot = (revision) => {
+                        const snapshot = (revision: string) => {
                             const path = runGit(directory, [
                                 'ls-tree',
                                 '--name-only',
@@ -98,7 +100,10 @@ function temporaryHistory(states) {
     }
 }
 
-async function withTemporaryHistory(states, callback) {
+async function withTemporaryHistory(
+    states: HistoryState[],
+    callback: (fixture: ReturnType<typeof temporaryHistory>) => Promise<unknown>
+) {
     const fixture = temporaryHistory(states)
     try {
         return await callback(fixture)
@@ -115,14 +120,14 @@ const noCreditTransitions = [
     ['source return clear', '? X', 'X'],
     ['target deletion', 'X', undefined],
     ['NFC-equivalent target edit', 'e\u0301', 'é'],
-]
+] satisfies [string, string | undefined, string | undefined][]
 
 for (const [name, previous, current] of noCreditTransitions) {
     test(`attribution ignores ${name}`, () => {
         assert.equal(
             localeJsonChanged(
                 locale(previous),
-                current === undefined ? '{}' : locale(current),
+                current === undefined ? '{}' : locale(current)!,
                 'de'
             ),
             false
@@ -139,11 +144,11 @@ const creditTransitions = [
     ['punctuation edit', 'Hello', 'Hello!'],
     ['capitalization edit', 'word', 'Word'],
     ['target whitespace edit', 'foo bar', 'foo  bar'],
-]
+] satisfies [string, string | undefined, string][]
 
 for (const [name, previous, current] of creditTransitions) {
     test(`attribution credits ${name}`, () => {
-        assert.equal(localeJsonChanged(locale(previous), locale(current), 'de'), true)
+        assert.equal(localeJsonChanged(locale(previous), locale(current)!, 'de'), true)
     })
 }
 
@@ -180,7 +185,7 @@ test('marker-only maintenance across locales credits no source maintainer', asyn
     ])
     const contributors = await collectContributorsOnly(
         ['de', 'ru', 'uk'],
-        (localeId, page) => {
+        async (localeId, page) => {
             if (page > 1) return []
             const sha = localeId === 'uk' ? 'uk-scaffold' : `${localeId}-marker`
             return [
@@ -192,8 +197,8 @@ test('marker-only maintenance across locales credits no source maintainer', asyn
             ]
         },
         (_localeId, commit) => {
-            const [previous, current] = snapshots.get(commit.sha)
-            return localeJsonChanged(previous, current, _localeId)
+            const [previous, current] = snapshots.get(commit.sha)!
+            return localeJsonChanged(previous, current!, _localeId)
         }
     )
     assert.deepEqual(contributors, {})
@@ -202,14 +207,14 @@ test('marker-only maintenance across locales credits no source maintainer', asyn
 test('pending edit remains attributable even while review is unresolved', async () => {
     const contributors = await collectContributorsOnly(
         ['de'],
-        () => [
+        async () => [
             {
                 sha: 'pending-edit',
                 parents: [{ sha: 'parent' }],
                 author: { type: 'User', login: 'TranslatorB' },
             },
         ],
-        () => localeJsonChanged(locale('? X'), locale('? Y'), 'de')
+        () => localeJsonChanged(locale('? X'), locale('? Y')!, 'de')
     )
     assert.deepEqual(contributors, { de: ['TranslatorB'] })
 })
@@ -223,7 +228,7 @@ test('linked GitHub authors remain accumulated only for semantic target changes'
     ])
     const contributors = await collectContributorsOnly(
         ['de'],
-        (_localeId, page) =>
+        async (_localeId, page) =>
             page === 1
                 ? [...transitions.keys()].map((sha, index) => ({
                       sha,
@@ -232,8 +237,8 @@ test('linked GitHub authors remain accumulated only for semantic target changes'
                   }))
                 : [],
         (_localeId, commit) => {
-            const [previous, current] = transitions.get(commit.sha)
-            return localeJsonChanged(locale(previous), locale(current), 'de')
+            const [previous, current] = transitions.get(commit.sha)!
+            return localeJsonChanged(locale(previous), locale(current)!, 'de')
         }
     )
     assert.deepEqual(contributors, { de: ['translator-a', 'translator-b'] })
@@ -259,7 +264,7 @@ test('linked marker-only identities are excluded while linked editors remain cre
     ]
     const contributors = await collectContributorsOnly(
         ['de'],
-        (_localeId, page) => (page === 1 ? commits : []),
+        async (_localeId, page) => (page === 1 ? commits : []),
         (_localeId, commit) => commit.sha === 'linked-edit'
     )
     assert.deepEqual(contributors, { de: ['SquashedTranslator'] })
@@ -366,12 +371,12 @@ test('malformed historical target leaves fail closed through real Git collection
 test('a revision whose JSON never parsed counts as a change', () => {
     const broken = '{"key": "X\n}'
     assert.equal(localeJsonChanged(undefined, broken, 'de'), true)
-    assert.equal(localeJsonChanged(broken, locale('X'), 'de'), true)
+    assert.equal(localeJsonChanged(broken, locale('X')!, 'de'), true)
 })
 
 test('malformed target marker syntax remains rejected', () => {
     assert.throws(
-        () => localeJsonChanged(locale('X'), locale('? ? X'), 'de'),
+        () => localeJsonChanged(locale('X'), locale('? ? X')!, 'de'),
         /Could not compare historical JSON for locale 'de'/
     )
 })
@@ -452,7 +457,7 @@ test('a promoted maintainer loses credit only where they did not create the loca
 test('the oldest commit for a locale is reported as its creator', async () => {
     const { creators } = await collectTranslationContributors(
         ['uk'],
-        (_localeId, page) =>
+        async (_localeId, page) =>
             page === 1
                 ? [
                       {
@@ -479,10 +484,10 @@ for (const count of [0, 99, 100, 101, 200]) {
             parents: [],
             author: { type: 'User', login: index === count - 1 ? 'Creator' : 'Translator' },
         }))
-        const pages = []
+        const pages: number[] = []
         const { contributors, creators } = await collectTranslationContributors(
             ['de'],
-            (_localeId, page) => {
+            async (_localeId, page) => {
                 pages.push(page)
                 return commits.slice((page - 1) * 100, page * 100)
             },
@@ -501,8 +506,8 @@ for (const count of [0, 99, 100, 101, 200]) {
 }
 
 test('every commit API page is pinned to the resolved checkout', async (t) => {
-    const urls = []
-    t.mock.method(globalThis, 'fetch', async (url) => {
+    const urls: URL[] = []
+    t.mock.method(globalThis, 'fetch', async (url: string | URL) => {
         urls.push(new URL(url))
         return { ok: true, json: async () => [] }
     })
@@ -556,7 +561,7 @@ test('pagination aborts on malformed later pages', async () => {
         await assert.rejects(
             collectTranslationContributors(
                 ['de'],
-                (_locale, page) => (page === 1 ? fullPage : invalidPage),
+                async (_locale, page) => (page === 1 ? fullPage : invalidPage),
                 () => true
             ),
             /invalid commit/
@@ -573,7 +578,7 @@ for (const author of [null, { type: 'Bot', login: 'Robot' }]) {
         }))
         const { contributors, creators } = await collectTranslationContributors(
             ['de'],
-            (_locale, page) => (page === 1 ? commits : []),
+            async (_locale, page) => (page === 1 ? commits : []),
             () => true
         )
         assert.deepEqual(creators, {})
@@ -587,7 +592,7 @@ for (const author of [null, { type: 'Bot', login: 'Robot' }]) {
 test('an empty locale history cannot inherit the preceding locale creator', async () => {
     const result = await collectTranslationContributors(
         ['de', 'fr'],
-        (locale) =>
+        async (locale) =>
             locale === 'de'
                 ? [{ sha: 'first', parents: [], author: { type: 'User', login: 'Creator' } }]
                 : [],

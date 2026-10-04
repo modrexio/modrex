@@ -55,9 +55,15 @@ test('target markers require the exact prefix and ASCII space', () => {
 })
 
 test('target parsing preserves marker payload whitespace exactly', () => {
-    assert.equal(parseTargetValue(' Hallo ').targetText, ' Hallo ')
-    assert.equal(parseTargetValue('?  Hallo \n').targetText, ' Hallo \n')
-    assert.equal(parseTargetValue('!  Hello ').sourceText, ' Hello ')
+    const accepted = parseTargetValue(' Hallo ')
+    assert.ok(accepted.kind === TARGET_VALUE_KIND.ACCEPTED)
+    assert.equal(accepted.targetText, ' Hallo ')
+    const pending = parseTargetValue('?  Hallo \n')
+    assert.ok(pending.kind === TARGET_VALUE_KIND.PENDING)
+    assert.equal(pending.targetText, ' Hallo \n')
+    const scaffold = parseTargetValue('!  Hello ')
+    assert.ok(scaffold.kind === TARGET_VALUE_KIND.UNTRANSLATED_SCAFFOLD)
+    assert.equal(scaffold.sourceText, ' Hello ')
 })
 
 test('target parsing rejects empty and nested pending payloads', () => {
@@ -91,14 +97,16 @@ test('locale parsing preserves Unicode without normalization', () => {
     const decomposed = 'Cafe\u0301'
     assert.notEqual(decomposed, decomposed.normalize('NFC'))
     assert.equal(parseSourceValue(decomposed).sourceText, decomposed)
-    assert.equal(parseTargetValue(`? ${decomposed}`).targetText, decomposed)
+    const pending = parseTargetValue(`? ${decomposed}`)
+    assert.ok(pending.kind === TARGET_VALUE_KIND.PENDING)
+    assert.equal(pending.targetText, decomposed)
 })
 
 test('placeholder contracts retain duplicate names', () => {
     assert.deepEqual(placeholderContract('{name} / {count} / {name}'), ['count', 'name', 'name'])
 })
 
-function withLocales(files, callback) {
+function withLocales(files: Record<string, unknown>, callback: (directory: string) => void) {
     const directory = mkdtempSync(join(tmpdir(), 'modrex-i18n-'))
     try {
         for (const [name, value] of Object.entries(files)) {
@@ -110,7 +118,10 @@ function withLocales(files, callback) {
     }
 }
 
-async function withLocalesAsync(files, callback) {
+async function withLocalesAsync(
+    files: Record<string, unknown>,
+    callback: (directory: string) => Promise<void>
+) {
     const directory = mkdtempSync(join(tmpdir(), 'modrex-i18n-'))
     try {
         for (const [name, value] of Object.entries(files)) {
@@ -122,11 +133,11 @@ async function withLocalesAsync(files, callback) {
     }
 }
 
-function promptAnswers(...answers) {
+function promptAnswers(...answers: (string | Error)[]) {
     let index = 0
     return async () => {
         assert.ok(index < answers.length, 'interactive session requested an unexpected answer')
-        const answer = answers[index]
+        const answer = answers[index]!
         index += 1
         if (answer instanceof Error) throw answer
         return answer
@@ -137,7 +148,7 @@ function captureStream() {
     let value = ''
     return {
         stream: {
-            write(chunk) {
+            write(chunk: string) {
                 value += chunk
             },
         },
@@ -154,8 +165,8 @@ test('inspectLocales accepts partial translations and reports coverage', () => {
         (directory) => {
             const inspection = inspectLocales(directory)
             assert.deepEqual(inspection.errors, [])
-            assert.equal(inspection.locales[0].translatedCount, 1)
-            assert.deepEqual(inspection.locales[0].missingKeys, ['common.by'])
+            assert.equal(inspection.locales[0]!.translatedCount, 1)
+            assert.deepEqual(inspection.locales[0]!.missingKeys, ['common.by'])
         }
     )
 })
@@ -179,7 +190,7 @@ test('pending values are translated but not accepted', () => {
             },
         },
         (directory) => {
-            const locale = inspectLocales(directory).locales[0]
+            const locale = inspectLocales(directory).locales[0]!
             assert.deepEqual(locale.errors, [])
             assert.equal(locale.acceptedCount, 0)
             assert.equal(locale.pendingCount, 2)
@@ -191,7 +202,7 @@ test('pending values are translated but not accepted', () => {
                 locale.totalCount
             )
             assert.deepEqual(locale.pendingPlaceholderIncompatibleKeys, ['common.incompatible'])
-            assert.equal(locale.reviewNotices[0].type, 'pending-placeholder')
+            assert.equal(locale.reviewNotices[0]!.type, 'pending-placeholder')
         }
     )
 })
@@ -286,7 +297,7 @@ test('current-file validation rejects whitespace-only marker payloads', () => {
         (directory) => {
             const inspection = inspectLocales(directory)
             assert.equal(
-                inspection.locales[0].issues.filter(({ type }) => type === 'empty-marker').length,
+                inspection.locales[0]!.issues.filter(({ type }) => type === 'empty-marker').length,
                 2
             )
             assert.match(inspection.errors.join('\n'), /empty workflow marker payload/)
@@ -324,16 +335,21 @@ test('Unicode diagnostics distinguish errors, warnings, and English-only style',
             assert.match(inspection.errors.join('\n'), /'en' key 'hard' contains U\+0000/)
             assert.ok(
                 inspection.sourceWarnings.some(
-                    ({ description }) => description === 'text is not NFC-normalized'
+                    (issue) =>
+                        issue.type === 'unicode' &&
+                        issue.description === 'text is not NFC-normalized'
                 )
             )
             assert.ok(
-                inspection.sourceWarnings.some(({ description }) =>
-                    description.includes("prefer '...'")
+                inspection.sourceWarnings.some(
+                    (issue) =>
+                        issue.type === 'unicode' && issue.description.includes("prefer '...'")
                 )
             )
             assert.ok(
-                inspection.locales[0].warnings.some(({ codePoint }) => codePoint === 'U+200B')
+                inspection.locales[0]!.warnings.some(
+                    (issue) => issue.type === 'unicode' && issue.codePoint === 'U+200B'
+                )
             )
         }
     )
@@ -388,8 +404,8 @@ test('current scaffolds remain missing without placeholder or plural errors', ()
         (directory) => {
             const inspection = inspectLocales(directory)
             assert.deepEqual(inspection.errors, [])
-            assert.equal(inspection.locales[0].translatedCount, 0)
-            assert.deepEqual(inspection.locales[0].missingKeys, [
+            assert.equal(inspection.locales[0]!.translatedCount, 0)
+            assert.deepEqual(inspection.locales[0]!.missingKeys, [
                 'launch.game',
                 'mods.count',
                 'mods.countSingle',
@@ -461,7 +477,7 @@ test('missing report lists nested keys, English text, placeholders, and coverage
             const report = formatMissingReport(inspectLocales(directory), 'de')
             assert.match(report, /^Deutsch \(de\): 1\/2 translated, 50%/)
             assert.match(report, /1 missing key/)
-            assert.match(report, /nested\.greeting\n  English: "Hello \{name\}"/)
+            assert.match(report, /nested\.greeting\n {2}English: "Hello \{name\}"/)
         }
     )
 })
@@ -483,10 +499,10 @@ test('missing includes scaffolds and absence but excludes pending and accepted',
         },
         (directory) => {
             const inspection = inspectLocales(directory)
-            assert.deepEqual(inspection.locales[0].missingKeys, ['scaffold', 'absent'])
+            assert.deepEqual(inspection.locales[0]!.missingKeys, ['scaffold', 'absent'])
             const report = formatMissingReport(inspection, 'de')
-            assert.match(report, /scaffold\n  English: "Current scaffold source"/)
-            assert.match(report, /absent\n  English: "Current absent source"/)
+            assert.match(report, /scaffold\n {2}English: "Current scaffold source"/)
+            assert.match(report, /absent\n {2}English: "Current absent source"/)
             assert.doesNotMatch(report, /accepted\n|pending\n/)
         }
     )
@@ -559,7 +575,7 @@ test('locale command reports placeholder errors without rejecting partial pairs'
             })
             assert.equal(status, 1)
             assert.match(stderr.value(), /^de\.json\n1 validation problem/)
-            assert.match(stderr.value(), /launch\.game:\n  placeholder mismatch/)
+            assert.match(stderr.value(), /launch\.game:\n {2}placeholder mismatch/)
             assert.match(stderr.value(), /English: "Launch \{game\}"/)
             assert.match(stderr.value(), /Deutsch: "Spiel starten"/)
             assert.match(stderr.value(), /Missing placeholder: \{game\}/)
@@ -674,7 +690,7 @@ test('fill updates the locale file in place for IDE translation', async () => {
                 },
                 second: { stale: '! Current English' },
             })
-            const locale = inspectLocales(directory).locales[0]
+            const locale = inspectLocales(directory).locales[0]!
             assert.equal(locale.translatedCount, 1)
             assert.deepEqual(locale.missingKeys, ['first.missing', 'second.stale'])
             assert.match(stdout.value(), /Scaffolds added: 1/)
@@ -803,7 +819,7 @@ test('translation commands distinguish existing, new, and invalid locales', asyn
                 [['--translate', 'uk'], 1, /Locale 'uk' does not exist.*i18n:create uk/s],
                 [['--create', 'de'], 1, /Locale 'de' already exists.*i18n:fill de/s],
                 [['--create', 'pt-br'], 2, /must use canonical casing 'pt-BR\.json'/],
-            ]) {
+            ] satisfies [string[], number, RegExp][]) {
                 const stderr = captureStream()
                 const status = await runI18nCli(args, {
                     i18nDir: directory,
@@ -851,8 +867,8 @@ test('create immediately scaffolds and discovers an IDE-ready locale', async () 
                 inspection.locales.map((locale) => locale.id),
                 ['uk']
             )
-            assert.equal(inspection.locales[0].translatedCount, 0)
-            assert.deepEqual(inspection.locales[0].missingKeys, [
+            assert.equal(inspection.locales[0]!.translatedCount, 0)
+            assert.deepEqual(inspection.locales[0]!.missingKeys, [
                 'first.one',
                 'first.two',
                 'second.three',
@@ -923,7 +939,7 @@ test('translate prompts one missing plural member with its counterpart for conte
             })
 
             assert.equal(status, 0)
-            assert.match(stdout.value(), /Existing counterpart \(count\):\n  \{count\} Mods/)
+            assert.match(stdout.value(), /Existing counterpart \(count\):\n {2}\{count\} Mods/)
             assert.deepEqual(JSON.parse(readFileSync(join(directory, 'de.json'), 'utf8')), {
                 count: '{count} Mods',
                 countSingle: '{count} Mod',
@@ -947,7 +963,7 @@ test('translate retries placeholder mismatches before writing', async () => {
             })
 
             assert.equal(status, 0)
-            assert.match(stdout.value(), /Invalid translation:\n  Missing placeholder: \{game\}/)
+            assert.match(stdout.value(), /Invalid translation:\n {2}Missing placeholder: \{game\}/)
             assert.deepEqual(JSON.parse(readFileSync(join(directory, 'de.json'), 'utf8')), {
                 launch: { game: 'Spiel {game} starten' },
             })
@@ -1140,10 +1156,10 @@ test('translation contributors come from linked GitHub commit authors', async ()
             type: 'User',
         },
     }))
-    const requests = []
+    const requests: string[] = []
     const { contributors, creators } = await collectTranslationContributors(
         ['de', 'ru'],
-        (localeId, page) => {
+        async (localeId, page) => {
             requests.push(`${localeId}:${page}`)
             if (localeId === 'de' && page === 1) return fullPage
             if (localeId === 'de') {

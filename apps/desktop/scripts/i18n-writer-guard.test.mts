@@ -17,15 +17,15 @@ import { snapshotFromBundles } from './i18n-history.mts'
 import { describeWorkingTree } from './i18n-tree-state.mts'
 
 const LOCALE_DIR = 'apps/desktop/src/renderer/src/i18n'
-const README = (block) =>
+const README = (block: string) =>
     `# Modrex\n\nProse before.\n\n<!-- TRANSLATION_STATUS_START -->\n${block}\n<!-- TRANSLATION_STATUS_END -->\n\nProse after.\n`
 
-function git(cwd, args) {
+function git(cwd: string, args: string[]) {
     return execFileSync('git', args, { cwd, encoding: 'utf8' }).trim()
 }
 
-function targets(localeId, bundle) {
-    return snapshotFromBundles('fixture', { [localeId]: bundle }).locales.get(localeId).targets
+function targets(localeId: string, bundle: Record<string, string>) {
+    return snapshotFromBundles('fixture', { [localeId]: bundle }).locales.get(localeId)!.targets
 }
 
 function createRepo() {
@@ -47,7 +47,9 @@ function createRepo() {
     return { cwd, base: git(cwd, ['rev-parse', 'HEAD']) }
 }
 
-function withRepo(run) {
+type Fixture = ReturnType<typeof createRepo>
+
+function withRepo(run: (fixture: Fixture) => void) {
     const fixture = createRepo()
     try {
         return run(fixture)
@@ -56,7 +58,7 @@ function withRepo(run) {
     }
 }
 
-function guard(fixture) {
+function guard(fixture: Fixture) {
     return checkWriterOutput({ cwd: fixture.cwd, base: fixture.base, localeDir: LOCALE_DIR })
 }
 
@@ -94,7 +96,7 @@ test('adding and clearing a review marker preserves the payload', () => {
     for (const [from, to] of [
         [{ greet: 'Hallo' }, { greet: '? Hallo' }],
         [{ greet: '? Hallo' }, { greet: 'Hallo' }],
-    ]) {
+    ] satisfies [Record<string, string>, Record<string, string>][]) {
         assert.deepEqual(checkLocalePayloads('de', targets('de', from), targets('de', to)), [])
     }
 })
@@ -111,7 +113,7 @@ test('refreshing and removing a scaffold preserves the payload', () => {
 })
 
 test('translated text may not be created, rewritten or removed', () => {
-    const cases = [
+    const cases: [Record<string, string>, Record<string, string>, RegExp][] = [
         [{ greet: 'Hallo' }, { greet: 'Willkommen' }, /rewritten/u],
         [{ greet: 'Hallo' }, { greet: '? Willkommen' }, /rewritten/u],
         [{ greet: 'Hallo' }, {}, /removed/u],
@@ -123,7 +125,7 @@ test('translated text may not be created, rewritten or removed', () => {
     for (const [from, to, pattern] of cases) {
         const errors = checkLocalePayloads('de', targets('de', from), targets('de', to))
         assert.equal(errors.length, 1)
-        assert.match(errors[0], pattern)
+        assert.match(errors[0]!, pattern)
     }
 })
 
@@ -198,13 +200,13 @@ test('an unchanged tree is allowed writer output and the CLI reports it', () => 
     withRepo((fixture) => {
         const stdout = {
             value: '',
-            write(chunk) {
+            write(chunk: string) {
                 this.value += chunk
             },
         }
         const stderr = {
             value: '',
-            write(chunk) {
+            write(chunk: string) {
                 this.value += chunk
             },
         }
@@ -225,7 +227,7 @@ test('an unchanged tree is allowed writer output and the CLI reports it', () => 
 test('the CLI reports a usage error without a base revision', () => {
     const stderr = {
         value: '',
-        write(chunk) {
+        write(chunk: string) {
             this.value += chunk
         },
     }

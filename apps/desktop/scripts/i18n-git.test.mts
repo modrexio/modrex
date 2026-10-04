@@ -5,9 +5,9 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
 import { createGitAdapter } from './i18n-git.mts'
-import { analyzeCommittedHistory } from './i18n-history.mts'
+import { analyzeCommittedHistory, type HistoryGit } from './i18n-history.mts'
 
-function git(cwd, args) {
+function git(cwd: string, args: string[]) {
     return execFileSync('git', args, { cwd, encoding: 'utf8' }).trim()
 }
 
@@ -54,7 +54,7 @@ test('batched trees match ls-tree through unrelated work, renames, modes, deleti
     for (const [revision, tree] of trees)
         assert.deepEqual([...tree], [...adapter.treeBlobs(revision, 'i18n')])
     const batched = analyzeCommittedHistory({ cwd, baseline, localeDir: 'i18n' })
-    const unbatchedAdapter = createGitAdapter({ cwd })
+    const unbatchedAdapter: HistoryGit = createGitAdapter({ cwd })
     delete unbatchedAdapter.treesAtRevisions
     const unbatched = analyzeCommittedHistory({
         cwd,
@@ -74,7 +74,7 @@ const revision = 'b'.repeat(40)
 const oldBlob = 'c'.repeat(40)
 const newBlob = 'd'.repeat(40)
 const record = ':100644 100644 ' + oldBlob + ' ' + newBlob + ' M'
-function adapterWithOutput(output) {
+function adapterWithOutput(output: string) {
     return createGitAdapter({
         cwd: '.',
         run: (args) => ({
@@ -117,7 +117,7 @@ for (const [name, output] of [
         revision + '\0' + record.replace('100644 100644', '100644 100600') + '\0i18n/de.json\0',
     ],
     ['empty intermediate record', revision + '\0\0'],
-]) {
+] satisfies [string, string][]) {
     test('malformed diff transport refuses ' + name, () => {
         assert.throws(
             () => adapterWithOutput(output).treesAtRevisions([baseline, revision], 'i18n'),

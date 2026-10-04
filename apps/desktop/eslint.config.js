@@ -20,6 +20,11 @@ export default tseslint.config(
         languageOptions: { globals: globals.node },
     },
     {
+        // The CLI tests assert the exact ANSI escapes the terminal output carries.
+        files: ['scripts/**/*.test.mts'],
+        rules: { 'no-control-regex': 'off' },
+    },
+    {
         files: ['src/renderer/{src,preview}/**/*.{ts,tsx}'],
         extends: [js.configs.recommended, ...tseslint.configs.recommended],
         plugins: { 'react-hooks': reactHooks },
