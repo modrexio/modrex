@@ -3,29 +3,29 @@
 ## Commands
 
 ```bash
-bun run dev          # Start Tauri app (launches Vite dev server then Tauri)
-bun run dev-preview  # Renderer in a browser against fixtures, no Rust backend; compose ?library=, ?network=, ?games= and ?onboarding= states, see preview/previewState.ts
-bun run build-preview # Static build of the same into out/preview/
-bun run test:preview # Mount the app through the preview backend in happy-dom and assert the browse grid renders
+bun dev          # Start Tauri app (launches Vite dev server then Tauri)
+bun dev-preview  # Renderer in a browser against fixtures, no Rust backend; compose ?library=, ?network=, ?games= and ?onboarding= states, see preview/previewState.ts
+bun build-preview # Static build of the same into out/preview/
+bun test:preview # Mount the app through the preview backend in happy-dom and assert the browse grid renders
 bun run build        # Local production build, unsigned (tauri.local.conf.json disables updater artifacts) — exits 0, installer in src-tauri/target/release/bundle/nsis/
-bun run build:signed # CI production build with updater artifacts and Authenticode signing — requires TAURI_SIGNING_PRIVATE_KEY and, on Windows, the AZURE_* secrets read by src-tauri/scripts/sign-windows.ps1 (release.yml only; exits 1 without them)
-bun run dist:win     # Same as build but with explicit --target x86_64-pc-windows-msvc
-bun run dist:linux   # Package Linux AppImage + .deb (unsigned, like build)
-bun run typecheck    # Type-check renderer without emitting (same as: bun run tsc --noEmit)
-bun run check-version # Verify package, Tauri, Cargo, and lockfile versions agree
-bun run check-commands # Verify api.ts uses every command registered in collect_commands! in lib.rs, that the generated bindings are not stale, and that the invoke API stays api.ts-only (also runs in pre-commit and CI)
-bun run check-csp    # Verify csp and devCsp in tauri.conf.json agree on all external origins (also runs in pre-commit and CI)
-bun run check-updater # Verify release.yml's latest.json generation matches the updater config in tauri.conf.json (CI only)
-bun run check-i18n   # Validate each locale's translated subset and {var} interpolation against en.json, and report coverage (pre-commit + CI)
-bun run checks       # Run the full CI gate locally: all check-* scripts, format:check, lint, typecheck, tests
-bun run format       # Format all files with prettier
-bun run format:check # Check formatting without writing
-bun run lint         # ESLint on renderer source (src/renderer/src/)
-bun run lint:fix     # ESLint with auto-fix
+bun build:signed # CI production build with updater artifacts and Authenticode signing — requires TAURI_SIGNING_PRIVATE_KEY and, on Windows, the AZURE_* secrets read by src-tauri/scripts/sign-windows.ps1 (release.yml only; exits 1 without them)
+bun dist:win     # Same as build but with explicit --target x86_64-pc-windows-msvc
+bun dist:linux   # Package Linux AppImage + .deb (unsigned, like build)
+bun typecheck    # Type-check renderer without emitting (same as: bun tsc --noEmit)
+bun check-version # Verify package, Tauri, Cargo, and lockfile versions agree
+bun check-commands # Verify api.ts uses every command registered in collect_commands! in lib.rs, that the generated bindings are not stale, and that the invoke API stays api.ts-only (also runs in pre-commit and CI)
+bun check-csp    # Verify csp and devCsp in tauri.conf.json agree on all external origins (also runs in pre-commit and CI)
+bun check-updater # Verify release.yml's latest.json generation matches the updater config in tauri.conf.json (CI only)
+bun check-i18n   # Validate each locale's translated subset and {var} interpolation against en.json, and report coverage (pre-commit + CI)
+bun checks       # Run the full CI gate locally: all check-* scripts, format:check, lint, typecheck, tests
+bun format       # Format all files with prettier
+bun format:check # Check formatting without writing
+bun lint         # ESLint on renderer source (src/renderer/src/)
+bun lint:fix     # ESLint with auto-fix
 bun run test         # Run all tests: Rust (cargo test) then renderer (vitest)
-bun run test:renderer # Run only renderer TypeScript tests (vitest)
+bun test:renderer # Run only renderer TypeScript tests (vitest)
 cd src-tauri && cargo test --test export_preview_fixtures -- --ignored # Refresh preview fixtures from live modworkshop
-bun run generate-licenses # Regenerate THIRD_PARTY_LICENSES.md (run after adding/updating deps)
+bun generate-licenses # Regenerate THIRD_PARTY_LICENSES.md (run after adding/updating deps)
 cargo clippy      # Rust lints (run from src-tauri/); the tree is clippy-clean and CI enforces it with -D warnings — any warning is signal. Deliberate exceptions carry #[allow] at the site (too_many_arguments on the four archive-install commands, dead_code on the unwired ue4ss_modstxt read helpers)
 cargo fmt         # Format Rust code (run from src-tauri/)
 ```
@@ -39,8 +39,8 @@ cd src-tauri && cargo test strip_priority
 Run a single renderer test file or filter by name:
 
 ```bash
-bun run test:renderer src/renderer/src/browseCache.test.ts
-bun run test:renderer -t "returns stale"
+bun test:renderer src/renderer/src/browseCache.test.ts
+bun test:renderer -t "returns stale"
 ```
 
 ### Browser preview state
@@ -58,9 +58,9 @@ remain read-only compatibility aliases for shared links and must not gain new st
 
 Optional dev tooling (machine setup, not required by any script or CI): `cargo nextest run` (inside `src-tauri/`) is a faster drop-in test runner with the same name-filter syntax (`cargo nextest run strip_priority`); CI stays on `cargo test`. `sccache` is configured machine-wide as the rustc wrapper (`~/.cargo/config.toml`: `[build] rustc-wrapper = "sccache"`) so dependency compiles are cached across clones (`modrex-main`, `modrex-main-nexus`); delete that line to disable it if a toolchain issue is ever suspected.
 
-In `bun run dev`, renderer changes (`src/renderer/`) apply instantly via Vite HMR — no restart needed. Rust changes (`src-tauri/`) trigger an automatic `cargo` recompile via Tauri's file watcher; the window reloads when done.
+In `bun dev`, renderer changes (`src/renderer/`) apply instantly via Vite HMR — no restart needed. Rust changes (`src-tauri/`) trigger an automatic `cargo` recompile via Tauri's file watcher; the window reloads when done.
 
-**Pre-commit hooks** (`.husky/pre-commit`): runs the root format and lint gates (desktop plus site), then desktop command and CSP checks. Run `bun run format` and `bun run lint:fix` from the repository root to fix the first two. When dep files (`Cargo.toml`/`Cargo.lock`/`package.json`/`bun.lock`) are staged it also regenerates `THIRD_PARTY_LICENSES.md` (~15 s) and stages it. `commit-msg` runs `commitlint` to enforce the conventional commit format.
+**Pre-commit hooks** (`.husky/pre-commit`): runs the root format and lint gates (desktop plus site), then desktop command and CSP checks. Run `bun format` and `bun lint:fix` from the repository root to fix the first two. When dep files (`Cargo.toml`/`Cargo.lock`/`package.json`/`bun.lock`) are staged it also regenerates `THIRD_PARTY_LICENSES.md` (~15 s) and stages it. `commit-msg` runs `commitlint` to enforce the conventional commit format.
 
 ## Architecture
 
@@ -109,7 +109,7 @@ ModWorkshop and Nexus translate into them there; see `src-tauri/src/commands/AGE
 structs per shape. `api::Json` remains only for the handful of passthroughs that are still
 untyped.
 
-The payload shapes are typed end to end by tauri-specta: renaming or retyping a field on the Rust side changes the generated bindings and becomes a renderer compile error instead of a silent runtime break. Optional Rust params export as `T | null` (pass `x ?? null` in wrappers). Types crossing IPC derive `specta::Type`; `serde_json::Value` passthroughs use `api::Json` (specta's own Value impl recurses infinitely at export). `bun run check-commands` (pre-commit + CI) still enforces usage in both directions (a command called in api.ts but unregistered, or registered but never called, both fail) plus bindings freshness by name; CI's bindings-diff check catches shape-only drift.
+The payload shapes are typed end to end by tauri-specta: renaming or retyping a field on the Rust side changes the generated bindings and becomes a renderer compile error instead of a silent runtime break. Optional Rust params export as `T | null` (pass `x ?? null` in wrappers). Types crossing IPC derive `specta::Type`; `serde_json::Value` passthroughs use `api::Json` (specta's own Value impl recurses infinitely at export). `bun check-commands` (pre-commit + CI) still enforces usage in both directions (a command called in api.ts but unregistered, or registered but never called, both fail) plus bindings freshness by name; CI's bindings-diff check catches shape-only drift.
 
 ### Startup: two hidden windows, phased splash
 
@@ -153,20 +153,20 @@ through `modrex.net`. Full design + local proxy-testing steps live in
 The string mechanism (typed `t()`, build-time locale discovery, English fallback, the
 remount on language switch) is documented in `src/renderer/src/AGENTS.md`. The root
 `AGENTS.md` owns the AI translation policy. Missing keys are valid and use the English
-fallback, and so is a translation awaiting review after an English change. `bun run check-i18n`
+fallback, and so is a translation awaiting review after an English change. `bun check-i18n`
 rejects unknown keys, empty or non-string values, incomplete singular/plural pairs, and
 mismatched `{var}` interpolation, then reports each locale's Accepted/Review/Missing counts
 from Git history rather than from whichever marker is currently stored. It never fails because
 the bot has not written a marker yet; when history is unavailable it says which strings it
-could not judge instead of assuming they are fine. `bun run i18n:missing <locale>` lists untranslated keys with their English source text.
-`bun run i18n:fill <locale>` writes missing keys as `! `-prefixed English fallbacks into the locale
+could not judge instead of assuming they are fine. `bun i18n:missing <locale>` lists untranslated keys with their English source text.
+`bun i18n:fill <locale>` writes missing keys as `! `-prefixed English fallbacks into the locale
 file for IDE editing; marked values remain untranslated and fall back to English at runtime.
-`bun run i18n:translate <locale>` continues an existing locale interactively.
-`bun run i18n:create <locale>` creates a new IDE-ready locale containing marked English text, while
-`bun run i18n:fill <locale>` adds or refreshes marked text only in an existing locale. `bun run
+`bun i18n:translate <locale>` continues an existing locale interactively.
+`bun i18n:create <locale>` creates a new IDE-ready locale containing marked English text, while
+`bun i18n:fill <locale>` adds or refreshes marked text only in an existing locale. `bun
 i18n:presentation-check` reports whether the README translation table and per-locale status SVGs
-(`assets/i18n/status/`) still match current locale state without writing anything; `bun run
-i18n:presentation-write` materializes them. `bun run i18n:check-sync` is the equivalent for locale
+(`assets/i18n/status/`) still match current locale state without writing anything; `bun
+i18n:presentation-write` materializes them. `bun i18n:check-sync` is the equivalent for locale
 markers. All three are the bot's checks: they answer "has the writer caught up", which is never
 a contributor's problem. The `translation-status` workflow runs the writer after locale or
 English changes reach `main`, verifies its own output with those commands plus
@@ -175,7 +175,7 @@ README block or to a status SVG are overwritten on the next run.
 
 ## Rules
 
-- **When adding or updating dependencies** (Cargo.toml or package.json), remind the user to run `bun run generate-licenses` to update `THIRD_PARTY_LICENSES.md`. The pre-commit hook does this automatically when dep files are staged. CI enforces it via the `check-licenses` job in `ci.yml`.
+- **When adding or updating dependencies** (Cargo.toml or package.json), remind the user to run `bun generate-licenses` to update `THIRD_PARTY_LICENSES.md`. The pre-commit hook does this automatically when dep files are staged. CI enforces it via the `check-licenses` job in `ci.yml`.
 - **Never break the in-app update pipeline.** The updater endpoint is `https://github.com/modrexio/modrex/releases/latest/download/latest.json`. Any change to draft/publish behavior, `latest.json` generation, or the startup update check can silently stop all users on the current release from ever receiving future updates. Verify the full pipeline end-to-end when touching anything updater-related.
 - **Content Security Policy** lives in `tauri.conf.json` as `csp` (production) + `devCsp` (dev, relaxed with `'unsafe-inline'`/`'unsafe-eval'` and localhost ws/http for Vite HMR). `img-src` and `media-src` allow any `https:` host because mod descriptions embed images and videos from arbitrary hosts (imgur, Discord, catbox). Any other external resource, an iframe/embed provider, web font, or a renderer `fetch`, needs its origin added to the matching directive in **both** `csp` and `devCsp`. `dangerousDisableAssetCspModification: ["style-src"]` stops Tauri injecting style hashes (which would void `'unsafe-inline'` and break Tailwind/Radix/`createDragImage` inline styles); scripts still get Tauri's nonce injection, so `script-src` stays `'self'`. Mod descriptions are parsed by markdown-it with raw HTML escaped, as ModWorkshop does (`markdown.ts`), then sanitized by `rehype-sanitize` (explicit schema in `MarkdownContentImpl.tsx`; hostile-payload tests in `MarkdownContent.test.tsx`), with the CSP as defense-in-depth behind it — keep both tight.
 - **External URL opening is gated.** Every renderer call site funnels through the `shell_open_external` command, which runs `sanitize_external_url` (allow `http`/`https`/`mailto` only; reject `cmd`-breakout chars) before shelling out. Mod-description links are attacker-controlled — never bypass this command or pass untrusted URLs to a shell directly. The markdown link handler in `MarkdownContent.tsx` mirrors the scheme allowlist so disallowed links render as plain text.

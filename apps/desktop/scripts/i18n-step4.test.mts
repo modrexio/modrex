@@ -42,9 +42,9 @@ test('help leads with workflow grammar and grouped public commands', () => {
         output,
         /^Modrex translation CLI\n\n! {2}translate this\n\? {2}review this\nno prefix {2}accepted translation/u
     )
-    assert.match(output, /Inspect[\s\S]*bun run i18n:status[\s\S]*bun run i18n:missing/u)
-    assert.match(output, /Prepare[\s\S]*bun run i18n:fill[\s\S]*bun run i18n:sync/u)
-    assert.match(output, /Translate[\s\S]*bun run i18n:translate[\s\S]*bun run i18n:review/u)
+    assert.match(output, /Inspect[\s\S]*bun i18n:status[\s\S]*bun i18n:missing/u)
+    assert.match(output, /Prepare[\s\S]*bun i18n:fill[\s\S]*bun i18n:sync/u)
+    assert.match(output, /Translate[\s\S]*bun i18n:translate[\s\S]*bun i18n:review/u)
     assert.doesNotMatch(output, /node scripts\//u)
     assert.equal(stderr.value(), '')
 })
@@ -60,7 +60,7 @@ test('missing report is numbered and offers only a conditional translate action'
             const report = formatMissingReport(inspection, 'de')
             assert.match(report, /1 missing key/u)
             assert.match(report, /1\. first\n {2}English: "First"/u)
-            assert.match(report, /Next: bun run i18n:translate de/u)
+            assert.match(report, /Next: bun i18n:translate de/u)
         }
     )
     withLocales(
@@ -68,13 +68,13 @@ test('missing report is numbered and offers only a conditional translate action'
         (directory) => {
             const report = formatMissingReport(inspectLocales(directory), 'de')
             assert.match(report, /1\. first\n {2}English: "First"/u)
-            assert.match(report, /Next: bun run i18n:translate de/u)
+            assert.match(report, /Next: bun i18n:translate de/u)
         }
     )
     withLocales({ 'en.json': { first: 'First' }, 'de.json': { first: 'Erste' } }, (directory) => {
         const report = formatMissingReport(inspectLocales(directory), 'de')
         assert.match(report, /0 missing keys/u)
-        assert.doesNotMatch(report, /Next: bun run i18n:translate/u)
+        assert.doesNotMatch(report, /Next: bun i18n:translate/u)
     })
 })
 
@@ -91,7 +91,7 @@ test('fill and create summaries preserve target text and use a translation actio
             assert.equal(status, 0)
             assert.match(stdout.value(), /Scaffolds added: 1/u)
             assert.match(stdout.value(), /Target-language text preserved\./u)
-            assert.match(stdout.value(), /Next: bun run i18n:translate de/u)
+            assert.match(stdout.value(), /Next: bun i18n:translate de/u)
             assert.equal(
                 JSON.parse(readFileSync(join(directory, 'de.json'), 'utf8')).first,
                 'Erste'
@@ -109,7 +109,7 @@ test('fill and create summaries preserve target text and use a translation actio
         assert.match(stdout.value(), /Created .*de\.json/u)
         assert.match(stdout.value(), /Scaffolds added: 1/u)
         assert.match(stdout.value(), /Coverage remains 0%/u)
-        assert.match(stdout.value(), /Next: bun run i18n:translate de/u)
+        assert.match(stdout.value(), /Next: bun i18n:translate de/u)
         assert.doesNotMatch(stdout.value(), /translation(s)? created/u)
     })
 })
@@ -294,7 +294,7 @@ test('missing reports highlight placeholders only in rich mode', () => {
             assert.match(plain, /Launch \{game\} for \{name\} vs \{name\}/u)
             assert.doesNotMatch(plain, /\u001b\[/u)
             assert.equal((rich.match(/\u001b\[36m\{/gu) ?? []).length, 3)
-            assert.match(rich, /Next: bun run i18n:translate de/u)
+            assert.match(rich, /Next: bun i18n:translate de/u)
         }
     )
 })
@@ -339,7 +339,7 @@ test('check pending fallback stays successful on stdout and blocking errors stay
             assert.equal(status, 0)
             assert.equal(stderr.value(), '')
             assert.match(stdout.value(), /runtime uses English/u)
-            assert.match(stdout.value(), /Next: bun run i18n:review de/u)
+            assert.match(stdout.value(), /Next: bun i18n:review de/u)
         }
     )
     withLocales(

@@ -70,7 +70,7 @@ const header = [
     '# Third-Party Licenses',
     '',
     'This file lists all third-party dependencies bundled in Modrex and their license terms.',
-    'Regenerate with `bun run generate-licenses`.',
+    'Regenerate with `bun generate-licenses`.',
     '',
     '---',
     '',

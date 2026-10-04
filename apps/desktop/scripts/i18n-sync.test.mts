@@ -842,7 +842,7 @@ test('CLI rejects locale arguments with exit 2 and history failures with exit 1'
         },
     }
     assert.equal(runI18nSync(['de'], { stdout, stderr }), 2)
-    assert.match(error, /Usage: bun run i18n:sync/)
+    assert.match(error, /Usage: bun i18n:sync/)
 
     withRepository((directory) => {
         commitLocales(directory, { en: { a: 'A' }, de: { a: 'X' } }, 'baseline')

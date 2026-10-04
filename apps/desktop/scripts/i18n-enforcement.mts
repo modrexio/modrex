@@ -284,7 +284,7 @@ export function formatEnforcementFailure(result: {
         }
         lines.push('')
     }
-    lines.push('Run:', '  bun run i18n:sync', '', 'Then stage the updated locale files.')
+    lines.push('Run:', '  bun i18n:sync', '', 'Then stage the updated locale files.')
     return lines.join('\n')
 }
 

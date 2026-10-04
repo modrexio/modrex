@@ -608,7 +608,7 @@ test('status rows never include next-action recommendations', () => {
         capabilities: detectCliCapabilities({ stdout: output.stream, env: {} }),
         stdout: output.stream,
     })
-    assert.doesNotMatch(output.value(), /Next:|bun run i18n:(?:translate|review)/u)
+    assert.doesNotMatch(output.value(), /Next:|bun i18n:(?:translate|review)/u)
 })
 
 test('rich output renders exactly one logical line per locale summary', () => {
@@ -854,6 +854,6 @@ test('plain status output is deterministic and omits zero counts and actions', (
     assert.equal(outputs[0], outputs[1])
     assert.match(outputs[0]!, /en \(en\)/u)
     assert.match(outputs[0]!, /de \(de\): 50%; 1 review, 1 missing/u)
-    assert.doesNotMatch(outputs[0]!, /Next:|bun run i18n:(?:translate|review)/u)
+    assert.doesNotMatch(outputs[0]!, /Next:|bun i18n:(?:translate|review)/u)
     assert.doesNotMatch(outputs[0]!, /\[/u)
 })

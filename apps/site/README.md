@@ -6,11 +6,11 @@ Marketing and documentation site for [Modrex](https://github.com/modrexio/modrex
 
 ```bash
 bun install
-bun run dev        # Start dev server at localhost:4321
+bun dev        # Start dev server at localhost:4321
 bun run build      # Static build to dist/
-bun run typecheck  # Type-check .astro and .ts files
-bun run lint       # ESLint
-bun run format     # Prettier
+bun typecheck  # Type-check .astro and .ts files
+bun lint       # ESLint
+bun format     # Prettier
 ```
 
 ## Stack

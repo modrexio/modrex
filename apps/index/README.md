@@ -23,7 +23,7 @@ through 0.12.2. It is not fed by this pipeline and does not receive new games.
 
 ```bash
 bun install
-bun run index:build
-bun run index:build --concurrency=10
-bun run index:test
+bun index:build
+bun index:build --concurrency=10
+bun index:test
 ```

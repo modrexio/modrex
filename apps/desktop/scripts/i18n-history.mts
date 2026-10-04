@@ -141,7 +141,7 @@ export class I18nHistoryUnavailableError extends Error {
                 `Full i18n history through ${baseline} is required.\n` +
                 'This checkout was not modified.\n' +
                 'Fetch full history or rely on CI.\n' +
-                'Use bun run i18n:fill <locale> for history-independent scaffolding.'
+                'Use bun i18n:fill <locale> for history-independent scaffolding.'
         )
         this.name = 'I18nHistoryUnavailableError'
         this.reason = reason

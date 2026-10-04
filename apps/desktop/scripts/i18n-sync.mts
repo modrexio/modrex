@@ -71,7 +71,7 @@ export class I18nSyncPlanError extends Error {
             [
                 'i18n:sync cannot delete target-language content:',
                 ...issues.map(formatIssue),
-                'Remove or migrate each target value explicitly, then rerun bun run i18n:sync.',
+                'Remove or migrate each target value explicitly, then rerun bun i18n:sync.',
             ].join('\n')
         )
         this.name = 'I18nSyncPlanError'
@@ -365,7 +365,7 @@ export function runI18nSync(
     { stdout = process.stdout, stderr = process.stderr, ...options }: SyncOptions = {}
 ) {
     if (args.length > 0) {
-        stderr.write('Usage: bun run i18n:sync\n')
+        stderr.write('Usage: bun i18n:sync\n')
         return 2
     }
     try {

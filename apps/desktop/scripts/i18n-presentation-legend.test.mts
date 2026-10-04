@@ -39,7 +39,7 @@ test('legend assets are canonical solid, secure, and newline-stable SVGs', () =>
 
 // These assert the shape of the block the generator produces from current locale state.
 // Whether README.md has caught up with that is the bot's business, checked by
-// bun run i18n:presentation-check rather than by a unit test over the committed file.
+// bun i18n:presentation-check rather than by a unit test over the committed file.
 test('the generated README block owns its markers and resolves every legend image', () => {
     const readme = expectedReadme(readFileSync(README_PATH, 'utf8'))
     assert.equal(

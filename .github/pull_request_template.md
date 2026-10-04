@@ -20,7 +20,7 @@ See the [translation guide](https://github.com/modrexio/modrex/blob/main/docs/co
 
 ## Validation
 
-- [ ] Full local repository checks (`bun run checks`)
+- [ ] Full local repository checks (`bun checks`)
 - [ ] Relevant local checks
 - [ ] CI only
 - [ ] Not applicable

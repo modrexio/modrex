@@ -23,7 +23,7 @@ type DeepPartial<T> = T extends string ? T : { [K in keyof T]?: DeepPartial<T[K]
 
 type LocaleBundle = DeepPartial<typeof en>
 
-// RAW_BUNDLES is discovered at build time via import.meta.glob, so bun run check-i18n
+// RAW_BUNDLES is discovered at build time via import.meta.glob, so bun check-i18n
 // validates each translated subset against en.json before it reaches the app.
 const BUNDLES = RAW_BUNDLES as Record<LocaleId, LocaleBundle>
 

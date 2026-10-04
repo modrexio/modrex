@@ -24,6 +24,8 @@ beside it and holds nothing of its own.
 - Never commit unless the owner explicitly approves the reviewed step.
 - Commit messages must follow conventional commits, `type(scope): subject`, enforced by
   `commitlint.config.ts` at commit time.
+- Package scripts run as `bun <script>`, except `bun run build` and `bun run test`: plain
+  `bun build` and `bun test` silently start Bun's own bundler and test runner instead.
 - Deferred work is tracked in `.TODO`. Do NOT act on anything in it unless the user
   explicitly says "do the TODO: <name>" — never infer intent from the file on your own.
 
