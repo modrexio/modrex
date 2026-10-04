@@ -1,8 +1,8 @@
 # Translation ownership
 
-The tooling requires Node 22.18 or newer and runs its TypeScript modules directly,
-without installing dependencies or compiling JavaScript. Development type checking
-runs separately with pnpm i18n:typecheck.
+The tooling runs its TypeScript modules directly on Bun, without installing dependencies
+or compiling JavaScript. Development type checking
+runs separately with bun run i18n:typecheck.
 
 Modrex reconstructs translation state from Git history. This page says who is allowed to
 change what, and which check enforces which half of that.
@@ -43,13 +43,13 @@ happens to match some historical value is not evidence that anyone reviewed the 
 Two different questions, deliberately separated. Conflating them is what previously forced a
 contributor to commit the bot's future output.
 
-| Question                                      | Command                        | Who runs it         |
-| --------------------------------------------- | ------------------------------ | ------------------- |
-| Is this valid translation data?               | `pnpm i18n:check-readonly`     | CI, on every push   |
-| Same, restricted to the staged files          | `pnpm i18n:check-staged`       | the pre-commit hook |
-| Structural validation plus effective coverage | `pnpm check-i18n`              | CI and contributors |
-| Have the locale markers caught up?            | `pnpm i18n:check-sync`         | the bot only        |
-| Have the README and SVGs caught up?           | `pnpm i18n:presentation-check` | the bot only        |
+| Question                                      | Command                           | Who runs it         |
+| --------------------------------------------- | --------------------------------- | ------------------- |
+| Is this valid translation data?               | `bun run i18n:check-readonly`     | CI, on every push   |
+| Same, restricted to the staged files          | `bun run i18n:check-staged`       | the pre-commit hook |
+| Structural validation plus effective coverage | `bun run check-i18n`              | CI and contributors |
+| Have the locale markers caught up?            | `bun run i18n:check-sync`         | the bot only        |
+| Have the README and SVGs caught up?           | `bun run i18n:presentation-check` | the bot only        |
 
 The validity checks pass for a new English key with no translation, for changed English over an
 unchanged translation, and for a scaffold quoting superseded English. They fail for a translation
@@ -57,12 +57,12 @@ whose `{placeholders}` disagree with English that has not changed, an unknown ke
 translated text, invalid marker syntax, empty values, and unsafe Unicode.
 
 When Git history is unavailable, a check that needs it reports what it could not determine and
-exits non-zero. It never assumes the tree is fine. `pnpm i18n:fill` deliberately needs no history
+exits non-zero. It never assumes the tree is fine. `bun run i18n:fill` deliberately needs no history
 and stays usable in a shallow clone; it writes English scaffolds and never decides acceptance.
 
 ## Acceptance has to exist in Git
 
-`pnpm i18n:review` lists every entry that is effectively Review, including those whose `?` the
+`bun run i18n:review` lists every entry that is effectively Review, including those whose `?` the
 bot has not written yet, and it refuses any decision that would leave no trace. Keeping a
 translation writes back the text that is already there, so it is only a real acceptance when the
 committed file holds the `?` marker that the write removes. An Edit that retypes the committed
@@ -70,7 +70,7 @@ text is refused for the same reason.
 
 Both checks compare against the committed tree, never the working tree: a marker that sync wrote
 but nobody committed produces an empty diff, so removing it would record nothing while the
-command reported a successful Keep. When Keep is unavailable, run `pnpm i18n:sync`, commit the
+command reported a successful Keep. When Keep is unavailable, run `bun run i18n:sync`, commit the
 marker, and review again — or Edit, which writes new text and needs no marker first.
 
 A Review whose placeholders no longer match English can still be reviewed. Only Keep is
@@ -107,8 +107,8 @@ can prove fresh acceptance. Byte-identical endpoints and source returns alone ca
 unreadable gap. Review can offer an Edit, but keeping already committed plain text records no
 decision. An explicit review marker must be committed before Keep can remove it.
 
-pnpm i18n:check <locale> applies the same semantic rules as the default check to English and
-the selected locale. Unrelated corrupt locales do not block it. pnpm i18n:status remains
+bun run i18n:check <locale> applies the same semantic rules as the default check to English and
+the selected locale. Unrelated corrupt locales do not block it. bun run i18n:status remains
 structural and Git-independent. Its counts describe stored markers, not proven acceptance.
 
 ## What the writer checks before it commits

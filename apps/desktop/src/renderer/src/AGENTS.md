@@ -105,7 +105,7 @@ English lacks it too.
 `t()` call re-evaluates, while application state, workspace navigation and data
 subscriptions live above the remounted subtree and survive it. Module-scope `t()` calls are
 blocked by an ESLint rule (`eslint.config.js`) since they'd freeze at import time and never
-react to a switch — call `t()` inside a component, typically via `useMemo`. `pnpm check-i18n`
+react to a switch — call `t()` inside a component, typically via `useMemo`. `bun run check-i18n`
 validates translated keys and interpolation parameters against English; the translation
 workflow itself is described in `apps/desktop/AGENTS.md`.
 
@@ -132,4 +132,4 @@ Icons: `lucide-react`. Platform SVGs (Steam, Epic, Xbox, Windows, Linux) live in
 
 ### Tests
 
-Renderer tests use Vitest (`pnpm test:renderer`). The default environment is `node` (`vitest.config.ts`, matching `src/**/*.test.{ts,tsx}`) — pure-logic test files need no browser APIs. A component test opts into `jsdom` with a per-file `// @vitest-environment jsdom` pragma rather than switching the global default, so the rest of the suite stays on the faster `node` environment; `@testing-library/react` is the render harness for those.
+Renderer tests use Vitest (`bun run test:renderer`). The default environment is `node` (`vitest.config.ts`, matching `src/**/*.test.{ts,tsx}`) — pure-logic test files need no browser APIs. A component test opts into `happy-dom` with a per-file `// @vitest-environment happy-dom` pragma rather than switching the global default, so the rest of the suite stays on the faster `node` environment; `@testing-library/react` is the render harness for those.
