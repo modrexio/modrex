@@ -12,6 +12,12 @@ export type TargetStatusSummary = {
     missing: number
 }
 
+type SourceCounts = Pick<Inspection, 'sourceErrors' | 'totalCount'>
+type TargetCounts = Pick<
+    LocaleInspection,
+    'id' | 'acceptedCount' | 'pendingCount' | 'pendingPlaceholderIncompatibleCount' | 'missingCount'
+>
+
 const SOURCE_LOCALE = 'en'
 
 function assertCount(name: string, value: number) {
@@ -49,7 +55,7 @@ export function formatPresentationPercentage(translated: number, total: number) 
     return Number.isInteger(percentage) ? `${percentage}%` : `${percentage.toFixed(1)}%`
 }
 
-export function buildSourceStatusSummary(inspection: Inspection): SourceStatusSummary {
+export function buildSourceStatusSummary(inspection: SourceCounts): SourceStatusSummary {
     if (inspection.sourceErrors.length > 0) {
         throw new Error(`Source validation failed:\n${inspection.sourceErrors.join('\n')}`)
     }
@@ -63,10 +69,7 @@ export function buildSourceStatusSummary(inspection: Inspection): SourceStatusSu
     return summary
 }
 
-export function buildTargetStatusSummary(
-    locale: LocaleInspection,
-    total: number
-): TargetStatusSummary {
+export function buildTargetStatusSummary(locale: TargetCounts, total: number): TargetStatusSummary {
     const pendingPlaceholderIncompatible = locale.pendingPlaceholderIncompatibleCount
     const summary: TargetStatusSummary = {
         kind: 'target',
@@ -81,7 +84,9 @@ export function buildTargetStatusSummary(
     return summary
 }
 
-export function buildStatusSummaries(inspection: Inspection) {
+export function buildStatusSummaries(
+    inspection: SourceCounts & { locales: (TargetCounts & Pick<LocaleInspection, 'errors'>)[] }
+) {
     const source = buildSourceStatusSummary(inspection)
     if (inspection.locales.some((locale) => locale.errors.length > 0)) {
         const errors = inspection.locales.flatMap((locale) => locale.errors)

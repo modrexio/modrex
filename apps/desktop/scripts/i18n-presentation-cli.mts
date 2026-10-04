@@ -1,4 +1,4 @@
-import type { CliIO, CliOutput } from './i18n-io.mts'
+import type { CliOutput } from './i18n-io.mts'
 import type { StatusSummaries } from './i18n-presentation.mts'
 import { placeholderContract } from '../src/shared/i18n-values.mts'
 import { deriveTargetStatus } from './i18n-presentation.mts'
@@ -18,7 +18,7 @@ type SemanticStyles = Record<
     (value: string) => string
 >
 type BarStyles = { bar(state: (typeof STATES)[number], text: string): string }
-type StatusRow = Counts & {
+export type StatusRow = Counts & {
     locale: string
     kind: 'source' | 'target'
     usesEnglishFallback: number
@@ -35,7 +35,10 @@ const LABEL_SEPARATOR_WIDTH = 1
 const STATUS_SEPARATOR_WIDTH = 1
 const BAR_TRAILING_SPACE_WIDTH = 1
 
-export function detectCliCapabilities({ stdout = process.stdout, env = process.env }: CliIO = {}) {
+export function detectCliCapabilities({
+    stdout = process.stdout,
+    env = process.env,
+}: { stdout?: Pick<CliOutput, 'isTTY' | 'columns'>; env?: NodeJS.ProcessEnv } = {}) {
     const ci = env.CI !== undefined && env.CI !== '' && env.CI !== '0'
     const tty = stdout.isTTY === true
     const dumb = env.TERM === 'dumb'
