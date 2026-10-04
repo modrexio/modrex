@@ -272,7 +272,7 @@ jobs:
 
                   # The bundler signed the bytes this step just replaced, so without a fresh
                   # signature every installed Linux client rejects the update.
-                  bun run --cwd "$GITHUB_WORKSPACE/apps/desktop" tauri signer sign "$PWD/$APPIMAGE"
+                  bun --bun run --cwd "$GITHUB_WORKSPACE/apps/desktop" tauri signer sign "$PWD/$APPIMAGE"
 
             - name: Verify repacked AppImage
               working-directory: apps/desktop/src-tauri/target/release/bundle/appimage
