@@ -27,7 +27,9 @@ const rootPackage = readFileSync(rootPackagePath, 'utf8')
 const desktopPackage = readFileSync(desktopPackagePath, 'utf8')
 const conf = readFileSync(tauriConfigPath, 'utf8')
 const cargo = readFileSync(cargoManifestPath, 'utf8')
-const changelog = readFileSync(changelogPath, 'utf8')
+// .gitattributes stores CHANGELOG.md with LF, but an editor can leave CRLF in the working tree,
+// which Git still reports as clean.
+const changelog = readFileSync(changelogPath, 'utf8').replaceAll('\r\n', '\n')
 
 const oldVersion = JSON.parse(rootPackage).version
 const versions = {
@@ -67,45 +69,66 @@ if (!unreleasedBody) {
     )
 }
 
-const bump = (text) => text.replace(`"version": "${oldVersion}"`, `"version": "${version}"`)
-writeFileSync(rootPackagePath, bump(rootPackage))
-writeFileSync(desktopPackagePath, bump(desktopPackage))
-writeFileSync(tauriConfigPath, bump(conf))
-writeFileSync(
-    cargoManifestPath,
-    cargo.replace(`version = "${oldVersion}"`, `version = "${version}"`)
-)
-writeFileSync(
-    changelogPath,
-    changelog.replace(/## Unreleased\n+/, `## Unreleased\n\n## ${version}\n\n`)
-)
-
-execFileSync('cargo', ['update', '--manifest-path', cargoManifestPath, '-p', 'modrex'], {
-    stdio: 'inherit',
-})
-execFileSync(process.execPath, ['scripts/check-version.mjs'], {
-    cwd: desktopRoot,
-    stdio: 'inherit',
-})
-
+const releasePaths = [
+    'package.json',
+    'apps/desktop/package.json',
+    'apps/desktop/src-tauri/tauri.conf.json',
+    'apps/desktop/src-tauri/Cargo.toml',
+    'apps/desktop/src-tauri/Cargo.lock',
+    'CHANGELOG.md',
+]
 // release.yml rejects lightweight tags, so the tag is annotated and carries the release commit's
 // message.
 const message = `chore(release): ${version}`
-execFileSync(
-    'git',
-    [
-        'add',
-        '--',
-        'package.json',
-        'apps/desktop/package.json',
-        'apps/desktop/src-tauri/tauri.conf.json',
-        'apps/desktop/src-tauri/Cargo.toml',
-        'apps/desktop/src-tauri/Cargo.lock',
-        'CHANGELOG.md',
-    ],
-    { cwd: repoRoot, stdio: 'inherit' }
-)
-execFileSync('git', ['commit', '-m', message], { cwd: repoRoot, stdio: 'inherit' })
-execFileSync('git', ['tag', '-a', tag, '-m', message], { cwd: repoRoot, stdio: 'inherit' })
+const bump = (text) => text.replace(`"version": "${oldVersion}"`, `"version": "${version}"`)
+
+try {
+    writeFileSync(rootPackagePath, bump(rootPackage))
+    writeFileSync(desktopPackagePath, bump(desktopPackage))
+    writeFileSync(tauriConfigPath, bump(conf))
+    writeFileSync(
+        cargoManifestPath,
+        cargo.replace(`version = "${oldVersion}"`, `version = "${version}"`)
+    )
+    writeFileSync(
+        changelogPath,
+        changelog.replace(/## Unreleased\n+/, `## Unreleased\n\n## ${version}\n\n`)
+    )
+    execFileSync('cargo', ['update', '--manifest-path', cargoManifestPath, '-p', 'modrex'], {
+        stdio: 'inherit',
+    })
+    execFileSync(process.execPath, ['scripts/check-version.mjs'], {
+        cwd: desktopRoot,
+        stdio: 'inherit',
+    })
+    execFileSync('git', ['add', '--', ...releasePaths], { cwd: repoRoot, stdio: 'inherit' })
+    execFileSync('git', ['commit', '-m', message], { cwd: repoRoot, stdio: 'inherit' })
+} catch (error) {
+    // The tracked tree was clean before the bump, so restoring from HEAD undoes exactly this
+    // release. The pre-commit hook also regenerates and stages the license file.
+    execFileSync(
+        'git',
+        [
+            'restore',
+            '--staged',
+            '--worktree',
+            '--',
+            ...releasePaths,
+            'apps/desktop/THIRD_PARTY_LICENSES.md',
+        ],
+        { cwd: repoRoot, stdio: 'inherit' }
+    )
+    fail(
+        `Release ${version} stopped before its commit (${error.message}).\nThe version bump was undone, so fix the cause and run the release again.`
+    )
+}
+
+try {
+    execFileSync('git', ['tag', '-a', tag, '-m', message], { cwd: repoRoot, stdio: 'inherit' })
+} catch (error) {
+    fail(
+        `The release commit exists but ${tag} was not created (${error.message}).\nCreate it with: git tag -a ${tag} -m "${message}"`
+    )
+}
 
 console.log(`Created ${tag}. Push it with: git push --follow-tags`)
