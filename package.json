@@ -69,9 +69,6 @@
         "prettier": "^3.9.9",
         "typescript": "6.0.3"
     },
-    "engines": {
-        "node": ">=22.18.0"
-    },
     "overrides": {
         "postcss": "8.5.25",
         "esbuild": ">=0.28.1",

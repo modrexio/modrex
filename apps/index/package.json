@@ -11,16 +11,16 @@
         "report:postgres-coverage": "bun postgres/report-coverage.ts",
         "sync:postgres-listings": "bun postgres/sync-listings.ts",
         "verify:postgres-catalog": "bun postgres/verify-catalog.ts",
-        "test:archive-canaries": "tsx test-archive-canaries.ts",
-        "test:export-determinism": "tsx test-export-determinism.ts",
-        "test:game-schedule": "tsx test-game-schedule.ts",
-        "test:marker-archive": "tsx test-marker-archive.ts",
-        "test:marker-contract": "tsx test-marker-contract.ts",
-        "test:process-failure": "tsx test-process-failure.ts",
-        "test:postgres-architecture": "tsx test-postgres-architecture.ts",
-        "test:postgres-queries": "tsx test-postgres-queries.ts",
-        "test:snapshot-delta": "tsx test-snapshot-delta.ts",
-        "test:staged-rebuild": "node test-staged-rebuild.mjs"
+        "test:archive-canaries": "bun test-archive-canaries.ts",
+        "test:export-determinism": "bun test-export-determinism.ts",
+        "test:game-schedule": "bun test-game-schedule.ts",
+        "test:marker-archive": "bun test-marker-archive.ts",
+        "test:marker-contract": "bun test-marker-contract.ts",
+        "test:process-failure": "bun test-process-failure.ts",
+        "test:postgres-architecture": "bun test-postgres-architecture.ts",
+        "test:postgres-queries": "bun test-postgres-queries.ts",
+        "test:snapshot-delta": "bun test-snapshot-delta.ts",
+        "test:staged-rebuild": "bun test-staged-rebuild.mjs"
     },
     "dependencies": {
         "@modrex/games": "workspace:*",
@@ -34,7 +34,6 @@
         "@types/node": "^26.6.3",
         "adm-zip": "^0.6.1",
         "better-sqlite3": "^13.0.3",
-        "tsx": "^4.23.15",
         "typescript": "^6.0.3"
     }
 }

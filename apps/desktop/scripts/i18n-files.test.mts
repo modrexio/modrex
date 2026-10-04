@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import crypto from 'node:crypto'
-import { syncBuiltinESMExports } from 'node:module'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test, { type TestContext } from 'node:test'
@@ -15,7 +14,6 @@ function fixture(t: TestContext) {
     const directory = fs.mkdtempSync(join(tmpdir(), 'modrex-i18n-files-'))
     t.after(() => {
         t.mock.restoreAll()
-        syncBuiltinESMExports()
         fs.rmSync(directory, { recursive: true, force: true })
     })
     return { directory, path: join(directory, 'de.json') }
@@ -46,7 +44,6 @@ test('failed replacement preserves the destination and removes the temporary fil
     t.mock.method(fs, 'renameSync', () => {
         throw failure
     })
-    syncBuiltinESMExports()
     assert.throws(
         () => writeSerializedFileAtomically(path, 'replacement'),
         (error: Error) => {
@@ -70,7 +67,6 @@ test('failed cleanup retains both errors and identifies the recoverable temporar
     t.mock.method(fs, 'unlinkSync', () => {
         throw cleanupError
     })
-    syncBuiltinESMExports()
     assert.throws(
         () => writeSerializedFileAtomically(path, 'replacement'),
         (error: Error) => {
@@ -94,7 +90,6 @@ test('read failure propagates before creating a temporary file', (t) => {
     t.mock.method(fs, 'readFileSync', () => {
         throw failure
     })
-    syncBuiltinESMExports()
     assert.throws(
         () => writeSerializedFileAtomically(path, 'replacement'),
         (error) => error === failure
@@ -109,7 +104,6 @@ test('temporary file creation failure leaves existing destination intact', (t) =
     t.mock.method(fs, 'writeFileSync', () => {
         throw failure
     })
-    syncBuiltinESMExports()
     assert.throws(
         () => writeSerializedFileAtomically(path, 'replacement'),
         (error) => error === failure
@@ -124,7 +118,6 @@ test('exclusive temporary creation preserves a colliding file and the destinatio
     const temporary = join(directory, '.de.json.fixture.tmp')
     fs.writeFileSync(temporary, 'existing temporary content')
     t.mock.method(crypto, 'randomUUID', () => 'fixture')
-    syncBuiltinESMExports()
     assert.throws(() => writeSerializedFileAtomically(path, 'replacement'), { code: 'EEXIST' })
     assert.equal(fs.readFileSync(path, 'utf8'), 'original')
     assert.equal(fs.readFileSync(temporary, 'utf8'), 'existing temporary content')

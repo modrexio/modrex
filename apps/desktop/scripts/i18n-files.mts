@@ -1,5 +1,5 @@
-import { randomUUID } from 'node:crypto'
-import { existsSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs'
+import crypto from 'node:crypto'
+import fs from 'node:fs'
 import { basename, dirname, resolve } from 'node:path'
 
 export type LocaleBundle = { [key: string]: string | LocaleBundle }
@@ -8,17 +8,22 @@ export function serializeLocale(locale: LocaleBundle): string {
     return `${JSON.stringify(locale, null, 4)}\n`
 }
 
+// fs and crypto are called through their module objects so i18n-files.test.mts can replace
+// single methods. Named imports bind at load time and would keep the real functions.
 export function writeSerializedFileAtomically(filePath: string, serialized: string): boolean {
-    if (existsSync(filePath) && readFileSync(filePath, 'utf8') === serialized) return false
+    if (fs.existsSync(filePath) && fs.readFileSync(filePath, 'utf8') === serialized) return false
 
-    const temporaryPath = resolve(dirname(filePath), `.${basename(filePath)}.${randomUUID()}.tmp`)
-    writeFileSync(temporaryPath, serialized, { encoding: 'utf8', flag: 'wx' })
+    const temporaryPath = resolve(
+        dirname(filePath),
+        `.${basename(filePath)}.${crypto.randomUUID()}.tmp`
+    )
+    fs.writeFileSync(temporaryPath, serialized, { encoding: 'utf8', flag: 'wx' })
 
     try {
-        renameSync(temporaryPath, filePath)
+        fs.renameSync(temporaryPath, filePath)
     } catch (error) {
         try {
-            unlinkSync(temporaryPath)
+            fs.unlinkSync(temporaryPath)
         } catch (cleanupError) {
             throw new AggregateError(
                 [error, cleanupError],

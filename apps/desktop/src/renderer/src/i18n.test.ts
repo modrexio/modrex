@@ -42,7 +42,11 @@ describe('t', () => {
         vi.stubGlobal('navigator', { language: 'en-US', languages: ['en-US'] })
     })
 
-    afterEach(() => vi.doUnmock('./locales'))
+    // Keep the block body. Under Bun, a hook that returns the result of vi.doUnmock leaves
+    // the locales mock active for every later test in this file.
+    afterEach(() => {
+        vi.doUnmock('./locales')
+    })
 
     it('resolves a known key', async () => {
         const { t } = await loadModule()

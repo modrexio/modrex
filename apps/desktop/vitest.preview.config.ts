@@ -3,7 +3,7 @@ import viteConfig from './vite.config.ts'
 
 export default mergeConfig(viteConfig({ mode: 'preview', command: 'serve' }), {
     test: {
-        environment: 'jsdom',
+        environment: 'happy-dom',
         include: ['preview/**/*.test.{ts,tsx}'],
         // Each test imports the whole renderer afresh, which is seconds on a cold run.
         testTimeout: 20000,

@@ -1,4 +1,4 @@
-// @vitest-environment jsdom
+// @vitest-environment happy-dom
 import { describe, it, expect, vi } from 'vitest'
 import { act, renderHook } from '@testing-library/react'
 import type { ModFolder } from '../../../shared/types'

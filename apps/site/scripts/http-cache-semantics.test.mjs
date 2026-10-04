@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import test from 'node:test'
+import lock from '../../../bun.lock'
 
 const require = createRequire(import.meta.url)
 const astroRequire = createRequire(require.resolve('astro/package.json'))
@@ -18,19 +18,23 @@ function cachePolicy(headers, options = {}, serialized = false) {
 }
 
 // GHSA-ch52-4w7c-c8xp is excepted only while every locked copy uses the tested patch.
+// A nested copy at another version would appear as its own packages entry.
 test('all locked HTTP cache policies resolve to the verified 4.2.0 patch', () => {
-    const lock = readFileSync(
-        new URL('../../../pnpm-lock.yaml', import.meta.url),
-        'utf8'
-    ).replaceAll('\r\n', '\n')
-    const snapshots = lock.split('\nsnapshots:\n')[1]
-    assert.ok(snapshots, 'pnpm lockfile snapshots must be present')
-    const keys = [...snapshots.matchAll(/^  http-cache-semantics@([^:]+):(?: \{\})?$/gmu)]
-    assert.equal(keys.length, 1, 'every cache policy version needs its security assessment')
-    assert.match(keys[0][1], /^4\.2\.0\(patch_hash=[a-z0-9]+\)$/u)
-    const references = [...lock.matchAll(/^      http-cache-semantics: (.+)$/gmu)]
-    assert.ok(references.length > 0)
-    for (const [, version] of references) assert.equal(version, keys[0][1])
+    const resolved = Object.values(lock.packages)
+        .map(([identity]) => identity)
+        .filter((identity) => identity.startsWith('http-cache-semantics@'))
+    assert.ok(resolved.length > 0, 'the lockfile must contain the cache policy package')
+    assert.deepEqual(new Set(resolved), new Set(['http-cache-semantics@4.2.0']))
+    assert.deepEqual(
+        Object.keys(lock.patchedDependencies).filter((key) =>
+            key.startsWith('http-cache-semantics@')
+        ),
+        ['http-cache-semantics@4.2.0']
+    )
+    assert.equal(
+        lock.patchedDependencies['http-cache-semantics@4.2.0'],
+        'patches/http-cache-semantics@4.2.0.patch'
+    )
 })
 
 const restrictions = [

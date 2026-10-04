@@ -15,7 +15,7 @@
         "lint:fix": "eslint src/ --fix",
         "format": "prettier --write .",
         "format:check": "prettier --check .",
-        "test:cache-security": "node --test scripts/http-cache-semantics.test.mjs"
+        "test:cache-security": "bun test ./scripts/http-cache-semantics.test.mjs"
     },
     "devDependencies": {
         "@astrojs/check": "0.9.10",

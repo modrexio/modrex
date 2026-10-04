@@ -8,7 +8,6 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const repoDir = fileURLToPath(new URL('.', import.meta.url))
-const tsxCli = fileURLToPath(import.meta.resolve('tsx/cli'))
 const outputDir = await mkdtemp(join(tmpdir(), 'modrex-index-stage-'))
 
 const gameIds = new Map([
@@ -64,7 +63,7 @@ const env = {
 
 function run(args, expectedCode = 0) {
     return new Promise((resolve, reject) => {
-        const child = spawn(process.execPath, [tsxCli, 'build-index.ts', ...args], {
+        const child = spawn(process.execPath, ['build-index.ts', ...args], {
             cwd: repoDir,
             env,
             stdio: 'pipe',
