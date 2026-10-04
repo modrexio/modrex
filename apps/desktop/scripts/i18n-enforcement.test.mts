@@ -18,7 +18,7 @@ import { stagedSnapshot } from './i18n-history.mts'
 
 // Whether the bot has caught up is asked of the staged index the same way the semantic gate
 // reads it, so the two gates never disagree about which tree they are judging.
-function stagedSynchronization(cwd, baseline) {
+function stagedSynchronization(cwd: string, baseline: string) {
     const git = createGitAdapter({ cwd })
     return checkI18nSnapshot({
         cwd,
@@ -31,7 +31,7 @@ function stagedSynchronization(cwd, baseline) {
 
 const REPOSITORY_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../..')
 
-function git(cwd, args) {
+function git(cwd: string, args: string[]) {
     return execFileSync('git', args, { cwd, encoding: 'utf8' }).trim()
 }
 
@@ -43,7 +43,7 @@ function fixture(initialSource = 'A', initialTarget = 'X') {
     git(cwd, ['config', 'core.autocrlf', 'false'])
     const localeDir = join(cwd, 'i18n')
     mkdirSync(localeDir, { recursive: true })
-    const write = (source, target, extra = {}) => {
+    const write = (source: string, target: string, extra = {}) => {
         writeFileSync(join(localeDir, 'en.json'), JSON.stringify({ key: source }))
         writeFileSync(join(localeDir, 'de.json'), JSON.stringify({ key: target, ...extra }))
     }
@@ -62,7 +62,7 @@ function multiFixture() {
     git(cwd, ['config', 'user.email', 'stage10-multi@example.test'])
     const localeDir = join(cwd, 'i18n')
     mkdirSync(localeDir, { recursive: true })
-    const write = (source, values) => {
+    const write = (source: string, values: Record<string, string>) => {
         writeFileSync(join(localeDir, 'en.json'), JSON.stringify({ key: source }))
         for (const locale of ['de', 'ru', 'uk']) {
             writeFileSync(
@@ -77,7 +77,7 @@ function multiFixture() {
     return { cwd, baseline: git(cwd, ['rev-parse', 'HEAD']), localeDir, write }
 }
 
-async function withFixture(callback) {
+async function withFixture(callback: (value: ReturnType<typeof fixture>) => unknown) {
     const value = fixture()
     try {
         return await callback(value)
@@ -104,6 +104,7 @@ test('staged English alone is valid, unsynchronized, and writes nothing', async 
         const before = readFileSync(join(cwd, 'i18n', 'de.json'))
 
         const result = checkStagedI18n({ cwd, baseline, localeDir: 'i18n' })
+        assert.ok(!result.skipped)
         assert.equal(result.pass, true)
         assert.equal(result.unsynchronized.length, 1)
 
@@ -188,11 +189,13 @@ test('staged Edit and Pending Edit remain in their resulting states', async () =
         write('A', 'Y')
         git(cwd, ['add', 'i18n/de.json'])
         const edit = checkStagedI18n({ cwd, baseline, localeDir: 'i18n' })
+        assert.ok(!edit.skipped)
         assert.equal(edit.pass, true)
         assert.equal(edit.workflowSummary.targetContentEdits.length, 1)
         write('A', '? Y')
         git(cwd, ['add', 'i18n/de.json'])
         const pendingEdit = checkStagedI18n({ cwd, baseline, localeDir: 'i18n' })
+        assert.ok(!pendingEdit.skipped)
         assert.equal(pendingEdit.pass, true)
         assert.equal(pendingEdit.workflowSummary.targetContentEdits.length, 1)
     })
@@ -213,6 +216,7 @@ test('source-return clear requires the staged marker to be removed', async () =>
         writeFileSync(join(cwd, 'i18n', 'de.json'), JSON.stringify({ key: 'X' }))
         git(cwd, ['add', 'i18n/de.json'])
         const cleared = checkStagedI18n({ cwd, baseline, localeDir: 'i18n' })
+        assert.ok(!cleared.skipped)
         assert.equal(cleared.pass, true)
         assert.equal(stagedSynchronization(cwd, baseline).pass, true)
         assert.equal(cleared.workflowSummary.sourceReturnClears.length, 1)
@@ -305,7 +309,9 @@ test('checked-out enforcement follows the observable merged final tree', async (
 
         const result = checkI18nSnapshot({ cwd, baseline, localeDir: 'i18n' })
         assert.equal(result.pass, true)
-        assert.equal(result.history.snapshot.locales.get('de').targets.get('key').targetText, 'Y')
+        const merged = result.history.snapshot.locales.get('de')?.targets.get('key')
+        assert.ok(merged?.kind === 'accepted')
+        assert.equal(merged.targetText, 'Y')
     })
 })
 
@@ -345,7 +351,7 @@ test('ordering drift fails even when semantic operations are empty', async () =>
         writeFileSync(join(cwd, 'i18n', 'de.json'), JSON.stringify({ second: 'B', first: 'A' }))
         const result = checkI18nSnapshot({ cwd, baseline, localeDir: 'i18n' })
         assert.equal(result.pass, false)
-        assert.equal(result.operations[0].kind, 'serialization-drift')
+        assert.equal(result.operations[0]!.kind, 'serialization-drift')
     })
 })
 
@@ -405,7 +411,7 @@ test('an English-only change passes both contributor gates and fails only the wr
         write('B', 'X')
         const stdout = { write() {} }
         const stderr = { write() {} }
-        const run = (args) =>
+        const run = (args: string[]) =>
             runI18nEnforcement(args, { cwd, baseline, localeDir: 'i18n', stdout, stderr })
 
         assert.equal(run([]), 0)

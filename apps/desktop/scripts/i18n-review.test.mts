@@ -20,7 +20,7 @@ import {
     TARGET_VALUE_KIND,
 } from '../src/shared/i18n-values.mts'
 import { flattenBundle } from './i18n-current.mts'
-import { writeLocaleAtomically } from './i18n-files.mts'
+import { writeLocaleAtomically, type LocaleBundle } from './i18n-files.mts'
 import { createGitAdapter } from './i18n-git.mts'
 import {
     analyzeCommittedHistory,
@@ -31,12 +31,14 @@ import {
     snapshotFromBundles,
     summarizeHistory,
     workingTreeSnapshot,
+    type HistoryAnalysis,
 } from './i18n-history.mts'
 import {
     applyBaseline,
     createHistoryState,
     entryId,
     PENDING_PROVENANCE,
+    type HistoryEvent,
 } from './i18n-history-events.mts'
 import { inspectLocales } from './i18n-inspection.mts'
 import {
@@ -53,7 +55,7 @@ const LOCALE_DIR = 'i18n'
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
 const REPOSITORY_ROOT = resolve(SCRIPT_DIR, '../../..')
 
-function git(cwd, args) {
+function git(cwd: string, args: string[]) {
     return execFileSync('git', args, {
         cwd,
         encoding: 'utf8',
@@ -71,7 +73,7 @@ function createRepository() {
     return directory
 }
 
-function writeLocales(directory, locales) {
+function writeLocales(directory: string, locales: Record<string, LocaleBundle | null>) {
     for (const [id, bundle] of Object.entries(locales)) {
         const path = join(directory, LOCALE_DIR, `${id}.json`)
         if (bundle === null) {
@@ -82,18 +84,22 @@ function writeLocales(directory, locales) {
     }
 }
 
-function commitLocales(directory, locales, message) {
+function commitLocales(
+    directory: string,
+    locales: Record<string, LocaleBundle | null>,
+    message: string
+) {
     writeLocales(directory, locales)
     git(directory, ['add', '-A'])
     git(directory, ['commit', '-q', '-m', message])
     return git(directory, ['rev-parse', 'HEAD'])
 }
 
-function readLocale(directory, id) {
+function readLocale(directory: string, id: string) {
     return JSON.parse(readFileSync(join(directory, LOCALE_DIR, `${id}.json`), 'utf8'))
 }
 
-function reviewOptions(directory, baseline, extra = {}) {
+function reviewOptions(directory: string, baseline: string, extra = {}) {
     return {
         cwd: directory,
         baseline,
@@ -103,7 +109,7 @@ function reviewOptions(directory, baseline, extra = {}) {
     }
 }
 
-async function withRepository(run) {
+async function withRepository(run: (directory: string) => unknown) {
     const directory = createRepository()
     try {
         return await run(directory)
@@ -112,22 +118,27 @@ async function withRepository(run) {
     }
 }
 
-function semanticHistory(revisions) {
-    const baselineSnapshot = snapshotFromBundles('baseline', revisions[0])
+type Revision = Record<string, LocaleBundle>
+
+function semanticHistory(revisions: Revision[]) {
+    const baselineSnapshot = snapshotFromBundles('baseline', revisions[0]!)
     const state = applyBaseline(createHistoryState(), baselineSnapshot, 'baseline')
-    let history = {
+    let history: HistoryAnalysis = {
         baseline: 'baseline',
         revision: 'baseline',
+        revisions: ['baseline'],
         snapshot: baselineSnapshot,
         state,
         events: [],
         committedEvents: [],
+        gaps: [],
+        stats: { revisions: 1, gitCalls: undefined, blobLoads: undefined, bundleParses: 0 },
     }
-    const events = []
+    const events: HistoryEvent[] = []
     for (let index = 1; index < revisions.length; index += 1) {
-        const snapshot = snapshotFromBundles(`revision-${index}`, revisions[index])
+        const snapshot = snapshotFromBundles(`revision-${index}`, revisions[index]!)
         const next = analyzeRepairableProspective(history, snapshot)
-        events.push(...next.prospectiveEvents)
+        events.push(...next.prospectiveEvents!)
         history = {
             ...next,
             revision: snapshot.revision,
@@ -139,15 +150,17 @@ function semanticHistory(revisions) {
     return history
 }
 
-function candidateFor(revisions, locale = 'de') {
-    return buildReviewCandidates(semanticHistory(revisions), locale)[0]
+function candidateFor(revisions: Revision[], locale = 'de') {
+    const candidate = buildReviewCandidates(semanticHistory(revisions), locale)[0]
+    assert.ok(candidate, 'no review candidate')
+    return candidate
 }
 
 function captureStream() {
     let output = ''
     return {
         stream: {
-            write(value) {
+            write(value: string) {
                 output += value
             },
         },
@@ -155,11 +168,11 @@ function captureStream() {
     }
 }
 
-function scriptedAnswers(values) {
+function scriptedAnswers(values: (string | Error)[]) {
     let index = 0
     return async () => {
         if (index >= values.length) throw new Error('Scripted review input exhausted')
-        const answer = values[index]
+        const answer = values[index]!
         index += 1
         if (answer instanceof Error) throw answer
         return answer
@@ -169,13 +182,13 @@ function scriptedAnswers(values) {
 for (const [form, committedValue, editedValue] of [
     ['NFC', '\u00e9', 'e\u0301'],
     ['NFD', 'e\u0301', '\u00e9'],
-]) {
+] satisfies [string, string, string][]) {
     for (const [request, committedMarker, workingValue] of [
         ['an unmarked target', false, undefined],
         ['an uncommitted review marker', false, `? ${committedValue}`],
         ['an uncommitted normalized target', false, editedValue],
         ['a committed review marker', true, undefined],
-    ]) {
+    ] satisfies [string, boolean, string | undefined][]) {
         test(`normalization from ${form} requires observable acceptance with ${request}`, async () => {
             await withRepository(async (directory) => {
                 const baseline = commitLocales(
@@ -197,16 +210,16 @@ for (const [form, committedValue, editedValue] of [
                     ...reviewOptions(directory, baseline),
                     localeId: 'de',
                 })
-                const candidate = review.candidates[0]
+                const candidate = review.candidates[0]!
                 if (committedMarker) {
                     assert.deepEqual(reviewEditProblems(candidate, editedValue), [])
                     const action = applyReviewAction(candidate, REVIEW_ACTION.EDIT, editedValue)
                     commitLocales(directory, { de: { value: action.storedValue } }, 'accept source')
                     const history = analyzeCommittedHistory(reviewOptions(directory, baseline))
-                    const entry = summarizeHistory(history).locales.get('de').entries.get('value')
+                    const entry = summarizeHistory(history).locales.get('de')!.entries.get('value')!
                     assert.equal(entry.effectiveState, 'accepted')
-                    assert.equal(entry.checkpoint.sourceText, 'B')
-                    assert.equal(history.events.at(-1).kind, 'keep')
+                    assert.equal(entry.checkpoint!.sourceText, 'B')
+                    assert.equal(history.events.at(-1)!.kind, 'keep')
                     return
                 }
                 assert.match(
@@ -243,7 +256,8 @@ for (const [form, committedValue, editedValue] of [
                 assert.equal(git(directory, ['write-tree']), indexBefore)
                 const history = analyzeCommittedHistory(reviewOptions(directory, baseline))
                 assert.equal(
-                    summarizeHistory(history).locales.get('de').entries.get('value').effectiveState,
+                    summarizeHistory(history).locales.get('de')!.entries.get('value')!
+                        .effectiveState,
                     'review'
                 )
             })
@@ -349,7 +363,7 @@ test('an uncommitted explicit request is discovered from the working tree', asyn
             localeId: 'de',
         })
         assert.equal(review.candidates.length, 1)
-        assert.equal(review.candidates[0].pendingProvenance, PENDING_PROVENANCE.EXPLICIT_REQUEST)
+        assert.equal(review.candidates[0]!.pendingProvenance, PENDING_PROVENANCE.EXPLICIT_REQUEST)
     })
 })
 
@@ -386,9 +400,9 @@ test('working-tree Pending edit keeps lineage and exposes the current target', a
             localeId: 'de',
         })
         assert.equal(review.candidates.length, 1)
-        assert.equal(review.candidates[0].lastAcceptedSourceText, 'A')
-        assert.equal(review.candidates[0].lastAcceptedTargetText, 'X')
-        assert.equal(review.candidates[0].currentTargetText, 'Y')
+        assert.equal(review.candidates[0]!.lastAcceptedSourceText, 'A')
+        assert.equal(review.candidates[0]!.lastAcceptedTargetText, 'X')
+        assert.equal(review.candidates[0]!.currentTargetText, 'Y')
     })
 })
 
@@ -926,7 +940,7 @@ test('invalid review usage exits 2 without reading history', async () => {
 
 const realHistory = describeHistoryAvailability({ cwd: REPOSITORY_ROOT })
 const localeWorktreeStatus = git(REPOSITORY_ROOT, ['status', '--porcelain', '--', I18N_LOCALE_DIR])
-let unavailableRealReviewReason = false
+let unavailableRealReviewReason: string | false = false
 if (!realHistory.available) unavailableRealReviewReason = 'authoritative history is unavailable'
 if (realHistory.available && localeWorktreeStatus) {
     unavailableRealReviewReason = 'real locale files have uncommitted changes'
@@ -951,27 +965,31 @@ test(
             workingTreeSnapshot(REPOSITORY_ROOT, I18N_LOCALE_DIR)
         )
         const historyGit = createGitAdapter({ cwd: REPOSITORY_ROOT })
-        const checkpointCache = new Map()
+        const checkpointCache = new Map<
+            string,
+            { source: ReturnType<typeof flattenBundle>; target: ReturnType<typeof flattenBundle> }
+        >()
         const summary = summarizeHistory(history)
         for (const locale of inspection.locales) {
             const candidates = buildReviewCandidates(history, locale.id)
             assert.deepEqual(
                 candidates.map(({ key }) => key),
-                [...summary.locales.get(locale.id).entries.values()]
+                [...summary.locales.get(locale.id)!.entries.values()]
                     .filter((entry) => entry.effectiveState === 'review')
                     .map((entry) => entry.key)
             )
             for (const candidate of candidates) {
                 const persisted = locale.targetValues[candidate.key]
                 assert.ok(
-                    [TARGET_VALUE_KIND.PENDING, TARGET_VALUE_KIND.ACCEPTED].includes(persisted.kind)
+                    persisted?.kind === TARGET_VALUE_KIND.PENDING ||
+                        persisted?.kind === TARGET_VALUE_KIND.ACCEPTED
                 )
                 assert.equal(candidate.locale, locale.id)
                 assert.equal(candidate.currentTargetText, persisted.targetText)
                 assert.equal(candidate.currentSourceText, inspection.sourceStrings[candidate.key])
 
                 const placeholderDifference = placeholderDifferences(
-                    placeholderContract(inspection.sourceStrings[candidate.key]),
+                    placeholderContract(inspection.sourceStrings[candidate.key]!),
                     placeholderContract(persisted.targetText)
                 )
                 const placeholderCompatible =
@@ -1007,15 +1025,15 @@ test(
                     assert.ok(sourceBlob)
                     assert.ok(targetBlob)
                     const blobs = historyGit.readBlobs([sourceBlob, targetBlob])
-                    const sourceErrors = []
-                    const targetErrors = []
+                    const sourceErrors: string[] = []
+                    const targetErrors: string[] = []
                     const source = flattenBundle(
-                        JSON.parse(blobs.get(sourceBlob)),
+                        JSON.parse(blobs.get(sourceBlob)!),
                         'en',
                         sourceErrors
                     )
                     const target = flattenBundle(
-                        JSON.parse(blobs.get(targetBlob)),
+                        JSON.parse(blobs.get(targetBlob)!),
                         locale.id,
                         targetErrors
                     )
@@ -1023,7 +1041,7 @@ test(
                     assert.deepEqual(targetErrors, [])
                     checkpointCache.set(cacheKey, { source, target })
                 }
-                const evidence = checkpointCache.get(cacheKey)
+                const evidence = checkpointCache.get(cacheKey)!
                 const checkpointSource = evidence.source[candidate.key]
                 const checkpointTargetStored = evidence.target[candidate.key]
                 const checkpointTarget = parseTargetValue(checkpointTargetStored)
@@ -1090,9 +1108,9 @@ test('session core accepts an injected writer and scripted actions without stdin
         })
         assert.deepEqual(counts, { edited: 0, kept: 0, skipped: 1 })
         assert.equal(readLocale(directory, 'de').value, '? X')
-        assert.match(stdout.value(), /English at last accepted checkpoint:\n  A/)
-        assert.match(stdout.value(), /Current English:\n  B/)
-        assert.match(stdout.value(), /Current target:\n  X/)
+        assert.match(stdout.value(), /English at last accepted checkpoint:\n {2}A/)
+        assert.match(stdout.value(), /Current English:\n {2}B/)
+        assert.match(stdout.value(), /Current target:\n {2}X/)
         assert.match(stdout.value(), /Placeholder status: compatible/)
         assert.match(
             stdout.value(),

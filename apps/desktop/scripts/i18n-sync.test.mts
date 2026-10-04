@@ -14,15 +14,21 @@ import { dirname, join, resolve } from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { PENDING_PREFIX } from '../src/shared/i18n-values.mts'
-import { writeSerializedFileAtomically } from './i18n-files.mts'
+import { writeSerializedFileAtomically, type LocaleBundle } from './i18n-files.mts'
 import {
     analyzeRepairableProspective,
     describeHistoryAvailability,
     I18N_LOCALE_DIR,
     snapshotFromBundles,
     summarizeHistory,
+    type HistoryAnalysis,
 } from './i18n-history.mts'
-import { applyBaseline, createHistoryState, PENDING_PROVENANCE } from './i18n-history-events.mts'
+import {
+    applyBaseline,
+    createHistoryState,
+    PENDING_PROVENANCE,
+    type HistoryEvent,
+} from './i18n-history-events.mts'
 import {
     applySyncWrites,
     formatSyncSummary,
@@ -31,28 +37,34 @@ import {
     runI18nSync,
     SYNC_OPERATION,
     synchronizeI18n,
+    type SyncPlan,
 } from './i18n-sync.mts'
 
 const LOCALE_DIR = 'i18n'
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
 const REPOSITORY_ROOT = resolve(SCRIPT_DIR, '../../..')
 
-function semanticHistory(revisions) {
-    const baselineSnapshot = snapshotFromBundles('baseline', revisions[0])
+type Revision = Record<string, LocaleBundle>
+
+function semanticHistory(revisions: Revision[]) {
+    const baselineSnapshot = snapshotFromBundles('baseline', revisions[0]!)
     const state = applyBaseline(createHistoryState(), baselineSnapshot, 'baseline')
-    let history = {
+    let history: HistoryAnalysis = {
         baseline: 'baseline',
         revision: 'baseline',
+        revisions: ['baseline'],
         snapshot: baselineSnapshot,
         state,
         events: [],
         committedEvents: [],
+        gaps: [],
+        stats: { revisions: 1, gitCalls: undefined, blobLoads: undefined, bundleParses: 0 },
     }
-    const events = []
+    const events: HistoryEvent[] = []
     for (let index = 1; index < revisions.length; index += 1) {
-        const snapshot = snapshotFromBundles(`revision-${index}`, revisions[index])
+        const snapshot = snapshotFromBundles(`revision-${index}`, revisions[index]!)
         const next = analyzeRepairableProspective(history, snapshot)
-        events.push(...next.prospectiveEvents)
+        events.push(...next.prospectiveEvents!)
         history = {
             ...next,
             revision: snapshot.revision,
@@ -64,20 +76,22 @@ function semanticHistory(revisions) {
     return history
 }
 
-function planFor(revisions) {
+function planFor(revisions: Revision[]) {
     const history = semanticHistory(revisions)
-    return planI18nSync({ history, sourceBundle: revisions.at(-1).en })
+    return planI18nSync({ history, sourceBundle: revisions.at(-1)!.en! })
 }
 
-function localePlan(plan, id = 'de') {
-    return plan.locales.find((locale) => locale.id === id)
+function localePlan(plan: SyncPlan, id = 'de') {
+    const locale = plan.locales.find((item) => item.id === id)
+    assert.ok(locale, `no plan for locale ${id}`)
+    return locale
 }
 
-function operationKinds(plan, id = 'de') {
+function operationKinds(plan: SyncPlan, id = 'de') {
     return localePlan(plan, id).operations.map(({ kind }) => kind)
 }
 
-function git(cwd, args) {
+function git(cwd: string, args: string[]) {
     return execFileSync('git', args, {
         cwd,
         encoding: 'utf8',
@@ -95,7 +109,7 @@ function createRepository() {
     return directory
 }
 
-function writeLocales(directory, locales) {
+function writeLocales(directory: string, locales: Record<string, LocaleBundle | null>) {
     for (const [id, bundle] of Object.entries(locales)) {
         const path = join(directory, LOCALE_DIR, `${id}.json`)
         if (bundle === null) {
@@ -106,18 +120,22 @@ function writeLocales(directory, locales) {
     }
 }
 
-function commitLocales(directory, locales, message) {
+function commitLocales(
+    directory: string,
+    locales: Record<string, LocaleBundle | null>,
+    message: string
+) {
     writeLocales(directory, locales)
     git(directory, ['add', '-A'])
     git(directory, ['commit', '-q', '-m', message])
     return git(directory, ['rev-parse', 'HEAD'])
 }
 
-function readLocale(directory, id) {
+function readLocale(directory: string, id: string) {
     return JSON.parse(readFileSync(join(directory, LOCALE_DIR, `${id}.json`), 'utf8'))
 }
 
-function syncOptions(directory, baseline, extra = {}) {
+function syncOptions(directory: string, baseline: string, extra = {}) {
     return {
         cwd: directory,
         baseline,
@@ -127,7 +145,7 @@ function syncOptions(directory, baseline, extra = {}) {
     }
 }
 
-function withRepository(run) {
+function withRepository(run: (directory: string) => void) {
     const directory = createRepository()
     try {
         return run(directory)
@@ -235,8 +253,8 @@ test('sync preserves explicit requests across multiple locales despite accepted 
         for (const [localeId, targetText] of [
             ['de', 'X'],
             ['ru', 'Y'],
-        ]) {
-            const entry = summary.locales.get(localeId).entries.get('value')
+        ] satisfies [string, string][]) {
+            const entry = summary.locales.get(localeId)!.entries.get('value')!
             assert.equal(entry.state, 'pending')
             assert.equal(entry.canonicalTarget, targetText)
             assert.equal(entry.pendingProvenance, PENDING_PROVENANCE.EXPLICIT_REQUEST)
@@ -255,7 +273,7 @@ test('Pending edits retain their text, marker, and carried provenance', () => {
     const plan = planI18nSync({ history, sourceBundle: { value: 'C' } })
     assert.equal(localePlan(plan).bundle.value, '? Y')
     assert.equal(
-        summarizeHistory(history).locales.get('de').entries.get('value').pendingProvenance,
+        summarizeHistory(history).locales.get('de')!.entries.get('value')!.pendingProvenance,
         PENDING_PROVENANCE.SOURCE_CHANGE
     )
 })
@@ -339,7 +357,9 @@ test('marker insertion and removal preserve target payload bytes', () => {
         { en: { value: 'A {name}' }, de: { value: target } },
         { en: { value: 'B {name}' }, de: { value: target } },
     ])
-    assert.equal(localePlan(inserted).bundle.value.slice(PENDING_PREFIX.length), target)
+    const insertedValue = localePlan(inserted).bundle.value
+    assert.ok(typeof insertedValue === 'string')
+    assert.equal(insertedValue.slice(PENDING_PREFIX.length), target)
 
     const cleared = planFor([
         { en: { value: 'A {name}' }, de: { value: target } },
@@ -506,7 +526,7 @@ test('obsolete target content blocks every locale before writes', () => {
             ...syncOptions(directory, baseline),
             stdout: { write() {} },
             stderr: {
-                write(value) {
+                write(value: string) {
                     diagnostic += value
                 },
             },
@@ -547,7 +567,7 @@ test('obsolete Pending content blocks every locale before writes', () => {
             ...syncOptions(directory, baseline),
             stdout: { write() {} },
             stderr: {
-                write(value) {
+                write(value: string) {
                     diagnostic += value
                 },
             },
@@ -628,9 +648,9 @@ test('writer failure leaves prior files replaced and later files untouched, then
                 return writeSerializedFileAtomically(path, serialized)
             })
         )
-        assert.equal(readFileSync(writes[0].path, 'utf8'), 'de\n')
-        assert.equal(readFileSync(writes[1].path, 'utf8'), 'old\n')
-        assert.equal(readFileSync(writes[2].path, 'utf8'), 'old\n')
+        assert.equal(readFileSync(writes[0]!.path, 'utf8'), 'de\n')
+        assert.equal(readFileSync(writes[1]!.path, 'utf8'), 'old\n')
+        assert.equal(readFileSync(writes[2]!.path, 'utf8'), 'old\n')
         applySyncWrites(writes)
         for (const item of writes) assert.equal(readFileSync(item.path, 'utf8'), item.serialized)
     } finally {
@@ -735,7 +755,7 @@ test('no-op summary reports zero operations and no changed files', () => {
 
 const realHistory = describeHistoryAvailability({ cwd: REPOSITORY_ROOT })
 const localeWorktreeStatus = git(REPOSITORY_ROOT, ['status', '--porcelain', '--', I18N_LOCALE_DIR])
-let unavailableRealSyncReason = false
+let unavailableRealSyncReason: string | false = false
 if (!realHistory.available) {
     unavailableRealSyncReason = 'authoritative real-repository history is unavailable here'
 }
@@ -762,8 +782,8 @@ test(
         })
 
         const mechanical = new Set(Object.values(SYNC_OPERATION))
-        const sourceKeys = new Set()
-        const collect = (node, prefix) => {
+        const sourceKeys = new Set<string>()
+        const collect = (node: object, prefix: string) => {
             for (const [key, value] of Object.entries(node)) {
                 const path = prefix ? `${prefix}.${key}` : key
                 if (value && typeof value === 'object') collect(value, path)
@@ -817,7 +837,7 @@ test('CLI rejects locale arguments with exit 2 and history failures with exit 1'
     const stdout = { write() {} }
     let error = ''
     const stderr = {
-        write(value) {
+        write(value: string) {
             error += value
         },
     }
@@ -848,7 +868,7 @@ test('CLI reports an injected writer failure with exit 1', () => {
         const stdout = { write() {} }
         let error = ''
         const stderr = {
-            write(value) {
+            write(value: string) {
                 error += value
             },
         }

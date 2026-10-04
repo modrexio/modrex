@@ -9,9 +9,9 @@ import {
     parseTargetValue,
     resolveTargetValue,
 } from '../src/shared/i18n-values.mts'
-import { serializeLocale } from './i18n-files.mts'
+import { serializeLocale, type LocaleBundle } from './i18n-files.mts'
 import { HISTORY_EVENT, PENDING_PROVENANCE } from './i18n-history-events.mts'
-import { analyzeCommittedHistory, summarizeHistory } from './i18n-history.mts'
+import { analyzeCommittedHistory, summarizeHistory, type HistoryAnalysis } from './i18n-history.mts'
 import { runI18nValidation } from './check-i18n.mts'
 import {
     applyReviewAction,
@@ -28,7 +28,7 @@ import { synchronizeI18n } from './i18n-sync.mts'
 
 const LOCALE_DIR = 'i18n'
 
-function git(cwd, args) {
+function git(cwd: string, args: string[]) {
     return execFileSync('git', args, { cwd, encoding: 'utf8' }).trim()
 }
 
@@ -43,26 +43,26 @@ function createRepo() {
     return cwd
 }
 
-function write(cwd, locales) {
+function write(cwd: string, locales: Record<string, LocaleBundle>) {
     for (const [id, bundle] of Object.entries(locales)) {
         writeFileSync(join(cwd, LOCALE_DIR, `${id}.json`), serializeLocale(bundle))
     }
 }
 
-function commit(cwd, locales, message) {
+function commit(cwd: string, locales: Record<string, LocaleBundle>, message: string) {
     write(cwd, locales)
     git(cwd, ['add', '-A'])
     git(cwd, ['commit', '-q', '-m', message])
     return git(cwd, ['rev-parse', 'HEAD'])
 }
 
-function readLocale(cwd, id) {
+function readLocale(cwd: string, id: string) {
     return JSON.parse(readFileSync(join(cwd, LOCALE_DIR, `${id}.json`), 'utf8'))
 }
 
 // The bot's contribution: run the real synchronizer over the checkout, then commit exactly
 // what it wrote. A scenario that expects no bot output asserts on the empty return value.
-function botCommit(cwd, baseline, message = 'bot: sync') {
+function botCommit(cwd: string, baseline: string, message = 'bot: sync') {
     const result = synchronizeI18n({ cwd, localeDir: LOCALE_DIR, baseline })
     if (result.written.length > 0) {
         git(cwd, ['add', '-A'])
@@ -71,7 +71,7 @@ function botCommit(cwd, baseline, message = 'bot: sync') {
     return result
 }
 
-function withRepo(run) {
+function withRepo(run: (cwd: string) => void) {
     const cwd = createRepo()
     try {
         return run(cwd)
@@ -80,7 +80,7 @@ function withRepo(run) {
     }
 }
 
-async function withRepoAsync(run) {
+async function withRepoAsync(run: (cwd: string) => Promise<void>) {
     const cwd = createRepo()
     try {
         return await run(cwd)
@@ -90,9 +90,9 @@ async function withRepoAsync(run) {
 }
 
 // What a contributor sees from pnpm check-i18n against this checkout.
-async function validate(cwd, baseline) {
+async function validate(cwd: string, baseline: string) {
     let out = ''
-    const stream = { write: (chunk) => (out += chunk) }
+    const stream = { write: (chunk: string) => (out += chunk) }
     const status = await runI18nValidation({
         cwd,
         baseline,
@@ -104,16 +104,18 @@ async function validate(cwd, baseline) {
     return { status, out }
 }
 
-function analyze(cwd, baseline) {
+function analyze(cwd: string, baseline: string) {
     return analyzeCommittedHistory({ cwd, baseline, localeDir: LOCALE_DIR })
 }
 
-function entryOf(cwd, baseline, locale, key) {
+function entryOf(cwd: string, baseline: string, locale: string, key: string) {
     const history = analyze(cwd, baseline)
-    return summarizeHistory(history).locales.get(locale).entries.get(key)
+    const entry = summarizeHistory(history).locales.get(locale)?.entries.get(key)
+    assert.ok(entry, `no history entry for ${locale} key ${key}`)
+    return entry
 }
 
-function eventsAt(history, revision, locale, key) {
+function eventsAt(history: HistoryAnalysis, revision: string, locale: string, key: string) {
     return history.events
         .filter(
             (event) => event.revision === revision && event.locale === locale && event.key === key
@@ -122,7 +124,7 @@ function eventsAt(history, revision, locale, key) {
 }
 
 // What the desktop bundle would render for this key at the current checkout.
-function rendered(cwd, key, locale) {
+function rendered(cwd: string, key: string, locale: string) {
     const source = parseSourceValue(readLocale(cwd, 'en')[key])
     return resolveTargetValue(source, parseTargetValue(readLocale(cwd, locale)[key]))
 }
@@ -154,8 +156,8 @@ test('changed English marks Review before the bot and the marker keeps its prove
         const before = entryOf(cwd, baseline, 'de', 'greet')
         assert.equal(before.effectiveState, 'review')
         assert.equal(before.effectiveProvenance, PENDING_PROVENANCE.SOURCE_CHANGE)
-        assert.equal(before.lineageCheckpoint.rawSourceText, 'Hello')
-        assert.equal(before.lineageCheckpoint.rawTargetText, 'Hallo')
+        assert.equal(before.lineageCheckpoint!.rawSourceText, 'Hello')
+        assert.equal(before.lineageCheckpoint!.rawTargetText, 'Hallo')
 
         const bot = botCommit(cwd, baseline)
         assert.equal(readLocale(cwd, 'de').greet, '? Hallo')
@@ -166,11 +168,11 @@ test('changed English marks Review before the bot and the marker keeps its prove
             HISTORY_EVENT.REVIEW_MARKER_MATERIALIZED,
         ])
 
-        const after = summarizeHistory(history).locales.get('de').entries.get('greet')
+        const after = summarizeHistory(history).locales.get('de')!.entries.get('greet')!
         assert.equal(after.effectiveState, 'review')
         assert.equal(after.effectiveProvenance, PENDING_PROVENANCE.SOURCE_CHANGE)
-        assert.equal(after.lineageCheckpoint.rawSourceText, 'Hello')
-        assert.equal(after.lineageCheckpoint.rawTargetText, 'Hallo')
+        assert.equal(after.lineageCheckpoint!.rawSourceText, 'Hello')
+        assert.equal(after.lineageCheckpoint!.rawTargetText, 'Hallo')
         // The bot wrote a marker, not an acceptance of the new English meaning.
         assert.equal(after.acceptedPairSeen, false)
         assert.equal(bot.written.length, 1)
@@ -220,7 +222,7 @@ test('repeated English changes before one bot run keep the original accepted lin
 
         const before = entryOf(cwd, baseline, 'de', 'greet')
         assert.equal(before.effectiveState, 'review')
-        assert.equal(before.lineageCheckpoint.rawSourceText, 'Hello')
+        assert.equal(before.lineageCheckpoint!.rawSourceText, 'Hello')
         assert.equal(before.sourceText, 'Greetings')
 
         botCommit(cwd, baseline)
@@ -229,8 +231,8 @@ test('repeated English changes before one bot run keep the original accepted lin
         const after = entryOf(cwd, baseline, 'de', 'greet')
         assert.equal(after.effectiveState, 'review')
         assert.equal(after.effectiveProvenance, PENDING_PROVENANCE.SOURCE_CHANGE)
-        assert.equal(after.lineageCheckpoint.rawSourceText, 'Hello')
-        assert.equal(after.lineageCheckpoint.rawTargetText, 'Hallo')
+        assert.equal(after.lineageCheckpoint!.rawSourceText, 'Hello')
+        assert.equal(after.lineageCheckpoint!.rawTargetText, 'Hallo')
     })
 })
 
@@ -283,7 +285,7 @@ test('a translator Keep after a delayed marker accepts against the current Engli
         const history = analyze(cwd, baseline)
         assert.deepEqual(eventsAt(history, kept, 'de', 'greet'), [HISTORY_EVENT.KEEP])
 
-        const entry = summarizeHistory(history).locales.get('de').entries.get('greet')
+        const entry = summarizeHistory(history).locales.get('de')!.entries.get('greet')!
         assert.equal(entry.effectiveState, 'accepted')
         assert.equal(entry.checkpoint.rawSourceText, 'Welcome')
         assert.equal(entry.checkpoint.rawTargetText, 'Hallo')
@@ -306,7 +308,7 @@ test('a translator Edit after a delayed marker accepts the new text', () => {
             HISTORY_EVENT.EDIT_FROM_PENDING,
         ])
 
-        const entry = summarizeHistory(history).locales.get('de').entries.get('greet')
+        const entry = summarizeHistory(history).locales.get('de')!.entries.get('greet')!
         assert.equal(entry.effectiveState, 'accepted')
         assert.equal(entry.checkpoint.rawSourceText, 'Welcome')
         assert.equal(entry.checkpoint.rawTargetText, 'Willkommen')
@@ -327,21 +329,21 @@ test('review surfaces an unwritten Review and refuses a Keep that Git could not 
             localeId: 'de',
         })
         assert.equal(before.candidates.length, 1)
-        assert.equal(before.candidates[0].materialized, false)
-        assert.equal(before.candidates[0].pendingProvenance, PENDING_PROVENANCE.SOURCE_CHANGE)
+        assert.equal(before.candidates[0]!.materialized, false)
+        assert.equal(before.candidates[0]!.pendingProvenance, PENDING_PROVENANCE.SOURCE_CHANGE)
 
         // Keeping here would write the bytes already committed, so no acceptance would exist.
         assert.throws(
-            () => applyReviewAction(before.candidates[0], REVIEW_ACTION.KEEP),
+            () => applyReviewAction(before.candidates[0]!, REVIEW_ACTION.KEEP),
             /no acceptance could be recorded/u
         )
         // Nor can an Edit that retypes the committed text sneak past that.
-        assert.deepEqual(reviewEditProblems(before.candidates[0], 'Hallo'), [
+        assert.deepEqual(reviewEditProblems(before.candidates[0]!, 'Hallo'), [
             'This is canonically identical to the committed value, so Git would record no acceptance. Run pnpm i18n:sync and commit the review marker first.',
         ])
         // Editing writes real new text, so it needs no marker first.
         assert.deepEqual(
-            applyReviewAction(before.candidates[0], REVIEW_ACTION.EDIT, 'Willkommen'),
+            applyReviewAction(before.candidates[0]!, REVIEW_ACTION.EDIT, 'Willkommen'),
             { changed: true, storedValue: 'Willkommen' }
         )
 
@@ -353,8 +355,8 @@ test('review surfaces an unwritten Review and refuses a Keep that Git could not 
             i18nDir: join(cwd, LOCALE_DIR),
             localeId: 'de',
         })
-        assert.equal(after.candidates[0].materialized, true)
-        assert.deepEqual(applyReviewAction(after.candidates[0], REVIEW_ACTION.KEEP), {
+        assert.equal(after.candidates[0]!.materialized, true)
+        assert.deepEqual(applyReviewAction(after.candidates[0]!, REVIEW_ACTION.KEEP), {
             changed: true,
             storedValue: 'Hallo',
         })
@@ -410,7 +412,7 @@ test('an uncommitted sync does not make a Keep recordable', () => {
             localeDir: LOCALE_DIR,
             i18nDir: join(cwd, LOCALE_DIR),
             localeId: 'de',
-        }).candidates[0]
+        }).candidates[0]!
 
         // Keeping would write 'Hallo' over 'Hallo': an empty diff, and no acceptance.
         assert.equal(candidate.materialized, false)
@@ -439,7 +441,7 @@ test('changed English placeholders can be reviewed before the bot writes the mar
             localeDir: LOCALE_DIR,
             i18nDir: join(cwd, LOCALE_DIR),
             localeId: 'de',
-        }).candidates[0]
+        }).candidates[0]!
 
         assert.equal(candidate.key, 'greet')
         assert.equal(candidate.placeholderCompatible, false)
