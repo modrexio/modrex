@@ -38,20 +38,11 @@ export type EvidenceGap = EvidenceLocation &
         | { kind: 'invalid-json' | 'invalid-utf8'; path: string; blob: string; cause: unknown }
         | { kind: 'missing-source'; path?: never; blob?: never; cause?: never }
     )
-export type EvidenceRecovery = {
-    locale: string
-    revision: string
-    path: string
-    blob: string
-    repairedBlob: string
-    repairRevision: string
-}
 export type HistorySnapshot = {
     revision: string
     source: Map<string, string>
     locales: Map<string, { targets: Map<string, TargetValue> }>
     gaps: EvidenceGap[]
-    recoveries: EvidenceRecovery[]
 }
 export type Checkpoint = {
     sourceText: string | undefined

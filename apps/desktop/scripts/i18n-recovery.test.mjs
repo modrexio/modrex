@@ -1,23 +1,14 @@
-import { createGitAdapter } from './i18n-git.mts'
 import { runI18nCli } from './check-i18n.mts'
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import test from 'node:test'
-import {
-    analyzeCommittedHistory,
-    analyzeWorkingTree,
-    analyzeProspective,
-    summarizeHistory,
-    describeHistoryAvailability,
-    snapshotFromBundles,
-} from './i18n-history.mts'
+import { analyzeCommittedHistory, analyzeWorkingTree, summarizeHistory } from './i18n-history.mts'
 import { PENDING_PROVENANCE } from './i18n-history-events.mts'
 import { synchronizeI18n, planI18nSync } from './i18n-sync.mts'
-import { prepareI18nReview, applyReviewAction, buildReviewCandidates } from './i18n-review.mts'
+import { prepareI18nReview, applyReviewAction } from './i18n-review.mts'
 import { checkI18nSemantics, checkStagedI18n } from './i18n-enforcement.mts'
 
 function git(cwd, args) {
@@ -506,160 +497,6 @@ test('withdrawal and scaffolds resolve target gaps as Missing without accepting 
         )
     }
 })
-
-const repository = fileURLToPath(new URL('../../../', import.meta.url))
-const italianHistoryAvailable = describeHistoryAvailability({
-    cwd: repository,
-    revision: 'faadbd874e6ec0f11a2b86176fe363327c667305',
-}).available
-
-test(
-    'audited Italian syntax recovery preserves actual acceptance and plans zero marker changes',
-    { skip: !italianHistoryAvailable },
-    () => {
-        const revision = 'faadbd874e6ec0f11a2b86176fe363327c667305'
-        const options = { cwd: repository, revision, localeId: 'it' }
-        const directory = 'apps/desktop/src/renderer/src/i18n'
-        const originalRevision = 'edd784fdcf4cd9e1c849a0f2196dfd32361345af'
-        const repairRevision = 'da1040c9f04d7e004d5cd1fee3af15fabaa80b7e'
-        const original = execFileSync(
-            'git',
-            ['show', originalRevision + ':' + directory + '/it.json'],
-            { cwd: repository, encoding: 'utf8' }
-        )
-        const repaired = execFileSync(
-            'git',
-            ['show', repairRevision + ':' + directory + '/it.json'],
-            { cwd: repository, encoding: 'utf8' }
-        )
-        assert.equal(
-            original.replace(
-                '"loadFailed": "Impossibile caricare le mod,',
-                '"loadFailed": "Impossibile caricare le mod",'
-            ),
-            repaired
-        )
-        const sourceAt = (rev) =>
-            execFileSync('git', ['show', rev + ':' + directory + '/en.json'], {
-                cwd: repository,
-                encoding: 'utf8',
-            })
-        assert.equal(sourceAt(originalRevision), sourceAt(repairRevision))
-        const history = analyzeCommittedHistory(options)
-        assert.deepEqual(history.gaps, [])
-        assert.deepEqual(history.recoveries, [
-            {
-                locale: 'it',
-                revision: originalRevision,
-                path: directory + '/it.json',
-                blob: 'bb6f61129dfbd7c8bdb1b114b937711e3cfb7645',
-                repairedBlob: 'd57d12bbdd1e78537dcbd559bc5c0552e8ff1908',
-                repairRevision,
-            },
-        ])
-        assert.deepEqual(summarizeHistory(history).locales.get('it').effective, {
-            accepted: 416,
-            review: 0,
-            missing: 68,
-        })
-        assert.deepEqual(
-            planI18nSync({ history, sourceBundle: JSON.parse(sourceAt(revision)) }).locales[0]
-                .operations,
-            []
-        )
-        const altered = createGitAdapter({ cwd: repository })
-        const observations = altered.readBlobObservations.bind(altered)
-        altered.readBlobObservations = (ids) => {
-            const result = observations(ids)
-            const damaged = 'bb6f61129dfbd7c8bdb1b114b937711e3cfb7645'
-            if (result.has(damaged))
-                result.set(damaged, original.replace('Impossibile caricare', 'Changed translation'))
-            return result
-        }
-        assert.throws(
-            () => analyzeCommittedHistory({ ...options, git: altered }),
-            /does not match its blob identity/
-        )
-        const corruptLatest = createGitAdapter({ cwd: repository })
-        const trees = corruptLatest.treesAtRevisions.bind(corruptLatest)
-        corruptLatest.treesAtRevisions = (revisions, path) => {
-            const result = trees(revisions, path)
-            result
-                .get(revisions.at(-1))
-                .set(directory + '/it.json', 'bb6f61129dfbd7c8bdb1b114b937711e3cfb7645')
-            return result
-        }
-        assert.throws(
-            () => analyzeCommittedHistory({ ...options, git: corruptLatest }),
-            /Failed to parse it.json/
-        )
-        const atRepair = analyzeCommittedHistory({ ...options, revision: repairRevision })
-        assert.deepEqual(summarizeHistory(atRepair).locales.get('it').effective, {
-            accepted: 424,
-            review: 0,
-            missing: 0,
-        })
-        const expected = snapshotFromBundles(originalRevision, {
-            en: JSON.parse(sourceAt(originalRevision)),
-            it: JSON.parse(repaired),
-        })
-        for (const [key, target] of summarizeHistory(atRepair).locales.get('it').entries) {
-            assert.equal(target.checkpoint.revision, originalRevision)
-            assert.equal(target.checkpoint.rawSourceText, expected.source.get(key))
-            assert.equal(
-                target.checkpoint.rawTargetText,
-                expected.locales.get('it').targets.get(key).targetText
-            )
-        }
-        const prospective = snapshotFromBundles('candidate', {
-            en: {
-                ...JSON.parse(sourceAt(revision)),
-                common: { ...JSON.parse(sourceAt(revision)).common, beta: 'New source {name}' },
-            },
-            it: JSON.parse(
-                execFileSync('git', ['show', revision + ':' + directory + '/it.json'], {
-                    cwd: repository,
-                    encoding: 'utf8',
-                })
-            ),
-        })
-        const changed = analyzeProspective(history, prospective)
-        const debt = summarizeHistory(changed).locales.get('it').entries.get('common.beta')
-        assert.equal(debt.effectiveState, 'review')
-        assert.equal(debt.pendingProvenance, PENDING_PROVENANCE.SOURCE_CHANGE)
-        assert.deepEqual(debt.gapIds, [])
-        const candidates = buildReviewCandidates(changed, 'it', history.snapshot)
-        assert.equal(candidates.length, 1)
-        assert.equal(candidates[0].key, 'common.beta')
-        assert.equal(candidates[0].checkpointRevision, originalRevision)
-        assert.equal(candidates[0].lastAcceptedSourceText, debt.checkpoint.rawSourceText)
-        assert.equal(candidates[0].lastAcceptedTargetText, debt.checkpoint.rawTargetText)
-        assert.equal(candidates[0].evidenceIncomplete, false)
-        assert.deepEqual(
-            planI18nSync({
-                history: changed,
-                sourceBundle: {
-                    ...JSON.parse(sourceAt(revision)),
-                    common: { ...JSON.parse(sourceAt(revision)).common, beta: 'New source {name}' },
-                },
-            }).locales[0].operations,
-            [{ kind: 'review-requested', locale: 'it', key: 'common.beta' }]
-        )
-        assert.throws(
-            () => analyzeCommittedHistory({ ...options, revision: originalRevision }),
-            /Failed to parse it.json/
-        )
-        assert.throws(
-            () =>
-                analyzeCommittedHistory({
-                    ...options,
-                    baseline: originalRevision,
-                    revision: repairRevision,
-                }),
-            /Failed to parse it.json/
-        )
-    }
-)
 
 test('marker removal during English repair is a visible acceptance against the readable source', (t) => {
     const options = fixture(t, [

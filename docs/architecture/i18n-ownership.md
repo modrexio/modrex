@@ -98,10 +98,9 @@ with incomplete evidence reported separately. History-dependent validation and m
 fail before writing when a usable target still depends on that evidence. Absence and scaffolds
 remain Missing.
 
-The exact audited Italian syntax repair is applied only to intermediate historical observations,
-with the damaged and repaired blob identities recorded as recovery provenance. It restores the
-translation event at its original revision. Baseline, latest, working and staged inputs remain
-strict. Other malformed files are not repaired heuristically.
+Malformed historical files are never repaired in code. Once a fix lands, the baseline may move
+to the fixing commit if replay from there yields the same effective state for every entry.
+Otherwise the affected targets stay Review until they are accepted again.
 
 An observable Edit against readable English or removal of a committed explicit review marker
 can prove fresh acceptance. Byte-identical endpoints and source returns alone cannot resolve an
