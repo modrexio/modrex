@@ -2,7 +2,6 @@
     "name": "modrex",
     "version": "0.15.2",
     "type": "module",
-    "packageManager": "pnpm@10.32.1",
     "scripts": {
         "dev": "tauri dev",
         "dev-renderer": "vite",

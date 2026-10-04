@@ -2,7 +2,7 @@ node_modules
 out
 dist
 package-lock.json
-pnpm-lock.yaml
+bun.lock
 src-tauri/
 apps/desktop/src-tauri/
 THIRD_PARTY_LICENSES.md
