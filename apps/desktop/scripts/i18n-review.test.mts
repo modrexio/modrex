@@ -934,7 +934,7 @@ test('invalid review usage exits 2 without reading history', async () => {
     }
     assert.match(
         stderr.value(),
-        /Usage: pnpm i18n:review|English source|valid locale code|does not exist/
+        /Usage: bun run i18n:review|English source|valid locale code|does not exist/
     )
 })
 

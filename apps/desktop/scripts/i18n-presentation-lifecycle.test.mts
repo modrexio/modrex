@@ -535,7 +535,7 @@ test('planning failure via CLI reports exit 1 with a descriptive message and no 
 
 // Planning over the real repository has to keep working: a missing README, an unrenderable
 // locale or a broken contributors file must fail loudly here. Whether the committed outputs
-// are current is asked by pnpm i18n:presentation-check, which the writer runs on its own
+// are current is asked by bun run i18n:presentation-check, which the writer runs on its own
 // output, because between a locale commit and the bot's run they are expected to lag.
 test('the real repository still produces a complete presentation plan', () => {
     const plan = buildI18nPresentationPlan()

@@ -81,7 +81,7 @@ export function runI18nTreeState(
     }: CliIO & { cwd?: string; run?: GitRunner } = {}
 ) {
     if (args.length > 0) {
-        stderr.write('Usage: node scripts/i18n-tree-state.mts\n')
+        stderr.write('Usage: bun scripts/i18n-tree-state.mts\n')
         return 2
     }
     stdout.write(`${describeWorkingTree(options)}\n`)

@@ -2,7 +2,6 @@ node_modules
 out
 dist
 package-lock.json
-pnpm-lock.yaml
 src-tauri/
 THIRD_PARTY_LICENSES.md
 CHANGELOG.md

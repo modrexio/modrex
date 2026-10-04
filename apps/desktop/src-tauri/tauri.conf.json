@@ -3,8 +3,8 @@
     "version": "0.15.2",
     "identifier": "modrex",
     "build": {
-        "beforeDevCommand": "pnpm run dev-renderer",
-        "beforeBuildCommand": "pnpm run build-renderer",
+        "beforeDevCommand": "bun run dev-renderer",
+        "beforeBuildCommand": "bun run build-renderer",
         "frontendDist": "../out/renderer",
         "devUrl": "http://localhost:5173"
     },

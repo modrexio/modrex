@@ -181,7 +181,7 @@ test('XML values are escaped and SVG contains no visible text or external resour
 })
 
 // Generation is asserted here. Whether the committed assets have caught up is a different
-// question with a different owner: the bot writes them, and pnpm i18n:presentation-check
+// question with a different owner: the bot writes them, and bun run i18n:presentation-check
 // verifies them afterwards. Asserting it here would require a contributor's locale commit to
 // already contain the bot's later output.
 test('current summaries render byte-consistent simple assets', () => {

@@ -198,7 +198,7 @@ export function runI18nWriterGuard(
     { stdout = process.stdout, stderr = process.stderr, ...options }: CliIO & WriterOptions = {}
 ) {
     if (args.length !== 1) {
-        stderr.write('Usage: node scripts/i18n-writer-guard.mts <base-revision>\n')
+        stderr.write('Usage: bun scripts/i18n-writer-guard.mts <base-revision>\n')
         return 2
     }
     try {

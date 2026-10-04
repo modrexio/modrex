@@ -284,7 +284,7 @@ export function formatEnforcementFailure(result: {
         }
         lines.push('')
     }
-    lines.push('Run:', '  pnpm i18n:sync', '', 'Then stage the updated locale files.')
+    lines.push('Run:', '  bun run i18n:sync', '', 'Then stage the updated locale files.')
     return lines.join('\n')
 }
 
@@ -299,7 +299,7 @@ export function runI18nEnforcement(
     }: CliIO & EnforcementOptions = {}
 ) {
     if (args.length > 1 || (args.length === 1 && !MODES.has(args[0]!))) {
-        stderr.write('Usage: node scripts/i18n-enforcement.mts [--staged|--synchronized]\n')
+        stderr.write('Usage: bun scripts/i18n-enforcement.mts [--staged|--synchronized]\n')
         return 2
     }
     const synchronized = args[0] === '--synchronized'

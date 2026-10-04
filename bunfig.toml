@@ -1,0 +1,5 @@
+# Package binaries such as vite, tsc and eslint start with a node shebang, so bun run would
+# hand them to Node whenever Node is installed. This makes every script run on Bun instead.
+# Bun reads this file only from the directory a command starts in, so run scripts from the root.
+[run]
+bun = true

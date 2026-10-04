@@ -176,7 +176,7 @@ export function runI18nPresentationLifecycle(
 ) {
     const mode = args.length === 1 ? args[0] : undefined
     if (mode !== '--check' && mode !== '--write') {
-        stderr.write('Usage: node scripts/i18n-presentation-lifecycle.mts --check|--write\n')
+        stderr.write('Usage: bun scripts/i18n-presentation-lifecycle.mts --check|--write\n')
         return 2
     }
 

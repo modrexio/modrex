@@ -642,17 +642,17 @@ test('positional locale shorthand validates one locale', async () => {
     )
 })
 
-test('help presents the translator-facing pnpm commands', async () => {
+test('help presents the translator-facing bun commands', async () => {
     const stdout = captureStream()
     const status = await runI18nCli(['--help'], { stdout: stdout.stream })
 
     assert.equal(status, 0)
-    assert.match(stdout.value(), /pnpm i18n:help/)
-    assert.match(stdout.value(), /pnpm i18n:check \[locale\]/)
-    assert.match(stdout.value(), /pnpm i18n:fill <locale>/)
-    assert.match(stdout.value(), /pnpm i18n:translate <locale>/)
-    assert.match(stdout.value(), /pnpm i18n:review <locale>/)
-    assert.match(stdout.value(), /pnpm i18n:sync/)
+    assert.match(stdout.value(), /bun run i18n:help/)
+    assert.match(stdout.value(), /bun run i18n:check \[locale\]/)
+    assert.match(stdout.value(), /bun run i18n:fill <locale>/)
+    assert.match(stdout.value(), /bun run i18n:translate <locale>/)
+    assert.match(stdout.value(), /bun run i18n:review <locale>/)
+    assert.match(stdout.value(), /bun run i18n:sync/)
     assert.doesNotMatch(stdout.value(), /node apps\/desktop\/scripts/)
 })
 

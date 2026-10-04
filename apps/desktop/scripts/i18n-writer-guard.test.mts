@@ -232,7 +232,7 @@ test('the CLI reports a usage error without a base revision', () => {
         },
     }
     assert.equal(runI18nWriterGuard([], { stderr, stdout: { write() {} } }), 2)
-    assert.match(stderr.value, /Usage: node scripts\/i18n-writer-guard\.mts/u)
+    assert.match(stderr.value, /Usage: bun scripts\/i18n-writer-guard\.mts/u)
 })
 
 test('an untracked file is writer output too, because staging a directory would commit it', () => {

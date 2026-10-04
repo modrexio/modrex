@@ -147,8 +147,8 @@ export function formatInspection(
             )
         }
         if (locale.warnings.length > 0) lines.push(`    ${locale.warnings.length} warning(s)`)
-        if (counts.missing > 0) lines.push(`    Next: pnpm i18n:translate ${locale.id}`)
-        if (counts.review > 0) lines.push(`    Next: pnpm i18n:review ${locale.id}`)
+        if (counts.missing > 0) lines.push(`    Next: bun run i18n:translate ${locale.id}`)
+        if (counts.review > 0) lines.push(`    Next: bun run i18n:review ${locale.id}`)
     }
 
     const diagnostics = [
@@ -253,7 +253,7 @@ function formatLocaleIssue(issue: LocaleIssue, localeName: string) {
                 '  stale untranslated scaffold',
                 `  English: ${JSON.stringify(issue.sourceValue)}`,
                 `  Scaffold: ${JSON.stringify(issue.localeValue)}`,
-                '  Run pnpm i18n:fill to refresh it.',
+                '  Run bun run i18n:fill to refresh it.',
             ]
         case 'placeholder': {
             const lines = [
@@ -329,9 +329,12 @@ export function formatLocaleReport(inspection: Inspection, localeId: string) {
         lines.push('', 'English source warning', ...formatLocaleIssue(warning, 'English'))
     }
     lines.push('', coverage, missing)
-    if (locale.missingKeys.length > 0) lines.push(`Next: pnpm i18n:translate ${locale.id}`)
+    if (locale.missingKeys.length > 0) lines.push(`Next: bun run i18n:translate ${locale.id}`)
     if (locale.pendingCount > 0) {
-        lines.push(`Review pending: ${locale.pendingCount}`, `Next: pnpm i18n:review ${locale.id}`)
+        lines.push(
+            `Review pending: ${locale.pendingCount}`,
+            `Next: bun run i18n:review ${locale.id}`
+        )
     }
     if (locale.pendingPlaceholderIncompatibleCount > 0) {
         lines.push(
@@ -377,7 +380,7 @@ export function formatMissingReport(inspection: Inspection, localeId: string, st
             `  English: ${renderPlaceholderText(JSON.stringify(inspection.sourceStrings[key]), styles)}`
         )
     }
-    if (locale.missingKeys.length > 0) lines.push('', `Next: pnpm i18n:translate ${locale.id}`)
+    if (locale.missingKeys.length > 0) lines.push('', `Next: bun run i18n:translate ${locale.id}`)
     return lines.join('\n')
 }
 
@@ -644,19 +647,19 @@ function usageText() {
         'no prefix  accepted translation',
         '',
         'Inspect',
-        '  pnpm i18n:help               Show this workflow guide',
-        '  pnpm i18n:status             Show stored marker coverage for all languages',
-        '  pnpm i18n:check [locale]     Validate the source or one locale',
-        '  pnpm i18n:missing <locale>   List missing keys with English source text',
+        '  bun run i18n:help               Show this workflow guide',
+        '  bun run i18n:status             Show stored marker coverage for all languages',
+        '  bun run i18n:check [locale]     Validate the source or one locale',
+        '  bun run i18n:missing <locale>   List missing keys with English source text',
         '',
         'Prepare',
-        '  pnpm i18n:fill <locale>      Fill an existing locale with marked English text',
-        '  pnpm i18n:create <locale>    Create an IDE-ready locale with marked English text',
-        '  pnpm i18n:sync               Reconcile locale workflow state',
+        '  bun run i18n:fill <locale>      Fill an existing locale with marked English text',
+        '  bun run i18n:create <locale>    Create an IDE-ready locale with marked English text',
+        '  bun run i18n:sync               Reconcile locale workflow state',
         '',
         'Translate',
-        '  pnpm i18n:translate <locale> Continue an existing locale',
-        '  pnpm i18n:review <locale>    Review Pending target translations',
+        '  bun run i18n:translate <locale> Continue an existing locale',
+        '  bun run i18n:review <locale>    Review Pending target translations',
     ].join('\n')
 }
 
@@ -694,13 +697,13 @@ function runScaffoldI18n(
     const create = command === '--create'
     if (create && localeExists) {
         stderr.write(
-            `Locale '${localeId}' already exists.\n\nAdd its missing keys with:\n  pnpm i18n:fill ${localeId}\n`
+            `Locale '${localeId}' already exists.\n\nAdd its missing keys with:\n  bun run i18n:fill ${localeId}\n`
         )
         return 1
     }
     if (!create && !localeExists) {
         stderr.write(
-            `Locale '${localeId}' does not exist.\n\nCreate it with:\n  pnpm i18n:create ${localeId}\n`
+            `Locale '${localeId}' does not exist.\n\nCreate it with:\n  bun run i18n:create ${localeId}\n`
         )
         return 1
     }
@@ -745,7 +748,7 @@ function runScaffoldI18n(
     stdout.write(
         `${action} ${localeDisplayPath(localePath)}.\nScaffolds added: ${plan.addedScaffolds}\nScaffolds refreshed: ${plan.refreshedScaffolds}\nObsolete scaffolds removed: ${plan.removedScaffolds}\nTarget-language text preserved.\nReplace values starting with "${UNTRANSLATED_PREFIX}" as you translate.\nCoverage remains ${formatPercentage(candidate.translatedCount, candidate.totalCount)}.\n`
     )
-    if (candidate.missingKeys.length > 0) stdout.write(`Next: pnpm i18n:translate ${localeId}\n`)
+    if (candidate.missingKeys.length > 0) stdout.write(`Next: bun run i18n:translate ${localeId}\n`)
     return 0
 }
 
@@ -895,7 +898,7 @@ async function runInteractiveI18n(
     const localePath = resolve(i18nDir, `${localeId}.json`)
     if (!existsSync(localePath)) {
         stderr.write(
-            `Locale '${localeId}' does not exist.\n\nCreate it with:\n  pnpm i18n:create ${localeId}\n`
+            `Locale '${localeId}' does not exist.\n\nCreate it with:\n  bun run i18n:create ${localeId}\n`
         )
         return 1
     }
