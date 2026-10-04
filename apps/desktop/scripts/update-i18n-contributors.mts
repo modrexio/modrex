@@ -7,6 +7,7 @@ import { isDeepStrictEqual } from 'node:util'
 import { parseTargetValue, TARGET_VALUE_KIND } from '../src/shared/i18n-values.mts'
 import { inspectLocales } from './i18n-inspection.mts'
 import { flattenBundle } from './i18n-current.mts'
+import { errorMessage } from './i18n-io.mts'
 
 type GitHubCommit = {
     sha: string
@@ -87,7 +88,7 @@ export function localeJsonChanged(
     } catch (error) {
         const location = revision ? ` at revision '${revision}'` : ''
         throw new Error(
-            `Could not compare historical JSON for locale '${localeId}'${location}: ${error instanceof Error ? error.message : String(error)}`,
+            `Could not compare historical JSON for locale '${localeId}'${location}: ${errorMessage(error)}`,
             {
                 cause: error,
             }
@@ -256,9 +257,7 @@ async function updateTranslationContributors() {
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
     updateTranslationContributors().catch((error) => {
-        process.stderr.write(
-            `update-i18n-contributors: ${error instanceof Error ? error.message : String(error)}\n`
-        )
+        process.stderr.write(`update-i18n-contributors: ${errorMessage(error)}\n`)
         process.exitCode = 1
     })
 }

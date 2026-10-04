@@ -1,4 +1,4 @@
-import type { CliIO } from './i18n-io.mts'
+import { errorMessage, type CliIO } from './i18n-io.mts'
 import { mkdirSync, readFileSync, readdirSync, unlinkSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -184,9 +184,7 @@ export function runI18nPresentationLifecycle(
     try {
         plan = buildI18nPresentationPlan(options)
     } catch (error) {
-        stderr.write(
-            `i18n: presentation lifecycle planning failed: ${error instanceof Error ? error.message : String(error)}\n`
-        )
+        stderr.write(`i18n: presentation lifecycle planning failed: ${errorMessage(error)}\n`)
         return 1
     }
 

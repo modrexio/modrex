@@ -4,6 +4,7 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { buildStatusSummaries } from './i18n-presentation.mts'
 import { inspectLocales, I18N_DIR } from './i18n-inspection.mts'
+import { errorMessage } from './i18n-io.mts'
 
 type Summary = SourceStatusSummary | TargetStatusSummary
 type Palette = Record<'accepted' | 'review' | 'missing', string>
@@ -159,9 +160,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
             `i18n: rendered ${result.summaries.targets.length + 1} SVG status asset(s) in ${STATUS_ASSET_DIR}\n`
         )
     } catch (error) {
-        process.stderr.write(
-            `i18n: SVG rendering failed: ${error instanceof Error ? error.message : String(error)}\n`
-        )
+        process.stderr.write(`i18n: SVG rendering failed: ${errorMessage(error)}\n`)
         process.exitCode = 1
     }
 }

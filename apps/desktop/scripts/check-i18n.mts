@@ -1,4 +1,4 @@
-import type { CliIO, CliOutput } from './i18n-io.mts'
+import { errorMessage, type CliIO, type CliOutput } from './i18n-io.mts'
 import type { LocaleBundle } from './i18n-files.mts'
 import type { LocaleIssue, LocaleInspection } from './i18n-current.mts'
 import type { Inspection } from './i18n-inspection.mts'
@@ -200,7 +200,7 @@ export function runI18nStatus({
         })
         return 0
     } catch (error) {
-        stderr.write(`check-i18n: ${error instanceof Error ? error.message : String(error)}\n`)
+        stderr.write(`check-i18n: ${errorMessage(error)}\n`)
         return 1
     }
 }
@@ -393,9 +393,7 @@ function formatTranslationProblems(sourceValue: string, localeValue: string) {
     try {
         targetValue = parseTargetValue(localeValue)
     } catch (error) {
-        return [
-            `  Invalid workflow marker syntax: ${error instanceof Error ? error.message : String(error)}`,
-        ]
+        return [`  Invalid workflow marker syntax: ${errorMessage(error)}`]
     }
     if (targetValue.kind !== TARGET_VALUE_KIND.ACCEPTED) {
         return ['  A translation must not begin with the reserved "! " or "? " prefix.']
@@ -670,7 +668,7 @@ function runScaffoldI18n(
     try {
         validateLocaleId(localeId)
     } catch (error) {
-        stderr.write(`check-i18n: ${error instanceof Error ? error.message : String(error)}\n`)
+        stderr.write(`check-i18n: ${errorMessage(error)}\n`)
         return 2
     }
 
@@ -683,7 +681,7 @@ function runScaffoldI18n(
     try {
         inspection = inspectLocales(i18nDir)
     } catch (error) {
-        stderr.write(`check-i18n: ${error instanceof Error ? error.message : String(error)}\n`)
+        stderr.write(`check-i18n: ${errorMessage(error)}\n`)
         return 1
     }
     if (inspection.sourceErrors.length > 0) {
@@ -736,7 +734,7 @@ function runScaffoldI18n(
     try {
         changed = writeLocaleAtomically(localePath, ordered)
     } catch (error) {
-        stderr.write(`check-i18n: ${error instanceof Error ? error.message : String(error)}\n`)
+        stderr.write(`check-i18n: ${errorMessage(error)}\n`)
         return 1
     }
     const action = create ? 'Created' : 'Updated'
@@ -781,7 +779,7 @@ export function runCheckI18n(
     try {
         inspection = inspectLocales(i18nDir)
     } catch (error) {
-        stderr.write(`check-i18n: ${error instanceof Error ? error.message : String(error)}\n`)
+        stderr.write(`check-i18n: ${errorMessage(error)}\n`)
         return 1
     }
 
@@ -811,7 +809,7 @@ export function runCheckI18n(
             stdout.write(report)
             return 0
         } catch (error) {
-            stderr.write(`check-i18n: ${error instanceof Error ? error.message : String(error)}\n`)
+            stderr.write(`check-i18n: ${errorMessage(error)}\n`)
             return 2
         }
     }
@@ -831,7 +829,7 @@ export function runCheckI18n(
             stdout.write(`${formatMissingReport(inspection, locale.id, styles)}\n`)
             return 0
         } catch (error) {
-            stderr.write(`check-i18n: ${error instanceof Error ? error.message : String(error)}\n`)
+            stderr.write(`check-i18n: ${errorMessage(error)}\n`)
             return 2
         }
     }
@@ -883,7 +881,7 @@ async function runInteractiveI18n(
     try {
         validateLocaleId(localeId)
     } catch (error) {
-        stderr.write(`check-i18n: ${error instanceof Error ? error.message : String(error)}\n`)
+        stderr.write(`check-i18n: ${errorMessage(error)}\n`)
         return 2
     }
 
@@ -906,7 +904,7 @@ async function runInteractiveI18n(
     try {
         inspection = inspectLocales(i18nDir)
     } catch (error) {
-        stderr.write(`check-i18n: ${error instanceof Error ? error.message : String(error)}\n`)
+        stderr.write(`check-i18n: ${errorMessage(error)}\n`)
         return 1
     }
     if (inspection.sourceErrors.length > 0) {
@@ -927,7 +925,7 @@ async function runInteractiveI18n(
         )
         return 0
     } catch (error) {
-        stderr.write(`check-i18n: ${error instanceof Error ? error.message : String(error)}\n`)
+        stderr.write(`check-i18n: ${errorMessage(error)}\n`)
         return 1
     }
 }
@@ -997,7 +995,7 @@ export async function runI18nValidation(options: CliOptions = {}) {
     try {
         inspection = inspectLocales(i18nDir, options.localeId)
     } catch (error) {
-        stderr.write(`check-i18n: ${error instanceof Error ? error.message : String(error)}\n`)
+        stderr.write(`check-i18n: ${errorMessage(error)}\n`)
         return 1
     }
 
@@ -1007,9 +1005,7 @@ export async function runI18nValidation(options: CliOptions = {}) {
     try {
         resolved = await resolveWithHistory(historyDependent, options)
     } catch (error) {
-        stderr.write(
-            'check-i18n: ' + (error instanceof Error ? error.message : String(error)) + '\n'
-        )
+        stderr.write('check-i18n: ' + errorMessage(error) + '\n')
         return 1
     }
     const { summary, review, unavailable } = resolved
@@ -1076,9 +1072,7 @@ export async function runI18nCli(args: string[], options: CliOptions = {}) {
             }
         } catch (error) {
             const stderr = options.stderr ?? process.stderr
-            stderr.write(
-                'check-i18n: ' + (error instanceof Error ? error.message : String(error)) + '\n'
-            )
+            stderr.write('check-i18n: ' + errorMessage(error) + '\n')
             return 2
         }
         return runI18nValidation({ ...options, localeId })

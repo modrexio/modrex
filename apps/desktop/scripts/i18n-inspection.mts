@@ -8,6 +8,7 @@ import {
     type LocaleIssue,
     type LocaleInspection,
 } from './i18n-current.mts'
+import { errorMessage } from './i18n-io.mts'
 
 export const SOURCE_LOCALE = 'en'
 const UTF8_DECODER = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true })
@@ -85,7 +86,7 @@ export function inspectLocales(i18nDir = I18N_DIR, localeId?: string) {
         try {
             bundle = parseBundle(resolve(i18nDir, `${id}.json`), id)
         } catch (error) {
-            errors.push(error instanceof Error ? error.message : String(error))
+            errors.push(errorMessage(error))
             issues.push({
                 type: 'invalid-json',
                 detail:
@@ -95,7 +96,7 @@ export function inspectLocales(i18nDir = I18N_DIR, localeId?: string) {
             })
             locales.push({
                 id,
-                errors: [error instanceof Error ? error.message : String(error)],
+                errors: [errorMessage(error)],
                 issues,
                 warnings: [],
                 reviewNotices: [],

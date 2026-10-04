@@ -1,4 +1,4 @@
-import type { CliIO, CliOutput } from './i18n-io.mts'
+import { errorMessage, type CliIO, type CliOutput } from './i18n-io.mts'
 import type { LocaleBundle } from './i18n-files.mts'
 import type { HistoryAnalysis, HistoryOptions } from './i18n-history.mts'
 import type { HistorySnapshot } from './i18n-history-events.mts'
@@ -156,9 +156,7 @@ export function reviewEditProblems(candidate: Candidate, targetText: string) {
     try {
         parsed = parseTargetValue(targetText)
     } catch (error) {
-        return [
-            `Invalid workflow marker syntax: ${error instanceof Error ? error.message : String(error)}`,
-        ]
+        return [`Invalid workflow marker syntax: ${errorMessage(error)}`]
     }
     if (parsed.kind !== TARGET_VALUE_KIND.ACCEPTED) {
         return ['An edited target must not begin with the reserved "! " or "? " prefix.']
@@ -523,7 +521,7 @@ export async function runI18nReview(
     try {
         validateLocaleId(localeId)
     } catch (error) {
-        stderr.write(`i18n:review: ${error instanceof Error ? error.message : String(error)}\n`)
+        stderr.write(`i18n:review: ${errorMessage(error)}\n`)
         return 2
     }
     if (localeId === SOURCE_LOCALE) {
@@ -546,7 +544,7 @@ export async function runI18nReview(
         await runSession(review, { ask, stdin, stdout, write })
         return 0
     } catch (error) {
-        stderr.write(`i18n:review: ${error instanceof Error ? error.message : String(error)}\n`)
+        stderr.write(`i18n:review: ${errorMessage(error)}\n`)
         if (error instanceof I18nHistoryUnavailableError) {
             stderr.write('Full i18n history through the audited baseline is required.\n')
         }

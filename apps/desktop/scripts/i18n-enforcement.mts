@@ -1,4 +1,4 @@
-import type { CliIO } from './i18n-io.mts'
+import { errorMessage, type CliIO } from './i18n-io.mts'
 import type { LocaleBundle } from './i18n-files.mts'
 import type { HistoryAnalysis, HistoryGit } from './i18n-history.mts'
 import type { HistorySnapshot } from './i18n-history-events.mts'
@@ -331,7 +331,7 @@ export function runI18nEnforcement(
         }
         return 0
     } catch (error) {
-        stderr.write(`i18n: ${label}: ${error instanceof Error ? error.message : String(error)}\n`)
+        stderr.write(`i18n: ${label}: ${errorMessage(error)}\n`)
         return 1
     }
 }

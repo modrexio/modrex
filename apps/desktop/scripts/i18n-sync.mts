@@ -1,4 +1,4 @@
-import type { CliIO } from './i18n-io.mts'
+import { errorMessage, type CliIO } from './i18n-io.mts'
 import { readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -367,7 +367,7 @@ export function runI18nSync(
         stdout.write(`${formatSyncSummary(result)}\n`)
         return 0
     } catch (error) {
-        stderr.write(`i18n:sync: ${error instanceof Error ? error.message : String(error)}\n`)
+        stderr.write(`i18n:sync: ${errorMessage(error)}\n`)
         return 1
     }
 }

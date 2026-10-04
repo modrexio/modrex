@@ -1,4 +1,4 @@
-import type { CliIO } from './i18n-io.mts'
+import { errorMessage, type CliIO } from './i18n-io.mts'
 import type { TargetValue } from '../src/shared/i18n-values.mts'
 import { readFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
@@ -217,9 +217,7 @@ export function runI18nWriterGuard(
         )
         return 0
     } catch (error) {
-        stderr.write(
-            `i18n: writer guard: ${error instanceof Error ? error.message : String(error)}\n`
-        )
+        stderr.write(`i18n: writer guard: ${errorMessage(error)}\n`)
         return 1
     }
 }

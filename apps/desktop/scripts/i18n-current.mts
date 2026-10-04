@@ -9,6 +9,7 @@ import {
 import { inspectUnicode, type UnicodeFinding } from './i18n-diagnostics.mts'
 import type { LocaleBundle } from './i18n-files.mts'
 import type { Inspection } from './i18n-inspection.mts'
+import { errorMessage } from './i18n-io.mts'
 
 type IssueContext = { key?: string; message?: string; detail?: string }
 export type LocaleIssue = IssueContext &
@@ -118,13 +119,13 @@ function parseTargetForInspection(
         return parseTargetValue(storedValue)
     } catch (error) {
         errors.push(
-            `'${id}' key '${key}' has invalid workflow marker syntax: ${error instanceof Error ? error.message : String(error)}`
+            `'${id}' key '${key}' has invalid workflow marker syntax: ${errorMessage(error)}`
         )
         issues.push({
             type: 'invalid-marker',
             key,
             localeValue: storedValue,
-            detail: error instanceof Error ? error.message : String(error),
+            detail: errorMessage(error),
         })
         return undefined
     }

@@ -7,6 +7,7 @@ import {
     type TargetValue,
 } from '../src/shared/i18n-values.mts'
 import { createGitAdapter, GitBlobDecodeError } from './i18n-git.mts'
+import { errorMessage } from './i18n-io.mts'
 import {
     acceptedPairExists,
     analyzeTransition,
@@ -223,7 +224,7 @@ function parseTargets(flat: Record<string, string>, label: string) {
             targets.set(key, parseTargetValue(raw))
         } catch (error) {
             throw new I18nHistoryDataError(
-                `Malformed target ${label} key '${key}': ${error instanceof Error ? error.message : String(error)}`,
+                `Malformed target ${label} key '${key}': ${errorMessage(error)}`,
                 { cause: error }
             )
         }
