@@ -329,7 +329,10 @@ function countOperations(locale: Pick<SyncLocalePlan, 'operations'>, kind: SyncK
     return locale.operations.filter((item) => item.kind === kind).length
 }
 
-export function formatSyncSummary(result: SyncResult) {
+export function formatSyncSummary(result: {
+    writes: Pick<SyncWrite, 'id' | 'changed' | 'operations'>[]
+    written: string[]
+}) {
     const lines = ['i18n:sync']
     for (const file of result.writes) {
         lines.push(

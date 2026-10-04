@@ -43,8 +43,11 @@ import {
     validateLocaleId,
 } from './i18n-inspection.mts'
 
-type Candidate = ReturnType<typeof buildReviewCandidates>[number]
+export type Candidate = ReturnType<typeof buildReviewCandidates>[number]
 type Review = ReturnType<typeof prepareI18nReview>
+type ReviewSession = Pick<Review, 'localePath' | 'candidates'> & {
+    locale: Pick<Review['locale'], 'id' | 'bundle'>
+}
 type Ask = (question: string) => Promise<string>
 type ReviewWriter = (path: string, bundle: LocaleBundle) => unknown
 type ReviewOptions = HistoryOptions &
@@ -393,7 +396,7 @@ async function promptEditedTarget(
 }
 
 function saveReviewedValue(
-    review: Review,
+    review: ReviewSession,
     bundle: LocaleBundle,
     candidate: Candidate,
     storedValue: string,
@@ -410,7 +413,7 @@ export async function reviewLocaleSession({
     stdout = process.stdout,
     env = process.env,
     write = writeLocaleAtomically,
-}: CliIO & { ask: Ask; review: Review; write?: ReviewWriter }) {
+}: CliIO & { ask: Ask; review: ReviewSession; write?: ReviewWriter }) {
     const localeName = localeNativeName(review.locale.id)
     if (review.candidates.length === 0) {
         stdout.write(`${localeName} (${review.locale.id}): no translations need review.\n`)
