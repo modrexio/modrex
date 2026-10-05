@@ -9163,7 +9163,7 @@ DEALINGS IN THE SOFTWARE.
 
 ## MIT License
 
-Used by: dirs-sys 0.5.0, dirs 6.0.0, dirs 7.0.0
+Used by: dirs-sys 0.5.0, dirs 7.0.0
 
 ```
 Copyright (c) 2018-2019 dirs-rs contributors
@@ -10804,7 +10804,7 @@ SOFTWARE.
 
 ## MIT License
 
-Used by: tauri-build 2.7.1, tauri-codegen 2.7.1, tauri-macros 2.7.1, tauri-runtime-wry 2.12.1, tauri-runtime 2.12.1, tauri-utils 2.10.1, tauri 2.12.0
+Used by: tauri-build 2.7.1, tauri-codegen 2.7.1, tauri-macros 2.7.1, tauri-runtime-wry 2.12.1, tauri-runtime 2.12.1, tauri-utils 2.10.1, tauri 2.12.1
 
 ```
 MIT License
@@ -10897,7 +10897,7 @@ SOFTWARE.
 
 ## MIT License
 
-Used by: cfb 0.14.0, cfb 0.7.3
+Used by: cfb 0.14.0
 
 ```
 MIT License
@@ -11145,7 +11145,7 @@ SOFTWARE.
 
 ## MIT License
 
-Used by: infer 0.19.0, infer 0.22.0
+Used by: infer 0.22.0
 
 ```
 MIT License
@@ -11789,7 +11789,7 @@ SOFTWARE.
 
 ## MIT License
 
-Used by: jmap 0.1.0, oodle_loader 0.2.3, repak 0.2.3, retoc 0.1.5, ser-hex 0.1.0, modrex 0.15.2, modrex-game-package 0.0.0, brotli-decompressor 5.0.3, brotli-decompressor 6.0.1, cargo_toml 1.0.1, chrono 0.4.45, dlopen2 0.8.2, dlopen2_derive 0.4.3, dpi 0.1.2, minisign-verify 0.2.5, pariter 0.5.1, siphasher 1.0.3, specta-macros 2.0.0-rc.25, specta-serde 0.0.12, specta-typescript 0.0.12, specta-util 0.0.12, specta 2.0.0-rc.25, tauri-plugin-deep-link 2.5.0, tauri-plugin-dialog 2.8.0, tauri-plugin-fs 2.6.0, tauri-plugin-log 2.10.0, tauri-plugin-single-instance 2.5.0, tauri-plugin-updater 2.13.0, tauri-plugin 2.7.1, tauri-specta-macros 2.0.0-rc.25, tauri-specta 2.0.0-rc.25, unrar_sys 0.5.8, webview2-com-macros 0.8.1, webview2-com-sys 0.39.1, webview2-com 0.39.1, windows-collections 0.3.2, windows-core 0.62.2, windows-future 0.3.2, windows-implement 0.60.2, windows-interface 0.59.3, windows-link 0.1.3, windows-link 0.2.1, windows-numerics 0.3.1, windows-registry 0.5.3, windows-registry 0.6.1, windows-result 0.3.4, windows-result 0.4.1, windows-strings 0.4.2, windows-strings 0.5.1, windows-sys 0.52.0, windows-sys 0.59.0, windows-sys 0.60.2, windows-sys 0.61.2, windows-targets 0.52.6, windows-targets 0.53.5, windows-threading 0.2.1, windows-version 0.1.7, windows 0.62.2, windows_x86_64_gnu 0.52.6, windows_x86_64_gnu 0.53.1, windows_x86_64_msvc 0.52.6, windows_x86_64_msvc 0.53.1
+Used by: jmap 0.1.0, oodle_loader 0.2.3, repak 0.2.3, retoc 0.1.5, ser-hex 0.1.0, modrex 0.15.2, modrex-game-package 0.0.0, brotli-decompressor 5.0.3, brotli-decompressor 6.0.1, cargo_toml 1.0.1, chrono 0.4.45, dlopen2 0.8.2, dlopen2_derive 0.4.3, dpi 0.1.2, minisign-verify 0.2.5, pariter 0.5.1, siphasher 1.0.3, specta-macros 2.0.0-rc.25, specta-serde 0.0.12, specta-typescript 0.0.12, specta-util 0.0.12, specta 2.0.0-rc.25, tauri-plugin-deep-link 2.6.1, tauri-plugin-dialog 2.8.1, tauri-plugin-fs 2.6.0, tauri-plugin-log 2.10.0, tauri-plugin-single-instance 2.5.2, tauri-plugin-updater 2.13.1, tauri-plugin 2.7.1, tauri-specta-macros 2.0.0-rc.25, tauri-specta 2.0.0-rc.25, unrar_sys 0.5.8, webview2-com-macros 0.8.1, webview2-com-sys 0.39.1, webview2-com 0.39.1, windows-collections 0.3.2, windows-core 0.62.2, windows-future 0.3.2, windows-implement 0.60.2, windows-interface 0.59.3, windows-link 0.2.1, windows-numerics 0.3.1, windows-registry 0.6.1, windows-result 0.4.1, windows-strings 0.5.1, windows-sys 0.52.0, windows-sys 0.59.0, windows-sys 0.60.2, windows-sys 0.61.2, windows-targets 0.52.6, windows-targets 0.53.5, windows-threading 0.2.1, windows-version 0.1.7, windows 0.62.2, windows_x86_64_gnu 0.52.6, windows_x86_64_gnu 0.53.1, windows_x86_64_msvc 0.52.6, windows_x86_64_msvc 0.53.1
 
 ```
 MIT License
