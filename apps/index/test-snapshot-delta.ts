@@ -4,15 +4,27 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { PGlite } from '@electric-sql/pglite'
+import Sqlite from 'better-sqlite3'
 
 import { migrations } from './postgres/schema.js'
-import { writeSnapshot, type SnapshotRow, type SnapshotSource } from './postgres/snapshot.js'
 import {
+    writeSnapshot,
+    type ResourceRow,
+    type SnapshotRow,
+    type SnapshotSource,
+} from './postgres/snapshot.js'
+import {
+    applyResourceDelta,
     applySnapshotDelta,
+    compareResourceRows,
     readPreviousSnapshot,
+    resourceDeltaQuery,
+    resourceFingerprints,
+    resourceRowsQuery,
     snapshotFingerprints,
     snapshotDeltaQuery,
     snapshotSourceQuery,
+    type ResourceDelta,
     type SnapshotDelta,
 } from './postgres/snapshot-delta.js'
 
@@ -31,6 +43,10 @@ const workspace = mkdtempSync(join(tmpdir(), 'modrex-delta-'))
 const hash = (file: string) => createHash('sha256').update(readFileSync(file)).digest('hex')
 let checks = 0
 
+async function fullResources(): Promise<ResourceRow[]> {
+    return (await pg.query<ResourceRow>(resourceRowsQuery, ['pd2'])).rows.sort(compareResourceRows)
+}
+
 async function verify(previous: SnapshotRow[], label: string) {
     const { rows: changes } = await pg.query<SnapshotDelta>(snapshotDeltaQuery, [
         'pd2',
@@ -40,12 +56,58 @@ async function verify(previous: SnapshotRow[], label: string) {
     const expected = (await pg.query<SnapshotRow>(fullQuery, ['pd2'])).rows
     assert.deepEqual(rows, expected, label)
     const source = (await pg.query<SnapshotSource>(snapshotSourceQuery, ['pd2'])).rows[0]
-    const incremental = writeSnapshot(join(workspace, 'incremental.db'), 'pd2', source, rows)
-    const full = writeSnapshot(join(workspace, 'full.db'), 'pd2', source, expected)
+    const resources = await fullResources()
+    const incremental = writeSnapshot(
+        join(workspace, 'incremental.db'),
+        'pd2',
+        source,
+        rows,
+        resources
+    )
+    const full = writeSnapshot(join(workspace, 'full.db'), 'pd2', source, expected, resources)
     assert.equal(hash(incremental), hash(full), label + ' must match full export bytes')
     assert.deepEqual(readPreviousSnapshot(incremental, hash(incremental), 'pd2').rows, expected)
     checks++
     return { rows, changes, source, incremental }
+}
+
+async function verifyResources(previous: ResourceRow[], label: string) {
+    const { rows: changes } = await pg.query<ResourceDelta>(resourceDeltaQuery, [
+        'pd2',
+        JSON.stringify(resourceFingerprints(previous)),
+    ])
+    const resources = applyResourceDelta(previous, changes)
+    const expected = await fullResources()
+    assert.deepEqual(resources, expected, label)
+    const rows = (await pg.query<SnapshotRow>(fullQuery, ['pd2'])).rows
+    const source = (await pg.query<SnapshotSource>(snapshotSourceQuery, ['pd2'])).rows[0]
+    const incremental = writeSnapshot(
+        join(workspace, 'resource-incremental.db'),
+        'pd2',
+        source,
+        rows,
+        resources
+    )
+    const full = writeSnapshot(join(workspace, 'resource-full.db'), 'pd2', source, rows, expected)
+    assert.equal(hash(incremental), hash(full), label + ' must match full export bytes')
+    assert.deepEqual(
+        readPreviousSnapshot(incremental, hash(incremental), 'pd2').resources,
+        expected,
+        label + ' must read back from the published shard'
+    )
+    checks++
+    return { resources, changes, incremental }
+}
+
+// Rewrites a published shard in place so it looks like one written by another exporter version.
+function reshapeShard(file: string, statements: string): string {
+    const db = new Sqlite(file)
+    try {
+        db.exec(statements)
+    } finally {
+        db.close()
+    }
+    return hash(file)
 }
 
 try {
@@ -70,11 +132,49 @@ try {
             (9007199254740993, 2, 'hash-151', -9007199254740993, 'large', '2026-09-01', 'large.txt'),
             (9223372036854775807, 2, 'hash-152', 9223372036854775807, 'max', '2026-09-01', 'max.txt'),
             (1000, 3, 'hash-153', 1000, 'other', '2026-09-01', 'other.txt');
+        INSERT INTO mods (source_id, remote_id, name, url) VALUES
+            (1, 13, 'Skip Startup', 'https://modworkshop.net/mod/13'),
+            (1, 14, 'Small UI', 'https://modworkshop.net/mod/14');
+        INSERT INTO remote_downloadables (
+            id, source_id, mod_remote_id, kind, remote_id, metadata_fingerprint, url, status,
+            first_seen_at, last_seen_at, retired_at
+        ) OVERRIDING SYSTEM VALUE VALUES
+            (1, 1, 13, 'file', 501, 'm', 'u', 'complete', 't', 't', NULL),
+            (2, 1, 14, 'file', 502, 'm', 'u', 'complete', 't', 't', '2026-09-02'),
+            (3, 2, 21, 'file', 503, 'm', 'u', 'complete', 't', 't', NULL);
+        INSERT INTO downloadable_observations (
+            id, downloadable_id, metadata_fingerprint, content_fingerprint, version, outcome,
+            observed_at, source_filename
+        ) OVERRIDING SYSTEM VALUE VALUES
+            (1, 1, 'm', 'c1', 'one', 'complete', 't', 'Skip Startup.rar'),
+            (2, 1, 'm', 'c2', 'two', 'complete', 't', NULL),
+            (3, 2, 'm', 'c3', 'one', 'complete', 't', 'Small UI.zip'),
+            (4, 1, 'm', 'c4', 'three', 'unusable', 't', NULL),
+            (5, 3, 'm', 'c5', 'one', 'complete', 't', NULL);
+        INSERT INTO downloadable_entries (
+            observation_id, sha256, entry_name, resource_kind, byte_length, detected_format,
+            validation_status
+        ) VALUES
+            (1, 'hash-1', 'Movies/StartUp_Unreal.bk2', 'movie', 64, 'bink1', 'valid'),
+            (1, 'hash-1', 'Movies/StartUp_SBZ.bk2', 'movie', 64, 'bink1', 'valid'),
+            (1, 'hash-1', 'Movies/StartUp_DeepSilver.bk2', 'movie', 64, 'bink1', 'valid'),
+            (1, 'hash-2', 'Paks/Mod_P.pak', NULL, NULL, NULL, NULL),
+            (2, 'hash-1', 'Movies/StartUp_SBZ.bk2', 'movie', 64, 'bink1', 'valid'),
+            (3, 'hash-3', '6/Engine.ini', 'config', 66, 'ascii', 'valid'),
+            (3, 'hash-4', '7/Engine.ini', 'config', 0, 'empty', 'unsupported'),
+            (4, 'hash-5', 'Unusable.bk2', 'movie', 1, 'unrecognized', 'invalid'),
+            (5, 'hash-6', 'Other game.bk2', 'movie', 1, 'unrecognized', 'invalid');
     `)
     let baseline = (await verify([], 'first export without a previous snapshot')).rows
     assert.equal((await verify(baseline, 'unchanged export')).changes.length, 0)
     const source = (await pg.query<SnapshotSource>(snapshotSourceQuery, ['pd2'])).rows[0]
-    const original = writeSnapshot(join(workspace, 'original.db'), 'pd2', source, baseline)
+    const original = writeSnapshot(
+        join(workspace, 'original.db'),
+        'pd2',
+        source,
+        baseline,
+        await fullResources()
+    )
     const originalHash = hash(original)
     assert.throws(() => readPreviousSnapshot(original, '0'.repeat(64), 'pd2'), /checksum mismatch/)
     assert.throws(
@@ -168,6 +268,103 @@ try {
     const empty = await verify(baseline, 'all files deleted')
     assert.equal(empty.rows.length, 0)
     assert.equal((await verify(empty.rows, 'empty snapshot repeat')).changes.length, 0)
+
+    // Resource rows come from complete observations only, every name of identical bytes is its
+    // own row, and a retired download stays recognisable. Its files rows are all gone by now,
+    // so this is also the resource-only shard.
+    let resourceBaseline = (await verifyResources([], 'first resource export')).resources
+    assert.deepEqual(
+        resourceBaseline.map((row) => [row.observation_id, row.entry_name, row.source_filename]),
+        [
+            ['1', 'Movies/StartUp_DeepSilver.bk2', 'Skip Startup.rar'],
+            ['1', 'Movies/StartUp_SBZ.bk2', 'Skip Startup.rar'],
+            ['1', 'Movies/StartUp_Unreal.bk2', 'Skip Startup.rar'],
+            ['2', 'Movies/StartUp_SBZ.bk2', ''],
+            ['3', '6/Engine.ini', 'Small UI.zip'],
+            ['3', '7/Engine.ini', 'Small UI.zip'],
+        ]
+    )
+    assert.equal((await verifyResources(resourceBaseline, 'unchanged resources')).changes.length, 0)
+
+    const resourceEdits: Array<[string, string, number]> = [
+        [
+            'validation status',
+            `UPDATE downloadable_entries SET validation_status='invalid'
+             WHERE observation_id=3 AND sha256='hash-3'`,
+            1,
+        ],
+        [
+            'hosted filename',
+            "UPDATE downloadable_observations SET source_filename='UI.zip' WHERE id=3",
+            2,
+        ],
+        ['resource mod name', "UPDATE mods SET name='Skip Startup 🦆:1:' WHERE remote_id=13", 4],
+        [
+            'repeated hash in a later release',
+            `INSERT INTO downloadable_observations (
+                id, downloadable_id, metadata_fingerprint, content_fingerprint, version, outcome,
+                observed_at
+             ) OVERRIDING SYSTEM VALUE VALUES (6, 1, 'm', 'c6', 'four', 'complete', 't');
+             INSERT INTO downloadable_entries (
+                observation_id, sha256, entry_name, resource_kind, byte_length, detected_format,
+                validation_status
+             ) VALUES (6, 'hash-1', 'Movies/StartUp_SBZ.bk2', 'movie', 64, 'bink1', 'valid')`,
+            1,
+        ],
+        [
+            'entry renamed',
+            `UPDATE downloadable_entries SET entry_name='Movies/über:🦆.bk2'
+             WHERE observation_id=1 AND entry_name='Movies/StartUp_SBZ.bk2'`,
+            2,
+        ],
+        ['entry removed', 'DELETE FROM downloadable_entries WHERE observation_id=2', 1],
+    ]
+    for (const [label, statement, expectedChanges] of resourceEdits) {
+        await pg.exec(statement)
+        const result = await verifyResources(resourceBaseline, label)
+        assert.equal(result.changes.length, expectedChanges, label + ' change count')
+        resourceBaseline = result.resources
+    }
+
+    const resourceSource = (await pg.query<SnapshotSource>(snapshotSourceQuery, ['pd2'])).rows[0]
+    const oldShard = writeSnapshot(
+        join(workspace, 'old-shard.db'),
+        'pd2',
+        resourceSource,
+        [],
+        resourceBaseline
+    )
+    const oldShardHash = reshapeShard(oldShard, 'DROP TABLE resource_entries')
+    const oldPrevious = readPreviousSnapshot(oldShard, oldShardHash, 'pd2')
+    assert.deepEqual(
+        oldPrevious.resources,
+        [],
+        'a shard published before resource_entries existed is read as having no resource rows'
+    )
+    assert.equal(
+        (await verifyResources(oldPrevious.resources, 'export after an old previous shard')).changes
+            .length,
+        resourceBaseline.length,
+        'every resource row is fetched when the previous shard predates the table'
+    )
+
+    const malformed = writeSnapshot(
+        join(workspace, 'malformed.db'),
+        'pd2',
+        resourceSource,
+        [],
+        resourceBaseline
+    )
+    const malformedHash = reshapeShard(
+        malformed,
+        'DROP TABLE resource_entries; CREATE TABLE resource_entries (observation_id INTEGER)'
+    )
+    assert.throws(
+        () => readPreviousSnapshot(malformed, malformedHash, 'pd2'),
+        /no such column/,
+        'a malformed resource table is an error, not an old shard'
+    )
+
     console.log(`Snapshot delta tests passed (${checks} full-export equivalence checks)`)
 } finally {
     await pg.close()

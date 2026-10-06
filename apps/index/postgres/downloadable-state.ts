@@ -2,7 +2,10 @@ import { createHash } from 'node:crypto'
 import type { ContentEntry } from './content-archive.js'
 import type { Database, Statement } from './database.js'
 
-export const EXTRACTION_POLICY = 'markers-v4-content-v1'
+// test-postgres-architecture.ts pins the independent Unreal and Diesel extraction policies.
+export const MARKER_EXTRACTION_POLICY = 'markers-v4-content-v1'
+export const UNREAL_EXTRACTION_POLICY = 'unreal-content-v1-resources-v1'
+export type ExtractionPolicy = typeof MARKER_EXTRACTION_POLICY | typeof UNREAL_EXTRACTION_POLICY
 const revalidateMs = 7 * 24 * 60 * 60 * 1000
 
 export interface Listing {
@@ -14,6 +17,7 @@ export interface Listing {
 }
 
 export interface DownloadableInput {
+    policy: ExtractionPolicy
     kind: 'file' | 'link'
     remoteId: number
     url: string
@@ -21,6 +25,8 @@ export interface DownloadableInput {
     objectKey: string | null
     size: number | null
     mediaType: string | null
+    // Sanitized display data from ModWorkshop, never a path. Null for links.
+    sourceFilename: string | null
 }
 
 interface DownloadableRow {
@@ -47,11 +53,18 @@ function metadataFingerprint(input: DownloadableInput): string {
         input.kind === 'file'
             ? { objectKey: input.objectKey, size: input.size, mediaType: input.mediaType }
             : { url: input.url, version: input.version }
+    // The Unreal path names a loose movie or config by its hosted filename, so a rename changes
+    // the entries that download yields.
+    const naming =
+        input.policy === UNREAL_EXTRACTION_POLICY && input.kind === 'file'
+            ? { sourceFilename: input.sourceFilename }
+            : {}
     return fingerprint({
-        policy: EXTRACTION_POLICY,
+        policy: input.policy,
         kind: input.kind,
         remoteId: input.remoteId,
         ...locator,
+        ...naming,
     })
 }
 
@@ -65,11 +78,13 @@ export async function registerDownloadable(
     const rows = await db.query<DownloadableRow>(
         `INSERT INTO remote_downloadables (
             source_id, mod_remote_id, kind, remote_id, metadata_fingerprint,
-            url, object_key, size, media_type, status, first_seen_at, last_seen_at
-         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'pending',$10,$10)
+            url, object_key, size, media_type, status, first_seen_at, last_seen_at,
+            source_filename
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'pending',$10,$10,$13)
          ON CONFLICT (source_id, mod_remote_id, kind, remote_id) DO UPDATE SET
             url = EXCLUDED.url, object_key = EXCLUDED.object_key,
             size = EXCLUDED.size, media_type = EXCLUDED.media_type,
+            source_filename = EXCLUDED.source_filename,
             status = CASE WHEN remote_downloadables.metadata_fingerprint <> EXCLUDED.metadata_fingerprint
                 THEN 'pending' ELSE remote_downloadables.status END,
             attempts = CASE WHEN remote_downloadables.metadata_fingerprint <> EXCLUDED.metadata_fingerprint
@@ -101,6 +116,7 @@ export async function registerDownloadable(
             now.toISOString(),
             input.version,
             listing.version,
+            input.sourceFilename,
         ]
     )
     if (rows.length !== 1) throw new Error(`Failed to register ${input.kind} ${input.remoteId}`)
@@ -142,10 +158,10 @@ export async function recordHostedVersion(
          ), inserted AS (
             INSERT INTO downloadable_observations (
                 downloadable_id, metadata_fingerprint, content_fingerprint,
-                version, outcome, observed_at, error
+                version, outcome, observed_at, error, source_filename, extraction_policy
             )
             SELECT downloadable_id, metadata_fingerprint, content_fingerprint,
-                $3, outcome, $4, error FROM source_observation
+                $3, outcome, $4, error, $5, extraction_policy FROM source_observation
             ON CONFLICT DO NOTHING RETURNING id
          ), target AS (
             SELECT id FROM inserted
@@ -158,29 +174,50 @@ export async function recordHostedVersion(
             WHERE observation.version=$3
             LIMIT 1
          )
-         INSERT INTO downloadable_entries (observation_id, sha256, entry_name)
-         SELECT target.id, entry.sha256, entry.entry_name
+         INSERT INTO downloadable_entries (
+            observation_id, sha256, entry_name,
+            resource_kind, byte_length, detected_format, validation_status
+         )
+         SELECT target.id, entry.sha256, entry.entry_name,
+            entry.resource_kind, entry.byte_length, entry.detected_format, entry.validation_status
          FROM target CROSS JOIN source_observation source
          JOIN downloadable_entries entry ON entry.observation_id=source.id
          ON CONFLICT DO NOTHING`,
-        [state.id, state.metadata_fingerprint, version, now.toISOString()]
+        [
+            state.id,
+            state.metadata_fingerprint,
+            version,
+            now.toISOString(),
+            state.input.sourceFilename,
+        ]
     )
 }
 
-function legacyStatements(
+function entryRecords(entries: ContentEntry[]): string {
+    return JSON.stringify(
+        entries.map((entry) => ({
+            sha256: entry.sha256,
+            entry_name: entry.entryName,
+            resource_kind: entry.resource?.kind ?? null,
+            byte_length: entry.resource?.byteLength ?? null,
+            detected_format: entry.resource?.detectedFormat ?? null,
+            validation_status: entry.resource?.validationStatus ?? null,
+        }))
+    )
+}
+
+// Every collected entry needs its mods row and file_contents hash before the observation
+// entries that reference them. Only pak, IoStore and Lua content enters files, the projection
+// the desktop's ordinary hash and name lookups join, so a resource-only mod has a mods row
+// without becoming a name match.
+function catalogStatements(
     listing: Listing,
     state: DownloadableState,
     entries: ContentEntry[],
     now: Date
 ): Statement[] {
     if (!entries.length) return []
-    // One row per sha256: the files upsert below conflicts on (mod_id, sha256) and Postgres
-    // rejects a statement that hits the same row twice. downloadable_entries keeps every name.
-    const unique = entries.filter(
-        (entry, index) => entries.findIndex((other) => other.sha256 === entry.sha256) === index
-    )
-    const downloadId = state.input.kind === 'file' ? state.input.remoteId : -state.input.remoteId
-    return [
+    const statements: Statement[] = [
         {
             text: `INSERT INTO mods (source_id, remote_id, name, url) VALUES ($1,$2,$3,$4)
                  ON CONFLICT (source_id, remote_id) DO UPDATE SET name=EXCLUDED.name, url=EXCLUDED.url`,
@@ -193,33 +230,38 @@ function legacyStatements(
         },
         {
             text: `INSERT INTO file_contents (sha256)
-                 SELECT sha256 FROM jsonb_to_recordset($1::jsonb) entry(sha256 TEXT, entry_name TEXT)
+                 SELECT DISTINCT sha256 FROM jsonb_to_recordset($1::jsonb) entry(sha256 TEXT)
                  ON CONFLICT DO NOTHING`,
-            values: [
-                JSON.stringify(
-                    unique.map((entry) => ({ sha256: entry.sha256, entry_name: entry.entryName }))
-                ),
-            ],
-        },
-        {
-            text: `INSERT INTO files (mod_id, sha256, remote_id, version, indexed_at, entry_name)
-                 SELECT mods.id, entry.sha256, $3, $4, $5, entry.entry_name
-                 FROM mods CROSS JOIN jsonb_to_recordset($6::jsonb) entry(sha256 TEXT, entry_name TEXT)
-                 WHERE mods.source_id=$1 AND mods.remote_id=$2
-                 ON CONFLICT (mod_id, sha256) DO UPDATE SET
-                    entry_name=CASE WHEN files.entry_name='' THEN EXCLUDED.entry_name ELSE files.entry_name END`,
-            values: [
-                listing.source_id,
-                listing.remote_id,
-                downloadId,
-                state.input.version || listing.version,
-                now.toISOString(),
-                JSON.stringify(
-                    unique.map((entry) => ({ sha256: entry.sha256, entry_name: entry.entryName }))
-                ),
-            ],
+            values: [JSON.stringify(entries.map((entry) => ({ sha256: entry.sha256 })))],
         },
     ]
+    const content = entries.filter((entry) => !entry.resource)
+    if (!content.length) return statements
+    // One row per sha256: the files upsert below conflicts on (mod_id, sha256) and Postgres
+    // rejects a statement that hits the same row twice. downloadable_entries keeps every name.
+    const unique = content.filter(
+        (entry, index) => content.findIndex((other) => other.sha256 === entry.sha256) === index
+    )
+    const downloadId = state.input.kind === 'file' ? state.input.remoteId : -state.input.remoteId
+    statements.push({
+        text: `INSERT INTO files (mod_id, sha256, remote_id, version, indexed_at, entry_name)
+             SELECT mods.id, entry.sha256, $3, $4, $5, entry.entry_name
+             FROM mods CROSS JOIN jsonb_to_recordset($6::jsonb) entry(sha256 TEXT, entry_name TEXT)
+             WHERE mods.source_id=$1 AND mods.remote_id=$2
+             ON CONFLICT (mod_id, sha256) DO UPDATE SET
+                entry_name=CASE WHEN files.entry_name='' THEN EXCLUDED.entry_name ELSE files.entry_name END`,
+        values: [
+            listing.source_id,
+            listing.remote_id,
+            downloadId,
+            state.input.version || listing.version,
+            now.toISOString(),
+            JSON.stringify(
+                unique.map((entry) => ({ sha256: entry.sha256, entry_name: entry.entryName }))
+            ),
+        ],
+    })
+    return statements
 }
 
 export async function settleDownloadable(
@@ -236,12 +278,13 @@ export async function settleDownloadable(
     ]
     const content = fingerprint(unique.map((entry) => [entry.sha256, entry.entryName]).sort())
     const observationVersion = state.input.version || listing.version
-    const statements = legacyStatements(listing, state, unique, now)
+    const statements = catalogStatements(listing, state, unique, now)
     statements.push(
         {
             text: `INSERT INTO downloadable_observations (
-                    downloadable_id, metadata_fingerprint, content_fingerprint, version, outcome, observed_at, error
-                 ) VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT DO NOTHING`,
+                    downloadable_id, metadata_fingerprint, content_fingerprint, version, outcome,
+                    observed_at, error, source_filename, extraction_policy
+                 ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT DO NOTHING`,
             values: [
                 state.id,
                 state.metadata_fingerprint,
@@ -250,13 +293,23 @@ export async function settleDownloadable(
                 outcome,
                 now.toISOString(),
                 error,
+                state.input.sourceFilename,
+                state.input.policy,
             ],
         },
         {
-            text: `INSERT INTO downloadable_entries (observation_id, sha256, entry_name)
-                 SELECT observation.id, entry.sha256, entry.entry_name
+            text: `INSERT INTO downloadable_entries (
+                    observation_id, sha256, entry_name,
+                    resource_kind, byte_length, detected_format, validation_status
+                 )
+                 SELECT observation.id, entry.sha256, entry.entry_name,
+                    entry.resource_kind, entry.byte_length, entry.detected_format,
+                    entry.validation_status
                  FROM downloadable_observations observation
-                 CROSS JOIN jsonb_to_recordset($5::jsonb) entry(sha256 TEXT, entry_name TEXT)
+                 CROSS JOIN jsonb_to_recordset($5::jsonb) entry(
+                    sha256 TEXT, entry_name TEXT, resource_kind TEXT, byte_length BIGINT,
+                    detected_format TEXT, validation_status TEXT
+                 )
                  WHERE observation.downloadable_id=$1 AND observation.metadata_fingerprint=$2
                    AND observation.content_fingerprint=$3 AND observation.version=$4
                  ON CONFLICT DO NOTHING`,
@@ -265,9 +318,7 @@ export async function settleDownloadable(
                 state.metadata_fingerprint,
                 content,
                 observationVersion,
-                JSON.stringify(
-                    unique.map((entry) => ({ sha256: entry.sha256, entry_name: entry.entryName }))
-                ),
+                entryRecords(unique),
             ],
         },
         {

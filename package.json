@@ -55,7 +55,7 @@
         "site:format:check": "bun run --cwd apps/site format:check",
         "site:checks": "bun run site:typecheck && bun run site:typecheck:functions && bun run site:check-legal-dates && bun run site:lint && bun run site:format:check && bun run site:test && bun run site:build",
         "index:build": "bun run --cwd apps/index build-index",
-        "index:test": "bun run --cwd apps/index test:export-determinism && bun run --cwd apps/index test:snapshot-delta && bun run --cwd apps/index test:game-schedule && bun run --cwd apps/index test:marker-contract && bun run --cwd apps/index test:marker-archive && bun run --cwd apps/index test:process-failure && bun run --cwd apps/index test:postgres-architecture && bun run --cwd apps/index test:postgres-queries && bun run --cwd apps/index test:staged-rebuild",
+        "index:test": "bun run --cwd apps/index test:export-determinism && bun run --cwd apps/index test:snapshot-delta && bun run --cwd apps/index test:game-schedule && bun run --cwd apps/index test:marker-contract && bun run --cwd apps/index test:marker-archive && bun run --cwd apps/index test:process-failure && bun run --cwd apps/index test:postgres-architecture && bun run --cwd apps/index test:postgres-queries && bun run --cwd apps/index test:staged-rebuild && bun run --cwd apps/index test:unreal-resources",
         "index:typecheck": "bun run --cwd apps/index tsc --noEmit",
         "audit:deps": "bun run --cwd apps/site test:cache-security && bun audit --ignore=GHSA-vwc7-r8mq-g2x9 --ignore=GHSA-ch52-4w7c-c8xp",
         "prepare": "husky",

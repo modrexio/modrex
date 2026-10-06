@@ -1,4 +1,5 @@
 import { extractContentEntries, type ContentEntry } from './content-archive.js'
+import { isResourceName } from './unreal-resource.js'
 import {
     TransientFetchError,
     UnusableDownloadError,
@@ -9,6 +10,8 @@ import {
 import { connectDatabase } from './database.js'
 import { refreshContentVersions, selectContentListings } from './content-selection.js'
 import {
+    MARKER_EXTRACTION_POLICY,
+    UNREAL_EXTRACTION_POLICY,
     deferDownloadable,
     finishDiscovery,
     needsProcessing,
@@ -20,7 +23,13 @@ import {
     type DownloadableState,
     type Listing,
 } from './downloadable-state.js'
-import { ModWorkshop, ModWorkshopApiError, type ModFile, type ModLink } from './modworkshop.js'
+import {
+    ModWorkshop,
+    ModWorkshopApiError,
+    hostedSourceFilename,
+    type ModFile,
+    type ModLink,
+} from './modworkshop.js'
 
 const gameArg = process.argv.find((argument) => argument.startsWith('--game='))?.slice(7)
 const supportedGames = ['pd3', 'pd2', 'pdth', 'cb', 'raid'] as const
@@ -38,6 +47,7 @@ if (!Number.isInteger(limit) || limit < 1 || limit > 1000) {
 const db = connectDatabase()
 const api = new ModWorkshop()
 const isUnrealGame = game === 'pd3' || game === 'cb'
+const extractionPolicy = isUnrealGame ? UNREAL_EXTRACTION_POLICY : MARKER_EXTRACTION_POLICY
 const now = new Date()
 
 function shouldDownload(type: string): boolean {
@@ -63,17 +73,45 @@ function isFetchableUrl(url: string): boolean {
     }
 }
 
-async function extractEntries(url: string, type: string): Promise<ContentEntry[]> {
+function storageObjectName(url: string): string {
+    return decodeURIComponent(new URL(url).pathname.split('/').pop() ?? '')
+}
+
+// A loose movie or config is published under its own extension rather than an archive type, so
+// its names decide whether it is fetched. This must accept every name extractContentEntries
+// treats as a loose resource, since a label without an extension can stand in for the filename.
+function isLooseUnrealResource(input: DownloadableInput): boolean {
+    if (!isUnrealGame) return false
+    return (
+        advertisedResourceKind(input) !== undefined ||
+        isResourceName(input.sourceFilename ?? '') ||
+        isResourceName(storageObjectName(input.url))
+    )
+}
+
+function advertisedResourceKind(input: DownloadableInput): 'movie' | 'config' | undefined {
+    const type = input.mediaType?.toLowerCase()
+    if (type === 'bk2') return 'movie'
+    if (type === 'ini') return 'config'
+    return undefined
+}
+
+async function extractEntries(input: DownloadableInput): Promise<ContentEntry[]> {
+    const { url } = input
     if (!isUnrealGame) {
         const isPdmod =
-            type.toLowerCase() === 'pdmod' || new URL(url).pathname.toLowerCase().endsWith('.pdmod')
+            input.mediaType?.toLowerCase() === 'pdmod' ||
+            new URL(url).pathname.toLowerCase().endsWith('.pdmod')
         const entry = isPdmod ? await extractPdmodEntry(url) : await extractMarkerEntry(url, null)
         return entry ? [entry] : []
     }
     const archive = await downloadArchive(url)
-    if (!archive) return []
-    const fallbackName = decodeURIComponent(new URL(url).pathname.split('/').pop() ?? '')
-    return extractContentEntries(archive, fallbackName)
+    if (!archive) throw new UnusableDownloadError('download returned 404')
+    return extractContentEntries(archive, {
+        objectName: storageObjectName(url),
+        sourceFilename: input.sourceFilename,
+        advertisedKind: advertisedResourceKind(input),
+    })
 }
 
 const listings = await selectContentListings(db, game, limit, now)
@@ -81,6 +119,7 @@ const versionRefresh = await refreshContentVersions(db, api, listings, now)
 
 function fileInput(file: ModFile): DownloadableInput {
     return {
+        policy: extractionPolicy,
         kind: 'file',
         remoteId: file.id,
         url: file.download_url,
@@ -88,10 +127,12 @@ function fileInput(file: ModFile): DownloadableInput {
         objectKey: file.file,
         size: file.size,
         mediaType: file.type,
+        sourceFilename: hostedSourceFilename(file),
     }
 }
 function linkInput(link: ModLink): DownloadableInput {
     return {
+        policy: extractionPolicy,
         kind: 'link',
         remoteId: link.id,
         url: link.url,
@@ -99,6 +140,7 @@ function linkInput(link: ModLink): DownloadableInput {
         objectKey: null,
         size: null,
         mediaType: null,
+        sourceFilename: null,
     }
 }
 
@@ -116,7 +158,7 @@ async function processDownloadable(
         await settleDownloadable(db, listing, state, 'unusable', [], now, 'upload never completed')
         return { indexed: false, pending: false }
     }
-    if (!shouldDownload(state.input.mediaType ?? '')) {
+    if (!shouldDownload(state.input.mediaType ?? '') && !isLooseUnrealResource(state.input)) {
         await settleDownloadable(
             db,
             listing,
@@ -129,7 +171,7 @@ async function processDownloadable(
         return { indexed: false, pending: false }
     }
     try {
-        const entries = await extractEntries(state.input.url, state.input.mediaType ?? '')
+        const entries = await extractEntries(state.input)
         await settleDownloadable(
             db,
             listing,
