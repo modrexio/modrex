@@ -536,15 +536,36 @@ pub(crate) fn owned_changes(old: &str, new: &str, changes: &[KeyChange]) -> Vec<
     changes
         .iter()
         .filter(|c| {
+            let old_setting = setting(&old_doc, &c.section, &c.key);
+            let new_setting = setting(&new_doc, &c.section, &c.key);
+            if matches!(
+                (&old_setting, &new_setting),
+                (Setting::Ambiguous, Setting::Ambiguous)
+            ) {
+                return owned_declarations(&old_doc, &c.section, &c.key)
+                    != owned_declarations(&new_doc, &c.section, &c.key);
+            }
             let strip = |s: Setting| match s {
                 Setting::Value { value, .. } => Some(Some(value)),
                 Setting::Absent { .. } => Some(None),
                 Setting::Ambiguous => None,
             };
-            strip(setting(&old_doc, &c.section, &c.key))
-                != strip(setting(&new_doc, &c.section, &c.key))
+            strip(old_setting) != strip(new_setting)
         })
         .cloned()
+        .collect()
+}
+
+fn owned_declarations<'a>(doc: &'a Doc, section: &str, key: &str) -> Vec<&'a str> {
+    doc.sections(section)
+        .into_iter()
+        .flat_map(|header| {
+            std::iter::once(doc.lines[header].as_str()).chain(
+                doc.declarations(doc.body(header), key)
+                    .into_iter()
+                    .map(|(line, _)| doc.lines[line].as_str()),
+            )
+        })
         .collect()
 }
 
