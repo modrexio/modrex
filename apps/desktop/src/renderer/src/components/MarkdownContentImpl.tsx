@@ -1,3 +1,4 @@
+import { DisclosureSummary } from './ui/DisclosureSummary'
 import { useMemo, createContext, useContext, type ReactNode } from 'react'
 import { Fragment, jsx, jsxs } from 'react/jsx-runtime'
 import { unified } from 'unified'
@@ -201,9 +202,9 @@ function makeComponents(onOpenDetail?: (modId: number) => void): Components {
             </details>
         ),
         summary: ({ children }) => (
-            <summary className="cursor-pointer px-3 py-2 text-sm font-semibold text-text bg-surface-raised hover:bg-surface-hover transition-colors select-none">
+            <DisclosureSummary className="cursor-pointer px-3 py-2 text-sm font-semibold text-text bg-surface-raised hover:bg-surface-hover transition-colors select-none">
                 {children ?? t('detail.spoiler')}
-            </summary>
+            </DisclosureSummary>
         ),
     }
 }

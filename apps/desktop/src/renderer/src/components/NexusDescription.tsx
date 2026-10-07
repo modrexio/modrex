@@ -1,3 +1,4 @@
+import { DisclosureSummary } from './ui/DisclosureSummary'
 import {
     Children,
     cloneElement,
@@ -239,9 +240,9 @@ class SpoilerTag extends Tag {
     toReact() {
         return (
             <details className="my-2 border border-border rounded-lg overflow-hidden">
-                <summary className="cursor-pointer px-3 py-2 text-sm font-semibold text-text bg-surface-raised hover:bg-surface-hover transition-colors select-none">
+                <DisclosureSummary className="cursor-pointer px-3 py-2 text-sm font-semibold text-text bg-surface-raised hover:bg-surface-hover transition-colors select-none">
                     {this.params.label || t('detail.spoiler')}
-                </summary>
+                </DisclosureSummary>
                 <div className="px-3 py-2">{Children.toArray(this.getComponents())}</div>
             </details>
         )
