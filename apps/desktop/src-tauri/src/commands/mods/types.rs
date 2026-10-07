@@ -134,6 +134,29 @@ pub struct InstalledMod {
     pub identity: Option<ModIdentity>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub declared: Option<DeclaredMetadata>,
+    // Set only on rows get_installed derives from the resource manifest. Those rows are never
+    // written to .modrex.json, where an older client would treat them as ordinary files.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deployment: Option<ResourceDeployment>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub resource_status: Option<ResourceStatus>,
+}
+
+/// Which resource operation owns a row. Absent for every ordinary mod.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub enum ResourceDeployment {
+    Movie,
+    Ini,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub enum ResourceStatus {
+    Applied,
+    Disabled,
+    Diverged,
+    Blocked,
 }
 
 impl InstalledMod {
@@ -187,6 +210,8 @@ impl Default for InstalledMod {
             nexus_content_missed: None,
             identity: None,
             declared: None,
+            deployment: None,
+            resource_status: None,
         }
     }
 }
@@ -208,4 +233,7 @@ pub struct InstalledResponse {
     /// order and per-mod metadata is not in it, and no operation may replace that record until
     /// the file is readable again.
     pub state_unreadable: bool,
+    /// The movie and Engine.ini records could not be loaded, so their rows are missing and
+    /// every resource write is blocked. Ordinary mods above are unaffected.
+    pub resource_error: Option<String>,
 }

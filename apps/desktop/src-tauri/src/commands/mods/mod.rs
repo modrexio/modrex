@@ -10,16 +10,21 @@ mod identify;
 pub mod identity;
 mod ini;
 mod install;
-mod movies;
 mod moves;
+pub(crate) mod movies;
 mod naming;
 mod nexus_content;
 mod paths;
 mod pdmod;
 mod reorder;
 mod resource_state;
+mod resources;
 mod staged;
 mod staging_tokens;
+pub use self::resource_state::ResourceLocks;
+pub(crate) use self::resources::launch_preflight as resource_launch_preflight;
+pub(crate) use self::resources::refuse_resource_uid;
+pub use self::resources::{IniSessions, ResourceReviews};
 pub(crate) use self::staging_tokens::StagingRegistry;
 mod state;
 mod types;
@@ -155,6 +160,7 @@ pub enum InstallOutcome {
     NeedsHostChoice(zip::HostPackPayload),
     NeedsCbFlatConfirm(zip::CbFlatPayload),
     NeedsLoaderConfirm(Ue4ssReplacePayload),
+    NeedsResourceReview(resources::ResourceReviewPayload),
     Unrecognized,
 }
 
@@ -227,6 +233,7 @@ pub async fn get_installed(app: AppHandle, game_id: String) -> Result<InstalledR
             folders: vec![],
             mods_hidden: false,
             state_unreadable: false,
+            resource_error: None,
         });
     };
 
@@ -319,12 +326,19 @@ pub async fn get_installed(app: AppHandle, game_id: String) -> Result<InstalledR
         }
         let mut mods = state.mods;
         push_installed_loaders(cfg, &game_path, &settings, &mut mods);
-        return Ok(InstalledResponse {
-            mods,
-            folders: state.folders,
-            mods_hidden: true,
-            state_unreadable: writeback.blocked(),
-        });
+        return Ok(with_resource_rows(
+            &app,
+            game_id,
+            &game_path,
+            InstalledResponse {
+                mods,
+                folders: state.folders,
+                mods_hidden: true,
+                state_unreadable: writeback.blocked(),
+                resource_error: None,
+            },
+        )
+        .await);
     }
 
     let known: HashSet<String> = state
@@ -371,12 +385,19 @@ pub async fn get_installed(app: AppHandle, game_id: String) -> Result<InstalledR
             );
         }
         push_installed_loaders(cfg, &game_path, &settings, &mut mods);
-        return Ok(InstalledResponse {
-            mods,
-            folders: state.folders,
-            mods_hidden: false,
-            state_unreadable: writeback.blocked(),
-        });
+        return Ok(with_resource_rows(
+            &app,
+            game_id,
+            &game_path,
+            InstalledResponse {
+                mods,
+                folders: state.folders,
+                mods_hidden: false,
+                state_unreadable: writeback.blocked(),
+                resource_error: None,
+            },
+        )
+        .await);
     }
 
     let folder_path_to_id = ensure_untracked_folders(&mut state, &untracked);
@@ -413,12 +434,49 @@ pub async fn get_installed(app: AppHandle, game_id: String) -> Result<InstalledR
         "the scanned state",
     );
     push_installed_loaders(cfg, &game_path, &settings, &mut mods);
-    Ok(InstalledResponse {
-        mods,
-        folders,
-        mods_hidden: false,
-        state_unreadable: writeback.blocked(),
+    Ok(with_resource_rows(
+        &app,
+        game_id,
+        &game_path,
+        InstalledResponse {
+            mods,
+            folders,
+            mods_hidden: false,
+            state_unreadable: writeback.blocked(),
+            resource_error: None,
+        },
+    )
+    .await)
+}
+
+/// Appends movie pack and preset rows, which come only from the resource manifest and are
+/// added after every state write so they can never be saved into .modrex.json.
+async fn with_resource_rows(
+    app: &AppHandle,
+    game_id: &str,
+    game_path: &str,
+    mut response: InstalledResponse,
+) -> InstalledResponse {
+    let resource_app = app.clone();
+    let resource_game = game_id.to_string();
+    let resource_path = game_path.to_string();
+    let result = tauri::async_runtime::spawn_blocking(move || {
+        resources::installed_rows(&resource_app, &resource_game, &resource_path)
     })
+    .await
+    .map_err(|error| error.to_string())
+    .and_then(|result| result);
+    match result {
+        Ok((rows, error)) => {
+            response.mods.extend(rows);
+            response.resource_error = error;
+        }
+        Err(e) => {
+            log::warn!("get_installed {game_id}: resource records: {e}");
+            response.resource_error = Some(e);
+        }
+    }
+    response
 }
 
 #[tauri::command]
@@ -533,6 +591,9 @@ pub async fn install_mod(
         );
 
         let download_id = format!("mod:{mod_id}");
+        let source_name = hosted_resource_name(&download_url)
+            .or_else(|| file["name"].as_str().map(str::to_owned))
+            .unwrap_or_else(|| format!("{mod_name}.{file_type}"));
         let downloaded = download_file(&app, &download_url, &file_type, &download_id).await?;
         Ok::<_, String>((
             mod_name,
@@ -541,11 +602,13 @@ pub async fn install_mod(
             file_id,
             file_type,
             downloaded,
+            source_name,
         ))
     }
     .await;
 
-    let (mod_name, mod_version, remote_id, file_id, file_type, downloaded) = match prep {
+    let (mod_name, mod_version, remote_id, file_id, file_type, downloaded, source_name) = match prep
+    {
         Ok(v) => v,
         Err(e) => {
             log::warn!("install_mod {mod_id}: {e}");
@@ -587,6 +650,34 @@ pub async fn install_mod(
                     mod_version: mod_version.clone(),
                 })
                 .into());
+        }
+        Err(ResolveError::Resources(found)) => {
+            return answer_resources(
+                &app,
+                &game_id,
+                &game_path,
+                *found,
+                &source_name,
+                resources::Provenance {
+                    name: mod_name.clone(),
+                    version: mod_version.clone(),
+                    source: Some("modworkshop".to_string()),
+                    remote_id: Some(remote_id.to_string()),
+                    file_id: Some(file_id),
+                    author: None,
+                    thumbnail_url: None,
+                },
+                ModContext {
+                    mod_id: remote_id,
+                    mod_name: mod_name.clone(),
+                    file_id,
+                    file_type: file_type.clone(),
+                    mod_version: mod_version.clone(),
+                },
+            )
+            .await
+            .map(InstallOutcome::NeedsResourceReview)
+            .inspect_err(|e| log::warn!("install_mod {mod_id}: {e}"));
         }
         Err(ResolveError::Failure(e)) => {
             log::warn!("install_mod {mod_id}: {e}");
@@ -724,6 +815,8 @@ pub async fn install_file(
     game_id: String,
 ) -> Result<InstallOutcome, String> {
     let cfg = engine_for_game(game_id.as_str())?;
+    let source_name =
+        hosted_resource_name(&download_url).unwrap_or_else(|| format!("{mod_name}.{file_type}"));
     let download_id = format!("file:{mod_id}:{file_id}");
     let downloaded = match download_file(&app, &download_url, &file_type, &download_id).await {
         Ok(v) => v,
@@ -765,6 +858,34 @@ pub async fn install_file(
                     mod_version: mod_version.clone(),
                 })
                 .into());
+        }
+        Err(ResolveError::Resources(found)) => {
+            return answer_resources(
+                &app,
+                &game_id,
+                &game_path,
+                *found,
+                &source_name,
+                resources::Provenance {
+                    name: mod_name.clone(),
+                    version: mod_version.clone(),
+                    source: Some("modworkshop".to_string()),
+                    remote_id: Some(mod_id.to_string()),
+                    file_id: Some(file_id),
+                    author: None,
+                    thumbnail_url: None,
+                },
+                ModContext {
+                    mod_id,
+                    mod_name: mod_name.clone(),
+                    file_id,
+                    file_type: file_type.clone(),
+                    mod_version: mod_version.clone(),
+                },
+            )
+            .await
+            .map(InstallOutcome::NeedsResourceReview)
+            .inspect_err(|e| log::warn!("install_file {mod_id}/{file_id}: {e}"));
         }
         Err(ResolveError::Failure(e)) => {
             log::warn!("install_file {mod_id}/{file_id}: {e}");
@@ -884,20 +1005,28 @@ pub(crate) struct NexusInstallMeta {
     pub author: Option<String>,
     pub thumbnail_url: Option<String>,
     pub file_type: String,
+    /// The published file name. A loose movie or INI is reviewed under it, so it has to be the
+    /// real name rather than the temp download's.
+    pub source_name: String,
 }
 
-// Nexus identity always stays its own tracked entry, never merged into a modworkshop
-// one even when a byte-identical cross-posted file exists elsewhere (see identify.rs's
-// upgrade_negative_ids, which never reassigns an entry that already carries a
-// remote_id). Picker sentinels cannot be forwarded because their UI requires
-// modworkshop metadata that this handoff does not have.
+/// What an nxm download produced: an install, or a resource review that installs nothing
+/// until the user applies it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum NexusInstallOutcome {
+    Installed,
+    NeedsResourceReview(String),
+}
+
+// Nexus files retain their source identity even when ModWorkshop has identical bytes.
+// Resource packages use the Nexus review command. Ordinary archive choices need ModWorkshop UI.
 pub(crate) async fn install_nexus_download(
     app: &AppHandle,
     game_id: &str,
     game_path: &str,
     downloaded: PathBuf,
     meta: NexusInstallMeta,
-) -> Result<(), String> {
+) -> Result<NexusInstallOutcome, String> {
     let NexusInstallMeta {
         mod_id: nexus_mod_id,
         file_id: nexus_file_id,
@@ -906,6 +1035,7 @@ pub(crate) async fn install_nexus_download(
         author: mod_author,
         thumbnail_url,
         file_type,
+        source_name,
     } = meta;
     let cfg = engine_for_game(game_id)?;
     let dl_path = downloaded.clone();
@@ -943,7 +1073,8 @@ pub(crate) async fn install_nexus_download(
                     .recorded(),
                 ),
             )
-            .await;
+            .await
+            .map(|()| NexusInstallOutcome::Installed);
         }
         Err(ResolveError::Prompt(prompt)) => {
             cleanup::run(&cleanup::CleanupPlan::RemoveOwnedFile(dl_path.clone())).await;
@@ -956,6 +1087,41 @@ pub(crate) async fn install_nexus_download(
             return Err(format!(
                 "nexus: '{mod_name}' needs a manual install choice ({kind}) that Nexus downloads don't support yet"
             ));
+        }
+        Err(ResolveError::Resources(found)) => {
+            if let Some(picker) = &found.pak_picker {
+                staged_archives(app)
+                    .restrict_to_nexus(&picker.archive_handle)
+                    .expect("The Nexus download just issued this unused archive grant");
+            }
+            return answer_resources(
+                app,
+                game_id,
+                game_path,
+                *found,
+                &source_name,
+                resources::Provenance {
+                    name: mod_name.clone(),
+                    version: mod_version.clone(),
+                    source: Some("nexus".to_string()),
+                    remote_id: Some(nexus_mod_id.to_string()),
+                    file_id: Some(i64::from(nexus_file_id)),
+                    author: mod_author,
+                    thumbnail_url,
+                },
+                ModContext {
+                    mod_id: i64::from(nexus_mod_id),
+                    mod_name,
+                    file_id: i64::from(nexus_file_id),
+                    file_type,
+                    mod_version,
+                },
+            )
+            .await
+            .map(|payload| NexusInstallOutcome::NeedsResourceReview(payload.review_handle))
+            .inspect_err(|e| {
+                log::warn!("install_nexus_download {nexus_mod_id}/{nexus_file_id}: {e}")
+            });
         }
         Err(ResolveError::Failure(e)) => {
             log::warn!("install_nexus_download {nexus_mod_id}/{nexus_file_id}: {e}");
@@ -1014,7 +1180,7 @@ pub(crate) async fn install_nexus_download(
     if let Err(e) = &result {
         log::warn!("install_nexus_download {nexus_mod_id}/{nexus_file_id}: {e}");
     }
-    result
+    result.map(|()| NexusInstallOutcome::Installed)
 }
 
 /// Removes the download once the loader installer has taken it.
@@ -1133,6 +1299,219 @@ async fn answer_ue4ss_package(
         replaced: plan.replaced,
         preserved: plan.preserved,
     }))
+}
+
+/// Reads the published filename from a ModWorkshop storage URL.
+fn hosted_resource_name(url: &str) -> Option<String> {
+    let parsed = reqwest::Url::parse(url).ok()?;
+    let name = parsed
+        .query_pairs()
+        .find_map(|(key, value)| (key == "filename").then(|| value.into_owned()))?;
+    Path::new(&name)
+        .file_name()
+        .and_then(|name| name.to_str())
+        .filter(|name| !name.is_empty())
+        .map(str::to_owned)
+}
+
+async fn answer_resources(
+    app: &AppHandle,
+    game_id: &str,
+    game_path: &str,
+    mut found: zip::ResourceArchive,
+    source_name: &str,
+    provenance: resources::Provenance,
+    ctx: ModContext,
+) -> Result<resources::ResourceReviewPayload, String> {
+    if let Some(picker) = found.pak_picker.take() {
+        let InstallPrompt::ZipMultiPak(filled) =
+            InstallPrompt::ZipMultiPak(picker).with_mod_context(ctx)
+        else {
+            unreachable!("with_mod_context keeps the prompt kind");
+        };
+        found.pak_picker = Some(filled);
+    }
+    let picker_handle = found.pak_picker.as_ref().map(|p| p.archive_handle.clone());
+    let downloaded = found.downloaded.clone();
+    let review_app = app.clone();
+    let review_game = game_id.to_string();
+    let review_path = game_path.to_string();
+    let review_source = source_name.to_string();
+    let result = tauri::async_runtime::spawn_blocking(move || {
+        resources::open_review(
+            &review_app,
+            &review_game,
+            &review_path,
+            found,
+            &review_source,
+            provenance,
+        )
+    })
+    .await
+    .map_err(|error| error.to_string())
+    .and_then(|result| result);
+    match result {
+        Ok(review_handle) => Ok(resources::ResourceReviewPayload { review_handle }),
+        Err(e) => {
+            let plan = match picker_handle {
+                Some(handle) => staged_archives(app).finalize(&handle),
+                None => Some(cleanup::CleanupPlan::RemoveOwnedFile(downloaded)),
+            };
+            if let Some(plan) = plan {
+                cleanup::run_sync(&plan);
+            }
+            Err(e)
+        }
+    }
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn get_resource_review(
+    app: AppHandle,
+    review_handle: String,
+) -> Result<resources::ResourceReview, String> {
+    tauri::async_runtime::spawn_blocking(move || resources::get_review(&app, &review_handle))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn install_reviewed_resources(
+    app: AppHandle,
+    review_handle: String,
+    selections: Vec<resources::ResourceSelection>,
+) -> Result<resources::ResourceInstallResult, String> {
+    let nexus = resources::nexus_completion(&app, &review_handle);
+    let result = resources::install_reviewed(&app, &review_handle, selections)
+        .await
+        .inspect_err(|e| log::warn!("install_reviewed_resources: {e}"));
+    // A failed preset leaves the review open, but a movie pack applied before it is installed.
+    let installed = result.as_ref().is_ok_and(|result| result.installed)
+        || (nexus
+            .as_ref()
+            .is_some_and(|before| !before.movie_pack_applied)
+            && resources::nexus_completion(&app, &review_handle)
+                .is_some_and(|after| after.movie_pack_applied));
+    if let Some(nexus) = nexus {
+        if installed {
+            report_nexus_installed(
+                &app,
+                &nexus.game_id,
+                nexus.mod_id,
+                nexus.file_id,
+                &nexus.name,
+            );
+        } else if result.is_ok() {
+            report_nexus_review_closed(&app, &nexus);
+        }
+    }
+    result
+}
+
+/// Reports completion after a Nexus review installs a selected component.
+fn report_nexus_installed(app: &AppHandle, game_id: &str, mod_id: u32, file_id: i64, name: &str) {
+    if let Err(e) = crate::commands::nxm::emit_install_complete(app, game_id, mod_id, file_id, name)
+    {
+        log::warn!("nexus review {mod_id}/{file_id}: completion not sent: {e}");
+    }
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn cancel_resource_review(app: AppHandle, review_handle: String) {
+    let nexus = resources::nexus_completion(&app, &review_handle);
+    resources::cancel_review(&app, &review_handle);
+    if let Some(nexus) = nexus {
+        report_nexus_review_closed(&app, &nexus);
+    }
+}
+
+fn report_nexus_review_closed(app: &AppHandle, nexus: &resources::NexusCompletion) {
+    if let Err(error) =
+        crate::commands::nxm::emit_review_closed(app, &nexus.game_id, nexus.mod_id, nexus.file_id)
+    {
+        log::warn!("Nexus review close notification failed: {error}");
+    }
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn review_resource_recovery(
+    app: AppHandle,
+    game_id: String,
+    uid: Option<String>,
+) -> Result<resources::ResourceRecoveryReview, String> {
+    engine_for_game(&game_id)?;
+    resources::review_recovery(&app, &game_id, uid).await
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn keep_current_resources(app: AppHandle, review_handle: String) -> Result<(), String> {
+    resources::keep_current(&app, &review_handle).await
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn cancel_resource_recovery(app: AppHandle, review_handle: String) {
+    resources::cancel_recovery(&app, &review_handle);
+}
+
+/// Removes every open review's staged payloads, for application exit.
+pub(crate) fn discard_all_resource_reviews(app: &AppHandle) {
+    resources::discard_all_reviews(app);
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn open_engine_ini(
+    app: AppHandle,
+    game_id: String,
+) -> Result<resources::IniEditorSession, String> {
+    resources::open_engine_ini(&app, &game_id).await
+}
+
+/// title comes from the renderer already localized, like pick_folder's.
+#[tauri::command]
+#[specta::specta]
+pub async fn pick_engine_ini(
+    app: AppHandle,
+    game_id: String,
+    title: String,
+    folder: bool,
+) -> Result<Option<resources::IniEditorSession>, String> {
+    resources::pick_engine_ini(&app, &game_id, title, folder).await
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn read_resource_ini(
+    app: AppHandle,
+    review_handle: String,
+    entry_id: u32,
+) -> Result<String, String> {
+    resources::read_review_ini(&app, &review_handle, entry_id)
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn save_engine_ini(
+    app: AppHandle,
+    session_handle: String,
+    text: String,
+    release_preset: bool,
+) -> Result<resources::IniEditorSession, String> {
+    resources::save_engine_ini(&app, &session_handle, text, release_preset)
+        .await
+        .inspect_err(|e| log::warn!("save_engine_ini: {e}"))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn close_engine_ini(app: AppHandle, session_handle: String) {
+    resources::close_engine_ini(&app, &session_handle);
 }
 
 #[derive(Debug, Clone, Deserialize, specta::Type)]
@@ -1383,6 +1762,40 @@ pub async fn install_dropped_file(
                     mod_version: String::new(),
                 })
                 .into());
+        }
+        // Reviewed from the temp copy. The user's dropped original is never touched.
+        Err(ResolveError::Resources(found)) => {
+            let syn = hash_filename(&file_stem);
+            return answer_resources(
+                &app,
+                &game_id,
+                &game_path,
+                *found,
+                dropped_file_name(&path),
+                resources::Provenance {
+                    name: file_stem.clone(),
+                    version: String::new(),
+                    source: None,
+                    remote_id: None,
+                    file_id: None,
+                    author: None,
+                    thumbnail_url: None,
+                },
+                ModContext {
+                    mod_id: syn,
+                    mod_name: file_stem.clone(),
+                    file_id: syn,
+                    file_type: src
+                        .extension()
+                        .and_then(|s| s.to_str())
+                        .unwrap_or("zip")
+                        .to_string(),
+                    mod_version: String::new(),
+                },
+            )
+            .await
+            .map(InstallOutcome::NeedsResourceReview)
+            .inspect_err(|e| log::warn!("install_dropped_file {}: {e}", dropped_file_name(&path)));
         }
         Err(ResolveError::Failure(e)) => {
             cleanup::run(&cleanup::CleanupPlan::RemoveOwnedFile(temp.clone())).await;
@@ -1638,52 +2051,16 @@ pub async fn install_from_zip_entry(
     // or a candidate mod folder).
     let cb_dir_entry = decisions::is_cb_dir_entry(cfg, entry_kind.as_deref());
 
-    // entry_stem / entry_filename are the last path component of entry_name.
-    let entry_stem = std::path::Path::new(&entry_name)
-        .file_stem()
-        .and_then(|s| s.to_str())
-        .unwrap_or(&entry_name);
-    let entry_filename = std::path::Path::new(&entry_name)
-        .file_name()
-        .and_then(|s| s.to_str())
-        .unwrap_or(&entry_name)
-        .to_string();
-
-    // ext is the staged path the install reads from; tmp_parent is the directory cleanup
-    // removes afterwards, and is None when the staged path is a bare temp file.
-    let (ext, tmp_parent) = match decisions::entry_staging(cfg, target, cb_dir_entry) {
-        decisions::EntryStaging::CrimeBossSkeleton => {
-            let skeleton_root =
-                extract_entry_into_crimeboss_skeleton_at(&zip, &entry, cfg.primary().companions)?;
-            (skeleton_root.clone(), Some(skeleton_root))
-        }
-        decisions::EntryStaging::DirectoryUnderNewParent => {
-            let parent = std::env::temp_dir().join(format!("modrex-mod-{}", Uuid::new_v4()));
-            let p = parent.join(&entry_filename);
-            (p, Some(parent))
-        }
-        decisions::EntryStaging::SingleTempFile => {
-            let p = std::env::temp_dir().join(format!(
-                "modrex-mod-{}.{}",
-                Uuid::new_v4(),
-                target.content_extension().unwrap_or("bin")
-            ));
-            (p, None)
-        }
-    };
+    let (entry_stem, entry_filename) = entry_names(&entry_name);
+    let (ext, entry_cleanup) =
+        stage_archive_entry(cfg, target, &zip, &entry, cb_dir_entry, &entry_filename)
+            .inspect_err(|e| log::warn!("install_from_zip_entry {mod_id} file={file_id}: {e}"))?;
 
     let uid = format!("{}_{}", file_id, entry_stem);
     let install_filename =
         decisions::install_filename_for_zip_entry(cfg, &mod_name, &entry_filename);
 
     let result = async {
-        match decisions::entry_extraction(cfg, target, cb_dir_entry) {
-            decisions::EntryExtraction::DirEntry => extract_staged_dir(&zip, &entry, &ext)?,
-            decisions::EntryExtraction::EntryWithSidecars => {
-                extract_staged_entry_with_sidecars(&zip, &entry, &ext, target.companions)?
-            }
-            decisions::EntryExtraction::AlreadyStaged => {}
-        }
         let sha256 = staged_content_sha256(target, &ext).await?;
         let sp = get_state_path(&game_path, cfg);
         let saved = read_state(&sp).map_err(|e| {
@@ -1748,19 +2125,199 @@ pub async fn install_from_zip_entry(
     .await;
 
     // Keep the zip alive for multi-entry installs; only remove the extracted temp here.
-    let entry_cleanup = match tmp_parent {
-        Some(parent) => cleanup::CleanupPlan::RemoveOwnedDirectory(parent),
-        None => cleanup::CleanupPlan::RemoveOwnedFileWithSidecars {
-            path: ext.clone(),
-            companions: target.companions,
-        },
-    };
     cleanup::run(&entry_cleanup).await;
     match &result {
         Ok(_) => track_mod_installed(&app, game_id.as_str(), mod_id, &install_format),
         Err(e) => log::warn!("install_from_zip_entry {mod_id} file={file_id}: {e}"),
     }
     result
+}
+
+/// An archive entry's stem and file name, the last component of its display name.
+fn entry_names(entry_name: &str) -> (String, String) {
+    let path = Path::new(entry_name);
+    let stem = path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or(entry_name);
+    let filename = path
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or(entry_name);
+    (stem.to_string(), filename.to_string())
+}
+
+/// Extracts one staged archive entry to where install_mod_from_path reads it, returning that
+/// path and the plan that removes the extracted copy. The archive itself is left in place.
+fn stage_archive_entry(
+    cfg: &ModEngineConfig,
+    target: &ScanTarget,
+    zip: &Path,
+    entry: &staging_tokens::StagedEntry,
+    cb_dir_entry: bool,
+    entry_filename: &str,
+) -> Result<(PathBuf, cleanup::CleanupPlan), String> {
+    // The second element is the directory cleanup removes, None when the staged path is a
+    // bare temp file.
+    let (staged, tmp_parent) = match decisions::entry_staging(cfg, target, cb_dir_entry) {
+        decisions::EntryStaging::CrimeBossSkeleton => {
+            let skeleton_root =
+                extract_entry_into_crimeboss_skeleton_at(zip, entry, cfg.primary().companions)?;
+            (skeleton_root.clone(), Some(skeleton_root))
+        }
+        decisions::EntryStaging::DirectoryUnderNewParent => {
+            let parent = std::env::temp_dir().join(format!("modrex-mod-{}", Uuid::new_v4()));
+            (parent.join(entry_filename), Some(parent))
+        }
+        decisions::EntryStaging::SingleTempFile => {
+            let p = std::env::temp_dir().join(format!(
+                "modrex-mod-{}.{}",
+                Uuid::new_v4(),
+                target.content_extension().unwrap_or("bin")
+            ));
+            (p, None)
+        }
+    };
+    let entry_cleanup = match tmp_parent {
+        Some(parent) => cleanup::CleanupPlan::RemoveOwnedDirectory(parent),
+        None => cleanup::CleanupPlan::RemoveOwnedFileWithSidecars {
+            path: staged.clone(),
+            companions: target.companions,
+        },
+    };
+    let extracted = match decisions::entry_extraction(cfg, target, cb_dir_entry) {
+        decisions::EntryExtraction::DirEntry => extract_staged_dir(zip, entry, &staged),
+        decisions::EntryExtraction::EntryWithSidecars => {
+            extract_staged_entry_with_sidecars(zip, entry, &staged, target.companions)
+        }
+        decisions::EntryExtraction::AlreadyStaged => Ok(()),
+    };
+    if let Err(e) = extracted {
+        cleanup::run_sync(&entry_cleanup);
+        return Err(e);
+    }
+    Ok((staged, entry_cleanup))
+}
+
+// The arg list outgrew specta's function arity; the renderer passes these under one args key.
+#[derive(serde::Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct InstallNexusReviewPakArgs {
+    pub review_handle: String,
+    /// Which entry of the review's package picker to install, as issued when it was listed.
+    pub entry_id: staging_tokens::ArchiveEntryId,
+    pub folder_id: Option<String>,
+}
+
+/// Installs one package a Nexus resource review offers. The game, install, archive, target
+/// and Nexus identity all come from the review, never from the renderer, and the review stays
+/// open afterwards so its movies and presets can still be chosen or the review cancelled.
+#[tauri::command]
+#[specta::specta]
+pub async fn install_nexus_review_pak(
+    app: AppHandle,
+    args: InstallNexusReviewPakArgs,
+) -> Result<(), String> {
+    let (held, choice) = resources::hold_nexus_pak_review(&app, &args.review_handle)?;
+    let result = install_nexus_review_entry(&app, &choice, args.entry_id, args.folder_id).await;
+    resources::release_review(&app, held);
+    match &result {
+        Ok(()) => report_nexus_installed(
+            &app,
+            &choice.game_id,
+            choice.mod_id,
+            choice.file_id,
+            &choice.name,
+        ),
+        Err(e) => log::warn!(
+            "install_nexus_review_pak {}/{}: {e}",
+            choice.mod_id,
+            choice.file_id
+        ),
+    }
+    result
+}
+
+async fn install_nexus_review_entry(
+    app: &AppHandle,
+    choice: &resources::NexusPakChoice,
+    entry_id: staging_tokens::ArchiveEntryId,
+    folder_id: Option<String>,
+) -> Result<(), String> {
+    let cfg = engine_for_game(&choice.game_id)?;
+    let picker = &choice.picker;
+    let location_tag = match &picker.entry_tags {
+        Some(tags) => tags.get(entry_id.0 as usize).cloned().flatten(),
+        None => picker.target_tag.clone(),
+    };
+    let target = cfg.target_for(location_tag.as_deref());
+    let cb_dir_entry = decisions::is_cb_dir_entry(cfg, picker.entry_kind.as_deref());
+    let _state_guard = lock_game_state(app, cfg.game_id).await;
+    let registry = staged_archives(app);
+    let zip = registry
+        .borrow(
+            &picker.archive_handle,
+            staging_tokens::StagedArchiveKind::NexusResourcePak,
+        )
+        .ok_or("this archive is no longer available to install from")?;
+    let _borrow = staging_tokens::BorrowGuard::new(registry, &picker.archive_handle);
+    let entry = registry
+        .entry(
+            &picker.archive_handle,
+            staging_tokens::StagedArchiveKind::NexusResourcePak,
+            entry_id,
+        )
+        .ok_or("that archive entry is no longer available to install")?;
+    let (entry_stem, entry_filename) = entry_names(&entry.display_name);
+    let (staged, entry_cleanup) =
+        stage_archive_entry(cfg, target, &zip, &entry, cb_dir_entry, &entry_filename)?;
+
+    let result = async {
+        let sha256 = staged_content_sha256(target, &staged).await?;
+        resources::validate_nexus_pak_choice(app, choice)?;
+        let sp = get_state_path(&choice.game_path, cfg);
+        install_mod_from_path(
+            &choice.game_path,
+            &sp,
+            InstalledMod {
+                uid: nexus_entry_uid(choice.mod_id, choice.file_id, &entry_stem),
+                name: choice.name.clone(),
+                version: choice.version.clone(),
+                filename: decisions::install_filename_for_zip_entry(
+                    cfg,
+                    &choice.name,
+                    &entry_filename,
+                ),
+                enabled: true,
+                installed_at: Utc::now().to_rfc3339(),
+                file_remote_id: Some(choice.file_id.to_string()),
+                author: choice.author.clone(),
+                thumbnail_url: choice.thumbnail_url.clone(),
+                file_id: Some(choice.file_id),
+                file_type: Some(choice.file_type.clone()),
+                sha256: Some(sha256),
+                ..InstalledMod::from_catalog(
+                    "nexus",
+                    choice.mod_id.to_string(),
+                    IdentityEvidence::InstallProvenance,
+                )
+            },
+            &staged,
+            folder_id,
+            cfg,
+            target,
+        )
+    }
+    .await;
+    cleanup::run(&entry_cleanup).await;
+    result
+}
+
+/// The uid of one package installed from a Nexus file. It extends the single-file
+/// nexus:{mod}:{file} scheme with the entry, so reinstalling the same entry replaces it in
+/// place and never matches a ModWorkshop {file_id}_{stem} record.
+fn nexus_entry_uid(mod_id: u32, file_id: i64, entry_stem: &str) -> String {
+    format!("nexus:{mod_id}:{file_id}:{entry_stem}")
 }
 
 /// Installs a Crime Boss archive whose content has no enclosing folder (every entry sits at the
@@ -1972,6 +2529,16 @@ pub async fn uninstall_mod(
     uid: String,
     game_id: String,
 ) -> Result<(), String> {
+    if resources::is_resource_uid(&uid) {
+        return resources::act(
+            &app,
+            &game_id,
+            &game_path,
+            &uid,
+            resources::ResourceAction::Uninstall,
+        )
+        .await;
+    }
     let _state_guard = lock_game_state(&app, game_id.as_str()).await;
     let cfg = engine_for_game(game_id.as_str())?;
     uninstall_mod_op(&game_path, &get_state_path(&game_path, cfg), &uid, cfg)?;
@@ -1991,6 +2558,16 @@ pub async fn enable_mod(
     uid: String,
     game_id: String,
 ) -> Result<(), String> {
+    if resources::is_resource_uid(&uid) {
+        return resources::act(
+            &app,
+            &game_id,
+            &game_path,
+            &uid,
+            resources::ResourceAction::Enable,
+        )
+        .await;
+    }
     let _state_guard = lock_game_state(&app, game_id.as_str()).await;
     let cfg = engine_for_game(game_id.as_str())?;
     let settings = read_settings(&app);
@@ -2018,6 +2595,16 @@ pub async fn disable_mod(
     uid: String,
     game_id: String,
 ) -> Result<(), String> {
+    if resources::is_resource_uid(&uid) {
+        return resources::act(
+            &app,
+            &game_id,
+            &game_path,
+            &uid,
+            resources::ResourceAction::Disable,
+        )
+        .await;
+    }
     let _state_guard = lock_game_state(&app, game_id.as_str()).await;
     let cfg = engine_for_game(game_id.as_str())?;
     let settings = read_settings(&app);
@@ -2050,6 +2637,7 @@ pub async fn identify_mod_via_nexus_content(
     uid: String,
     game_id: String,
 ) -> Result<nexus_content::NexusContentIdentifyOutcome, String> {
+    resources::refuse_resource_uid(&uid, "Nexus identification")?;
     let _state_guard = lock_game_state(&app, game_id.as_str()).await;
     let cfg = engine_for_game(game_id.as_str())?;
     let state_path = get_state_path(&game_path, cfg);
@@ -2085,6 +2673,7 @@ pub async fn move_crimeboss_mod_target(
     game_path: String,
     uid: String,
 ) -> Result<(), String> {
+    resources::refuse_resource_uid(&uid, "Moving between Crime Boss mod folders")?;
     let _state_guard = lock_game_state(&app, "cb").await;
     let cfg = engine_for_game("cb")?;
     let settings = read_settings(&app);
@@ -2115,6 +2704,9 @@ pub async fn reorder_in_folder(
     ordered_uids: Vec<String>,
     game_id: String,
 ) -> Result<(), String> {
+    for uid in &ordered_uids {
+        resources::refuse_resource_uid(uid, "Load order")?;
+    }
     let _state_guard = state.acquire(game_id.as_str()).await;
     let cfg = engine_for_game(game_id.as_str())?;
     reorder_mods_in_folder_op(
@@ -2137,6 +2729,7 @@ pub async fn move_to_folder(
     target_position: usize,
     game_id: String,
 ) -> Result<(), String> {
+    resources::refuse_resource_uid(&uid, "Moving into a folder")?;
     let _state_guard = state.acquire(game_id.as_str()).await;
     let cfg = engine_for_game(game_id.as_str())?;
     move_mod_to_folder_op(
@@ -2159,6 +2752,11 @@ pub async fn reorder_children(
     items: Vec<TopLevelItem>,
     game_id: String,
 ) -> Result<(), String> {
+    for item in &items {
+        if let TopLevelItem::Mod { id } = item {
+            resources::refuse_resource_uid(id, "Load order")?;
+        }
+    }
     let _state_guard = state.acquire(game_id.as_str()).await;
     let cfg = engine_for_game(game_id.as_str())?;
     reorder_children_op(

@@ -3,7 +3,7 @@ import { isUnsupportedFormat } from './formatCheck'
 
 describe('isUnsupportedFormat', () => {
     describe('when type is provided', () => {
-        it.each(['pak', 'zip', '7z', 'rar', 'pdmod'])(
+        it.each(['pak', 'zip', '7z', 'rar', 'pdmod', 'bk2', 'ini'])(
             'returns false for supported type "%s"',
             (type) => {
                 expect(isUnsupportedFormat(type)).toBe(false)
@@ -18,7 +18,7 @@ describe('isUnsupportedFormat', () => {
             expect(isUnsupportedFormat('PDMOD')).toBe(false)
         })
 
-        it.each(['exe', 'dll', 'txt'])('returns true for unsupported type "%s"', (type) => {
+        it.each(['exe', 'dll', 'txt', 'bak2'])('returns true for unsupported type "%s"', (type) => {
             expect(isUnsupportedFormat(type)).toBe(true)
         })
 

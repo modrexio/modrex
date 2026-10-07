@@ -1,4 +1,4 @@
-export const SUPPORTED_FORMATS = new Set(['pak', 'zip', '7z', 'rar', 'pdmod'])
+export const SUPPORTED_FORMATS = new Set(['pak', 'zip', '7z', 'rar', 'pdmod', 'bk2', 'ini'])
 
 export function isUnsupportedFormat(
     type: string | null | undefined,

@@ -102,6 +102,17 @@ export function ModCard({
                         {mod.name}
                     </h3>
                     <p className="text-xs leading-4 text-text-muted">{mod.user.name}</p>
+                    {installed?.deployment && (
+                        <p className="text-xs text-accent mt-1">
+                            {t(`resources.${installed.deployment}`)}
+                        </p>
+                    )}
+                    {(installed?.resourceStatus === 'diverged' ||
+                        installed?.resourceStatus === 'blocked') && (
+                        <p className="text-xs text-warning mt-1">
+                            {t(`resources.status.${installed.resourceStatus}`)}
+                        </p>
+                    )}
                 </div>
             </div>
 

@@ -180,6 +180,10 @@ export function UpdatesModal({
         outcome: Exclude<InstallOutcome, 'installed'>,
         modId: number
     ): Promise<'resolved' | 'manual'> {
+        if (outcome === 'cancelled') return 'resolved'
+        if (typeof outcome === 'object' && 'needsResourceReview' in outcome) {
+            throw new Error('Resource review must finish before resolving an update.')
+        }
         if (outcome === 'unrecognized') {
             setUnrecognizedModId(modId)
             return 'manual'

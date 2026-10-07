@@ -410,18 +410,29 @@ export function ModDetailPage({
                 new Map(prev).set(`file:${modId}:${fileId}`, { downloaded: 0, total: 0 })
             )
         })
-        const offComplete = api.onNxmInstallComplete(({ gameId, modId: evModId, fileId }) => {
+        const clearDownload = ({
+            gameId,
+            modId: evModId,
+            fileId,
+        }: {
+            gameId: string
+            modId: number
+            fileId: number
+        }) => {
             if (gameId !== activeGame || evModId !== modId) return
             setDownloadMap((prev) => {
                 const next = new Map(prev)
                 next.delete(`file:${modId}:${fileId}`)
                 return next
             })
-        })
+        }
+        const offComplete = api.onNxmInstallComplete(clearDownload)
+        const offClosed = api.onNxmReviewClosed(clearDownload)
         const offFailed = api.onNxmInstallFailed(() => setDownloadMap(new Map()))
         return () => {
             offStarted()
             offComplete()
+            offClosed()
             offFailed()
         }
     }, [isNexus, activeGame, modId])

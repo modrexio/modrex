@@ -13,6 +13,8 @@ import { t } from '../i18n'
 import SteamIcon from '../../../../assets/icons/steam.svg?react'
 import EpicIcon from '../../../../assets/icons/epicgames.svg?react'
 import XboxIcon from '../../../../assets/icons/xbox.svg?react'
+import { EngineIniSettings } from './EngineIniSettings'
+import { MovieResourceSettings } from './MovieResourceSettings'
 
 const iconClass = 'w-3.5 h-3.5 shrink-0 fill-current'
 
@@ -335,6 +337,13 @@ export function GameSettings({ activeGame, gamePath, gamePathReady, onGamePathCh
                         />
                     </div>
                 </Section>
+            )}
+
+            {(activeGame === 'pd3' || activeGame === 'cb') && (
+                <>
+                    <MovieResourceSettings key={`movies:${gamePath}`} activeGame={activeGame} />
+                    <EngineIniSettings key={`ini:${gamePath}`} activeGame={activeGame} />
+                </>
             )}
 
             <Section title={t('settings.launchOptions.title')}>

@@ -11,6 +11,7 @@ import type {
     ModPage,
     NewsResult,
     SisrStatus,
+    IniEditorSession,
     SourceInfo,
 } from '../../shared/bindings'
 import { installedFromWorkshop, library, simulateDownload } from './library'
@@ -154,7 +155,52 @@ const noLoader: LoaderPresence = {
     unrecognized: [],
 }
 
+const editorSessions = new Map<string, IniEditorSession>()
+const editorFiles = new Map<string, string>()
+
+async function textDigest(text: string): Promise<string> {
+    const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text))
+    return Array.from(new Uint8Array(bytes), (byte) => byte.toString(16).padStart(2, '0')).join('')
+}
+
+async function openPreviewIni(gameId: string): Promise<IniEditorSession> {
+    const path = gamePath(gameId)
+    if (!path) throw new Error('Choose a game folder first')
+    const text =
+        editorFiles.get(gameId) ?? '; Personal settings\n[SystemSettings]\nr.MotionBlurQuality=0\n'
+    const session: IniEditorSession = {
+        sessionHandle: crypto.randomUUID(),
+        contextKey: await textDigest(JSON.stringify([gameId, path])),
+        gameId,
+        gamePath: path,
+        path: `${path}/Saved/Config/WindowsClient/Engine.ini`,
+        text,
+        sha256: await textDigest(text),
+        exists: true,
+        readOnly: false,
+        readOnlyReason: null,
+    }
+    editorSessions.set(session.sessionHandle, session)
+    return session
+}
+
 const handlers = {
+    recognizeResourceHash: async () => ({ status: 'unavailable' as const }),
+    inspectMovieResources: async () => ({ checkedAt: new Date().toISOString(), movies: [] }),
+    openEngineIni: async (gameId) => openPreviewIni(gameId),
+    pickEngineIni: async (gameId) => openPreviewIni(gameId),
+    saveEngineIni: async (handle, text) => {
+        const session = editorSessions.get(handle)
+        if (!session || session.gamePath !== gamePath(session.gameId))
+            throw new Error('Preview editor context changed')
+        const next = { ...session, text, sha256: await textDigest(text) }
+        editorSessions.set(handle, next)
+        editorFiles.set(session.gameId, text)
+        return next
+    },
+    closeEngineIni: async (handle) => {
+        editorSessions.delete(handle)
+    },
     reportStartupPhase: async () => null,
     getAnalyticsConsent: async () => (previewState.onboarding === 'first-run' ? null : true),
     setAnalyticsConsent: async () => {},

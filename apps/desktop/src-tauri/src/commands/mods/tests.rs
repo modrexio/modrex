@@ -19,6 +19,66 @@ fn make_zip(entries: &[(&str, &[u8])]) -> NamedTempFile {
     f
 }
 
+#[test]
+fn mixed_resources_keep_an_uppercase_pak_available_for_explicit_selection() {
+    let archive = make_zip(&[("Payload.PAK", b"pak"), ("Engine.ini", b"[S]\nA=1\n")]);
+    let registry = staging_tokens::StagingRegistry::new();
+    let Err(ResolveError::Resources(found)) = resolve_archive_download(
+        archive.path().into(),
+        engine_for_game("pd3").unwrap(),
+        &registry,
+    ) else {
+        panic!("mixed resource archive must require a review");
+    };
+    assert_eq!(found.members.len(), 1);
+    assert_eq!(found.members[0], (Some(1), "Engine.ini".into()));
+    let picker = found.pak_picker.unwrap();
+    assert_eq!(picker.entries, ["Payload.PAK"]);
+    assert_eq!(picker.entry_ids.len(), 1);
+    cleanup::run_sync(&registry.finalize(&picker.archive_handle).unwrap());
+}
+
+#[test]
+fn resource_extraction_charges_a_shared_budget_across_entries() {
+    let archive = make_zip(&[("First.ini", b"123456"), ("Second.ini", b"abcdef")]);
+    let temp = TempDir::new().unwrap();
+    let mut budget = 10;
+    zip::extract_entry_at_budget(
+        archive.path(),
+        0,
+        &temp.path().join("First.ini"),
+        &mut budget,
+    )
+    .unwrap();
+    assert!(zip::extract_entry_at_budget(
+        archive.path(),
+        1,
+        &temp.path().join("Second.ini"),
+        &mut budget
+    )
+    .is_err());
+    assert_eq!(fs::read(temp.path().join("First.ini")).unwrap(), b"123456");
+}
+
+#[test]
+fn loose_resources_are_refused_for_diesel_and_bak2_is_not_a_movie_alias() {
+    let temp = TempDir::new().unwrap();
+    for (game, name) in [
+        ("pd2", "Intro.bk2"),
+        ("pd2", "Engine.ini"),
+        ("pd3", "Intro.bak2"),
+    ] {
+        let path = temp.path().join(name);
+        fs::write(&path, b"untouched source").unwrap();
+        let registry = staging_tokens::StagingRegistry::new();
+        assert!(matches!(
+            resolve_archive_download(path.clone(), engine_for_game(game).unwrap(), &registry),
+            Err(ResolveError::Failure(_))
+        ));
+        assert_eq!(fs::read(path).unwrap(), b"untouched source");
+    }
+}
+
 // ── detect_archive / is_zip ───────────────────────────────────────────────────
 
 #[test]
@@ -827,6 +887,17 @@ fn install_file_id_reads_both_modworkshop_uid_shapes_and_nothing_else() {
     assert_eq!(install_file_id("+5"), None);
     assert_eq!(install_file_id("0"), None);
     assert_eq!(install_file_id(""), None);
+}
+
+/// A package installed from a Nexus resource review keeps the Nexus uid scheme, so the
+/// ModWorkshop archive-entry logic never reads it as one of its own file ids.
+#[test]
+fn nexus_review_package_uids_never_read_as_modworkshop_file_ids() {
+    let (stem, filename) = entry_names("Wrapper/Skip_P.pak");
+    assert_eq!((stem.as_str(), filename.as_str()), ("Skip_P", "Skip_P.pak"));
+    let uid = nexus_entry_uid(197, 842, &stem);
+    assert_eq!(uid, "nexus:197:842:Skip_P");
+    assert_eq!(install_file_id(&uid), None);
 }
 
 // ── get_folder_path ───────────────────────────────────────────────────────

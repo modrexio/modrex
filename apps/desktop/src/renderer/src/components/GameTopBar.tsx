@@ -19,6 +19,7 @@ export function GameTopBar({
     gamePath,
     ...topBar
 }: TopBarProps & { activeGame: GameId; gamePath: string | null }) {
+    const hasUnrealResources = activeGame === 'pd3' || activeGame === 'cb'
     const subscribe = useCallback(
         (listener: () => void) => subscribeLaunchState(activeGame, listener),
         [activeGame]
@@ -40,21 +41,31 @@ export function GameTopBar({
                     </Button>
                 ) : (
                     <>
-                        <Button
-                            variant="secondary"
-                            size="sm"
-                            disabled={!gamePath || !!launching}
-                            onClick={() => launchGame(activeGame, 'vanilla')}
+                        <Tooltip
+                            content={
+                                hasUnrealResources
+                                    ? t('resources.launchDescription')
+                                    : t('topBar.launchWithoutMods')
+                            }
                         >
-                            {launching === 'vanilla' ? (
-                                <Loader className="w-3.5 h-3.5 animate-spin" />
-                            ) : (
-                                <Play className="w-3.5 h-3.5" fill="currentColor" />
-                            )}
-                            {launching === 'vanilla'
-                                ? t('topBar.launching')
-                                : t('topBar.launchWithoutMods')}
-                        </Button>
+                            <Button
+                                variant="secondary"
+                                size="sm"
+                                disabled={!gamePath || !!launching}
+                                onClick={() => launchGame(activeGame, 'vanilla')}
+                            >
+                                {launching === 'vanilla' ? (
+                                    <Loader className="w-3.5 h-3.5 animate-spin" />
+                                ) : (
+                                    <Play className="w-3.5 h-3.5" fill="currentColor" />
+                                )}
+                                {launching === 'vanilla'
+                                    ? t('topBar.launching')
+                                    : hasUnrealResources
+                                      ? t('resources.launchWithoutPackages')
+                                      : t('topBar.launchWithoutMods')}
+                            </Button>
+                        </Tooltip>
                         <Button
                             variant="accent"
                             size="sm"

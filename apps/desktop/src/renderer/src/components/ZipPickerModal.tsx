@@ -9,6 +9,7 @@ import { setArchiveEntries } from '../archiveEntriesCache'
 import { entryFilename, stripPriorityPrefix } from '../hooks/installedUtils'
 
 export interface ZipMultiPakPayload {
+    source?: 'modworkshop' | 'nexus'
     archiveHandle: string
     entries: string[]
     entryIds: number[]
@@ -97,11 +98,16 @@ function computeInstalledEntries(
     installedFiles: InstalledMod[]
 ): Set<number> {
     const set = new Set<number>()
+    const source = payload.source ?? 'modworkshop'
     payload.entries.forEach((entry, pos) => {
-        const uid = `${payload.fileId}_${entryStem(entry)}`
+        const uid =
+            source === 'nexus'
+                ? `nexus:${payload.modId}:${payload.fileId}:${entryStem(entry)}`
+                : `${payload.fileId}_${entryStem(entry)}`
         const filename = entryFilename(entry)
         const isInstalled = installedFiles.some(
             (m) =>
+                (m.source ?? 'modworkshop') === source &&
                 !m.missing &&
                 (m.uid === uid ||
                     (m.fileId === payload.fileId && stripPriorityPrefix(m.filename) === filename))
@@ -120,11 +126,16 @@ export function computeAutoUpdateSelection(
     installedFiles: InstalledMod[]
 ): number[] | null {
     const installedEntries = computeInstalledEntries(payload, installedFiles)
-    // Archive picker prompts never reach the Nexus install flow (it cannot forward them,
-    // see install_nexus_download), so payload.modId is always a real modworkshop id;
-    // InstalledMod.id is an opaque local key, so match against remoteId instead.
+    // payload.modId is a remote id: ModWorkshop's, or Nexus's for a Nexus resource review,
+    // whose caller passes only Nexus records. InstalledMod.id is an opaque local key, so
+    // match against remoteId instead.
     const modIdStr = String(payload.modId)
-    const priorEntriesForMod = installedFiles.filter((m) => m.remoteId === modIdStr && !m.missing)
+    const priorEntriesForMod = installedFiles.filter(
+        (m) =>
+            (m.source ?? 'modworkshop') === (payload.source ?? 'modworkshop') &&
+            m.remoteId === modIdStr &&
+            !m.missing
+    )
     if (priorEntriesForMod.length === 0) return null
     if (installedEntries.size === payload.entries.length) return []
     const matched: number[] = []
@@ -146,6 +157,14 @@ export function computeAutoUpdateSelection(
     return matched.length > 0 ? matched : null
 }
 
+// Installs the entry at pos into folderId and locationTag. Replaced only where the archive's
+// identity is not a ModWorkshop one and its own command decides the destination target.
+export type ZipEntryInstaller = (
+    pos: number,
+    folderId: string | null,
+    locationTag: string | undefined
+) => Promise<void>
+
 // Shared install loop for a resolved set of archive entries, used both by the picker's own
 // confirm button and by callers (e.g. computeAutoUpdateSelection's auto-resolve path) that
 // already know what to install and never show the picker UI at all.
@@ -156,7 +175,22 @@ export async function installZipPickerEntries(
     gameId: string,
     folderId: string | null | undefined,
     onRefreshInstalled: () => Promise<void>,
-    onProgress?: (entry: string | null) => void
+    onProgress?: (entry: string | null) => void,
+    installEntry: ZipEntryInstaller = (pos, entryFolderId, locationTag) =>
+        api.installFromZipEntry(
+            payload.archiveHandle,
+            payload.entryIds[pos],
+            payload.modId,
+            payload.modName,
+            payload.fileId,
+            payload.fileType,
+            payload.modVersion,
+            gamePath,
+            gameId,
+            entryFolderId,
+            locationTag,
+            payload.entryKind
+        )
 ): Promise<void> {
     const tagByPos = new Map<number, string | null>()
     if (payload.entryTags && payload.entryTags.length === payload.entries.length) {
@@ -167,20 +201,7 @@ export async function installZipPickerEntries(
     if (multiTarget) {
         for (const pos of toInstall) {
             onProgress?.(payload.entries[pos])
-            await api.installFromZipEntry(
-                payload.archiveHandle,
-                payload.entryIds[pos],
-                payload.modId,
-                payload.modName,
-                payload.fileId,
-                payload.fileType,
-                payload.modVersion,
-                gamePath,
-                gameId,
-                null,
-                tagByPos.get(pos) ?? undefined,
-                payload.entryKind
-            )
+            await installEntry(pos, null, tagByPos.get(pos) ?? undefined)
             await onRefreshInstalled()
         }
         onProgress?.(null)
@@ -222,20 +243,7 @@ export async function installZipPickerEntries(
         const lastSlash = rel.lastIndexOf('/')
         const dir = lastSlash === -1 ? '' : rel.slice(0, lastSlash)
         onProgress?.(payload.entries[pos])
-        await api.installFromZipEntry(
-            payload.archiveHandle,
-            payload.entryIds[pos],
-            payload.modId,
-            payload.modName,
-            payload.fileId,
-            payload.fileType,
-            payload.modVersion,
-            gamePath,
-            gameId,
-            folderIdMap.get(dir) ?? null,
-            payload.targetTag,
-            payload.entryKind
-        )
+        await installEntry(pos, folderIdMap.get(dir) ?? null, payload.targetTag)
         await onRefreshInstalled()
     }
     onProgress?.(null)
@@ -250,6 +258,8 @@ interface Props {
     gameId: string
     onRefreshInstalled: () => Promise<void>
     onClose: () => void
+    onInstalled?: () => void
+    installEntry?: ZipEntryInstaller
 }
 
 export function ZipPickerModal({
@@ -260,6 +270,8 @@ export function ZipPickerModal({
     gameId,
     onRefreshInstalled,
     onClose,
+    onInstalled,
+    installEntry,
 }: Props) {
     const installedEntries = useMemo(
         () => computeInstalledEntries(payload, installedFiles),
@@ -383,7 +395,8 @@ export function ZipPickerModal({
                 gameId,
                 folderId,
                 onRefreshInstalled,
-                setInstallingEntry
+                setInstallingEntry,
+                installEntry
             )
         } catch (e) {
             setInstallingEntry(null)
@@ -391,6 +404,7 @@ export function ZipPickerModal({
             return
         }
         setInstallingEntry(null)
+        onInstalled?.()
         onClose()
     }
 

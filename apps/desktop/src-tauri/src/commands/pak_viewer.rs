@@ -110,6 +110,7 @@ pub async fn list_pak_assets(
     game_id: String,
     uid: String,
 ) -> Result<Vec<PakAsset>, String> {
+    crate::commands::mods::refuse_resource_uid(&uid, "The package viewer")?;
     let spec = game_spec(&game_id).ok_or_else(|| format!("unknown game '{game_id}'"))?;
     let aes_key = match spec.package_reader {
         Some(PackageReaderBinding::Unreal { aes_key }) => aes_key.as_str(),

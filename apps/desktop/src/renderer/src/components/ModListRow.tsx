@@ -97,6 +97,17 @@ export function ModListRow({
                         {mod.name}
                     </p>
                     <p className="text-xs text-text-muted mt-0.5 truncate">By {mod.user.name}</p>
+                    {installed.deployment && (
+                        <p className="text-xs text-accent mt-1">
+                            {t(`resources.${installed.deployment}`)}
+                        </p>
+                    )}
+                    {(installed.resourceStatus === 'diverged' ||
+                        installed.resourceStatus === 'blocked') && (
+                        <p className="text-xs text-warning mt-1">
+                            {t(`resources.status.${installed.resourceStatus}`)}
+                        </p>
+                    )}
                     <p className="text-xs text-text-subtle mt-1 tabular-nums">
                         {installed.version}
                     </p>

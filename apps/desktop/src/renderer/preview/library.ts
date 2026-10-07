@@ -25,7 +25,13 @@ export class Library {
     private nextFolder = 1
 
     response(): InstalledResponse_Serialize {
-        return { mods: this.mods, folders: this.folders, modsHidden: false, stateUnreadable: false }
+        return {
+            mods: this.mods,
+            folders: this.folders,
+            modsHidden: false,
+            stateUnreadable: false,
+            resourceError: null,
+        }
     }
 
     mod(uid: string): Mod {

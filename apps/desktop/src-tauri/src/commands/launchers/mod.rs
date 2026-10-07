@@ -621,6 +621,8 @@ pub async fn launch_game(
         return Ok(None);
     };
     let cfg = engine_for_game(game_id)?;
+    // Resource recovery is never best effort, unlike the folder restore after it.
+    crate::commands::mods::resource_launch_preflight(&app, game_id).await?;
     let _ = do_restore(game_path, cfg);
     maybe_suppress_crash_reporter(game_id, gs);
     let sisr_issue = crate::commands::sisr::prepare_for_game_launch(s.auto_launch_sisr).await;
@@ -654,6 +656,8 @@ pub async fn launch_without_mods(
     };
 
     let cfg = engine_for_game(game_id)?;
+    // Package exclusion leaves movies and Engine.ini selected. Resource preflight still applies.
+    crate::commands::mods::resource_launch_preflight(&app, game_id).await?;
     for (i, target) in cfg.targets.iter().enumerate() {
         let mods_dir = mods_base(game_path, target);
         let mods_bak = backup_dir(game_path, target);
@@ -765,18 +769,22 @@ fn process_matches(p: &sysinfo::Process, process_name: &str) -> bool {
     matches_process(&p.name().to_string_lossy(), &cmd, process_name)
 }
 
+/// Blocking process check, shared with the resource writers that must not run under the game.
+pub(crate) fn game_running(game_id: &str) -> Result<bool, String> {
+    let process_names = game_def_for_id(game_id)?.process_names;
+    let sys = refresh_process_list();
+    Ok(sys
+        .processes()
+        .values()
+        .any(|p| process_names.iter().any(|n| process_matches(p, n))))
+}
+
 #[tauri::command]
 #[specta::specta]
 pub async fn is_game_running(game_id: String) -> Result<bool, String> {
-    let process_names = game_def_for_id(game_id.as_str())?.process_names;
-    tauri::async_runtime::spawn_blocking(move || {
-        let sys = refresh_process_list();
-        sys.processes()
-            .values()
-            .any(|p| process_names.iter().any(|n| process_matches(p, n)))
-    })
-    .await
-    .map_err(|e| e.to_string())
+    tauri::async_runtime::spawn_blocking(move || game_running(&game_id))
+        .await
+        .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]

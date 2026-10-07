@@ -75,6 +75,18 @@ fn ipc_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::mods::install_cb_flat_archive,
             commands::mods::install_host_pack,
             commands::mods::discard_staged_archive,
+            commands::mods::get_resource_review,
+            commands::mods::read_resource_ini,
+            commands::mods::install_reviewed_resources,
+            commands::mods::install_nexus_review_pak,
+            commands::mods::cancel_resource_review,
+            commands::mods::review_resource_recovery,
+            commands::mods::keep_current_resources,
+            commands::mods::cancel_resource_recovery,
+            commands::mods::open_engine_ini,
+            commands::mods::pick_engine_ini,
+            commands::mods::save_engine_ini,
+            commands::mods::close_engine_ini,
             commands::mods::uninstall_mod,
             commands::mods::enable_mod,
             commands::mods::disable_mod,
@@ -124,6 +136,8 @@ fn ipc_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::thumbnails::get_thumbnail,
             // mod index
             commands::mod_index::get_index_mod_files,
+            commands::mod_index::recognize_resource_hash,
+            commands::mod_index::inspect_movie_resources,
             // news
             commands::news::fetch_news,
             commands::news::refresh_news,
@@ -173,6 +187,9 @@ pub fn run() {
     let app = builder
         .manage(commands::updater::UpdaterState::new())
         .manage(commands::mods::StateLocks::default())
+        .manage(commands::mods::ResourceLocks::default())
+        .manage(commands::mods::ResourceReviews::default())
+        .manage(commands::mods::IniSessions::default())
         .manage(commands::startup::StartupState::default())
         .manage(discord_state)
         .register_uri_scheme_protocol("thumb", |ctx, request| {
@@ -296,6 +313,7 @@ pub fn run() {
     app.run(|app_handle, event| {
         if matches!(event, tauri::RunEvent::Exit) {
             commands::mods::discard_all_staged_archives(app_handle);
+            commands::mods::discard_all_resource_reviews(app_handle);
         }
     });
 }

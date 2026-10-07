@@ -79,6 +79,7 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
     // CB-only: the primary mods/ (ModKit) and legacy ~mods targets are alternate shapes of the
     // same content (see CLAUDE.md's Crime Boss section). ue4ss_mods and host packs are not.
     const canMoveCrimeBossTarget =
+        !combined.deployment &&
         activeGame === 'cb' &&
         (combined.location === undefined || combined.location === 'paks') &&
         !combined.missing
@@ -88,9 +89,13 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
     // outcome, which this mirrors so the menu doesn't offer an action that can't do
     // anything. RAID has no Nexus presence at all.
     const canIdentifyViaNexus =
-        !hasCatalogLink(ins) && !combined.missing && hasSource(activeGame, 'nexus')
+        !ins.deployment &&
+        !hasCatalogLink(ins) &&
+        !combined.missing &&
+        hasSource(activeGame, 'nexus')
 
     const canViewPak =
+        !combined.deployment &&
         GAMES[activeGame].supportsPackageViewer &&
         combined.location !== 'ue4ss_mods' &&
         !combined.location?.startsWith('host:') &&
@@ -116,18 +121,20 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
                     <div
                         className={`absolute top-7 ${dropdownSide === 'right' ? 'right-0' : 'left-0'} min-w-40 bg-surface-raised border border-border rounded-lg shadow-xl overflow-hidden z-50`}
                     >
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                                e.stopPropagation()
-                                setMenuOpen(false)
-                                setManageFilesKey(groupKey)
-                            }}
-                            className="w-full justify-start rounded-none px-3 py-2 text-text"
-                        >
-                            {t('installed.modMenu.manageFiles')}
-                        </Button>
+                        {!ins.deployment && (
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                    e.stopPropagation()
+                                    setMenuOpen(false)
+                                    setManageFilesKey(groupKey)
+                                }}
+                                className="w-full justify-start rounded-none px-3 py-2 text-text"
+                            >
+                                {t('installed.modMenu.manageFiles')}
+                            </Button>
+                        )}
                         {canViewPak && (
                             <>
                                 <div className="h-px bg-border" />
@@ -204,8 +211,8 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
         return (
             <div
                 className="relative cursor-grab active:cursor-grabbing"
-                data-drop-mod={repUid}
-                onPointerDown={(e) => onModPointerDown(e, repUid)}
+                data-drop-mod={ins.deployment ? undefined : repUid}
+                onPointerDown={ins.deployment ? undefined : (e) => onModPointerDown(e, repUid)}
             >
                 {isBeforeActive && (
                     <div className="absolute left-0 right-0 top-0 h-0.5 mx-2 rounded-full bg-accent z-10 pointer-events-none" />
@@ -240,7 +247,7 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
                     onEnable={() => handleEnable(mods)}
                     onDisable={() => handleDisable(mods)}
                     onReinstall={() => handleReinstall(mods)}
-                    optionsButton={renderMenuButton('left')}
+                    optionsButton={ins.deployment ? undefined : renderMenuButton('left')}
                 />
             </div>
         )
@@ -248,8 +255,8 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
 
     return (
         <div
-            data-drop-mod={repUid}
-            onPointerDown={(e) => onModPointerDown(e, repUid)}
+            data-drop-mod={ins.deployment ? undefined : repUid}
+            onPointerDown={ins.deployment ? undefined : (e) => onModPointerDown(e, repUid)}
             className={`relative h-full rounded-lg cursor-grab active:cursor-grabbing transition-opacity ${isDragging ? 'opacity-40' : 'opacity-100'}`}
         >
             {dropTarget?.kind === 'before-mod' && dropTarget.uid === repUid && (
@@ -258,7 +265,9 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
             {dropTarget?.kind === 'after-mod' && dropTarget.uid === repUid && (
                 <div className="absolute top-0 bottom-0 right-0 w-1 bg-accent z-10 pointer-events-none rounded-r-lg" />
             )}
-            <div className="absolute top-2 right-2 z-20">{renderMenuButton('right')}</div>
+            {!ins.deployment && (
+                <div className="absolute top-2 right-2 z-20">{renderMenuButton('right')}</div>
+            )}
             {showManageFiles && (
                 <ManageFilesModal
                     mods={mods}

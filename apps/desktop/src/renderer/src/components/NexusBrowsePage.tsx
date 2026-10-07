@@ -153,7 +153,15 @@ export function NexusBrowsePage({
                 new Map(prev).set(Number(modId), { downloaded, total, fileId: Number(fileId) })
             )
         })
-        const offComplete = api.onNxmInstallComplete(({ gameId, modId, fileId }) => {
+        const clearDownload = ({
+            gameId,
+            modId,
+            fileId,
+        }: {
+            gameId: string
+            modId: number
+            fileId: number
+        }) => {
             if (gameId !== activeGame) return
             setDownloadMap((prev) => {
                 if (prev.get(modId)?.fileId !== fileId) return prev
@@ -161,7 +169,9 @@ export function NexusBrowsePage({
                 next.delete(modId)
                 return next
             })
-        })
+        }
+        const offComplete = api.onNxmInstallComplete(clearDownload)
+        const offClosed = api.onNxmReviewClosed(clearDownload)
         const offFailed = api.onNxmInstallFailed((e) => {
             setError(e)
             setDownloadMap(new Map())
@@ -170,6 +180,7 @@ export function NexusBrowsePage({
             offStarted()
             offProgress()
             offComplete()
+            offClosed()
             offFailed()
         }
     }, [activeGame])

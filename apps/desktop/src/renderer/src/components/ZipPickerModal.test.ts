@@ -61,6 +61,22 @@ beforeEach(async () => {
 })
 
 describe('computeAutoUpdateSelection', () => {
+    it('matches an installed Nexus entry by its own source and uid even with a directory filename', () => {
+        const installed = [
+            makeInstalled({
+                uid: 'nexus:100:200:VariantA',
+                source: 'nexus',
+                fileId: 200,
+                filename: 'Some_Mod',
+            }),
+        ]
+        const payload = makePayload({ source: 'nexus', entries: ['VariantA.pak'], entryIds: [0] })
+        expect(mod.computeAutoUpdateSelection(payload, installed)).toEqual([])
+        expect(
+            mod.computeAutoUpdateSelection({ ...payload, source: 'modworkshop' }, installed)
+        ).toBeNull()
+    })
+
     it('matches previously-installed file variants by filename across a version bump', () => {
         const installed = [
             makeInstalled({ uid: 'a', filename: '001_VariantA.pak' }),

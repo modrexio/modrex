@@ -225,6 +225,11 @@ export function GameWorkspace({
                     {t('app.stateUnreadable')}
                 </div>
             )}
+            {data.installed?.resourceError && (
+                <div role="alert" className="px-4 py-3 text-sm text-danger-text">
+                    {data.installed.resourceError}
+                </div>
+            )}
             {data.installed?.modsHidden && (
                 <div className="shrink-0 flex items-center justify-between gap-4 px-4 py-2 bg-warning/10 border-b border-warning/30 text-xs text-warning">
                     <span>{t('app.modsHidden')}</span>
