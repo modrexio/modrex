@@ -35,6 +35,7 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
         onModPointerDown,
         manageFilesKey,
         setManageFilesKey,
+        reviewResource,
     } = useInstalledContext()
 
     const [menuOpen, setMenuOpen] = useState(false)
@@ -121,6 +122,21 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
                     <div
                         className={`absolute top-7 ${dropdownSide === 'right' ? 'right-0' : 'left-0'} min-w-40 bg-surface-raised border border-border rounded-lg shadow-xl overflow-hidden z-50`}
                     >
+                        {ins.deployment && (
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                disabled={isBusy}
+                                className="w-full justify-start rounded-none px-3 py-2 text-text"
+                                onClick={(e) => {
+                                    e.stopPropagation()
+                                    setMenuOpen(false)
+                                    reviewResource(ins)
+                                }}
+                            >
+                                {t('resources.recovery.review')}
+                            </Button>
+                        )}
                         {!ins.deployment && (
                             <Button
                                 variant="ghost"
@@ -210,7 +226,9 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
         const isAfterActive = dropTarget?.kind === 'after-mod' && dropTarget.uid === repUid
         return (
             <div
-                className="relative cursor-grab active:cursor-grabbing"
+                className={
+                    ins.deployment ? 'relative' : 'relative cursor-grab active:cursor-grabbing'
+                }
                 data-drop-mod={ins.deployment ? undefined : repUid}
                 onPointerDown={ins.deployment ? undefined : (e) => onModPointerDown(e, repUid)}
             >
@@ -247,7 +265,8 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
                     onEnable={() => handleEnable(mods)}
                     onDisable={() => handleDisable(mods)}
                     onReinstall={() => handleReinstall(mods)}
-                    optionsButton={ins.deployment ? undefined : renderMenuButton('left')}
+                    onReviewResource={() => reviewResource(ins)}
+                    optionsButton={renderMenuButton('left')}
                 />
             </div>
         )
@@ -257,7 +276,7 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
         <div
             data-drop-mod={ins.deployment ? undefined : repUid}
             onPointerDown={ins.deployment ? undefined : (e) => onModPointerDown(e, repUid)}
-            className={`relative h-full rounded-lg cursor-grab active:cursor-grabbing transition-opacity ${isDragging ? 'opacity-40' : 'opacity-100'}`}
+            className={`relative h-full rounded-lg ${ins.deployment ? '' : 'cursor-grab active:cursor-grabbing'} transition-opacity ${isDragging ? 'opacity-40' : 'opacity-100'}`}
         >
             {dropTarget?.kind === 'before-mod' && dropTarget.uid === repUid && (
                 <div className="absolute top-0 bottom-0 left-0 w-1 bg-accent z-10 pointer-events-none rounded-l-lg" />
@@ -265,9 +284,7 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
             {dropTarget?.kind === 'after-mod' && dropTarget.uid === repUid && (
                 <div className="absolute top-0 bottom-0 right-0 w-1 bg-accent z-10 pointer-events-none rounded-r-lg" />
             )}
-            {!ins.deployment && (
-                <div className="absolute top-2 right-2 z-20">{renderMenuButton('right')}</div>
-            )}
+            <div className="absolute top-2 right-2 z-20">{renderMenuButton('right')}</div>
             {showManageFiles && (
                 <ManageFilesModal
                     mods={mods}
@@ -295,6 +312,7 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
                 onEnable={() => handleEnable(mods)}
                 onDisable={() => handleDisable(mods)}
                 onReinstall={() => handleReinstall(mods)}
+                onReviewResource={() => reviewResource(ins)}
             />
         </div>
     )

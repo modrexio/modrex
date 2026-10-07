@@ -11,13 +11,13 @@ import type {
     ModPage,
     NewsResult,
     SisrStatus,
-    IniEditorSession,
     SourceInfo,
 } from '../../shared/bindings'
 import { installedFromWorkshop, library, simulateDownload } from './library'
 import { previewState, remote } from './previewState'
 import loaders from './fixtures/loaders.json'
 import sources from './fixtures/sources.json'
+import * as resourceFixtures from './resourceFixtures'
 
 type Commands = typeof real
 
@@ -60,6 +60,7 @@ const steamFolders: Record<GameId, string> = {
 }
 
 const fixtures = new Map<GameId, Promise<GameFixtures>>()
+const chosenIniLocations = new Map<GameId, string>()
 
 function game(gameId: string): GameId {
     if (!isGameId(gameId)) throw new Error(`preview: unknown game ${gameId}`)
@@ -155,51 +156,60 @@ const noLoader: LoaderPresence = {
     unrecognized: [],
 }
 
-const editorSessions = new Map<string, IniEditorSession>()
-const editorFiles = new Map<string, string>()
-
-async function textDigest(text: string): Promise<string> {
-    const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text))
-    return Array.from(new Uint8Array(bytes), (byte) => byte.toString(16).padStart(2, '0')).join('')
-}
-
-async function openPreviewIni(gameId: string): Promise<IniEditorSession> {
-    const path = gamePath(gameId)
-    if (!path) throw new Error('Choose a game folder first')
-    const text =
-        editorFiles.get(gameId) ?? '; Personal settings\n[SystemSettings]\nr.MotionBlurQuality=0\n'
-    const session: IniEditorSession = {
-        sessionHandle: crypto.randomUUID(),
-        contextKey: await textDigest(JSON.stringify([gameId, path])),
-        gameId,
-        gamePath: path,
-        path: `${path}/Saved/Config/WindowsClient/Engine.ini`,
-        text,
-        sha256: await textDigest(text),
-        exists: true,
-        readOnly: false,
-        readOnlyReason: null,
-    }
-    editorSessions.set(session.sessionHandle, session)
-    return session
-}
-
 const handlers = {
     recognizeResourceHash: async () => ({ status: 'unavailable' as const }),
-    inspectMovieResources: async () => ({ checkedAt: new Date().toISOString(), movies: [] }),
-    openEngineIni: async (gameId) => openPreviewIni(gameId),
-    pickEngineIni: async (gameId) => openPreviewIni(gameId),
-    saveEngineIni: async (handle, text) => {
-        const session = editorSessions.get(handle)
-        if (!session || session.gamePath !== gamePath(session.gameId))
-            throw new Error('Preview editor context changed')
-        const next = { ...session, text, sha256: await textDigest(text) }
-        editorSessions.set(handle, next)
-        editorFiles.set(session.gameId, text)
-        return next
+    inspectMovieResources: async (gameId) => {
+        const id = game(gameId)
+        const path = gamePath(gameId)
+        if (!path) throw new Error('Choose a game folder before checking movies')
+        const movies =
+            previewState.library === 'resources'
+                ? library(id)
+                      .mods.filter((mod) => mod.deployment === 'movie')
+                      .map((mod) => ({
+                          path: `${path}/${id === 'pd3' ? 'PAYDAY3' : 'CrimeBoss'}/Content/Movies/${mod.filename}`,
+                          sha256: 'a'.repeat(64),
+                          recognition: { status: 'unavailable' as const },
+                      }))
+                : []
+        return { checkedAt: new Date().toISOString(), movies }
     },
-    closeEngineIni: async (handle) => {
-        editorSessions.delete(handle)
+    getResourceReview: async (handle) => resourceFixtures.getResourceReview(handle),
+    cancelResourceReview: async (handle) => resourceFixtures.cancelResourceReview(handle),
+    installReviewedResources: async (handle, selection) =>
+        resourceFixtures.installResources(handle, selection),
+    reviewResourceRecovery: async (gameId, uid) => {
+        const path = gamePath(gameId)
+        if (!path) throw new Error('Choose a game folder before reviewing resources')
+        return resourceFixtures.reviewRecovery(game(gameId), uid, path)
+    },
+    cancelResourceRecovery: async (handle) => resourceFixtures.cancelRecovery(handle),
+    keepCurrentResources: async (handle) => {
+        resourceFixtures.keepCurrent(handle)
+        return null
+    },
+    getEngineIniLocation: async (gameId) => {
+        const id = game(gameId)
+        if (!gamePath(id)) throw new Error('Choose a game folder first')
+        const path = chosenIniLocations.get(id)
+        if (path) return { status: 'found', path }
+        if (id === 'pd3')
+            return {
+                status: 'found',
+                path: 'C:/Users/Preview/AppData/Local/PAYDAY3/Saved/Config/WindowsClient/Engine.ini',
+            }
+        return { status: 'needsLocation' }
+    },
+    openEngineIni: async (gameId) => {
+        if (!gamePath(gameId)) throw new Error('Choose a game folder first')
+        return null
+    },
+    pickEngineIni: async (gameId) => {
+        const path = gamePath(gameId)
+        if (!path) throw new Error('Choose a game folder first')
+        const configPath = path + '/Saved/Config/WindowsClient/Engine.ini'
+        chosenIniLocations.set(game(gameId), configPath)
+        return configPath
     },
     reportStartupPhase: async () => null,
     getAnalyticsConsent: async () => (previewState.onboarding === 'first-run' ? null : true),
@@ -240,7 +250,8 @@ const handlers = {
         const id = game(gameId)
         const lib = library(id)
         if (previewState.library !== 'empty' && !lib.seeded) {
-            lib.seed((await load(id)).modRecords, previewState.library)
+            if (previewState.library === 'resources') resourceFixtures.seedResourceLibrary(id)
+            else lib.seed((await load(id)).modRecords, previewState.library)
         }
         return lib.response()
     },

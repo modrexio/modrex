@@ -2,22 +2,69 @@ use super::*;
 use std::fs;
 
 #[test]
-fn draft_context_changes_with_the_physical_installation_and_store() {
-    let context = InstallContext {
-        game_id: "pd3".into(),
-        game_path: "/chosen/install".into(),
-        canonical_game_path: "/physical/install-a".into(),
-        launcher: Some("steam".into()),
+fn configuration_location_checks_do_not_create_a_missing_file_or_parent() {
+    let temp = tempfile::tempdir().unwrap();
+    let path = temp.path().join("not-created/Engine.ini");
+    let destination = IniDestination {
+        path: path.clone(),
+        chosen: false,
     };
-    let path = Path::new("/same/Engine.ini");
-    let key = editor_context_key(&context, path).unwrap();
-    let mut changed = context.clone();
-    changed.canonical_game_path = "/physical/install-b".into();
-    assert_ne!(key, editor_context_key(&changed, path).unwrap());
-    changed = context.clone();
-    changed.launcher = Some("epic".into());
-    assert_ne!(key, editor_context_key(&changed, path).unwrap());
-    assert_eq!(key, editor_context_key(&context, path).unwrap());
+    assert!(matches!(
+        inspect_engine_ini(destination).unwrap(),
+        EngineIniLocation::Missing { path: found } if found == path.to_string_lossy()
+    ));
+    assert!(!path.parent().unwrap().exists());
+    assert!(IniDestination {
+        path,
+        chosen: false
+    }
+    .validate()
+    .is_err());
+}
+
+#[test]
+fn configuration_location_checks_validate_an_existing_file_without_changing_it() {
+    let temp = tempfile::tempdir().unwrap();
+    let path = temp.path().canonicalize().unwrap().join("Engine.ini");
+    fs::write(&path, b"[S]\r\nA=1\r\n").unwrap();
+    assert!(matches!(
+        inspect_engine_ini(IniDestination { path: path.clone(), chosen: true }).unwrap(),
+        EngineIniLocation::Found { path: found } if found == path.to_string_lossy()
+    ));
+    assert_eq!(fs::read(&path).unwrap(), b"[S]\r\nA=1\r\n");
+}
+
+#[test]
+fn configuration_location_checks_report_invalid_files_as_errors() {
+    let temp = tempfile::tempdir().unwrap();
+    let path = temp.path().join("Engine.ini");
+    fs::create_dir(&path).unwrap();
+    assert!(inspect_engine_ini(IniDestination {
+        path,
+        chosen: false
+    })
+    .unwrap_err()
+    .contains("not a regular file"));
+}
+
+#[cfg(windows)]
+#[test]
+fn system_editor_paths_preserve_drive_unc_and_unicode_without_verbatim_prefixes() {
+    for (input, expected) in [
+        (
+            r"\\?\G:\Config & Files\Engine.ini",
+            r"G:\Config & Files\Engine.ini",
+        ),
+        (
+            r"\\?\UNC\server\share\Config\Engine.ini",
+            r"\\server\share\Config\Engine.ini",
+        ),
+        (r"C:\Config\Engine.ini", r"C:\Config\Engine.ini"),
+        (r"\\?\C:\Ігри\Engine.ini", r"C:\Ігри\Engine.ini"),
+    ] {
+        let path = Path::new(input);
+        assert_eq!(shell_ini_path(path), PathBuf::from(expected));
+    }
 }
 
 #[test]
@@ -69,43 +116,6 @@ fn preset(store: &ResourceStore, path: &Path, source: &[u8]) -> Deployment {
 }
 
 #[test]
-fn editing_one_owned_key_keeps_other_keys_reversible() {
-    let temp = tempfile::tempdir().unwrap();
-    let store = ResourceStore::at(temp.path().join("recovery"));
-    let path = temp.path().join("Engine.ini");
-    fs::write(&path, b"[S]\nA=old\nB=before\n").unwrap();
-    let deployment = preset(&store, &path, b"[S]\nA=new\nB=after\n");
-    apply_preset(
-        &store,
-        "pd3",
-        &store.load_manifest().unwrap(),
-        deployment,
-        None,
-    )
-    .unwrap();
-    let mut manifest = store.load_manifest().unwrap();
-    let changes = preset_of(&manifest.deployments[0]).unwrap().changes.clone();
-    let changed = ini::owned_changes(
-        "[S]\nA=new\nB=after\n",
-        "[S]\nA=custom\nB=after\n",
-        &changes,
-    );
-    release_edited_keys(&mut manifest, &[("preset".into(), changed)]);
-    assert_eq!(
-        preset_of(&manifest.deployments[0]).unwrap().changes.len(),
-        1
-    );
-    assert_eq!(
-        preset_of(&manifest.deployments[0]).unwrap().changes[0].key,
-        "B"
-    );
-    store.save_manifest(&manifest).unwrap();
-    fs::write(&path, b"[S]\nA=custom\nB=after\n").unwrap();
-    release_preset(&store, "pd3", &manifest.deployments[0], false).unwrap();
-    assert_eq!(fs::read(&path).unwrap(), b"[S]\nA=custom\nB=before\n");
-}
-
-#[test]
 fn matching_preexisting_movie_is_not_adopted_and_never_becomes_a_baseline() {
     let temp = tempfile::tempdir().unwrap();
     let store = ResourceStore::at(temp.path().join("recovery"));
@@ -150,7 +160,7 @@ fn absent_and_empty_configs_restore_to_different_states() {
     for exists in [false, true] {
         let temp = tempfile::tempdir().unwrap();
         let store = ResourceStore::at(temp.path().join("recovery"));
-        let path = temp.path().join("Engine.ini");
+        let path = temp.path().canonicalize().unwrap().join("Engine.ini");
         if exists {
             fs::write(&path, b"").unwrap();
         }
@@ -178,7 +188,7 @@ fn absent_and_empty_configs_restore_to_different_states() {
 fn changed_owned_keys_and_external_removal_block_automatic_restore() {
     let temp = tempfile::tempdir().unwrap();
     let store = ResourceStore::at(temp.path().join("recovery"));
-    let path = temp.path().join("Engine.ini");
+    let path = temp.path().canonicalize().unwrap().join("Engine.ini");
     fs::write(&path, b"; own\r\n[S]\r\nA=old\r\nOther=1\r\n").unwrap();
     let deployment = preset(&store, &path, b"[S]\r\nA=new\r\nB=2\r\n");
     apply_preset(
@@ -222,7 +232,7 @@ fn changed_owned_keys_and_external_removal_block_automatic_restore() {
 fn equal_existing_values_have_no_ownership_or_revision_and_duplicate_presets_do_not_write() {
     let temp = tempfile::tempdir().unwrap();
     let store = ResourceStore::at(temp.path().join("recovery"));
-    let path = temp.path().join("Engine.ini");
+    let path = temp.path().canonicalize().unwrap().join("Engine.ini");
     let original = b"[S]\nA=1";
     fs::write(&path, original).unwrap();
     let deployment = preset(&store, &path, b"[S]\nA=1\n");

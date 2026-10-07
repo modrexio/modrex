@@ -30,6 +30,7 @@ export interface InstalledContextValue {
     handleReinstall: (mods: InstalledMod[]) => Promise<string | null>
     handleIdentifyViaNexus: (mod: InstalledMod) => Promise<void>
     requestMoveCrimeBossTarget: (mod: InstalledMod) => void
+    reviewResource: (mod: InstalledMod) => void
     folderActions: FolderActions
     dragItem: DragItem | null
     dropTarget: DropTarget

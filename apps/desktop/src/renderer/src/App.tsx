@@ -24,7 +24,6 @@ import { readAppRoute, saveAppRoute, type AppRoute } from './navigation'
 import { refreshInstalled } from './gameData'
 import { ResourceInstallDialog } from './components/ResourceInstallDialog'
 import { requestResourceReview } from './resourceInstall'
-import { EngineIniEditor } from './components/IniEditorDialog'
 function reportStartupPhase(phase: StartupPhase) {
     void api
         .reportStartupPhase(phase)
@@ -216,7 +215,6 @@ export default function App() {
         <TooltipProvider delayDuration={400}>
             <FileDropInstall>
                 <ResourceInstallDialog />
-                <EngineIniEditor />
                 <div className="flex flex-col h-screen bg-surface text-text">
                     {navigator.userAgent.includes('Linux') && <ResizeHandles />}
                     {route.kind === 'game' ? (

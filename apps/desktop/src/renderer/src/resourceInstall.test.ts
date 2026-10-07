@@ -5,6 +5,8 @@ import {
     getPendingResourceReview,
     requestResourceReview,
     resourceSelectionValid,
+    resourceSelectionIssue,
+    matchingMovieSlot,
     resourceConflicts,
     subscribeResourceReview,
 } from './resourceInstall'
@@ -71,6 +73,44 @@ const review: ResourceReview = {
 }
 
 describe('resource review selection', () => {
+    it('explains missing destinations, duplicate destinations and missing configuration', () => {
+        expect(resourceSelectionIssue(review, {})).toBe('chooseFiles')
+        expect(resourceSelectionIssue(review, { 1: null })).toBe('chooseMovie')
+        expect(resourceSelectionIssue(review, { 1: 'StartUp_SBZ.bk2', 2: 'StartUp_SBZ.bk2' })).toBe(
+            'duplicateMovie'
+        )
+        expect(resourceSelectionIssue({ ...review, configPath: null }, { 3: null })).toBe(
+            'chooseConfig'
+        )
+        expect(resourceSelectionValid({ ...review, configPath: null }, { 3: null })).toBe(false)
+        expect(resourceSelectionIssue(review, { 99: null })).toBe('reviewChanged')
+    })
+
+    it('suggests only exact, unique source and destination filenames', () => {
+        const entry = { ...review.entries[0], name: 'Movies/StartUp_SBZ.bk2' }
+        const exact = { ...review, entries: [entry] }
+        expect(matchingMovieSlot(exact, entry)).toBe('StartUp_SBZ.bk2')
+        expect(matchingMovieSlot(exact, { ...entry, name: 'StartUp_SBZ-copy.bk2' })).toBeNull()
+        expect(matchingMovieSlot(exact, { ...entry, name: 'startup_sbz.bk2' })).toBeNull()
+        expect(matchingMovieSlot(exact, { ...entry, supported: false })).toBeNull()
+        expect(matchingMovieSlot({ ...exact, movieSlots: [] }, entry)).toBeNull()
+        expect(
+            matchingMovieSlot(
+                {
+                    ...exact,
+                    entries: [entry, { ...entry, entryId: 8, name: 'Other/StartUp_SBZ.bk2' }],
+                },
+                entry
+            )
+        ).toBeNull()
+        expect(
+            matchingMovieSlot(
+                { ...exact, movieSlots: ['StartUp_SBZ.bk2', 'StartUp_SBZ.bk2'] },
+                entry
+            )
+        ).toBeNull()
+    })
+
     it('requires a unique verified slot per movie and one INI variant', () => {
         expect(resourceSelectionValid(review, {})).toBe(false)
         expect(resourceSelectionValid(review, { 1: null })).toBe(false)

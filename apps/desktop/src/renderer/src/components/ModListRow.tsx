@@ -23,6 +23,7 @@ interface Props {
     onEnable: () => void
     onDisable: () => void
     onReinstall?: () => void
+    onReviewResource?: () => void
     optionsButton?: ReactNode
 }
 
@@ -38,13 +39,16 @@ export function ModListRow({
     onEnable,
     onDisable,
     onReinstall,
+    onReviewResource,
     optionsButton,
 }: Props) {
     const thumbSrc = useThumbnail(mod.thumbnail?.file)
     // Fade the image in on its first real decode; cache hits (el.complete is
     // already true at mount) skip the fade so warm lists stay instant.
     const [thumbLoaded, setThumbLoaded] = useState(false)
-    const canAct = !!gamePath && !loading
+    const needsResourceReview =
+        installed.resourceStatus === 'diverged' || installed.resourceStatus === 'blocked'
+    const canAct = !!gamePath && !loading && !needsResourceReview
 
     const progressPct =
         loading && progress && progress.total > 0
@@ -114,6 +118,16 @@ export function ModListRow({
                 </button>
 
                 <div className="flex items-center gap-2 px-4 shrink-0">
+                    {needsResourceReview && onReviewResource && (
+                        <Button
+                            variant="secondary"
+                            size="sm"
+                            disabled={loading}
+                            onClick={onReviewResource}
+                        >
+                            {t('resources.recovery.review')}
+                        </Button>
+                    )}
                     {installed.missing && (
                         <>
                             <span className="text-xs text-warning bg-warning/10 border border-warning/30 px-2 py-0.5 rounded">
@@ -149,24 +163,26 @@ export function ModListRow({
                     )}
                     {/* A loader has no enabled state to flip: it is a hook next to the game,
                         present or not. Removing it is still the user's to do. */}
-                    {!isLoader(installed) && (
+                    {!needsResourceReview && !isLoader(installed) && (
                         <Toggle
                             checked={installed.enabled}
                             onChange={(v) => (v ? onEnable() : onDisable())}
                             disabled={!canAct || !!installed.missing}
                         />
                     )}
-                    <Tooltip content={t('common.remove')}>
-                        <Button
-                            variant="danger"
-                            size="icon-md"
-                            disabled={!canAct}
-                            onClick={onUninstall}
-                            className="p-2"
-                        >
-                            <Trash2 className="w-4 h-4" />
-                        </Button>
-                    </Tooltip>
+                    {!needsResourceReview && (
+                        <Tooltip content={t('common.remove')}>
+                            <Button
+                                variant="danger"
+                                size="icon-md"
+                                disabled={!canAct}
+                                onClick={onUninstall}
+                                className="p-2"
+                            >
+                                <Trash2 className="w-4 h-4" />
+                            </Button>
+                        </Tooltip>
+                    )}
                     {optionsButton}
                 </div>
             </div>

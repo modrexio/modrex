@@ -19,6 +19,7 @@ import { uninstallablePromptMessage } from '../installSentinels'
 import { formatBytes } from './modDetail/format'
 import { describeFailures, type ActionFailure } from '../bulkAction'
 import NexusIcon from '../../../../assets/icons/nexusmods.svg?react'
+import { MovieResourceScan } from './MovieResourceScan'
 
 export interface Leftovers {
     sets: LeftoverFiles[]
@@ -53,6 +54,7 @@ interface Props {
     onReinstall: (mods: InstalledMod[]) => Promise<string | null>
     onDepInstalled: () => Promise<void>
     onReviewUpdates: () => void
+    onReviewResource?: (mod: InstalledMod) => void
     onClose: () => void
 }
 
@@ -157,9 +159,16 @@ export function HealthCheckModal({
     onReinstall,
     onDepInstalled,
     onReviewUpdates,
+    onReviewResource,
     onClose,
 }: Props) {
     const summary = computeHealthSummary(installed)
+    const resourceGame = gameId === 'pd3' || gameId === 'cb' ? gameId : null
+    const changedResources = installed.filter(
+        (mod) =>
+            mod.deployment &&
+            (mod.resourceStatus === 'blocked' || mod.resourceStatus === 'diverged')
+    )
     const [installingDepId, setInstallingDepId] = useState<number | null>(null)
     const [installingAll, setInstallingAll] = useState(false)
     const [depInstallError, setDepInstallError] = useState<string | null>(null)
@@ -263,9 +272,13 @@ export function HealthCheckModal({
 
     // Lifted out of Tabs.Root (which Radix unmounts along with the rest of Dialog.Content
     // while !visible) so the selected tab survives navigating to a mod's detail page and back.
-    const [activeTab, setActiveTab] = useState(() => (showDepsTab ? 'deps' : 'missing'))
+    const [activeTab, setActiveTab] = useState(() => {
+        if (changedResources.length > 0) return 'resources'
+        return showDepsTab ? 'deps' : 'missing'
+    })
 
     const tabs: { id: string; label: string }[] = [
+        ...(resourceGame ? [{ id: 'resources', label: t('resources.recognition.healthTab') }] : []),
         ...(showDepsTab
             ? [
                   {
@@ -370,6 +383,36 @@ export function HealthCheckModal({
                 </Tabs.List>
 
                 <div className="overflow-y-auto flex-1 p-3">
+                    {resourceGame && (
+                        <Tabs.Content
+                            value="resources"
+                            className="focus:outline-none flex flex-col gap-3"
+                        >
+                            {changedResources.map((mod) => (
+                                <HealthRow
+                                    key={mod.uid}
+                                    name={mod.name}
+                                    secondary={t(
+                                        mod.resourceStatus === 'blocked'
+                                            ? 'resources.status.blocked'
+                                            : 'resources.status.diverged'
+                                    )}
+                                    action={
+                                        onReviewResource && (
+                                            <Button
+                                                variant="secondary"
+                                                size="sm"
+                                                onClick={() => onReviewResource(mod)}
+                                            >
+                                                {t('resources.recovery.review')}
+                                            </Button>
+                                        )
+                                    }
+                                />
+                            ))}
+                            <MovieResourceScan activeGame={resourceGame} />
+                        </Tabs.Content>
+                    )}
                     {showDepsTab && (
                         <Tabs.Content
                             value="deps"

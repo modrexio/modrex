@@ -31,6 +31,7 @@ export class Library {
             modsHidden: false,
             stateUnreadable: false,
             resourceError: null,
+            resourceRecoveryPending: false,
         }
     }
 
@@ -123,7 +124,7 @@ export class Library {
 
     seed(
         records: Record<string, { detail: ModDetail; files: { data: WorkshopFile[] } }>,
-        profile: Exclude<LibraryProfile, 'empty'>
+        profile: Exclude<LibraryProfile, 'empty' | 'resources'>
     ) {
         const templates = Object.values(records).flatMap(({ detail, files }) => {
             const file = detail.download ?? files.data[0]

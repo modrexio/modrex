@@ -1,6 +1,7 @@
 export const LIBRARY_PROFILES = {
     empty: 'Empty library',
     demo: 'Six mods covering folders, disabled, missing and outdated states',
+    resources: 'Movie mods and INI presets, including files changed outside Modrex',
     large: '120 generated entries for layout and interaction stress testing',
 } as const
 

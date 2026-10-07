@@ -37,22 +37,16 @@ export type {
     ResourceRecognition,
     MovieRecognitionScan,
     ResourceRecoveryReview,
+    EngineIniLocation,
 } from '../../shared/bindings'
 import type {
     ResourceSelection,
     ResourceReview as BackendResourceReview,
 } from '../../shared/bindings'
-import type { IniEditorSession as BackendIniEditorSession } from '../../shared/bindings'
 import { isGameId, type GameId } from '../../shared/types'
 export type ResourceReview = Omit<BackendResourceReview, 'gameId'> & { gameId: GameId }
-export type IniEditorSession = Omit<BackendIniEditorSession, 'gameId'> & { gameId: GameId }
 import { requestResourceReview } from './resourceInstall'
 export type InstallOutcome = BackendInstallOutcome | 'cancelled'
-
-function editorSession(value: BackendIniEditorSession): IniEditorSession {
-    if (!isGameId(value.gameId)) throw new Error('INI editor belongs to an unknown game.')
-    return { ...value, gameId: value.gameId }
-}
 
 // The library declares this union without exporting it.
 export type ResizeDirection = Parameters<
@@ -141,32 +135,20 @@ function onEvent<T>(eventName: string, callback: (payload: T) => void): () => vo
 }
 
 export const api = {
-    guardWindowClose(keepOpen: () => boolean): Promise<() => void> {
-        return getCurrentWindow().onCloseRequested((event) => {
-            if (keepOpen()) event.preventDefault()
-        })
-    },
     recognizeResourceHash(gameId: string, sha256: string, kind: 'movie' | 'config') {
         return commands.recognizeResourceHash(gameId, sha256, kind)
     },
     inspectMovieResources(gameId: string) {
         return commands.inspectMovieResources(gameId)
     },
-    async openEngineIni(gameId: string) {
-        return editorSession(await commands.openEngineIni(gameId))
+    getEngineIniLocation(gameId: string) {
+        return commands.getEngineIniLocation(gameId)
     },
-    readResourceIni(reviewHandle: string, entryId: number) {
-        return commands.readResourceIni(reviewHandle, entryId)
+    openEngineIni(gameId: string) {
+        return commands.openEngineIni(gameId)
     },
-    async pickEngineIni(gameId: string, title: string, folder = false) {
-        const session = await commands.pickEngineIni(gameId, title, folder)
-        return session ? editorSession(session) : null
-    },
-    async saveEngineIni(sessionHandle: string, text: string, releasePreset: boolean) {
-        return editorSession(await commands.saveEngineIni(sessionHandle, text, releasePreset))
-    },
-    closeEngineIni(sessionHandle: string) {
-        return commands.closeEngineIni(sessionHandle)
+    pickEngineIni(gameId: string, title: string, folder = false) {
+        return commands.pickEngineIni(gameId, title, folder)
     },
     async getResourceReview(reviewHandle: string): Promise<ResourceReview> {
         const review = await commands.getResourceReview(reviewHandle)
@@ -377,6 +359,7 @@ export const api = {
         modsHidden: boolean
         stateUnreadable: boolean
         resourceError?: string | null
+        resourceRecoveryPending: boolean
     }> {
         return commands.getInstalled(gameId) as unknown as Promise<{
             mods: InstalledMod[]
@@ -384,6 +367,7 @@ export const api = {
             modsHidden: boolean
             stateUnreadable: boolean
             resourceError?: string | null
+            resourceRecoveryPending: boolean
         }>
     },
     async openModsFolder(gameId: string): Promise<void> {

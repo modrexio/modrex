@@ -24,7 +24,7 @@ mod staging_tokens;
 pub use self::resource_state::ResourceLocks;
 pub(crate) use self::resources::launch_preflight as resource_launch_preflight;
 pub(crate) use self::resources::refuse_resource_uid;
-pub use self::resources::{IniSessions, ResourceReviews};
+pub use self::resources::{IniLocations, ResourceReviews};
 pub(crate) use self::staging_tokens::StagingRegistry;
 mod state;
 mod types;
@@ -234,6 +234,7 @@ pub async fn get_installed(app: AppHandle, game_id: String) -> Result<InstalledR
             mods_hidden: false,
             state_unreadable: false,
             resource_error: None,
+            resource_recovery_pending: false,
         });
     };
 
@@ -336,6 +337,7 @@ pub async fn get_installed(app: AppHandle, game_id: String) -> Result<InstalledR
                 mods_hidden: true,
                 state_unreadable: writeback.blocked(),
                 resource_error: None,
+                resource_recovery_pending: false,
             },
         )
         .await);
@@ -395,6 +397,7 @@ pub async fn get_installed(app: AppHandle, game_id: String) -> Result<InstalledR
                 mods_hidden: false,
                 state_unreadable: writeback.blocked(),
                 resource_error: None,
+                resource_recovery_pending: false,
             },
         )
         .await);
@@ -444,6 +447,7 @@ pub async fn get_installed(app: AppHandle, game_id: String) -> Result<InstalledR
             mods_hidden: false,
             state_unreadable: writeback.blocked(),
             resource_error: None,
+            resource_recovery_pending: false,
         },
     )
     .await)
@@ -467,9 +471,10 @@ async fn with_resource_rows(
     .map_err(|error| error.to_string())
     .and_then(|result| result);
     match result {
-        Ok((rows, error)) => {
+        Ok((rows, error, recovery_pending)) => {
             response.mods.extend(rows);
             response.resource_error = error;
+            response.resource_recovery_pending = recovery_pending;
         }
         Err(e) => {
             log::warn!("get_installed {game_id}: resource records: {e}");
@@ -1466,10 +1471,16 @@ pub(crate) fn discard_all_resource_reviews(app: &AppHandle) {
 
 #[tauri::command]
 #[specta::specta]
-pub async fn open_engine_ini(
+pub async fn get_engine_ini_location(
     app: AppHandle,
     game_id: String,
-) -> Result<resources::IniEditorSession, String> {
+) -> Result<resources::EngineIniLocation, String> {
+    resources::get_engine_ini_location(&app, &game_id).await
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn open_engine_ini(app: AppHandle, game_id: String) -> Result<(), String> {
     resources::open_engine_ini(&app, &game_id).await
 }
 
@@ -1481,37 +1492,8 @@ pub async fn pick_engine_ini(
     game_id: String,
     title: String,
     folder: bool,
-) -> Result<Option<resources::IniEditorSession>, String> {
+) -> Result<Option<String>, String> {
     resources::pick_engine_ini(&app, &game_id, title, folder).await
-}
-
-#[tauri::command]
-#[specta::specta]
-pub fn read_resource_ini(
-    app: AppHandle,
-    review_handle: String,
-    entry_id: u32,
-) -> Result<String, String> {
-    resources::read_review_ini(&app, &review_handle, entry_id)
-}
-
-#[tauri::command]
-#[specta::specta]
-pub async fn save_engine_ini(
-    app: AppHandle,
-    session_handle: String,
-    text: String,
-    release_preset: bool,
-) -> Result<resources::IniEditorSession, String> {
-    resources::save_engine_ini(&app, &session_handle, text, release_preset)
-        .await
-        .inspect_err(|e| log::warn!("save_engine_ini: {e}"))
-}
-
-#[tauri::command]
-#[specta::specta]
-pub fn close_engine_ini(app: AppHandle, session_handle: String) {
-    resources::close_engine_ini(&app, &session_handle);
 }
 
 #[derive(Debug, Clone, Deserialize, specta::Type)]

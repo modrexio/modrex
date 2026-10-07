@@ -31,15 +31,46 @@ export function resourceSelectionValid(
     review: ResourceReview,
     selection: Record<string, string | null>
 ): boolean {
+    return resourceSelectionIssue(review, selection) === null
+}
+
+export function resourceSelectionIssue(
+    review: ResourceReview,
+    selection: Record<string, string | null>
+):
+    | 'chooseFiles'
+    | 'reviewChanged'
+    | 'unsupported'
+    | 'chooseMovie'
+    | 'duplicateMovie'
+    | 'chooseConfig'
+    | null {
     const selected = review.entries.filter((entry) => entry.entryId in selection)
-    if (selected.length !== Object.keys(selection).length) return false
-    if (selected.length === 0 || selected.some((entry) => !entry.supported)) return false
+    if (selected.length !== Object.keys(selection).length) return 'reviewChanged'
+    if (selected.length === 0) return 'chooseFiles'
+    const ini = selected.filter((entry) => entry.kind === 'ini')
+    if (ini.length > 0 && !review.configPath) return 'chooseConfig'
+    if (selected.some((entry) => !entry.supported)) return 'unsupported'
     const movies = selected.filter((entry) => entry.kind === 'movie')
-    if (review.moviePackApplied && movies.length > 0) return false
+    if (review.moviePackApplied && movies.length > 0) return 'reviewChanged'
     const slots = movies.map((entry) => selection[entry.entryId])
-    if (slots.some((slot) => !slot || !review.movieSlots.includes(slot))) return false
-    if (new Set(slots).size !== slots.length) return false
-    return selected.filter((entry) => entry.kind === 'ini').length <= 1
+    if (slots.some((slot) => !slot || !review.movieSlots.includes(slot))) return 'chooseMovie'
+    if (new Set(slots).size !== slots.length) return 'duplicateMovie'
+    if (ini.length > 1) return 'reviewChanged'
+    return null
+}
+
+export function matchingMovieSlot(
+    review: ResourceReview,
+    entry: ResourceReview['entries'][number]
+): string | null {
+    if (entry.kind !== 'movie' || !entry.supported) return null
+    const name = entry.name.split(/[\\/]/).at(-1)
+    const slots = review.movieSlots.filter((slot) => slot === name)
+    const sources = review.entries.filter(
+        (candidate) => candidate.kind === 'movie' && candidate.name.split(/[\\/]/).at(-1) === name
+    )
+    return slots.length === 1 && sources.length === 1 ? slots[0] : null
 }
 
 function sameIniName(left: string, right: string): boolean {

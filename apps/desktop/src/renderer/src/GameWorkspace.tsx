@@ -1,3 +1,4 @@
+import { DisclosureSummary } from './components/ui/DisclosureSummary'
 import { useState, useEffect, useCallback, useSyncExternalStore, memo, type ReactNode } from 'react'
 import { error as logError } from '@tauri-apps/plugin-log'
 import type { GameId, ModSummary, InstalledMod, ModFolder } from '../../shared/types'
@@ -27,6 +28,8 @@ import { ModDetailPage } from './components/ModDetailPage'
 import { SettingsPage, saveSettingsTab, type AppSettingsProps } from './components/SettingsPage'
 import { GameSettings } from './components/GameSettings'
 import { GameFolders } from './components/GameFolders'
+import { EngineIniSettings } from './components/EngineIniSettings'
+import { ResourceRecoveryDialog } from './components/ResourceRecoveryDialog'
 import { useFileDropTarget } from './components/FileDropInstall'
 
 const InstalledPageMemo = memo(InstalledPage)
@@ -58,6 +61,7 @@ export function GameWorkspace({
     banners,
     onStartupPhase,
 }: Props) {
+    const [recoveryOpen, setRecoveryOpen] = useState(false)
     const locale = useLocale()
     const [view, setView] = useState<GameView | 'detail'>(() => readGameView(activeGame))
     const [prevView, setPrevView] = useState<'browse' | 'installed'>('browse')
@@ -77,6 +81,12 @@ export function GameWorkspace({
     const gamePathReady = data.path !== undefined
     const installed = data.installed?.mods ?? emptyMods
     const folders = data.installed?.folders ?? emptyFolders
+    const resourceRecoveryPending = data.installed?.resourceRecoveryPending ?? false
+    const resourceNeedsReview =
+        resourceRecoveryPending ||
+        installed.some(
+            (mod) => mod.resourceStatus === 'blocked' || mod.resourceStatus === 'diverged'
+        )
     const refreshInstalled = useCallback(() => refreshGameInstalled(activeGame), [activeGame])
 
     useModIdentificationTracking(installed, activeGame)
@@ -226,9 +236,51 @@ export function GameWorkspace({
                 </div>
             )}
             {data.installed?.resourceError && (
-                <div role="alert" className="px-4 py-3 text-sm text-danger-text">
-                    {data.installed.resourceError}
+                <div
+                    role="alert"
+                    className="shrink-0 px-4 py-3 flex items-center justify-between gap-4 bg-warning/10 border-b border-warning/30 text-xs text-warning"
+                >
+                    <div>
+                        <p>
+                            {t(
+                                resourceNeedsReview
+                                    ? 'resources.recovery.required'
+                                    : 'resources.recovery.inspectionFailed'
+                            )}
+                        </p>
+                        <details className="mt-1 text-text-muted">
+                            <DisclosureSummary className="cursor-pointer">
+                                {t('resources.details')}
+                            </DisclosureSummary>
+                            <p className="mt-2 whitespace-pre-wrap">
+                                {data.installed.resourceError}
+                            </p>
+                        </details>
+                    </div>
+                    {resourceNeedsReview && (
+                        <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() =>
+                                resourceRecoveryPending
+                                    ? setRecoveryOpen(true)
+                                    : setView('installed')
+                            }
+                        >
+                            {t(
+                                resourceRecoveryPending
+                                    ? 'resources.recovery.review'
+                                    : 'resources.recovery.openInstalled'
+                            )}
+                        </Button>
+                    )}
                 </div>
+            )}
+            {recoveryOpen && (
+                <ResourceRecoveryDialog
+                    activeGame={activeGame}
+                    onClose={() => setRecoveryOpen(false)}
+                />
             )}
             {data.installed?.modsHidden && (
                 <div className="shrink-0 flex items-center justify-between gap-4 px-4 py-2 bg-warning/10 border-b border-warning/30 text-xs text-warning">
@@ -334,6 +386,12 @@ export function GameWorkspace({
                                 ),
                                 folders: (
                                     <GameFolders activeGame={activeGame} gamePath={gamePath} />
+                                ),
+                                advanced: (activeGame === 'pd3' || activeGame === 'cb') && (
+                                    <EngineIniSettings
+                                        key={`ini:${gamePath}`}
+                                        activeGame={activeGame}
+                                    />
                                 ),
                             }}
                         />

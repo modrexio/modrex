@@ -77,7 +77,9 @@ export function SettingsPage({
     discordPresenceEnabled,
     onDiscordPresenceEnabled,
     game,
-}: AppSettingsProps & { game?: { name: string; content: ReactNode; folders: ReactNode } }) {
+}: AppSettingsProps & {
+    game?: { name: string; content: ReactNode; folders: ReactNode; advanced?: ReactNode }
+}) {
     const [checkState, setCheckState] = useState<'idle' | 'checking' | 'upToDate'>('idle')
     const hasGameSettings = game !== undefined
     const [showAnalyticsDetails, setShowAnalyticsDetails] = useState(false)
@@ -419,6 +421,14 @@ export function SettingsPage({
 
                         {activeTab === 'advanced' && (
                             <>
+                                {game?.advanced && (
+                                    <div className="flex flex-col gap-4">
+                                        <h2 className="text-sm font-semibold">
+                                            {t('resources.toolsTitle', { game: game.name })}
+                                        </h2>
+                                        {game.advanced}
+                                    </div>
+                                )}
                                 <SisrSettings isActive={isActive} />
 
                                 <Section

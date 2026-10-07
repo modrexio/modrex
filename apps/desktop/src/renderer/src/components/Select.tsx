@@ -20,9 +20,18 @@ interface Props {
     placeholder?: string
     disabled?: boolean
     icon?: ReactNode
+    ariaLabel?: string
 }
 
-export function Select({ value, onChange, options, placeholder, disabled, icon }: Props) {
+export function Select({
+    value,
+    onChange,
+    options,
+    placeholder,
+    disabled,
+    icon,
+    ariaLabel,
+}: Props) {
     const selected = options.find((o) => o.value === value)
 
     return (
@@ -31,7 +40,10 @@ export function Select({ value, onChange, options, placeholder, disabled, icon }
             onValueChange={(v) => onChange(fromRadix(v))}
             disabled={disabled}
         >
-            <RadixSelect.Trigger className="group text-sm px-3 py-1.5 rounded bg-surface-hover border border-border text-text flex items-center gap-2 hover:bg-surface-active disabled:opacity-50 disabled:cursor-not-allowed transition-colors whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60">
+            <RadixSelect.Trigger
+                aria-label={ariaLabel}
+                className="group text-sm px-3 py-1.5 rounded bg-surface-hover border border-border text-text flex items-center gap-2 hover:bg-surface-active disabled:opacity-50 disabled:cursor-not-allowed transition-colors whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+            >
                 <span className="flex items-center gap-1.5">
                     {icon}
                     {selected?.icon}

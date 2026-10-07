@@ -2,8 +2,8 @@
 //!
 //! Supported encodings are pure ASCII without a BOM, and UTF-8, UTF-16LE or UTF-16BE with a
 //! BOM. Unmarked non-ASCII bytes are refused rather than guessed, since a strict UTF-8 decode
-//! does not prove the file was written as UTF-8. Line endings must be uniform. The editor's
-//! textarea normalizes them to LF, so the original style is restored on save.
+//! does not prove the file was written as UTF-8. Line endings must be uniform, and merges
+//! preserve the original style.
 //!
 //! The merge never rebuilds a document from a map. Unreal config allows repeated sections,
 //! repeated keys and the array operators +, -, . and !, so only assignments that are
@@ -74,7 +74,7 @@ pub(crate) fn decode(bytes: &[u8]) -> Result<Decoded, String> {
 }
 
 fn decode_utf16(bytes: &[u8], read: fn([u8; 2]) -> u16) -> Result<String, String> {
-    if bytes.len() % 2 != 0 {
+    if !bytes.len().is_multiple_of(2) {
         return Err("the file has a UTF-16 marker but an odd byte length".to_string());
     }
     let units = bytes.chunks_exact(2).map(|c| read([c[0], c[1]]));
@@ -106,7 +106,7 @@ pub(crate) fn encode(text: &str, encoding: Encoding, eol: LineEnding) -> Result<
         return Err("the text contains binary control characters".into());
     }
     if text.contains('\r') {
-        return Err("the text contains a carriage return the editor cannot represent".to_string());
+        return Err("the text contains a standalone carriage return".to_string());
     }
     let text =
         match eol {
@@ -310,7 +310,7 @@ pub(crate) struct Assignment {
 }
 
 /// Reads a preset source as plain scalar assignments, or explains why it is outside that
-/// subset and needs a deliberate edit in the raw editor instead.
+/// subset and requires manual installation.
 pub(crate) fn scalar_assignments(text: &str) -> Result<Vec<Assignment>, String> {
     let mut out: Vec<Assignment> = Vec::new();
     let mut seen_sections: Vec<String> = Vec::new();
@@ -428,7 +428,7 @@ pub(crate) fn merge(target: &str, assignments: &[Assignment]) -> Result<Merged, 
     }
     if !ambiguous.is_empty() {
         return Err(format!(
-            "your Engine.ini declares {} more than once or with array operators; apply this preset by hand in the Engine.ini editor",
+            "your Engine.ini declares {} more than once or with array operators. Apply this preset by hand in your text editor",
             ambiguous.join(", ")
         ));
     }
@@ -484,7 +484,7 @@ pub(crate) fn restore(
         .collect();
     if !ambiguous.is_empty() {
         return Err(format!(
-            "your Engine.ini declares {} more than once or with array operators, so Modrex cannot tell which value the preset owns; review these settings in the Engine.ini editor before restoring",
+            "your Engine.ini declares {} more than once or with array operators, so Modrex cannot tell which value the preset owns. Review these settings in your text editor before restoring",
             ambiguous.join(", ")
         ));
     }
@@ -528,45 +528,6 @@ pub(crate) fn restore(
         }
     }
     Ok((doc.render(), kept))
-}
-
-/// Owned settings whose declaration differs between two versions of a document.
-pub(crate) fn owned_changes(old: &str, new: &str, changes: &[KeyChange]) -> Vec<KeyChange> {
-    let (old_doc, new_doc) = (Doc::parse(old), Doc::parse(new));
-    changes
-        .iter()
-        .filter(|c| {
-            let old_setting = setting(&old_doc, &c.section, &c.key);
-            let new_setting = setting(&new_doc, &c.section, &c.key);
-            if matches!(
-                (&old_setting, &new_setting),
-                (Setting::Ambiguous, Setting::Ambiguous)
-            ) {
-                return owned_declarations(&old_doc, &c.section, &c.key)
-                    != owned_declarations(&new_doc, &c.section, &c.key);
-            }
-            let strip = |s: Setting| match s {
-                Setting::Value { value, .. } => Some(Some(value)),
-                Setting::Absent { .. } => Some(None),
-                Setting::Ambiguous => None,
-            };
-            strip(old_setting) != strip(new_setting)
-        })
-        .cloned()
-        .collect()
-}
-
-fn owned_declarations<'a>(doc: &'a Doc, section: &str, key: &str) -> Vec<&'a str> {
-    doc.sections(section)
-        .into_iter()
-        .flat_map(|header| {
-            std::iter::once(doc.lines[header].as_str()).chain(
-                doc.declarations(doc.body(header), key)
-                    .into_iter()
-                    .map(|(line, _)| doc.lines[line].as_str()),
-            )
-        })
-        .collect()
 }
 
 /// Whether every owned setting still holds the value the preset applied.

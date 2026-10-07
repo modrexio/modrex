@@ -1,9 +1,11 @@
+import { DisclosureSummary } from './ui/DisclosureSummary'
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import { api, type ResourceReview } from '../api'
 import {
     finishResourceReview,
     getPendingResourceReview,
-    resourceSelectionValid,
+    resourceSelectionIssue,
+    matchingMovieSlot,
     resourceConflicts,
     subscribeResourceReview,
 } from '../resourceInstall'
@@ -13,8 +15,8 @@ import { Button } from './ui/Button'
 import { Select } from './Select'
 import { ZipPickerModal, type ZipMultiPakPayload } from './ZipPickerModal'
 import { refreshInstalled } from '../gameData'
-import type { InstalledMod } from '../../../shared/types'
-import { showIniEditor } from '../iniEditor'
+import { GAMES, type InstalledMod } from '../../../shared/types'
+import { displayPath } from '../lib/displayPath'
 
 function Review({ handle }: { handle: string }) {
     const [review, setReview] = useState<ResourceReview | null>(null)
@@ -27,6 +29,7 @@ function Review({ handle }: { handle: string }) {
         ReturnType<typeof api.installReviewedResources>
     > | null>(null)
     const conflicts = review ? resourceConflicts(review, selection) : null
+    const selectionIssue = review ? resourceSelectionIssue(review, selection) : null
 
     useEffect(() => {
         let cancelled = false
@@ -55,7 +58,8 @@ function Review({ handle }: { handle: string }) {
                     if (other.kind === 'ini') delete next[other.entryId]
                 }
             }
-            next[entry.entryId] = null
+            const slot = entry.kind === 'movie' ? matchingMovieSlot(review!, entry) : null
+            next[entry.entryId] = slot && !Object.values(next).includes(slot) ? slot : null
             return next
         })
     }
@@ -80,42 +84,12 @@ function Review({ handle }: { handle: string }) {
         setBusy(true)
         setError(null)
         try {
-            const session = await api.pickEngineIni(
+            const path = await api.pickEngineIni(
                 review!.gameId,
-                t(folder ? 'resources.editor.chooseFolder' : 'resources.editor.chooseFile'),
+                t(folder ? 'resources.config.chooseFolder' : 'resources.config.chooseFile'),
                 folder
             )
-            if (!session) return
-            await api.closeEngineIni(session.sessionHandle)
-            setReview(await api.getResourceReview(handle))
-        } catch (failure) {
-            setError(String(failure))
-        } finally {
-            setBusy(false)
-        }
-    }
-
-    async function reviewIni(entry: ResourceReview['entries'][number]) {
-        setBusy(true)
-        setError(null)
-        try {
-            const text = await api.readResourceIni(handle, entry.entryId)
-            const session = await api.openEngineIni(review!.gameId)
-            try {
-                showIniEditor(session, { name: entry.name, text }, () => void closeEditor())
-            } catch (failure) {
-                await api.closeEngineIni(session.sessionHandle)
-                throw failure
-            }
-        } catch (failure) {
-            setError(String(failure))
-            setBusy(false)
-        }
-    }
-
-    async function closeEditor() {
-        setSelection({})
-        try {
+            if (!path) return
             setReview(await api.getResourceReview(handle))
         } catch (failure) {
             setError(String(failure))
@@ -182,6 +156,93 @@ function Review({ handle }: { handle: string }) {
         }
     }
 
+    function renderEntry(entry: ResourceReview['entries'][number]) {
+        const selected = entry.entryId in selection
+        return (
+            <div
+                key={entry.entryId}
+                className={`flex flex-col gap-3 border rounded-lg p-3 ${selected ? 'border-accent/50 bg-accent/5' : 'border-border'}`}
+            >
+                <label className="flex items-start gap-2 text-sm">
+                    <input
+                        type={entry.kind === 'ini' ? 'radio' : 'checkbox'}
+                        name={entry.kind === 'ini' ? 'resource-ini-variant' : undefined}
+                        checked={selected}
+                        disabled={
+                            !entry.supported ||
+                            busy ||
+                            (entry.kind === 'movie' && review!.moviePackApplied)
+                        }
+                        onChange={(event) => toggle(entry, event.target.checked)}
+                        className="accent-accent mt-1"
+                    />
+                    <span className="min-w-0 break-all font-mono">{entry.name}</span>
+                </label>
+                {entry.reason && (
+                    <details className="text-xs text-warning">
+                        <DisclosureSummary className="cursor-pointer">
+                            {t(
+                                entry.kind === 'ini' && !review!.configPath
+                                    ? 'resources.install.needsConfig'
+                                    : 'resources.install.unsupportedFile'
+                            )}
+                        </DisclosureSummary>
+                        <p className="mt-2 whitespace-pre-wrap">{entry.reason}</p>
+                    </details>
+                )}
+                {entry.kind === 'movie' && selected && (
+                    <div className="flex flex-col gap-2 text-xs">
+                        <span className="text-text-muted">
+                            {t('resources.install.movieDestination')}
+                        </span>
+                        <Select
+                            ariaLabel={t('resources.install.movieDestinationFor', {
+                                name: entry.name,
+                            })}
+                            value={selection[entry.entryId] ?? ''}
+                            onChange={(slot) =>
+                                setSelection((current) => ({
+                                    ...current,
+                                    [entry.entryId]: slot || null,
+                                }))
+                            }
+                            options={[
+                                { value: '', label: t('resources.install.chooseSlot') },
+                                ...review!.movieSlots.map((slot) => ({ value: slot, label: slot })),
+                            ]}
+                            disabled={busy}
+                        />
+                        <p className="text-text-subtle">{t('resources.install.slotHelp')}</p>
+                    </div>
+                )}
+                {selected && entry.changes.length > 0 && (
+                    <div className="flex flex-col gap-1 text-xs">
+                        <p className="font-medium">{t('resources.install.settingsChanged')}</p>
+                        {entry.changes.map((change) => (
+                            <p
+                                key={`${change.section}\n${change.key}`}
+                                className="text-text-muted font-mono break-all"
+                            >
+                                {t('resources.install.keyChange', {
+                                    section: change.section,
+                                    key: change.key,
+                                    before:
+                                        change.before === null
+                                            ? t('resources.install.absentKey')
+                                            : JSON.stringify(change.before),
+                                    after: JSON.stringify(change.applied),
+                                })}
+                            </p>
+                        ))}
+                    </div>
+                )}
+                {!entry.supported && review!.configPath && entry.kind === 'ini' && (
+                    <p className="text-xs text-text-muted">{t('resources.install.cannotApply')}</p>
+                )}
+            </div>
+        )
+    }
+
     if (completion) {
         return (
             <Dialog
@@ -195,7 +256,7 @@ function Review({ handle }: { handle: string }) {
                     <p role="status">{t('resources.install.alreadyCurrent')}</p>
                     <ul className="list-disc pl-5 text-xs text-text-muted break-all">
                         {completion.alreadyCurrentMovies.map((path) => (
-                            <li key={path}>{path}</li>
+                            <li key={path}>{displayPath(path)}</li>
                         ))}
                     </ul>
                     <Button variant="accent" onClick={() => void cancel()}>
@@ -244,36 +305,36 @@ function Review({ handle }: { handle: string }) {
             size="list"
         >
             <DialogHeader
-                title={t('resources.install.title')}
-                subtitle={review?.gamePath}
+                title={review?.modName ?? t('resources.install.title')}
+                subtitle={review ? GAMES[review.gameId].name : undefined}
                 onClose={() => void cancel()}
                 closeDisabled={busy}
             />
             <div className="flex-1 min-h-0 overflow-y-auto p-5 flex flex-col gap-4">
                 <p className="text-xs text-text-muted">{t('resources.install.description')}</p>
-                <p className="text-xs text-warning">{t('resources.install.previousSetup')}</p>
                 {conflicts?.movies.map((pack) => (
                     <p key={pack.name} className="text-xs text-warning">
-                        {t('resources.install.movieConflict', {
-                            name: pack.name,
-                            slots:
-                                pack.restoredSlots.join(', ') ||
-                                t('resources.install.noOtherSlots'),
-                        })}
+                        {pack.restoredSlots.length > 0
+                            ? t('resources.install.movieConflict', {
+                                  name: pack.name,
+                                  slots: pack.restoredSlots.join(', '),
+                              })
+                            : t('resources.install.conflictOnly', { name: pack.name })}
                     </p>
                 ))}
                 {conflicts?.presets.map((preset) => (
                     <p key={preset.name} className="text-xs text-warning">
-                        {t('resources.install.iniConflict', {
-                            name: preset.name,
-                            keys:
-                                preset.restoredKeys
-                                    .map(
-                                        (change) =>
-                                            `[${change.section}] ${change.key}=${change.before === null ? t('resources.install.absentKey') : JSON.stringify(change.before)}`
-                                    )
-                                    .join(', ') || t('resources.install.noOtherSlots'),
-                        })}
+                        {preset.restoredKeys.length > 0
+                            ? t('resources.install.iniConflict', {
+                                  name: preset.name,
+                                  keys: preset.restoredKeys
+                                      .map(
+                                          (change) =>
+                                              `[${change.section}] ${change.key}=${change.before === null ? t('resources.install.absentKey') : JSON.stringify(change.before)}`
+                                      )
+                                      .join(', '),
+                              })
+                            : t('resources.install.conflictOnly', { name: preset.name })}
                     </p>
                 ))}
                 {review?.moviePackApplied && (
@@ -306,127 +367,152 @@ function Review({ handle }: { handle: string }) {
                 {!review && !error && (
                     <p className="text-sm text-text-muted">{t('common.loading')}</p>
                 )}
-                {review?.entries.map((entry) => (
-                    <div
-                        key={entry.entryId}
-                        className="flex flex-col gap-2 border border-border rounded-lg p-3"
-                    >
-                        <label className="flex items-start gap-2 text-sm">
-                            <input
-                                type="checkbox"
-                                checked={entry.entryId in selection}
-                                disabled={
-                                    !entry.supported ||
-                                    busy ||
-                                    (entry.kind === 'movie' && review.moviePackApplied)
-                                }
-                                onChange={(event) => toggle(entry, event.target.checked)}
-                                className="accent-accent mt-1"
-                            />
-                            <span className="min-w-0 break-all font-mono">{entry.name}</span>
-                        </label>
-                        {entry.reason && <p className="text-xs text-warning">{entry.reason}</p>}
-                        {entry.entryId in selection &&
-                            entry.changes.map((change) => (
-                                <p
-                                    key={`${change.section}\n${change.key}`}
-                                    className="text-xs text-text-muted font-mono break-all"
-                                >
-                                    {t('resources.install.keyChange', {
-                                        section: change.section,
-                                        key: change.key,
-                                        before:
-                                            change.before === null
-                                                ? t('resources.install.absentKey')
-                                                : JSON.stringify(change.before),
-                                        after: JSON.stringify(change.applied),
-                                    })}
+                {review?.entries.some((entry) => entry.kind === 'movie') && (
+                    <fieldset className="flex flex-col gap-3">
+                        <legend className="text-sm font-semibold mb-2">
+                            {t('resources.install.movies')}
+                        </legend>
+                        <p className="text-xs text-text-muted">
+                            {t('resources.install.moviesHelp')}
+                        </p>
+                        {review.entries.filter((entry) => entry.kind === 'movie').map(renderEntry)}
+                    </fieldset>
+                )}
+                {review?.entries.some((entry) => entry.kind === 'ini') && (
+                    <fieldset className="flex flex-col gap-3">
+                        <legend className="text-sm font-semibold mb-2">
+                            {t('resources.install.presets')}
+                        </legend>
+                        <p className="text-xs text-text-muted">
+                            {t('resources.install.singleVariant')}
+                        </p>
+                        {!review.configPath ? (
+                            <div className="rounded-lg border border-warning/30 bg-warning/10 p-3 text-xs">
+                                <p className="text-warning mb-3">
+                                    {t('resources.install.configUnavailable')}
                                 </p>
-                            ))}
-                        {entry.kind === 'ini' &&
-                            entry.name.split(/[\\/]/).at(-1)?.toLowerCase() === 'engine.ini' && (
                                 <Button
                                     variant="secondary"
                                     size="sm"
-                                    disabled={busy || !review.configPath}
-                                    onClick={() => void reviewIni(entry)}
+                                    disabled={busy}
+                                    onClick={() => void chooseConfig()}
                                 >
-                                    {t('resources.editor.reviewPreset')}
+                                    {t('resources.config.chooseFile')}
                                 </Button>
-                            )}
-                        {entry.kind === 'movie' && entry.entryId in selection && (
-                            <Select
-                                value={selection[entry.entryId] ?? ''}
-                                onChange={(slot) =>
-                                    setSelection((current) => ({
-                                        ...current,
-                                        [entry.entryId]: slot || null,
-                                    }))
-                                }
-                                options={[
-                                    { value: '', label: t('resources.install.chooseSlot') },
-                                    ...review.movieSlots.map((slot) => ({
-                                        value: slot,
-                                        label: slot,
-                                    })),
-                                ]}
-                                disabled={busy}
-                            />
+                                <details className="mt-3 text-text-muted">
+                                    <DisclosureSummary className="cursor-pointer">
+                                        {t('resources.install.useConfigFolder')}
+                                    </DisclosureSummary>
+                                    <Button
+                                        variant="secondary"
+                                        size="sm"
+                                        className="mt-2"
+                                        disabled={busy}
+                                        onClick={() => void chooseConfig(true)}
+                                    >
+                                        {t('resources.config.chooseFolder')}
+                                    </Button>
+                                </details>
+                            </div>
+                        ) : (
+                            <details className="text-xs text-text-muted">
+                                <DisclosureSummary className="cursor-pointer">
+                                    {t('resources.install.configTarget')}
+                                </DisclosureSummary>
+                                <p className="font-mono break-all mt-2">
+                                    {displayPath(review.configPath)}
+                                </p>
+                                <div className="flex flex-wrap gap-2 mt-2">
+                                    <Button
+                                        variant="secondary"
+                                        size="sm"
+                                        disabled={busy}
+                                        onClick={() => void chooseConfig()}
+                                    >
+                                        {t('resources.config.chooseFile')}
+                                    </Button>
+                                    <Button
+                                        variant="secondary"
+                                        size="sm"
+                                        disabled={busy}
+                                        onClick={() => void chooseConfig(true)}
+                                    >
+                                        {t('resources.config.chooseFolder')}
+                                    </Button>
+                                </div>
+                            </details>
                         )}
-                    </div>
-                ))}
-                {review?.entries.some((entry) => entry.kind === 'ini') && (
-                    <div className="flex flex-col gap-2">
+                        <label className="flex items-center gap-2 text-xs text-text-muted">
+                            <input
+                                type="radio"
+                                name="resource-ini-variant"
+                                className="accent-accent"
+                                disabled={busy}
+                                checked={
+                                    !review.entries.some(
+                                        (entry) =>
+                                            entry.kind === 'ini' && entry.entryId in selection
+                                    )
+                                }
+                                onChange={() =>
+                                    setSelection((current) =>
+                                        Object.fromEntries(
+                                            Object.entries(current).filter(
+                                                ([id]) =>
+                                                    !review.entries.some(
+                                                        (entry) =>
+                                                            String(entry.entryId) === id &&
+                                                            entry.kind === 'ini'
+                                                    )
+                                            )
+                                        )
+                                    )
+                                }
+                            />
+                            {t('resources.install.skipPreset')}
+                        </label>
+                        {review.entries.filter((entry) => entry.kind === 'ini').map(renderEntry)}
+                    </fieldset>
+                )}
+                {review?.entries.some((entry) => entry.kind === 'other') && (
+                    <fieldset className="flex flex-col gap-3">
+                        <legend className="text-sm font-semibold mb-2">
+                            {t('resources.install.otherFiles')}
+                        </legend>
                         <p className="text-xs text-text-muted">
-                            {t('resources.install.configTarget')}
+                            {t('resources.install.otherFilesHelp')}
                         </p>
-                        <p className="text-xs font-mono break-all">
-                            {review.configPath ?? t('resources.install.configUnavailable')}
-                        </p>
-                        <Button
-                            variant="secondary"
-                            size="sm"
-                            disabled={busy}
-                            onClick={() => void chooseConfig()}
-                        >
-                            {t('resources.editor.chooseFile')}
-                        </Button>
-                        <Button
-                            variant="secondary"
-                            size="sm"
-                            disabled={busy}
-                            onClick={() => void chooseConfig(true)}
-                        >
-                            {t('resources.editor.chooseFolder')}
-                        </Button>
-                        <p className="text-xs text-text-subtle">
-                            {t('resources.install.singleVariant')}
-                        </p>
-                    </div>
+                        {review.entries.filter((entry) => entry.kind === 'other').map(renderEntry)}
+                    </fieldset>
                 )}
             </div>
-            <div className="flex justify-end gap-2 p-4 border-t border-border shrink-0">
-                <Button variant="secondary" size="sm" disabled={busy} onClick={() => void cancel()}>
-                    {pakApplied || review?.moviePackApplied
-                        ? t('resources.install.finish')
-                        : t('common.cancel')}
-                </Button>
-                <Button
-                    variant="accent"
-                    size="sm"
-                    disabled={
-                        busy ||
-                        !review ||
-                        !resourceSelectionValid(review, selection) ||
-                        (review.entries.some(
-                            (entry) => entry.kind === 'ini' && entry.entryId in selection
-                        ) &&
-                            !review.configPath)
-                    }
-                    onClick={() => void install()}
-                >
-                    {t('resources.install.apply')}
-                </Button>
+            <div className="flex flex-col gap-3 p-4 border-t border-border shrink-0">
+                <p className="text-xs text-text-muted">{t('resources.install.previousSetup')}</p>
+                {selectionIssue && (
+                    <p role="status" className="text-xs text-warning">
+                        {t(`resources.install.next.${selectionIssue}`)}
+                    </p>
+                )}
+                <div className="flex justify-end gap-2">
+                    <Button
+                        variant="secondary"
+                        size="sm"
+                        disabled={busy}
+                        onClick={() => void cancel()}
+                    >
+                        {pakApplied || review?.moviePackApplied
+                            ? t('resources.install.finish')
+                            : t('common.cancel')}
+                    </Button>
+                    <Button
+                        variant="accent"
+                        size="sm"
+                        disabled={busy || !review || selectionIssue !== null}
+                        onClick={() => void install()}
+                    >
+                        {t('resources.install.apply')}
+                    </Button>
+                </div>
             </div>
         </Dialog>
     )

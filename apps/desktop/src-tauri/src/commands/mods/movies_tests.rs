@@ -98,7 +98,7 @@ fn pack(id: &str, destination: &Path, payload: &Content) -> Deployment {
 fn switching_packs_keeps_first_personal_baseline_and_refuses_divergence() {
     let temp = tempfile::tempdir().unwrap();
     let store = ResourceStore::at(temp.path().join("recovery"));
-    let path = temp.path().join("Intro.bk2");
+    let path = temp.path().canonicalize().unwrap().join("Intro.bk2");
     fs::write(&path, b"already replaced before Modrex").unwrap();
     let original = live_content(&path).unwrap();
     let a = pack("a", &path, &store.put_bytes(b"movie a").unwrap());

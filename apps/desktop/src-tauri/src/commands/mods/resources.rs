@@ -1,5 +1,5 @@
 //! Reviewed installation of movie packs and Engine.ini presets, their enable, disable and
-//! uninstall operations, their installed-list rows, and the Engine.ini editor sessions.
+//! uninstall operations, their installed-list rows, and Engine.ini location selection.
 //!
 //! Every write goes through resource_state's journaled apply while holding the destination
 //! path locks and the manifest lock, after recovering any interrupted operation for the game
@@ -11,9 +11,9 @@ use super::ini;
 use super::movies;
 use super::naming::hash_filename;
 use super::resource_state::{
-    deployment_paths, live_content, overlapping_paths, refuse_read_only, sha256_hex, Content,
-    Deployment, DeploymentBody, IniPreset, IniRevision, Manifest, MovieSlot, ResourceGuard,
-    ResourceLocks, ResourceStore, Step,
+    deployment_paths, live_content, overlapping_paths, sha256_hex, Content, Deployment,
+    DeploymentBody, IniPreset, IniRevision, Manifest, MovieSlot, ResourceGuard, ResourceLocks,
+    ResourceStore, Step,
 };
 use super::types::{InstalledMod, ResourceDeployment, ResourceStatus, UpdateStatus};
 use super::zip::{extract_entry_at_budget, safe_dest, ResourceArchive, ZipMultiPakPayload};
@@ -126,21 +126,6 @@ pub struct ResourceSelection {
 pub struct ResourceInstallResult {
     pub installed: bool,
     pub already_current_movies: Vec<String>,
-}
-
-#[derive(Debug, Clone, Serialize, specta::Type)]
-#[serde(rename_all = "camelCase")]
-pub struct IniEditorSession {
-    pub session_handle: String,
-    pub context_key: String,
-    pub game_id: String,
-    pub game_path: String,
-    pub path: String,
-    pub text: String,
-    pub read_only: bool,
-    pub read_only_reason: Option<String>,
-    pub sha256: String,
-    pub exists: bool,
 }
 
 #[derive(Debug, Clone, Serialize, specta::Type)]
@@ -382,7 +367,7 @@ fn local_app_data() -> Result<PathBuf, String> {
 }
 
 /// Checks a candidate Engine.ini and returns its canonical path. Links at the file itself and
-/// hard-link aliases are refused, so a lease can never be turned into write access elsewhere.
+/// hard-link aliases are refused, so a selected location cannot grant write access elsewhere.
 fn validate_engine_ini(path: &Path) -> Result<PathBuf, String> {
     let is_engine_ini = path
         .file_name()
@@ -417,158 +402,158 @@ fn validate_engine_ini(path: &Path) -> Result<PathBuf, String> {
         .map_err(|e| format!("{} could not be resolved: {e}", path.display()))
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Lease {
-    Verified,
-    Picked,
-}
-
 #[derive(Debug, Clone)]
-struct PickedLease {
+struct PickedIni {
     context: InstallContext,
     path: PathBuf,
 }
 
-struct IniSession {
-    context: InstallContext,
-    lease: Lease,
-    path: PathBuf,
-    sha256: String,
-    revision: Content,
-    decoded: Result<ini::Decoded, String>,
-}
-
-/// Open editor sessions and the Engine.ini files the user deliberately picked this session.
+/// Engine.ini locations selected for the current physical installation and store.
 #[derive(Default)]
-pub struct IniSessions {
-    sessions: Mutex<HashMap<String, IniSession>>,
-    leases: Mutex<HashMap<String, PickedLease>>,
+pub struct IniLocations(Mutex<HashMap<String, PickedIni>>);
+
+#[derive(Debug, Clone, Serialize, specta::Type)]
+#[serde(tag = "status", rename_all = "camelCase")]
+pub enum EngineIniLocation {
+    Found { path: String },
+    Missing { path: String },
+    NeedsLocation,
 }
 
-fn sessions(app: &AppHandle) -> &IniSessions {
-    app.state::<IniSessions>().inner()
+struct IniDestination {
+    path: PathBuf,
+    chosen: bool,
 }
 
-/// The Engine.ini a context resolves to: the verified location, else a lease the user picked
-/// for this same install. None means the user has to pick it.
-fn resolve_engine_ini(
+impl IniDestination {
+    fn validate(self) -> Result<PathBuf, String> {
+        let canonical = validate_engine_ini(&self.path)?;
+        if self.chosen && canonical != self.path {
+            return Err(
+                "the Engine.ini you chose now resolves somewhere else. Choose it again".to_string(),
+            );
+        }
+        Ok(canonical)
+    }
+}
+
+fn engine_ini_destination(
     app: &AppHandle,
     ctx: &InstallContext,
-) -> Result<Option<(PathBuf, Lease)>, String> {
-    let lease = sessions(app)
-        .leases
+) -> Result<Option<IniDestination>, String> {
+    let picked = app
+        .state::<IniLocations>()
+        .0
         .lock()
         .unwrap_or_else(|e| e.into_inner())
         .get(&ctx.game_id)
         .cloned();
-    let Some(lease) = lease.filter(|l| l.context == *ctx) else {
-        return verified_engine_ini(&ctx.game_id, ctx.launcher.as_deref())?
-            .map(|path| validate_engine_ini(&path).map(|path| (path, Lease::Verified)))
-            .transpose();
-    };
-    let canonical = validate_engine_ini(&lease.path)?;
-    if canonical != lease.path {
-        return Err(
-            "the Engine.ini you chose now resolves somewhere else; choose it again".to_string(),
+    let Some(picked) = picked.filter(|location| location.context == *ctx) else {
+        return Ok(
+            verified_engine_ini(&ctx.game_id, ctx.launcher.as_deref())?.map(|path| {
+                IniDestination {
+                    path,
+                    chosen: false,
+                }
+            }),
         );
+    };
+    Ok(Some(IniDestination {
+        path: picked.path,
+        chosen: true,
+    }))
+}
+
+/// The verified Engine.ini destination or a location chosen for this physical installation.
+fn resolve_engine_ini(app: &AppHandle, ctx: &InstallContext) -> Result<Option<PathBuf>, String> {
+    engine_ini_destination(app, ctx)?
+        .map(IniDestination::validate)
+        .transpose()
+}
+
+fn inspect_engine_ini(destination: IniDestination) -> Result<EngineIniLocation, String> {
+    match std::fs::symlink_metadata(&destination.path) {
+        Ok(_) => {
+            let path = destination.validate()?;
+            Ok(EngineIniLocation::Found {
+                path: path.to_string_lossy().into_owned(),
+            })
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            // An absent parent is reportable here. Preset writes still require an existing folder.
+            Ok(EngineIniLocation::Missing {
+                path: destination.path.to_string_lossy().into_owned(),
+            })
+        }
+        Err(error) => Err(format!("Could not check Engine.ini: {error}")),
     }
-    Ok(Some((canonical, Lease::Picked)))
 }
 
-fn open_session(
-    app: &AppHandle,
-    ctx: InstallContext,
-    path: PathBuf,
-    lease: Lease,
-    running: bool,
-) -> Result<IniEditorSession, String> {
-    let (bytes, revision) = read_ini_bytes(&path)?;
-    let decoded = ini::decode(&bytes);
-    let session = IniSession {
-        context: ctx,
-        lease,
-        path,
-        sha256: sha256_hex(&bytes),
-        revision,
-        decoded,
-    };
-    let handle = Uuid::new_v4().to_string();
-    let view = session_view(&handle, &session, running)?;
-    sessions(app)
-        .sessions
-        .lock()
-        .unwrap_or_else(|e| e.into_inner())
-        .insert(handle, session);
-    Ok(view)
-}
-
-fn session_view(handle: &str, s: &IniSession, running: bool) -> Result<IniEditorSession, String> {
-    let read_only = match std::fs::metadata(&s.path) {
-        Ok(metadata) => metadata.permissions().readonly(),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => false,
-        Err(error) => return Err(format!("Cannot inspect Engine.ini permissions: {error}")),
-    };
-    let reason = if let Err(error) = &s.decoded {
-        Some(format!("This file cannot be edited: {error}"))
-    } else if read_only {
-        Some("the file is read-only; change that in your file manager to edit it here".to_string())
-    } else if s.decoded.as_ref().expect("decoded errors were handled").eol == ini::LineEnding::Mixed
-    {
-        Some(
-            "the file mixes line-ending styles, so saving would change lines you did not edit"
-                .to_string(),
-        )
-    } else if running {
-        Some("the game is running; close it to save changes".to_string())
-    } else {
-        None
-    };
-    Ok(IniEditorSession {
-        session_handle: handle.to_string(),
-        context_key: editor_context_key(&s.context, &s.path)?,
-        game_id: s.context.game_id.clone(),
-        game_path: s.context.game_path.clone(),
-        path: s.path.to_string_lossy().to_string(),
-        text: match &s.decoded {
-            Ok(decoded) => decoded.text.clone(),
-            Err(_) => String::new(),
-        },
-        read_only: reason.is_some(),
-        read_only_reason: reason,
-        sha256: s.sha256.clone(),
-        exists: s.revision != Content::Absent,
-    })
-}
-
-fn editor_context_key(context: &InstallContext, path: &Path) -> Result<String, String> {
-    let identity = (
-        &context.game_id,
-        &context.game_path,
-        &context.canonical_game_path,
-        &context.launcher,
-        path,
-    );
-    let bytes = serde_json::to_vec(&identity).map_err(|error| {
-        format!("Could not bind the editor draft to this installation: {error}")
-    })?;
-    Ok(sha256_hex(&bytes))
-}
-
-async fn running_now(game_id: &str) -> Result<bool, String> {
-    let id = game_id.to_string();
-    blocking(move || crate::commands::launchers::game_running(&id)).await
-}
-
-pub(crate) async fn open_engine_ini(
+pub(crate) async fn get_engine_ini_location(
     app: &AppHandle,
     game_id: &str,
-) -> Result<IniEditorSession, String> {
+) -> Result<EngineIniLocation, String> {
     let ctx = current_context(app, game_id)?;
-    let (path, lease) = resolve_engine_ini(app, &ctx)?.ok_or_else(|| {
-        "Modrex has no verified Engine.ini location for this game and store; choose the file to open it".to_string()
-    })?;
-    let running = running_now(game_id).await?;
-    open_session(app, ctx, path, lease, running)
+    let inspection_app = app.clone();
+    blocking(move || {
+        let location = match engine_ini_destination(&inspection_app, &ctx)? {
+            Some(destination) => inspect_engine_ini(destination)?,
+            None => EngineIniLocation::NeedsLocation,
+        };
+        require_context(&inspection_app, &ctx)?;
+        Ok(location)
+    })
+    .await
+}
+
+pub(crate) async fn open_engine_ini(app: &AppHandle, game_id: &str) -> Result<(), String> {
+    let ctx = current_context(app, game_id)?;
+    let path = resolve_engine_ini(app, &ctx)?
+        .ok_or("Choose the game's Engine.ini or its configuration folder before opening it")?;
+    let opener_app = app.clone();
+    blocking(move || {
+        std::fs::metadata(&path).map_err(|error| {
+            if error.kind() == std::io::ErrorKind::NotFound {
+                return "Engine.ini does not exist yet. Start the game to create it, or choose an existing file.".to_string();
+            }
+            format!("Cannot open Engine.ini: {error}")
+        })?;
+        require_context(&opener_app, &ctx)?;
+        #[cfg(windows)]
+        let spawned = std::process::Command::new("explorer.exe")
+            .arg(shell_ini_path(&path))
+            .spawn();
+        #[cfg(not(windows))]
+        let spawned = crate::commands::launchers::outside_bundle(
+            std::process::Command::new("xdg-open").arg(&path),
+        )
+        .spawn();
+        spawned
+            .map(|_| ())
+            .map_err(|error| format!("Could not open Engine.ini in the system editor: {error}"))
+    })
+    .await
+}
+
+#[cfg(windows)]
+fn shell_ini_path(path: &Path) -> PathBuf {
+    use std::path::{Component, Prefix};
+    // The Windows shell needs ordinary paths, while resource locks keep canonical paths.
+    let mut components = path.components();
+    let Some(Component::Prefix(prefix)) = components.next() else {
+        return path.to_path_buf();
+    };
+    let root = match prefix.kind() {
+        Prefix::VerbatimDisk(drive) => PathBuf::from(format!("{}:", char::from(drive))),
+        Prefix::VerbatimUNC(server, share) => {
+            let mut root = PathBuf::from(r"\\");
+            root.push(server);
+            root.push(share);
+            root
+        }
+        _ => return path.to_path_buf(),
+    };
+    root.join(components.as_path())
 }
 
 pub(crate) async fn pick_engine_ini(
@@ -576,7 +561,7 @@ pub(crate) async fn pick_engine_ini(
     game_id: &str,
     title: String,
     folder: bool,
-) -> Result<Option<IniEditorSession>, String> {
+) -> Result<Option<String>, String> {
     use tauri_plugin_dialog::DialogExt;
     let ctx = current_context(app, game_id)?;
     let dialog_app = app.clone();
@@ -600,169 +585,18 @@ pub(crate) async fn pick_engine_ini(
     }
     require_context(app, &ctx)?;
     let path = validate_engine_ini(&picked)?;
-    sessions(app)
-        .leases
+    app.state::<IniLocations>()
+        .0
         .lock()
         .unwrap_or_else(|e| e.into_inner())
         .insert(
             game_id.to_string(),
-            PickedLease {
+            PickedIni {
                 context: ctx.clone(),
                 path: path.clone(),
             },
         );
-    let running = running_now(game_id).await?;
-    open_session(app, ctx, path, Lease::Picked, running).map(Some)
-}
-
-pub(crate) fn close_engine_ini(app: &AppHandle, handle: &str) {
-    sessions(app)
-        .sessions
-        .lock()
-        .unwrap_or_else(|e| e.into_inner())
-        .remove(handle);
-}
-
-pub(crate) async fn save_engine_ini(
-    app: &AppHandle,
-    handle: &str,
-    text: String,
-    release_preset: bool,
-) -> Result<IniEditorSession, String> {
-    let (ctx, lease, path, revision, decoded) = {
-        let map = sessions(app)
-            .sessions
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
-        let s = map
-            .get(handle)
-            .ok_or("this editor session has ended; reopen Engine.ini")?;
-        (
-            s.context.clone(),
-            s.lease,
-            s.path.clone(),
-            s.revision.clone(),
-            s.decoded.clone()?,
-        )
-    };
-    require_context(app, &ctx)?;
-    let resolved = resolve_engine_ini(app, &ctx)?;
-    if resolved != Some((path.clone(), lease)) {
-        return Err("Engine.ini now resolves to a different file; reopen it".to_string());
-    }
-    let new_bytes = ini::encode(&text, decoded.encoding, decoded.eol)?;
-    if new_bytes.len() as u64 > MAX_INI_BYTES {
-        return Err("Engine.ini exceeds the 1 MiB editor limit".into());
-    }
-    let (_guard, store) = lock_and_recover(app, &ctx.game_id, std::slice::from_ref(&path)).await?;
-    require_context(app, &ctx)?;
-    if resolve_engine_ini(app, &ctx)? != Some((path.clone(), lease)) {
-        return Err("Engine.ini now resolves to a different file; reopen it".into());
-    }
-    if live_content(&path)? != revision {
-        return Err(
-            "Engine.ini changed since you opened it; reload it and review your edits".into(),
-        );
-    }
-    if revision != Content::Absent
-        && new_bytes == ini::encode(&decoded.text, decoded.encoding, decoded.eol)?
-    {
-        let map = sessions(app)
-            .sessions
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
-        let s = map
-            .get(handle)
-            .ok_or("this editor session has ended; reopen Engine.ini")?;
-        return session_view(handle, s, false);
-    }
-    refuse_read_only(&path)?;
-    let game_id = ctx.game_id.clone();
-    let config = path.clone();
-    let old_text = decoded.text.clone();
-    let new_text = text.clone();
-    let bytes = new_bytes.clone();
-    blocking(move || {
-        let before = store.capture(&config)?;
-        if before != revision {
-            return Err(
-                "Engine.ini changed since you opened it; reload it and review your edits"
-                    .to_string(),
-            );
-        }
-        let manifest = store.load_manifest()?;
-        let config_key = config.to_string_lossy().to_string();
-        let mut affected = Vec::new();
-        let mut owned = Vec::new();
-        for d in manifest.deployments.iter().filter(|d| d.enabled) {
-            let DeploymentBody::Ini { preset } = &d.body else {
-                continue;
-            };
-            if preset.config_path != config_key {
-                continue;
-            }
-            let changed = ini::owned_changes(&old_text, &new_text, &preset.changes);
-            if changed.is_empty() {
-                continue;
-            }
-            owned.extend(changed.iter().map(|c| format!("[{}] {}", c.section, c.key)));
-            affected.push((d.id.clone(), changed));
-        }
-        if !affected.is_empty() && !release_preset {
-            return Err(format!("OWNED_KEYS_CHANGED: {}", owned.join(", ")));
-        }
-        let after = store.put_bytes(&bytes)?;
-        let step = Step {
-            destination: config.clone(),
-            before: before.clone(),
-            after,
-        };
-        store.apply(&game_id, vec![step], |m| {
-            release_edited_keys(m, &affected);
-            m.ini_revisions.push(IniRevision {
-                config_path: config_key,
-                game_id: game_id.clone(),
-                prior: before,
-                saved_at: chrono::Utc::now().to_rfc3339(),
-            });
-        })
-    })
-    .await?;
-    let decoded = ini::decode(&new_bytes)?;
-    let mut map = sessions(app)
-        .sessions
-        .lock()
-        .unwrap_or_else(|e| e.into_inner());
-    let s = map
-        .get_mut(handle)
-        .ok_or("this editor session has ended; reopen Engine.ini")?;
-    s.sha256 = sha256_hex(&new_bytes);
-    s.revision = Content::Present {
-        sha256: s.sha256.clone(),
-        size: new_bytes.len() as u64,
-    };
-    s.decoded = Ok(decoded);
-    session_view(handle, s, false)
-}
-
-fn release_edited_keys(
-    manifest: &mut Manifest,
-    affected: &[(String, Vec<super::resource_state::KeyChange>)],
-) {
-    for deployment in &mut manifest.deployments {
-        let Some((_, changed)) = affected.iter().find(|(id, _)| *id == deployment.id) else {
-            continue;
-        };
-        let DeploymentBody::Ini { preset } = &mut deployment.body else {
-            continue;
-        };
-        preset.changes.retain(|change| !changed.contains(change));
-        preset.created_file = false;
-    }
-    manifest.deployments.retain(|deployment| {
-        !affected.iter().any(|(id, _)| *id == deployment.id)
-            || preset_of(deployment).is_some_and(|preset| !preset.changes.is_empty())
-    });
+    Ok(Some(path.to_string_lossy().into_owned()))
 }
 
 // ---------------------------------------------------------------------------------------
@@ -901,7 +735,7 @@ fn assess_ini(
     match config {
         Err(e) => return Err(e.clone()),
         Ok(None) => {
-            return Err("Modrex has no verified Engine.ini location for this game and store; open it with Choose file in the Engine.ini editor first".to_string())
+            return Err("Modrex has no verified Engine.ini location for this game and store. Choose the file or configuration folder first".to_string())
         }
         Ok(Some(_)) => {}
     }
@@ -911,10 +745,13 @@ fn assess_ini(
     }
     let decoded = ini::decode(&bytes)?;
     if decoded.eol == ini::LineEnding::Mixed {
-        return Err("The preset mixes line endings. Review it in the editor".into());
+        return Err(
+            "The preset mixes line endings. Use your text editor for manual installation".into(),
+        );
     }
-    let assignments = ini::scalar_assignments(&decoded.text)
-        .map_err(|e| format!("{e}; apply it by hand in the Engine.ini editor instead"))?;
+    let assignments = ini::scalar_assignments(&decoded.text).map_err(|e| {
+        format!("{e}. Follow the mod author's instructions for manual installation")
+    })?;
     if let Ok(Some(path)) = config {
         let (_, target, _) = read_config(path)?;
         ini::merge(&target.text, &assignments)?;
@@ -1011,7 +848,7 @@ fn build_review(
     let launcher = ctx.launcher.as_deref();
     let slots = movies::movies_dir(&ctx.game_id, &ctx.game_path, launcher)
         .and_then(|dir| movies::slot_inventory(&ctx.game_id, &dir, launcher));
-    let config = resolve_engine_ini(app, ctx).map(|r| r.map(|(p, _)| p));
+    let config = resolve_engine_ini(app, ctx);
     let members: Vec<(Option<u32>, String)> = if found.is_archive {
         found.members.clone()
     } else {
@@ -1099,7 +936,7 @@ pub(crate) fn get_review(app: &AppHandle, handle: &str) -> Result<ResourceReview
         .deployments
         .iter()
         .any(|d| d.id == r.movie_deployment_id);
-    let config = resolve_engine_ini(app, &r.context).map(|value| value.map(|(path, _)| path));
+    let config = resolve_engine_ini(app, &r.context);
     r.config_path = config.as_ref().ok().and_then(|path| path.clone());
     let target = match &config {
         Ok(Some(path)) => read_config(path).map(|(_, decoded, revision)| Some((decoded, revision))),
@@ -1220,42 +1057,6 @@ pub(crate) fn get_review(app: &AppHandle, handle: &str) -> Result<ResourceReview
         movie_conflicts,
         ini_conflicts,
     })
-}
-
-pub(crate) fn read_review_ini(
-    app: &AppHandle,
-    handle: &str,
-    entry_id: u32,
-) -> Result<String, String> {
-    let list = reviews(app)
-        .0
-        .lock()
-        .unwrap_or_else(|error| error.into_inner());
-    let review = list
-        .iter()
-        .find(|review| review.handle == handle)
-        .ok_or("This install review has ended")?;
-    require_context(app, &review.context)?;
-    let entry = review
-        .entries
-        .iter()
-        .find(|entry| entry.entry.entry_id == entry_id)
-        .ok_or("This entry is not in the review")?;
-    if entry.entry.kind != ResourceEntryKind::Ini
-        || !file_name_of(&entry.entry.name).eq_ignore_ascii_case("Engine.ini")
-        || safe_dest(Path::new("/"), &entry.entry.name).is_none()
-    {
-        return Err("Only a safe Engine.ini entry can be reviewed in the editor".into());
-    }
-    let path = entry
-        .staged
-        .as_deref()
-        .ok_or("This entry has no staged data")?;
-    let (bytes, revision) = read_ini_bytes(path)?;
-    if revision == Content::Absent {
-        return Err("The staged preset is missing".into());
-    }
-    Ok(ini::decode(&bytes)?.text)
 }
 
 pub(crate) fn cancel_review(app: &AppHandle, handle: &str) {
@@ -1688,7 +1489,6 @@ async fn install_preset(
     staged: PathBuf,
 ) -> Result<(), String> {
     let config = resolve_engine_ini(app, &review.context)?
-        .map(|(p, _)| p)
         .ok_or("Modrex has no Engine.ini location for this install any more")?;
     if Some(&config) != review.config_path.as_ref() {
         return Err(
@@ -1698,7 +1498,7 @@ async fn install_preset(
     let (_guard, store) =
         lock_and_recover(app, &review.context.game_id, std::slice::from_ref(&config)).await?;
     require_context(app, &review.context)?;
-    if resolve_engine_ini(app, &review.context)?.map(|(path, _)| path) != Some(config.clone()) {
+    if resolve_engine_ini(app, &review.context)? != Some(config.clone()) {
         return Err("Engine.ini changed destination while preparing the install".into());
     }
     let mut preset = new_deployment(
@@ -1778,7 +1578,7 @@ fn read_ini_bytes(path: &Path) -> Result<(Vec<u8>, Content), String> {
         .read_to_end(&mut bytes)
         .map_err(|error| error.to_string())?;
     if bytes.len() as u64 > MAX_INI_BYTES {
-        return Err("Engine.ini exceeds the 1 MiB editor limit".into());
+        return Err("Engine.ini exceeds the 1 MiB configuration limit".into());
     }
     let revision = Content::Present {
         sha256: sha256_hex(&bytes),
@@ -1797,7 +1597,7 @@ fn read_config(path: &Path) -> Result<(Vec<u8>, ini::Decoded, Content), String> 
     let decoded = ini::decode(&bytes).map_err(|e| format!("{}: {e}", path.display()))?;
     if decoded.eol == ini::LineEnding::Mixed {
         return Err(format!(
-            "{} mixes line-ending styles. Review it in the Engine.ini editor and make the line endings consistent with an external editor before applying a preset",
+            "{} mixes line-ending styles. Make the line endings consistent in your text editor before applying a preset",
             path.display()
         ));
     }
@@ -2226,9 +2026,7 @@ pub(crate) async fn act(
 fn validate_deployment_paths(deployment: &Deployment) -> Result<(), String> {
     let DeploymentBody::Movie { slots } = &deployment.body else {
         let preset = preset_of(deployment).expect("an INI deployment");
-        if validate_engine_ini(Path::new(&preset.config_path))?
-            != PathBuf::from(&preset.config_path)
-        {
+        if validate_engine_ini(Path::new(&preset.config_path))? != Path::new(&preset.config_path) {
             return Err("The preset destination now resolves to a different file".into());
         }
         return Ok(());
@@ -2241,9 +2039,7 @@ fn validate_deployment_paths(deployment: &Deployment) -> Result<(), String> {
     let inventory =
         movies::slot_inventory(&deployment.game_id, &dir, deployment.launcher.as_deref())?;
     for slot in slots {
-        if movies::slot_destination(&dir, &slot.slot, &inventory)?
-            != PathBuf::from(&slot.destination)
-        {
+        if movies::slot_destination(&dir, &slot.slot, &inventory)? != Path::new(&slot.destination) {
             return Err(format!(
                 "The destination of {} now resolves to a different file",
                 slot.slot
@@ -2324,9 +2120,9 @@ pub(crate) fn installed_rows(
     app: &AppHandle,
     game_id: &str,
     game_path: &str,
-) -> Result<(Vec<InstalledMod>, Option<String>), String> {
+) -> Result<(Vec<InstalledMod>, Option<String>, bool), String> {
     if !movies::supports_movies(game_id) {
-        return Ok((Vec::new(), None));
+        return Ok((Vec::new(), None, false));
     }
     let store = ResourceStore::for_app(app)?;
     let manifest = store.load_manifest()?;
@@ -2346,8 +2142,9 @@ pub(crate) fn installed_rows(
         };
         rows.push(row(d, status));
     }
-    if store.has_pending(game_id)? {
-        errors.push("An interrupted movie or Engine.ini change is pending. Review recovery in game settings".into());
+    let recovery_pending = store.has_pending(game_id)?;
+    if recovery_pending {
+        errors.push("An interrupted movie or Engine.ini change is pending. Review the current files to continue".into());
     }
     Ok((
         rows,
@@ -2356,6 +2153,7 @@ pub(crate) fn installed_rows(
         } else {
             Some(errors.join("\n"))
         },
+        recovery_pending,
     ))
 }
 

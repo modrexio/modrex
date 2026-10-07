@@ -113,7 +113,6 @@ export const commands = {
 	 */
 	discardStagedArchive: (token: string) => __TAURI_INVOKE<void>("discard_staged_archive", { token }),
 	getResourceReview: (reviewHandle: string) => __TAURI_INVOKE<ResourceReview_Serialize>("get_resource_review", { reviewHandle }),
-	readResourceIni: (reviewHandle: string, entryId: number) => __TAURI_INVOKE<string>("read_resource_ini", { reviewHandle, entryId }),
 	installReviewedResources: (reviewHandle: string, selections: ResourceSelection[]) => __TAURI_INVOKE<ResourceInstallResult>("install_reviewed_resources", { reviewHandle, selections }),
 	/**
 	 *  Installs one package a Nexus resource review offers. The game, install, archive, target
@@ -125,22 +124,10 @@ export const commands = {
 	reviewResourceRecovery: (gameId: string, uid: string | null) => __TAURI_INVOKE<ResourceRecoveryReview>("review_resource_recovery", { gameId, uid }),
 	keepCurrentResources: (reviewHandle: string) => __TAURI_INVOKE<null>("keep_current_resources", { reviewHandle }),
 	cancelResourceRecovery: (reviewHandle: string) => __TAURI_INVOKE<void>("cancel_resource_recovery", { reviewHandle }),
-	openEngineIni: (gameId: string) => __TAURI_INVOKE<IniEditorSession>("open_engine_ini", { gameId }),
+	getEngineIniLocation: (gameId: string) => __TAURI_INVOKE<EngineIniLocation>("get_engine_ini_location", { gameId }),
+	openEngineIni: (gameId: string) => __TAURI_INVOKE<null>("open_engine_ini", { gameId }),
 	/**  title comes from the renderer already localized, like pick_folder's. */
-	pickEngineIni: (gameId: string, title: string, folder: boolean) => __TAURI_INVOKE<{
-	sessionHandle: string,
-	contextKey: string,
-	gameId: string,
-	gamePath: string,
-	path: string,
-	text: string,
-	readOnly: boolean,
-	readOnlyReason: string | null,
-	sha256: string,
-	exists: boolean,
-} | null>("pick_engine_ini", { gameId, title, folder }),
-	saveEngineIni: (sessionHandle: string, text: string, releasePreset: boolean) => __TAURI_INVOKE<IniEditorSession>("save_engine_ini", { sessionHandle, text, releasePreset }),
-	closeEngineIni: (sessionHandle: string) => __TAURI_INVOKE<void>("close_engine_ini", { sessionHandle }),
+	pickEngineIni: (gameId: string, title: string, folder: boolean) => __TAURI_INVOKE<string | null>("pick_engine_ini", { gameId, title, folder }),
 	uninstallMod: (gamePath: string, uid: string, gameId: string) => __TAURI_INVOKE<null>("uninstall_mod", { gamePath, uid, gameId }),
 	enableMod: (gamePath: string, uid: string, gameId: string) => __TAURI_INVOKE<null>("enable_mod", { gamePath, uid, gameId }),
 	disableMod: (gamePath: string, uid: string, gameId: string) => __TAURI_INVOKE<null>("disable_mod", { gamePath, uid, gameId }),
@@ -352,6 +339,8 @@ export type DetectedInstall = {
 	gamePath: string,
 };
 
+export type EngineIniLocation = { status: "found"; path: string } | { status: "missing"; path: string } | { status: "needsLocation" };
+
 export type FilePage = {
 	data: ModFile[],
 	meta: PageMeta,
@@ -478,19 +467,6 @@ export type IdentityEvidence =
 export type IndexModFile = {
 	fileRemoteId: number,
 	entryName: string,
-};
-
-export type IniEditorSession = {
-	sessionHandle: string,
-	contextKey: string,
-	gameId: string,
-	gamePath: string,
-	path: string,
-	text: string,
-	readOnly: boolean,
-	readOnlyReason: string | null,
-	sha256: string,
-	exists: boolean,
 };
 
 export type InstallFromZipEntryArgs = {
@@ -640,10 +616,11 @@ export type InstalledResponse_Deserialize = {
 	 */
 	stateUnreadable: boolean,
 	/**
-	 *  The movie and Engine.ini records could not be loaded, so their rows are missing and
-	 *  every resource write is blocked. Ordinary mods above are unaffected.
+	 *  Failures inspecting movie or Engine.ini records, including pending recovery.
+	 *  Ordinary mod rows remain available.
 	 */
 	resourceError: string | null,
+	resourceRecoveryPending: boolean,
 };
 
 export type InstalledResponse_Serialize = {
@@ -658,10 +635,11 @@ export type InstalledResponse_Serialize = {
 	 */
 	stateUnreadable: boolean,
 	/**
-	 *  The movie and Engine.ini records could not be loaded, so their rows are missing and
-	 *  every resource write is blocked. Ordinary mods above are unaffected.
+	 *  Failures inspecting movie or Engine.ini records, including pending recovery.
+	 *  Ordinary mod rows remain available.
 	 */
 	resourceError: string | null,
+	resourceRecoveryPending: boolean,
 };
 
 export type InstructsTemplate = {

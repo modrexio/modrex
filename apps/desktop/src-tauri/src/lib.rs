@@ -76,17 +76,15 @@ fn ipc_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::mods::install_host_pack,
             commands::mods::discard_staged_archive,
             commands::mods::get_resource_review,
-            commands::mods::read_resource_ini,
             commands::mods::install_reviewed_resources,
             commands::mods::install_nexus_review_pak,
             commands::mods::cancel_resource_review,
             commands::mods::review_resource_recovery,
             commands::mods::keep_current_resources,
             commands::mods::cancel_resource_recovery,
+            commands::mods::get_engine_ini_location,
             commands::mods::open_engine_ini,
             commands::mods::pick_engine_ini,
-            commands::mods::save_engine_ini,
-            commands::mods::close_engine_ini,
             commands::mods::uninstall_mod,
             commands::mods::enable_mod,
             commands::mods::disable_mod,
@@ -189,7 +187,7 @@ pub fn run() {
         .manage(commands::mods::StateLocks::default())
         .manage(commands::mods::ResourceLocks::default())
         .manage(commands::mods::ResourceReviews::default())
-        .manage(commands::mods::IniSessions::default())
+        .manage(commands::mods::IniLocations::default())
         .manage(commands::startup::StartupState::default())
         .manage(discord_state)
         .register_uri_scheme_protocol("thumb", |ctx, request| {

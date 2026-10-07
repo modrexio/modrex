@@ -7,7 +7,8 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 ### Added
 
 - Added reviewed .bk2 movie replacements and Engine.ini presets for PAYDAY 3 and Crime Boss, with restoration of the previous setup.
-- Added an Engine.ini editor and exact catalog recognition for movie and configuration files.
+- Added an Engine.ini shortcut that checks whether the file exists and opens it in your default editor.
+- Added checks for movie files matching known mods.
 - Added Polish as a language option for the app's interface.
 - Added a Health Check warning for mods missing their .ucas and .utoc files.
 - Added a Leftover files tab to Health Check for removing unused .ucas and .utoc files.

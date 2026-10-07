@@ -134,7 +134,7 @@ fn snapshots_are_independent_and_distinguish_absent_from_empty() {
 fn interrupted_write_restores_previous_bytes_but_preserves_external_edits() {
     let temp = tempfile::tempdir().unwrap();
     let store = ResourceStore::at(temp.path().join("recovery"));
-    let path = temp.path().join("Intro.bk2");
+    let path = temp.path().canonicalize().unwrap().join("Intro.bk2");
     fs::write(&path, b"previous personal mod").unwrap();
     let before = store.capture(&path).unwrap();
     let after = store.put_bytes(b"managed movie").unwrap();

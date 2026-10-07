@@ -44,6 +44,7 @@ export function useAutoIdentifyNexusMods({
         if (!gamePath || running.current || !hasSource(activeGame, 'nexus')) return
         const candidates = installed.filter(
             (m) =>
+                !m.deployment &&
                 !hasCatalogLink(m) &&
                 m.nexusContentMissed !== true &&
                 !m.missing &&

@@ -233,7 +233,8 @@ pub struct InstalledResponse {
     /// order and per-mod metadata is not in it, and no operation may replace that record until
     /// the file is readable again.
     pub state_unreadable: bool,
-    /// The movie and Engine.ini records could not be loaded, so their rows are missing and
-    /// every resource write is blocked. Ordinary mods above are unaffected.
+    /// Failures inspecting movie or Engine.ini records, including pending recovery.
+    /// Ordinary mod rows remain available.
     pub resource_error: Option<String>,
+    pub resource_recovery_pending: bool,
 }

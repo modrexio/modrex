@@ -1,22 +1,6 @@
 use super::*;
 
 #[test]
-fn editing_an_already_ambiguous_owned_key_requires_releasing_that_key() {
-    let changes = vec![KeyChange {
-        section: "S".into(),
-        key: "A".into(),
-        before: Some("old".into()),
-        applied: "1".into(),
-    }];
-    let original = "[S]\nA=1\nA=2\nB=other\n";
-    assert_eq!(
-        owned_changes(original, "[S]\nA=1\nA=3\nB=other\n", &changes),
-        changes
-    );
-    assert!(owned_changes(original, "[S]\nA=1\nA=2\nB=edited\n", &changes).is_empty());
-}
-
-#[test]
 fn encoding_round_trips_keep_bom_and_line_endings() {
     for encoding in [
         Encoding::Ascii,
@@ -113,7 +97,7 @@ fn restore_refuses_ambiguous_owned_settings_without_partial_result() {
         let err = restore(&edited, &merged.changes, &merged.created_sections).unwrap_err();
         assert!(err.contains("[S] B"), "{err}");
         assert!(!err.contains("[S] A"), "{err}");
-        assert!(err.contains("review"), "{err}");
+        assert!(err.contains("Review these settings"), "{err}");
     }
     let duplicated = format!("{}[s]\nC=1\n", merged.text);
     let err = restore(&duplicated, &merged.changes, &merged.created_sections).unwrap_err();
