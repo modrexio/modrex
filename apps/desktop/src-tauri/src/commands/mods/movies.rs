@@ -109,6 +109,12 @@ pub(crate) fn slot_inventory(
             }
         }
     }
+    let mut unique = HashSet::new();
+    for slot in &slots {
+        if !unique.insert(slot.to_ascii_lowercase()) {
+            return Err("The movie folder contains filenames that differ only in case. Resolve that conflict before replacing movies".into());
+        }
+    }
     slots.sort();
     Ok(slots)
 }

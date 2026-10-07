@@ -1,6 +1,18 @@
 use super::*;
 use std::fs;
 
+#[cfg(unix)]
+#[test]
+fn case_colliding_movie_slots_are_refused_before_mapping() {
+    let temp = tempfile::tempdir().unwrap();
+    fs::write(temp.path().join("Intro.bk2"), b"first").unwrap();
+    fs::write(temp.path().join("intro.BK2"), b"second").unwrap();
+    let error = slot_inventory("pd3", temp.path(), Some("steam")).unwrap_err();
+    assert!(error.contains("differ only in case"));
+    assert_eq!(fs::read(temp.path().join("Intro.bk2")).unwrap(), b"first");
+    assert_eq!(fs::read(temp.path().join("intro.BK2")).unwrap(), b"second");
+}
+
 #[test]
 fn an_unmanaged_matching_movie_needs_neither_a_write_nor_a_baseline() {
     let temp = tempfile::tempdir().unwrap();
