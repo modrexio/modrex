@@ -28,9 +28,6 @@ export function handleInstallOutcome(
 ): boolean {
     if (outcome === 'installed') return false
     if (outcome === 'cancelled') return true
-    if (typeof outcome === 'object' && 'needsResourceReview' in outcome) {
-        throw new Error('Resource review must finish before dispatching installation results.')
-    }
     if (outcome === 'unrecognized') {
         handlers.onUnrecognizedArchive()
         return true

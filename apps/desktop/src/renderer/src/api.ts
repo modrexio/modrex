@@ -46,7 +46,8 @@ import type {
 import { isGameId, type GameId } from '../../shared/types'
 export type ResourceReview = Omit<BackendResourceReview, 'gameId'> & { gameId: GameId }
 import { requestResourceReview } from './resourceInstall'
-export type InstallOutcome = BackendInstallOutcome | 'cancelled'
+export type InstallOutcome =
+    Exclude<BackendInstallOutcome, { needsResourceReview: unknown }> | 'cancelled'
 
 // The library declares this union without exporting it.
 export type ResizeDirection = Parameters<
@@ -103,8 +104,10 @@ async function trackInstall(install: Promise<unknown>): Promise<void> {
     void commands.recordSuccessfulInstall(!installErrorThisSession)
 }
 
-async function trackInstallOutcome(install: Promise<InstallOutcome>): Promise<InstallOutcome> {
-    let outcome: InstallOutcome
+async function trackInstallOutcome(
+    install: Promise<BackendInstallOutcome>
+): Promise<InstallOutcome> {
+    let outcome: BackendInstallOutcome
     try {
         outcome = await install
     } catch (e) {
