@@ -13,6 +13,8 @@ pub struct GameSpec {
     /// Borrowed from the package rather than copied, so the key has one home. None for a game
     /// whose manifest declares no reader.
     pub package_reader: Option<&'static package::PackageReaderBinding>,
+    pub movie_replacement: Option<&'static package::MovieReplacement>,
+    pub config_presets: Option<&'static package::ConfigPresets>,
 }
 
 pub static GAME_REGISTRY: LazyLock<Vec<GameSpec>> = LazyLock::new(|| {
@@ -71,6 +73,8 @@ fn spec_from(pkg: &'static GamePackage) -> GameSpec {
         engine,
         def: Box::leak(Box::new(def)),
         package_reader: pkg.package_reader.as_ref(),
+        movie_replacement: pkg.movie_replacement.as_ref(),
+        config_presets: pkg.config_presets.as_ref(),
     }
 }
 

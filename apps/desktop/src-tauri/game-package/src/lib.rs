@@ -321,6 +321,59 @@ impl PackageReaderBinding {
     }
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[serde(tag = "format", rename_all = "snake_case", deny_unknown_fields)]
+pub enum MovieReplacement {
+    Bink {
+        directory: Vec<String>,
+        storefronts: Vec<Storefront>,
+        #[serde(default)]
+        absent_slots: Vec<MovieSlots>,
+    },
+}
+
+impl MovieReplacement {
+    pub fn extension(&self) -> &'static str {
+        match self {
+            Self::Bink { .. } => "bk2",
+        }
+    }
+}
+
+/// Slots verified against published replacement instructions for this store.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct MovieSlots {
+    pub store: Storefront,
+    pub filenames: Vec<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[serde(tag = "format", rename_all = "snake_case", deny_unknown_fields)]
+pub enum ConfigPresets {
+    UnrealEngineIni {
+        #[serde(default)]
+        locations: Vec<ConfigLocation>,
+    },
+}
+
+impl ConfigPresets {
+    pub fn filename(&self) -> &'static str {
+        match self {
+            Self::UnrealEngineIni { .. } => "Engine.ini",
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[serde(tag = "root", rename_all = "snake_case", deny_unknown_fields)]
+pub enum ConfigLocation {
+    WindowsLocalAppData {
+        store: Storefront,
+        path: Vec<String>,
+    },
+}
+
 /// A primary mod file plus the files that travel with it because they share its stem.
 ///
 /// Unreal splits one mod across a pak holding loose files, a utoc indexing a container and a
@@ -493,6 +546,10 @@ pub struct GamePackage {
     pub decoders: Vec<DecoderBinding>,
     #[serde(default)]
     pub package_reader: Option<PackageReaderBinding>,
+    #[serde(default)]
+    pub movie_replacement: Option<MovieReplacement>,
+    #[serde(default)]
+    pub config_presets: Option<ConfigPresets>,
     pub targets: Vec<Target>,
 }
 

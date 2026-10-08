@@ -64,6 +64,17 @@ Keeping the translation in one function is what lets the manifest describe a gam
 own terms while the scan, install and launch paths keep reading the shapes they were written
 against.
 
+Movie replacement and config presets are independent declarations. They select host mechanisms
+and carry the verified destinations and store restrictions those mechanisms need. Bink file
+replacement does not require an Unreal package reader, and the current config mechanism applies
+only supported Unreal Engine.ini scalar presets. The generated catalog exposes these capabilities
+to the renderer and index without repeating game identifiers.
+
+New resource installations require the declared capability. Existing resource deployments and
+pending journals remain visible to the host even when installation eligibility changes. Removing
+a movie declaration needs an explicit migration before its recorded destinations can be restored
+without that declaration's validation.
+
 ## Where the line sits
 
 Declarative game data on one side, shared host behavior on the other.

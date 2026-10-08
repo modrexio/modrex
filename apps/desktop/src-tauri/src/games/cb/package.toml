@@ -46,6 +46,22 @@ package_reader = {
     aes_key = "40A34FBE5D5DC4BF94ECDCF042816C7C57AA11FAEE07FDB71E908E97A2F28FA6",
 }
 
+movie_replacement = {
+    format = "bink",
+    directory = ["CrimeBoss", "Content", "Movies"],
+    storefronts = ["steam", "epic"],
+    absent_slots = [
+        {
+            store = "steam",
+            filenames = ["ARC_25FPS.bk2", "cs_splash_505_igs_crimeboss.bk2", "logo_arc_4k_60fps.bk2", "UE4_Logo.bk2"],
+        },
+    ],
+}
+
+config_presets = {
+    format = "unreal_engine_ini",
+}
+
 targets = [
     {
         tag = "mods",

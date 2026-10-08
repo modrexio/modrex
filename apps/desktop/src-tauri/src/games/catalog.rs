@@ -1,4 +1,6 @@
-use crate::game_package::{GamePackage, SourceBinding, StoreBinding, Storefront};
+use crate::game_package::{
+    GamePackage, ModMetadata, MovieReplacement, SourceBinding, StoreBinding, Storefront,
+};
 use std::fmt::Write as _;
 
 /// Relative to the crate root, which is the directory cargo runs a test binary from.
@@ -46,6 +48,14 @@ pub fn catalog_typescript() -> String {
         let _ = writeln!(out, "    {}: {{", pkg.id);
         let _ = writeln!(out, "        name: {},", quote(&pkg.name));
         let _ = writeln!(out, "        shortName: {},", quote(&pkg.short_name));
+        let _ = writeln!(
+            out,
+            "        modMetadata: {},",
+            quote(match pkg.mod_metadata {
+                ModMetadata::Diesel => "diesel",
+                ModMetadata::None => "none",
+            })
+        );
         if let Some(id) = workshop_id {
             let _ = writeln!(out, "        workshopId: {id},");
         }
@@ -67,6 +77,26 @@ pub fn catalog_typescript() -> String {
         );
         if let Some(flag) = pkg.install.launch_flag.as_ref() {
             let _ = writeln!(out, "        requiredLaunchFlag: {},", quote(flag));
+        }
+        if let Some(movies) = &pkg.movie_replacement {
+            let MovieReplacement::Bink { storefronts, .. } = movies;
+            let stores = storefronts
+                .iter()
+                .map(|store| quote(store.provider()))
+                .collect::<Vec<_>>()
+                .join(", ");
+            let _ = writeln!(
+                out,
+                "        movieReplacement: {{ extension: {}, storefronts: [{stores}] }},",
+                quote(movies.extension())
+            );
+        }
+        if let Some(configs) = &pkg.config_presets {
+            let _ = writeln!(
+                out,
+                "        configPresets: {{ filename: {} }},",
+                quote(configs.filename())
+            );
         }
 
         // Listed in a fixed order so the catalogue does not change when a manifest lists its

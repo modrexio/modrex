@@ -150,6 +150,19 @@ fn the_catalogue_derives_each_game_from_its_package() {
         assert!(entry.contains(&format!("shortName: '{}'", pkg.short_name)));
         assert!(entry.contains(&format!("storageKey: '{}'", pkg.id)));
         assert!(entry.contains(&format!("hasNews: {}", !pkg.news.is_empty())));
+        let metadata = match pkg.mod_metadata {
+            ModMetadata::Diesel => "diesel",
+            ModMetadata::None => "none",
+        };
+        assert!(entry.contains(&format!("modMetadata: '{metadata}'")));
+        assert_eq!(
+            entry.contains("movieReplacement:"),
+            pkg.movie_replacement.is_some()
+        );
+        assert_eq!(
+            entry.contains("configPresets:"),
+            pkg.config_presets.is_some()
+        );
 
         let workshop = pkg.sources.iter().find_map(|binding| match binding {
             SourceBinding::ModWorkshop { game_id } => Some(game_id),

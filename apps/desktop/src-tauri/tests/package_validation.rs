@@ -439,9 +439,9 @@ fn the_documented_starter_manifest_is_valid() {
 
 const KEY: &str = "0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF";
 
-/// package_reader is a root key, and BASE ends inside a nested table, so it has to go in
+/// Root declarations precede the first table because BASE ends inside a nested table.
 /// before the first section header rather than being appended.
-fn with_reader(declaration: &str) -> String {
+fn with_root_declaration(declaration: &str) -> String {
     BASE.replacen(
         "
 [install]",
@@ -454,9 +454,107 @@ fn with_reader(declaration: &str) -> String {
     )
 }
 
+const MOVIES: &str = r#"movie_replacement = { format = "bink", directory = ["Content", "Movies"], storefronts = ["steam"], absent_slots = [{ store = "steam", filenames = ["Intro.bk2"] }] }"#;
+const CONFIGS: &str = r#"config_presets = { format = "unreal_engine_ini" }"#;
+const CONFIG_LOCATION: &str = r#"config_presets = { format = "unreal_engine_ini", locations = [{ root = "windows_local_app_data", store = "steam", path = ["Fixture", "Saved", "Engine.ini"] }] }"#;
+
+#[test]
+fn resource_capabilities_are_optional_and_independent() {
+    for (declaration, movies, configs) in [
+        (String::new(), false, false),
+        (MOVIES.into(), true, false),
+        (CONFIGS.into(), false, true),
+        (format!("{MOVIES}\n{CONFIG_LOCATION}"), true, true),
+    ] {
+        let package: GamePackage = toml::from_str(&with_root_declaration(&declaration)).unwrap();
+        validate::check("fixture", &package).unwrap();
+        assert_eq!(package.movie_replacement.is_some(), movies);
+        assert_eq!(package.config_presets.is_some(), configs);
+    }
+}
+
+#[test]
+fn resource_contract_rejects_unimplemented_formats_and_unknown_fields() {
+    for (declaration, expected) in [
+        (MOVIES.replace("bink", "mp4"), "unknown variant"),
+        (
+            MOVIES.replace("format =", "callback = \"run\", format ="),
+            "unknown field",
+        ),
+        (
+            CONFIGS.replace("unreal_engine_ini", "json"),
+            "unknown variant",
+        ),
+        (
+            CONFIG_LOCATION.replace("windows_local_app_data", "home"),
+            "unknown variant",
+        ),
+        (
+            CONFIG_LOCATION.replace("root =", "platform = \"windows\", root ="),
+            "unknown field",
+        ),
+    ] {
+        assert_rejected(&with_root_declaration(&declaration), expected);
+    }
+}
+
+#[test]
+fn movie_declarations_reject_unsafe_destinations_and_unverified_store_slots() {
+    for (declaration, expected) in [
+        (
+            MOVIES.replace(r#"["Content", "Movies"]"#, "[]"),
+            "empty path",
+        ),
+        (
+            MOVIES.replace(r#"["Content", "Movies"]"#, r#"["..", "Movies"]"#),
+            "plain relative",
+        ),
+        (
+            MOVIES.replace(r#"["Content", "Movies"]"#, r#"["C:/Movies"]"#),
+            "plain relative",
+        ),
+        (
+            MOVIES.replace(r#"["steam"]"#, r#"["steam", "steam"]"#),
+            "store twice",
+        ),
+        (
+            MOVIES.replace(r#"["steam"]"#, r#"["epic"]"#),
+            "install does not list",
+        ),
+        (
+            MOVIES.replace(r#"store = "steam""#, r#"store = "epic""#),
+            "does not support",
+        ),
+        (
+            MOVIES.replace("Intro.bk2", "../Intro.bk2"),
+            "plain relative",
+        ),
+        (MOVIES.replace("Intro.bk2", "Intro.bak2"), ".bk2 extension"),
+        (
+            MOVIES.replace(r#"["Intro.bk2"]"#, r#"["Intro.bk2", "intro.BK2"]"#),
+            "repeat",
+        ),
+    ] {
+        assert_rejected(&with_root_declaration(&declaration), expected);
+    }
+}
+
+#[test]
+fn config_locations_are_verified_relative_paths_for_a_declared_store() {
+    for (declaration, expected) in [
+        (CONFIG_LOCATION.replace(r#"store = "steam""#, r#"store = "epic""#), "install does not list"),
+        (CONFIG_LOCATION.replace(r#"["Fixture", "Saved", "Engine.ini"]"#, "[]"), "empty path"),
+        (CONFIG_LOCATION.replace("Fixture", ".."), "plain relative"),
+        (CONFIG_LOCATION.replace("Engine.ini", "UserSettings.ini"), "must end in Engine.ini"),
+        (CONFIG_LOCATION.replace(r#"locations = [{"#, r#"locations = [{ root = "windows_local_app_data", store = "steam", path = ["Engine.ini"] }, {"#), "twice"),
+    ] {
+        assert_rejected(&with_root_declaration(&declaration), expected);
+    }
+}
+
 #[test]
 fn a_package_reader_declaration_is_accepted_and_reaches_the_package() {
-    let text = with_reader(&format!(
+    let text = with_root_declaration(&format!(
         "package_reader = {{ format = \"unreal\", aes_key = \"{KEY}\" }}"
     ));
     let package: GamePackage = toml::from_str(&text).expect("a declared reader parses");
@@ -478,7 +576,9 @@ fn a_package_without_a_reader_declares_none_rather_than_a_default() {
 #[test]
 fn a_key_of_the_wrong_length_is_rejected() {
     assert_rejected(
-        &with_reader("package_reader = { format = \"unreal\", aes_key = \"0123456789\" }"),
+        &with_root_declaration(
+            "package_reader = { format = \"unreal\", aes_key = \"0123456789\" }",
+        ),
         "64 hexadecimal characters",
     );
 }
@@ -487,7 +587,7 @@ fn a_key_of_the_wrong_length_is_rejected() {
 fn a_key_that_is_not_hexadecimal_is_rejected() {
     let key = format!("Z{}", &KEY[1..]);
     assert_rejected(
-        &with_reader(&format!(
+        &with_root_declaration(&format!(
             "package_reader = {{ format = \"unreal\", aes_key = \"{key}\" }}"
         )),
         "64 hexadecimal characters",
@@ -497,7 +597,7 @@ fn a_key_that_is_not_hexadecimal_is_rejected() {
 #[test]
 fn an_unknown_package_reader_format_is_rejected() {
     assert_rejected(
-        &with_reader("package_reader = { format = \"zip\", aes_key = \"00\" }"),
+        &with_root_declaration("package_reader = { format = \"zip\", aes_key = \"00\" }"),
         "unreal",
     );
 }
@@ -505,7 +605,7 @@ fn an_unknown_package_reader_format_is_rejected() {
 #[test]
 fn an_unknown_field_on_a_package_reader_is_rejected() {
     assert_rejected(
-        &with_reader(&format!(
+        &with_root_declaration(&format!(
             "package_reader = {{ format = \"unreal\", aes_key = \"{KEY}\", nonce = \"1\" }}"
         )),
         "nonce",
