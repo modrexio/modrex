@@ -32,7 +32,7 @@ pub(crate) enum LineEnding {
 pub(crate) struct Decoded {
     pub encoding: Encoding,
     pub eol: LineEnding,
-    /// The text with line breaks normalized to LF, as a textarea would hold it.
+    /// The text with line breaks normalized to LF.
     pub text: String,
 }
 
@@ -77,7 +77,7 @@ fn decode_utf16(bytes: &[u8], read: fn([u8; 2]) -> u16) -> Result<String, String
     if !bytes.len().is_multiple_of(2) {
         return Err("the file has a UTF-16 marker but an odd byte length".to_string());
     }
-    let units = bytes.chunks_exact(2).map(|c| read([c[0], c[1]]));
+    let units = bytes.as_chunks::<2>().0.iter().map(|c| read(*c));
     char::decode_utf16(units)
         .collect::<Result<String, _>>()
         .map_err(|_| "the file has a UTF-16 marker but contains invalid UTF-16".to_string())
@@ -95,7 +95,7 @@ fn line_ending(text: &str) -> LineEnding {
     }
 }
 
-/// Encodes textarea text back in the original file's encoding and line-ending style.
+/// Encodes text back in the original file's encoding and line-ending style.
 ///
 /// A file with no line break of its own gets CRLF, the style Unreal writes on Windows.
 pub(crate) fn encode(text: &str, encoding: Encoding, eol: LineEnding) -> Result<Vec<u8>, String> {

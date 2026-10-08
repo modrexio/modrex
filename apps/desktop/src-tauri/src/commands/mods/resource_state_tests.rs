@@ -1,5 +1,65 @@
 use super::*;
 
+#[test]
+fn staging_rejects_a_same_size_object_change_before_replacing_the_live_file() {
+    let temp = tempfile::tempdir().unwrap();
+    let store = ResourceStore::at(temp.path().join("recovery"));
+    let path = temp.path().canonicalize().unwrap().join("Intro.bk2");
+    fs::write(&path, b"previous").unwrap();
+    let before = store.capture(&path).unwrap();
+    let after = store.put_bytes(b"replacement").unwrap();
+    let Content::Present { ref sha256, .. } = after else {
+        unreachable!()
+    };
+    fs::write(store.object_path(sha256), b"corruptcopy").unwrap();
+    let error = store
+        .commit_step(&Step {
+            destination: path.clone(),
+            before,
+            after,
+        })
+        .unwrap_err();
+    assert!(
+        error.contains("staged replacement did not verify"),
+        "{error}"
+    );
+    assert_eq!(fs::read(path).unwrap(), b"previous");
+}
+
+#[test]
+fn launch_ignores_archived_ini_copies_but_checks_current_movie_baselines() {
+    let temp = tempfile::tempdir().unwrap();
+    let store = ResourceStore::at(temp.path().join("recovery"));
+    let path = temp.path().join("Engine.ini");
+    let prior = store.put_bytes(b"archived settings").unwrap();
+    let Content::Present { ref sha256, .. } = prior else {
+        unreachable!()
+    };
+    let object = store.object_path(sha256);
+    let mut manifest = store.load_manifest().unwrap();
+    manifest.ini_revisions.push(IniRevision {
+        config_path: path.to_string_lossy().into(),
+        game_id: "pd3".into(),
+        prior: prior.clone(),
+        saved_at: "t".into(),
+    });
+    store.save_manifest(&manifest).unwrap();
+    fs::remove_file(object).unwrap();
+    store.preflight("pd3").unwrap();
+    assert_eq!(store.load_manifest().unwrap().ini_revisions.len(), 1);
+    manifest.movie_baselines.push(MovieBaseline {
+        destination: temp.path().join("Intro.bk2").to_string_lossy().into(),
+        game_id: "pd3".into(),
+        prior,
+        captured_at: "t".into(),
+    });
+    store.save_manifest(&manifest).unwrap();
+    assert!(store
+        .preflight("pd3")
+        .unwrap_err()
+        .contains("recovery copy"));
+}
+
 #[cfg(unix)]
 #[test]
 fn replacement_refuses_a_directory_retargeted_to_a_link() {

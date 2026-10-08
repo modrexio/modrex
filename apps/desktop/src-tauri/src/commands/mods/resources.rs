@@ -219,14 +219,13 @@ async fn ensure_not_running(game_id: &str) -> Result<(), String> {
     Ok(())
 }
 
-/// Takes the locks for paths, then recovers any interrupted operation for the game.
+/// Serializes the change, checks affected games and recovers interrupted writes.
 async fn lock_and_recover(
     app: &AppHandle,
     game_id: &str,
     paths: &[PathBuf],
 ) -> Result<(ResourceGuard, ResourceStore), String> {
-    ensure_not_running(game_id).await?;
-    let guard = locks(app).acquire(paths).await;
+    let guard = locks(app).acquire().await;
     let store = ResourceStore::for_app(app)?;
     let (ownership_store, bound_game, bound_paths) =
         (store.clone(), game_id.to_string(), paths.to_vec());
@@ -275,13 +274,13 @@ async fn blocking<T: Send + 'static>(
 }
 
 /// Launch preflight: interrupted resource operations must finish or fail visibly, and every
-/// record must still reach its recovery data.
+/// current deployment must still reach its recovery data.
 pub(crate) async fn launch_preflight(app: &AppHandle, game_id: &str) -> Result<(), String> {
     if !movies::supports_movies(game_id) {
         return Ok(());
     }
     let store = ResourceStore::for_app(app)?;
-    let _guard = locks(app).acquire(&[]).await;
+    let _guard = locks(app).acquire().await;
     let (s, id) = (store.clone(), game_id.to_string());
     if blocking(move || s.has_pending(&id)).await? {
         let (s, id) = (store.clone(), game_id.to_string());
@@ -690,7 +689,6 @@ fn assess(
     name: &str,
     staged: Option<&Path>,
     movies: &Result<Vec<String>, String>,
-    config: &Result<Option<PathBuf>, String>,
 ) -> (ResourceEntryKind, Result<(), String>) {
     let ext = extension_of(name);
     if name.ends_with('/') {
@@ -719,25 +717,16 @@ fn assess(
             .as_ref()
             .map_err(Clone::clone)
             .and_then(|_| movies::validate_bink(staged.expect("movies are staged")).map(|_| ())),
-        ResourceEntryKind::Ini => assess_ini(name, staged.expect("INIs are staged"), config),
+        ResourceEntryKind::Ini => {
+            preset_assignments(name, staged.expect("INIs are staged")).map(|_| ())
+        }
     };
     (kind, verdict)
 }
 
-fn assess_ini(
-    name: &str,
-    staged: &Path,
-    config: &Result<Option<PathBuf>, String>,
-) -> Result<(), String> {
+fn preset_assignments(name: &str, staged: &Path) -> Result<Vec<ini::Assignment>, String> {
     if !file_name_of(name).eq_ignore_ascii_case("Engine.ini") {
         return Err("only Engine.ini presets are supported".to_string());
-    }
-    match config {
-        Err(e) => return Err(e.clone()),
-        Ok(None) => {
-            return Err("Modrex has no verified Engine.ini location for this game and store. Choose the file or configuration folder first".to_string())
-        }
-        Ok(Some(_)) => {}
     }
     let (bytes, revision) = read_ini_bytes(staged)?;
     if revision == Content::Absent {
@@ -749,14 +738,8 @@ fn assess_ini(
             "The preset mixes line endings. Use your text editor for manual installation".into(),
         );
     }
-    let assignments = ini::scalar_assignments(&decoded.text).map_err(|e| {
-        format!("{e}. Follow the mod author's instructions for manual installation")
-    })?;
-    if let Ok(Some(path)) = config {
-        let (_, target, _) = read_config(path)?;
-        ini::merge(&target.text, &assignments)?;
-    }
-    Ok(())
+    ini::scalar_assignments(&decoded.text)
+        .map_err(|e| format!("{e}. Follow the mod author's instructions for manual installation"))
 }
 
 /// Stages a resource download for review and returns its handle.
@@ -902,7 +885,7 @@ fn build_review(
         } else {
             name.clone()
         };
-        let (kind, verdict) = assess(&assessment_name, staged.as_deref(), &slots, &config);
+        let (kind, verdict) = assess(&assessment_name, staged.as_deref(), &slots);
         let supported = verdict.is_ok();
         entries.push(StagedResource {
             entry: ResourceReviewEntry {
@@ -952,54 +935,58 @@ pub(crate) fn get_review(app: &AppHandle, handle: &str) -> Result<ResourceReview
         .iter_mut()
         .filter(|entry| entry.entry.kind == ResourceEntryKind::Ini)
     {
-        let verdict = match &target {
-            Err(error) => Err(error.clone()),
-            Ok(_) => assess_ini(
+        let assessment = (|| {
+            let target = match &target {
+                Err(error) => return Err(error.clone()),
+                Ok(None) => {
+                    return Err("Modrex has no verified Engine.ini location for this game and store. Choose the file or configuration folder first".to_string())
+                }
+                Ok(Some((decoded, _))) => decoded,
+            };
+            let assignments = preset_assignments(
                 &entry.entry.name,
                 entry.staged.as_deref().expect("INI entry was staged"),
-                &config,
-            ),
-        };
-        entry.entry.supported = verdict.is_ok();
-        entry.entry.reason = verdict.err();
+            )?;
+            let merged = ini::merge(&target.text, &assignments)?;
+            Ok((assignments, merged))
+        })();
         entry.entry.changes.clear();
         entry.entry.keys.clear();
-        if entry.entry.supported {
-            let source = read_ini_bytes(entry.staged.as_deref().expect("INI entry was staged"))?.0;
-            let assignments = ini::scalar_assignments(&ini::decode(&source)?.text)?;
-            entry.entry.keys = assignments
-                .iter()
-                .map(|assignment| ResourceIniKey {
-                    section: assignment.section.clone(),
-                    key: assignment.key.clone(),
-                })
-                .collect();
-            let (target, _) = target
-                .as_ref()
-                .expect("Supported preset has a readable config")
-                .as_ref()
-                .expect("Supported preset has a config path");
-            let merged = ini::merge(&target.text, &assignments)?;
-            entry.entry.changes = assignments
-                .iter()
-                .map(|assignment| {
-                    merged
-                        .changes
-                        .iter()
-                        .find(|change| {
-                            same_key(&change.section, &assignment.section)
-                                && same_key(&change.key, &assignment.key)
-                        })
-                        .cloned()
-                        .unwrap_or_else(|| super::resource_state::KeyChange {
-                            section: assignment.section.clone(),
-                            key: assignment.key.clone(),
-                            before: Some(assignment.value.clone()),
-                            applied: assignment.value.clone(),
-                        })
-                })
-                .collect();
-        }
+        entry.entry.supported = assessment.is_ok();
+        let (assignments, merged) = match assessment {
+            Err(error) => {
+                entry.entry.reason = Some(error);
+                continue;
+            }
+            Ok(assessment) => assessment,
+        };
+        entry.entry.reason = None;
+        entry.entry.keys = assignments
+            .iter()
+            .map(|assignment| ResourceIniKey {
+                section: assignment.section.clone(),
+                key: assignment.key.clone(),
+            })
+            .collect();
+        entry.entry.changes = assignments
+            .iter()
+            .map(|assignment| {
+                merged
+                    .changes
+                    .iter()
+                    .find(|change| {
+                        same_key(&change.section, &assignment.section)
+                            && same_key(&change.key, &assignment.key)
+                    })
+                    .cloned()
+                    .unwrap_or_else(|| super::resource_state::KeyChange {
+                        section: assignment.section.clone(),
+                        key: assignment.key.clone(),
+                        before: Some(assignment.value.clone()),
+                        applied: assignment.value.clone(),
+                    })
+            })
+            .collect();
     }
     let candidate_movie = new_deployment(r, DeploymentBody::Movie { slots: Vec::new() });
     let movie_previous = same_project(&manifest, &candidate_movie).map(|d| d.id.as_str());
@@ -1812,7 +1799,7 @@ pub(crate) async fn review_recovery(
 ) -> Result<ResourceRecoveryReview, String> {
     let context = current_context(app, game_id)?;
     let store = ResourceStore::for_app(app)?;
-    let _guard = locks(app).acquire(&[]).await;
+    let _guard = locks(app).acquire().await;
     require_context(app, &context)?;
     let bound = context.clone();
     let (grant, deployments, files) = blocking(move || {
@@ -1909,7 +1896,7 @@ pub(crate) async fn keep_current(app: &AppHandle, handle: &str) -> Result<(), St
         ensure_not_running(game).await?;
     }
     let store = ResourceStore::for_app(app)?;
-    let _guard = locks(app).acquire(&grant.paths).await;
+    let _guard = locks(app).acquire().await;
     require_context(app, &grant.context)?;
     for game in &grant.games {
         ensure_not_running(game).await?;
@@ -1962,26 +1949,16 @@ pub(crate) async fn act(
     if found.game_id != game_id || found.game_path != game_path {
         return Err("this belongs to another game install; switch to it to change it".to_string());
     }
-    require_context(
-        app,
-        &InstallContext {
-            game_id: found.game_id.clone(),
-            game_path: found.game_path.clone(),
-            canonical_game_path: found.canonical_game_path.clone(),
-            launcher: found.launcher.clone(),
-        },
-    )?;
+    let context = InstallContext {
+        game_id: found.game_id.clone(),
+        game_path: found.game_path.clone(),
+        canonical_game_path: found.canonical_game_path.clone(),
+        launcher: found.launcher.clone(),
+    };
+    require_context(app, &context)?;
     let paths = deployment_paths(&found);
     let (_guard, store) = lock_and_recover(app, game_id, &paths).await?;
-    require_context(
-        app,
-        &InstallContext {
-            game_id: found.game_id.clone(),
-            game_path: found.game_path.clone(),
-            canonical_game_path: found.canonical_game_path.clone(),
-            launcher: found.launcher.clone(),
-        },
-    )?;
+    require_context(app, &context)?;
     let game_id = game_id.to_string();
     blocking(move || {
         let manifest = store.load_manifest()?;
@@ -2064,10 +2041,8 @@ fn status_of(d: &Deployment) -> Result<ResourceStatus, String> {
             if revision == Content::Absent {
                 return Ok(ResourceStatus::Diverged);
             }
-            match ini::decode(&bytes) {
-                Ok(decoded) => !ini::preset_intact(&decoded.text, &preset.changes),
-                Err(_) => true,
-            }
+            let decoded = ini::decode(&bytes)?;
+            !ini::preset_intact(&decoded.text, &preset.changes)
         }
     };
     if diverged {

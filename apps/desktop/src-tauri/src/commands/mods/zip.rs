@@ -1463,15 +1463,12 @@ fn detect_resources(
         .filter(|(_, e)| !e.is_dir)
         .map(|(i, e)| (i as u32, e.name.as_str()))
         .collect();
-    // Only a movie or one of the Unreal user config files starts a review. Other INIs ride
+    // Only a movie or Engine.ini starts a review. Other INIs ride
     // along with real packages, such as the gameplay tag configs Crime Boss ModKit output
     // carries, and must not divert those archives from their own routing.
     let starts_review = |name: &str| {
         let file = entry_file_name(name);
-        super::movies::is_bk2_name(file)
-            || ["Engine.ini", "GameUserSettings.ini", "Input.ini"]
-                .iter()
-                .any(|c| file.eq_ignore_ascii_case(c))
+        super::movies::is_bk2_name(file) || file.eq_ignore_ascii_case("Engine.ini")
     };
     if !files.iter().any(|(_, n)| starts_review(n) && !in_submod(n)) {
         return Ok(None);

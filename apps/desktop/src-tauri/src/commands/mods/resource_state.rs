@@ -20,7 +20,6 @@
 
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use std::collections::HashMap;
 use std::fs::{self, File};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
@@ -266,7 +265,7 @@ fn validate_manifest(manifest: &Manifest) -> Result<(), String> {
                         return Err("A movie deployment contains an invalid destination.".into());
                     }
                     if deployment.enabled
-                        && !owned_movies.insert(lock_key(Path::new(&slot.destination)))
+                        && !owned_movies.insert(destination_key(Path::new(&slot.destination)))
                     {
                         return Err("Multiple active movie packs own the same destination".into());
                     }
@@ -283,7 +282,7 @@ fn validate_manifest(manifest: &Manifest) -> Result<(), String> {
     let mut baselines = std::collections::HashSet::new();
     for baseline in &manifest.movie_baselines {
         if !Path::new(&baseline.destination).is_absolute()
-            || !baselines.insert(lock_key(Path::new(&baseline.destination)))
+            || !baselines.insert(destination_key(Path::new(&baseline.destination)))
         {
             return Err("A movie baseline has an invalid or duplicate destination".into());
         }
@@ -814,7 +813,7 @@ impl ResourceStore {
         Ok(())
     }
 
-    /// Checks every record of game_id refers to recovery data that is still there.
+    /// Resolves interrupted writes and checks recovery data used by current deployments.
     pub(crate) fn preflight(&self, game_id: &str) -> Result<(), String> {
         self.recover(game_id)?;
         if !self.pending_journals()?.is_empty() {
@@ -843,13 +842,6 @@ impl ResourceStore {
             .filter(|b| b.game_id == game_id)
         {
             self.object_present(&b.prior)?;
-        }
-        for r in manifest
-            .ini_revisions
-            .iter()
-            .filter(|r| r.game_id == game_id)
-        {
-            self.object_present(&r.prior)?;
         }
         Ok(())
     }
@@ -966,7 +958,6 @@ impl ResourceStore {
         };
         let tmp = dir.join(format!(".modrex-{}.tmp", Uuid::new_v4()));
         let result = (|| {
-            self.verify_object(sha256, *size)?;
             let mut source = File::open(self.object_path(sha256)).map_err(|e| e.to_string())?;
             let mut f = File::create(&tmp)
                 .map_err(|e| format!("could not stage a file in {}: {e}", dir.display()))?;
@@ -1064,21 +1055,14 @@ pub(crate) fn refuse_read_only(path: &Path) -> Result<(), String> {
     }
 }
 
-/// Async locks keyed by the physical destination path, plus one lock over the manifest's
-/// read-modify-write. Paths are taken in sorted order so two operations never deadlock.
+/// Serializes resource writes and recovery against the shared manifest.
 #[derive(Default)]
-pub struct ResourceLocks {
-    paths: std::sync::Mutex<HashMap<String, Arc<tokio::sync::Mutex<()>>>>,
-    manifest: Arc<tokio::sync::Mutex<()>>,
-}
+pub struct ResourceLocks(Arc<tokio::sync::Mutex<()>>);
 
-pub(crate) struct ResourceGuard {
-    _paths: Vec<tokio::sync::OwnedMutexGuard<()>>,
-    _manifest: tokio::sync::OwnedMutexGuard<()>,
-}
+pub(crate) type ResourceGuard = tokio::sync::OwnedMutexGuard<()>;
 
-/// Lock identity of a canonical path. Windows paths compare case-insensitively.
-fn lock_key(path: &Path) -> String {
+/// Canonical destination identity. Windows paths compare case-insensitively.
+fn destination_key(path: &Path) -> String {
     let s = path.to_string_lossy().to_string();
     if cfg!(windows) {
         return s.to_lowercase();
@@ -1087,24 +1071,8 @@ fn lock_key(path: &Path) -> String {
 }
 
 impl ResourceLocks {
-    pub(crate) async fn acquire(&self, paths: &[PathBuf]) -> ResourceGuard {
-        let mut keys: Vec<String> = paths.iter().map(|p| lock_key(p)).collect();
-        keys.sort();
-        keys.dedup();
-        let locks: Vec<_> = {
-            let mut map = self.paths.lock().unwrap_or_else(|e| e.into_inner());
-            keys.iter()
-                .map(|k| map.entry(k.clone()).or_default().clone())
-                .collect()
-        };
-        let mut guards = Vec::with_capacity(locks.len());
-        for lock in locks {
-            guards.push(lock.lock_owned().await);
-        }
-        ResourceGuard {
-            _paths: guards,
-            _manifest: self.manifest.clone().lock_owned().await,
-        }
+    pub(crate) async fn acquire(&self) -> ResourceGuard {
+        self.0.clone().lock_owned().await
     }
 }
 

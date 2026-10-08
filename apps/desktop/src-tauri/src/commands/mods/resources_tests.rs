@@ -116,6 +116,18 @@ fn preset(store: &ResourceStore, path: &Path, source: &[u8]) -> Deployment {
 }
 
 #[test]
+fn unreadable_ini_status_reports_the_parse_error_without_changing_the_file() {
+    let temp = tempfile::tempdir().unwrap();
+    let store = ResourceStore::at(temp.path().join("recovery"));
+    let path = temp.path().join("Engine.ini");
+    let invalid = b"\xEF\xBB\xBF\xFF";
+    fs::write(&path, invalid).unwrap();
+    let deployment = preset(&store, &path, b"[S]\nA=1\n");
+    assert!(status_of(&deployment).unwrap_err().contains("UTF-8"));
+    assert_eq!(fs::read(path).unwrap(), invalid);
+}
+
+#[test]
 fn matching_preexisting_movie_is_not_adopted_and_never_becomes_a_baseline() {
     let temp = tempfile::tempdir().unwrap();
     let store = ResourceStore::at(temp.path().join("recovery"));

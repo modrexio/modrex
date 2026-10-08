@@ -20,6 +20,22 @@ fn make_zip(entries: &[(&str, &[u8])]) -> NamedTempFile {
 }
 
 #[test]
+fn unsupported_user_configs_keep_the_ordinary_pak_install_path() {
+    for name in ["Input.ini", "GameUserSettings.ini"] {
+        let archive = make_zip(&[("Payload.pak", b"package"), (name, b"[S]\nA=1\n")]);
+        let registry = staging_tokens::StagingRegistry::new();
+        let staged = resolve_archive_download(
+            archive.path().into(),
+            engine_for_game("pd3").unwrap(),
+            &registry,
+        )
+        .unwrap();
+        assert_eq!(fs::read(&staged.root).unwrap(), b"package");
+        cleanup::run_sync(&staged.cleanup);
+    }
+}
+
+#[test]
 fn mixed_resources_keep_an_uppercase_pak_available_for_explicit_selection() {
     let archive = make_zip(&[("Payload.PAK", b"pak"), ("Engine.ini", b"[S]\nA=1\n")]);
     let registry = staging_tokens::StagingRegistry::new();
