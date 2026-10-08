@@ -3,10 +3,14 @@ import type { ContentEntry } from './content-archive.js'
 import type { Database, Statement } from './database.js'
 import { isResourceName } from './unreal-resource.js'
 
-// test-postgres-architecture.ts pins the independent Unreal and Diesel extraction policies.
+// test-postgres-architecture.ts pins the published extraction policy identities.
 export const MARKER_EXTRACTION_POLICY = 'markers-v4-content-v1'
 export const UNREAL_EXTRACTION_POLICY = 'unreal-content-v1-resources-v1'
-export type ExtractionPolicy = typeof MARKER_EXTRACTION_POLICY | typeof UNREAL_EXTRACTION_POLICY
+export type ExtractionPolicy =
+    | typeof MARKER_EXTRACTION_POLICY
+    | typeof UNREAL_EXTRACTION_POLICY
+    | 'content-v1'
+    | `${typeof MARKER_EXTRACTION_POLICY | 'content-v1'}-resources-${'movie' | 'config' | 'movie-config'}-v1`
 const revalidateMs = 7 * 24 * 60 * 60 * 1000
 
 export interface Listing {
@@ -75,7 +79,11 @@ function metadataFingerprint(input: DownloadableInput): string {
         isResourceName(input.objectKey ?? '')
     // Only loose resources take their entry name from the hosted filename.
     const naming =
-        input.policy === UNREAL_EXTRACTION_POLICY && input.kind === 'file' && resource && !archive
+        input.policy !== MARKER_EXTRACTION_POLICY &&
+        input.policy !== 'content-v1' &&
+        input.kind === 'file' &&
+        resource &&
+        !archive
             ? { sourceFilename: input.sourceFilename }
             : {}
     return fingerprint({
