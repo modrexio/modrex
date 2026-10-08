@@ -150,6 +150,17 @@ fn ipc_builder() -> tauri_specta::Builder<tauri::Wry> {
 }
 
 pub fn run() {
+    #[cfg(target_os = "linux")]
+    if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none()
+        && std::env::var_os("WEBKIT_DMABUF_RENDERER_FORCE_SHM").is_none()
+    {
+        // Shared memory avoids hardware buffer transport failures while retaining compositing.
+        // Set the environment before startup creates worker threads.
+        unsafe {
+            std::env::set_var("WEBKIT_DMABUF_RENDERER_FORCE_SHM", "1");
+        }
+    }
+
     std::panic::set_hook(Box::new(|panic_info| {
         log::error!("PANIC: {panic_info}");
     }));
@@ -157,12 +168,6 @@ pub fn run() {
     rustls::crypto::ring::default_provider()
         .install_default()
         .expect("install rustls crypto provider");
-
-    #[cfg(target_os = "linux")]
-    // WebKit's DMA-BUF renderer breaks under XWayland and some Wayland compositors
-    unsafe {
-        std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
-    }
 
     let (discord_state, discord_rx) = commands::discord::DiscordState::new(true);
 
