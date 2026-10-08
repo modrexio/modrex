@@ -17,7 +17,9 @@ use super::resource_state::{
 };
 use super::types::{InstalledMod, ResourceDeployment, ResourceStatus, UpdateStatus};
 use super::zip::{extract_entry_at_budget, safe_dest, ResourceArchive, ZipMultiPakPayload};
+use crate::commands::games::game_spec;
 use crate::commands::settings::{game_settings, read_settings};
+use crate::game_package::ConfigPresets;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -276,9 +278,6 @@ async fn blocking<T: Send + 'static>(
 /// Launch preflight: interrupted resource operations must finish or fail visibly, and every
 /// current deployment must still reach its recovery data.
 pub(crate) async fn launch_preflight(app: &AppHandle, game_id: &str) -> Result<(), String> {
-    if !movies::supports_movies(game_id) {
-        return Ok(());
-    }
     let store = ResourceStore::for_app(app)?;
     let _guard = locks(app).acquire().await;
     let (s, id) = (store.clone(), game_id.to_string());
@@ -301,17 +300,35 @@ pub(crate) async fn launch_preflight(app: &AppHandle, game_id: &str) -> Result<(
 // Engine.ini destinations
 // ---------------------------------------------------------------------------------------
 
-/// The one Engine.ini location with primary evidence: PAYDAY 3 on Windows Steam, from
-/// ModWorkshop's PAYDAY 3 integration. Every other combination needs the user to pick it.
+fn config_presets(game_id: &str) -> Result<&'static ConfigPresets, String> {
+    game_spec(game_id)
+        .ok_or_else(|| format!("unknown game id '{game_id}'"))?
+        .config_presets
+        .ok_or_else(|| format!("Engine.ini presets are not supported for '{game_id}'"))
+}
+
+/// Only package-declared locations identify an active config automatically.
 fn verified_engine_ini(game_id: &str, launcher: Option<&str>) -> Result<Option<PathBuf>, String> {
+    let ConfigPresets::UnrealEngineIni { locations } = config_presets(game_id)?;
     #[cfg(windows)]
     {
-        if game_id == "pd3" && launcher == Some("steam") {
-            return local_app_data()
-                .map(|dir| Some(dir.join("PAYDAY3/Saved/Config/WindowsClient/Engine.ini")));
+        use crate::game_package::ConfigLocation;
+        if let Some(ConfigLocation::WindowsLocalAppData { path, .. }) =
+            locations.iter().find(|location| match location {
+                ConfigLocation::WindowsLocalAppData { store, .. } => {
+                    launcher == Some(store.provider())
+                }
+            })
+        {
+            return local_app_data().map(|root| {
+                Some(
+                    path.iter()
+                        .fold(root, |directory, component| directory.join(component)),
+                )
+            });
         }
     }
-    let _ = (game_id, launcher);
+    let _ = (locations, launcher);
     Ok(None)
 }
 
@@ -440,6 +457,7 @@ fn engine_ini_destination(
     app: &AppHandle,
     ctx: &InstallContext,
 ) -> Result<Option<IniDestination>, String> {
+    config_presets(&ctx.game_id)?;
     let picked = app
         .state::<IniLocations>()
         .0
@@ -562,6 +580,7 @@ pub(crate) async fn pick_engine_ini(
     folder: bool,
 ) -> Result<Option<String>, String> {
     use tauri_plugin_dialog::DialogExt;
+    config_presets(game_id)?;
     let ctx = current_context(app, game_id)?;
     let dialog_app = app.clone();
     let picked = blocking(move || {
@@ -689,6 +708,7 @@ fn assess(
     name: &str,
     staged: Option<&Path>,
     movies: &Result<Vec<String>, String>,
+    config: Option<&ConfigPresets>,
 ) -> (ResourceEntryKind, Result<(), String>) {
     let ext = extension_of(name);
     if name.ends_with('/') {
@@ -717,6 +737,9 @@ fn assess(
             .as_ref()
             .map_err(Clone::clone)
             .and_then(|_| movies::validate_bink(staged.expect("movies are staged")).map(|_| ())),
+        ResourceEntryKind::Ini if config.is_none() => {
+            Err("Engine.ini presets are not supported for this game".into())
+        }
         ResourceEntryKind::Ini => {
             preset_assignments(name, staged.expect("INIs are staged")).map(|_| ())
         }
@@ -828,6 +851,8 @@ fn build_review(
     source_name: &str,
     staging_dir: &Path,
 ) -> Result<BuiltReview, String> {
+    let spec =
+        game_spec(&ctx.game_id).ok_or_else(|| format!("unknown game id '{}'", ctx.game_id))?;
     let launcher = ctx.launcher.as_deref();
     let slots = movies::movies_dir(&ctx.game_id, &ctx.game_path, launcher)
         .and_then(|dir| movies::slot_inventory(&ctx.game_id, &dir, launcher));
@@ -885,7 +910,12 @@ fn build_review(
         } else {
             name.clone()
         };
-        let (kind, verdict) = assess(&assessment_name, staged.as_deref(), &slots);
+        let (kind, verdict) = assess(
+            &assessment_name,
+            staged.as_deref(),
+            &slots,
+            spec.config_presets,
+        );
         let supported = verdict.is_ok();
         entries.push(StagedResource {
             entry: ResourceReviewEntry {
@@ -2096,10 +2126,15 @@ pub(crate) fn installed_rows(
     game_id: &str,
     game_path: &str,
 ) -> Result<(Vec<InstalledMod>, Option<String>, bool), String> {
-    if !movies::supports_movies(game_id) {
-        return Ok((Vec::new(), None, false));
-    }
     let store = ResourceStore::for_app(app)?;
+    installed_rows_for(&store, game_id, game_path)
+}
+
+fn installed_rows_for(
+    store: &ResourceStore,
+    game_id: &str,
+    game_path: &str,
+) -> Result<(Vec<InstalledMod>, Option<String>, bool), String> {
     let manifest = store.load_manifest()?;
     let mut rows = Vec::new();
     let mut errors = Vec::new();

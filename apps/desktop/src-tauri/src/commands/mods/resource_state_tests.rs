@@ -1,6 +1,150 @@
 use super::*;
 
 #[test]
+fn an_unrelated_pending_journal_allows_launch_but_blocks_resource_writes() {
+    let temp = tempfile::tempdir().unwrap();
+    let store = ResourceStore::at(temp.path().join("recovery"));
+    let path = temp.path().canonicalize().unwrap().join("Engine.ini");
+    fs::write(&path, b"previous config").unwrap();
+    let before = store.capture(&path).unwrap();
+    let after = store.put_bytes(b"managed config").unwrap();
+    let step = Step {
+        destination: path.clone(),
+        before,
+        after,
+    };
+    let journal = Journal {
+        version: 1,
+        id: "other-game".into(),
+        game_id: "cb".into(),
+        revision_after: 1,
+        steps: vec![step.clone()],
+        decision: RecoveryDecision::Rollback,
+    };
+    write_atomic(
+        &store.journal_dir().join("other-game.json"),
+        &serde_json::to_vec(&journal).unwrap(),
+    )
+    .unwrap();
+    store.commit_step(&step).unwrap();
+
+    store.preflight("pd2").unwrap();
+    assert!(store.has_pending("cb").unwrap());
+    assert_eq!(fs::read(&path).unwrap(), b"managed config");
+    assert!(store.apply("pd2", vec![], |_| {}).is_err());
+}
+
+#[test]
+fn another_games_pending_journal_still_blocks_launch_for_a_shared_config() {
+    let temp = tempfile::tempdir().unwrap();
+    let store = ResourceStore::at(temp.path().join("recovery"));
+    let path = temp.path().canonicalize().unwrap().join("Engine.ini");
+    fs::write(&path, b"previous config").unwrap();
+    let before = store.capture(&path).unwrap();
+    let after = store.put_bytes(b"managed config").unwrap();
+    let Content::Present { sha256, size } = after.clone() else {
+        unreachable!()
+    };
+    let mut manifest = store.load_manifest().unwrap();
+    manifest.deployments.push(Deployment {
+        id: "shared-preset".into(),
+        game_id: "pd2".into(),
+        game_path: temp.path().to_string_lossy().into(),
+        canonical_game_path: temp.path().canonicalize().unwrap().to_string_lossy().into(),
+        launcher: Some("steam".into()),
+        name: "Shared settings".into(),
+        version: "1".into(),
+        source: None,
+        remote_id: None,
+        file_id: None,
+        installed_at: "t".into(),
+        enabled: true,
+        body: DeploymentBody::Ini {
+            preset: IniPreset {
+                config_path: path.to_string_lossy().into(),
+                source_entry: "Engine.ini".into(),
+                source_sha256: sha256,
+                source_size: size,
+                created_file: false,
+                changes: vec![],
+                created_sections: vec![],
+            },
+        },
+    });
+    store.save_manifest(&manifest).unwrap();
+    let step = Step {
+        destination: path.clone(),
+        before,
+        after,
+    };
+    let journal = Journal {
+        version: 1,
+        id: "shared-config".into(),
+        game_id: "cb".into(),
+        revision_after: 1,
+        steps: vec![step.clone()],
+        decision: RecoveryDecision::Rollback,
+    };
+    write_atomic(
+        &store.journal_dir().join("shared-config.json"),
+        &serde_json::to_vec(&journal).unwrap(),
+    )
+    .unwrap();
+    store.commit_step(&step).unwrap();
+    assert!(store
+        .preflight("pd2")
+        .unwrap_err()
+        .contains("files this game uses"));
+    assert!(store.has_pending("cb").unwrap());
+    assert_eq!(fs::read(&path).unwrap(), b"managed config");
+}
+
+#[test]
+fn a_corrupt_shared_manifest_cannot_prove_a_game_has_no_managed_resources() {
+    let temp = tempfile::tempdir().unwrap();
+    let store = ResourceStore::at(temp.path().join("recovery"));
+    store.initialize().unwrap();
+    fs::write(store.manifest_path(), b"{").unwrap();
+    assert!(store
+        .preflight("pd2")
+        .unwrap_err()
+        .contains("manifest is corrupt"));
+    assert_eq!(fs::read(store.manifest_path()).unwrap(), b"{");
+}
+
+#[test]
+fn launch_recovers_a_saved_config_journal_without_movie_install_support() {
+    let temp = tempfile::tempdir().unwrap();
+    let store = ResourceStore::at(temp.path().join("recovery"));
+    let path = temp.path().canonicalize().unwrap().join("Engine.ini");
+    fs::write(&path, b"previous config").unwrap();
+    let before = store.capture(&path).unwrap();
+    let after = store.put_bytes(b"managed config").unwrap();
+    let step = Step {
+        destination: path.clone(),
+        before: before.clone(),
+        after,
+    };
+    let journal = Journal {
+        version: 1,
+        id: "config-only".into(),
+        game_id: "pd2".into(),
+        revision_after: 1,
+        steps: vec![step.clone()],
+        decision: RecoveryDecision::Rollback,
+    };
+    write_atomic(
+        &store.journal_dir().join("config-only.json"),
+        &serde_json::to_vec(&journal).unwrap(),
+    )
+    .unwrap();
+    store.commit_step(&step).unwrap();
+    store.preflight("pd2").unwrap();
+    assert_eq!(live_content(&path).unwrap(), before);
+    assert!(!store.has_pending("pd2").unwrap());
+}
+
+#[test]
 fn staging_rejects_a_same_size_object_change_before_replacing_the_live_file() {
     let temp = tempfile::tempdir().unwrap();
     let store = ResourceStore::at(temp.path().join("recovery"));

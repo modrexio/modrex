@@ -1,5 +1,70 @@
 use super::*;
+use crate::game_package::{MovieSlots, Storefront};
 use std::fs;
+
+fn declared_movies() -> MovieReplacement {
+    MovieReplacement::Bink {
+        directory: vec!["Media".into()],
+        storefronts: vec![Storefront::Steam],
+        absent_slots: vec![MovieSlots {
+            store: Storefront::Steam,
+            filenames: vec!["MissingIntro.bk2".into()],
+        }],
+    }
+}
+
+#[test]
+fn movie_destinations_and_store_permissions_follow_the_declaration() {
+    let temp = tempfile::tempdir().unwrap();
+    let directory = temp.path().join("Media");
+    fs::create_dir(&directory).unwrap();
+    let definition = declared_movies();
+    for launcher in [Some("steam"), Some("manual"), None] {
+        assert_eq!(
+            movies_dir_for(&definition, temp.path().to_str().unwrap(), launcher).unwrap(),
+            directory.canonicalize().unwrap()
+        );
+    }
+    for launcher in ["epic", "xbox"] {
+        assert!(
+            movies_dir_for(&definition, temp.path().to_str().unwrap(), Some(launcher))
+                .unwrap_err()
+                .contains("not verified")
+        );
+    }
+}
+
+#[test]
+fn absent_movie_slots_are_authorized_only_for_the_declared_store() {
+    let temp = tempfile::tempdir().unwrap();
+    fs::write(temp.path().join("Existing.bk2"), b"on disk").unwrap();
+    let definition = declared_movies();
+    assert_eq!(
+        slot_inventory_for(&definition, temp.path(), Some("steam")).unwrap(),
+        ["Existing.bk2", "MissingIntro.bk2"]
+    );
+    for launcher in [Some("epic"), Some("manual"), None] {
+        assert_eq!(
+            slot_inventory_for(&definition, temp.path(), launcher).unwrap(),
+            ["Existing.bk2"]
+        );
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn declared_movie_directory_cannot_link_outside_the_installation() {
+    let install = tempfile::tempdir().unwrap();
+    let outside = tempfile::tempdir().unwrap();
+    std::os::unix::fs::symlink(outside.path(), install.path().join("Media")).unwrap();
+    assert!(movies_dir_for(
+        &declared_movies(),
+        install.path().to_str().unwrap(),
+        Some("steam")
+    )
+    .unwrap_err()
+    .contains("outside the game folder"));
+}
 
 #[cfg(unix)]
 #[test]

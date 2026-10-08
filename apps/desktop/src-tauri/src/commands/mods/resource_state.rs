@@ -816,10 +816,38 @@ impl ResourceStore {
     /// Resolves interrupted writes and checks recovery data used by current deployments.
     pub(crate) fn preflight(&self, game_id: &str) -> Result<(), String> {
         self.recover(game_id)?;
-        if !self.pending_journals()?.is_empty() {
-            return Err("Another game has pending resource recovery. Resolve it before launching or changing resources.".into());
-        }
         let manifest = self.load_manifest()?;
+        let destinations = overlapping_paths(
+            &manifest,
+            &manifest
+                .deployments
+                .iter()
+                .filter(|deployment| deployment.game_id == game_id)
+                .flat_map(deployment_paths)
+                .chain(
+                    manifest
+                        .movie_baselines
+                        .iter()
+                        .filter(|baseline| baseline.game_id == game_id)
+                        .map(|baseline| PathBuf::from(&baseline.destination)),
+                )
+                .collect::<Vec<_>>(),
+        );
+        let shared_pending =
+            self.pending_journals()?
+                .iter()
+                .any(|(_, journal)| match &journal.decision {
+                    RecoveryDecision::Rollback => journal
+                        .steps
+                        .iter()
+                        .any(|step| destinations.contains(&step.destination)),
+                    RecoveryDecision::KeepCurrent { paths } => {
+                        paths.iter().any(|path| destinations.contains(path))
+                    }
+                });
+        if shared_pending {
+            return Err("Another game has pending resource recovery for files this game uses. Resolve it before launching.".into());
+        }
         for d in manifest.deployments.iter().filter(|d| d.game_id == game_id) {
             match &d.body {
                 DeploymentBody::Movie { slots } => {

@@ -2,6 +2,54 @@ use super::*;
 use std::fs;
 
 #[test]
+fn config_presets_can_be_reviewed_without_movie_support() {
+    let temp = tempfile::tempdir().unwrap();
+    let path = temp.path().join("Engine.ini");
+    fs::write(&path, b"[S]\nA=1\n").unwrap();
+    let config = ConfigPresets::UnrealEngineIni { locations: vec![] };
+    let no_movies = Err("Movie replacements are not supported".into());
+    let (kind, verdict) = assess("Engine.ini", Some(&path), &no_movies, Some(&config));
+    assert!(matches!(kind, ResourceEntryKind::Ini));
+    assert!(verdict.is_ok());
+    assert!(assess(
+        "Engine.ini",
+        Some(&path),
+        &Ok(vec!["Intro.bk2".into()]),
+        None
+    )
+    .1
+    .unwrap_err()
+    .contains("not supported"));
+}
+
+#[test]
+fn undeclared_configs_and_unknown_games_cannot_choose_a_config_location() {
+    assert!(config_presets("pd2").unwrap_err().contains("not supported"));
+    assert!(config_presets("not-a-game")
+        .unwrap_err()
+        .contains("unknown game"));
+}
+
+#[test]
+fn saved_resource_rows_remain_visible_without_movie_install_support() {
+    let temp = tempfile::tempdir().unwrap();
+    let store = ResourceStore::at(temp.path().join("recovery"));
+    let path = temp.path().join("Engine.ini");
+    fs::write(&path, b"[S]\nA=1\n").unwrap();
+    let mut deployment = preset(&store, &path, b"[S]\nA=1\n");
+    deployment.game_id = "pd2".into();
+    let mut manifest = store.load_manifest().unwrap();
+    manifest.deployments.push(deployment);
+    store.save_manifest(&manifest).unwrap();
+    let (rows, error, pending) =
+        installed_rows_for(&store, "pd2", temp.path().to_str().unwrap()).unwrap();
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].filename, "Engine.ini");
+    assert!(error.is_none());
+    assert!(!pending);
+}
+
+#[test]
 fn configuration_location_checks_do_not_create_a_missing_file_or_parent() {
     let temp = tempfile::tempdir().unwrap();
     let path = temp.path().join("not-created/Engine.ini");

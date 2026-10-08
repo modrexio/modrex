@@ -1,52 +1,25 @@
-//! Bink movie replacement for PAYDAY 3 and Crime Boss.
+//! Bink movie replacement using the destinations a game package declares.
 //!
-//! A movie slot is a file the game itself plays from its Content/Movies folder, so the only
-//! destinations offered are files that folder really holds, plus the slots published intro
-//! packs were verified to replace on the one store where that was verified. Archive entry
-//! names are source identities and never decide a destination. The user maps each payload.
+//! Destinations are files the declared directory holds, plus absent slots authorized for the
+//! selected store. Archive entry names identify payloads and never decide a destination.
+//! The user maps each payload.
 
 use super::resource_state::{
     live_content, Content, Deployment, DeploymentBody, Manifest, MovieBaseline, MovieSlot,
     ResourceStore, Step,
 };
+use crate::commands::games::game_spec;
+use crate::game_package::MovieReplacement;
 use std::collections::HashSet;
 use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
-// Paths verified by modworkshop.net/mod/47773 and ModWorkshop's game_payday3.py integration.
-fn movies_subpath(game_id: &str) -> Option<&'static str> {
-    match game_id {
-        "pd3" => Some("PAYDAY3/Content/Movies"),
-        "cb" => Some("CrimeBoss/Content/Movies"),
-        _ => None,
-    }
-}
-
-/// Slots published packs replace, from the downloaded PAYDAY 3 Skip Startup and Crime Boss
-/// Skip Intro archives and the PAYDAY 3 replacement movie's instructions. Offered when absent
-/// only on Steam, the one store those instructions were written against.
-fn author_verified_slots(game_id: &str) -> &'static [&'static str] {
-    match game_id {
-        "pd3" => &[
-            "StartUp_Unreal.bk2",
-            "StartUp_DeepSilver.bk2",
-            "StartUp_SBZ.bk2",
-            "BG_LoginVideo_01.bk2",
-        ],
-        "cb" => &[
-            "ARC_25FPS.bk2",
-            "cs_splash_505_igs_crimeboss.bk2",
-            "logo_arc_4k_60fps.bk2",
-            "UE4_Logo.bk2",
-        ],
-        _ => &[],
-    }
-}
-
-/// Whether resources are routed for this game at all.
-pub(crate) fn supports_movies(game_id: &str) -> bool {
-    movies_subpath(game_id).is_some()
+fn replacement(game_id: &str) -> Result<&'static MovieReplacement, String> {
+    game_spec(game_id)
+        .ok_or_else(|| format!("unknown game id '{game_id}'"))?
+        .movie_replacement
+        .ok_or_else(|| format!("movie replacement is not supported for '{game_id}'"))
 }
 
 /// The canonical Movies folder of the selected install.
@@ -59,18 +32,37 @@ pub(crate) fn movies_dir(
     game_path: &str,
     launcher: Option<&str>,
 ) -> Result<PathBuf, String> {
-    let sub = movies_subpath(game_id)
-        .ok_or_else(|| format!("movie replacement is not supported for '{game_id}'"))?;
-    if launcher == Some("xbox") {
-        return Err(
-            "movie replacement is not verified for Microsoft Store installs yet".to_string(),
-        );
+    movies_dir_for(replacement(game_id)?, game_path, launcher)
+}
+
+fn movies_dir_for(
+    replacement: &MovieReplacement,
+    game_path: &str,
+    launcher: Option<&str>,
+) -> Result<PathBuf, String> {
+    let MovieReplacement::Bink {
+        directory,
+        storefronts,
+        ..
+    } = replacement;
+    if let Some(store) =
+        launcher.filter(|store| crate::commands::launchers::is_store_launcher(store))
+    {
+        if !storefronts
+            .iter()
+            .any(|allowed| allowed.provider() == store)
+        {
+            return Err(format!(
+                "movie replacement is not verified for {store} installs yet"
+            ));
+        }
     }
+    let sub = directory.join("/");
     let root = Path::new(game_path)
         .canonicalize()
         .map_err(|e| format!("the game folder could not be resolved: {e}"))?;
     let dir = root
-        .join(sub)
+        .join(&sub)
         .canonicalize()
         .map_err(|_| format!("this install has no {sub} folder"))?;
     if !dir.starts_with(&root) {
@@ -84,6 +76,14 @@ pub(crate) fn movies_dir(
 /// The slots this install offers, sorted.
 pub(crate) fn slot_inventory(
     game_id: &str,
+    dir: &Path,
+    launcher: Option<&str>,
+) -> Result<Vec<String>, String> {
+    slot_inventory_for(replacement(game_id)?, dir, launcher)
+}
+
+fn slot_inventory_for(
+    replacement: &MovieReplacement,
     dir: &Path,
     launcher: Option<&str>,
 ) -> Result<Vec<String>, String> {
@@ -102,10 +102,14 @@ pub(crate) fn slot_inventory(
             slots.push(name);
         }
     }
-    if launcher == Some("steam") {
-        for slot in author_verified_slots(game_id) {
+    let MovieReplacement::Bink { absent_slots, .. } = replacement;
+    for verified in absent_slots
+        .iter()
+        .filter(|slots| launcher == Some(slots.store.provider()))
+    {
+        for slot in &verified.filenames {
             if !slots.iter().any(|s| s.eq_ignore_ascii_case(slot)) {
-                slots.push((*slot).to_string());
+                slots.push(slot.clone());
             }
         }
     }

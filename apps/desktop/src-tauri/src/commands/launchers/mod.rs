@@ -359,7 +359,7 @@ enum Resolution {
     Settle,
 }
 
-fn is_store_launcher(id: &str) -> bool {
+pub(crate) fn is_store_launcher(id: &str) -> bool {
     all_launchers().iter().any(|launcher| launcher.id() == id)
 }
 

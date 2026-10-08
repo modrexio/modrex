@@ -1386,7 +1386,25 @@ fn detect_resources(
     cfg: &ModEngineConfig,
     registry: &StagingRegistry,
 ) -> Result<Option<ResourceArchive>, ResolveError> {
-    if !super::movies::supports_movies(cfg.game_id) {
+    let spec = crate::commands::games::game_spec(cfg.game_id)
+        .ok_or_else(|| ResolveError::Failure(format!("unknown game id '{}'", cfg.game_id)))?;
+    detect_resource_download(
+        downloaded,
+        cfg,
+        registry,
+        spec.movie_replacement,
+        spec.config_presets,
+    )
+}
+
+fn detect_resource_download(
+    downloaded: &Path,
+    cfg: &ModEngineConfig,
+    registry: &StagingRegistry,
+    movies: Option<&crate::game_package::MovieReplacement>,
+    config: Option<&crate::game_package::ConfigPresets>,
+) -> Result<Option<ResourceArchive>, ResolveError> {
+    if movies.is_none() && config.is_none() {
         if detect_archive(downloaded).is_none()
             && downloaded.extension().is_some_and(|extension| {
                 extension.eq_ignore_ascii_case("bk2") || extension.eq_ignore_ascii_case("ini")
@@ -1399,14 +1417,24 @@ fn detect_resources(
         }
         return Ok(None);
     }
-    let is_resource = |name: &str| {
-        let ext = Path::new(name)
-            .extension()
-            .and_then(|e| e.to_str())
-            .unwrap_or("");
-        ext.eq_ignore_ascii_case("bk2") || ext.eq_ignore_ascii_case("ini")
-    };
     if detect_archive(downloaded).is_none() {
+        let ext = downloaded
+            .extension()
+            .and_then(|value| value.to_str())
+            .unwrap_or("");
+        if (ext.eq_ignore_ascii_case("bk2") && movies.is_none())
+            || (ext.eq_ignore_ascii_case("ini") && config.is_none())
+        {
+            return Err(ResolveError::Failure(format!(
+                "{} are not supported for {}",
+                if ext.eq_ignore_ascii_case("ini") {
+                    "Standalone INI presets"
+                } else {
+                    "Movie replacements"
+                },
+                cfg.game_id
+            )));
+        }
         if downloaded
             .extension()
             .is_some_and(|extension| extension.eq_ignore_ascii_case("bak2"))
@@ -1415,7 +1443,10 @@ fn detect_resources(
                 ".bak2 is not a supported movie extension".into(),
             ));
         }
-        if !is_resource(&downloaded.to_string_lossy()) {
+        let is_resource = movies
+            .is_some_and(|binding| ext.eq_ignore_ascii_case(binding.extension()))
+            || (config.is_some() && ext.eq_ignore_ascii_case("ini"));
+        if !is_resource {
             return Ok(None);
         }
         return Ok(Some(ResourceArchive {
@@ -1468,7 +1499,11 @@ fn detect_resources(
     // carries, and must not divert those archives from their own routing.
     let starts_review = |name: &str| {
         let file = entry_file_name(name);
-        super::movies::is_bk2_name(file) || file.eq_ignore_ascii_case("Engine.ini")
+        movies.is_some_and(|binding| {
+            Path::new(file)
+                .extension()
+                .is_some_and(|extension| extension.eq_ignore_ascii_case(binding.extension()))
+        }) || config.is_some_and(|binding| file.eq_ignore_ascii_case(binding.filename()))
     };
     if !files.iter().any(|(_, n)| starts_review(n) && !in_submod(n)) {
         return Ok(None);
@@ -2167,3 +2202,7 @@ pub fn mark_archive_files(
     }
     (mods, any_checked)
 }
+
+#[cfg(test)]
+#[path = "zip_resource_tests.rs"]
+mod resource_tests;
