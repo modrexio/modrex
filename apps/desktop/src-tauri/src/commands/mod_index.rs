@@ -3,36 +3,6 @@ use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Manager};
 
-#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, specta::Type)]
-#[serde(rename_all = "camelCase")]
-pub enum ResourceKind {
-    Movie,
-    Config,
-}
-
-impl ResourceKind {
-    fn catalog_value(self) -> &'static str {
-        match self {
-            Self::Movie => "movie",
-            Self::Config => "config",
-        }
-    }
-}
-
-#[derive(Debug, Clone, serde::Serialize, specta::Type)]
-#[serde(rename_all = "camelCase")]
-pub struct ResourceCatalogEntry {
-    pub observation_id: i64,
-    pub download_kind: String,
-    pub download_remote_id: i64,
-    pub version: String,
-    pub source_filename: String,
-    pub entry_name: String,
-    pub byte_length: i64,
-    pub detected_format: String,
-    pub validation_status: String,
-}
-
 #[derive(Debug, Clone, serde::Serialize, specta::Type)]
 #[serde(
     tag = "status",
@@ -47,7 +17,6 @@ pub enum ResourceRecognition {
         source: String,
         mod_remote_id: i64,
         mod_name: String,
-        entries: Vec<ResourceCatalogEntry>,
     },
 }
 
@@ -60,54 +29,37 @@ fn resource_table_present(conn: &rusqlite::Connection) -> Result<bool, String> {
     .map_err(|error| format!("Cannot inspect resource catalog schema: {error}"))
 }
 
-pub(crate) fn query_resource_hash(
+fn query_movie_hash(
     conn: &rusqlite::Connection,
     sha256: &str,
     game_name: &str,
-    kind: ResourceKind,
 ) -> Result<ResourceRecognition, String> {
     if !resource_table_present(conn)? {
         return Ok(ResourceRecognition::Unavailable);
     }
     let mut statement = conn
         .prepare(
-            "SELECT s.name, m.remote_id, m.name, r.observation_id,
-                r.download_kind, r.download_remote_id, r.version, r.source_filename,
-                r.entry_name, r.byte_length, r.detected_format, r.validation_status
+            "SELECT DISTINCT s.name, m.remote_id, m.name
          FROM resource_entries r
          JOIN mods m ON m.id=r.mod_id
          JOIN sources s ON s.id=m.source_id
          JOIN games g ON g.id=s.game_id
-         WHERE r.sha256=?1 AND g.name=?2 AND r.resource_kind=?3
-         ORDER BY s.id, m.remote_id, r.observation_id, r.entry_name",
+         WHERE r.sha256=?1 AND g.name=?2 AND r.resource_kind='movie'
+         ORDER BY s.name, m.remote_id",
         )
         .map_err(|error| format!("Cannot read resource catalog: {error}"))?;
     let rows = statement
-        .query_map(
-            rusqlite::params![sha256, game_name, kind.catalog_value()],
-            |row| {
-                Ok((
-                    row.get::<_, String>(0)?,
-                    row.get::<_, i64>(1)?,
-                    row.get::<_, String>(2)?,
-                    ResourceCatalogEntry {
-                        observation_id: row.get(3)?,
-                        download_kind: row.get(4)?,
-                        download_remote_id: row.get(5)?,
-                        version: row.get(6)?,
-                        source_filename: row.get(7)?,
-                        entry_name: row.get(8)?,
-                        byte_length: row.get(9)?,
-                        detected_format: row.get(10)?,
-                        validation_status: row.get(11)?,
-                    },
-                ))
-            },
-        )
+        .query_map(rusqlite::params![sha256, game_name], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, i64>(1)?,
+                row.get::<_, String>(2)?,
+            ))
+        })
         .map_err(|error| format!("Cannot query resource hash: {error}"))?
         .collect::<Result<Vec<_>, _>>()
         .map_err(|error| format!("Invalid resource catalog row: {error}"))?;
-    let Some((source, remote_id, name, _)) = rows.first() else {
+    let Some((source, remote_id, name)) = rows.first() else {
         return Ok(ResourceRecognition::NoMatch);
     };
     if rows
@@ -120,7 +72,6 @@ pub(crate) fn query_resource_hash(
         source: source.clone(),
         mod_remote_id: *remote_id,
         mod_name: name.clone(),
-        entries: rows.into_iter().map(|row| row.3).collect(),
     })
 }
 
@@ -143,33 +94,6 @@ fn open_resource_index(
         .map_err(|error| format!("Cannot open resource index: {error}"));
     }
     Ok(None)
-}
-
-#[tauri::command]
-#[specta::specta]
-pub async fn recognize_resource_hash(
-    app: AppHandle,
-    game_id: String,
-    sha256: String,
-    kind: ResourceKind,
-) -> Result<ResourceRecognition, String> {
-    let cfg = crate::commands::mods::engine_for_game(&game_id)?;
-    if sha256.len() != 64 || !sha256.bytes().all(|byte| byte.is_ascii_hexdigit()) {
-        return Err("Resource recognition requires a SHA256 digest.".into());
-    }
-    tauri::async_runtime::spawn_blocking(move || {
-        let Some(conn) = open_resource_index(&app, &game_id)? else {
-            return Ok(ResourceRecognition::Unavailable);
-        };
-        query_resource_hash(
-            &conn,
-            &sha256.to_ascii_lowercase(),
-            cfg.index_game_name,
-            kind,
-        )
-    })
-    .await
-    .map_err(|error| format!("Resource recognition failed: {error}"))?
 }
 
 #[derive(serde::Serialize, specta::Type)]
@@ -205,8 +129,13 @@ pub async fn inspect_movie_resources(
         let movies_root =
             crate::commands::mods::movies::movies_dir(&game_id, &install, launcher.as_deref())?;
         let conn = open_resource_index(&app, &game_id)?;
+        let available = conn
+            .as_ref()
+            .map(resource_table_present)
+            .transpose()?
+            .unwrap_or(false);
         let sizes = match &conn {
-            Some(conn) if resource_table_present(conn)? => {
+            Some(conn) if available => {
                 let mut statement = conn
                     .prepare(
                         "SELECT DISTINCT r.byte_length FROM resource_entries r
@@ -226,11 +155,6 @@ pub async fn inspect_movie_resources(
             }
             _ => HashSet::new(),
         };
-        let available = conn
-            .as_ref()
-            .map(resource_table_present)
-            .transpose()?
-            .unwrap_or(false);
         let mut paths = std::fs::read_dir(&movies_root)
             .map_err(|error| format!("Cannot list game movies: {error}"))?
             .map(|entry| entry.map(|entry| entry.path()))
@@ -271,9 +195,7 @@ pub async fn inspect_movie_resources(
                 None
             };
             let recognition = match (&conn, &hash) {
-                (Some(conn), Some(hash)) => {
-                    query_resource_hash(conn, hash, cfg.index_game_name, ResourceKind::Movie)?
-                }
+                (Some(conn), Some(hash)) => query_movie_hash(conn, hash, cfg.index_game_name)?,
                 _ if !available => ResourceRecognition::Unavailable,
                 _ => ResourceRecognition::NoMatch,
             };

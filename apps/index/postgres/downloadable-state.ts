@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import type { ContentEntry } from './content-archive.js'
 import type { Database, Statement } from './database.js'
+import { isResourceName } from './unreal-resource.js'
 
 // test-postgres-architecture.ts pins the independent Unreal and Diesel extraction policies.
 export const MARKER_EXTRACTION_POLICY = 'markers-v4-content-v1'
@@ -53,10 +54,28 @@ function metadataFingerprint(input: DownloadableInput): string {
         input.kind === 'file'
             ? { objectKey: input.objectKey, size: input.size, mediaType: input.mediaType }
             : { url: input.url, version: input.version }
-    // The Unreal path names a loose movie or config by its hosted filename, so a rename changes
-    // the entries that download yields.
+    const type = input.mediaType?.toLowerCase() ?? ''
+    const archive =
+        [
+            'zip',
+            '7z',
+            'rar',
+            'application/zip',
+            'application/x-7z-compressed',
+            'application/x-rar-compressed',
+            'application/vnd.rar',
+        ].includes(type) ||
+        ['.zip', '.7z', '.rar'].some((extension) =>
+            input.objectKey?.toLowerCase().endsWith(extension)
+        )
+    const resource =
+        type === 'bk2' ||
+        type === 'ini' ||
+        isResourceName(input.sourceFilename ?? '') ||
+        isResourceName(input.objectKey ?? '')
+    // Only loose resources take their entry name from the hosted filename.
     const naming =
-        input.policy === UNREAL_EXTRACTION_POLICY && input.kind === 'file'
+        input.policy === UNREAL_EXTRACTION_POLICY && input.kind === 'file' && resource && !archive
             ? { sourceFilename: input.sourceFilename }
             : {}
     return fingerprint({
@@ -175,11 +194,9 @@ export async function recordHostedVersion(
             LIMIT 1
          )
          INSERT INTO downloadable_entries (
-            observation_id, sha256, entry_name,
-            resource_kind, byte_length, detected_format, validation_status
+            observation_id, sha256, entry_name, resource_kind, byte_length
          )
-         SELECT target.id, entry.sha256, entry.entry_name,
-            entry.resource_kind, entry.byte_length, entry.detected_format, entry.validation_status
+         SELECT target.id, entry.sha256, entry.entry_name, entry.resource_kind, entry.byte_length
          FROM target CROSS JOIN source_observation source
          JOIN downloadable_entries entry ON entry.observation_id=source.id
          ON CONFLICT DO NOTHING`,
@@ -200,8 +217,6 @@ function entryRecords(entries: ContentEntry[]): string {
             entry_name: entry.entryName,
             resource_kind: entry.resource?.kind ?? null,
             byte_length: entry.resource?.byteLength ?? null,
-            detected_format: entry.resource?.detectedFormat ?? null,
-            validation_status: entry.resource?.validationStatus ?? null,
         }))
     )
 }
@@ -299,16 +314,13 @@ export async function settleDownloadable(
         },
         {
             text: `INSERT INTO downloadable_entries (
-                    observation_id, sha256, entry_name,
-                    resource_kind, byte_length, detected_format, validation_status
+                    observation_id, sha256, entry_name, resource_kind, byte_length
                  )
                  SELECT observation.id, entry.sha256, entry.entry_name,
-                    entry.resource_kind, entry.byte_length, entry.detected_format,
-                    entry.validation_status
+                    entry.resource_kind, entry.byte_length
                  FROM downloadable_observations observation
                  CROSS JOIN jsonb_to_recordset($5::jsonb) entry(
-                    sha256 TEXT, entry_name TEXT, resource_kind TEXT, byte_length BIGINT,
-                    detected_format TEXT, validation_status TEXT
+                    sha256 TEXT, entry_name TEXT, resource_kind TEXT, byte_length BIGINT
                  )
                  WHERE observation.downloadable_id=$1 AND observation.metadata_fingerprint=$2
                    AND observation.content_fingerprint=$3 AND observation.version=$4

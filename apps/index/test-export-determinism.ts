@@ -49,35 +49,27 @@ const rows: SnapshotRow[] = [
 ]
 
 const resource = (
-    observationId: string,
     modId: string,
     sha256: string,
-    entryName: string,
-    validationStatus = 'valid'
+    kind = 'movie',
+    byteLength = '64'
 ): ResourceRow => ({
     mod_id: modId,
     mod_remote_id: `10${modId}`,
     mod_name: `Test Mod ${modId}`,
     mod_url: `https://modworkshop.net/mod/10${modId}`,
-    observation_id: observationId,
-    download_kind: 'file',
-    download_remote_id: `30${observationId}`,
-    version: '1.0',
-    source_filename: 'Skip Intro.zip',
-    entry_name: entryName,
     sha256,
-    resource_kind: 'movie',
-    byte_length: '64',
-    detected_format: 'bink1',
-    validation_status: validationStatus,
+    resource_kind: kind,
+    byte_length: byteLength,
 })
 
-// One blank movie under three slot names, plus a resource-only mod with no files row.
+// One blank movie shipped by two projects, a config, and a resource-only mod with no files row
+// whose movie shares its bytes with an ordinary file.
 const resources: ResourceRow[] = [
-    resource('5', '1', 'e'.repeat(64), 'Movies/StartUp_DeepSilver.bk2'),
-    resource('5', '1', 'e'.repeat(64), 'Movies/StartUp_SBZ.bk2'),
-    resource('5', '1', 'e'.repeat(64), 'Movies/StartUp_Unreal.bk2'),
-    resource('6', '4', 'a'.repeat(64), 'Movies/Shared.bk2'),
+    resource('1', 'e'.repeat(64)),
+    resource('1', 'f'.repeat(64), 'config', '66'),
+    resource('4', 'a'.repeat(64)),
+    resource('4', 'e'.repeat(64)),
 ]
 
 const workspace = mkdtempSync(join(tmpdir(), 'modrex-export-'))
@@ -141,7 +133,7 @@ try {
     )
     assert.notEqual(first, digest(withResources), 'added resource rows must change the snapshot')
     const resourceOnlyChange = [...resources]
-    resourceOnlyChange[3] = resource('6', '4', 'a'.repeat(64), 'Movies/Shared.bk2', 'invalid')
+    resourceOnlyChange[3] = resource('4', 'e'.repeat(64), 'config')
     assert.notEqual(
         digest(withResources),
         digest(
@@ -161,20 +153,30 @@ try {
         assert.deepEqual(sqlite.pragma('foreign_key_check'), [], 'shared file_contents FKs hold')
         assert.deepEqual(
             sqlite
-                .prepare('SELECT entry_name FROM resource_entries WHERE sha256 = ? ORDER BY rowid')
-                .pluck()
+                .prepare(
+                    `SELECT mod_id, resource_kind, byte_length FROM resource_entries
+                     WHERE sha256 = ? ORDER BY rowid`
+                )
+                .raw()
                 .all('e'.repeat(64)),
             [
-                'Movies/StartUp_DeepSilver.bk2',
-                'Movies/StartUp_SBZ.bk2',
-                'Movies/StartUp_Unreal.bk2',
+                [1, 'movie', 64],
+                [4, 'movie', 64],
             ],
-            'identical bytes keep every slot name'
+            'identical bytes shipped by two projects keep a row for each'
         )
         assert.equal(
             sqlite.prepare('SELECT COUNT(*) FROM file_contents').pluck().get(),
-            3,
+            4,
             'a hash shared by files and resources has one file_contents row'
+        )
+        assert.equal(
+            sqlite
+                .prepare('SELECT COUNT(*) FROM files WHERE sha256 IN (?, ?)')
+                .pluck()
+                .get('e'.repeat(64), 'f'.repeat(64)),
+            0,
+            'resource hashes never enter the files projection'
         )
         assert.deepEqual(
             sqlite
@@ -209,6 +211,16 @@ try {
     } finally {
         resourceOnlyDb.close()
     }
+
+    assert.throws(
+        () =>
+            writeSnapshot(join(workspace, 'duplicate.db'), 'pd2', source, rows, [
+                ...resources,
+                resources[0],
+            ]),
+        /UNIQUE constraint failed: resource_entries/,
+        'a project holds one row per exact resource identity'
+    )
 
     console.log('export determinism test passed')
 } finally {

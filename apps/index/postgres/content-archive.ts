@@ -62,7 +62,7 @@ function isUnsafeResourcePath(name: string): boolean {
     return /^[\\/]|^[a-z]:/i.test(name) || name.split(/[\\/]/).includes('..')
 }
 
-function resourceMembers(archive: string): { name: string; size: number }[] {
+function resourceMembers(archive: string, errors: string[]): { name: string; size: number }[] {
     let listing: string
     try {
         listing = execFileSync('7z', ['l', '-slt', '-ba', archive], {
@@ -83,18 +83,23 @@ function resourceMembers(archive: string): { name: string; size: number }[] {
         )
         const name = fields.get('Path')
         if (!name || !isResourceName(name) || fields.get('Folder') === '+') continue
-        if (
-            isUnsafeResourcePath(name) ||
-            fields.get('Symbolic Link') ||
-            fields.get('Hard Link') ||
-            /(?:^|\s)l[rwx-]{9}/.test(fields.get('Attributes') ?? '')
-        )
-            throw new UnusableDownloadError(`Resource ${name} has an unsafe archive path`)
-        const size = Number(fields.get('Size'))
-        total = checkResourceSize(name, size, total)
-        members.push({ name, size })
-        if (members.length > 128)
-            throw new UnusableDownloadError('Archive contains more than 128 resource entries')
+        try {
+            if (
+                isUnsafeResourcePath(name) ||
+                fields.get('Symbolic Link') ||
+                fields.get('Hard Link') ||
+                /(?:^|\s)l[rwx-]{9}/.test(fields.get('Attributes') ?? '')
+            )
+                throw new UnusableDownloadError(`Resource ${name} has an unsafe archive path`)
+            if (members.length >= 128)
+                throw new UnusableDownloadError('Archive contains more than 128 resource entries')
+            const size = Number(fields.get('Size'))
+            total = checkResourceSize(name, size, total)
+            members.push({ name, size })
+        } catch (error) {
+            if (!(error instanceof UnusableDownloadError)) throw error
+            errors.push(error.message)
+        }
     }
     return members
 }
@@ -158,33 +163,40 @@ function contentEntry(
     return resource ? { ...entry, resource } : entry
 }
 
+function finishExtraction(entries: ContentEntry[], errors: string[]): ContentEntry[] {
+    if (errors.length && !entries.length) throw new UnusableDownloadError(errors.join('\n'))
+    for (const error of errors) console.warn(`Resource not indexed: ${error}`)
+    return entries
+}
+
+function extract7zResource(
+    archive: string,
+    name: string,
+    size: number,
+    remaining: number
+): ContentEntry {
+    if (remaining <= 0) throw new UnusableDownloadError('Resource extraction exceeded one minute')
+    let bytes: Buffer
+    try {
+        bytes = execFileSync('7z', ['e', '-so', '-spd', archive, name], {
+            timeout: remaining,
+            maxBuffer: resourceLimit(name) + 1,
+            stdio: ['ignore', 'pipe', 'pipe'],
+        })
+    } catch (error) {
+        throw new UnusableDownloadError(`Resource ${name} could not be extracted: ${error}`)
+    }
+    if (bytes.length !== size)
+        throw new UnusableDownloadError(`Resource ${name} has an inconsistent extracted size`)
+    return contentEntry(name, bytes)
+}
+
 function extractWith7z(buffer: Buffer, extension: '.7z' | '.rar'): ContentEntry[] {
     const temporaryDirectory = mkdtempSync(join(tmpdir(), 'modrex-idx-'))
     try {
         const archive = join(temporaryDirectory, `archive${extension}`)
         const outputDirectory = join(temporaryDirectory, 'out')
         writeFileSync(archive, buffer)
-        const started = Date.now()
-        const resources = resourceMembers(archive).map(({ name, size }) => {
-            const remaining = 60_000 - (Date.now() - started)
-            if (remaining <= 0)
-                throw new UnusableDownloadError('Resource extraction exceeded one minute')
-            let bytes: Buffer
-            try {
-                bytes = execFileSync('7z', ['e', '-so', '-spd', archive, name], {
-                    timeout: remaining,
-                    maxBuffer: resourceLimit(name) + 1,
-                    stdio: ['ignore', 'pipe', 'pipe'],
-                })
-            } catch (error) {
-                throw new UnusableDownloadError(`Resource ${name} could not be extracted: ${error}`)
-            }
-            if (bytes.length !== size)
-                throw new UnusableDownloadError(
-                    `Resource ${name} has an inconsistent extracted size`
-                )
-            return contentEntry(name, bytes)
-        })
         // RAR wildcard extraction differs from 7z, so its package entries are filtered here.
         const masks =
             extension === '.7z' ? contentExtensions.map((item) => `*${item}`).concat('-r') : []
@@ -193,8 +205,10 @@ function extractWith7z(buffer: Buffer, extension: '.7z' | '.rar'): ContentEntry[
             extension
         )
         // 7z creates no output directory when nothing was extracted.
-        if (!existsSync(outputDirectory)) return resources
-        const contents = (readdirSync(outputDirectory, { recursive: true }) as string[])
+        const names = existsSync(outputDirectory)
+            ? (readdirSync(outputDirectory, { recursive: true }) as string[])
+            : []
+        const contents = names
             .filter((entryName) => {
                 return (
                     matchesContentExtension(entryName) &&
@@ -207,7 +221,26 @@ function extractWith7z(buffer: Buffer, extension: '.7z' | '.rar'): ContentEntry[
                     readFileSync(join(outputDirectory, entryName))
                 )
             )
-        return [...contents, ...resources]
+        const errors: string[] = []
+        const started = Date.now()
+        let members: { name: string; size: number }[] = []
+        try {
+            members = resourceMembers(archive, errors)
+        } catch (error) {
+            if (!(error instanceof UnusableDownloadError)) throw error
+            errors.push(error.message)
+        }
+        for (const { name, size } of members) {
+            try {
+                contents.push(
+                    extract7zResource(archive, name, size, 60_000 - (Date.now() - started))
+                )
+            } catch (error) {
+                if (!(error instanceof UnusableDownloadError)) throw error
+                errors.push(error.message)
+            }
+        }
+        return finishExtraction(contents, errors)
     } finally {
         rmSync(temporaryDirectory, { recursive: true, force: true })
     }
@@ -223,6 +256,32 @@ function run7z(args: string[], extension: '.7z' | '.rar'): void {
     }
 }
 
+function readZipEntry(entry: AdmZip.IZipEntry): Buffer {
+    try {
+        if (!isResourceName(entry.entryName)) return entry.getData()
+        if ((entry.header.flags & 1) !== 0) throw new Error('Encrypted resource entry')
+        const compressed = entry.getCompressedData()
+        let data: Buffer
+        switch (entry.header.method) {
+            case 0:
+                data = compressed
+                break
+            case 8:
+                data = inflateRawSync(compressed, {
+                    maxOutputLength: resourceLimit(entry.entryName),
+                })
+                break
+            default:
+                throw new Error('Unsupported resource compression method')
+        }
+        if (crc32(data) !== entry.header.crc) throw new Error('Resource CRC does not match')
+        if (data.length !== entry.header.size) throw new Error('Inconsistent extracted size')
+        return data
+    } catch (error) {
+        throw new UnusableDownloadError(`zip entry ${entry.entryName} could not be read: ${error}`)
+    }
+}
+
 function extractZip(buffer: Buffer): ContentEntry[] {
     let entries: AdmZip.IZipEntry[]
     try {
@@ -231,43 +290,27 @@ function extractZip(buffer: Buffer): ContentEntry[] {
         throw new UnusableDownloadError(`zip archive could not be read: ${error}`)
     }
     let resourceBytes = 0
-    return entries
-        .filter((entry) => !entry.isDirectory && isCollected(entry.entryName))
-        .map((entry) => {
-            if (isResourceName(entry.entryName)) {
+    const contents: ContentEntry[] = []
+    const errors: string[] = []
+    for (const entry of entries.filter(
+        (entry) => !entry.isDirectory && isCollected(entry.entryName)
+    )) {
+        const resource = isResourceName(entry.entryName)
+        try {
+            if (resource) {
                 if (isUnsafeResourcePath(entry.entryName))
                     throw new UnusableDownloadError(
                         `Resource ${entry.entryName} has an unsafe archive path`
                     )
                 resourceBytes = checkResourceSize(entry.entryName, entry.header.size, resourceBytes)
             }
-            let data: Buffer
-            try {
-                if (!isResourceName(entry.entryName)) {
-                    data = entry.getData()
-                } else {
-                    if ((entry.header.flags & 1) !== 0) throw new Error('Encrypted resource entry')
-                    const compressed = entry.getCompressedData()
-                    if (entry.header.method === 0) data = compressed
-                    else if (entry.header.method === 8)
-                        data = inflateRawSync(compressed, {
-                            maxOutputLength: resourceLimit(entry.entryName),
-                        })
-                    else throw new Error('Unsupported resource compression method')
-                    if (crc32(data) !== entry.header.crc)
-                        throw new Error('Resource CRC does not match')
-                }
-            } catch (error) {
-                throw new UnusableDownloadError(
-                    `zip entry ${entry.entryName} could not be read: ${error}`
-                )
-            }
-            if (isResourceName(entry.entryName) && data.length !== entry.header.size)
-                throw new UnusableDownloadError(
-                    `Resource ${entry.entryName} has an inconsistent extracted size`
-                )
-            return contentEntry(entry.entryName, data)
-        })
+            contents.push(contentEntry(entry.entryName, readZipEntry(entry)))
+        } catch (error) {
+            if (!resource || !(error instanceof UnusableDownloadError)) throw error
+            errors.push(error.message)
+        }
+    }
+    return finishExtraction(contents, errors)
 }
 
 export function extractContentEntries(buffer: Buffer, names: LooseDownloadNames): ContentEntry[] {

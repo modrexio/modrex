@@ -135,9 +135,6 @@ function onEvent<T>(eventName: string, callback: (payload: T) => void): () => vo
 }
 
 export const api = {
-    recognizeResourceHash(gameId: string, sha256: string, kind: 'movie' | 'config') {
-        return commands.recognizeResourceHash(gameId, sha256, kind)
-    },
     inspectMovieResources(gameId: string) {
         return commands.inspectMovieResources(gameId)
     },

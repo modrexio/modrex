@@ -134,7 +134,6 @@ fn ipc_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::thumbnails::get_thumbnail,
             // mod index
             commands::mod_index::get_index_mod_files,
-            commands::mod_index::recognize_resource_hash,
             commands::mod_index::inspect_movie_resources,
             // news
             commands::news::fetch_news,

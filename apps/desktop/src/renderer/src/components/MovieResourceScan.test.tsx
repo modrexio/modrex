@@ -14,7 +14,6 @@ const matchedMovie: MovieRecognitionScan['movies'][number] = {
         source: 'modworkshop',
         modRemoteId: 47773,
         modName: 'Skip startup movies',
-        entries: [],
     },
 }
 

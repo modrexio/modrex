@@ -25,32 +25,20 @@ export interface SnapshotRow {
     file_entry_name: string
 }
 
-// One published movie or config entry from a complete downloadable observation. Unlike files,
-// nothing is deduplicated by (mod, sha256): identical bytes under several names, and the same
-// hash across releases, are separate rows, because an intro pack replaces each named slot.
+// One exact movie or config identity a project published in any complete observation.
 export interface ResourceRow {
     mod_id: string
     mod_remote_id: string
     mod_name: string
     mod_url: string
-    observation_id: string
-    download_kind: string
-    download_remote_id: string
-    version: string
-    source_filename: string
-    entry_name: string
     sha256: string
     resource_kind: string
     byte_length: string
-    detected_format: string
-    validation_status: string
 }
 
-// resource_entries is additive: readers that only know files ignore it. download_remote_id is
-// the ModWorkshop file or link id itself, with download_kind saying which, rather than the
-// negated link convention files.remote_id uses. source_filename is the sanitized hosted
-// filename, or '' when none was recorded. validation_status restricts installation only.
-// Exact recognition reads every row.
+// resource_entries is additive, so readers that only know files ignore it. Several names or
+// releases of the same bytes are one row per project, and a hash shared by several projects
+// keeps a row for each so recognition can report the ambiguity.
 const schema = `
     PRAGMA foreign_keys = ON;
     CREATE TABLE games (
@@ -87,19 +75,10 @@ const schema = `
     CREATE INDEX idx_files_sha256 ON files(sha256);
     CREATE TABLE resource_entries (
         mod_id INTEGER NOT NULL REFERENCES mods(id),
-        observation_id INTEGER NOT NULL,
-        download_kind TEXT NOT NULL CHECK (download_kind IN ('file', 'link')),
-        download_remote_id INTEGER NOT NULL,
-        version TEXT NOT NULL,
-        source_filename TEXT NOT NULL,
-        entry_name TEXT NOT NULL,
         sha256 TEXT NOT NULL REFERENCES file_contents(sha256),
         resource_kind TEXT NOT NULL CHECK (resource_kind IN ('movie', 'config')),
         byte_length INTEGER NOT NULL,
-        detected_format TEXT NOT NULL,
-        validation_status TEXT NOT NULL
-            CHECK (validation_status IN ('valid', 'unsupported', 'invalid')),
-        PRIMARY KEY (observation_id, sha256, entry_name)
+        PRIMARY KEY (mod_id, sha256, resource_kind)
     );
     CREATE INDEX idx_resource_entries_sha256 ON resource_entries(sha256);
     CREATE TABLE metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -126,9 +105,7 @@ export function writeSnapshot(
         const insertMod = db.prepare('INSERT INTO mods VALUES (?, ?, ?, ?, ?)')
         const insertContent = db.prepare('INSERT INTO file_contents VALUES (?)')
         const insertFile = db.prepare('INSERT INTO files VALUES (?, ?, ?, ?, ?, ?, ?)')
-        const insertResource = db.prepare(
-            'INSERT INTO resource_entries VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-        )
+        const insertResource = db.prepare('INSERT INTO resource_entries VALUES (?, ?, ?, ?)')
         const insertMetadata = db.prepare('INSERT INTO metadata VALUES (?, ?)')
         const seen = { mods: new Set<string>(), contents: new Set<string>() }
         const insertModOnce = (row: SnapshotRow | ResourceRow) => {
@@ -173,20 +150,7 @@ export function writeSnapshot(
             for (const row of resources) {
                 insertModOnce(row)
                 insertContentOnce(row.sha256)
-                insertResource.run(
-                    row.mod_id,
-                    row.observation_id,
-                    row.download_kind,
-                    row.download_remote_id,
-                    row.version,
-                    row.source_filename,
-                    row.entry_name,
-                    row.sha256,
-                    row.resource_kind,
-                    row.byte_length,
-                    row.detected_format,
-                    row.validation_status
-                )
+                insertResource.run(row.mod_id, row.sha256, row.resource_kind, row.byte_length)
             }
             insertMetadata.run('game', game)
         })()

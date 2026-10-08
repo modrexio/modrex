@@ -4,6 +4,10 @@
 import AdmZip from 'adm-zip'
 import { strict as assert } from 'node:assert'
 import { createHash } from 'node:crypto'
+import { execFileSync } from 'node:child_process'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join, resolve } from 'node:path'
 
 import { extractContentEntries } from './postgres/content-archive.js'
 import { UnusableDownloadError } from './postgres/marker-archive.js'
@@ -12,150 +16,103 @@ import { classifyResource, isResourceName } from './postgres/unreal-resource.js'
 
 const sha256 = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex')
 
-function bink(signature: 'BIK' | 'KB2', length = 64): Buffer {
-    const bytes = Buffer.alloc(length)
-    bytes.write(`${signature}i`, 0, 'latin1')
-    bytes.writeUInt32LE(length - 8, 4)
-    bytes.writeUInt32LE(1, 8)
-    bytes.writeUInt32LE(16, 12)
-    bytes.writeUInt32LE(1, 16)
-    bytes.writeUInt32LE(1280, 20)
-    bytes.writeUInt32LE(720, 24)
-    bytes.writeUInt32LE(30, 28)
-    bytes.writeUInt32LE(1, 32)
-    bytes.writeUInt32LE(signature === 'BIK' ? 48 : 52, signature === 'BIK' ? 44 : 48)
-    return bytes
-}
-
-const movieStatus = (bytes: Buffer) => {
-    const resource = classifyResource('Movies/Intro.bk2', bytes)
-    assert.ok(resource)
-    return [resource.detectedFormat, resource.validationStatus]
-}
-const configStatus = (name: string, text: string | Buffer) => {
-    const resource = classifyResource(name, Buffer.isBuffer(text) ? text : Buffer.from(text))
-    assert.ok(resource)
-    return [resource.detectedFormat, resource.validationStatus]
-}
+// Stand-in movie bytes. Recognition never parses them, so any payload works.
+const blankMovie = Buffer.alloc(64, 0x42)
+const smallUi = Buffer.from('[/Script/Engine.UserInterfaceSettings]\r\nApplicationScale=0.6\r\n')
+const html = Buffer.from('<!DOCTYPE html><title>Download</title>')
 
 assert.equal(isResourceName('Content/Movies/StartUp_SBZ.bk2'), true)
 assert.equal(isResourceName('UE4_LOGO.BK2'), true)
 assert.equal(isResourceName('6/Engine.ini'), true)
 assert.equal(isResourceName('Movies/StartUp_SBZ.bak2'), false, '.bak2 is not a movie alias')
-assert.equal(classifyResource('Movies/StartUp_SBZ.bak2', bink('BIK')), null)
-assert.equal(classifyResource('Mod_P.pak', bink('BIK')), null)
+assert.equal(classifyResource('Movies/StartUp_SBZ.bak2', blankMovie), null)
+assert.equal(classifyResource('Mod_P.pak', blankMovie), null)
+assert.equal(classifyResource('object', blankMovie), null, 'no extension and no advertised kind')
 
-assert.deepEqual(movieStatus(bink('BIK')), ['bink1', 'valid'])
-assert.deepEqual(movieStatus(bink('KB2')), ['bink2', 'valid'])
+assert.deepEqual(classifyResource('Movies/UE4_LOGO.BK2', blankMovie), {
+    kind: 'movie',
+    byteLength: 64,
+})
+assert.deepEqual(classifyResource('6/Engine.INI', smallUi), {
+    kind: 'config',
+    byteLength: smallUi.length,
+})
 assert.deepEqual(
-    movieStatus(Buffer.alloc(0)),
-    ['empty', 'unsupported'],
-    'a zero-byte deletion substitute is kept but is not a supported replacement'
+    classifyResource('ue4ss/UE4SS-settings.ini', smallUi),
+    { kind: 'config', byteLength: smallUi.length },
+    'any INI is recognisable, not only Engine.ini'
 )
 assert.deepEqual(
-    movieStatus(bink('BIK').subarray(0, 40)),
-    ['bink1', 'invalid'],
-    'a truncated header is invalid'
+    classifyResource('Movies/Intro.bk2', Buffer.alloc(0)),
+    { kind: 'movie', byteLength: 0 },
+    'a zero-byte deletion substitute is kept'
 )
 assert.deepEqual(
-    movieStatus(bink('BIK').subarray(0, 60)),
-    ['bink1', 'invalid'],
-    'a payload shorter than its declared size is truncated'
+    classifyResource('Movies/Intro.bk2', html),
+    { kind: 'movie', byteLength: html.length },
+    'an HTML page served in place of a movie is kept for exact recognition'
 )
-{
-    const noFrames = bink('BIK')
-    noFrames.writeUInt32LE(0, 8)
-    assert.deepEqual(movieStatus(noFrames), ['bink1', 'invalid'])
-    const tooWide = bink('KB2')
-    tooWide.writeUInt32LE(7681, 20)
-    assert.deepEqual(movieStatus(tooWide), ['bink2', 'invalid'])
-    const badRevision = bink('BIK')
-    badRevision[3] = 0x21
-    assert.deepEqual(movieStatus(badRevision), ['bink1', 'invalid'])
-}
-assert.deepEqual(
-    movieStatus(Buffer.from('<!DOCTYPE html><html><body>Download</body></html>')),
-    ['unrecognized', 'invalid'],
-    'an HTML page served in place of a movie is recorded as invalid, not dropped'
-)
-
-const smallUi = '[/Script/Engine.UserInterfaceSettings]\r\nApplicationScale=0.6\r\n'
-assert.deepEqual(configStatus('6/Engine.ini', smallUi), ['ascii', 'valid'])
-assert.deepEqual(configStatus('Engine.ini', '[Core.System]\nPaths=\n'), ['ascii', 'valid'])
-assert.deepEqual(
-    configStatus(
-        'Engine.ini',
-        '[/Script/Engine.InputSettings]\r\nbEnableMouseSmoothing=False\r\nbEnableMouseSmoothing=False\r\n'
-    ),
-    ['ascii', 'unsupported'],
-    'a repeated declaration is outside the scalar subset'
-)
-assert.deepEqual(
-    configStatus('Engine.ini', '[S]\nKey=1\nkey=2\n'),
-    ['ascii', 'unsupported'],
-    'Unreal keys compare case-insensitively'
-)
-assert.deepEqual(configStatus('Engine.ini', '[S]\n+Paths=../Mods\n'), ['ascii', 'unsupported'])
-assert.deepEqual(configStatus('Engine.ini', '[S]\n!Paths=ClearArray\n'), ['ascii', 'unsupported'])
-assert.deepEqual(configStatus('Engine.ini', '[S]\nA=1\n[s]\nB=2\n'), ['ascii', 'unsupported'])
-assert.deepEqual(configStatus('Engine.ini', 'A=1\n[S]\nB=2\n'), ['ascii', 'unsupported'])
-assert.deepEqual(configStatus('Engine.ini', '[S]\r\nA=1\nB=2\r\n'), ['ascii', 'unsupported'])
-assert.deepEqual(configStatus('Engine.ini', '; comment only\n'), ['ascii', 'unsupported'])
-assert.deepEqual(configStatus('Engine.ini', '[S\nA=1\n'), ['ascii', 'invalid'])
-assert.deepEqual(configStatus('Engine.ini', '[S]\nA=\u00001\n'), ['ascii', 'invalid'])
-assert.deepEqual(
-    configStatus('ue4ss/UE4SS-settings.ini', '[General]\nEnableHotReloadSystem=1\n'),
-    ['ascii', 'unsupported'],
-    'a loader INI is never an installable Engine.ini preset'
-)
-assert.deepEqual(
-    configStatus('Engine.ini', Buffer.alloc(0)),
-    ['empty', 'unsupported'],
-    'an empty config is kept with an explicit status'
-)
-assert.deepEqual(
-    configStatus(
-        'Engine.ini',
-        Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from(smallUi)])
-    ),
-    ['utf8-bom', 'valid']
-)
-assert.deepEqual(
-    configStatus(
-        'Engine.ini',
-        Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from(smallUi, 'utf16le')])
-    ),
-    ['utf16le-bom', 'valid']
-)
-assert.deepEqual(configStatus('Engine.ini', Buffer.from([0xff, 0xfe, 0x5b, 0x00, 0x53])), [
-    'utf16le-bom',
-    'invalid',
-])
-assert.deepEqual(configStatus('Engine.ini', Buffer.from([0xfe, 0xff, 0x00, 0x5b])), [
-    'utf16be-bom',
-    'invalid',
-])
-{
-    const bigEndian = Buffer.from(smallUi, 'utf16le').swap16()
-    assert.deepEqual(
-        configStatus('Engine.ini', Buffer.concat([Buffer.from([0xfe, 0xff]), bigEndian])),
-        ['utf16be-bom', 'valid']
-    )
-}
-assert.deepEqual(
-    configStatus('Engine.ini', '[S]\nName=Café\n'),
-    ['utf8', 'unsupported'],
-    'unmarked non-ASCII text is not a proven encoding'
-)
-assert.deepEqual(
-    configStatus('Engine.ini', Buffer.from([0x5b, 0x53, 0x5d, 0x0a, 0x41, 0x3d, 0xc3])),
-    ['utf8', 'invalid']
-)
+assert.deepEqual(classifyResource('object', html, 'movie'), {
+    kind: 'movie',
+    byteLength: html.length,
+})
+assert.deepEqual(classifyResource('object', smallUi, 'config'), {
+    kind: 'config',
+    byteLength: smallUi.length,
+})
 
 const names = { objectName: '43903_1_object.zip', sourceFilename: 'Skip Startup.zip' }
 
 {
-    const blank = bink('BIK')
+    const temp = mkdtempSync(join(tmpdir(), 'modrex-resource-limits-'))
+    const pak = Buffer.from('ordinary package')
+    const oversized = Buffer.alloc(1024 * 1024 + 1)
+    const warnings: string[] = []
+    const warn = console.warn
+    console.warn = (message) => warnings.push(String(message))
+    try {
+        const zip = new AdmZip()
+        for (const [name, bytes] of [
+            ['Payload.pak', pak],
+            ['Engine.ini', oversized],
+            ['Intro.bk2', blankMovie],
+        ] as const) {
+            zip.addFile(name, bytes)
+            writeFileSync(join(temp, name), bytes)
+        }
+        const sevenZip = join(temp, 'mixed.7z')
+        execFileSync('7z', ['a', '-t7z', sevenZip, 'Payload.pak', 'Engine.ini', 'Intro.bk2'], {
+            cwd: temp,
+            stdio: 'ignore',
+        })
+        for (const archive of [zip.toBuffer(), readFileSync(sevenZip)]) {
+            const entries = extractContentEntries(archive, names)
+            assert.deepEqual(
+                entries.map((entry) => entry.entryName).sort(),
+                ['Intro.bk2', 'Payload.pak'],
+                warnings.join('\n')
+            )
+            assert.equal(
+                entries.find((entry) => entry.entryName === 'Payload.pak')?.sha256,
+                sha256(pak)
+            )
+            assert.equal(
+                entries.find((entry) => entry.entryName === 'Intro.bk2')?.sha256,
+                sha256(blankMovie)
+            )
+        }
+        assert.equal(warnings.length, 2)
+        assert.ok(
+            warnings.every((message) => message.includes('Engine.ini') && message.includes('limit'))
+        )
+    } finally {
+        console.warn = warn
+        assert.ok(resolve(temp).startsWith(resolve(tmpdir()) + (temp.includes('\\') ? '\\' : '/')))
+        rmSync(temp, { recursive: true, force: true })
+    }
+}
+
+{
     const zip = new AdmZip()
     for (const slot of [
         'ARC_25FPS.bk2',
@@ -163,8 +120,8 @@ const names = { objectName: '43903_1_object.zip', sourceFilename: 'Skip Startup.
         'logo_arc_4k_60fps.bk2',
         'UE4_Logo.bk2',
     ])
-        zip.addFile(`CrimeBoss/Content/Movies/${slot}`, blank)
-    zip.addFile('CrimeBoss/Content/Movies/UE4_Logo.bak2', blank)
+        zip.addFile(`CrimeBoss/Content/Movies/${slot}`, blankMovie)
+    zip.addFile('CrimeBoss/Content/Movies/UE4_Logo.bak2', blankMovie)
     zip.addFile('CrimeBoss/Content/Paks/~mods/Mod_P.pak', Buffer.from('pak bytes'))
     zip.addFile('README.txt', Buffer.from('copy to Movies'))
     zip.addFile('empty/Engine.ini', Buffer.alloc(0))
@@ -183,31 +140,32 @@ const names = { objectName: '43903_1_object.zip', sourceFilename: 'Skip Startup.
         ].sort(),
         'every slot name survives even when the bytes are identical'
     )
-    assert.equal(
-        new Set(
-            movies
-                .filter((entry) => entry.resource?.validationStatus === 'valid')
-                .map((entry) => entry.sha256)
-        ).size,
-        1
+    assert.deepEqual(
+        [
+            ...new Set(
+                movies
+                    .filter((entry) => entry.entryName.startsWith('CrimeBoss/'))
+                    .map((entry) => entry.sha256)
+            ),
+        ],
+        [sha256(blankMovie)],
+        'identical slot bytes share one exact hash'
     )
-    assert.deepEqual(movies.find((entry) => entry.entryName === 'broken/Broken.bk2')!.resource, {
-        kind: 'movie',
-        byteLength: 4,
-        detectedFormat: 'bink1',
-        validationStatus: 'invalid',
-    })
+    assert.deepEqual(
+        movies.find((entry) => entry.entryName === 'broken/Broken.bk2'),
+        {
+            sha256: sha256(Buffer.from('BIKi')),
+            entryName: 'broken/Broken.bk2',
+            resource: { kind: 'movie', byteLength: 4 },
+        },
+        'a malformed movie is collected with its exact hash'
+    )
     assert.deepEqual(
         entries.find((entry) => entry.entryName === 'empty/Engine.ini'),
         {
             sha256: sha256(Buffer.alloc(0)),
             entryName: 'empty/Engine.ini',
-            resource: {
-                kind: 'config',
-                byteLength: 0,
-                detectedFormat: 'empty',
-                validationStatus: 'unsupported',
-            },
+            resource: { kind: 'config', byteLength: 0 },
         },
         'an empty published config is collected with its exact hash'
     )
@@ -233,40 +191,35 @@ const names = { objectName: '43903_1_object.zip', sourceFilename: 'Skip Startup.
         )
     const entries = extractContentEntries(zip.toBuffer(), names)
     assert.deepEqual(
-        entries.map((entry) => [entry.entryName, entry.resource?.validationStatus]),
+        entries.map((entry) => [entry.entryName, entry.resource?.kind]),
         [
-            ['6/Engine.ini', 'valid'],
-            ['7/Engine.ini', 'valid'],
-            ['8/Engine.ini', 'valid'],
-            ['9/Engine.ini', 'valid'],
+            ['6/Engine.ini', 'config'],
+            ['7/Engine.ini', 'config'],
+            ['8/Engine.ini', 'config'],
+            ['9/Engine.ini', 'config'],
         ],
         'each alternative is its own catalog entry'
     )
+    assert.equal(new Set(entries.map((entry) => entry.sha256)).size, 4)
 }
 
 {
-    const movie = bink('BIK')
     assert.deepEqual(
-        extractContentEntries(movie, {
+        extractContentEntries(blankMovie, {
             objectName: '46731_1_object.bk2',
             sourceFilename: 'MCRTheBlackParade.bk2',
         }),
         [
             {
-                sha256: sha256(movie),
+                sha256: sha256(blankMovie),
                 entryName: 'MCRTheBlackParade.bk2',
-                resource: {
-                    kind: 'movie',
-                    byteLength: 64,
-                    detectedFormat: 'bink1',
-                    validationStatus: 'valid',
-                },
+                resource: { kind: 'movie', byteLength: 64 },
             },
         ],
         'a loose movie is named by its hosted filename'
     )
     assert.equal(
-        extractContentEntries(movie, { objectName: 'object.bk2', sourceFilename: null })[0]
+        extractContentEntries(blankMovie, { objectName: 'object.bk2', sourceFilename: null })[0]
             .entryName,
         'object.bk2',
         'without a hosted filename the storage object names the loose resource'
@@ -277,25 +230,35 @@ const names = { objectName: '43903_1_object.zip', sourceFilename: 'Skip Startup.
         [{ sha256: sha256(pak), entryName: 'object.pak' }],
         'the raw pak fallback is unchanged'
     )
-    const html = Buffer.from('<!DOCTYPE html><title>Download</title>')
-    assert.equal(
-        extractContentEntries(html, { objectName: 'object', sourceFilename: 'Intro.bk2' })[0]
-            .resource?.validationStatus,
-        'invalid',
-        'HTML published as a movie is collected as an invalid movie'
+    assert.deepEqual(
+        extractContentEntries(html, { objectName: 'object', sourceFilename: 'Intro.bk2' }),
+        [
+            {
+                sha256: sha256(html),
+                entryName: 'Intro.bk2',
+                resource: { kind: 'movie', byteLength: html.length },
+            },
+        ],
+        'HTML published as a movie is collected as a movie with its exact hash'
     )
     assert.deepEqual(
         extractContentEntries(html, { objectName: 'object', sourceFilename: 'Mod.pak' }),
         [{ sha256: sha256(html), entryName: 'object' }],
         'pak validation is not tightened'
     )
-    assert.equal(
+    assert.deepEqual(
         extractContentEntries(html, {
             objectName: 'object',
             sourceFilename: null,
             advertisedKind: 'movie',
-        })[0].resource?.validationStatus,
-        'invalid',
+        }),
+        [
+            {
+                sha256: sha256(html),
+                entryName: 'object',
+                resource: { kind: 'movie', byteLength: html.length },
+            },
+        ],
         'advertised movies without an extension stay outside the legacy files projection'
     )
     assert.throws(

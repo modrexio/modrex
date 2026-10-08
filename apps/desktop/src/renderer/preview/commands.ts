@@ -157,7 +157,6 @@ const noLoader: LoaderPresence = {
 }
 
 const handlers = {
-    recognizeResourceHash: async () => ({ status: 'unavailable' as const }),
     inspectMovieResources: async (gameId) => {
         const id = game(gameId)
         const path = gamePath(gameId)

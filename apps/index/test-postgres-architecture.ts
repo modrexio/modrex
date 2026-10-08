@@ -1009,12 +1009,47 @@ function hostedInput(remoteId: number, sourceFilename: string): DownloadableInpu
     }
 }
 
-const blankMovie = {
-    kind: 'movie',
-    byteLength: 64,
-    detectedFormat: 'bink1',
-    validationStatus: 'valid',
-} as const
+const blankMovie = { kind: 'movie', byteLength: 64 } as const
+
+{
+    const { pg, db } = await unrealCatalog(migrations.length)
+    const at = new Date('2026-09-21T12:00:00.000Z')
+    const listing = unrealListing('1', '46831', 'Small UI', at)
+    const input = { ...hostedInput(89501, 'Engine.ini'), mediaType: 'ini' }
+    const state = await registerDownloadable(db, listing, input, at)
+    await settleDownloadable(
+        db,
+        listing,
+        state,
+        'complete',
+        [
+            {
+                sha256: 'preset',
+                entryName: 'Engine.ini',
+                resource: { kind: 'config', byteLength: 20 },
+            },
+        ],
+        at
+    )
+    assert.equal(needsProcessing(await registerDownloadable(db, listing, input, at), at), false)
+    assert.equal(
+        needsProcessing(
+            await registerDownloadable(
+                db,
+                listing,
+                {
+                    ...input,
+                    sourceFilename: 'Other.ini',
+                },
+                at
+            ),
+            at
+        ),
+        true,
+        'a loose resource rename changes the observed entry name'
+    )
+    await pg.close()
+}
 
 {
     const { pg, db } = await unrealCatalog(migrations.length)
@@ -1047,7 +1082,6 @@ const blankMovie = {
             await pg.query<{ entry_name: string }>(
                 `SELECT entry_name FROM downloadable_entries
                  WHERE sha256='blank-movie' AND resource_kind='movie' AND byte_length=64
-                   AND detected_format='bink1' AND validation_status='valid'
                  ORDER BY entry_name`
             )
         ).rows.map((row) => row.entry_name),
@@ -1084,8 +1118,8 @@ const blankMovie = {
             ),
             at
         ),
-        true,
-        'a hosted rename is a new Unreal revision, since it names a loose resource'
+        false,
+        'an archive label change reuses its observed content'
     )
     const restored = await registerDownloadable(db, pack, packInput, at)
     await settleDownloadable(
@@ -1112,7 +1146,8 @@ const blankMovie = {
             await pg.query(
                 `SELECT entry.* FROM downloadable_entries entry
                  JOIN downloadable_observations observation ON observation.id=entry.observation_id
-                 WHERE observation.version='2' AND entry.validation_status='valid'
+                 WHERE observation.version='2' AND entry.resource_kind='movie'
+                   AND entry.byte_length=64
                    AND observation.source_filename='Skip Startup.rar'
                    AND observation.extraction_policy=$1`,
                 [UNREAL_EXTRACTION_POLICY]
@@ -1137,12 +1172,7 @@ const blankMovie = {
         ['6', '7', '8', '9'].map((scale) => ({
             sha256: `engine-${scale}`,
             entryName: `${scale}/Engine.ini`,
-            resource: {
-                kind: 'config',
-                byteLength: 66,
-                detectedFormat: 'ascii',
-                validationStatus: 'valid',
-            } as const,
+            resource: { kind: 'config', byteLength: 66 } as const,
         })),
         at
     )
@@ -1170,10 +1200,27 @@ const blankMovie = {
             files.indexed_at AS file_indexed_at, files.entry_name AS file_entry_name
           FROM files JOIN mods ON mods.id=files.mod_id ORDER BY files.id`)
     ).rows
+    await retireMissingDownloadables(db, pack, 'file', [], at)
+    assert.equal(
+        (await pg.query("SELECT * FROM downloadable_entries WHERE sha256='blank-movie'")).rows
+            .length,
+        6,
+        'retiring a download keeps every release and slot name in Postgres'
+    )
     const resources = (await pg.query<ResourceRow>(resourceRowsQuery, ['pd3'])).rows.sort(
         compareResourceRows
     )
-    assert.equal(resources.length, 3 + 3 + 4, 'every release, slot name and alternative is a row')
+    assert.deepEqual(
+        resources.map((row) => [row.mod_remote_id, row.sha256, row.resource_kind, row.byte_length]),
+        [
+            ['43903', 'blank-movie', 'movie', '64'],
+            ['46831', 'engine-6', 'config', '66'],
+            ['46831', 'engine-7', 'config', '66'],
+            ['46831', 'engine-8', 'config', '66'],
+            ['46831', 'engine-9', 'config', '66'],
+        ],
+        'a retired download stays recognisable as one identity per project and hash'
+    )
     assert.equal(
         (await pg.query<ResourceRow>(resourceRowsQuery, ['cb'])).rows.length,
         0,
@@ -1191,13 +1238,18 @@ const blankMovie = {
         const sqlite = new Sqlite(snapshot, { readonly: true })
         try {
             assert.deepEqual(sqlite.pragma('foreign_key_check'), [])
-            assert.equal(
+            assert.deepEqual(
                 sqlite
-                    .prepare("SELECT COUNT(*) FROM resource_entries WHERE sha256='blank-movie'")
-                    .pluck()
-                    .get(),
-                6,
-                'repeated hashes survive the Postgres to SQLite export'
+                    .prepare(
+                        `SELECT m.remote_id, r.resource_kind, r.byte_length FROM resource_entries r
+                         JOIN mods m ON m.id = r.mod_id JOIN sources s ON s.id = m.source_id
+                         JOIN games g ON g.id = s.game_id
+                         WHERE r.sha256 = ? AND g.name = ?`
+                    )
+                    .raw()
+                    .all('blank-movie', 'PAYDAY 3'),
+                [[43903, 'movie', 64]],
+                'repeated names and releases export as one identity'
             )
             assert.deepEqual(
                 sqlite
@@ -1322,6 +1374,85 @@ const blankMovie = {
         ),
         false,
         'the reopened download is not reopened again'
+    )
+    await pg.close()
+}
+
+{
+    // Entries written under migration 007 carry Bink and INI verdicts. Compaction drops those
+    // columns and keeps every entry, observation and name.
+    const { pg, db } = await unrealCatalog(8)
+    await pg.exec(`
+        INSERT INTO mods (source_id, remote_id, name, url) VALUES (1, 1, 'Intro', 'u');
+        INSERT INTO file_contents (sha256) VALUES ('movie'), ('pak');
+        INSERT INTO remote_downloadables (
+            id, source_id, mod_remote_id, kind, remote_id, metadata_fingerprint, url, status,
+            first_seen_at, last_seen_at, retired_at
+        ) OVERRIDING SYSTEM VALUE VALUES (1, 1, 1, 'file', 1, 'm', 'u', 'complete', 't', 't', 't');
+        INSERT INTO downloadable_observations (
+            id, downloadable_id, metadata_fingerprint, content_fingerprint, version, outcome,
+            observed_at, source_filename, extraction_policy
+        ) OVERRIDING SYSTEM VALUE VALUES
+            (1, 1, 'm', 'c', '1', 'complete', 't', 'Intro.zip', '${UNREAL_EXTRACTION_POLICY}'),
+            (2, 1, 'm', 'c', '2', 'complete', 't', 'Intro.zip', '${UNREAL_EXTRACTION_POLICY}');
+        INSERT INTO downloadable_entries (
+            observation_id, sha256, entry_name, resource_kind, byte_length, detected_format,
+            validation_status
+        ) VALUES
+            (1, 'movie', 'Movies/A.bk2', 'movie', 64, 'bink1', 'valid'),
+            (1, 'movie', 'Movies/B.bk2', 'movie', 64, 'bink1', 'valid'),
+            (1, 'pak', 'Paks/Mod_P.pak', NULL, NULL, NULL, NULL),
+            (2, 'movie', 'Movies/A.bk2', 'movie', 64, 'unrecognized', 'invalid');
+    `)
+    const entries = async () =>
+        (
+            await pg.query(
+                `SELECT observation_id::TEXT, sha256, entry_name, resource_kind, byte_length::TEXT
+                 FROM downloadable_entries ORDER BY observation_id, entry_name`
+            )
+        ).rows
+    const observations = async () =>
+        (await pg.query('SELECT * FROM downloadable_observations ORDER BY id')).rows
+    const entriesBefore = await entries()
+    const observationsBefore = await observations()
+    assert.equal(entriesBefore.length, 4)
+
+    assert.equal(migrations[8].version, '009_compact_resource_entries')
+    await db.transaction(migrations[8].statements.map((text) => ({ text, values: [] })))
+    assert.deepEqual(await entries(), entriesBefore, 'compaction keeps every entry and release')
+    assert.deepEqual(
+        await observations(),
+        observationsBefore,
+        'source filenames and extraction policies are untouched'
+    )
+    await assert.rejects(
+        pg.query('SELECT detected_format FROM downloadable_entries'),
+        /column "detected_format" does not exist/
+    )
+    await assert.rejects(
+        pg.query('SELECT validation_status FROM downloadable_entries'),
+        /column "validation_status" does not exist/
+    )
+    await assert.rejects(
+        pg.exec(`INSERT INTO downloadable_entries (observation_id, sha256, entry_name, resource_kind)
+                 VALUES (1, 'movie', 'Movies/C.bk2', 'movie')`),
+        /downloadable_entries_resource_kind_length/,
+        'a resource needs its byte length'
+    )
+    await assert.rejects(
+        pg.exec(`INSERT INTO downloadable_entries (observation_id, sha256, entry_name, byte_length)
+                 VALUES (1, 'pak', 'Paks/Other.pak', 3)`),
+        /downloadable_entries_resource_kind_length/,
+        'a byte length belongs to a resource'
+    )
+    assert.deepEqual(
+        (await pg.query<ResourceRow>(resourceRowsQuery, ['pd3'])).rows.map((row) => [
+            row.sha256,
+            row.resource_kind,
+            row.byte_length,
+        ]),
+        [['movie', 'movie', '64']],
+        'rows migrated from 007 export as one retired, historical identity'
     )
     await pg.close()
 }

@@ -275,4 +275,16 @@ export const migrations: Migration[] = [
              )`,
         ],
     },
+    {
+        // Recognition needs only the resource kind and byte length, and the desktop validates
+        // bytes before installing. Every entry row and its history stay in place.
+        version: '009_compact_resource_entries',
+        statements: [
+            'ALTER TABLE downloadable_entries DROP CONSTRAINT downloadable_entries_resource_metadata',
+            'ALTER TABLE downloadable_entries DROP COLUMN detected_format',
+            'ALTER TABLE downloadable_entries DROP COLUMN validation_status',
+            `ALTER TABLE downloadable_entries ADD CONSTRAINT downloadable_entries_resource_kind_length
+                CHECK ((resource_kind IS NULL) = (byte_length IS NULL))`,
+        ],
+    },
 ]

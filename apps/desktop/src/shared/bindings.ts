@@ -225,7 +225,6 @@ export const commands = {
 	 */
 	getThumbnail: (filename: string, full: boolean | null) => __TAURI_INVOKE<string>("get_thumbnail", { filename, full }),
 	getIndexModFiles: (modId: number, gameId: string) => __TAURI_INVOKE<IndexModFile[]>("get_index_mod_files", { modId, gameId }),
-	recognizeResourceHash: (gameId: string, sha256: string, kind: ResourceKind) => __TAURI_INVOKE<ResourceRecognition>("recognize_resource_hash", { gameId, sha256, kind }),
 	inspectMovieResources: (gameId: string) => __TAURI_INVOKE<MovieRecognitionScan>("inspect_movie_resources", { gameId }),
 	/**
 	 *  Page 1 only: the cached, TTL-backed entry point used on first
@@ -1060,18 +1059,6 @@ export type ReplacementPlan = {
 	preserved: string[],
 };
 
-export type ResourceCatalogEntry = {
-	observationId: number,
-	downloadKind: string,
-	downloadRemoteId: number,
-	version: string,
-	sourceFilename: string,
-	entryName: string,
-	byteLength: number,
-	detectedFormat: string,
-	validationStatus: string,
-};
-
 /**  Which resource operation owns a row. Absent for every ordinary mod. */
 export type ResourceDeployment = "movie" | "ini";
 
@@ -1093,15 +1080,13 @@ export type ResourceInstallResult = {
 	alreadyCurrentMovies: string[],
 };
 
-export type ResourceKind = "movie" | "config";
-
 export type ResourceMovieConflict = {
 	name: string,
 	slots: string[],
 	replacing: boolean,
 };
 
-export type ResourceRecognition = { status: "unavailable" } | { status: "noMatch" } | { status: "ambiguous" } | { status: "matched"; source: string; modRemoteId: number; modName: string; entries: ResourceCatalogEntry[] };
+export type ResourceRecognition = { status: "unavailable" } | { status: "noMatch" } | { status: "ambiguous" } | { status: "matched"; source: string; modRemoteId: number; modName: string };
 
 export type ResourceRecoveryFile = {
 	path: string,

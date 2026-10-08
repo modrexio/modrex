@@ -14,17 +14,13 @@ import {
     type SnapshotSource,
 } from './postgres/snapshot.js'
 import {
-    applyResourceDelta,
     applySnapshotDelta,
     compareResourceRows,
     readPreviousSnapshot,
-    resourceDeltaQuery,
-    resourceFingerprints,
     resourceRowsQuery,
     snapshotFingerprints,
     snapshotDeltaQuery,
     snapshotSourceQuery,
-    type ResourceDelta,
     type SnapshotDelta,
 } from './postgres/snapshot-delta.js'
 
@@ -71,32 +67,42 @@ async function verify(previous: SnapshotRow[], label: string) {
     return { rows, changes, source, incremental }
 }
 
-async function verifyResources(previous: ResourceRow[], label: string) {
-    const { rows: changes } = await pg.query<ResourceDelta>(resourceDeltaQuery, [
-        'pd2',
-        JSON.stringify(resourceFingerprints(previous)),
-    ])
-    const resources = applyResourceDelta(previous, changes)
-    const expected = await fullResources()
-    assert.deepEqual(resources, expected, label)
+async function exportResources(label: string) {
     const rows = (await pg.query<SnapshotRow>(fullQuery, ['pd2'])).rows
     const source = (await pg.query<SnapshotSource>(snapshotSourceQuery, ['pd2'])).rows[0]
-    const incremental = writeSnapshot(
-        join(workspace, 'resource-incremental.db'),
+    const queried = (await pg.query<ResourceRow>(resourceRowsQuery, ['pd2'])).rows
+    const first = writeSnapshot(
+        join(workspace, 'resources-first.db'),
         'pd2',
         source,
         rows,
-        resources
+        [...queried].sort(compareResourceRows)
     )
-    const full = writeSnapshot(join(workspace, 'resource-full.db'), 'pd2', source, rows, expected)
-    assert.equal(hash(incremental), hash(full), label + ' must match full export bytes')
-    assert.deepEqual(
-        readPreviousSnapshot(incremental, hash(incremental), 'pd2').resources,
-        expected,
-        label + ' must read back from the published shard'
+    const second = writeSnapshot(
+        join(workspace, 'resources-second.db'),
+        'pd2',
+        source,
+        rows,
+        [...queried].reverse().sort(compareResourceRows)
     )
-    checks++
-    return { resources, changes, incremental }
+    assert.equal(hash(first), hash(second), label + ' must export identical bytes')
+    const sqlite = new Sqlite(first, { readonly: true })
+    try {
+        assert.deepEqual(sqlite.pragma('foreign_key_check'), [], label + ' foreign keys')
+        checks++
+        return {
+            shard: first,
+            resources: sqlite
+                .prepare(
+                    `SELECT mod_id, sha256, resource_kind, byte_length FROM resource_entries
+                     ORDER BY rowid`
+                )
+                .raw()
+                .all(),
+        }
+    } finally {
+        sqlite.close()
+    }
 }
 
 // Rewrites a published shard in place so it looks like one written by another exporter version.
@@ -152,18 +158,17 @@ try {
             (4, 1, 'm', 'c4', 'three', 'unusable', 't', NULL),
             (5, 3, 'm', 'c5', 'one', 'complete', 't', NULL);
         INSERT INTO downloadable_entries (
-            observation_id, sha256, entry_name, resource_kind, byte_length, detected_format,
-            validation_status
+            observation_id, sha256, entry_name, resource_kind, byte_length
         ) VALUES
-            (1, 'hash-1', 'Movies/StartUp_Unreal.bk2', 'movie', 64, 'bink1', 'valid'),
-            (1, 'hash-1', 'Movies/StartUp_SBZ.bk2', 'movie', 64, 'bink1', 'valid'),
-            (1, 'hash-1', 'Movies/StartUp_DeepSilver.bk2', 'movie', 64, 'bink1', 'valid'),
-            (1, 'hash-2', 'Paks/Mod_P.pak', NULL, NULL, NULL, NULL),
-            (2, 'hash-1', 'Movies/StartUp_SBZ.bk2', 'movie', 64, 'bink1', 'valid'),
-            (3, 'hash-3', '6/Engine.ini', 'config', 66, 'ascii', 'valid'),
-            (3, 'hash-4', '7/Engine.ini', 'config', 0, 'empty', 'unsupported'),
-            (4, 'hash-5', 'Unusable.bk2', 'movie', 1, 'unrecognized', 'invalid'),
-            (5, 'hash-6', 'Other game.bk2', 'movie', 1, 'unrecognized', 'invalid');
+            (1, 'hash-1', 'Movies/StartUp_Unreal.bk2', 'movie', 64),
+            (1, 'hash-1', 'Movies/StartUp_SBZ.bk2', 'movie', 64),
+            (1, 'hash-1', 'Movies/StartUp_DeepSilver.bk2', 'movie', 64),
+            (1, 'hash-2', 'Paks/Mod_P.pak', NULL, NULL),
+            (2, 'hash-1', 'Movies/StartUp_SBZ.bk2', 'movie', 64),
+            (3, 'hash-3', '6/Engine.ini', 'config', 66),
+            (3, 'hash-4', '7/Engine.ini', 'config', 0),
+            (4, 'hash-5', 'Unusable.bk2', 'movie', 1),
+            (5, 'hash-6', 'Other game.bk2', 'movie', 1);
     `)
     let baseline = (await verify([], 'first export without a previous snapshot')).rows
     assert.equal((await verify(baseline, 'unchanged export')).changes.length, 0)
@@ -193,6 +198,45 @@ try {
             'pd2'
         )
     )
+
+    // Published shards may predate resource_entries or carry its observation-level shape. Only
+    // their files rows feed the delta, so both stay usable previous snapshots.
+    const oldShapes: Array<[string, string]> = [
+        ['shard without resource_entries', 'DROP TABLE resource_entries'],
+        [
+            'shard with observation-level resource_entries',
+            `DROP TABLE resource_entries;
+             CREATE TABLE resource_entries (
+                 mod_id INTEGER NOT NULL REFERENCES mods(id),
+                 observation_id INTEGER NOT NULL,
+                 download_kind TEXT NOT NULL,
+                 download_remote_id INTEGER NOT NULL,
+                 version TEXT NOT NULL,
+                 source_filename TEXT NOT NULL,
+                 entry_name TEXT NOT NULL,
+                 sha256 TEXT NOT NULL REFERENCES file_contents(sha256),
+                 resource_kind TEXT NOT NULL,
+                 byte_length INTEGER NOT NULL,
+                 detected_format TEXT NOT NULL,
+                 validation_status TEXT NOT NULL,
+                 PRIMARY KEY (observation_id, sha256, entry_name)
+             );
+             INSERT INTO resource_entries VALUES
+                 (1, 1, 'file', 501, 'one', '', 'Movies/A.bk2', 'hash-1', 'movie', 64, 'bink1', 'valid')`,
+        ],
+    ]
+    for (const [label, statements] of oldShapes) {
+        const shard = writeSnapshot(
+            join(workspace, 'old-shard.db'),
+            'pd2',
+            source,
+            baseline,
+            await fullResources()
+        )
+        const previous = readPreviousSnapshot(shard, reshapeShard(shard, statements), 'pd2')
+        assert.deepEqual(previous.rows, baseline, label + ' keeps its files rows')
+        assert.equal((await verify(previous.rows, label)).changes.length, 0, label)
+    }
 
     const edits: Array<[string, string]> = [
         ['parent mod', 'UPDATE files SET mod_id=2 WHERE id=1'],
@@ -269,101 +313,90 @@ try {
     assert.equal(empty.rows.length, 0)
     assert.equal((await verify(empty.rows, 'empty snapshot repeat')).changes.length, 0)
 
-    // Resource rows come from complete observations only, every name of identical bytes is its
-    // own row, and a retired download stays recognisable. Its files rows are all gone by now,
-    // so this is also the resource-only shard.
-    let resourceBaseline = (await verifyResources([], 'first resource export')).resources
+    // Resource identities come from every complete observation, including historical releases
+    // and retired downloads. Unusable observations, other games and ordinary entries never
+    // appear. Every files row is gone by now, so this is also the resource-only shard.
+    const initial = await exportResources('first resource export')
     assert.deepEqual(
-        resourceBaseline.map((row) => [row.observation_id, row.entry_name, row.source_filename]),
+        initial.resources,
         [
-            ['1', 'Movies/StartUp_DeepSilver.bk2', 'Skip Startup.rar'],
-            ['1', 'Movies/StartUp_SBZ.bk2', 'Skip Startup.rar'],
-            ['1', 'Movies/StartUp_Unreal.bk2', 'Skip Startup.rar'],
-            ['2', 'Movies/StartUp_SBZ.bk2', ''],
-            ['3', '6/Engine.ini', 'Small UI.zip'],
-            ['3', '7/Engine.ini', 'Small UI.zip'],
-        ]
+            [4, 'hash-1', 'movie', 64],
+            [5, 'hash-3', 'config', 66],
+            [5, 'hash-4', 'config', 0],
+        ],
+        'names and releases of one hash collapse to one identity per project'
     )
-    assert.equal((await verifyResources(resourceBaseline, 'unchanged resources')).changes.length, 0)
+    const resourceShard = new Sqlite(initial.shard, { readonly: true })
+    try {
+        assert.equal(
+            resourceShard.prepare('SELECT COUNT(*) FROM files').pluck().get(),
+            0,
+            'resources never enter the files projection'
+        )
+        assert.deepEqual(
+            resourceShard
+                .prepare(
+                    `SELECT DISTINCT m.remote_id FROM mods m JOIN files f ON f.mod_id = m.id
+                     WHERE m.name LIKE '%Skip Startup%'`
+                )
+                .all(),
+            [],
+            'a resource-only mod is not an ordinary name match'
+        )
+    } finally {
+        resourceShard.close()
+    }
 
-    const resourceEdits: Array<[string, string, number]> = [
+    const resourceEdits: Array<[string, string, unknown[][]]> = [
         [
-            'validation status',
-            `UPDATE downloadable_entries SET validation_status='invalid'
-             WHERE observation_id=3 AND sha256='hash-3'`,
-            1,
-        ],
-        [
-            'hosted filename',
-            "UPDATE downloadable_observations SET source_filename='UI.zip' WHERE id=3",
-            2,
-        ],
-        ['resource mod name', "UPDATE mods SET name='Skip Startup 🦆:1:' WHERE remote_id=13", 4],
-        [
-            'repeated hash in a later release',
+            'replaced and retired release',
             `INSERT INTO downloadable_observations (
                 id, downloadable_id, metadata_fingerprint, content_fingerprint, version, outcome,
                 observed_at
-             ) OVERRIDING SYSTEM VALUE VALUES (6, 1, 'm', 'c6', 'four', 'complete', 't');
+             ) OVERRIDING SYSTEM VALUE VALUES (6, 1, 'm2', 'c6', 'four', 'complete', 't');
              INSERT INTO downloadable_entries (
-                observation_id, sha256, entry_name, resource_kind, byte_length, detected_format,
-                validation_status
-             ) VALUES (6, 'hash-1', 'Movies/StartUp_SBZ.bk2', 'movie', 64, 'bink1', 'valid')`,
-            1,
+                observation_id, sha256, entry_name, resource_kind, byte_length
+             ) VALUES (6, 'hash-7', 'Movies/StartUp_SBZ.bk2', 'movie', 1);
+             UPDATE remote_downloadables SET retired_at='2026-09-03' WHERE id=1`,
+            [
+                [4, 'hash-1', 'movie', 64],
+                [4, 'hash-7', 'movie', 1],
+                [5, 'hash-3', 'config', 66],
+                [5, 'hash-4', 'config', 0],
+            ],
         ],
         [
-            'entry renamed',
-            `UPDATE downloadable_entries SET entry_name='Movies/über:🦆.bk2'
-             WHERE observation_id=1 AND entry_name='Movies/StartUp_SBZ.bk2'`,
-            2,
+            'bytes shared across projects',
+            `INSERT INTO downloadable_entries (
+                observation_id, sha256, entry_name, resource_kind, byte_length
+             ) VALUES (3, 'hash-1', 'Movies/Intro.bk2', 'movie', 64)`,
+            [
+                [4, 'hash-1', 'movie', 64],
+                [4, 'hash-7', 'movie', 1],
+                [5, 'hash-1', 'movie', 64],
+                [5, 'hash-3', 'config', 66],
+                [5, 'hash-4', 'config', 0],
+            ],
         ],
-        ['entry removed', 'DELETE FROM downloadable_entries WHERE observation_id=2', 1],
+        [
+            'same bytes under another kind',
+            `INSERT INTO downloadable_entries (
+                observation_id, sha256, entry_name, resource_kind, byte_length
+             ) VALUES (3, 'hash-3', 'Movies/Odd.bk2', 'movie', 66)`,
+            [
+                [4, 'hash-1', 'movie', 64],
+                [4, 'hash-7', 'movie', 1],
+                [5, 'hash-1', 'movie', 64],
+                [5, 'hash-3', 'config', 66],
+                [5, 'hash-3', 'movie', 66],
+                [5, 'hash-4', 'config', 0],
+            ],
+        ],
     ]
-    for (const [label, statement, expectedChanges] of resourceEdits) {
+    for (const [label, statement, expected] of resourceEdits) {
         await pg.exec(statement)
-        const result = await verifyResources(resourceBaseline, label)
-        assert.equal(result.changes.length, expectedChanges, label + ' change count')
-        resourceBaseline = result.resources
+        assert.deepEqual((await exportResources(label)).resources, expected, label)
     }
-
-    const resourceSource = (await pg.query<SnapshotSource>(snapshotSourceQuery, ['pd2'])).rows[0]
-    const oldShard = writeSnapshot(
-        join(workspace, 'old-shard.db'),
-        'pd2',
-        resourceSource,
-        [],
-        resourceBaseline
-    )
-    const oldShardHash = reshapeShard(oldShard, 'DROP TABLE resource_entries')
-    const oldPrevious = readPreviousSnapshot(oldShard, oldShardHash, 'pd2')
-    assert.deepEqual(
-        oldPrevious.resources,
-        [],
-        'a shard published before resource_entries existed is read as having no resource rows'
-    )
-    assert.equal(
-        (await verifyResources(oldPrevious.resources, 'export after an old previous shard')).changes
-            .length,
-        resourceBaseline.length,
-        'every resource row is fetched when the previous shard predates the table'
-    )
-
-    const malformed = writeSnapshot(
-        join(workspace, 'malformed.db'),
-        'pd2',
-        resourceSource,
-        [],
-        resourceBaseline
-    )
-    const malformedHash = reshapeShard(
-        malformed,
-        'DROP TABLE resource_entries; CREATE TABLE resource_entries (observation_id INTEGER)'
-    )
-    assert.throws(
-        () => readPreviousSnapshot(malformed, malformedHash, 'pd2'),
-        /no such column/,
-        'a malformed resource table is an error, not an old shard'
-    )
 
     console.log(`Snapshot delta tests passed (${checks} full-export equivalence checks)`)
 } finally {
