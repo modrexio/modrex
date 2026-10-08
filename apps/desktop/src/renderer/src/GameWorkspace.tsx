@@ -387,7 +387,7 @@ export function GameWorkspace({
                                 folders: (
                                     <GameFolders activeGame={activeGame} gamePath={gamePath} />
                                 ),
-                                advanced: (activeGame === 'pd3' || activeGame === 'cb') && (
+                                advanced: GAMES[activeGame].configPresets && (
                                     <EngineIniSettings
                                         key={`ini:${gamePath}`}
                                         activeGame={activeGame}

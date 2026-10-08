@@ -12,7 +12,7 @@ import {
 } from '../hooks/installedUtils'
 import type { InstalledGroup } from '../hooks/installedUtils'
 import type { HealthItem, MissingDepRef } from '../hooks/healthCheck'
-import type { InstalledMod, ModSummary } from '../../../shared/types'
+import { GAMES, type GameId, type InstalledMod, type ModSummary } from '../../../shared/types'
 import { useThumbnail } from '../hooks/useThumbnail'
 import { api, type LeftoverFiles } from '../api'
 import { uninstallablePromptMessage } from '../installSentinels'
@@ -20,6 +20,7 @@ import { formatBytes } from './modDetail/format'
 import { describeFailures, type ActionFailure } from '../bulkAction'
 import NexusIcon from '../../../../assets/icons/nexusmods.svg?react'
 import { MovieResourceScan } from './MovieResourceScan'
+import { getSettingsCache } from '../settingsCache'
 
 export interface Leftovers {
     sets: LeftoverFiles[]
@@ -47,7 +48,7 @@ interface Props {
     leftovers: Leftovers
     onLeftoversChanged: () => Promise<void>
     gamePath: string | null
-    gameId: string
+    gameId: GameId
     loadingMod: string | null
     visible: boolean
     onOpenDetail: (modId: number, source?: 'nexus') => void
@@ -163,7 +164,16 @@ export function HealthCheckModal({
     onClose,
 }: Props) {
     const summary = computeHealthSummary(installed)
-    const resourceGame = gameId === 'pd3' || gameId === 'cb' ? gameId : null
+    const game = GAMES[gameId]
+    const settings = getSettingsCache(gameId)?.settings
+    const launcher = settings?.gamePath === gamePath ? settings?.launcher : null
+    const storefront =
+        launcher === 'steam' || launcher === 'epic' || launcher === 'xbox' ? launcher : null
+    const canScanMovies =
+        !!game.movieReplacement &&
+        (!storefront || game.movieReplacement.storefronts.includes(storefront))
+    const showResources =
+        !!game.movieReplacement || !!game.configPresets || installed.some((mod) => !!mod.deployment)
     const changedResources = installed.filter(
         (mod) =>
             mod.deployment &&
@@ -278,7 +288,9 @@ export function HealthCheckModal({
     })
 
     const tabs: { id: string; label: string }[] = [
-        ...(resourceGame ? [{ id: 'resources', label: t('resources.recognition.healthTab') }] : []),
+        ...(showResources
+            ? [{ id: 'resources', label: t('resources.recognition.healthTab') }]
+            : []),
         ...(showDepsTab
             ? [
                   {
@@ -383,11 +395,14 @@ export function HealthCheckModal({
                 </Tabs.List>
 
                 <div className="overflow-y-auto flex-1 p-3">
-                    {resourceGame && (
+                    {showResources && (
                         <Tabs.Content
                             value="resources"
                             className="focus:outline-none flex flex-col gap-3"
                         >
+                            {changedResources.length === 0 && !canScanMovies && (
+                                <EmptyTab>{t('resources.status.noAttention')}</EmptyTab>
+                            )}
                             {changedResources.map((mod) => (
                                 <HealthRow
                                     key={mod.uid}
@@ -410,7 +425,7 @@ export function HealthCheckModal({
                                     }
                                 />
                             ))}
-                            <MovieResourceScan activeGame={resourceGame} />
+                            {canScanMovies && <MovieResourceScan activeGame={gameId} />}
                         </Tabs.Content>
                     )}
                     {showDepsTab && (

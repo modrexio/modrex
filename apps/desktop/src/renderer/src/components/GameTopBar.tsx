@@ -4,7 +4,7 @@ import { TopBar, type TopBarProps } from './TopBar'
 import { Button } from './ui/Button'
 import { Tooltip } from './Tooltip'
 import { t } from '../i18n'
-import type { GameId } from '../../../shared/types'
+import { GAMES, type GameId } from '../../../shared/types'
 import {
     getLaunchState,
     subscribeLaunchState,
@@ -19,7 +19,15 @@ export function GameTopBar({
     gamePath,
     ...topBar
 }: TopBarProps & { activeGame: GameId; gamePath: string | null }) {
-    const hasUnrealResources = activeGame === 'pd3' || activeGame === 'cb'
+    const game = GAMES[activeGame]
+    const hasResources = !!game.movieReplacement || !!game.configPresets
+    const launchDescription = game.movieReplacement
+        ? game.configPresets
+            ? t('resources.launchDescription')
+            : t('resources.launchMoviesDescription')
+        : game.configPresets
+          ? t('resources.launchConfigDescription')
+          : t('topBar.launchWithoutMods')
     const subscribe = useCallback(
         (listener: () => void) => subscribeLaunchState(activeGame, listener),
         [activeGame]
@@ -41,13 +49,7 @@ export function GameTopBar({
                     </Button>
                 ) : (
                     <>
-                        <Tooltip
-                            content={
-                                hasUnrealResources
-                                    ? t('resources.launchDescription')
-                                    : t('topBar.launchWithoutMods')
-                            }
-                        >
+                        <Tooltip content={launchDescription}>
                             <Button
                                 variant="secondary"
                                 size="sm"
@@ -61,7 +63,7 @@ export function GameTopBar({
                                 )}
                                 {launching === 'vanilla'
                                     ? t('topBar.launching')
-                                    : hasUnrealResources
+                                    : hasResources
                                       ? t('resources.launchWithoutPackages')
                                       : t('topBar.launchWithoutMods')}
                             </Button>

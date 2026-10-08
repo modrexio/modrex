@@ -30,9 +30,12 @@
         "details": "Technical details",
         "launchWithoutPackages": "Launch without package mods",
         "launchDescription": "Temporarily disables mod folders. Movie replacements and INI settings stay selected.",
+        "launchMoviesDescription": "Temporarily disables mod folders. Movie replacements stay selected.",
+        "launchConfigDescription": "Temporarily disables mod folders. INI settings stay selected.",
         "movie": "Movie replacement",
         "ini": "INI preset",
         "status": {
+            "noAttention": "No managed game files need attention.",
             "applied": "Applied",
             "disabled": "Disabled",
             "diverged": "Files changed outside Modrex. Review them to continue.",

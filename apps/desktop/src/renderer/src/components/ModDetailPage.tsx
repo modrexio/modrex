@@ -31,7 +31,7 @@ import type {
     InstalledMod,
     ModSummary,
 } from '../../../shared/types'
-import { AVATAR_BASE_URL } from '../../../shared/types'
+import { AVATAR_BASE_URL, GAMES } from '../../../shared/types'
 import NexusIcon from '../../../../assets/icons/nexusmods.svg?react'
 import {
     getCachedMod,
@@ -537,7 +537,12 @@ export function ModDetailPage({
         const checkType = download?.type ?? (files.length === 1 ? files[0].type : undefined)
         const checkUrl =
             download?.download_url ?? (files.length === 1 ? files[0].download_url : undefined)
-        if (isUnsupportedFormat(checkType, checkUrl)) {
+        const checkFilename = download
+            ? files.find((file) => file.id === download.id)?.name
+            : files.length === 1
+              ? files[0].name
+              : undefined
+        if (isUnsupportedFormat(GAMES[activeGame], checkType, checkUrl, checkFilename)) {
             setShowHeaderFormatWarning(true)
             return
         }
@@ -930,8 +935,10 @@ export function ModDetailPage({
                                         </Button>
                                     )}
                                     {isUnsupportedFormat(
+                                        GAMES[activeGame],
                                         detail?.download?.type ?? undefined,
-                                        detail?.download?.download_url ?? undefined
+                                        detail?.download?.download_url ?? undefined,
+                                        files.find((file) => file.id === detail?.download?.id)?.name
                                     ) && (
                                         <span className="flex items-center gap-1 text-xs text-warning">
                                             <AlertTriangle className="w-3 h-3 shrink-0" />

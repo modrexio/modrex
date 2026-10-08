@@ -35,7 +35,7 @@ interface Props {
     modData: Map<number, ModSummary>
     installed: InstalledMod[]
     gamePath: string | null
-    gameId: string
+    gameId: GameId
     visible: boolean
     onRefreshInstalled: () => Promise<void>
     onClose: () => void
@@ -450,7 +450,7 @@ export function UpdatesModal({
                     payload={hostPackData}
                     gamePath={gamePath}
                     installed={installed}
-                    gameId={gameId as GameId}
+                    gameId={gameId}
                     onRefreshInstalled={onRefreshInstalled}
                     onClose={() => {
                         setHostPackData(null)
@@ -483,6 +483,7 @@ export function UpdatesModal({
             )}
             {fileChoice && (
                 <UpdateFileModal
+                    gameId={gameId}
                     mod={fileChoice.mod}
                     files={fileChoice.files}
                     installed={installed.filter((mod) => mod.id === fileChoice.ins.id)}

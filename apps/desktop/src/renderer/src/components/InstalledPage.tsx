@@ -363,6 +363,7 @@ export function InstalledPage({
                 )}
                 {reinstallChoice && (
                     <UpdateFileModal
+                        gameId={activeGame}
                         mod={reinstallChoice.mod}
                         files={reinstallChoice.files}
                         installed={reinstallChoice.mods}

@@ -78,7 +78,7 @@ if (previewState.library === 'resources') {
     install.addEventListener('click', async () => {
         const route = readAppRoute()
         if (route.kind !== 'game') {
-            install.textContent = 'Choose PAYDAY 3 or Crime Boss first'
+            install.textContent = 'Choose a game with movie or config support first'
             return
         }
         const gameId = route.gameId

@@ -166,7 +166,7 @@ const handlers = {
                 ? library(id)
                       .mods.filter((mod) => mod.deployment === 'movie')
                       .map((mod) => ({
-                          path: `${path}/${id === 'pd3' ? 'PAYDAY3' : 'CrimeBoss'}/Content/Movies/${mod.filename}`,
+                          path: `${path}/PreviewMovies/${mod.filename}`,
                           sha256: 'a'.repeat(64),
                           recognition: { status: 'unavailable' as const },
                       }))

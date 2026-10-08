@@ -3,17 +3,18 @@ import { Dialog, DialogHeader } from './Dialog'
 import { Button } from './ui/Button'
 import { FileRow } from './FileRow'
 import { t } from '../i18n'
-import type { InstalledMod, Mod, ModFile } from '../../../shared/types'
+import type { GameId, InstalledMod, Mod, ModFile } from '../../../shared/types'
 
 interface Props {
     mod: Mod
     files: ModFile[]
     installed: InstalledMod[]
+    gameId: GameId
     onChoose: (fileId: number) => void
     onCancel: () => void
 }
 
-export function UpdateFileModal({ mod, files, installed, onChoose, onCancel }: Props) {
+export function UpdateFileModal({ mod, files, installed, gameId, onChoose, onCancel }: Props) {
     const [selected, setSelected] = useState<number | null>(
         () => files.find((file) => file.id === mod.download?.id)?.id ?? null
     )
@@ -33,6 +34,7 @@ export function UpdateFileModal({ mod, files, installed, onChoose, onCancel }: P
             <div className="overflow-y-auto flex-1 px-4 py-3 flex flex-col gap-2">
                 {files.map((file) => (
                     <FileRow
+                        gameId={gameId}
                         key={file.id}
                         file={file}
                         checked={selected === file.id}

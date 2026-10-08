@@ -1,4 +1,4 @@
-import type { GameId } from '@modrex/games'
+import { GAMES, type GameId } from '@modrex/games'
 import type {
     InstalledMod_Serialize,
     ResourceRecoveryReview,
@@ -13,30 +13,19 @@ const recoveries = new Map<string, { gameId: GameId; uid: string }>()
 
 export function seedResourceLibrary(gameId: GameId) {
     const lib = library(gameId)
-    if (gameId === 'pd3' || gameId === 'cb') {
-        const movies = gameId === 'pd3' ? 'StartUp_SBZ.bk2' : 'UE4_Logo.bk2'
-        const entries: InstalledMod_Serialize[] = [
+    const game = GAMES[gameId]
+    const entries: InstalledMod_Serialize[] = []
+    if (game.movieReplacement) {
+        entries.push(
             {
                 uid: 'resource:movie:intro',
                 id: -9001,
                 source: 'local',
                 name: 'Skip startup movies',
-                filename: movies,
+                filename: 'Intro.bk2',
                 deployment: 'movie',
                 enabled: true,
                 resourceStatus: 'applied',
-                version: '1.0',
-                installedAt: '2026-10-06T12:00:00Z',
-            },
-            {
-                uid: 'resource:ini:scale',
-                id: -9002,
-                source: 'local',
-                name: 'Small UI',
-                filename: 'Engine.ini',
-                deployment: 'ini',
-                enabled: false,
-                resourceStatus: 'disabled',
                 version: '1.0',
                 installedAt: '2026-10-06T12:00:00Z',
             },
@@ -45,24 +34,38 @@ export function seedResourceLibrary(gameId: GameId) {
                 id: -9003,
                 source: 'local',
                 name: 'Custom intro movie',
-                filename: gameId === 'pd3' ? 'StartUp_Unreal.bk2' : 'ARC_25FPS.bk2',
+                filename: 'Background.bk2',
                 deployment: 'movie',
                 enabled: true,
                 resourceStatus: 'diverged',
                 version: '1.0',
                 installedAt: '2026-10-06T12:00:00Z',
-            },
-        ]
-        entries.forEach((entry) => lib.install(entry))
+            }
+        )
     }
+    if (game.configPresets)
+        entries.push({
+            uid: 'resource:ini:scale',
+            id: -9002,
+            source: 'local',
+            name: 'Small UI',
+            filename: game.configPresets.filename,
+            deployment: 'ini',
+            enabled: false,
+            resourceStatus: 'disabled',
+            version: '1.0',
+            installedAt: '2026-10-06T12:00:00Z',
+        })
+    entries.forEach((entry) => lib.install(entry))
     lib.seeded = true
 }
 
 export function createResourceReview(gameId: GameId, gamePath: string): string {
-    if (gameId !== 'pd3' && gameId !== 'cb')
-        throw new Error('Choose PAYDAY 3 or Crime Boss for the resource preview')
+    const game = GAMES[gameId]
+    if (!game.movieReplacement && !game.configPresets)
+        throw new Error('This game declares no movie or config support')
     const handle = crypto.randomUUID()
-    const slot = gameId === 'pd3' ? 'StartUp_SBZ.bk2' : 'UE4_Logo.bk2'
+    const slot = 'Intro.bk2'
     const configPath =
         gameId === 'pd3'
             ? 'C:/Users/Preview/AppData/Local/PAYDAY3/Saved/Config/WindowsClient/Engine.ini'
@@ -71,42 +74,53 @@ export function createResourceReview(gameId: GameId, gamePath: string): string {
         reviewHandle: handle,
         gameId,
         gamePath,
-        modName: 'Movie and UI presets',
+        modName: 'Resource presets',
         entries: [
-            {
-                entryId: 0,
-                name: slot,
-                kind: 'movie',
-                supported: true,
-                reason: null,
-                changes: [],
-                keys: [],
-            },
-            ...[6, 8].map((scale, index) => ({
-                entryId: index + 1,
-                name: `${scale}/Engine.ini`,
-                kind: 'ini' as const,
-                supported: true,
-                reason: null,
-                keys: [
-                    { section: '/Script/Engine.UserInterfaceSettings', key: 'ApplicationScale' },
-                ],
-                changes: [
-                    {
-                        section: '/Script/Engine.UserInterfaceSettings',
-                        key: 'ApplicationScale',
-                        before: '1.0',
-                        applied: String(scale / 10),
-                    },
-                ],
-            })),
+            ...(game.movieReplacement
+                ? [
+                      {
+                          entryId: 0,
+                          name: slot,
+                          kind: 'movie' as const,
+                          supported: true,
+                          reason: null,
+                          changes: [],
+                          keys: [],
+                      },
+                  ]
+                : []),
+            ...(game.configPresets
+                ? [6, 8].map((scale, index) => ({
+                      entryId: index + 1,
+                      name: `${scale}/Engine.ini`,
+                      kind: 'ini' as const,
+                      supported: true,
+                      reason: null,
+                      keys: [
+                          {
+                              section: '/Script/Engine.UserInterfaceSettings',
+                              key: 'ApplicationScale',
+                          },
+                      ],
+                      changes: [
+                          {
+                              section: '/Script/Engine.UserInterfaceSettings',
+                              key: 'ApplicationScale',
+                              before: '1.0',
+                              applied: String(scale / 10),
+                          },
+                      ],
+                  }))
+                : []),
         ],
-        movieSlots: [slot],
-        configPath,
+        movieSlots: game.movieReplacement ? [slot] : [],
+        configPath: game.configPresets ? configPath : null,
         pakPicker: null,
         source: null,
         moviePackApplied: false,
-        movieConflicts: [{ name: 'Skip startup movies', slots: [slot], replacing: false }],
+        movieConflicts: game.movieReplacement
+            ? [{ name: 'Skip startup movies', slots: [slot], replacing: false }]
+            : [],
         iniConflicts: [],
     })
     return handle
@@ -170,7 +184,7 @@ export function reviewRecovery(
     const path =
         mod.deployment === 'ini'
             ? 'C:/Preview/chosen-config/Engine.ini'
-            : `${gamePath}/${gameId === 'pd3' ? 'PAYDAY3' : 'CrimeBoss'}/Content/Movies/${mod.filename}`
+            : `${gamePath}/PreviewMovies/${mod.filename}`
     return {
         reviewHandle: handle,
         gameId,

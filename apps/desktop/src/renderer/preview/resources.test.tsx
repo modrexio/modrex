@@ -61,6 +61,33 @@ test('game settings leave resource tools in the game-scoped Advanced tab', async
     expect(screen.queryByRole('textbox', { name: 'Engine.ini' })).toBeNull()
 })
 
+test('a config-only declaration supplies settings tools without movie installation or scanning', async () => {
+    store.set('modrex:active-game', 'pd2')
+    const { GAMES } = await import('@modrex/games')
+    const original = GAMES.pd2
+    GAMES.pd2 = { ...original, configPresets: { filename: 'Engine.ini' } }
+    try {
+        const { default: App } = await import('../src/App')
+        render(<App />)
+        await screen.findByText('Small UI')
+        expect(screen.queryByText('Custom intro movie')).toBeNull()
+        fireEvent.click(screen.getByRole('button', { name: 'Health Check' }))
+        const dialog = within(await screen.findByRole('dialog'))
+        fireEvent.mouseDown(dialog.getByRole('tab', { name: 'Game files' }))
+        expect(dialog.getByText('No managed game files need attention.')).toBeTruthy()
+        expect(dialog.queryByRole('button', { name: 'Check existing movies' })).toBeNull()
+        fireEvent.click(dialog.getAllByRole('button', { name: 'Close' })[0])
+        fireEvent.click(
+            within(screen.getByRole('complementary')).getByRole('button', { name: 'Settings' })
+        )
+        fireEvent.click(screen.getByRole('button', { name: 'Advanced' }))
+        expect(await screen.findByRole('heading', { name: 'PAYDAY 2 tools' })).toBeTruthy()
+        expect(await screen.findByRole('button', { name: 'Choose Engine.ini' })).toBeTruthy()
+    } finally {
+        GAMES.pd2 = original
+    }
+})
+
 test('a blocked-file banner routes to Installed instead of an absent interrupted operation', async () => {
     const { api } = await import('../src/api')
     const getInstalled = api.getInstalled.bind(api)

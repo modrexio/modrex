@@ -564,6 +564,7 @@ export function BrowsePage({
                 }
                 let checkType: string | null | undefined
                 let checkUrl: string | null | undefined
+                let checkFilename: string | undefined
                 if (fullMod.download === null) {
                     const files = await getCachedModFiles(modId)
                     if (files.length > 1) {
@@ -573,11 +574,12 @@ export function BrowsePage({
                     }
                     checkType = files[0]?.type
                     checkUrl = files[0]?.download_url
+                    checkFilename = files[0]?.name
                 } else {
                     checkType = fullMod.download.type
                     checkUrl = fullMod.download.download_url
                 }
-                if (isUnsupportedFormat(checkType, checkUrl)) {
+                if (isUnsupportedFormat(GAMES[activeGame], checkType, checkUrl, checkFilename)) {
                     removeInstalling(modId)
                     setFormatWarning({ modId, mod: fullMod })
                     return

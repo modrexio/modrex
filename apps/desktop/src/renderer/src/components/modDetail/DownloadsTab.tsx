@@ -17,7 +17,7 @@ import type {
     ModSummary,
     ModImage,
 } from '../../../../shared/types'
-import { THUMBNAIL_BASE_URL } from '../../../../shared/types'
+import { THUMBNAIL_BASE_URL, GAMES } from '../../../../shared/types'
 import { api } from '../../api'
 import { t } from '../../i18n'
 import { isUnsupportedFormat } from '../../formatCheck'
@@ -193,7 +193,7 @@ export function DownloadsTab({
     }
 
     function handleInstallFile(file: ModFile) {
-        if (isUnsupportedFormat(file.type, file.download_url)) {
+        if (isUnsupportedFormat(GAMES[activeGame], file.type, file.download_url, file.name)) {
             setFormatWarningFile(file)
             return
         }
@@ -281,7 +281,12 @@ export function DownloadsTab({
                         </div>
                     )}
                     <div className="flex items-center flex-wrap gap-x-3 gap-y-1 mt-1.5 text-xs text-text-subtle">
-                        {isUnsupportedFormat(file.type, file.download_url) && (
+                        {isUnsupportedFormat(
+                            GAMES[activeGame],
+                            file.type,
+                            file.download_url,
+                            file.name
+                        ) && (
                             <span className="flex items-center gap-1 text-warning">
                                 <AlertTriangle className="w-3 h-3 shrink-0" />
                                 {t('common.nonPakWarning')}
