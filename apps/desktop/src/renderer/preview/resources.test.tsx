@@ -259,3 +259,14 @@ test('does not complete a graphics-file handoff after the installation store cha
     expect(open).not.toHaveBeenCalled()
     expect(screen.queryByText('G:/Old/renderer_settings_dx11.xml')).toBeNull()
 })
+
+test('Health Check opens recovery storage through its dedicated command', async () => {
+    const api = await mount()
+    const open = vi.spyOn(api, 'openResourceRecoveryFolder')
+    const openData = vi.spyOn(api, 'openDataFolder')
+    fireEvent.click(screen.getByRole('button', { name: 'Health Check' }))
+    const dialog = within(await screen.findByRole('dialog'))
+    fireEvent.click(dialog.getByRole('button', { name: 'Open recovery folder' }))
+    await vi.waitFor(() => expect(open).toHaveBeenCalledOnce())
+    expect(openData).not.toHaveBeenCalled()
+})

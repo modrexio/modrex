@@ -469,6 +469,18 @@ impl ResourceStore {
         Ok(Self::at(dir.join("resources")))
     }
 
+    pub(crate) fn recovery_folder(&self) -> Result<Option<&Path>, String> {
+        let metadata = match fs::metadata(&self.root) {
+            Ok(metadata) => metadata,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+            Err(error) => return Err(format!("Could not inspect the recovery folder: {error}")),
+        };
+        if !metadata.is_dir() {
+            return Err("The recovery folder path is not a directory".into());
+        }
+        Ok(Some(&self.root))
+    }
+
     fn manifest_path(&self) -> PathBuf {
         self.root.join("manifest.json")
     }

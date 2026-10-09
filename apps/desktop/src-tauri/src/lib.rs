@@ -82,6 +82,7 @@ fn ipc_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::mods::review_resource_recovery,
             commands::mods::keep_current_resources,
             commands::mods::cancel_resource_recovery,
+            commands::mods::open_resource_recovery_folder,
             commands::mods::get_engine_ini_location,
             commands::mods::open_engine_ini,
             commands::mods::pick_engine_ini,

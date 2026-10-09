@@ -9,6 +9,7 @@ import { Dialog, DialogHeader } from './Dialog'
 import { Button } from './ui/Button'
 import { formatBytes } from './modDetail/format'
 import { displayPath } from '../lib/displayPath'
+import { RecoveryFolderButton } from './RecoveryFolderButton'
 
 export function ResourceRecoveryDialog({
     activeGame,
@@ -171,19 +172,9 @@ export function ResourceRecoveryDialog({
                                     )}
                                 </div>
                             ))}
-                            <Button
-                                variant="secondary"
-                                size="sm"
-                                className="mt-3"
-                                onClick={() => {
-                                    void api
-                                        .openDataFolder()
-                                        .catch((failure) => setError(String(failure)))
-                                }}
-                            >
-                                {t('resources.recovery.openCopies')}
-                            </Button>
-                            <p className="mt-2">{t('resources.recovery.copiesLocation')}</p>
+                            <div className="mt-3">
+                                <RecoveryFolderButton />
+                            </div>
                         </details>
                     </>
                 )}

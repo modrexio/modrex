@@ -1466,6 +1466,12 @@ pub fn cancel_resource_recovery(app: AppHandle, review_handle: String) {
     resources::cancel_recovery(&app, &review_handle);
 }
 
+#[tauri::command]
+#[specta::specta]
+pub async fn open_resource_recovery_folder(app: AppHandle) -> Result<bool, String> {
+    resources::open_recovery_folder(&app).await
+}
+
 /// Removes every open review's staged payloads, for application exit.
 pub(crate) fn discard_all_resource_reviews(app: &AppHandle) {
     resources::discard_all_reviews(app);

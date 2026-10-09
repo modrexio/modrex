@@ -1,6 +1,37 @@
 use super::*;
 
 #[test]
+fn recovery_folder_lookup_does_not_create_missing_storage() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().join("resources");
+    let store = ResourceStore::at(root.clone());
+    assert!(store.recovery_folder().unwrap().is_none());
+    assert!(!root.exists());
+}
+
+#[test]
+fn recovery_folder_lookup_returns_the_store_directory() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().join("resources");
+    fs::create_dir(&root).unwrap();
+    fs::write(root.join("manifest.json"), b"unreadable manifest").unwrap();
+    let store = ResourceStore::at(root.clone());
+    assert_eq!(store.recovery_folder().unwrap(), Some(root.as_path()));
+}
+
+#[test]
+fn recovery_folder_lookup_refuses_a_file() {
+    let temp = tempfile::tempdir().unwrap();
+    let file = temp.path().join("resources");
+    fs::write(&file, b"not a directory").unwrap();
+    let store = ResourceStore::at(file.clone());
+    assert!(store
+        .recovery_folder()
+        .unwrap_err()
+        .contains("not a directory"));
+}
+
+#[test]
 fn an_unrelated_pending_journal_allows_launch_but_blocks_resource_writes() {
     let temp = tempfile::tempdir().unwrap();
     let store = ResourceStore::at(temp.path().join("recovery"));

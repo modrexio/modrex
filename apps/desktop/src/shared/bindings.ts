@@ -124,6 +124,7 @@ export const commands = {
 	reviewResourceRecovery: (gameId: string, uid: string | null) => __TAURI_INVOKE<ResourceRecoveryReview>("review_resource_recovery", { gameId, uid }),
 	keepCurrentResources: (reviewHandle: string) => __TAURI_INVOKE<null>("keep_current_resources", { reviewHandle }),
 	cancelResourceRecovery: (reviewHandle: string) => __TAURI_INVOKE<void>("cancel_resource_recovery", { reviewHandle }),
+	openResourceRecoveryFolder: () => __TAURI_INVOKE<boolean>("open_resource_recovery_folder"),
 	getEngineIniLocation: (gameId: string) => __TAURI_INVOKE<ConfigFileLocation>("get_engine_ini_location", { gameId }),
 	openEngineIni: (gameId: string) => __TAURI_INVOKE<null>("open_engine_ini", { gameId }),
 	/**  title comes from the renderer already localized, like pick_folder's. */

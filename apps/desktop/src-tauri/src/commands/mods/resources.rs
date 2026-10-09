@@ -528,6 +528,53 @@ pub(crate) async fn get_engine_ini_location(
     .await
 }
 
+pub(crate) async fn open_recovery_folder(app: &AppHandle) -> Result<bool, String> {
+    let app = app.clone();
+    blocking(move || {
+        let store = ResourceStore::for_app(&app)?;
+        let Some(path) = store.recovery_folder()? else {
+            return Ok(false);
+        };
+        #[cfg(windows)]
+        std::process::Command::new("explorer.exe")
+            .arg(path)
+            .spawn()
+            .map_err(|error| format!("Could not open the recovery folder: {error}"))?;
+        #[cfg(not(windows))]
+        {
+            let mut child = crate::commands::launchers::outside_bundle(
+                std::process::Command::new("xdg-open").arg(path),
+            )
+            .spawn()
+            .map_err(|error| format!("Could not open the recovery folder: {error}"))?;
+            wait_for_recovery_opener(&mut child)?;
+        }
+        Ok(true)
+    })
+    .await
+}
+
+#[cfg(any(not(windows), test))]
+fn wait_for_recovery_opener(child: &mut std::process::Child) -> Result<(), String> {
+    // Folder openers can stay alive after handing off the directory.
+    let deadline = Instant::now() + Duration::from_secs(1);
+    loop {
+        if let Some(status) = child
+            .try_wait()
+            .map_err(|error| format!("Could not check the recovery folder opener: {error}"))?
+        {
+            if !status.success() {
+                return Err(format!("The recovery folder opener failed: {status}"));
+            }
+            return Ok(());
+        }
+        if Instant::now() >= deadline {
+            return Ok(());
+        }
+        std::thread::sleep(Duration::from_millis(25));
+    }
+}
+
 pub(crate) async fn open_engine_ini(app: &AppHandle, game_id: &str) -> Result<(), String> {
     let ctx = current_context(app, game_id)?;
     let path = resolve_engine_ini(app, &ctx)?

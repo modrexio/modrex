@@ -159,6 +159,9 @@ export const api = {
     pickGraphicsConfig(gameId: string, title: string, folder = false) {
         return commands.pickGraphicsConfig(gameId, title, folder)
     },
+    openResourceRecoveryFolder() {
+        return commands.openResourceRecoveryFolder()
+    },
     async getResourceReview(reviewHandle: string): Promise<ResourceReview> {
         const review = await commands.getResourceReview(reviewHandle)
         if (!isGameId(review.gameId)) throw new Error('Resource review belongs to an unknown game.')

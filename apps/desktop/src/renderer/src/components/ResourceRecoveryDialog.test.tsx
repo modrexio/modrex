@@ -10,6 +10,7 @@ vi.mock('../api', () => ({
         reviewResourceRecovery: vi.fn(),
         cancelResourceRecovery: vi.fn(() => Promise.resolve()),
         keepCurrentResources: vi.fn(() => Promise.resolve()),
+        openResourceRecoveryFolder: vi.fn(() => Promise.resolve(true)),
     },
 }))
 vi.mock('../gameData', () => ({ refreshInstalled: vi.fn(() => Promise.resolve()) }))
@@ -50,6 +51,8 @@ test('opens the affected mod directly and confirms keeping the current files', a
     fireEvent.click(screen.getByText('Technical details'))
     expect(screen.getByText(String.raw`G:\game\Movies\Intro.bk2`)).toBeTruthy()
     expect(screen.queryByText(review.files[0].path)).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Open recovery folder' }))
+    await waitFor(() => expect(api.openResourceRecoveryFolder).toHaveBeenCalledOnce())
     expect(api.keepCurrentResources).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'Keep current files' }))
     await waitFor(() => expect(onClose).toHaveBeenCalledOnce())

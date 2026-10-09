@@ -2,6 +2,68 @@ use super::*;
 use std::fs;
 
 #[test]
+fn recovery_opener_reports_an_early_failure_and_accepts_success() {
+    for code in [0, 4] {
+        #[cfg(windows)]
+        let mut command = {
+            use std::os::windows::process::CommandExt;
+            let mut command = std::process::Command::new("cmd.exe");
+            command
+                .creation_flags(0x08000000)
+                .args(["/C", "exit", "/B"]);
+            command
+        };
+        #[cfg(not(windows))]
+        let mut command = {
+            let mut command = std::process::Command::new("sh");
+            command.arg("-c");
+            command
+        };
+        #[cfg(windows)]
+        command.arg(code.to_string());
+        #[cfg(not(windows))]
+        command.arg(format!("exit {code}"));
+        let mut child = command.spawn().unwrap();
+        child.wait().unwrap();
+        let result = wait_for_recovery_opener(&mut child);
+        if code == 0 {
+            assert!(result.is_ok());
+            continue;
+        }
+        assert!(result.unwrap_err().contains("opener failed"));
+    }
+}
+
+#[test]
+fn recovery_opener_does_not_wait_for_or_kill_a_running_file_manager() {
+    #[cfg(windows)]
+    let mut command = {
+        use std::os::windows::process::CommandExt;
+        let mut command = std::process::Command::new("powershell.exe");
+        command.creation_flags(0x08000000).args([
+            "-NoProfile",
+            "-NonInteractive",
+            "-Command",
+            "Start-Sleep -Seconds 10",
+        ]);
+        command
+    };
+    #[cfg(not(windows))]
+    let mut command = {
+        let mut command = std::process::Command::new("sleep");
+        command.arg("10");
+        command
+    };
+    let mut child = command.spawn().unwrap();
+    let result = wait_for_recovery_opener(&mut child);
+    let running = child.try_wait().unwrap().is_none();
+    child.kill().unwrap();
+    child.wait().unwrap();
+    assert!(result.is_ok());
+    assert!(running);
+}
+
+#[test]
 fn config_presets_can_be_reviewed_without_movie_support() {
     let temp = tempfile::tempdir().unwrap();
     let path = temp.path().join("Engine.ini");

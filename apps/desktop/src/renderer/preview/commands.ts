@@ -193,6 +193,7 @@ const handlers = {
         resourceFixtures.keepCurrent(handle)
         return null
     },
+    openResourceRecoveryFolder: async () => previewState.library === 'resources',
     getEngineIniLocation: async (gameId) => {
         const id = game(gameId)
         if (!gamePath(id)) throw new Error('Choose a game folder first')

@@ -20,6 +20,7 @@ import { formatBytes } from './modDetail/format'
 import { describeFailures, type ActionFailure } from '../bulkAction'
 import NexusIcon from '../../../../assets/icons/nexusmods.svg?react'
 import { MovieResourceScan } from './MovieResourceScan'
+import { RecoveryFolderButton } from './RecoveryFolderButton'
 import { getSettingsCache } from '../settingsCache'
 
 export interface Leftovers {
@@ -426,6 +427,13 @@ export function HealthCheckModal({
                                 />
                             ))}
                             {canScanMovies && <MovieResourceScan activeGame={gameId} />}
+                            <section className="px-3 py-2 flex flex-col gap-2 text-xs text-text-subtle">
+                                <h3 className="font-semibold text-text">
+                                    {t('resources.recovery.folderTitle')}
+                                </h3>
+                                <p>{t('resources.recovery.folderDescription')}</p>
+                                <RecoveryFolderButton />
+                            </section>
                         </Tabs.Content>
                     )}
                     {showDepsTab && (

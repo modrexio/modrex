@@ -122,6 +122,10 @@
             "absent": "File is currently absent.",
             "keepDescription": "Keeping the current files leaves your setup as it is and stops Modrex from managing the mods listed below. Saved recovery copies remain available. This does not restore your previous setup.",
             "keep": "Keep current files",
+            "openFolder": "Open recovery folder",
+            "folderTitle": "Recovery files",
+            "folderDescription": "Recovery files saved when Modrex applies movie or configuration mods.",
+            "noCopies": "No recovery files are available.",
             "openCopies": "Open saved copies",
             "copiesLocation": "Recovery copies and their manifest are in the resources directory inside the opened data folder."
         },
