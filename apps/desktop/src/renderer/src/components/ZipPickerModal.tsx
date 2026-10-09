@@ -356,7 +356,8 @@ export function ZipPickerModal({
     }, [payload.entries, tagByPos])
 
     useEffect(() => {
-        setArchiveEntries((gameId ?? 'pd3') as GameId, payload.fileId, payload.entries)
+        if (payload.source === 'nexus') return
+        setArchiveEntries(gameId as GameId, payload.fileId, payload.entries)
     }, [payload, gameId])
 
     function toggle(pos: number) {
