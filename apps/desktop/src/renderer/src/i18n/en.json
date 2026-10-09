@@ -1,6 +1,6 @@
 {
     "common": {
-        "save": "Save",
+        "checkAgain": "Check again",
         "beta": "Beta",
         "install": "Install",
         "nonPakWarning": "Unsupported format",
@@ -36,8 +36,6 @@
         "ini": "INI preset",
         "status": {
             "noAttention": "No managed game files need attention.",
-            "applied": "Applied",
-            "disabled": "Disabled",
             "diverged": "Files changed outside Modrex. Review them to continue.",
             "blocked": "Review these files before changing this mod.",
             "reviewInInstalled": "Open Installed Mods to review them."
@@ -47,7 +45,6 @@
             "movies": "Check for movie mods",
             "description": "Look for game movies that match known mod files. This check leaves all files unchanged.",
             "check": "Check existing movies",
-            "checkAgain": "Check again",
             "clear": "Clear results",
             "scanUnavailable": "The mod database does not include movie identification data, so this check could not identify movie mods.",
             "noFindings": "No known movie mod matches found.",
@@ -56,9 +53,7 @@
             "checked": "Checked {time}. Changes made afterwards require a new check.",
             "matched": "Matches {name}",
             "unmanaged": "This match alone does not make the file managed by Modrex or provide an earlier copy to restore.",
-            "noMatch": "No known mod matches this file. It may be an original game movie or a custom replacement.",
             "ambiguous": "Several mods contain this same file. Modrex cannot identify which one it came from.",
-            "unavailable": "Movie identification data is unavailable. Try again after updating the mod database.",
             "empty": "No movie files found."
         },
         "install": {
@@ -103,13 +98,13 @@
             "iniConflict": "Installing this switches off {name}. Its other settings return to their saved values: {keys}.",
             "keyChange": "[{section}] {key}: {before} to {after}",
             "absentKey": "absent",
-            "cannotApply": "Modrex cannot apply this preset automatically to the selected configuration. Check the reason above before changing the file or installing the preset manually."
+            "cannotApply": "Modrex cannot apply this preset automatically. Check the reason before changing the configuration or installing manually."
         },
         "recovery": {
             "title": "Review changed files",
             "required": "A movie or INI change needs review before Modrex can continue managing these files.",
             "inspectionFailed": "Modrex could not inspect movie or INI changes. Check the technical details before changing these files.",
-            "description": "Review your current files before stopping Modrex from managing these mods. Close the game before confirming.",
+            "description": "Review the affected files below. Close the game before confirming.",
             "currentFiles": "Files that will be kept",
             "fileSize": "Current file: {size}",
             "retry": "Try again",
@@ -120,7 +115,7 @@
             "openInstalled": "Open Installed Mods",
             "affected": "These mods will be removed from Modrex's managed list:",
             "absent": "File is currently absent.",
-            "keepDescription": "Keeping the current files leaves your setup as it is and stops Modrex from managing the mods listed below. Saved recovery copies remain available. This does not restore your previous setup.",
+            "keepDescription": "Keep your files as they are and stop managing these mods. Recovery copies remain available. Your previous setup will not be restored.",
             "keep": "Keep current files",
             "openFolder": "Open recovery folder",
             "folderTitle": "Recovery files",
@@ -131,21 +126,19 @@
             "title": "Engine.ini",
             "description": "Close the game before editing.",
             "open": "Open",
-            "chooseFile": "Choose Engine.ini",
+            "chooseFile": "Choose {filename}",
             "chooseFolder": "Choose config folder",
-            "browse": "Browse",
             "locationNotSet": "Location not set",
-            "checking": "Checking the Engine.ini location...",
-            "found": "Engine.ini found.",
-            "missing": "Engine.ini not found.",
+            "checking": "Checking the {filename} location...",
+            "found": "{filename} found.",
+            "missing": "{filename} not found.",
             "missingHint": "Start the game to create it, then check again, or choose an existing file.",
-            "needsLocation": "Modrex cannot automatically locate Engine.ini for this game and store. Choose the file.",
-            "checkFailed": "Modrex could not check the Engine.ini location.",
+            "needsLocation": "Modrex cannot automatically locate {filename} for this installation. Choose the file.",
+            "checkFailed": "Modrex could not check the {filename} location.",
             "checkingGameFolder": "Looking for the game folder...",
             "noGameFolder": "Game folder not set",
             "noGameFolderHint": "Set the game folder in Game settings to access configuration files.",
-            "openGameSettings": "Game settings",
-            "checkAgain": "Check again"
+            "openGameSettings": "Game settings"
         }
     },
     "app": {
@@ -670,15 +663,7 @@
             "resetting": "Resetting..."
         },
         "graphicsConfig": {
-            "title": "Graphics configuration",
-            "description": "Close the game before editing.",
-            "open": "Open",
-            "chooseFile": "Choose {filename}",
-            "checking": "Looking for {filename}...",
-            "found": "{filename} found.",
-            "missing": "{filename} not found.",
-            "needsLocation": "Modrex cannot locate {filename} for this installation. Choose the file.",
-            "checkFailed": "Modrex could not check the {filename} location."
+            "title": "Graphics configuration"
         },
         "crimeBossInstallMode": {
             "title": "New Mod Installs",

@@ -45,7 +45,7 @@ test('opens the affected mod directly and confirms keeping the current files', a
     )
     expect(await screen.findByText('Files that will be kept')).toBeTruthy()
     expect(screen.queryByText(/Modrex has paused changes/)).toBeNull()
-    expect(screen.getByText(/Review your current files before stopping Modrex/)).toBeTruthy()
+    expect(screen.getByText(/Review the affected files below/)).toBeTruthy()
     expect(api.reviewResourceRecovery).toHaveBeenCalledWith('pd3', 'resource:intro')
     expect(screen.queryByRole('combobox')).toBeNull()
     fireEvent.click(screen.getByText('Technical details'))

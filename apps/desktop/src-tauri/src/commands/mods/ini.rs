@@ -383,15 +383,7 @@ pub(crate) fn merge(target: &str, assignments: &[Assignment]) -> Result<Merged, 
             Setting::Ambiguous => ambiguous.push(format!("[{}] {}", a.section, a.key)),
             Setting::Value { value, .. } if value == a.value => {}
             Setting::Value { line, value } => {
-                let LineKind::Key { eq, .. } = classify(&doc.lines[line]) else {
-                    unreachable!("setting() returned a key line");
-                };
-                let original = doc.lines[line].clone();
-                let after_eq = &original[eq + 1..];
-                let pad = &after_eq[..after_eq.len() - after_eq.trim_start().len()];
-                let unpadded = after_eq.trim_start();
-                let trailing = &unpadded[unpadded.trim_end().len()..];
-                doc.lines[line] = format!("{}{}{}{}", &original[..=eq], pad, a.value, trailing);
+                replace_value(&mut doc.lines[line], &a.value);
                 changes.push(KeyChange {
                     section: a.section.clone(),
                     key: a.key.clone(),
@@ -468,6 +460,17 @@ fn new_key(a: &Assignment) -> KeyChange {
     }
 }
 
+fn replace_value(line: &mut String, value: &str) {
+    let LineKind::Key { eq, .. } = classify(line) else {
+        unreachable!("setting() returned a key line");
+    };
+    let after_eq = &line[eq + 1..];
+    let pad = &after_eq[..after_eq.len() - after_eq.trim_start().len()];
+    let unpadded = after_eq.trim_start();
+    let trailing = &unpadded[unpadded.trim_end().len()..];
+    *line = format!("{}{}{}{}", &line[..=eq], pad, value, trailing);
+}
+
 /// Restores owned settings that still hold exactly what the preset applied. A setting the
 /// user or game changed since is left as it is and returned, and any owned setting that
 /// became ambiguous refuses the whole restore, so nothing partial is ever applied.
@@ -494,15 +497,7 @@ pub(crate) fn restore(
         match (setting(&doc, &c.section, &c.key), &c.before) {
             (Setting::Value { line, value }, before) if value == c.applied => match before {
                 Some(old) => {
-                    let LineKind::Key { eq, .. } = classify(&doc.lines[line]) else {
-                        unreachable!("setting() returned a key line");
-                    };
-                    let original = doc.lines[line].clone();
-                    let after_eq = &original[eq + 1..];
-                    let pad = &after_eq[..after_eq.len() - after_eq.trim_start().len()];
-                    let unpadded = after_eq.trim_start();
-                    let trailing = &unpadded[unpadded.trim_end().len()..];
-                    doc.lines[line] = format!("{}{}{}{}", &original[..=eq], pad, old, trailing);
+                    replace_value(&mut doc.lines[line], old);
                 }
                 None => removals.push(line),
             },

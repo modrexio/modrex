@@ -22,18 +22,8 @@ export function GraphicsConfigSettings({
             getLocation={api.getGraphicsConfigLocation}
             pickFile={api.pickGraphicsConfig}
             openFile={api.openGraphicsConfig}
-            messages={{
-                title: t('settings.graphicsConfig.title'),
-                description: t('settings.graphicsConfig.description'),
-                open: t('settings.graphicsConfig.open'),
-                chooseFile: t('settings.graphicsConfig.chooseFile', { filename }),
-                checking: t('settings.graphicsConfig.checking', { filename }),
-                found: t('settings.graphicsConfig.found', { filename }),
-                missing: t('settings.graphicsConfig.missing', { filename }),
-                missingHint: t('resources.config.missingHint'),
-                needsLocation: t('settings.graphicsConfig.needsLocation', { filename }),
-                checkFailed: t('settings.graphicsConfig.checkFailed', { filename }),
-            }}
+            title={t('settings.graphicsConfig.title')}
+            filename={filename}
         />
     )
 }

@@ -7,6 +7,13 @@ import { Button } from './ui/Button'
 import { ResourceRecognition } from './ResourceRecognition'
 import { displayPath } from '../lib/displayPath'
 
+type MovieFinding = MovieRecognitionScan['movies'][number] & {
+    recognition: Extract<
+        MovieRecognitionScan['movies'][number]['recognition'],
+        { status: 'matched' | 'ambiguous' }
+    >
+}
+
 function scanSummary(scan: MovieRecognitionScan, findingCount: number): string {
     if (scan.movies.some((movie) => movie.recognition.status === 'unavailable'))
         return t('resources.recognition.scanUnavailable')
@@ -22,7 +29,7 @@ export function MovieResourceScan({ activeGame }: { activeGame: GameId }) {
     const request = useRef(0)
     const findings =
         scan?.movies.filter(
-            (movie) =>
+            (movie): movie is MovieFinding =>
                 movie.recognition.status === 'matched' || movie.recognition.status === 'ambiguous'
         ) ?? []
     const unavailable = scan?.movies.some((movie) => movie.recognition.status === 'unavailable')
@@ -68,11 +75,7 @@ export function MovieResourceScan({ activeGame }: { activeGame: GameId }) {
                 >
                     {busy
                         ? t('common.loading')
-                        : t(
-                              scan || error
-                                  ? 'resources.recognition.checkAgain'
-                                  : 'resources.recognition.check'
-                          )}
+                        : t(scan || error ? 'common.checkAgain' : 'resources.recognition.check')}
                 </Button>
                 {(scan || error) && (
                     <Button variant="ghost" size="sm" onClick={clearResults}>

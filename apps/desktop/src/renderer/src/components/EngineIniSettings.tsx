@@ -20,18 +20,8 @@ export function EngineIniSettings({
             getLocation={api.getEngineIniLocation}
             pickFile={api.pickEngineIni}
             openFile={api.openEngineIni}
-            messages={{
-                title: t('resources.config.title'),
-                description: t('resources.config.description'),
-                open: t('resources.config.open'),
-                chooseFile: t('resources.config.chooseFile'),
-                checking: t('resources.config.checking'),
-                found: t('resources.config.found'),
-                missing: t('resources.config.missing'),
-                missingHint: t('resources.config.missingHint'),
-                needsLocation: t('resources.config.needsLocation'),
-                checkFailed: t('resources.config.checkFailed'),
-            }}
+            title={t('resources.config.title')}
+            filename="Engine.ini"
         />
     )
 }

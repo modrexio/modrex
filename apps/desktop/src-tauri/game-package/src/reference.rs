@@ -318,7 +318,7 @@ pub fn markdown(examples: &[(&str, &str)]) -> String {
          | `locations` | no | verified automatic locations, using the roots documented under `config_presets` |\n\n\
          Each location names a declared `store` and relative `path` components ending in\n\
          `filename`. Only one Windows location may be declared for each store. An empty or omitted\n\
-         list requires the user to choose the file or its folder. Finding the file does not prove\n\
+         list requires the user to choose the file. Finding the file does not prove\n\
          that it is the game's active configuration.\n",
     );
 

@@ -7,20 +7,6 @@ import { displayPath } from '../lib/displayPath'
 import { SettingsSection } from './SettingsSection'
 import { Button } from './ui/Button'
 
-type Messages = Record<
-    | 'title'
-    | 'description'
-    | 'open'
-    | 'chooseFile'
-    | 'checking'
-    | 'found'
-    | 'missing'
-    | 'missingHint'
-    | 'needsLocation'
-    | 'checkFailed',
-    string
->
-
 export function ConfigFileSettings({
     activeGame,
     gamePath,
@@ -28,7 +14,8 @@ export function ConfigFileSettings({
     getLocation,
     pickFile,
     openFile,
-    messages,
+    filename,
+    title,
 }: {
     activeGame: GameId
     gamePath: string | null | undefined
@@ -36,7 +23,8 @@ export function ConfigFileSettings({
     getLocation: (gameId: string) => Promise<ConfigFileLocation>
     pickFile: (gameId: string, title: string) => Promise<string | null>
     openFile: (gameId: string) => Promise<null>
-    messages: Messages
+    filename: string
+    title: string
 }) {
     const [location, setLocation] = useState<ConfigFileLocation | null>(null)
     const [busy, setBusy] = useState(true)
@@ -71,7 +59,10 @@ export function ConfigFileSettings({
         setError(null)
         try {
             if (pick) {
-                const path = await pickFile(activeGame, messages.chooseFile)
+                const path = await pickFile(
+                    activeGame,
+                    t('resources.config.chooseFile', { filename })
+                )
                 if (!path) return
                 if (current !== request.current) return
                 setLocation(null)
@@ -96,10 +87,7 @@ export function ConfigFileSettings({
             : gamePath === null
               ? 'noGameFolder'
               : (location?.status ?? (error ? 'checkFailed' : 'checking'))
-    const statusText =
-        status === 'checkingGameFolder' || status === 'noGameFolder'
-            ? t(`resources.config.${status}`)
-            : messages[status]
+    const statusText = t(`resources.config.${status}`, { filename })
     const checking = status === 'checking' || status === 'checkingGameFolder'
     const path =
         gamePath != null && location && location.status !== 'needsLocation'
@@ -107,7 +95,7 @@ export function ConfigFileSettings({
             : t('resources.config.locationNotSet')
 
     return (
-        <SettingsSection title={messages.title} description={messages.description}>
+        <SettingsSection title={title} description={t('resources.config.description')}>
             <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-surface-hover border border-border mt-1">
                 {checking ? (
                     <span
@@ -131,7 +119,7 @@ export function ConfigFileSettings({
                             disabled={busy}
                             onClick={() => void open(false)}
                         >
-                            {messages.open}
+                            {t('resources.config.open')}
                         </Button>
                     )}
                     {gamePath != null && (
@@ -143,7 +131,7 @@ export function ConfigFileSettings({
                             onClick={() => void open(true)}
                         >
                             <FolderOpen aria-hidden="true" className="w-3.5 h-3.5" />
-                            {t('resources.config.browse')}
+                            {t('settings.gamePath.browse')}
                         </Button>
                     )}
                     {status === 'noGameFolder' && (
@@ -167,7 +155,7 @@ export function ConfigFileSettings({
                 </p>
             )}
             {status === 'missing' && (
-                <p className="text-xs text-text-subtle">{messages.missingHint}</p>
+                <p className="text-xs text-text-subtle">{t('resources.config.missingHint')}</p>
             )}
             {status === 'noGameFolder' && (
                 <p className="text-xs text-text-subtle">{t('resources.config.noGameFolderHint')}</p>
@@ -180,7 +168,7 @@ export function ConfigFileSettings({
                     disabled={busy}
                     onClick={() => void checkLocation()}
                 >
-                    {t('resources.config.checkAgain')}
+                    {t('common.checkAgain')}
                 </Button>
             )}
             {error && (

@@ -86,7 +86,9 @@ function Review({ handle }: { handle: string }) {
         try {
             const path = await api.pickEngineIni(
                 review!.gameId,
-                t(folder ? 'resources.config.chooseFolder' : 'resources.config.chooseFile'),
+                t(folder ? 'resources.config.chooseFolder' : 'resources.config.chooseFile', {
+                    filename: 'Engine.ini',
+                }),
                 folder
             )
             if (!path) return
@@ -212,7 +214,6 @@ function Review({ handle }: { handle: string }) {
                             ]}
                             disabled={busy}
                         />
-                        <p className="text-text-subtle">{t('resources.install.slotHelp')}</p>
                     </div>
                 )}
                 {selected && entry.changes.length > 0 && (
@@ -375,6 +376,9 @@ function Review({ handle }: { handle: string }) {
                         <p className="text-xs text-text-muted">
                             {t('resources.install.moviesHelp')}
                         </p>
+                        <p className="text-xs text-text-subtle">
+                            {t('resources.install.slotHelp')}
+                        </p>
                         {review.entries.filter((entry) => entry.kind === 'movie').map(renderEntry)}
                     </fieldset>
                 )}
@@ -397,7 +401,7 @@ function Review({ handle }: { handle: string }) {
                                     disabled={busy}
                                     onClick={() => void chooseConfig()}
                                 >
-                                    {t('resources.config.chooseFile')}
+                                    {t('resources.config.chooseFile', { filename: 'Engine.ini' })}
                                 </Button>
                                 <details className="mt-3 text-text-muted">
                                     <DisclosureSummary className="cursor-pointer">
@@ -429,7 +433,9 @@ function Review({ handle }: { handle: string }) {
                                         disabled={busy}
                                         onClick={() => void chooseConfig()}
                                     >
-                                        {t('resources.config.chooseFile')}
+                                        {t('resources.config.chooseFile', {
+                                            filename: 'Engine.ini',
+                                        })}
                                     </Button>
                                     <Button
                                         variant="secondary"

@@ -173,7 +173,7 @@ pub(super) async fn open(app: &AppHandle, game_id: &str) -> Result<(), String> {
         let config = graphics_config(&game_id)?;
         let context = current_context(&app, &game_id)?;
         let destination = destination(&app, &context, config)?
-            .ok_or_else(|| format!("Choose {} or its folder before opening it", config.filename))?;
+            .ok_or_else(|| format!("Choose {} before opening it", config.filename))?;
         let canonical = destination.validate(&config.filename)?;
         require_context(&app, &context)?;
         open_external(&canonical)

@@ -171,7 +171,7 @@ preset installation or parse the file's contents.
 
 Each location names a declared `store` and relative `path` components ending in
 `filename`. Only one Windows location may be declared for each store. An empty or omitted
-list requires the user to choose the file or its folder. Finding the file does not prove
+list requires the user to choose the file. Finding the file does not prove
 that it is the game's active configuration.
 
 ## `targets`
