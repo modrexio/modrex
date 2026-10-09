@@ -357,6 +357,14 @@ pub enum ConfigPresets {
     },
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct GraphicsConfig {
+    pub filename: String,
+    #[serde(default)]
+    pub locations: Vec<ConfigLocation>,
+}
+
 impl ConfigPresets {
     pub fn filename(&self) -> &'static str {
         match self {
@@ -550,6 +558,8 @@ pub struct GamePackage {
     pub movie_replacement: Option<MovieReplacement>,
     #[serde(default)]
     pub config_presets: Option<ConfigPresets>,
+    #[serde(default)]
+    pub graphics_config: Option<GraphicsConfig>,
     pub targets: Vec<Target>,
 }
 

@@ -23,6 +23,7 @@ missing game at runtime.
 | `package_reader` | no | how to read the game's own packages so a mod's assets can be listed |
 | `movie_replacement` | no | replacement movie slots in a declared game folder |
 | `config_presets` | no | config preset syntax and verified automatic locations |
+| `graphics_config` | no | one graphics config file the user can open in an external application |
 | `targets` | yes | the places mods are installed |
 
 Components are values, not table headers. A repeated component is a list of objects,
@@ -157,6 +158,21 @@ in `Engine.ini`. Only one Windows location may be declared for each store.
 | Root | Meaning |
 | --- | --- |
 | `windows_local_app_data` | Windows Local AppData, resolved by the host's Known Folder API. This location applies only on Windows |
+
+## `graphics_config`
+
+Opens one existing graphics config file for manual editing. It does not enable config
+preset installation or parse the file's contents.
+
+| Field | Required | Meaning |
+| --- | --- | --- |
+| `filename` | yes | the single permitted filename, without a directory or path prefix |
+| `locations` | no | verified automatic locations, using the roots documented under `config_presets` |
+
+Each location names a declared `store` and relative `path` components ending in
+`filename`. Only one Windows location may be declared for each store. An empty or omitted
+list requires the user to choose the file or its folder. Finding the file does not prove
+that it is the game's active configuration.
 
 ## `targets`
 
@@ -311,6 +327,17 @@ name = "RAID: World War II"
 short_name = "RAID"
 mod_metadata = "diesel"
 
+graphics_config = {
+    filename = "renderer_settings_dx11.xml",
+    locations = [
+        {
+            root = "windows_local_app_data",
+            store = "steam",
+            path = ["RAID WW2", "renderer_settings_dx11.xml"],
+        },
+    ],
+}
+
 sources = [
     {
         provider = "modworkshop",
@@ -366,6 +393,17 @@ id = "pdth"
 name = "PAYDAY: The Heist"
 short_name = "PDTH"
 mod_metadata = "diesel"
+
+graphics_config = {
+    filename = "renderer_settings.xml",
+    locations = [
+        {
+            root = "windows_local_app_data",
+            store = "steam",
+            path = ["PAYDAY", "renderer_settings.xml"],
+        },
+    ],
+}
 
 sources = [
     {

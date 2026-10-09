@@ -30,6 +30,7 @@ export const GAME_SPECS = {
         storageKey: 'pd2',
         hasNews: true,
         supportsPackageViewer: false,
+        graphicsConfig: { filename: 'renderer_settings_dx11.xml' },
         launchers: ['Steam', 'Epic Games'],
         modTargets: [
             { id: 'mods', path: 'mods' },
@@ -62,6 +63,7 @@ export const GAME_SPECS = {
         storageKey: 'pdth',
         hasNews: true,
         supportsPackageViewer: false,
+        graphicsConfig: { filename: 'renderer_settings.xml' },
         launchers: ['Steam'],
         modTargets: [
             { id: 'mods', path: 'mods' },
@@ -76,6 +78,7 @@ export const GAME_SPECS = {
         storageKey: 'raid',
         hasNews: false,
         supportsPackageViewer: false,
+        graphicsConfig: { filename: 'renderer_settings_dx11.xml' },
         launchers: ['Steam'],
         modTargets: [
             { id: 'mods', path: 'mods' },

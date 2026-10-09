@@ -457,6 +457,8 @@ fn with_root_declaration(declaration: &str) -> String {
 const MOVIES: &str = r#"movie_replacement = { format = "bink", directory = ["Content", "Movies"], storefronts = ["steam"], absent_slots = [{ store = "steam", filenames = ["Intro.bk2"] }] }"#;
 const CONFIGS: &str = r#"config_presets = { format = "unreal_engine_ini" }"#;
 const CONFIG_LOCATION: &str = r#"config_presets = { format = "unreal_engine_ini", locations = [{ root = "windows_local_app_data", store = "steam", path = ["Fixture", "Saved", "Engine.ini"] }] }"#;
+const GRAPHICS: &str = r#"graphics_config = { filename = "renderer_settings.xml" }"#;
+const GRAPHICS_LOCATION: &str = r#"graphics_config = { filename = "renderer_settings.xml", locations = [{ root = "windows_local_app_data", store = "steam", path = ["Fixture", "renderer_settings.xml"] }] }"#;
 
 #[test]
 fn resource_capabilities_are_optional_and_independent() {
@@ -547,6 +549,61 @@ fn config_locations_are_verified_relative_paths_for_a_declared_store() {
         (CONFIG_LOCATION.replace("Fixture", ".."), "plain relative"),
         (CONFIG_LOCATION.replace("Engine.ini", "UserSettings.ini"), "must end in Engine.ini"),
         (CONFIG_LOCATION.replace(r#"locations = [{"#, r#"locations = [{ root = "windows_local_app_data", store = "steam", path = ["Engine.ini"] }, {"#), "twice"),
+    ] {
+        assert_rejected(&with_root_declaration(&declaration), expected);
+    }
+}
+
+#[test]
+fn graphics_config_access_is_independent_of_installable_resources() {
+    for (resources, movies, presets) in [
+        (String::new(), false, false),
+        (MOVIES.into(), true, false),
+        (CONFIGS.into(), false, true),
+        (format!("{MOVIES}\n{CONFIG_LOCATION}"), true, true),
+    ] {
+        let declaration = format!("{resources}\n{GRAPHICS}");
+        let package: GamePackage = toml::from_str(&with_root_declaration(&declaration)).unwrap();
+        validate::check("fixture", &package).unwrap();
+        let config = package.graphics_config.as_ref().unwrap();
+        assert_eq!(config.filename, "renderer_settings.xml");
+        assert!(config.locations.is_empty());
+        assert_eq!(package.movie_replacement.is_some(), movies);
+        assert_eq!(package.config_presets.is_some(), presets);
+    }
+}
+
+#[test]
+fn graphics_config_filenames_cannot_grant_paths_outside_the_chosen_folder() {
+    for filename in [
+        "",
+        ".",
+        "..",
+        "../renderer.xml",
+        r"..\renderer.xml",
+        "C:renderer.xml",
+        "renderer\t.xml",
+    ] {
+        let declaration = GRAPHICS.replace(
+            "\"renderer_settings.xml\"",
+            &serde_json::to_string(filename).unwrap(),
+        );
+        assert_rejected(&with_root_declaration(&declaration), "plain relative");
+    }
+}
+
+#[test]
+fn graphics_config_locations_require_verified_stores_and_matching_filenames() {
+    let package: GamePackage = toml::from_str(&with_root_declaration(GRAPHICS_LOCATION)).unwrap();
+    validate::check("fixture", &package).unwrap();
+    for (declaration, expected) in [
+        (GRAPHICS_LOCATION.replace(r#"store = "steam""#, r#"store = "epic""#), "install does not list"),
+        (GRAPHICS_LOCATION.replace(r#"["Fixture", "renderer_settings.xml"]"#, "[]"), "empty path"),
+        (GRAPHICS_LOCATION.replace("Fixture", ".."), "plain relative"),
+        (GRAPHICS_LOCATION.replace(r#"["Fixture", "renderer_settings.xml"]"#, r#"["Fixture", "other.xml"]"#), "must end in renderer_settings.xml"),
+        (GRAPHICS_LOCATION.replace(r#"locations = [{"#, r#"locations = [{ root = "windows_local_app_data", store = "steam", path = ["renderer_settings.xml"] }, {"#), "twice"),
+        (GRAPHICS_LOCATION.replace("windows_local_app_data", "home"), "unknown variant"),
+        (GRAPHICS.replace("filename =", "parser = \"xml\", filename ="), "unknown field"),
     ] {
         assert_rejected(&with_root_declaration(&declaration), expected);
     }

@@ -72,6 +72,7 @@ fn a_discovered_spec_resolves_its_package() {
         assert_eq!(owned(spec.def.process_names), pkg.install.processes);
         assert_eq!(spec.movie_replacement, pkg.movie_replacement.as_ref());
         assert_eq!(spec.config_presets, pkg.config_presets.as_ref());
+        assert_eq!(spec.graphics_config, pkg.graphics_config.as_ref());
 
         for store in &pkg.install.stores {
             match store {
@@ -288,6 +289,47 @@ fn movie_and_config_resources_are_independent_in_the_adapter() {
     let spec = spec_from(Box::leak(Box::new(config_only)));
     assert!(spec.movie_replacement.is_none());
     assert!(spec.config_presets.is_some());
+}
+
+#[test]
+fn graphics_config_access_follows_a_new_package_without_enabling_presets() {
+    let mut pkg = crate::games::discovered()
+        .iter()
+        .find(|(_, pkg)| pkg.graphics_config.is_some())
+        .unwrap()
+        .1
+        .clone();
+    pkg.id = "new_graphics_game".into();
+    let pkg = Box::leak(Box::new(pkg));
+    let spec = spec_from(pkg);
+    assert_eq!(spec.id, "new_graphics_game");
+    assert!(std::ptr::eq(
+        spec.graphics_config.unwrap(),
+        pkg.graphics_config.as_ref().unwrap()
+    ));
+    assert!(spec.config_presets.is_none());
+    assert!(spec.movie_replacement.is_none());
+}
+
+#[test]
+fn diesel_graphics_config_access_names_only_verified_windows_steam_files() {
+    for (id, directory, filename) in [
+        ("pd2", "PAYDAY 2", "renderer_settings_dx11.xml"),
+        ("pdth", "PAYDAY", "renderer_settings.xml"),
+        ("raid", "RAID WW2", "renderer_settings_dx11.xml"),
+    ] {
+        let spec = game_spec(id).unwrap();
+        let config = spec.graphics_config.unwrap();
+        assert_eq!(config.filename, filename);
+        assert_eq!(
+            config.locations,
+            [package::ConfigLocation::WindowsLocalAppData {
+                store: package::Storefront::Steam,
+                path: vec![directory.into(), filename.into()],
+            }]
+        );
+        assert!(spec.config_presets.is_none());
+    }
 }
 
 #[test]

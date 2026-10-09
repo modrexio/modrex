@@ -96,7 +96,15 @@ pub fn check(id: &str, package: &GamePackage) -> Result<(), String> {
         check_movies(movies, package)?;
     }
     if let Some(configs) = &package.config_presets {
-        check_configs(configs, package)?;
+        let ConfigPresets::UnrealEngineIni { locations } = configs;
+        check_config_locations(locations, configs.filename(), package)?;
+    }
+    if let Some(config) = &package.graphics_config {
+        check_resource_path(
+            std::slice::from_ref(&config.filename),
+            "graphics config filename",
+        )?;
+        check_config_locations(&config.locations, &config.filename, package)?;
     }
 
     if package.targets.is_empty() {
@@ -187,13 +195,16 @@ fn check_movies(movies: &MovieReplacement, package: &GamePackage) -> Result<(), 
     Ok(())
 }
 
-fn check_configs(configs: &ConfigPresets, package: &GamePackage) -> Result<(), String> {
-    let ConfigPresets::UnrealEngineIni { locations } = configs;
+fn check_config_locations(
+    locations: &[ConfigLocation],
+    filename: &str,
+    package: &GamePackage,
+) -> Result<(), String> {
     if let Some(duplicate) = first_duplicate(locations.iter().map(|location| match location {
         ConfigLocation::WindowsLocalAppData { store, .. } => store.provider(),
     })) {
         return Err(format!(
-            "config presets declare a Windows location twice for '{duplicate}'"
+            "config locations declare a Windows location twice for '{duplicate}'"
         ));
     }
     for location in locations {
@@ -208,12 +219,9 @@ fn check_configs(configs: &ConfigPresets, package: &GamePackage) -> Result<(), S
         if !path
             .last()
             .expect("nonempty path was checked")
-            .eq_ignore_ascii_case(configs.filename())
+            .eq_ignore_ascii_case(filename)
         {
-            return Err(format!(
-                "config location must end in {}",
-                configs.filename()
-            ));
+            return Err(format!("config location must end in {}", filename));
         }
     }
     Ok(())

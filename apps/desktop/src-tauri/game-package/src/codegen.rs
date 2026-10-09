@@ -6,9 +6,10 @@
 
 use crate::{
     Activation, ConfigLocation, ConfigPresets, DecoderBinding, Discovery, FileFamily, FileNaming,
-    GamePackage, Install, LoadOrder, LoaderBinding, MarkerMode, MarkerRule, ModMetadata,
-    MovieReplacement, MovieSlots, NamePreset, NewsBinding, PackageReaderBinding, SourceBinding,
-    StoreBinding, StoreInstallInto, StorePath, Storefront, Target, TargetLabel, Unit,
+    GamePackage, GraphicsConfig, Install, LoadOrder, LoaderBinding, MarkerMode, MarkerRule,
+    ModMetadata, MovieReplacement, MovieSlots, NamePreset, NewsBinding, PackageReaderBinding,
+    SourceBinding, StoreBinding, StoreInstallInto, StorePath, Storefront, Target, TargetLabel,
+    Unit,
 };
 
 const PATH: &str = "::modrex_game_package";
@@ -340,10 +341,11 @@ impl GamePackage {
             package_reader: reader,
             movie_replacement: movies,
             config_presets: configs,
+            graphics_config: graphics,
             targets,
         } = self;
         format!(
-            "{PATH}::GamePackage {{ id: {}, name: {}, short_name: {}, mod_metadata: {}, sources: {}, news: {}, install: {}, loaders: {}, decoders: {}, package_reader: {}, movie_replacement: {}, config_presets: {}, targets: {} }}",
+            "{PATH}::GamePackage {{ id: {}, name: {}, short_name: {}, mod_metadata: {}, sources: {}, news: {}, install: {}, loaders: {}, decoders: {}, package_reader: {}, movie_replacement: {}, config_presets: {}, graphics_config: {}, targets: {} }}",
             text(id),
             text(name),
             text(short_name),
@@ -356,6 +358,7 @@ impl GamePackage {
             optional(reader.as_ref().map(package_reader)),
             optional(movies.as_ref().map(movie_replacement)),
             optional(configs.as_ref().map(config_presets)),
+            optional(graphics.as_ref().map(graphics_config)),
             list(targets.iter().map(target).collect()),
         )
     }
@@ -392,6 +395,18 @@ fn config_presets(value: &ConfigPresets) -> String {
             list(locations.iter().map(config_location).collect()),
         ),
     }
+}
+
+fn graphics_config(value: &GraphicsConfig) -> String {
+    let GraphicsConfig {
+        filename,
+        locations,
+    } = value;
+    format!(
+        "{PATH}::GraphicsConfig {{ filename: {}, locations: {} }}",
+        text(filename),
+        list(locations.iter().map(config_location).collect()),
+    )
 }
 
 fn config_location(value: &ConfigLocation) -> String {

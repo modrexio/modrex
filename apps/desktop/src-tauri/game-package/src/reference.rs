@@ -170,6 +170,7 @@ pub fn markdown(examples: &[(&str, &str)]) -> String {
          | `package_reader` | no | how to read the game's own packages so a mod's assets can be listed |\n\
          | `movie_replacement` | no | replacement movie slots in a declared game folder |\n\
          | `config_presets` | no | config preset syntax and verified automatic locations |\n\
+         | `graphics_config` | no | one graphics config file the user can open in an external application |\n\
          | `targets` | yes | the places mods are installed |\n\n\
          Components are values, not table headers. A repeated component is a list of objects,\n\
          each object is delimited by braces, and each field sits on its own line ending in a\n\
@@ -307,6 +308,19 @@ pub fn markdown(examples: &[(&str, &str)]) -> String {
          | Root | Meaning |\n| --- | --- |\n",
     );
     out.push_str(&row("windows_local_app_data", "Windows Local AppData, resolved by the host's Known Folder API. This location applies only on Windows"));
+
+    out.push_str(
+        "\n## `graphics_config`\n\n\
+         Opens one existing graphics config file for manual editing. It does not enable config\n\
+         preset installation or parse the file's contents.\n\n\
+         | Field | Required | Meaning |\n| --- | --- | --- |\n\
+         | `filename` | yes | the single permitted filename, without a directory or path prefix |\n\
+         | `locations` | no | verified automatic locations, using the roots documented under `config_presets` |\n\n\
+         Each location names a declared `store` and relative `path` components ending in\n\
+         `filename`. Only one Windows location may be declared for each store. An empty or omitted\n\
+         list requires the user to choose the file or its folder. Finding the file does not prove\n\
+         that it is the game's active configuration.\n",
+    );
 
     out.push_str(
         "\n## `targets`\n\n\

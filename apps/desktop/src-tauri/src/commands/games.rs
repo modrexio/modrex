@@ -15,6 +15,7 @@ pub struct GameSpec {
     pub package_reader: Option<&'static package::PackageReaderBinding>,
     pub movie_replacement: Option<&'static package::MovieReplacement>,
     pub config_presets: Option<&'static package::ConfigPresets>,
+    pub graphics_config: Option<&'static package::GraphicsConfig>,
 }
 
 pub static GAME_REGISTRY: LazyLock<Vec<GameSpec>> = LazyLock::new(|| {
@@ -75,6 +76,7 @@ fn spec_from(pkg: &'static GamePackage) -> GameSpec {
         package_reader: pkg.package_reader.as_ref(),
         movie_replacement: pkg.movie_replacement.as_ref(),
         config_presets: pkg.config_presets.as_ref(),
+        graphics_config: pkg.graphics_config.as_ref(),
     }
 }
 

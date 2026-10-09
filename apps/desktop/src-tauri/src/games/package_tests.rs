@@ -163,6 +163,16 @@ fn the_catalogue_derives_each_game_from_its_package() {
             entry.contains("configPresets:"),
             pkg.config_presets.is_some()
         );
+        assert_eq!(
+            entry.contains("graphicsConfig:"),
+            pkg.graphics_config.is_some()
+        );
+        if let Some(config) = &pkg.graphics_config {
+            assert!(entry.contains(&format!(
+                "graphicsConfig: {{ filename: '{}' }}",
+                config.filename
+            )));
+        }
 
         let workshop = pkg.sources.iter().find_map(|binding| match binding {
             SourceBinding::ModWorkshop { game_id } => Some(game_id),

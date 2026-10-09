@@ -28,6 +28,9 @@ export interface GameSpec {
     configPresets?: {
         filename: 'Engine.ini'
     }
+    graphicsConfig?: {
+        filename: string
+    }
     requiredLaunchFlag?: string
     launchers: readonly LauncherName[]
     modTargets: readonly ModTarget[]

@@ -70,6 +70,10 @@ replacement does not require an Unreal package reader, and the current config me
 only supported Unreal Engine.ini scalar presets. The generated catalog exposes these capabilities
 to the renderer and index without repeating game identifiers.
 
+Graphics config access is a separate declaration naming one permitted file and verified store
+locations. It opens the existing file for manual editing without parsing it or enabling resource
+installation. A found file is not evidence that the game currently reads it.
+
 New resource installations require the declared capability. Existing resource deployments and
 pending journals remain visible to the host even when installation eligibility changes. Removing
 a movie declaration needs an explicit migration before its recorded destinations can be restored

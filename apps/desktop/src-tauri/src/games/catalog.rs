@@ -98,6 +98,13 @@ pub fn catalog_typescript() -> String {
                 quote(configs.filename())
             );
         }
+        if let Some(config) = &pkg.graphics_config {
+            let _ = writeln!(
+                out,
+                "        graphicsConfig: {{ filename: {} }},",
+                quote(&config.filename)
+            );
+        }
 
         // Listed in a fixed order so the catalogue does not change when a manifest lists its
         // stores in another order.
