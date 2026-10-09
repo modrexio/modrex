@@ -206,17 +206,28 @@ fn locks(app: &AppHandle) -> &ResourceLocks {
     app.state::<ResourceLocks>().inner()
 }
 
-async fn ensure_not_running(game_id: &str) -> Result<(), String> {
+pub(crate) async fn ensure_not_running(app: &AppHandle, game_id: &str) -> Result<(), String> {
+    let pending = locks(app).pending_launch(game_id);
     let id = game_id.to_string();
     let running =
         tauri::async_runtime::spawn_blocking(move || crate::commands::launchers::game_running(&id))
             .await
             .map_err(|e| e.to_string())??;
+    require_game_idle(locks(app), game_id, pending.as_ref(), running)
+}
+
+fn require_game_idle(
+    locks: &ResourceLocks,
+    game_id: &str,
+    pending: Option<&super::resource_state::PendingLaunch>,
+    running: bool,
+) -> Result<(), String> {
+    let pending = locks.observe_launch(game_id, pending, running);
     if running {
-        return Err(
-            "close the game first; Modrex does not change movies or Engine.ini while it runs"
-                .to_string(),
-        );
+        return Err("Close the game before changing its mod files".into());
+    }
+    if pending.is_some() {
+        return Err("A game launch is pending. Wait for the game to start, or cancel its launch in the store and reset the pending launch in Modrex before changing game files".into());
     }
     Ok(())
 }
@@ -241,14 +252,14 @@ async fn lock_and_recover(
     })
     .await?;
     for game in &affected {
-        ensure_not_running(game).await?;
+        ensure_not_running(app, game).await?;
     }
     let (s, id) = (store.clone(), game_id.to_string());
     tauri::async_runtime::spawn_blocking(move || s.recover(&id))
         .await
         .map_err(|e| e.to_string())??;
     for game in &affected {
-        ensure_not_running(game).await?;
+        ensure_not_running(app, game).await?;
     }
     Ok((guard, store))
 }
@@ -277,9 +288,13 @@ pub(super) async fn blocking<T: Send + 'static>(
 
 /// Launch preflight: interrupted resource operations must finish or fail visibly, and every
 /// current deployment must still reach its recovery data.
-pub(crate) async fn launch_preflight(app: &AppHandle, game_id: &str) -> Result<(), String> {
+pub(crate) async fn launch_preflight(
+    app: &AppHandle,
+    game_id: &str,
+) -> Result<super::resource_state::ResourceLaunchGuard, String> {
     let store = ResourceStore::for_app(app)?;
-    let _guard = locks(app).acquire().await;
+    let guard = locks(app).acquire().await;
+    ensure_not_running(app, game_id).await?;
     let (s, id) = (store.clone(), game_id.to_string());
     if blocking(move || s.has_pending(&id)).await? {
         let (s, id) = (store.clone(), game_id.to_string());
@@ -289,11 +304,13 @@ pub(crate) async fn launch_preflight(app: &AppHandle, game_id: &str) -> Result<(
         })
         .await?;
         for game in &games {
-            ensure_not_running(game).await?;
+            ensure_not_running(app, game).await?;
         }
     }
     let id = game_id.to_string();
-    blocking(move || store.preflight(&id)).await
+    blocking(move || store.preflight(&id)).await?;
+    crate::commands::launchers::restore_previous_vanilla_launch(app, game_id)?;
+    locks(app).reserve_launch(guard, game_id)
 }
 
 // ---------------------------------------------------------------------------------------
@@ -1975,13 +1992,13 @@ pub(crate) async fn keep_current(app: &AppHandle, handle: &str) -> Result<(), St
     }
     require_context(app, &grant.context)?;
     for game in &grant.games {
-        ensure_not_running(game).await?;
+        ensure_not_running(app, game).await?;
     }
     let store = ResourceStore::for_app(app)?;
     let _guard = locks(app).acquire().await;
     require_context(app, &grant.context)?;
     for game in &grant.games {
-        ensure_not_running(game).await?;
+        ensure_not_running(app, game).await?;
     }
     blocking(move || {
         for (path, expected) in grant.paths.iter().zip(&grant.current) {

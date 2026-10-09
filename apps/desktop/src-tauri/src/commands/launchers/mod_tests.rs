@@ -2,6 +2,238 @@ use super::steam::steam_libraries;
 use super::*;
 use tempfile::TempDir;
 
+#[test]
+fn launchers_return_missing_definitions_instead_of_reporting_success() {
+    let unsupported = GameDef {
+        name: "unsupported",
+        executables: &[],
+        process_names: &[],
+        steam: None,
+        epic: None,
+        xbox: None,
+    };
+    for (launcher, name) in all_launchers().iter().zip(["Steam", "Epic", "Xbox"]) {
+        let error = launcher
+            .launch(&unsupported, "/nonexistent", None)
+            .unwrap_err();
+        assert!(error.contains(name), "{error}");
+    }
+}
+
+#[test]
+fn manual_launch_reports_missing_executable_and_spawn_failure() {
+    static GAME: GameDef = GameDef {
+        name: "test",
+        executables: &["broken.exe"],
+        process_names: &[],
+        steam: None,
+        epic: None,
+        xbox: None,
+    };
+    let temp = tempfile::tempdir().unwrap();
+    let path = temp.path().to_str().unwrap();
+    assert!(launch_with("manual", &GAME, path, None)
+        .unwrap_err()
+        .contains("could not be found"));
+    fs::write(temp.path().join("broken.exe"), b"not executable").unwrap();
+    assert!(launch_with("manual", &GAME, path, None)
+        .unwrap_err()
+        .contains("Could not launch"));
+}
+
+#[test]
+fn vanilla_launch_restores_hidden_packages_when_the_launcher_reports_failure() {
+    let temp = tempfile::tempdir().unwrap();
+    let path = temp.path().to_str().unwrap();
+    let cfg = pd3_engine();
+    let mods = mods_base(path, cfg.primary());
+    fs::create_dir_all(&mods).unwrap();
+    fs::write(mods.join("movie-menu.pak"), b"package").unwrap();
+    let error = launch_without_packages(path, cfg, || {
+        assert!(!mods.exists());
+        Err("launcher spawn failed".into())
+    })
+    .unwrap_err();
+    assert_eq!(error, "launcher spawn failed");
+    assert_eq!(fs::read(mods.join("movie-menu.pak")).unwrap(), b"package");
+    assert!(!backup_dir(path, cfg.primary()).exists());
+}
+
+#[tokio::test]
+async fn pending_vanilla_reset_restores_the_original_install_and_retains_failed_resets() {
+    let temp = tempfile::tempdir().unwrap();
+    let original = temp.path().join("original");
+    let changed = temp.path().join("changed");
+    let original = original.to_str().unwrap();
+    let changed = changed.to_str().unwrap();
+    let cfg = pd3_engine();
+    let mods = mods_base(original, cfg.primary());
+    let new_mods = mods_base(changed, cfg.primary());
+    fs::create_dir_all(&mods).unwrap();
+    fs::create_dir_all(&new_mods).unwrap();
+    fs::write(mods.join("old.pak"), b"original").unwrap();
+    fs::write(new_mods.join("new.pak"), b"changed").unwrap();
+    let locks = crate::commands::mods::ResourceLocks::default();
+    let launch = locks.reserve_launch(locks.acquire().await, "pd3").unwrap();
+    launch.bind_hidden_mods(original);
+    launch.handoff(|| hide_package_mods(original, cfg)).unwrap();
+    let pending = locks.pending_launch("pd3").unwrap();
+    fs::create_dir(&mods).unwrap();
+    let error = locks
+        .cancel_pending_launch("pd3", &pending, |pending| {
+            restore_pending_packages(pending.hidden_mods_path.as_deref().unwrap(), cfg)
+        })
+        .unwrap_err();
+    assert!(error.contains("recreated"));
+    assert!(locks.pending_launch("pd3").is_some());
+    assert_eq!(
+        fs::read(backup_dir(original, cfg.primary()).join("old.pak")).unwrap(),
+        b"original"
+    );
+    fs::remove_dir(&mods).unwrap();
+    locks
+        .cancel_pending_launch("pd3", &pending, |pending| {
+            restore_pending_packages(pending.hidden_mods_path.as_deref().unwrap(), cfg)
+        })
+        .unwrap();
+    assert!(locks.pending_launch("pd3").is_none());
+    assert_eq!(fs::read(mods.join("old.pak")).unwrap(), b"original");
+    assert_eq!(fs::read(new_mods.join("new.pak")).unwrap(), b"changed");
+}
+
+#[test]
+fn incomplete_directory_restore_reports_failure_and_preserves_both_mod_copies() {
+    let temp = tempfile::tempdir().unwrap();
+    let path = temp.path().to_str().unwrap();
+    let cfg = engine_for_game("pd2").unwrap();
+    let current = mods_base(path, cfg.primary()).join("UserMod");
+    let saved = backup_dir(path, cfg.primary()).join("UserMod");
+    fs::create_dir_all(&current).unwrap();
+    fs::create_dir_all(&saved).unwrap();
+    fs::write(current.join("mod.txt"), b"recreated mod").unwrap();
+    fs::write(saved.join("mod.txt"), b"hidden mod").unwrap();
+    let error = restore_pending_packages(path, cfg).unwrap_err();
+    assert!(error.contains("Some mod folders could not be restored"));
+    assert_eq!(fs::read(current.join("mod.txt")).unwrap(), b"recreated mod");
+    assert_eq!(fs::read(saved.join("mod.txt")).unwrap(), b"hidden mod");
+}
+
+#[tokio::test]
+async fn an_observed_vanilla_session_retains_its_original_install_until_restore_succeeds() {
+    let temp = tempfile::tempdir().unwrap();
+    let original = temp.path().join("original");
+    let changed = temp.path().join("changed");
+    let original = original.to_str().unwrap();
+    let changed = changed.to_str().unwrap();
+    let cfg = pd3_engine();
+    let mods = mods_base(original, cfg.primary());
+    let changed_mods = mods_base(changed, cfg.primary());
+    fs::create_dir_all(&mods).unwrap();
+    fs::create_dir_all(&changed_mods).unwrap();
+    fs::write(mods.join("old.pak"), b"original").unwrap();
+    fs::write(changed_mods.join("new.pak"), b"changed").unwrap();
+    let locks = crate::commands::mods::ResourceLocks::default();
+    let launch = locks.reserve_launch(locks.acquire().await, "pd3").unwrap();
+    launch.bind_hidden_mods(original);
+    launch.handoff(|| hide_package_mods(original, cfg)).unwrap();
+    let pending = locks.pending_launch("pd3").unwrap();
+    assert_eq!(locks.observe_launch("pd3", Some(&pending), true), None);
+    assert!(locks.pending_launch("pd3").is_none());
+    assert!(locks
+        .cancel_pending_launch("pd3", &pending, |_| panic!(
+            "an observed launch cannot reset"
+        ))
+        .is_err());
+    assert!(locks.reserve_launch(locks.acquire().await, "pd3").is_err());
+    fs::create_dir(&mods).unwrap();
+    assert!(locks
+        .restore_vanilla_launch("pd3", |path| restore_pending_packages(path, cfg))
+        .is_err());
+    assert_eq!(fs::read(changed_mods.join("new.pak")).unwrap(), b"changed");
+    assert_eq!(
+        fs::read(backup_dir(original, cfg.primary()).join("old.pak")).unwrap(),
+        b"original"
+    );
+    assert!(locks.reserve_launch(locks.acquire().await, "pd3").is_err());
+    fs::remove_dir(&mods).unwrap();
+    let writes = locks.acquire().await;
+    assert!(locks
+        .restore_vanilla_launch("pd3", |path| {
+            assert_eq!(path, original);
+            restore_pending_packages(path, cfg)
+        })
+        .unwrap());
+    drop(writes);
+    assert!(!locks
+        .restore_vanilla_launch("pd3", |_| panic!("already restored"))
+        .unwrap());
+    locks
+        .reserve_launch(locks.acquire().await, "pd3")
+        .unwrap()
+        .handoff(|| {
+            assert_eq!(fs::read(mods.join("old.pak")).unwrap(), b"original");
+            assert_eq!(fs::read(changed_mods.join("new.pak")).unwrap(), b"changed");
+            Ok(())
+        })
+        .unwrap();
+}
+
+#[tokio::test]
+async fn a_failed_vanilla_handoff_keeps_its_original_restore_target_even_after_settings_change() {
+    for blocked in [false, true] {
+        let temp = tempfile::tempdir().unwrap();
+        let original = temp.path().join("original");
+        let changed = temp.path().join("changed");
+        let original = original.to_str().unwrap();
+        let changed = changed.to_str().unwrap();
+        let cfg = pd3_engine();
+        let mods = mods_base(original, cfg.primary());
+        let changed_mods = mods_base(changed, cfg.primary());
+        fs::create_dir_all(&mods).unwrap();
+        fs::create_dir_all(&changed_mods).unwrap();
+        fs::write(mods.join("old.pak"), b"original").unwrap();
+        fs::write(changed_mods.join("new.pak"), b"changed").unwrap();
+        let locks = crate::commands::mods::ResourceLocks::default();
+        let launch = locks.reserve_launch(locks.acquire().await, "pd3").unwrap();
+        launch.bind_hidden_mods(original);
+        let error = launch
+            .handoff(|| {
+                launch_without_packages(original, cfg, || {
+                    assert!(!mods.exists());
+                    if blocked {
+                        fs::create_dir(&mods).unwrap();
+                    }
+                    Err("launcher spawn failed".into())
+                })
+            })
+            .unwrap_err();
+        assert!(error.contains("launcher spawn failed"));
+        assert!(locks.pending_launch("pd3").is_none());
+        assert!(locks.reserve_launch(locks.acquire().await, "pd3").is_err());
+        if blocked {
+            assert!(error.contains("recreated"));
+            assert!(locks
+                .restore_vanilla_launch("pd3", |path| restore_pending_packages(path, cfg))
+                .is_err());
+            fs::remove_dir(&mods).unwrap();
+        }
+        assert!(locks
+            .restore_vanilla_launch("pd3", |path| {
+                assert_eq!(path, original);
+                restore_pending_packages(path, cfg)
+            })
+            .unwrap());
+        assert_eq!(fs::read(mods.join("old.pak")).unwrap(), b"original");
+        assert_eq!(fs::read(changed_mods.join("new.pak")).unwrap(), b"changed");
+        assert!(!backup_dir(original, cfg.primary()).exists());
+        locks
+            .reserve_launch(locks.acquire().await, "pd3")
+            .unwrap()
+            .handoff(|| Ok(()))
+            .unwrap();
+    }
+}
+
 fn pd3() -> &'static crate::commands::launchers::GameDef {
     crate::commands::games::game_spec("pd3").unwrap().def
 }

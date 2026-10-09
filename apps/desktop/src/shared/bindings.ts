@@ -206,6 +206,8 @@ export const commands = {
 	launchWithoutMods: (gameId: string) => __TAURI_INVOKE<"unsupported" | "notInstalled" | "setupRequired" | "startFailed" | "startUnconfirmed" | null>("launch_without_mods", { gameId }),
 	restoreMods: (gameId: string) => __TAURI_INVOKE<null>("restore_mods", { gameId }),
 	isGameRunning: (gameId: string) => __TAURI_INVOKE<boolean>("is_game_running", { gameId }),
+	getGameLaunchStatus: (gameId: string) => __TAURI_INVOKE<GameLaunchStatus>("get_game_launch_status", { gameId }),
+	cancelPendingGameLaunch: (gameId: string) => __TAURI_INVOKE<null>("cancel_pending_game_launch", { gameId }),
 	stopGame: (gameId: string) => __TAURI_INVOKE<null>("stop_game", { gameId }),
 	shellOpenExternal: (url: string) => __TAURI_INVOKE<void>("shell_open_external", { url }),
 	/**
@@ -347,6 +349,11 @@ export type DetectedInstall = {
 export type FilePage = {
 	data: ModFile[],
 	meta: PageMeta,
+};
+
+export type GameLaunchStatus = {
+	running: boolean,
+	pending: PendingGameLaunch | null,
 };
 
 export type GameSettings = GameSettings_Serialize | GameSettings_Deserialize;
@@ -1045,6 +1052,8 @@ export type PageMeta = {
 export type PakAsset = {
 	path: string,
 };
+
+export type PendingGameLaunch = "preparing" | "handedOff";
 
 /**
  *  What installing a UE4SS release over the current one would change.

@@ -28,7 +28,7 @@ async function mount() {
         settings: vi.spyOn(api, 'getGameSettings'),
         installs: vi.spyOn(api, 'getDetectedInstalls'),
         folders: vi.spyOn(api, 'listModFolders'),
-        running: vi.spyOn(api, 'isGameRunning'),
+        running: vi.spyOn(api, 'getGameLaunchStatus'),
         presence: vi.spyOn(api, 'updateDiscordPresence'),
         startup: vi.spyOn(api, 'reportStartupPhase'),
     }

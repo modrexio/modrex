@@ -372,6 +372,8 @@ const handlers = {
     secretStoreAvailable: async () => true,
     nexusOauthSignedIn: async () => false,
     isGameRunning: async () => false,
+    getGameLaunchStatus: async () => ({ running: false, pending: null }),
+    cancelPendingGameLaunch: async () => null,
     listCategories: async (workshopId) => {
         await remote(`/games/${workshopId}/categories`)
         return (await load(gameForWorkshop(workshopId))).categories

@@ -406,23 +406,25 @@ fn corruption_and_missing_manifest_block_changes() {
     let store = ResourceStore::at(temp.path().join("recovery"));
     let path = temp.path().join("Engine.ini");
     fs::write(&path, b"old").unwrap();
+    let path = path.canonicalize().unwrap();
     let before = store.capture(&path).unwrap();
     let after = store.put_bytes(b"new").unwrap();
     let Content::Present { ref sha256, .. } = after else {
         unreachable!()
     };
     fs::write(store.object_path(sha256), b"corrupt").unwrap();
-    assert!(store
+    let error = store
         .apply(
             "pd3",
             vec![Step {
                 destination: path.clone(),
                 before,
-                after
+                after,
             }],
-            |_| {}
+            |_| {},
         )
-        .is_err());
+        .unwrap_err();
+    assert!(error.contains("is missing or damaged"), "{error}");
     assert_eq!(fs::read(&path).unwrap(), b"old");
     fs::remove_file(store.manifest_path()).unwrap();
     assert!(store.load_manifest().is_err());
@@ -435,6 +437,7 @@ fn transaction_rolls_back_when_manifest_commit_is_invalid() {
     let store = ResourceStore::at(temp.path().join("recovery"));
     let path = temp.path().join("Engine.ini");
     fs::write(&path, b"old").unwrap();
+    let path = path.canonicalize().unwrap();
     let before = store.capture(&path).unwrap();
     let after = store.put_bytes(b"new").unwrap();
     let error = store
@@ -459,6 +462,7 @@ fn transaction_rolls_back_when_manifest_commit_is_invalid() {
         )
         .unwrap_err();
     assert!(error.contains("every file was put back"));
+    assert!(error.contains("invalid content digest"), "{error}");
     assert_eq!(fs::read(&path).unwrap(), b"old");
     assert!(!store.has_pending("pd3").unwrap());
 }

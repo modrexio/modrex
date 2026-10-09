@@ -124,6 +124,8 @@ fn ipc_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::launchers::launch_without_mods,
             commands::launchers::restore_mods,
             commands::launchers::is_game_running,
+            commands::launchers::get_game_launch_status,
+            commands::launchers::cancel_pending_game_launch,
             commands::launchers::stop_game,
             commands::launchers::shell_open_external,
             commands::launchers::open_game_folder,

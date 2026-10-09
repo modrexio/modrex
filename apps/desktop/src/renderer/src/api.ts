@@ -18,6 +18,7 @@ import type {
     PakAsset,
     SisrLaunchIssue,
     SisrStatus,
+    GameLaunchStatus,
 } from '../../shared/bindings'
 export type { LoaderPage, LoaderPresence, ReplacementPlan }
 export type {
@@ -38,6 +39,8 @@ export type {
     MovieRecognitionScan,
     ResourceRecoveryReview,
     ConfigFileLocation,
+    PendingGameLaunch,
+    GameLaunchStatus,
 } from '../../shared/bindings'
 import type {
     ResourceSelection,
@@ -666,6 +669,12 @@ export const api = {
     // ── Launchers & system ─────────────────────────────────────────────────────
     isGameRunning(gameId: string): Promise<boolean> {
         return commands.isGameRunning(gameId)
+    },
+    getGameLaunchStatus(gameId: string): Promise<GameLaunchStatus> {
+        return commands.getGameLaunchStatus(gameId)
+    },
+    async cancelPendingGameLaunch(gameId: string): Promise<void> {
+        await commands.cancelPendingGameLaunch(gameId)
     },
     async stopGame(gameId: string): Promise<void> {
         await commands.stopGame(gameId)

@@ -1,6 +1,171 @@
 use super::*;
 use std::fs;
 
+#[tokio::test]
+async fn pending_launch_blocks_writers_during_preparation_and_delayed_store_handoff() {
+    let locks = ResourceLocks::default();
+    let launch = locks.reserve_launch(locks.acquire().await, "pd3").unwrap();
+    let writer = locks.acquire().await;
+    let preparing = locks.pending_launch("pd3");
+    assert_eq!(
+        preparing.as_ref().unwrap().state,
+        super::super::resource_state::PendingGameLaunch::Preparing
+    );
+    assert!(require_game_idle(&locks, "pd3", preparing.as_ref(), false).is_err());
+    assert!(require_game_idle(&locks, "cb", None, false).is_ok());
+    assert!(locks
+        .cancel_pending_launch("pd3", preparing.as_ref().unwrap(), |_| Ok(()))
+        .is_err());
+    drop(writer);
+    launch.handoff(|| Ok(())).unwrap();
+    let _writer = locks.acquire().await;
+    for _ in 0..5 {
+        let pending = locks.pending_launch("pd3");
+        assert!(require_game_idle(&locks, "pd3", pending.as_ref(), false)
+            .unwrap_err()
+            .contains("launch is pending"));
+    }
+    let pending = locks.pending_launch("pd3");
+    assert!(require_game_idle(&locks, "pd3", pending.as_ref(), true).is_err());
+    assert!(locks.pending_launch("pd3").is_none());
+    assert!(require_game_idle(&locks, "pd3", None, false).is_ok());
+}
+
+#[tokio::test]
+async fn launch_waits_for_a_writer_and_sees_its_committed_manifest() {
+    use std::future::Future;
+    use std::task::{Context, Poll};
+
+    let temp = tempfile::tempdir().unwrap();
+    let store = ResourceStore::at(temp.path().join("recovery"));
+    let path = temp.path().canonicalize().unwrap().join("Engine.ini");
+    fs::write(&path, b"old").unwrap();
+    let locks = ResourceLocks::default();
+    let writer = locks.acquire().await;
+    let mut launch = Box::pin(locks.acquire());
+    let mut context = Context::from_waker(futures::task::noop_waker_ref());
+    assert!(matches!(launch.as_mut().poll(&mut context), Poll::Pending));
+    store
+        .apply(
+            "pd3",
+            vec![Step {
+                destination: path.clone(),
+                before: store.capture(&path).unwrap(),
+                after: store.put_bytes(b"new").unwrap(),
+            }],
+            |_| {},
+        )
+        .unwrap();
+    drop(writer);
+    let launch = locks.reserve_launch(launch.await, "pd3").unwrap();
+    store.preflight("pd3").unwrap();
+    launch
+        .handoff(|| {
+            assert_eq!(fs::read(&path).unwrap(), b"new");
+            assert_eq!(store.load_manifest().unwrap().revision, 1);
+            Ok(())
+        })
+        .unwrap();
+}
+
+#[tokio::test]
+async fn failed_or_abandoned_launch_preparation_releases_its_reservation() {
+    let locks = ResourceLocks::default();
+    let launch = locks.reserve_launch(locks.acquire().await, "pd3").unwrap();
+    let error = launch
+        .handoff(|| Err("launcher spawn failed".into()))
+        .unwrap_err();
+    assert_eq!(error, "launcher spawn failed");
+    assert!(locks.pending_launch("pd3").is_none());
+    assert!(require_game_idle(&locks, "pd3", None, false).is_ok());
+    let launch = locks.reserve_launch(locks.acquire().await, "pd3").unwrap();
+    drop(launch);
+    assert!(locks.pending_launch("pd3").is_none());
+    let _writer = locks.acquire().await;
+}
+
+#[tokio::test]
+async fn pending_launch_blocks_shared_destinations_and_allows_independent_games() {
+    let temp = tempfile::tempdir().unwrap();
+    let store = ResourceStore::at(temp.path().join("recovery"));
+    let shared = temp.path().join("Engine.ini");
+    let mut deployment = preset(&store, &shared, b"[S]\nA=1\n");
+    deployment.game_id = "cb".into();
+    let manifest = Manifest {
+        deployments: vec![deployment],
+        ..Manifest::default()
+    };
+    let locks = ResourceLocks::default();
+    locks
+        .reserve_launch(locks.acquire().await, "cb")
+        .unwrap()
+        .handoff(|| Ok(()))
+        .unwrap();
+    let _writer = locks.acquire().await;
+    for game in affected_games(&manifest, "pd3", &[temp.path().join("Other.ini")]) {
+        assert!(
+            require_game_idle(&locks, &game, locks.pending_launch(&game).as_ref(), false).is_ok()
+        );
+    }
+    let games = affected_games(&manifest, "pd3", &[shared]);
+    assert_eq!(games, ["cb", "pd3"]);
+    assert!(games.iter().any(|game| {
+        require_game_idle(&locks, game, locks.pending_launch(game).as_ref(), false).is_err()
+    }));
+}
+
+#[tokio::test]
+async fn stale_process_observation_cannot_release_a_new_launch_reservation() {
+    let locks = ResourceLocks::default();
+    locks
+        .reserve_launch(locks.acquire().await, "pd3")
+        .unwrap()
+        .handoff(|| Ok(()))
+        .unwrap();
+    let stale = locks.pending_launch("pd3").unwrap();
+    locks
+        .cancel_pending_launch("pd3", &stale, |_| Ok(()))
+        .unwrap();
+    let launch = locks.reserve_launch(locks.acquire().await, "pd3").unwrap();
+    assert_eq!(
+        locks.observe_launch("pd3", Some(&stale), true),
+        Some(super::super::resource_state::PendingGameLaunch::Preparing)
+    );
+    launch.handoff(|| Ok(())).unwrap();
+    assert_eq!(
+        locks.observe_launch("pd3", Some(&stale), true),
+        Some(super::super::resource_state::PendingGameLaunch::HandedOff)
+    );
+    assert!(locks.pending_launch("pd3").is_some());
+    locks
+        .cancel_pending_launch("pd3", &locks.pending_launch("pd3").unwrap(), |_| Ok(()))
+        .unwrap();
+    assert!(require_game_idle(&locks, "pd3", None, false).is_ok());
+}
+
+#[tokio::test]
+async fn a_stale_false_process_probe_stays_blocked_after_another_probe_observes_the_game() {
+    let locks = ResourceLocks::default();
+    locks
+        .reserve_launch(locks.acquire().await, "pd3")
+        .unwrap()
+        .handoff(|| Ok(()))
+        .unwrap();
+    let pending = locks.pending_launch("pd3").unwrap();
+    assert_eq!(locks.observe_launch("pd3", Some(&pending), true), None);
+    assert_eq!(
+        locks.observe_launch("pd3", Some(&pending), false),
+        Some(super::super::resource_state::PendingGameLaunch::HandedOff)
+    );
+    assert!(locks
+        .cancel_pending_launch("pd3", &pending, |_| panic!(
+            "a stale reset must not restore files"
+        ))
+        .is_err());
+    assert!(require_game_idle(&locks, "pd3", Some(&pending), false).is_err());
+    assert!(require_game_idle(&locks, "pd3", None, true).is_err());
+}
+
 #[test]
 fn recovery_opener_reports_an_early_failure_and_accepts_success() {
     for code in [0, 4] {

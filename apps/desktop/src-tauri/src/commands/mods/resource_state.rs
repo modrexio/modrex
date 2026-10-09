@@ -20,10 +20,11 @@
 
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use std::collections::HashMap;
 use std::fs::{self, File};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use uuid::Uuid;
 
 pub(crate) const MANIFEST_VERSION: u32 = 1;
@@ -542,13 +543,7 @@ impl ResourceStore {
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(Content::Absent),
             Err(e) => return Err(format!("could not read {}: {e}", path.display())),
         };
-        let objects = self.root.join("objects");
-        fs::create_dir_all(&objects)
-            .map_err(|e| format!("could not create recovery storage: {e}"))?;
-        let tmp = objects.join(format!(".capture-{}.tmp", Uuid::new_v4()));
-        let result = (|| {
-            let mut out =
-                File::create(&tmp).map_err(|e| format!("could not write recovery copy: {e}"))?;
+        self.stage_object(|out| {
             let mut hasher = Sha256::new();
             let mut buf = vec![0u8; 64 * 1024];
             let mut size = 0u64;
@@ -564,30 +559,34 @@ impl ResourceStore {
                 out.write_all(&buf[..n])
                     .map_err(|e| format!("could not write recovery copy: {e}"))?;
             }
-            out.sync_all()
-                .map_err(|e| format!("could not flush recovery copy: {e}"))?;
-            let sha256 = hex::encode(hasher.finalize());
-            self.commit_object(&tmp, &sha256, size)
-        })();
-        if result.is_err() {
-            remove_temporary(&tmp);
-        }
-        result
+            Ok((hex::encode(hasher.finalize()), size))
+        })
     }
 
     pub(crate) fn put_bytes(&self, bytes: &[u8]) -> Result<Content, String> {
         self.initialize()?;
+        self.stage_object(|out| {
+            out.write_all(bytes)
+                .map_err(|e| format!("could not write recovery copy: {e}"))?;
+            Ok((sha256_hex(bytes), bytes.len() as u64))
+        })
+    }
+
+    fn stage_object(
+        &self,
+        write: impl FnOnce(&mut File) -> Result<(String, u64), String>,
+    ) -> Result<Content, String> {
         let objects = self.root.join("objects");
         fs::create_dir_all(&objects)
             .map_err(|e| format!("could not create recovery storage: {e}"))?;
-        let tmp = objects.join(format!(".put-{}.tmp", Uuid::new_v4()));
+        let tmp = objects.join(format!(".object-{}.tmp", Uuid::new_v4()));
         let result = (|| {
             let mut f =
                 File::create(&tmp).map_err(|e| format!("could not write recovery copy: {e}"))?;
-            f.write_all(bytes)
-                .and_then(|()| f.sync_all())
-                .map_err(|e| format!("could not write recovery copy: {e}"))?;
-            self.commit_object(&tmp, &sha256_hex(bytes), bytes.len() as u64)
+            let (sha256, size) = write(&mut f)?;
+            f.sync_all()
+                .map_err(|e| format!("could not flush recovery copy: {e}"))?;
+            self.commit_object(&tmp, &sha256, size)
         })();
         if result.is_err() {
             remove_temporary(&tmp);
@@ -1097,9 +1096,33 @@ pub(crate) fn refuse_read_only(path: &Path) -> Result<(), String> {
 
 /// Serializes resource writes and recovery against the shared manifest.
 #[derive(Default)]
-pub struct ResourceLocks(Arc<tokio::sync::Mutex<()>>);
+pub struct ResourceLocks {
+    writes: Arc<tokio::sync::Mutex<()>>,
+    launches: Arc<Mutex<HashMap<String, PendingLaunch>>>,
+}
 
 pub(crate) type ResourceGuard = tokio::sync::OwnedMutexGuard<()>;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub enum PendingGameLaunch {
+    Preparing,
+    HandedOff,
+}
+
+#[derive(Clone)]
+pub(crate) struct PendingLaunch {
+    id: Uuid,
+    pub(crate) state: PendingGameLaunch,
+    pub(crate) hidden_mods_path: Option<String>,
+    restore_only: bool,
+}
+
+pub(crate) struct ResourceLaunchGuard {
+    launches: Arc<Mutex<HashMap<String, PendingLaunch>>>,
+    game_id: String,
+    id: Uuid,
+}
 
 /// Canonical destination identity. Windows paths compare case-insensitively.
 fn destination_key(path: &Path) -> String {
@@ -1112,7 +1135,154 @@ fn destination_key(path: &Path) -> String {
 
 impl ResourceLocks {
     pub(crate) async fn acquire(&self) -> ResourceGuard {
-        self.0.clone().lock_owned().await
+        self.writes.clone().lock_owned().await
+    }
+
+    pub(crate) fn reserve_launch(
+        &self,
+        writes: ResourceGuard,
+        game_id: &str,
+    ) -> Result<ResourceLaunchGuard, String> {
+        let mut launches = self.launches.lock().unwrap_or_else(|e| e.into_inner());
+        if launches.contains_key(game_id) {
+            return Err(
+                "A previous game launch must finish or restore its package mods first".into(),
+            );
+        }
+        let id = Uuid::new_v4();
+        launches.insert(
+            game_id.to_string(),
+            PendingLaunch {
+                id,
+                state: PendingGameLaunch::Preparing,
+                hidden_mods_path: None,
+                restore_only: false,
+            },
+        );
+        // Preparing blocks this game and shared destinations while unrelated games can write.
+        drop(writes);
+        Ok(ResourceLaunchGuard {
+            launches: self.launches.clone(),
+            game_id: game_id.to_string(),
+            id,
+        })
+    }
+
+    pub(crate) fn pending_launch(&self, game_id: &str) -> Option<PendingLaunch> {
+        self.launches
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .get(game_id)
+            .filter(|pending| !pending.restore_only)
+            .cloned()
+    }
+
+    pub(crate) fn observe_launch(
+        &self,
+        game_id: &str,
+        snapshot: Option<&PendingLaunch>,
+        running: bool,
+    ) -> Option<PendingGameLaunch> {
+        let mut launches = self.launches.lock().unwrap_or_else(|e| e.into_inner());
+        // A store can defer launching indefinitely. Only seeing the game proves handoff ended.
+        if running
+            && snapshot.is_some_and(|snapshot| {
+                snapshot.state == PendingGameLaunch::HandedOff
+                    && launches.get(game_id).is_some_and(|p| p.id == snapshot.id)
+            })
+        {
+            let pending = launches
+                .get_mut(game_id)
+                .expect("the launch token was checked");
+            // Changing the selected install must not redirect restoration of hidden packages.
+            if pending.hidden_mods_path.is_some() {
+                pending.restore_only = true;
+            } else {
+                launches.remove(game_id);
+            }
+        }
+        // Another probe may have observed the game after this probe returned false.
+        // Its removal of the marker cannot make the older observation prove the game is idle.
+        launches
+            .get(game_id)
+            .filter(|pending| !pending.restore_only)
+            .map(|p| p.state)
+            .or_else(|| snapshot.filter(|_| !running).map(|p| p.state))
+    }
+
+    pub(crate) fn cancel_pending_launch(
+        &self,
+        game_id: &str,
+        expected: &PendingLaunch,
+        restore: impl FnOnce(&PendingLaunch) -> Result<(), String>,
+    ) -> Result<(), String> {
+        let mut launches = self.launches.lock().unwrap_or_else(|e| e.into_inner());
+        let pending = launches
+            .get(game_id)
+            .filter(|pending| pending.id == expected.id && !pending.restore_only)
+            .ok_or("The pending launch changed while it was checked. Check the game again")?;
+        if pending.state == PendingGameLaunch::Preparing {
+            return Err("Wait for Modrex to finish preparing the game launch".into());
+        }
+        restore(pending)?;
+        launches.remove(game_id);
+        Ok(())
+    }
+
+    pub(crate) fn restore_vanilla_launch(
+        &self,
+        game_id: &str,
+        restore: impl FnOnce(&str) -> Result<(), String>,
+    ) -> Result<bool, String> {
+        let mut launches = self.launches.lock().unwrap_or_else(|e| e.into_inner());
+        let Some(pending) = launches.get(game_id).filter(|pending| pending.restore_only) else {
+            return Ok(false);
+        };
+        let path = pending
+            .hidden_mods_path
+            .as_deref()
+            .expect("restoration-only vanilla launches retain their hidden package install");
+        restore(path)?;
+        launches.remove(game_id);
+        Ok(true)
+    }
+}
+
+impl ResourceLaunchGuard {
+    pub(crate) fn bind_hidden_mods(&self, game_path: &str) {
+        self.launches
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .get_mut(&self.game_id)
+            .expect("a preparing launch remains reserved until its guard drops")
+            .hidden_mods_path = Some(game_path.to_string());
+    }
+
+    pub(crate) fn handoff(self, launch: impl FnOnce() -> Result<(), String>) -> Result<(), String> {
+        launch()?;
+        let mut launches = self.launches.lock().unwrap_or_else(|e| e.into_inner());
+        let pending = launches
+            .get_mut(&self.game_id)
+            .expect("a preparing launch remains reserved until its guard drops");
+        pending.state = PendingGameLaunch::HandedOff;
+        Ok(())
+    }
+}
+
+impl Drop for ResourceLaunchGuard {
+    fn drop(&mut self) {
+        let mut launches = self.launches.lock().unwrap_or_else(|e| e.into_inner());
+        let Some(pending) = launches
+            .get_mut(&self.game_id)
+            .filter(|p| p.id == self.id && p.state == PendingGameLaunch::Preparing)
+        else {
+            return;
+        };
+        if pending.hidden_mods_path.is_some() {
+            pending.restore_only = true;
+            return;
+        }
+        launches.remove(&self.game_id);
     }
 }
 
