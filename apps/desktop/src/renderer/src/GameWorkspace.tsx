@@ -29,6 +29,7 @@ import { SettingsPage, saveSettingsTab, type AppSettingsProps } from './componen
 import { GameSettings } from './components/GameSettings'
 import { GameFolders } from './components/GameFolders'
 import { EngineIniSettings } from './components/EngineIniSettings'
+import { GraphicsConfigSettings } from './components/GraphicsConfigSettings'
 import { ResourceRecoveryDialog } from './components/ResourceRecoveryDialog'
 import { useFileDropTarget } from './components/FileDropInstall'
 
@@ -79,6 +80,7 @@ export function GameWorkspace({
     const data = useSyncExternalStore(subscribe, snapshot)
     const gamePath = data.path ?? null
     const gamePathReady = data.path !== undefined
+    const configContext = `${activeGame}:${gamePath}:${getSettingsCache(activeGame)?.settings.launcher ?? ''}`
     const installed = data.installed?.mods ?? emptyMods
     const folders = data.installed?.folders ?? emptyFolders
     const resourceRecoveryPending = data.installed?.resourceRecoveryPending ?? false
@@ -387,11 +389,23 @@ export function GameWorkspace({
                                 folders: (
                                     <GameFolders activeGame={activeGame} gamePath={gamePath} />
                                 ),
-                                advanced: GAMES[activeGame].configPresets && (
-                                    <EngineIniSettings
-                                        key={`ini:${gamePath}`}
-                                        activeGame={activeGame}
-                                    />
+                                advanced: (GAMES[activeGame].configPresets ||
+                                    GAMES[activeGame].graphicsConfig) && (
+                                    <>
+                                        {GAMES[activeGame].configPresets && (
+                                            <EngineIniSettings
+                                                key={`ini:${configContext}`}
+                                                activeGame={activeGame}
+                                            />
+                                        )}
+                                        {GAMES[activeGame].graphicsConfig && (
+                                            <GraphicsConfigSettings
+                                                key={`graphics:${configContext}`}
+                                                activeGame={activeGame}
+                                                filename={GAMES[activeGame].graphicsConfig.filename}
+                                            />
+                                        )}
+                                    </>
                                 ),
                             }}
                         />

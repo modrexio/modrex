@@ -5,6 +5,7 @@ mod decisions;
 mod diesel_signals;
 mod engine;
 mod folders;
+mod graphics_config;
 mod host_mods;
 mod identify;
 pub mod identity;
@@ -21,6 +22,7 @@ mod resource_state;
 mod resources;
 mod staged;
 mod staging_tokens;
+pub use self::graphics_config::GraphicsConfigLocations;
 pub use self::resource_state::ResourceLocks;
 pub(crate) use self::resources::launch_preflight as resource_launch_preflight;
 pub(crate) use self::resources::refuse_resource_uid;
@@ -1474,7 +1476,7 @@ pub(crate) fn discard_all_resource_reviews(app: &AppHandle) {
 pub async fn get_engine_ini_location(
     app: AppHandle,
     game_id: String,
-) -> Result<resources::EngineIniLocation, String> {
+) -> Result<resources::ConfigFileLocation, String> {
     resources::get_engine_ini_location(&app, &game_id).await
 }
 
@@ -1494,6 +1496,32 @@ pub async fn pick_engine_ini(
     folder: bool,
 ) -> Result<Option<String>, String> {
     resources::pick_engine_ini(&app, &game_id, title, folder).await
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn get_graphics_config_location(
+    app: AppHandle,
+    game_id: String,
+) -> Result<resources::ConfigFileLocation, String> {
+    graphics_config::get_location(&app, &game_id).await
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn pick_graphics_config(
+    app: AppHandle,
+    game_id: String,
+    title: String,
+    folder: bool,
+) -> Result<Option<String>, String> {
+    graphics_config::pick(&app, &game_id, title, folder).await
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn open_graphics_config(app: AppHandle, game_id: String) -> Result<(), String> {
+    graphics_config::open(&app, &game_id).await
 }
 
 #[derive(Debug, Clone, Deserialize, specta::Type)]

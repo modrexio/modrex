@@ -59,7 +59,7 @@ fn configuration_location_checks_do_not_create_a_missing_file_or_parent() {
     };
     assert!(matches!(
         inspect_engine_ini(destination).unwrap(),
-        EngineIniLocation::Missing { path: found } if found == path.to_string_lossy()
+        ConfigFileLocation::Missing { path: found } if found == path.to_string_lossy()
     ));
     assert!(!path.parent().unwrap().exists());
     assert!(IniDestination {
@@ -77,7 +77,7 @@ fn configuration_location_checks_validate_an_existing_file_without_changing_it()
     fs::write(&path, b"[S]\r\nA=1\r\n").unwrap();
     assert!(matches!(
         inspect_engine_ini(IniDestination { path: path.clone(), chosen: true }).unwrap(),
-        EngineIniLocation::Found { path: found } if found == path.to_string_lossy()
+        ConfigFileLocation::Found { path: found } if found == path.to_string_lossy()
     ));
     assert_eq!(fs::read(&path).unwrap(), b"[S]\r\nA=1\r\n");
 }
@@ -111,7 +111,7 @@ fn system_editor_paths_preserve_drive_unc_and_unicode_without_verbatim_prefixes(
         (r"\\?\C:\Ігри\Engine.ini", r"C:\Ігри\Engine.ini"),
     ] {
         let path = Path::new(input);
-        assert_eq!(shell_ini_path(path), PathBuf::from(expected));
+        assert_eq!(shell_config_path(path), PathBuf::from(expected));
     }
 }
 

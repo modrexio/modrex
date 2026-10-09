@@ -658,6 +658,18 @@
             "resetConfirm": "Reset settings",
             "resetting": "Resetting..."
         },
+        "graphicsConfig": {
+            "title": "Graphics configuration",
+            "description": "Open this file in an external application to edit graphics settings. Close the game before editing.",
+            "open": "Open graphics config",
+            "chooseFile": "Choose {filename}",
+            "manualTools": "File location",
+            "checking": "Looking for {filename}...",
+            "found": "{filename} found.",
+            "missing": "{filename} was not found at this location. Check again after starting the game, or choose an existing file.",
+            "needsLocation": "Modrex cannot locate {filename} for this installation. Choose the file or its configuration folder.",
+            "checkFailed": "Modrex could not check the {filename} location. Try again or choose the file."
+        },
         "crimeBossInstallMode": {
             "title": "New Mod Installs",
             "description": "Where new Crime Boss mods go by default. You can also move an already-installed mod later from the Installed list.",

@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { api, type EngineIniLocation } from '../api'
+import { api, type ConfigFileLocation } from '../api'
 import { EngineIniSettings } from './EngineIniSettings'
 
 vi.mock('../api', () => ({
@@ -13,7 +13,7 @@ vi.mock('../api', () => ({
     },
 }))
 
-const found: EngineIniLocation = { status: 'found', path: 'G:/Config/Engine.ini' }
+const found: ConfigFileLocation = { status: 'found', path: 'G:/Config/Engine.ini' }
 
 beforeEach(() => {
     vi.resetAllMocks()
@@ -35,6 +35,18 @@ test('hands Open INI to the system editor without mounting a text editor', async
     expect(api.openEngineIni).toHaveBeenCalledExactlyOnceWith('cb')
     expect(screen.queryByRole('textbox')).toBeNull()
     expect(screen.queryByRole('dialog')).toBeNull()
+})
+
+test('retains recovery-copy access and reports a failed folder handoff', async () => {
+    vi.mocked(api.openDataFolder).mockRejectedValueOnce(new Error('Could not open the data folder'))
+    render(<EngineIniSettings activeGame="pd3" />)
+    await screen.findByText('Engine.ini found.')
+    fireEvent.click(screen.getByText('File location and saved copies'))
+    fireEvent.click(screen.getByRole('button', { name: 'Open saved copies' }))
+    expect((await screen.findByRole('alert')).textContent).toContain(
+        'Could not open the data folder'
+    )
+    expect(screen.getByText('Engine.ini found.')).toBeTruthy()
 })
 
 test('opens the selected configuration and leaves cancellation unchanged', async () => {
@@ -104,7 +116,7 @@ test('does not open a file removed since the initial check', async () => {
 })
 
 test('discards a previous game check that finishes after switching games', async () => {
-    let resolvePrevious!: (location: EngineIniLocation) => void
+    let resolvePrevious!: (location: ConfigFileLocation) => void
     vi.mocked(api.getEngineIniLocation).mockReturnValueOnce(
         new Promise((resolve) => {
             resolvePrevious = resolve

@@ -38,6 +38,7 @@ vi.mock('../gameLaunch', () => {
 
 import { HealthCheckModal } from './HealthCheckModal'
 import { GameTopBar } from './GameTopBar'
+import { isUnsupportedFormat } from '../formatCheck'
 
 const original = GAMES.pd2
 afterEach(() => {
@@ -169,6 +170,18 @@ it('ignores a cached launcher that belongs to a different game installation', ()
 it('omits resource tools for a game with no declarations or deployments', () => {
     health()
     expect(screen.queryByRole('tab', { name: 'Game files' })).toBeNull()
+})
+
+it('keeps graphics-file access separate from resource installation, health tools and launch labels', () => {
+    GAMES.pd2 = { ...original, graphicsConfig: { filename: 'renderer_settings_dx11.xml' } }
+    health()
+    expect(screen.queryByRole('tab', { name: 'Game files' })).toBeNull()
+    expect(screen.queryByTestId('movie-scan')).toBeNull()
+    expect(isUnsupportedFormat(GAMES.pd2, 'xml')).toBe(true)
+    expect(isUnsupportedFormat(GAMES.pd2, 'bk2')).toBe(true)
+    expect(isUnsupportedFormat(GAMES.pd2, 'ini', 'https://example.com/Engine.ini')).toBe(true)
+    render(<GameTopBar activeGame="pd2" gamePath="C:/game" />)
+    expect(screen.getByRole('button', { name: 'Launch without mods' })).toBeTruthy()
 })
 
 it.each(['movies', 'config'] as const)(

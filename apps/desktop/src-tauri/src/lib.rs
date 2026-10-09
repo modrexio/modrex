@@ -85,6 +85,9 @@ fn ipc_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::mods::get_engine_ini_location,
             commands::mods::open_engine_ini,
             commands::mods::pick_engine_ini,
+            commands::mods::get_graphics_config_location,
+            commands::mods::pick_graphics_config,
+            commands::mods::open_graphics_config,
             commands::mods::uninstall_mod,
             commands::mods::enable_mod,
             commands::mods::disable_mod,
@@ -192,6 +195,7 @@ pub fn run() {
         .manage(commands::mods::ResourceLocks::default())
         .manage(commands::mods::ResourceReviews::default())
         .manage(commands::mods::IniLocations::default())
+        .manage(commands::mods::GraphicsConfigLocations::default())
         .manage(commands::startup::StartupState::default())
         .manage(discord_state)
         .register_uri_scheme_protocol("thumb", |ctx, request| {

@@ -7,7 +7,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 ### Added
 
 - Added .bk2 movie replacements and reversible Engine.ini presets for supported games.
-- Added an Engine.ini shortcut that opens your default text editor.
+- Added shortcuts to open game configuration files.
 - Added a Health Check scan for known movie mods.
 - Added Polish as a language option for the app's interface.
 - Added a Health Check warning for mods missing their .ucas and .utoc files.

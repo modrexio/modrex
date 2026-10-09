@@ -124,10 +124,13 @@ export const commands = {
 	reviewResourceRecovery: (gameId: string, uid: string | null) => __TAURI_INVOKE<ResourceRecoveryReview>("review_resource_recovery", { gameId, uid }),
 	keepCurrentResources: (reviewHandle: string) => __TAURI_INVOKE<null>("keep_current_resources", { reviewHandle }),
 	cancelResourceRecovery: (reviewHandle: string) => __TAURI_INVOKE<void>("cancel_resource_recovery", { reviewHandle }),
-	getEngineIniLocation: (gameId: string) => __TAURI_INVOKE<EngineIniLocation>("get_engine_ini_location", { gameId }),
+	getEngineIniLocation: (gameId: string) => __TAURI_INVOKE<ConfigFileLocation>("get_engine_ini_location", { gameId }),
 	openEngineIni: (gameId: string) => __TAURI_INVOKE<null>("open_engine_ini", { gameId }),
 	/**  title comes from the renderer already localized, like pick_folder's. */
 	pickEngineIni: (gameId: string, title: string, folder: boolean) => __TAURI_INVOKE<string | null>("pick_engine_ini", { gameId, title, folder }),
+	getGraphicsConfigLocation: (gameId: string) => __TAURI_INVOKE<ConfigFileLocation>("get_graphics_config_location", { gameId }),
+	pickGraphicsConfig: (gameId: string, title: string, folder: boolean) => __TAURI_INVOKE<string | null>("pick_graphics_config", { gameId, title, folder }),
+	openGraphicsConfig: (gameId: string) => __TAURI_INVOKE<null>("open_graphics_config", { gameId }),
 	uninstallMod: (gamePath: string, uid: string, gameId: string) => __TAURI_INVOKE<null>("uninstall_mod", { gamePath, uid, gameId }),
 	enableMod: (gamePath: string, uid: string, gameId: string) => __TAURI_INVOKE<null>("enable_mod", { gamePath, uid, gameId }),
 	disableMod: (gamePath: string, uid: string, gameId: string) => __TAURI_INVOKE<null>("disable_mod", { gamePath, uid, gameId }),
@@ -286,6 +289,8 @@ export type CbFlatPayload_Serialize = {
 	modVersion?: string | null,
 };
 
+export type ConfigFileLocation = { status: "found"; path: string } | { status: "missing"; path: string } | { status: "needsLocation" };
+
 export type ConfirmLoaderArgs = {
 	archiveHandle: string,
 	gameId: string,
@@ -337,8 +342,6 @@ export type DetectedInstall = {
 	launcher: string,
 	gamePath: string,
 };
-
-export type EngineIniLocation = { status: "found"; path: string } | { status: "missing"; path: string } | { status: "needsLocation" };
 
 export type FilePage = {
 	data: ModFile[],

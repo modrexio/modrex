@@ -61,6 +61,12 @@ const steamFolders: Record<GameId, string> = {
 
 const fixtures = new Map<GameId, Promise<GameFixtures>>()
 const chosenIniLocations = new Map<GameId, string>()
+const chosenGraphicsLocations = new Map<GameId, string>()
+const graphicsFolders: Partial<Record<GameId, string>> = {
+    pd2: 'PAYDAY 2',
+    pdth: 'PAYDAY',
+    raid: 'RAID WW2',
+}
 
 function game(gameId: string): GameId {
     if (!isGameId(gameId)) throw new Error(`preview: unknown game ${gameId}`)
@@ -208,6 +214,37 @@ const handlers = {
         if (!path) throw new Error('Choose a game folder first')
         const configPath = path + '/Saved/Config/WindowsClient/Engine.ini'
         chosenIniLocations.set(game(gameId), configPath)
+        return configPath
+    },
+    getGraphicsConfigLocation: async (gameId) => {
+        const id = game(gameId)
+        const declaration = GAMES[id].graphicsConfig
+        if (!declaration) throw new Error(`preview: ${gameId} has no graphics configuration`)
+        if (!gamePath(id)) throw new Error('Choose a game folder first')
+        const chosen = chosenGraphicsLocations.get(id)
+        if (chosen) return { status: 'found', path: chosen }
+        const folder = graphicsFolders[id]
+        if (!folder) return { status: 'needsLocation' }
+        return {
+            status: 'found',
+            path: `C:/Users/Preview/AppData/Local/${folder}/${declaration.filename}`,
+        }
+    },
+    openGraphicsConfig: async (gameId) => {
+        const id = game(gameId)
+        if (!GAMES[id].graphicsConfig)
+            throw new Error(`preview: ${gameId} has no graphics configuration`)
+        if (!gamePath(id)) throw new Error('Choose a game folder first')
+        return null
+    },
+    pickGraphicsConfig: async (gameId) => {
+        const id = game(gameId)
+        const declaration = GAMES[id].graphicsConfig
+        if (!declaration) throw new Error(`preview: ${gameId} has no graphics configuration`)
+        const path = gamePath(id)
+        if (!path) throw new Error('Choose a game folder first')
+        const configPath = `${path}/${declaration.filename}`
+        chosenGraphicsLocations.set(id, configPath)
         return configPath
     },
     reportStartupPhase: async () => null,

@@ -1,5 +1,6 @@
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
+import type { ConfigFileLocation } from '../src/api'
 
 const store = new Map<string, string>()
 beforeEach(() => {
@@ -167,8 +168,41 @@ test('global Advanced settings do not inherit a previous game configuration shor
     fireEvent.click(screen.getByRole('button', { name: 'Advanced' }))
     await screen.findByRole('heading', { name: 'Folders' })
     expect(screen.queryByRole('button', { name: 'Open INI' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Open graphics config' })).toBeNull()
     expect(screen.queryByRole('heading', { name: 'PAYDAY 3 tools' })).toBeNull()
 })
+
+test.each([
+    ['pd2', 'PAYDAY 2', 'renderer_settings_dx11.xml', 'PAYDAY 2'],
+    ['pdth', 'PAYDAY: The Heist', 'renderer_settings.xml', 'PAYDAY'],
+    ['raid', 'RAID: World War II', 'renderer_settings_dx11.xml', 'RAID WW2'],
+])(
+    'opens graphics configuration in game Advanced settings for %s',
+    async (gameId, name, filename, folder) => {
+        store.set('modrex:active-game', gameId)
+        const { api } = await import('../src/api')
+        const open = vi.spyOn(api, 'openGraphicsConfig')
+        const { default: App } = await import('../src/App')
+        render(<App />)
+        await screen.findByRole('button', { name: 'Launch without mods' })
+        fireEvent.click(
+            within(screen.getByRole('complementary')).getByRole('button', { name: 'Settings' })
+        )
+        await screen.findByRole('heading', { name: 'Launch Options' })
+        expect(screen.queryByRole('button', { name: 'Open graphics config' })).toBeNull()
+        fireEvent.click(screen.getByRole('button', { name: 'Advanced' }))
+        await screen.findByRole('heading', { name: `${name} tools` })
+        await screen.findByText(`${filename} found.`)
+        expect(
+            screen.getByText(`C:/Users/Preview/AppData/Local/${folder}/${filename}`)
+        ).toBeTruthy()
+        expect(screen.queryByRole('button', { name: 'Open INI' })).toBeNull()
+        expect(screen.queryByRole('button', { name: 'Open saved copies' })).toBeNull()
+        fireEvent.click(screen.getByRole('button', { name: 'Open graphics config' }))
+        await vi.waitFor(() => expect(open).toHaveBeenCalledExactlyOnceWith(gameId))
+        expect(screen.queryByRole('dialog')).toBeNull()
+    }
+)
 
 test('Health Check offers a read-only movie scan', async () => {
     const api = await mount()
@@ -188,4 +222,40 @@ test('Health Check offers a read-only movie scan', async () => {
     fireEvent.click(dialog.getByRole('button', { name: 'Clear results' }))
     expect(dialog.queryByRole('status')).toBeNull()
     expect(dialog.getByRole('button', { name: 'Check existing movies' })).toBeTruthy()
+})
+
+test('does not complete a graphics-file handoff after the installation store changes', async () => {
+    store.set('modrex:active-game', 'pd2')
+    const { api } = await import('../src/api')
+    let resolvePrevious!: (location: ConfigFileLocation) => void
+    vi.spyOn(api, 'getGraphicsConfigLocation')
+        .mockResolvedValueOnce({ status: 'found', path: 'G:/Old/renderer_settings_dx11.xml' })
+        .mockReturnValueOnce(
+            new Promise((resolve) => {
+                resolvePrevious = resolve
+            })
+        )
+        .mockResolvedValue({ status: 'needsLocation' })
+    const open = vi.spyOn(api, 'openGraphicsConfig')
+    const { default: App } = await import('../src/App')
+    render(<App />)
+    await screen.findByRole('button', { name: 'Launch without mods' })
+    fireEvent.click(
+        within(screen.getByRole('complementary')).getByRole('button', { name: 'Settings' })
+    )
+    await screen.findByRole('heading', { name: 'Launch Options' })
+    fireEvent.click(screen.getByRole('button', { name: 'Advanced' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Open graphics config' }))
+    const { patchSettingsCache } = await import('../src/settingsCache')
+    const { refreshGamePath } = await import('../src/gameData')
+    await act(async () => {
+        patchSettingsCache('pd2', { launcher: 'manual' })
+        await refreshGamePath('pd2')
+    })
+    await screen.findByRole('button', { name: 'Choose renderer_settings_dx11.xml' })
+    await act(async () =>
+        resolvePrevious({ status: 'found', path: 'G:/Old/renderer_settings_dx11.xml' })
+    )
+    expect(open).not.toHaveBeenCalled()
+    expect(screen.queryByText('G:/Old/renderer_settings_dx11.xml')).toBeNull()
 })

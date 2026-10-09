@@ -19,7 +19,7 @@ use super::types::{InstalledMod, ResourceDeployment, ResourceStatus, UpdateStatu
 use super::zip::{extract_entry_at_budget, safe_dest, ResourceArchive, ZipMultiPakPayload};
 use crate::commands::games::game_spec;
 use crate::commands::settings::{game_settings, read_settings};
-use crate::game_package::ConfigPresets;
+use crate::game_package::{ConfigLocation, ConfigPresets};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -164,14 +164,14 @@ pub(crate) struct Provenance {
 
 /// The install a resource operation is bound to: the saved game path and launcher.
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct InstallContext {
-    game_id: String,
-    game_path: String,
-    canonical_game_path: String,
-    launcher: Option<String>,
+pub(super) struct InstallContext {
+    pub(super) game_id: String,
+    pub(super) game_path: String,
+    pub(super) canonical_game_path: String,
+    pub(super) launcher: Option<String>,
 }
 
-fn current_context(app: &AppHandle, game_id: &str) -> Result<InstallContext, String> {
+pub(super) fn current_context(app: &AppHandle, game_id: &str) -> Result<InstallContext, String> {
     let settings = read_settings(app);
     let gs =
         game_settings(&settings, game_id).ok_or_else(|| format!("{game_id} is not configured"))?;
@@ -192,7 +192,7 @@ fn current_context(app: &AppHandle, game_id: &str) -> Result<InstallContext, Str
 }
 
 /// Rejects an operation whose install changed since it was prepared.
-fn require_context(app: &AppHandle, bound: &InstallContext) -> Result<(), String> {
+pub(super) fn require_context(app: &AppHandle, bound: &InstallContext) -> Result<(), String> {
     if current_context(app, &bound.game_id)? != *bound {
         return Err(
             "the selected game install or store changed since this was prepared; nothing was written"
@@ -267,7 +267,7 @@ fn affected_games(manifest: &Manifest, game_id: &str, paths: &[PathBuf]) -> Vec<
     games
 }
 
-async fn blocking<T: Send + 'static>(
+pub(super) async fn blocking<T: Send + 'static>(
     f: impl FnOnce() -> Result<T, String> + Send + 'static,
 ) -> Result<T, String> {
     tauri::async_runtime::spawn_blocking(f)
@@ -310,26 +310,31 @@ fn config_presets(game_id: &str) -> Result<&'static ConfigPresets, String> {
 /// Only package-declared locations identify an active config automatically.
 fn verified_engine_ini(game_id: &str, launcher: Option<&str>) -> Result<Option<PathBuf>, String> {
     let ConfigPresets::UnrealEngineIni { locations } = config_presets(game_id)?;
+    declared_config_path(locations, launcher)
+}
+
+pub(super) fn declared_config_path(
+    locations: &[ConfigLocation],
+    launcher: Option<&str>,
+) -> Result<Option<PathBuf>, String> {
     #[cfg(windows)]
     {
-        use crate::game_package::ConfigLocation;
-        if let Some(ConfigLocation::WindowsLocalAppData { path, .. }) =
-            locations.iter().find(|location| match location {
-                ConfigLocation::WindowsLocalAppData { store, .. } => {
-                    launcher == Some(store.provider())
-                }
-            })
-        {
-            return local_app_data().map(|root| {
-                Some(
-                    path.iter()
-                        .fold(root, |directory, component| directory.join(component)),
-                )
-            });
-        }
+        let Some(path) = locations.iter().find_map(|location| {
+            let ConfigLocation::WindowsLocalAppData { store, path } = location;
+            (launcher == Some(store.provider())).then_some(path)
+        }) else {
+            return Ok(None);
+        };
+        let root = local_app_data()?;
+        Ok(Some(path.iter().fold(root, |directory, component| {
+            directory.join(component)
+        })))
     }
-    let _ = (locations, launcher);
-    Ok(None)
+    #[cfg(not(windows))]
+    {
+        let _ = (locations, launcher);
+        Ok(None)
+    }
 }
 
 #[cfg(windows)]
@@ -430,7 +435,7 @@ pub struct IniLocations(Mutex<HashMap<String, PickedIni>>);
 
 #[derive(Debug, Clone, Serialize, specta::Type)]
 #[serde(tag = "status", rename_all = "camelCase")]
-pub enum EngineIniLocation {
+pub enum ConfigFileLocation {
     Found { path: String },
     Missing { path: String },
     NeedsLocation,
@@ -488,17 +493,17 @@ fn resolve_engine_ini(app: &AppHandle, ctx: &InstallContext) -> Result<Option<Pa
         .transpose()
 }
 
-fn inspect_engine_ini(destination: IniDestination) -> Result<EngineIniLocation, String> {
+fn inspect_engine_ini(destination: IniDestination) -> Result<ConfigFileLocation, String> {
     match std::fs::symlink_metadata(&destination.path) {
         Ok(_) => {
             let path = destination.validate()?;
-            Ok(EngineIniLocation::Found {
+            Ok(ConfigFileLocation::Found {
                 path: path.to_string_lossy().into_owned(),
             })
         }
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
             // An absent parent is reportable here. Preset writes still require an existing folder.
-            Ok(EngineIniLocation::Missing {
+            Ok(ConfigFileLocation::Missing {
                 path: destination.path.to_string_lossy().into_owned(),
             })
         }
@@ -509,13 +514,13 @@ fn inspect_engine_ini(destination: IniDestination) -> Result<EngineIniLocation, 
 pub(crate) async fn get_engine_ini_location(
     app: &AppHandle,
     game_id: &str,
-) -> Result<EngineIniLocation, String> {
+) -> Result<ConfigFileLocation, String> {
     let ctx = current_context(app, game_id)?;
     let inspection_app = app.clone();
     blocking(move || {
         let location = match engine_ini_destination(&inspection_app, &ctx)? {
             Some(destination) => inspect_engine_ini(destination)?,
-            None => EngineIniLocation::NeedsLocation,
+            None => ConfigFileLocation::NeedsLocation,
         };
         require_context(&inspection_app, &ctx)?;
         Ok(location)
@@ -538,7 +543,7 @@ pub(crate) async fn open_engine_ini(app: &AppHandle, game_id: &str) -> Result<()
         require_context(&opener_app, &ctx)?;
         #[cfg(windows)]
         let spawned = std::process::Command::new("explorer.exe")
-            .arg(shell_ini_path(&path))
+            .arg(shell_config_path(&path))
             .spawn();
         #[cfg(not(windows))]
         let spawned = crate::commands::launchers::outside_bundle(
@@ -553,7 +558,7 @@ pub(crate) async fn open_engine_ini(app: &AppHandle, game_id: &str) -> Result<()
 }
 
 #[cfg(windows)]
-fn shell_ini_path(path: &Path) -> PathBuf {
+pub(super) fn shell_config_path(path: &Path) -> PathBuf {
     use std::path::{Component, Prefix};
     // The Windows shell needs ordinary paths, while resource locks keep canonical paths.
     let mut components = path.components();

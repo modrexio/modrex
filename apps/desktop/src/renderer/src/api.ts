@@ -37,7 +37,7 @@ export type {
     ResourceRecognition,
     MovieRecognitionScan,
     ResourceRecoveryReview,
-    EngineIniLocation,
+    ConfigFileLocation,
 } from '../../shared/bindings'
 import type {
     ResourceSelection,
@@ -149,6 +149,15 @@ export const api = {
     },
     pickEngineIni(gameId: string, title: string, folder = false) {
         return commands.pickEngineIni(gameId, title, folder)
+    },
+    getGraphicsConfigLocation(gameId: string) {
+        return commands.getGraphicsConfigLocation(gameId)
+    },
+    openGraphicsConfig(gameId: string) {
+        return commands.openGraphicsConfig(gameId)
+    },
+    pickGraphicsConfig(gameId: string, title: string, folder = false) {
+        return commands.pickGraphicsConfig(gameId, title, folder)
     },
     async getResourceReview(reviewHandle: string): Promise<ResourceReview> {
         const review = await commands.getResourceReview(reviewHandle)
