@@ -5,14 +5,20 @@ import { ConfigFileSettings } from './ConfigFileSettings'
 
 export function GraphicsConfigSettings({
     activeGame,
+    gamePath,
+    onOpenGameSettings,
     filename,
 }: {
     activeGame: GameId
+    gamePath: string | null | undefined
+    onOpenGameSettings: () => void
     filename: string
 }) {
     return (
         <ConfigFileSettings
             activeGame={activeGame}
+            gamePath={gamePath}
+            onOpenGameSettings={onOpenGameSettings}
             getLocation={api.getGraphicsConfigLocation}
             pickFile={api.pickGraphicsConfig}
             openFile={api.openGraphicsConfig}
@@ -24,9 +30,9 @@ export function GraphicsConfigSettings({
                 checking: t('settings.graphicsConfig.checking', { filename }),
                 found: t('settings.graphicsConfig.found', { filename }),
                 missing: t('settings.graphicsConfig.missing', { filename }),
+                missingHint: t('resources.config.missingHint'),
                 needsLocation: t('settings.graphicsConfig.needsLocation', { filename }),
                 checkFailed: t('settings.graphicsConfig.checkFailed', { filename }),
-                manualTools: t('settings.graphicsConfig.manualTools'),
             }}
         />
     )

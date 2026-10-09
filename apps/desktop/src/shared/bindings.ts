@@ -130,7 +130,7 @@ export const commands = {
 	/**  title comes from the renderer already localized, like pick_folder's. */
 	pickEngineIni: (gameId: string, title: string, folder: boolean) => __TAURI_INVOKE<string | null>("pick_engine_ini", { gameId, title, folder }),
 	getGraphicsConfigLocation: (gameId: string) => __TAURI_INVOKE<ConfigFileLocation>("get_graphics_config_location", { gameId }),
-	pickGraphicsConfig: (gameId: string, title: string, folder: boolean) => __TAURI_INVOKE<string | null>("pick_graphics_config", { gameId, title, folder }),
+	pickGraphicsConfig: (gameId: string, title: string) => __TAURI_INVOKE<string | null>("pick_graphics_config", { gameId, title }),
 	openGraphicsConfig: (gameId: string) => __TAURI_INVOKE<null>("open_graphics_config", { gameId }),
 	uninstallMod: (gamePath: string, uid: string, gameId: string) => __TAURI_INVOKE<null>("uninstall_mod", { gamePath, uid, gameId }),
 	enableMod: (gamePath: string, uid: string, gameId: string) => __TAURI_INVOKE<null>("enable_mod", { gamePath, uid, gameId }),

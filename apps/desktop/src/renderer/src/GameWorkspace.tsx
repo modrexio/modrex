@@ -389,24 +389,34 @@ export function GameWorkspace({
                                 folders: (
                                     <GameFolders activeGame={activeGame} gamePath={gamePath} />
                                 ),
-                                advanced: (GAMES[activeGame].configPresets ||
-                                    GAMES[activeGame].graphicsConfig) && (
-                                    <>
-                                        {GAMES[activeGame].configPresets && (
-                                            <EngineIniSettings
-                                                key={`ini:${configContext}`}
-                                                activeGame={activeGame}
-                                            />
-                                        )}
-                                        {GAMES[activeGame].graphicsConfig && (
-                                            <GraphicsConfigSettings
-                                                key={`graphics:${configContext}`}
-                                                activeGame={activeGame}
-                                                filename={GAMES[activeGame].graphicsConfig.filename}
-                                            />
-                                        )}
-                                    </>
-                                ),
+                                advanced:
+                                    GAMES[activeGame].configPresets ||
+                                    GAMES[activeGame].graphicsConfig
+                                        ? (openGameSettings) => (
+                                              <>
+                                                  {GAMES[activeGame].configPresets && (
+                                                      <EngineIniSettings
+                                                          key={`ini:${configContext}`}
+                                                          activeGame={activeGame}
+                                                          gamePath={data.path}
+                                                          onOpenGameSettings={openGameSettings}
+                                                      />
+                                                  )}
+                                                  {GAMES[activeGame].graphicsConfig && (
+                                                      <GraphicsConfigSettings
+                                                          key={`graphics:${configContext}`}
+                                                          activeGame={activeGame}
+                                                          gamePath={data.path}
+                                                          onOpenGameSettings={openGameSettings}
+                                                          filename={
+                                                              GAMES[activeGame].graphicsConfig
+                                                                  .filename
+                                                          }
+                                                      />
+                                                  )}
+                                              </>
+                                          )
+                                        : undefined,
                             }}
                         />
                     </div>

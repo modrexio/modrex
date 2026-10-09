@@ -130,7 +130,6 @@ pub(super) async fn pick(
     app: &AppHandle,
     game_id: &str,
     title: String,
-    folder: bool,
 ) -> Result<Option<String>, String> {
     use tauri_plugin_dialog::DialogExt;
     let config = graphics_config(game_id)?;
@@ -138,25 +137,17 @@ pub(super) async fn pick(
     let app = app.clone();
     blocking(move || {
         let dialog = app.dialog().file().set_title(title);
-        let picked = if folder {
-            dialog.blocking_pick_folder()
-        } else {
-            let extension = Path::new(&config.filename)
-                .extension()
-                .and_then(|extension| extension.to_str());
-            let dialog = match extension {
-                Some(extension) => dialog.add_filter(&config.filename, &[extension]),
-                None => dialog,
-            };
-            dialog.blocking_pick_file()
+        let extension = Path::new(&config.filename)
+            .extension()
+            .and_then(|extension| extension.to_str());
+        let dialog = match extension {
+            Some(extension) => dialog.add_filter(&config.filename, &[extension]),
+            None => dialog,
         };
-        let Some(picked) = picked else {
+        let Some(picked) = dialog.blocking_pick_file() else {
             return Ok(None);
         };
-        let mut path = picked.into_path().map_err(|error| error.to_string())?;
-        if folder {
-            path.push(&config.filename);
-        }
+        let path = picked.into_path().map_err(|error| error.to_string())?;
         let path = validate_file(&path, &config.filename)?;
         require_context(&app, &context)?;
         app.state::<GraphicsConfigLocations>()

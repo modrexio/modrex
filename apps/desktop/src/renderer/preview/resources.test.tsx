@@ -51,12 +51,12 @@ test('game settings leave resource tools in the game-scoped Advanced tab', async
         within(screen.getByRole('complementary')).getByRole('button', { name: 'Settings' })
     )
     expect(await screen.findByRole('heading', { name: 'Launch Options' })).toBeTruthy()
-    expect(screen.queryByRole('button', { name: 'Open INI' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Open' })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Advanced' }))
     expect(await screen.findByRole('heading', { name: 'PAYDAY 3 tools' })).toBeTruthy()
     expect(await screen.findByText('Engine.ini found.')).toBeTruthy()
     expect(screen.getByText(/C:\/Users\/Preview\/AppData\/Local\/PAYDAY3/)).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: 'Open INI' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Open' }))
     await vi.waitFor(() => expect(openIni).toHaveBeenCalledExactlyOnceWith('pd3'))
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(screen.queryByRole('textbox', { name: 'Engine.ini' })).toBeNull()
@@ -83,7 +83,10 @@ test('a config-only declaration supplies settings tools without movie installati
         )
         fireEvent.click(screen.getByRole('button', { name: 'Advanced' }))
         expect(await screen.findByRole('heading', { name: 'PAYDAY 2 tools' })).toBeTruthy()
-        expect(await screen.findByRole('button', { name: 'Choose Engine.ini' })).toBeTruthy()
+        const iniSettings = within(
+            screen.getByRole('heading', { name: 'Engine.ini' }).closest('section')!
+        )
+        expect(await iniSettings.findByRole('button', { name: 'Browse' })).toBeTruthy()
     } finally {
         GAMES.pd2 = original
     }
@@ -167,8 +170,7 @@ test('global Advanced settings do not inherit a previous game configuration shor
     render(<App />)
     fireEvent.click(screen.getByRole('button', { name: 'Advanced' }))
     await screen.findByRole('heading', { name: 'Folders' })
-    expect(screen.queryByRole('button', { name: 'Open INI' })).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Open graphics config' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Open' })).toBeNull()
     expect(screen.queryByRole('heading', { name: 'PAYDAY 3 tools' })).toBeNull()
 })
 
@@ -189,20 +191,38 @@ test.each([
             within(screen.getByRole('complementary')).getByRole('button', { name: 'Settings' })
         )
         await screen.findByRole('heading', { name: 'Launch Options' })
-        expect(screen.queryByRole('button', { name: 'Open graphics config' })).toBeNull()
+        expect(screen.queryByRole('button', { name: 'Open' })).toBeNull()
         fireEvent.click(screen.getByRole('button', { name: 'Advanced' }))
         await screen.findByRole('heading', { name: `${name} tools` })
         await screen.findByText(`${filename} found.`)
         expect(
             screen.getByText(`C:/Users/Preview/AppData/Local/${folder}/${filename}`)
         ).toBeTruthy()
-        expect(screen.queryByRole('button', { name: 'Open INI' })).toBeNull()
-        expect(screen.queryByRole('button', { name: 'Open saved copies' })).toBeNull()
-        fireEvent.click(screen.getByRole('button', { name: 'Open graphics config' }))
+        expect(screen.queryByRole('heading', { name: 'Engine.ini' })).toBeNull()
+        expect(screen.queryByRole('button', { name: 'Open recovery folder' })).toBeNull()
+        fireEvent.click(screen.getByRole('button', { name: 'Open' }))
         await vi.waitFor(() => expect(open).toHaveBeenCalledExactlyOnceWith(gameId))
         expect(screen.queryByRole('dialog')).toBeNull()
     }
 )
+
+test('configuration access routes an unset installation to the Game settings tab', async () => {
+    window.history.replaceState({}, '', '/?library=resources&games=missing')
+    store.set('modrex:active-game', 'raid')
+    store.set('modrex:settings-tab', 'advanced')
+    store.set('modrex:raid:view', 'settings')
+    const { api } = await import('../src/api')
+    const getLocation = vi.spyOn(api, 'getGraphicsConfigLocation')
+    const { default: App } = await import('../src/App')
+    render(<App />)
+    await screen.findByText('Game folder not set')
+    expect(getLocation).not.toHaveBeenCalled()
+    expect(screen.queryByRole('button', { name: 'Browse' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Game settings' }))
+    await screen.findByRole('heading', { name: 'Game Path' })
+    expect(screen.queryByRole('heading', { name: 'Graphics configuration' })).toBeNull()
+    expect(store.get('modrex:settings-tab')).toBe('game')
+})
 
 test('Health Check offers a read-only movie scan', async () => {
     const api = await mount()
@@ -222,6 +242,17 @@ test('Health Check offers a read-only movie scan', async () => {
     fireEvent.click(dialog.getByRole('button', { name: 'Clear results' }))
     expect(dialog.queryByRole('status')).toBeNull()
     expect(dialog.getByRole('button', { name: 'Check existing movies' })).toBeTruthy()
+})
+
+test('Health Check opens recovery storage through its dedicated command', async () => {
+    const api = await mount()
+    const open = vi.spyOn(api, 'openResourceRecoveryFolder')
+    const openData = vi.spyOn(api, 'openDataFolder')
+    fireEvent.click(screen.getByRole('button', { name: 'Health Check' }))
+    const dialog = within(await screen.findByRole('dialog'))
+    fireEvent.click(dialog.getByRole('button', { name: 'Open recovery folder' }))
+    await vi.waitFor(() => expect(open).toHaveBeenCalledOnce())
+    expect(openData).not.toHaveBeenCalled()
 })
 
 test('does not complete a graphics-file handoff after the installation store changes', async () => {
@@ -245,28 +276,17 @@ test('does not complete a graphics-file handoff after the installation store cha
     )
     await screen.findByRole('heading', { name: 'Launch Options' })
     fireEvent.click(screen.getByRole('button', { name: 'Advanced' }))
-    fireEvent.click(await screen.findByRole('button', { name: 'Open graphics config' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Open' }))
     const { patchSettingsCache } = await import('../src/settingsCache')
     const { refreshGamePath } = await import('../src/gameData')
     await act(async () => {
         patchSettingsCache('pd2', { launcher: 'manual' })
         await refreshGamePath('pd2')
     })
-    await screen.findByRole('button', { name: 'Choose renderer_settings_dx11.xml' })
+    await screen.findByRole('button', { name: 'Browse' })
     await act(async () =>
         resolvePrevious({ status: 'found', path: 'G:/Old/renderer_settings_dx11.xml' })
     )
     expect(open).not.toHaveBeenCalled()
     expect(screen.queryByText('G:/Old/renderer_settings_dx11.xml')).toBeNull()
-})
-
-test('Health Check opens recovery storage through its dedicated command', async () => {
-    const api = await mount()
-    const open = vi.spyOn(api, 'openResourceRecoveryFolder')
-    const openData = vi.spyOn(api, 'openDataFolder')
-    fireEvent.click(screen.getByRole('button', { name: 'Health Check' }))
-    const dialog = within(await screen.findByRole('dialog'))
-    fireEvent.click(dialog.getByRole('button', { name: 'Open recovery folder' }))
-    await vi.waitFor(() => expect(open).toHaveBeenCalledOnce())
-    expect(openData).not.toHaveBeenCalled()
 })

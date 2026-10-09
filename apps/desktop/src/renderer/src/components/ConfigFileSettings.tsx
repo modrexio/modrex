@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { FolderOpen, Loader } from 'lucide-react'
 import type { ConfigFileLocation } from '../api'
 import { t } from '../i18n'
 import type { GameId } from '../../../shared/types'
 import { displayPath } from '../lib/displayPath'
 import { SettingsSection } from './SettingsSection'
 import { Button } from './ui/Button'
-import { DisclosureSummary } from './ui/DisclosureSummary'
 
 type Messages = Record<
     | 'title'
@@ -15,26 +15,28 @@ type Messages = Record<
     | 'checking'
     | 'found'
     | 'missing'
+    | 'missingHint'
     | 'needsLocation'
-    | 'checkFailed'
-    | 'manualTools',
+    | 'checkFailed',
     string
 >
 
 export function ConfigFileSettings({
     activeGame,
+    gamePath,
+    onOpenGameSettings,
     getLocation,
     pickFile,
     openFile,
     messages,
-    children,
 }: {
     activeGame: GameId
+    gamePath: string | null | undefined
+    onOpenGameSettings: () => void
     getLocation: (gameId: string) => Promise<ConfigFileLocation>
-    pickFile: (gameId: string, title: string, folder: boolean) => Promise<string | null>
+    pickFile: (gameId: string, title: string) => Promise<string | null>
     openFile: (gameId: string) => Promise<null>
     messages: Messages
-    children?: ReactNode
 }) {
     const [location, setLocation] = useState<ConfigFileLocation | null>(null)
     const [busy, setBusy] = useState(true)
@@ -57,27 +59,24 @@ export function ConfigFileSettings({
     }, [activeGame, getLocation])
 
     useEffect(() => {
-        void checkLocation()
+        if (gamePath != null) void checkLocation()
         return () => {
             request.current += 1
         }
-    }, [checkLocation])
+    }, [checkLocation, gamePath])
 
-    async function open(pick: boolean, folder = false) {
+    async function open(pick: boolean) {
         const current = ++request.current
         setBusy(true)
         setError(null)
         try {
             if (pick) {
-                const path = await pickFile(
-                    activeGame,
-                    folder ? t('resources.config.chooseFolder') : messages.chooseFile,
-                    folder
-                )
+                const path = await pickFile(activeGame, messages.chooseFile)
                 if (!path) return
+                if (current !== request.current) return
+                setLocation(null)
             }
             if (current !== request.current) return
-            setLocation(null)
             const result = await getLocation(activeGame)
             if (current !== request.current) return
             setLocation(result)
@@ -90,67 +89,99 @@ export function ConfigFileSettings({
         }
     }
 
-    const choices = (
-        <div className="flex flex-wrap gap-2">
-            <Button variant="secondary" size="sm" disabled={busy} onClick={() => void open(true)}>
-                {messages.chooseFile}
-            </Button>
-            <Button
-                variant="secondary"
-                size="sm"
-                disabled={busy}
-                onClick={() => void open(true, true)}
-            >
-                {t('resources.config.chooseFolder')}
-            </Button>
-        </div>
-    )
+    const focusRing = 'focus-visible:ring-2 focus-visible:ring-accent/60'
+    const status =
+        gamePath === undefined
+            ? 'checkingGameFolder'
+            : gamePath === null
+              ? 'noGameFolder'
+              : (location?.status ?? (error ? 'checkFailed' : 'checking'))
+    const statusText =
+        status === 'checkingGameFolder' || status === 'noGameFolder'
+            ? t(`resources.config.${status}`)
+            : messages[status]
+    const checking = status === 'checking' || status === 'checkingGameFolder'
+    const path =
+        gamePath != null && location && location.status !== 'needsLocation'
+            ? displayPath(location.path)
+            : t('resources.config.locationNotSet')
 
     return (
         <SettingsSection title={messages.title} description={messages.description}>
-            <div className="text-xs text-text-muted">
-                <p role="status">
-                    {location
-                        ? messages[location.status]
-                        : error
-                          ? messages.checkFailed
-                          : messages.checking}
-                </p>
-                {location && location.status !== 'needsLocation' && (
-                    <p className="mt-1 font-mono break-all">{displayPath(location.path)}</p>
-                )}
-            </div>
-            <div className="flex flex-wrap gap-2">
-                {location?.status === 'found' && (
-                    <Button
-                        variant="secondary"
-                        size="sm"
-                        disabled={busy}
-                        onClick={() => void open(false)}
+            <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-surface-hover border border-border mt-1">
+                {checking ? (
+                    <span
+                        role="status"
+                        className="text-sm flex-1 min-w-0 text-text-muted flex items-center gap-2"
                     >
-                        {messages.open}
-                    </Button>
+                        <Loader aria-hidden="true" className="w-3.5 h-3.5 animate-spin shrink-0" />
+                        {statusText}
+                    </span>
+                ) : (
+                    <span className="text-sm font-mono truncate flex-1 min-w-0 text-text-muted">
+                        {path}
+                    </span>
                 )}
+                <div className="flex gap-2 shrink-0">
+                    {status === 'found' && (
+                        <Button
+                            variant="accent"
+                            size="md"
+                            className={focusRing}
+                            disabled={busy}
+                            onClick={() => void open(false)}
+                        >
+                            {messages.open}
+                        </Button>
+                    )}
+                    {gamePath != null && (
+                        <Button
+                            variant={status === 'found' ? 'secondary' : 'accent'}
+                            size="md"
+                            className={focusRing}
+                            disabled={busy}
+                            onClick={() => void open(true)}
+                        >
+                            <FolderOpen aria-hidden="true" className="w-3.5 h-3.5" />
+                            {t('resources.config.browse')}
+                        </Button>
+                    )}
+                    {status === 'noGameFolder' && (
+                        <Button
+                            variant="accent"
+                            size="md"
+                            className={focusRing}
+                            onClick={onOpenGameSettings}
+                        >
+                            {t('resources.config.openGameSettings')}
+                        </Button>
+                    )}
+                </div>
+            </div>
+            {!checking && (
+                <p
+                    role="status"
+                    className={`text-xs ${status === 'found' ? 'text-success-text' : status === 'needsLocation' ? 'text-text-subtle' : 'text-danger-text'}`}
+                >
+                    {statusText}
+                </p>
+            )}
+            {status === 'missing' && (
+                <p className="text-xs text-text-subtle">{messages.missingHint}</p>
+            )}
+            {status === 'noGameFolder' && (
+                <p className="text-xs text-text-subtle">{t('resources.config.noGameFolderHint')}</p>
+            )}
+            {(status === 'missing' || status === 'checkFailed') && (
                 <Button
-                    variant="ghost"
+                    variant="secondary"
                     size="sm"
+                    className={`self-start ${focusRing}`}
                     disabled={busy}
                     onClick={() => void checkLocation()}
                 >
                     {t('resources.config.checkAgain')}
                 </Button>
-            </div>
-            {location?.status !== 'found' && choices}
-            {(location?.status === 'found' || children) && (
-                <details className="text-xs text-text-muted">
-                    <DisclosureSummary className="cursor-pointer">
-                        {messages.manualTools}
-                    </DisclosureSummary>
-                    <div className="mt-3 flex flex-col gap-2">
-                        {location?.status === 'found' && choices}
-                        {children}
-                    </div>
-                </details>
             )}
             {error && (
                 <p role="alert" className="text-xs text-danger-text">

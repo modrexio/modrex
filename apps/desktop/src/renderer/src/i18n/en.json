@@ -125,22 +125,26 @@
             "openFolder": "Open recovery folder",
             "folderTitle": "Recovery files",
             "folderDescription": "Recovery files saved when Modrex applies movie or configuration mods.",
-            "noCopies": "No recovery files are available.",
-            "openCopies": "Open saved copies",
-            "copiesLocation": "Recovery copies and their manifest are in the resources directory inside the opened data folder."
+            "noCopies": "No recovery files are available."
         },
         "config": {
             "title": "Engine.ini",
-            "description": "Open Engine.ini in your default text editor. Close the game before editing.",
-            "open": "Open INI",
+            "description": "Close the game before editing.",
+            "open": "Open",
             "chooseFile": "Choose Engine.ini",
             "chooseFolder": "Choose config folder",
-            "manualTools": "File location and saved copies",
+            "browse": "Browse",
+            "locationNotSet": "Location not set",
             "checking": "Checking the Engine.ini location...",
             "found": "Engine.ini found.",
-            "missing": "Engine.ini does not exist at this location. Start the game to create it, then check again, or choose an existing file.",
-            "needsLocation": "Modrex cannot automatically locate Engine.ini for this game and store. Choose the file or its configuration folder.",
-            "checkFailed": "Modrex could not check the Engine.ini location. Try again or choose the file.",
+            "missing": "Engine.ini not found.",
+            "missingHint": "Start the game to create it, then check again, or choose an existing file.",
+            "needsLocation": "Modrex cannot automatically locate Engine.ini for this game and store. Choose the file.",
+            "checkFailed": "Modrex could not check the Engine.ini location.",
+            "checkingGameFolder": "Looking for the game folder...",
+            "noGameFolder": "Game folder not set",
+            "noGameFolderHint": "Set the game folder in Game settings to access configuration files.",
+            "openGameSettings": "Game settings",
             "checkAgain": "Check again"
         }
     },
@@ -664,15 +668,14 @@
         },
         "graphicsConfig": {
             "title": "Graphics configuration",
-            "description": "Open this file in an external application to edit graphics settings. Close the game before editing.",
-            "open": "Open graphics config",
+            "description": "Close the game before editing.",
+            "open": "Open",
             "chooseFile": "Choose {filename}",
-            "manualTools": "File location",
             "checking": "Looking for {filename}...",
             "found": "{filename} found.",
-            "missing": "{filename} was not found at this location. Check again after starting the game, or choose an existing file.",
-            "needsLocation": "Modrex cannot locate {filename} for this installation. Choose the file or its configuration folder.",
-            "checkFailed": "Modrex could not check the {filename} location. Try again or choose the file."
+            "missing": "{filename} not found.",
+            "needsLocation": "Modrex cannot locate {filename} for this installation. Choose the file.",
+            "checkFailed": "Modrex could not check the {filename} location."
         },
         "crimeBossInstallMode": {
             "title": "New Mod Installs",

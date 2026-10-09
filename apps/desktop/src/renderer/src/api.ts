@@ -156,8 +156,8 @@ export const api = {
     openGraphicsConfig(gameId: string) {
         return commands.openGraphicsConfig(gameId)
     },
-    pickGraphicsConfig(gameId: string, title: string, folder = false) {
-        return commands.pickGraphicsConfig(gameId, title, folder)
+    pickGraphicsConfig(gameId: string, title: string) {
+        return commands.pickGraphicsConfig(gameId, title)
     },
     openResourceRecoveryFolder() {
         return commands.openResourceRecoveryFolder()

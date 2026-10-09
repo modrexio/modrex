@@ -1519,9 +1519,8 @@ pub async fn pick_graphics_config(
     app: AppHandle,
     game_id: String,
     title: String,
-    folder: bool,
 ) -> Result<Option<String>, String> {
-    graphics_config::pick(&app, &game_id, title, folder).await
+    graphics_config::pick(&app, &game_id, title).await
 }
 
 #[tauri::command]
