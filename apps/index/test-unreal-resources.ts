@@ -63,6 +63,64 @@ assert.deepEqual(classifyResource('object', smallUi, 'config'), {
 
 const names = { objectName: '43903_1_object.zip', sourceFilename: 'Skip Startup.zip' }
 
+for (const shape of ['empty movies', 'empty configs', 'mixed package and resources'] as const) {
+    const temp = mkdtempSync(join(tmpdir(), 'modrex-resource-count-'))
+    const zip = new AdmZip()
+    const resourceNames: string[] = []
+    try {
+        if (shape === 'mixed package and resources') {
+            const packageBytes = Buffer.from('ordinary package')
+            zip.addFile('Payload.pak', packageBytes)
+            writeFileSync(join(temp, 'Payload.pak'), packageBytes)
+        }
+        for (let count = 1; count <= 129; count++) {
+            const extension =
+                shape === 'empty configs' ||
+                (shape === 'mixed package and resources' && count % 2 === 0)
+                    ? '.ini'
+                    : '.bk2'
+            const name = `${String(count).padStart(3, '0')}${extension}`
+            resourceNames.push(name)
+            zip.addFile(name, Buffer.alloc(0))
+            writeFileSync(join(temp, name), Buffer.alloc(0))
+            if (count < 128) continue
+
+            const sevenZip = join(temp, 'resources.7z')
+            execFileSync('7z', ['a', '-t7z', sevenZip, '*.ini', '*.bk2', '*.pak'], {
+                cwd: temp,
+                stdio: 'ignore',
+            })
+            for (const archive of [zip.toBuffer(), readFileSync(sevenZip)]) {
+                if (count === 129) {
+                    assert.throws(
+                        () => extractContentEntries(archive, names),
+                        (error: unknown) =>
+                            error instanceof UnusableDownloadError &&
+                            error.message === 'Archive contains more than 128 resource entries',
+                        `${shape} exceeding the count limit must not return a partial catalog`
+                    )
+                    continue
+                }
+                const entries = extractContentEntries(archive, names)
+                const resources = entries.filter((entry) => entry.resource)
+                assert.deepEqual(
+                    resources.map((entry) => entry.entryName).sort(),
+                    [...resourceNames].sort(),
+                    `${shape} at the count limit keeps every resource slot`
+                )
+                assert.ok(resources.every((entry) => entry.resource?.byteLength === 0))
+                assert.deepEqual(
+                    entries.filter((entry) => !entry.resource).map((entry) => entry.entryName),
+                    shape === 'mixed package and resources' ? ['Payload.pak'] : []
+                )
+            }
+        }
+    } finally {
+        assert.ok(resolve(temp).startsWith(resolve(tmpdir()) + (temp.includes('\\') ? '\\' : '/')))
+        rmSync(temp, { recursive: true, force: true })
+    }
+}
+
 {
     const temp = mkdtempSync(join(tmpdir(), 'modrex-resource-limits-'))
     const pak = Buffer.from('ordinary package')

@@ -35,6 +35,7 @@ export interface LooseDownloadNames {
 
 const contentExtensions = ['.pak', '.ucas', '.utoc', '.lua']
 const resourceArchiveLimit = 1024 * 1024 * 1024
+const resourceEntryLimit = 128
 
 function resourceLimit(name: string, kind?: 'movie' | 'config'): number {
     return kind === 'config' || name.toLowerCase().endsWith('.ini')
@@ -70,9 +71,11 @@ function resourceMembers(archive: string, errors: string[]): { name: string; siz
             maxBuffer: 16 * 1024 * 1024,
         })
     } catch (error) {
-        throw new UnusableDownloadError(`Resource archive could not be listed: ${error}`)
+        errors.push(`Resource archive could not be listed: ${error}`)
+        return []
     }
     const members: { name: string; size: number }[] = []
+    let resourceCount = 0
     let total = 0
     for (const block of listing.split(/\r?\n\r?\n/)) {
         const fields = new Map(
@@ -83,6 +86,11 @@ function resourceMembers(archive: string, errors: string[]): { name: string; siz
         )
         const name = fields.get('Path')
         if (!name || !isResourceName(name) || fields.get('Folder') === '+') continue
+        resourceCount++
+        if (resourceCount > resourceEntryLimit)
+            throw new UnusableDownloadError(
+                `Archive contains more than ${resourceEntryLimit} resource entries`
+            )
         try {
             if (
                 isUnsafeResourcePath(name) ||
@@ -91,8 +99,6 @@ function resourceMembers(archive: string, errors: string[]): { name: string; siz
                 /(?:^|\s)l[rwx-]{9}/.test(fields.get('Attributes') ?? '')
             )
                 throw new UnusableDownloadError(`Resource ${name} has an unsafe archive path`)
-            if (members.length >= 128)
-                throw new UnusableDownloadError('Archive contains more than 128 resource entries')
             const size = Number(fields.get('Size'))
             total = checkResourceSize(name, size, total)
             members.push({ name, size })
@@ -223,13 +229,7 @@ function extractWith7z(buffer: Buffer, extension: '.7z' | '.rar'): ContentEntry[
             )
         const errors: string[] = []
         const started = Date.now()
-        let members: { name: string; size: number }[] = []
-        try {
-            members = resourceMembers(archive, errors)
-        } catch (error) {
-            if (!(error instanceof UnusableDownloadError)) throw error
-            errors.push(error.message)
-        }
+        const members = resourceMembers(archive, errors)
         for (const { name, size } of members) {
             try {
                 contents.push(
@@ -289,6 +289,13 @@ function extractZip(buffer: Buffer): ContentEntry[] {
     } catch (error) {
         throw new UnusableDownloadError(`zip archive could not be read: ${error}`)
     }
+    if (
+        entries.filter((entry) => !entry.isDirectory && isResourceName(entry.entryName)).length >
+        resourceEntryLimit
+    )
+        throw new UnusableDownloadError(
+            `Archive contains more than ${resourceEntryLimit} resource entries`
+        )
     let resourceBytes = 0
     const contents: ContentEntry[] = []
     const errors: string[] = []
