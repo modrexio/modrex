@@ -1,3 +1,4 @@
+import { ScrollArea } from './ScrollArea'
 import { useState, useEffect, useCallback, useRef, useMemo, memo, startTransition } from 'react'
 import { TITLE_ROW_MIN_H } from './pageHeader'
 import { Search, LayoutGrid, ArrowDownUp, X } from 'lucide-react'
@@ -922,7 +923,11 @@ export function BrowsePage({
                     </div>
                 ))}
 
-            <div ref={scrollRef} className="flex-1 overflow-y-auto px-6 py-4">
+            <ScrollArea
+                hostClassName="flex-1"
+                ref={scrollRef}
+                className="overflow-y-auto px-6 py-4"
+            >
                 <ModGrid
                     gridLoading={loadingMods}
                     result={result}
@@ -953,7 +958,7 @@ export function BrowsePage({
                     onEnable={handleEnable}
                     onDisable={handleDisable}
                 />
-            </div>
+            </ScrollArea>
 
             {(() => {
                 const footerMeta = result?.meta ?? lastMeta

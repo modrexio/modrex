@@ -1,0 +1,13 @@
+{
+    "name": "@modrex/scrollbars",
+    "private": true,
+    "version": "0.0.0",
+    "type": "module",
+    "exports": {
+        ".": "./index.ts",
+        "./theme.css": "./theme.css"
+    },
+    "dependencies": {
+        "overlayscrollbars": "^2.16.0"
+    }
+}

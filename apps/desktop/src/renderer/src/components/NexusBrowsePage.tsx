@@ -1,3 +1,4 @@
+import { ScrollArea } from './ScrollArea'
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { TITLE_ROW_MIN_H } from './pageHeader'
 import { nativeIdFor } from '../sources'
@@ -336,7 +337,11 @@ export function NexusBrowsePage({
                     </button>
                 </div>
             ) : (
-                <div ref={scrollRef} className="flex-1 overflow-y-auto px-6 py-4">
+                <ScrollArea
+                    hostClassName="flex-1"
+                    ref={scrollRef}
+                    className="overflow-y-auto px-6 py-4"
+                >
                     {loading ? (
                         <div className="grid grid-cols-2 gap-4 xl:grid-cols-3 2xl:grid-cols-4">
                             {Array.from({ length: 24 }, (_, i) => (
@@ -375,7 +380,7 @@ export function NexusBrowsePage({
                             })}
                         </div>
                     )}
-                </div>
+                </ScrollArea>
             )}
 
             {result !== null && lastPage > 1 && (

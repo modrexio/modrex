@@ -1,0 +1,61 @@
+@import 'overlayscrollbars/overlayscrollbars.scriptingenabled.css';
+
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--color-text-subtle);
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--color-text-muted);
+}
+
+.modrex-scrollbar-host {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    min-width: 0;
+    min-height: 0;
+}
+
+.modrex-scrollbar-host > .os-scrollbar-visible {
+    visibility: inherit;
+}
+
+.os-theme-modrex {
+    --os-size: 12px;
+    --os-padding-perpendicular: 2px;
+    --os-padding-axis: 2px;
+    --os-track-border-radius: 9999px;
+    --os-handle-border-radius: 9999px;
+    --os-handle-bg: var(--color-text-subtle);
+    --os-handle-bg-hover: var(--color-text-muted);
+    --os-handle-bg-active: var(--color-text);
+    --os-handle-min-size: 32px;
+    --os-handle-perpendicular-size: 50%;
+    --os-handle-perpendicular-size-hover: 100%;
+    --os-handle-perpendicular-size-active: 100%;
+    --os-handle-interactive-area-offset: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .os-theme-modrex,
+    .os-theme-modrex .os-scrollbar-track,
+    .os-theme-modrex .os-scrollbar-handle {
+        transition: none;
+    }
+}
+
+@media (forced-colors: active) {
+    .os-theme-modrex {
+        forced-color-adjust: none;
+        --os-handle-bg: CanvasText;
+        --os-handle-bg-hover: Highlight;
+        --os-handle-bg-active: Highlight;
+    }
+}

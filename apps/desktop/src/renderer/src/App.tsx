@@ -1,3 +1,4 @@
+import { ScrollArea } from './components/ScrollArea'
 import { useState, useEffect, useLayoutEffect, useCallback, useRef, startTransition } from 'react'
 import { error as logError } from '@tauri-apps/plugin-log'
 import { Button } from './components/ui/Button'
@@ -272,9 +273,12 @@ export default function App() {
                                     </Button>
                                 </div>
                                 {update.body && (
-                                    <div className="overflow-y-auto px-5 py-4 flex-1 [&>div>:first-child]:mt-0">
+                                    <ScrollArea
+                                        hostClassName="flex-1"
+                                        className="overflow-y-auto px-5 py-4 [&>div>:first-child]:mt-0"
+                                    >
                                         <MarkdownContent text={update.body} />
-                                    </div>
+                                    </ScrollArea>
                                 )}
                                 <div className="px-5 py-4 border-t border-border shrink-0 flex items-center justify-between">
                                     <Button

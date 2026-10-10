@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@import '@modrex/scrollbars/theme.css';
 
 :root {
     color-scheme: dark;
@@ -248,34 +249,6 @@ input[type='checkbox']:not(:disabled) {
 
 input[type='checkbox'] {
     accent-color: var(--color-accent-fill);
-}
-
-::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-}
-
-::-webkit-scrollbar-track {
-    background: var(--color-surface-raised);
-}
-
-::-webkit-scrollbar-thumb {
-    background: var(--color-surface-light);
-    border-radius: 3px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-    background: var(--color-text-subtle);
-}
-
-/* Radix Select injects scrollbar-width:none and ::-webkit-scrollbar{display:none} on
-   [data-radix-select-viewport]. scrollbar-width:none beats the webkit rule in Chromium,
-   so both must be overridden. auto defers to our ::-webkit-scrollbar styling above. */
-[data-radix-select-viewport] {
-    scrollbar-width: auto !important;
-}
-[data-radix-select-viewport]::-webkit-scrollbar {
-    display: block !important;
 }
 
 :focus-visible {

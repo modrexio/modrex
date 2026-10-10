@@ -1,3 +1,4 @@
+import { ScrollArea } from './ScrollArea'
 import { useEffect, useState } from 'react'
 import { TITLE_ROW_MIN_H } from './pageHeader'
 import { Search } from 'lucide-react'
@@ -112,7 +113,7 @@ export function WelcomeScreen({ onSelectGame }: Props) {
                 </label>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-6 py-5">
+            <ScrollArea hostClassName="flex-1" className="overflow-y-auto px-6 py-5">
                 {games.length ? (
                     <div className="grid grid-cols-[repeat(auto-fill,200px)] gap-6">
                         {games.map((g) => {
@@ -163,7 +164,7 @@ export function WelcomeScreen({ onSelectGame }: Props) {
                         {t('gamePicker.noMatches')}
                     </div>
                 )}
-            </div>
+            </ScrollArea>
         </div>
     )
 }

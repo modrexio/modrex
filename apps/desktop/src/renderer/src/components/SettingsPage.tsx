@@ -1,3 +1,4 @@
+import { ScrollArea } from './ScrollArea'
 import { useState, useEffect, useMemo, type ReactNode } from 'react'
 import { SettingsSection as Section } from './SettingsSection'
 import { BetaBadge } from './BetaBadge'
@@ -222,7 +223,7 @@ export function SettingsPage({
                     ))}
                 </nav>
 
-                <div className="flex-1 overflow-y-auto px-6 py-6">
+                <ScrollArea hostClassName="flex-1" className="overflow-y-auto px-6 py-6">
                     <div className="max-w-xl flex flex-col gap-6">
                         {activeTab === 'game' && game?.content}
                         {activeTab === 'application' && (
@@ -563,7 +564,7 @@ export function SettingsPage({
                             </>
                         )}
                     </div>
-                </div>
+                </ScrollArea>
             </div>
 
             <TelemetryConsentDialog

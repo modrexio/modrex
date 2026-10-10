@@ -1,6 +1,7 @@
 import * as RadixSelect from '@radix-ui/react-select'
 import { ChevronDown } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { overlayScrollbar } from '@modrex/scrollbars'
 
 // Radix Select.Item rejects empty-string values; use a sentinel internally.
 const EMPTY = '__empty__'
@@ -66,18 +67,27 @@ export function Select({
                     sideOffset={4}
                     className="z-50 min-w-[var(--radix-select-trigger-width)] bg-surface-raised border border-border rounded shadow-lg overflow-hidden"
                 >
-                    <RadixSelect.Viewport style={{ maxHeight: '240px' }}>
-                        {options.map((o) => (
-                            <RadixSelect.Item
-                                key={o.value}
-                                value={toRadix(o.value)}
-                                className="text-sm px-3 py-2 flex items-center gap-1.5 cursor-pointer select-none outline-none text-text data-[state=checked]:bg-accent-fill data-[state=checked]:text-white data-[highlighted]:bg-surface-hover transition-colors"
-                            >
-                                {o.icon}
-                                <RadixSelect.ItemText>{o.label}</RadixSelect.ItemText>
-                            </RadixSelect.Item>
-                        ))}
-                    </RadixSelect.Viewport>
+                    <div className="modrex-scrollbar-host max-h-60">
+                        <RadixSelect.Viewport
+                            style={{ maxHeight: '240px' }}
+                            ref={(viewport) => {
+                                if (!viewport) return
+                                const instance = overlayScrollbar(viewport, viewport.parentElement!)
+                                return () => instance.destroy()
+                            }}
+                        >
+                            {options.map((o) => (
+                                <RadixSelect.Item
+                                    key={o.value}
+                                    value={toRadix(o.value)}
+                                    className="text-sm px-3 py-2 flex items-center gap-1.5 cursor-pointer select-none outline-none text-text data-[state=checked]:bg-accent-fill data-[state=checked]:text-white data-[highlighted]:bg-surface-hover transition-colors"
+                                >
+                                    {o.icon}
+                                    <RadixSelect.ItemText>{o.label}</RadixSelect.ItemText>
+                                </RadixSelect.Item>
+                            ))}
+                        </RadixSelect.Viewport>
+                    </div>
                 </RadixSelect.Content>
             </RadixSelect.Portal>
         </RadixSelect.Root>
