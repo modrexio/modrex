@@ -536,7 +536,13 @@
         "title": "Einstellungen",
         "language": {
             "title": "Sprache",
-            "description": "Die in der gesamten App verwendete Sprache."
+            "description": "Die in der gesamten App verwendete Sprache.",
+            "status": "! Translations",
+            "statusDescription": "! Untranslated text appears in English.",
+            "coverage": "! Coverage",
+            "contributors": "! Contributors",
+            "noContributors": "! No contributors listed",
+            "helpTranslate": "! Help translate Modrex"
         },
         "accentColor": {
             "title": "Akzentfarbe",

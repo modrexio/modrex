@@ -536,7 +536,13 @@
         "title": "设置",
         "language": {
             "title": "语言",
-            "description": "应用中使用的语言。"
+            "description": "应用中使用的语言。",
+            "status": "! Translations",
+            "statusDescription": "! Untranslated text appears in English.",
+            "coverage": "! Coverage",
+            "contributors": "! Contributors",
+            "noContributors": "! No contributors listed",
+            "helpTranslate": "! Help translate Modrex"
         },
         "accentColor": {
             "title": "强调色",

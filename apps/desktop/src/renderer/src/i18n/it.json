@@ -536,7 +536,13 @@
         "title": "Impostazioni",
         "language": {
             "title": "Lingua",
-            "description": "Lingua usata all'interno dell'app."
+            "description": "Lingua usata all'interno dell'app.",
+            "status": "! Translations",
+            "statusDescription": "! Untranslated text appears in English.",
+            "coverage": "! Coverage",
+            "contributors": "! Contributors",
+            "noContributors": "! No contributors listed",
+            "helpTranslate": "! Help translate Modrex"
         },
         "accentColor": {
             "title": "! Accent color",

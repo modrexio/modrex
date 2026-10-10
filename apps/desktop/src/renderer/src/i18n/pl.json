@@ -536,7 +536,13 @@
         "title": "Ustawienia",
         "language": {
             "title": "Język",
-            "description": "Język używany w całej aplikacji."
+            "description": "Język używany w całej aplikacji.",
+            "status": "! Translations",
+            "statusDescription": "! Untranslated text appears in English.",
+            "coverage": "! Coverage",
+            "contributors": "! Contributors",
+            "noContributors": "! No contributors listed",
+            "helpTranslate": "! Help translate Modrex"
         },
         "accentColor": {
             "title": "Kolor akcentu",

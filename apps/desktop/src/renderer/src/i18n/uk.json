@@ -536,7 +536,13 @@
         "title": "Налаштування",
         "language": {
             "title": "Мова",
-            "description": "Мова інтерфейсу застосунку."
+            "description": "Мова інтерфейсу застосунку.",
+            "status": "! Translations",
+            "statusDescription": "! Untranslated text appears in English.",
+            "coverage": "! Coverage",
+            "contributors": "! Contributors",
+            "noContributors": "! No contributors listed",
+            "helpTranslate": "! Help translate Modrex"
         },
         "accentColor": {
             "title": "Акцентний колір",

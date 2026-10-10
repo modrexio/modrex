@@ -536,7 +536,13 @@
         "title": "Настройки",
         "language": {
             "title": "Язык",
-            "description": "Язык, используемый во всём приложении."
+            "description": "Язык, используемый во всём приложении.",
+            "status": "! Translations",
+            "statusDescription": "! Untranslated text appears in English.",
+            "coverage": "! Coverage",
+            "contributors": "! Contributors",
+            "noContributors": "! No contributors listed",
+            "helpTranslate": "! Help translate Modrex"
         },
         "accentColor": {
             "title": "Акцентный цвет",
