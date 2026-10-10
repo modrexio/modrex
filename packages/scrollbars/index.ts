@@ -2,8 +2,8 @@ import { OverlayScrollbars, type PartialOptions } from 'overlayscrollbars'
 
 const scrollbars: PartialOptions['scrollbars'] = {
     theme: 'os-theme-modrex',
-    autoHide: 'move',
-    autoHideDelay: 800,
+    autoHide: 'leave',
+    autoHideDelay: 1100,
     clickScroll: 'instant',
 }
 
