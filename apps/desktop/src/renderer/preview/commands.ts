@@ -17,6 +17,7 @@ import { installedFromWorkshop, library, simulateDownload } from './library'
 import { previewState, remote } from './previewState'
 import loaders from './fixtures/loaders.json'
 import sources from './fixtures/sources.json'
+import * as resourceFixtures from './resourceFixtures'
 
 type Commands = typeof real
 
@@ -59,6 +60,13 @@ const steamFolders: Record<GameId, string> = {
 }
 
 const fixtures = new Map<GameId, Promise<GameFixtures>>()
+const chosenIniLocations = new Map<GameId, string>()
+const chosenGraphicsLocations = new Map<GameId, string>()
+const graphicsFolders: Partial<Record<GameId, string>> = {
+    pd2: 'PAYDAY 2',
+    pdth: 'PAYDAY',
+    raid: 'RAID WW2',
+}
 
 function game(gameId: string): GameId {
     if (!isGameId(gameId)) throw new Error(`preview: unknown game ${gameId}`)
@@ -155,6 +163,91 @@ const noLoader: LoaderPresence = {
 }
 
 const handlers = {
+    inspectMovieResources: async (gameId) => {
+        const id = game(gameId)
+        const path = gamePath(gameId)
+        if (!path) throw new Error('Choose a game folder before checking movies')
+        const movies =
+            previewState.library === 'resources'
+                ? library(id)
+                      .mods.filter((mod) => mod.deployment === 'movie')
+                      .map((mod) => ({
+                          path: `${path}/PreviewMovies/${mod.filename}`,
+                          sha256: 'a'.repeat(64),
+                          recognition: { status: 'unavailable' as const },
+                      }))
+                : []
+        return { checkedAt: new Date().toISOString(), movies }
+    },
+    getResourceReview: async (handle) => resourceFixtures.getResourceReview(handle),
+    cancelResourceReview: async (handle) => resourceFixtures.cancelResourceReview(handle),
+    installReviewedResources: async (handle, selection) =>
+        resourceFixtures.installResources(handle, selection),
+    reviewResourceRecovery: async (gameId, uid) => {
+        const path = gamePath(gameId)
+        if (!path) throw new Error('Choose a game folder before reviewing resources')
+        return resourceFixtures.reviewRecovery(game(gameId), uid, path)
+    },
+    cancelResourceRecovery: async (handle) => resourceFixtures.cancelRecovery(handle),
+    keepCurrentResources: async (handle) => {
+        resourceFixtures.keepCurrent(handle)
+        return null
+    },
+    openResourceRecoveryFolder: async () => previewState.library === 'resources',
+    getEngineIniLocation: async (gameId) => {
+        const id = game(gameId)
+        if (!gamePath(id)) throw new Error('Choose a game folder first')
+        const path = chosenIniLocations.get(id)
+        if (path) return { status: 'found', path }
+        if (id === 'pd3')
+            return {
+                status: 'found',
+                path: 'C:/Users/Preview/AppData/Local/PAYDAY3/Saved/Config/WindowsClient/Engine.ini',
+            }
+        return { status: 'needsLocation' }
+    },
+    openEngineIni: async (gameId) => {
+        if (!gamePath(gameId)) throw new Error('Choose a game folder first')
+        return null
+    },
+    pickEngineIni: async (gameId) => {
+        const path = gamePath(gameId)
+        if (!path) throw new Error('Choose a game folder first')
+        const configPath = path + '/Saved/Config/WindowsClient/Engine.ini'
+        chosenIniLocations.set(game(gameId), configPath)
+        return configPath
+    },
+    getGraphicsConfigLocation: async (gameId) => {
+        const id = game(gameId)
+        const declaration = GAMES[id].graphicsConfig
+        if (!declaration) throw new Error(`preview: ${gameId} has no graphics configuration`)
+        if (!gamePath(id)) throw new Error('Choose a game folder first')
+        const chosen = chosenGraphicsLocations.get(id)
+        if (chosen) return { status: 'found', path: chosen }
+        const folder = graphicsFolders[id]
+        if (!folder) return { status: 'needsLocation' }
+        return {
+            status: 'found',
+            path: `C:/Users/Preview/AppData/Local/${folder}/${declaration.filename}`,
+        }
+    },
+    openGraphicsConfig: async (gameId) => {
+        const id = game(gameId)
+        if (!GAMES[id].graphicsConfig)
+            throw new Error(`preview: ${gameId} has no graphics configuration`)
+        if (!gamePath(id)) throw new Error('Choose a game folder first')
+        return null
+    },
+    pickGraphicsConfig: async (gameId) => {
+        const id = game(gameId)
+        const declaration = GAMES[id].graphicsConfig
+        if (!declaration) throw new Error(`preview: ${gameId} has no graphics configuration`)
+        const path = gamePath(id)
+        if (!path) throw new Error('Choose a game folder first')
+        const configPath = `${path}/${declaration.filename}`
+        chosenGraphicsLocations.set(id, configPath)
+        return configPath
+    },
     reportStartupPhase: async () => null,
     getAnalyticsConsent: async () => (previewState.onboarding === 'first-run' ? null : true),
     setAnalyticsConsent: async () => {},
@@ -194,7 +287,8 @@ const handlers = {
         const id = game(gameId)
         const lib = library(id)
         if (previewState.library !== 'empty' && !lib.seeded) {
-            lib.seed((await load(id)).modRecords, previewState.library)
+            if (previewState.library === 'resources') resourceFixtures.seedResourceLibrary(id)
+            else lib.seed((await load(id)).modRecords, previewState.library)
         }
         return lib.response()
     },
@@ -278,6 +372,8 @@ const handlers = {
     secretStoreAvailable: async () => true,
     nexusOauthSignedIn: async () => false,
     isGameRunning: async () => false,
+    getGameLaunchStatus: async () => ({ running: false, pending: null }),
+    cancelPendingGameLaunch: async () => null,
     listCategories: async (workshopId) => {
         await remote(`/games/${workshopId}/categories`)
         return (await load(gameForWorkshop(workshopId))).categories

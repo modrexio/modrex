@@ -25,6 +25,20 @@ export interface SnapshotRow {
     file_entry_name: string
 }
 
+// One exact movie or config identity a project published in any complete observation.
+export interface ResourceRow {
+    mod_id: string
+    mod_remote_id: string
+    mod_name: string
+    mod_url: string
+    sha256: string
+    resource_kind: string
+    byte_length: string
+}
+
+// resource_entries is additive, so readers that only know files ignore it. Several names or
+// releases of the same bytes are one row per project, and a hash shared by several projects
+// keeps a row for each so recognition can report the ambiguity.
 const schema = `
     PRAGMA foreign_keys = ON;
     CREATE TABLE games (
@@ -59,20 +73,24 @@ const schema = `
         UNIQUE(mod_id, sha256)
     );
     CREATE INDEX idx_files_sha256 ON files(sha256);
+    CREATE TABLE resource_entries (
+        mod_id INTEGER NOT NULL REFERENCES mods(id),
+        sha256 TEXT NOT NULL REFERENCES file_contents(sha256),
+        resource_kind TEXT NOT NULL CHECK (resource_kind IN ('movie', 'config')),
+        byte_length INTEGER NOT NULL,
+        PRIMARY KEY (mod_id, sha256, resource_kind)
+    );
+    CREATE INDEX idx_resource_entries_sha256 ON resource_entries(sha256);
     CREATE TABLE metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 `
 
-// The published file has to be a function of the catalog and nothing else. The workflow decides
-// whether to upload a new immutable generation by comparing this file's SHA256 against the one
-// in catalog/latest.json, so anything that varies between two exports of the same rows, a clock
-// reading most of all, turns every run into a new generation and makes every desktop client
-// re-download a snapshot it already has. Rows arrive ordered by files.id and are written in that
-// order, which is what makes the byte layout reproducible.
+// test-export-determinism.ts enforces stable snapshot bytes to avoid redundant shard downloads.
 export function writeSnapshot(
     output: string,
     game: string,
     source: SnapshotSource,
-    rows: SnapshotRow[]
+    rows: SnapshotRow[],
+    resources: ResourceRow[]
 ): string {
     const outputPath = resolve(output)
     const temporaryPath = `${outputPath}.tmp`
@@ -87,8 +105,25 @@ export function writeSnapshot(
         const insertMod = db.prepare('INSERT INTO mods VALUES (?, ?, ?, ?, ?)')
         const insertContent = db.prepare('INSERT INTO file_contents VALUES (?)')
         const insertFile = db.prepare('INSERT INTO files VALUES (?, ?, ?, ?, ?, ?, ?)')
+        const insertResource = db.prepare('INSERT INTO resource_entries VALUES (?, ?, ?, ?)')
         const insertMetadata = db.prepare('INSERT INTO metadata VALUES (?, ?)')
         const seen = { mods: new Set<string>(), contents: new Set<string>() }
+        const insertModOnce = (row: SnapshotRow | ResourceRow) => {
+            if (seen.mods.has(row.mod_id)) return
+            insertMod.run(
+                row.mod_id,
+                source.source_id,
+                row.mod_remote_id,
+                row.mod_name,
+                row.mod_url
+            )
+            seen.mods.add(row.mod_id)
+        }
+        const insertContentOnce = (sha256: string) => {
+            if (seen.contents.has(sha256)) return
+            insertContent.run(sha256)
+            seen.contents.add(sha256)
+        }
 
         db.transaction(() => {
             insertGame.run(source.game_id, source.game_name, source.game_slug)
@@ -100,20 +135,8 @@ export function writeSnapshot(
                 source.source_game_ref
             )
             for (const row of rows) {
-                if (!seen.mods.has(row.mod_id)) {
-                    insertMod.run(
-                        row.mod_id,
-                        source.source_id,
-                        row.mod_remote_id,
-                        row.mod_name,
-                        row.mod_url
-                    )
-                    seen.mods.add(row.mod_id)
-                }
-                if (!seen.contents.has(row.file_sha256)) {
-                    insertContent.run(row.file_sha256)
-                    seen.contents.add(row.file_sha256)
-                }
+                insertModOnce(row)
+                insertContentOnce(row.file_sha256)
                 insertFile.run(
                     row.file_id,
                     row.mod_id,
@@ -123,6 +146,11 @@ export function writeSnapshot(
                     row.file_indexed_at,
                     row.file_entry_name
                 )
+            }
+            for (const row of resources) {
+                insertModOnce(row)
+                insertContentOnce(row.sha256)
+                insertResource.run(row.mod_id, row.sha256, row.resource_kind, row.byte_length)
             }
             insertMetadata.run('game', game)
         })()

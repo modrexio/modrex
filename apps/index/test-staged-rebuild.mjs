@@ -5,6 +5,7 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { setTimeout as delay } from 'node:timers/promises'
 import { fileURLToPath } from 'node:url'
 
 const repoDir = fileURLToPath(new URL('.', import.meta.url))
@@ -19,7 +20,7 @@ const gameIds = new Map([
 ])
 let transientFailures = 0
 
-const server = createServer((request, response) => {
+const server = createServer(async (request, response) => {
     const match = new URL(request.url, 'http://localhost').pathname.match(/^\/games\/(\d+)\/mods$/)
     const game = match ? gameIds.get(match[1]) : null
     if (!game) {
@@ -31,6 +32,9 @@ const server = createServer((request, response) => {
         response.writeHead(520).end()
         return
     }
+
+    // The listing must outlast the stage budget to exercise checkpointing.
+    if (game === 'pd2') await delay(50)
 
     const now = new Date().toISOString()
     response.setHeader('content-type', 'application/json')

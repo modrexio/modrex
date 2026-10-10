@@ -3,6 +3,17 @@ name = "PAYDAY 2"
 short_name = "PD2"
 mod_metadata = "diesel"
 
+graphics_config = {
+    filename = "renderer_settings_dx11.xml",
+    locations = [
+        {
+            root = "windows_local_app_data",
+            store = "steam",
+            path = ["PAYDAY 2", "renderer_settings_dx11.xml"],
+        },
+    ],
+}
+
 sources = [
     {
         provider = "modworkshop",

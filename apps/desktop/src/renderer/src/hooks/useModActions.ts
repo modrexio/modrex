@@ -228,7 +228,7 @@ export function useModActions(
     ): Promise<string | null> {
         if (!gamePath) return null
         let failure: string | null = null
-        const missingMods = mods.filter((m) => m.missing)
+        const missingMods = mods.filter((m) => m.missing && !m.deployment)
 
         setLoadingMod(mods[0].uid)
         setReinstallProgress(null)

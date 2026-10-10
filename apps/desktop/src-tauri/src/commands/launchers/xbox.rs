@@ -50,15 +50,19 @@ impl Launcher for Xbox {
         Path::new(game_path).join("MicrosoftGame.config").exists()
     }
 
-    fn launch(&self, game: &GameDef, game_path: &str, _opts: Option<&str>) {
+    fn launch(&self, game: &GameDef, game_path: &str, _opts: Option<&str>) -> Result<(), String> {
         let helper = Path::new(game_path).join("gamelaunchhelper.exe");
         if helper.exists() {
-            if let Err(e) = std::process::Command::new(&helper).spawn() {
-                log::warn!("xbox launch: spawn {helper:?}: {e}");
-            }
-        } else if let Some(def) = game.xbox.as_ref() {
-            super::open_url(&format!("msxbox://game/?productId={}", def.product_id));
+            return std::process::Command::new(&helper)
+                .spawn()
+                .map(|_| ())
+                .map_err(|e| format!("Could not launch the game through Xbox: {e}"));
         }
+        let def = game
+            .xbox
+            .as_ref()
+            .ok_or("This game has no Xbox launch definition")?;
+        super::open_url(&format!("msxbox://game/?productId={}", def.product_id))
     }
 }
 

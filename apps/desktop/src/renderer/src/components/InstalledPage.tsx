@@ -27,6 +27,7 @@ import { HealthCheckModal, type Leftovers } from './HealthCheckModal'
 import { DeleteFolderModal } from './DeleteFolderModal'
 import { FolderSection, NewFolderInput } from './FolderSection'
 import { InstalledModItem } from './InstalledModItem'
+import { ResourceRecoveryDialog } from './ResourceRecoveryDialog'
 import { InstalledContext } from './InstalledContext'
 import type { InstalledMod, ModFolder, GameId } from '../../../shared/types'
 import { GAME_STORAGE_KEY, GAMES } from '../../../shared/types'
@@ -88,6 +89,7 @@ export function InstalledPage({
     )
     const [showUpdates, setShowUpdates] = useState(false)
     const [showHealth, setShowHealth] = useState(false)
+    const [recoveryResource, setRecoveryResource] = useState<InstalledMod | null>(null)
     const [checkingHealth, setCheckingHealth] = useState(false)
     const [healthProgress, setHealthProgress] = useState<{ checked: number; total: number } | null>(
         null
@@ -313,6 +315,7 @@ export function InstalledPage({
         handleIdentifyViaNexus,
         requestMoveCrimeBossTarget,
         folderActions,
+        reviewResource: setRecoveryResource,
         dragItem,
         dropTarget,
         onModPointerDown,
@@ -361,6 +364,7 @@ export function InstalledPage({
                 )}
                 {reinstallChoice && (
                     <UpdateFileModal
+                        gameId={activeGame}
                         mod={reinstallChoice.mod}
                         files={reinstallChoice.files}
                         installed={reinstallChoice.mods}
@@ -424,7 +428,14 @@ export function InstalledPage({
                                         : t('installed.health.title')
                                 }
                             >
-                                <button
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    aria-label={
+                                        checkingHealth
+                                            ? t('installed.health.cancel')
+                                            : t('installed.health.title')
+                                    }
                                     onClick={
                                         checkingHealth
                                             ? cancelHealthCheck
@@ -445,7 +456,7 @@ export function InstalledPage({
                                     ) : (
                                         <Activity className="w-3.5 h-3.5" />
                                     )}
-                                </button>
+                                </Button>
                             </Tooltip>
                         </div>
                         <div className="flex items-center gap-3">
@@ -671,6 +682,13 @@ export function InstalledPage({
                     )}
                 </ScrollArea>
 
+                {recoveryResource && (
+                    <ResourceRecoveryDialog
+                        activeGame={activeGame}
+                        resource={recoveryResource}
+                        onClose={() => setRecoveryResource(null)}
+                    />
+                )}
                 {showUpdates && (
                     <UpdatesModal
                         updateVersions={updateVersions}
@@ -706,6 +724,10 @@ export function InstalledPage({
                         onReviewUpdates={() => {
                             setShowHealth(false)
                             setShowUpdates(true)
+                        }}
+                        onReviewResource={(mod) => {
+                            setShowHealth(false)
+                            setRecoveryResource(mod)
                         }}
                         onClose={() => setShowHealth(false)}
                     />

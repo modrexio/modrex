@@ -5,10 +5,11 @@
 //! compiling rather than silently vanishing from the generated data.
 
 use crate::{
-    Activation, DecoderBinding, Discovery, FileFamily, FileNaming, GamePackage, Install, LoadOrder,
-    LoaderBinding, MarkerMode, MarkerRule, ModMetadata, NamePreset, NewsBinding,
-    PackageReaderBinding, SourceBinding, StoreBinding, StoreInstallInto, StorePath, Storefront,
-    Target, TargetLabel, Unit,
+    Activation, ConfigLocation, ConfigPresets, DecoderBinding, Discovery, FileFamily, FileNaming,
+    GamePackage, GraphicsConfig, Install, LoadOrder, LoaderBinding, MarkerMode, MarkerRule,
+    ModMetadata, MovieReplacement, MovieSlots, NamePreset, NewsBinding, PackageReaderBinding,
+    SourceBinding, StoreBinding, StoreInstallInto, StorePath, Storefront, Target, TargetLabel,
+    Unit,
 };
 
 const PATH: &str = "::modrex_game_package";
@@ -338,10 +339,13 @@ impl GamePackage {
             loaders,
             decoders,
             package_reader: reader,
+            movie_replacement: movies,
+            config_presets: configs,
+            graphics_config: graphics,
             targets,
         } = self;
         format!(
-            "{PATH}::GamePackage {{ id: {}, name: {}, short_name: {}, mod_metadata: {}, sources: {}, news: {}, install: {}, loaders: {}, decoders: {}, package_reader: {}, targets: {} }}",
+            "{PATH}::GamePackage {{ id: {}, name: {}, short_name: {}, mod_metadata: {}, sources: {}, news: {}, install: {}, loaders: {}, decoders: {}, package_reader: {}, movie_replacement: {}, config_presets: {}, graphics_config: {}, targets: {} }}",
             text(id),
             text(name),
             text(short_name),
@@ -352,7 +356,65 @@ impl GamePackage {
             list(loaders.iter().map(loader).collect()),
             list(decoders.iter().map(decoder).collect()),
             optional(reader.as_ref().map(package_reader)),
+            optional(movies.as_ref().map(movie_replacement)),
+            optional(configs.as_ref().map(config_presets)),
+            optional(graphics.as_ref().map(graphics_config)),
             list(targets.iter().map(target).collect()),
         )
+    }
+}
+
+fn movie_replacement(value: &MovieReplacement) -> String {
+    match value {
+        MovieReplacement::Bink {
+            directory,
+            storefronts,
+            absent_slots,
+        } => format!(
+            "{PATH}::MovieReplacement::Bink {{ directory: {}, storefronts: {}, absent_slots: {} }}",
+            texts(directory),
+            list(storefronts.iter().map(|store| storefront(*store)).collect()),
+            list(absent_slots.iter().map(movie_slots).collect()),
+        ),
+    }
+}
+
+fn movie_slots(value: &MovieSlots) -> String {
+    let MovieSlots { store, filenames } = value;
+    format!(
+        "{PATH}::MovieSlots {{ store: {}, filenames: {} }}",
+        storefront(*store),
+        texts(filenames)
+    )
+}
+
+fn config_presets(value: &ConfigPresets) -> String {
+    match value {
+        ConfigPresets::UnrealEngineIni { locations } => format!(
+            "{PATH}::ConfigPresets::UnrealEngineIni {{ locations: {} }}",
+            list(locations.iter().map(config_location).collect()),
+        ),
+    }
+}
+
+fn graphics_config(value: &GraphicsConfig) -> String {
+    let GraphicsConfig {
+        filename,
+        locations,
+    } = value;
+    format!(
+        "{PATH}::GraphicsConfig {{ filename: {}, locations: {} }}",
+        text(filename),
+        list(locations.iter().map(config_location).collect()),
+    )
+}
+
+fn config_location(value: &ConfigLocation) -> String {
+    match value {
+        ConfigLocation::WindowsLocalAppData { store, path } => format!(
+            "{PATH}::ConfigLocation::WindowsLocalAppData {{ store: {}, path: {} }}",
+            storefront(*store),
+            texts(path),
+        ),
     }
 }

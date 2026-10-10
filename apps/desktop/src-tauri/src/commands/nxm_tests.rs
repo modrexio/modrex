@@ -44,17 +44,44 @@ fn rejects_wrong_path_shape() {
 }
 
 #[test]
-fn extension_from_uri_reads_real_filename() {
+fn file_from_uri_reads_real_filename() {
     assert_eq!(
-        extension_from_uri("https://cdn.nexusmods.com/path/SomeMod-12-1-0.zip?token=x"),
-        Some("zip".to_string())
+        file_from_uri("https://cdn.nexusmods.com/path/SomeMod-12-1-0.zip?token=x"),
+        Some(("SomeMod-12-1-0.zip".to_string(), "zip".to_string()))
     );
 }
 
 #[test]
-fn extension_from_uri_none_when_no_extension() {
+fn file_from_uri_none_when_no_extension() {
     assert_eq!(
-        extension_from_uri("https://cdn.nexusmods.com/path/SomeMod?token=x"),
+        file_from_uri("https://cdn.nexusmods.com/path/SomeMod?token=x"),
         None
     );
+}
+
+/// A loose Engine.ini is reviewed under this name, and only a file named Engine.ini is
+/// accepted as a preset, so the encoded CDN segment has to come back as the real name.
+#[test]
+fn file_from_uri_decodes_a_loose_resource_name() {
+    assert_eq!(
+        file_from_uri("https://cdn.nexusmods.com/1/2/Engine.ini?md5=x"),
+        Some(("Engine.ini".to_string(), "ini".to_string()))
+    );
+    assert_eq!(
+        file_from_uri("https://cdn.nexusmods.com/1/2/Intro%20Movie.BK2?md5=x"),
+        Some(("Intro Movie.BK2".to_string(), "BK2".to_string()))
+    );
+}
+
+#[test]
+fn named_file_keeps_only_the_last_component() {
+    assert_eq!(
+        named_file("../config/Engine.ini"),
+        Some(("Engine.ini".to_string(), "ini".to_string()))
+    );
+    assert_eq!(
+        named_file("C:\\Config\\Engine.ini"),
+        Some(("Engine.ini".to_string(), "ini".to_string()))
+    );
+    assert_eq!(named_file("NoExtension"), None);
 }

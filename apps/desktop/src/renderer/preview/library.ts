@@ -25,7 +25,14 @@ export class Library {
     private nextFolder = 1
 
     response(): InstalledResponse_Serialize {
-        return { mods: this.mods, folders: this.folders, modsHidden: false, stateUnreadable: false }
+        return {
+            mods: this.mods,
+            folders: this.folders,
+            modsHidden: false,
+            stateUnreadable: false,
+            resourceError: null,
+            resourceRecoveryPending: false,
+        }
     }
 
     mod(uid: string): Mod {
@@ -117,7 +124,7 @@ export class Library {
 
     seed(
         records: Record<string, { detail: ModDetail; files: { data: WorkshopFile[] } }>,
-        profile: Exclude<LibraryProfile, 'empty'>
+        profile: Exclude<LibraryProfile, 'empty' | 'resources'>
     ) {
         const templates = Object.values(records).flatMap(({ detail, files }) => {
             const file = detail.download ?? files.data[0]

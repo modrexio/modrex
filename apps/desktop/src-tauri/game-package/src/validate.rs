@@ -5,8 +5,9 @@
 //! references between sections, and values that would build a path the scan cannot find.
 
 use crate::{
-    Activation, Discovery, FileFamily, GamePackage, LoaderBinding, MarkerMode, NewsBinding,
-    PackageReaderBinding, SourceBinding, StoreBinding, Target, Unit,
+    Activation, ConfigLocation, ConfigPresets, Discovery, FileFamily, GamePackage, LoaderBinding,
+    MarkerMode, MovieReplacement, NewsBinding, PackageReaderBinding, SourceBinding, StoreBinding,
+    Target, Unit,
 };
 
 /// Rejects a manifest that parses but could not work, so a contributor sees the problem at
@@ -91,6 +92,20 @@ pub fn check(id: &str, package: &GamePackage) -> Result<(), String> {
     if let Some(reader) = &package.package_reader {
         check_package_reader(reader)?;
     }
+    if let Some(movies) = &package.movie_replacement {
+        check_movies(movies, package)?;
+    }
+    if let Some(configs) = &package.config_presets {
+        let ConfigPresets::UnrealEngineIni { locations } = configs;
+        check_config_locations(locations, configs.filename(), package)?;
+    }
+    if let Some(config) = &package.graphics_config {
+        check_resource_path(
+            std::slice::from_ref(&config.filename),
+            "graphics config filename",
+        )?;
+        check_config_locations(&config.locations, &config.filename, package)?;
+    }
 
     if package.targets.is_empty() {
         return Err("declares no mod targets, so no mod could be installed".to_string());
@@ -116,6 +131,114 @@ pub fn check(id: &str, package: &GamePackage) -> Result<(), String> {
         check_target(target).map_err(|problem| format!("target '{}' {problem}", target.tag))?;
         check_store_paths(target, package)
             .map_err(|problem| format!("target '{}' {problem}", target.tag))?;
+    }
+    Ok(())
+}
+
+fn check_movies(movies: &MovieReplacement, package: &GamePackage) -> Result<(), String> {
+    let MovieReplacement::Bink {
+        directory,
+        storefronts,
+        absent_slots,
+    } = movies;
+    check_resource_path(directory, "movie directory")?;
+    if storefronts.is_empty() {
+        return Err("movie replacement lists no supported storefronts".into());
+    }
+    if let Some(duplicate) = first_duplicate(storefronts.iter().map(|store| store.provider())) {
+        return Err(format!(
+            "movie replacement lists the '{duplicate}' store twice"
+        ));
+    }
+    for storefront in storefronts {
+        if package.install.store(*storefront).is_none() {
+            return Err(format!(
+                "movie replacement names the '{}' store, which install does not list",
+                storefront.provider()
+            ));
+        }
+    }
+    if let Some(duplicate) =
+        first_duplicate(absent_slots.iter().map(|slots| slots.store.provider()))
+    {
+        return Err(format!(
+            "movie replacement declares absent slots twice for '{duplicate}'"
+        ));
+    }
+    for slots in absent_slots {
+        if !storefronts.contains(&slots.store) {
+            return Err(format!(
+                "movie absent slots name the '{}' store, which movie replacement does not support",
+                slots.store.provider()
+            ));
+        }
+        if slots.filenames.is_empty() {
+            return Err("movie absent slots must list at least one filename".into());
+        }
+        let names: Vec<_> = slots
+            .filenames
+            .iter()
+            .map(|name| name.to_ascii_lowercase())
+            .collect();
+        if let Some(duplicate) = first_duplicate(names.iter().map(String::as_str)) {
+            return Err(format!("movie absent slots repeat '{duplicate}'"));
+        }
+        for filename in &slots.filenames {
+            check_resource_path(std::slice::from_ref(filename), "movie slot")?;
+            if !filename.to_ascii_lowercase().ends_with(".bk2") {
+                return Err(format!(
+                    "movie slot '{filename}' must have the .bk2 extension"
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
+fn check_config_locations(
+    locations: &[ConfigLocation],
+    filename: &str,
+    package: &GamePackage,
+) -> Result<(), String> {
+    if let Some(duplicate) = first_duplicate(locations.iter().map(|location| match location {
+        ConfigLocation::WindowsLocalAppData { store, .. } => store.provider(),
+    })) {
+        return Err(format!(
+            "config locations declare a Windows location twice for '{duplicate}'"
+        ));
+    }
+    for location in locations {
+        let ConfigLocation::WindowsLocalAppData { store, path } = location;
+        if package.install.store(*store).is_none() {
+            return Err(format!(
+                "config location names the '{}' store, which install does not list",
+                store.provider()
+            ));
+        }
+        check_resource_path(path, "config location")?;
+        if !path
+            .last()
+            .expect("nonempty path was checked")
+            .eq_ignore_ascii_case(filename)
+        {
+            return Err(format!("config location must end in {}", filename));
+        }
+    }
+    Ok(())
+}
+
+fn check_resource_path(path: &[String], label: &str) -> Result<(), String> {
+    if path.is_empty() {
+        return Err(format!("{label} has an empty path"));
+    }
+    if path.iter().any(|part| {
+        part.is_empty()
+            || part == "."
+            || part == ".."
+            || part.contains(['/', '\\', ':'])
+            || part.chars().any(char::is_control)
+    }) {
+        return Err(format!("{label} must use plain relative path components"));
     }
     Ok(())
 }

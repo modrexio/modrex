@@ -6,6 +6,10 @@ import {
     ONBOARDING_STATES,
     previewState,
 } from './previewState'
+import { readAppRoute } from '../src/navigation'
+import { createResourceReview } from './resourceFixtures'
+import { requestResourceReview } from '../src/resourceInstall'
+import { getGameData, refreshInstalled } from '../src/gameData'
 
 if (previewState.onboarding === 'first-run') {
     for (const key of Object.keys(localStorage)) {
@@ -68,3 +72,27 @@ addPicker(
     DEFAULT_PREVIEW_STATE.onboarding
 )
 document.body.append(panel)
+if (previewState.library === 'resources') {
+    const install = document.createElement('button')
+    install.textContent = 'Try resource install'
+    install.addEventListener('click', async () => {
+        const route = readAppRoute()
+        if (route.kind !== 'game') {
+            install.textContent = 'Choose a game with movie or config support first'
+            return
+        }
+        const gameId = route.gameId
+        const path = getGameData(gameId).path
+        if (!path) return
+        install.disabled = true
+        try {
+            const installed = await requestResourceReview(createResourceReview(gameId, path))
+            if (installed) await refreshInstalled(gameId)
+        } catch (failure) {
+            install.textContent = String(failure)
+        } finally {
+            install.disabled = false
+        }
+    })
+    panel.append(install)
+}

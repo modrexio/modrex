@@ -10,6 +10,8 @@ import { syncGameListings } from './postgres/listing-sync.js'
 import { ModWorkshop, parseFile, parseVersions } from './postgres/modworkshop.js'
 import { migrations } from './postgres/schema.js'
 import {
+    MARKER_EXTRACTION_POLICY,
+    UNREAL_EXTRACTION_POLICY,
     deferDownloadable,
     finishDiscovery,
     needsProcessing,
@@ -21,7 +23,13 @@ import {
     type Listing,
 } from './postgres/downloadable-state.js'
 import { refreshContentVersions, selectContentListings } from './postgres/content-selection.js'
-import { writeSnapshot, type SnapshotRow, type SnapshotSource } from './postgres/snapshot.js'
+import {
+    writeSnapshot,
+    type ResourceRow,
+    type SnapshotRow,
+    type SnapshotSource,
+} from './postgres/snapshot.js'
+import { compareResourceRows, resourceRowsQuery } from './postgres/snapshot-delta.js'
 
 const productionMigrationChecksums = new Map([
     ['001_initial', '40465f9f3018532f3caee2e76581d86ed4d9584639c44436a5dacbdc8e107b09'],
@@ -98,7 +106,7 @@ assert.deepEqual([...parseVersions({ 1: '' }, [1])], [[1, { status: 'known', ver
 assert.throws(() => parseVersions({ 2: 'unexpected' }, [1]))
 assert.deepEqual(
     parseFile({ id: 1, file: '', size: 1, type: 'zip', version: '', download_url: '' }),
-    { id: 1, file: '', size: 1, type: 'zip', version: '', download_url: '' }
+    { id: 1, name: '', file: '', size: 1, type: 'zip', version: '', download_url: '' }
 )
 
 {
@@ -197,6 +205,7 @@ assert.deepEqual(
         db,
         listingRow,
         {
+            policy: MARKER_EXTRACTION_POLICY,
             kind: 'file',
             remoteId: 410,
             url: 'https://storage.test/interrupted.zip',
@@ -204,6 +213,7 @@ assert.deepEqual(
             objectKey: 'interrupted.zip',
             size: 10,
             mediaType: 'zip',
+            sourceFilename: null,
         },
         at
     )
@@ -478,6 +488,8 @@ assert.deepEqual(
             values: [],
         }))
     )
+    for (const migration of migrations.slice(6))
+        await db.transaction(migration.statements.map((text) => ({ text, values: [] })))
 
     let failAfterFirstPage = true
     const fetcher: typeof fetch = async (request) => {
@@ -572,6 +584,7 @@ assert.deepEqual(
         db,
         recovered,
         {
+            policy: MARKER_EXTRACTION_POLICY,
             kind: 'file',
             remoteId: 20,
             url: 'https://storage.test/new.zip',
@@ -579,6 +592,7 @@ assert.deepEqual(
             objectKey: 'new-object.zip',
             size: 100,
             mediaType: 'zip',
+            sourceFilename: null,
         },
         recoveredAt
     )
@@ -608,7 +622,7 @@ assert.deepEqual(
     ).rows[0]
     const output = mkdtempSync(join(tmpdir(), 'modrex-recovery-'))
     try {
-        const snapshot = writeSnapshot(join(output, 'pd2.db'), 'pd2', source, rows)
+        const snapshot = writeSnapshot(join(output, 'pd2.db'), 'pd2', source, rows, [])
         const sqlite = new Sqlite(snapshot, { readonly: true })
         try {
             assert.deepEqual(
@@ -636,6 +650,7 @@ assert.deepEqual(
         updated_at: '2026-09-20T12:00:00.000Z',
     }
     const file: DownloadableInput = {
+        policy: MARKER_EXTRACTION_POLICY,
         kind: 'file',
         remoteId: 100,
         url: 'https://storage.test/a',
@@ -643,10 +658,33 @@ assert.deepEqual(
         objectKey: 'object-a.zip',
         size: 100,
         mediaType: 'zip',
+        sourceFilename: 'History.zip',
     }
     const at = new Date('2026-09-20T12:00:00.000Z')
     const first = await registerDownloadable(db, mod, file, at)
     assert.equal(needsProcessing(first, at), true)
+    assert.equal(
+        first.metadata_fingerprint,
+        createHash('sha256')
+            .update(
+                JSON.stringify({
+                    policy: 'markers-v4-content-v1',
+                    kind: 'file',
+                    remoteId: 100,
+                    objectKey: 'object-a.zip',
+                    size: 100,
+                    mediaType: 'zip',
+                })
+            )
+            .digest('hex'),
+        'the marker fingerprint is unchanged, so no settled Diesel download is reopened'
+    )
+    assert.equal(
+        (await registerDownloadable(db, mod, { ...file, sourceFilename: 'Renamed.zip' }, at))
+            .metadata_fingerprint,
+        first.metadata_fingerprint,
+        'a hosted filename never reopens a marker-game download'
+    )
     await settleDownloadable(
         db,
         mod,
@@ -656,7 +694,12 @@ assert.deepEqual(
         at
     )
 
-    const metadataOnly = await registerDownloadable(db, mod, { ...file, version: 'two' }, at)
+    const metadataOnly = await registerDownloadable(
+        db,
+        mod,
+        { ...file, version: 'two', sourceFilename: 'Renamed.zip' },
+        at
+    )
     assert.equal(
         needsProcessing(metadataOnly, at),
         false,
@@ -668,6 +711,15 @@ assert.deepEqual(
             .rows.length,
         2,
         'a metadata-only release keeps the proven hash relationship without extraction'
+    )
+    assert.deepEqual(
+        (
+            await pg.query(
+                "SELECT source_filename FROM downloadable_observations WHERE version = 'two'"
+            )
+        ).rows,
+        [{ source_filename: 'Renamed.zip' }],
+        'a copied release records the hosted filename it was observed under'
     )
     const alreadyObserved = await registerDownloadable(db, mod, { ...file, version: 'two' }, at)
     assert.equal(alreadyObserved.version_observed, true)
@@ -800,6 +852,7 @@ assert.deepEqual(
         db,
         mod,
         {
+            policy: MARKER_EXTRACTION_POLICY,
             kind: 'link',
             remoteId: 5,
             url: 'https://mutable.test/archive.zip',
@@ -807,6 +860,7 @@ assert.deepEqual(
             objectKey: null,
             size: null,
             mediaType: null,
+            sourceFilename: null,
         },
         at
     )
@@ -913,6 +967,492 @@ assert.deepEqual(
         Number(one[0].remote_id) >= 9,
         true,
         'small manual runs still reserve one slot for overdue reconciliation'
+    )
+    await pg.close()
+}
+
+async function unrealCatalog(appliedMigrations: number): Promise<{ pg: PGlite; db: Database }> {
+    const pg = new PGlite('memory://')
+    for (const migration of migrations.slice(0, appliedMigrations)) {
+        for (const statement of migration.statements) await pg.exec(statement)
+    }
+    await pg.exec(`
+        INSERT INTO games (name, slug) VALUES
+            ('PAYDAY 3', 'pd3'), ('Crime Boss: Rockay City', 'cb'), ('PAYDAY 2', 'pd2');
+        INSERT INTO sources (game_id, name, base_url, game_ref)
+        SELECT id, 'modworkshop', 'https://modworkshop.net', id::TEXT FROM games ORDER BY games.id;
+    `)
+    return { pg, db: database(pg) }
+}
+
+function unrealListing(sourceId: string, remoteId: string, name: string, at: Date): Listing {
+    return {
+        source_id: sourceId,
+        remote_id: remoteId,
+        name,
+        version: '1',
+        updated_at: at.toISOString(),
+    }
+}
+
+function hostedInput(remoteId: number, sourceFilename: string): DownloadableInput {
+    return {
+        policy: UNREAL_EXTRACTION_POLICY,
+        kind: 'file',
+        remoteId,
+        url: `https://storage.test/object-${remoteId}?filename=${encodeURIComponent(sourceFilename)}`,
+        version: '1',
+        objectKey: `object-${remoteId}`,
+        size: 1587,
+        mediaType: 'rar',
+        sourceFilename,
+    }
+}
+
+const blankMovie = { kind: 'movie', byteLength: 64 } as const
+
+{
+    const { pg, db } = await unrealCatalog(migrations.length)
+    const at = new Date('2026-09-21T12:00:00.000Z')
+    const listing = unrealListing('1', '46831', 'Small UI', at)
+    const input = { ...hostedInput(89501, 'Engine.ini'), mediaType: 'ini' }
+    const state = await registerDownloadable(db, listing, input, at)
+    await settleDownloadable(
+        db,
+        listing,
+        state,
+        'complete',
+        [
+            {
+                sha256: 'preset',
+                entryName: 'Engine.ini',
+                resource: { kind: 'config', byteLength: 20 },
+            },
+        ],
+        at
+    )
+    assert.equal(needsProcessing(await registerDownloadable(db, listing, input, at), at), false)
+    assert.equal(
+        needsProcessing(
+            await registerDownloadable(
+                db,
+                listing,
+                {
+                    ...input,
+                    sourceFilename: 'Other.ini',
+                },
+                at
+            ),
+            at
+        ),
+        true,
+        'a loose resource rename changes the observed entry name'
+    )
+    await pg.close()
+}
+
+{
+    const { pg, db } = await unrealCatalog(migrations.length)
+    const at = new Date('2026-09-21T12:00:00.000Z')
+    const pack = unrealListing('1', '43903', 'PAYDAY 3 Skip Startup', at)
+    const packInput = hostedInput(67497, 'Skip Startup.rar')
+    const packState = await registerDownloadable(db, pack, packInput, at)
+    await settleDownloadable(
+        db,
+        pack,
+        packState,
+        'complete',
+        [
+            ...['StartUp_Unreal.bk2', 'StartUp_DeepSilver.bk2', 'StartUp_SBZ.bk2'].map((name) => ({
+                sha256: 'blank-movie',
+                entryName: `PAYDAY3/Content/Movies/${name}`,
+                resource: blankMovie,
+            })),
+            { sha256: 'pack-pak', entryName: 'PAYDAY3/Content/Paks/~mods/Pack_P.pak' },
+        ],
+        at
+    )
+    assert.deepEqual(
+        (await pg.query('SELECT sha256, entry_name FROM files')).rows,
+        [{ sha256: 'pack-pak', entry_name: 'PAYDAY3/Content/Paks/~mods/Pack_P.pak' }],
+        'movies stay out of the compatibility files projection'
+    )
+    assert.deepEqual(
+        (
+            await pg.query<{ entry_name: string }>(
+                `SELECT entry_name FROM downloadable_entries
+                 WHERE sha256='blank-movie' AND resource_kind='movie' AND byte_length=64
+                 ORDER BY entry_name`
+            )
+        ).rows.map((row) => row.entry_name),
+        [
+            'PAYDAY3/Content/Movies/StartUp_DeepSilver.bk2',
+            'PAYDAY3/Content/Movies/StartUp_SBZ.bk2',
+            'PAYDAY3/Content/Movies/StartUp_Unreal.bk2',
+        ],
+        'one hash under three slot names keeps three observation entries'
+    )
+    assert.deepEqual(
+        (await pg.query(`SELECT source_filename, extraction_policy FROM downloadable_observations`))
+            .rows,
+        [{ source_filename: 'Skip Startup.rar', extraction_policy: UNREAL_EXTRACTION_POLICY }]
+    )
+    assert.equal(
+        (await pg.query("SELECT * FROM file_contents WHERE sha256='blank-movie'")).rows.length,
+        1,
+        'resource hashes satisfy the shared file_contents foreign key'
+    )
+
+    assert.equal(
+        needsProcessing(await registerDownloadable(db, pack, packInput, at), at),
+        false,
+        'an unchanged Unreal download is settled'
+    )
+    assert.equal(
+        needsProcessing(
+            await registerDownloadable(
+                db,
+                pack,
+                { ...packInput, sourceFilename: 'Skip Startup v2.rar' },
+                at
+            ),
+            at
+        ),
+        false,
+        'an archive label change reuses its observed content'
+    )
+    const restored = await registerDownloadable(db, pack, packInput, at)
+    await settleDownloadable(
+        db,
+        pack,
+        restored,
+        'complete',
+        [
+            ...['StartUp_Unreal.bk2', 'StartUp_DeepSilver.bk2', 'StartUp_SBZ.bk2'].map((name) => ({
+                sha256: 'blank-movie',
+                entryName: `PAYDAY3/Content/Movies/${name}`,
+                resource: blankMovie,
+            })),
+            { sha256: 'pack-pak', entryName: 'PAYDAY3/Content/Paks/~mods/Pack_P.pak' },
+        ],
+        at
+    )
+
+    const nextRelease = await registerDownloadable(db, pack, { ...packInput, version: '2' }, at)
+    assert.equal(needsProcessing(nextRelease, at), false)
+    await recordHostedVersion(db, pack, nextRelease, at)
+    assert.equal(
+        (
+            await pg.query(
+                `SELECT entry.* FROM downloadable_entries entry
+                 JOIN downloadable_observations observation ON observation.id=entry.observation_id
+                 WHERE observation.version='2' AND entry.resource_kind='movie'
+                   AND entry.byte_length=64
+                   AND observation.source_filename='Skip Startup.rar'
+                   AND observation.extraction_policy=$1`,
+                [UNREAL_EXTRACTION_POLICY]
+            )
+        ).rows.length,
+        3,
+        'a metadata-only release copies resource metadata with its entries'
+    )
+
+    const preset = unrealListing('1', '46831', 'Small UI', at)
+    const presetState = await registerDownloadable(
+        db,
+        preset,
+        hostedInput(7001, 'Small UI.zip'),
+        at
+    )
+    await settleDownloadable(
+        db,
+        preset,
+        presetState,
+        'complete',
+        ['6', '7', '8', '9'].map((scale) => ({
+            sha256: `engine-${scale}`,
+            entryName: `${scale}/Engine.ini`,
+            resource: { kind: 'config', byteLength: 66 } as const,
+        })),
+        at
+    )
+    assert.deepEqual(
+        (
+            await pg.query<{ supported_mods: string }>(
+                `SELECT COUNT(DISTINCT mods.id)::TEXT AS supported_mods
+                 FROM mods JOIN files ON files.mod_id = mods.id`
+            )
+        ).rows,
+        [{ supported_mods: '1' }],
+        'the published supportedMods statistic keeps counting mods with files'
+    )
+    assert.equal(
+        (await pg.query('SELECT * FROM mods WHERE remote_id=46831')).rows.length,
+        1,
+        'a resource-only project still has its metadata row'
+    )
+
+    const fileRows = (
+        await pg.query<SnapshotRow>(`SELECT mods.id::TEXT AS mod_id,
+            mods.remote_id::TEXT AS mod_remote_id, mods.name AS mod_name, mods.url AS mod_url,
+            files.id::TEXT AS file_id, files.sha256 AS file_sha256,
+            files.remote_id::TEXT AS file_remote_id, files.version AS file_version,
+            files.indexed_at AS file_indexed_at, files.entry_name AS file_entry_name
+          FROM files JOIN mods ON mods.id=files.mod_id ORDER BY files.id`)
+    ).rows
+    await retireMissingDownloadables(db, pack, 'file', [], at)
+    assert.equal(
+        (await pg.query("SELECT * FROM downloadable_entries WHERE sha256='blank-movie'")).rows
+            .length,
+        6,
+        'retiring a download keeps every release and slot name in Postgres'
+    )
+    const resources = (await pg.query<ResourceRow>(resourceRowsQuery, ['pd3'])).rows.sort(
+        compareResourceRows
+    )
+    assert.deepEqual(
+        resources.map((row) => [row.mod_remote_id, row.sha256, row.resource_kind, row.byte_length]),
+        [
+            ['43903', 'blank-movie', 'movie', '64'],
+            ['46831', 'engine-6', 'config', '66'],
+            ['46831', 'engine-7', 'config', '66'],
+            ['46831', 'engine-8', 'config', '66'],
+            ['46831', 'engine-9', 'config', '66'],
+        ],
+        'a retired download stays recognisable as one identity per project and hash'
+    )
+    assert.equal(
+        (await pg.query<ResourceRow>(resourceRowsQuery, ['cb'])).rows.length,
+        0,
+        'resource rows stay within their game'
+    )
+    const source = (
+        await pg.query<SnapshotSource>(`SELECT games.id::TEXT AS game_id, games.name AS game_name,
+            games.slug AS game_slug, sources.id::TEXT AS source_id, sources.name AS source_name,
+            sources.base_url AS source_base_url, sources.game_ref AS source_game_ref
+          FROM sources JOIN games ON games.id=sources.game_id WHERE games.slug='pd3'`)
+    ).rows[0]
+    const output = mkdtempSync(join(tmpdir(), 'modrex-resources-'))
+    try {
+        const snapshot = writeSnapshot(join(output, 'pd3.db'), 'pd3', source, fileRows, resources)
+        const sqlite = new Sqlite(snapshot, { readonly: true })
+        try {
+            assert.deepEqual(sqlite.pragma('foreign_key_check'), [])
+            assert.deepEqual(
+                sqlite
+                    .prepare(
+                        `SELECT m.remote_id, r.resource_kind, r.byte_length FROM resource_entries r
+                         JOIN mods m ON m.id = r.mod_id JOIN sources s ON s.id = m.source_id
+                         JOIN games g ON g.id = s.game_id
+                         WHERE r.sha256 = ? AND g.name = ?`
+                    )
+                    .raw()
+                    .all('blank-movie', 'PAYDAY 3'),
+                [[43903, 'movie', 64]],
+                'repeated names and releases export as one identity'
+            )
+            assert.deepEqual(
+                sqlite
+                    .prepare(
+                        `SELECT m.remote_id, m.name, f.remote_id, f.version FROM files f
+                         JOIN mods m ON m.id = f.mod_id JOIN sources s ON s.id = m.source_id
+                         JOIN games g ON g.id = s.game_id
+                         WHERE f.sha256 = ? AND g.name = ? ORDER BY f.id DESC`
+                    )
+                    .raw()
+                    .all('pack-pak', 'PAYDAY 3'),
+                [[43903, 'PAYDAY 3 Skip Startup', 67497, '1']],
+                'the existing desktop hash query reads the new shard unchanged'
+            )
+            assert.deepEqual(
+                sqlite
+                    .prepare(
+                        `SELECT DISTINCT m.remote_id FROM mods m JOIN files f ON f.mod_id = m.id
+                         WHERE m.name LIKE '%Small UI%'`
+                    )
+                    .all(),
+                [],
+                'a resource-only project is not an ordinary name match'
+            )
+        } finally {
+            sqlite.close()
+        }
+    } finally {
+        rmSync(output, { recursive: true, force: true })
+    }
+    await pg.close()
+}
+
+{
+    // PAYDAY 3 and Crime Boss rows settled under the marker policy string, as existing
+    // production rows are until they are processed again.
+    const { pg, db } = await unrealCatalog(7)
+    const settledAt = new Date('2099-01-01T00:00:00.000Z')
+    const listings = [
+        unrealListing('1', '10', 'PAYDAY 3 settled', settledAt),
+        unrealListing('1', '11', 'PAYDAY 3 overdue', settledAt),
+        unrealListing('2', '20', 'Crime Boss settled', settledAt),
+        unrealListing('2', '21', 'Crime Boss retired', settledAt),
+        unrealListing('3', '30', 'PAYDAY 2 settled', settledAt),
+    ]
+    for (const [index, listing] of listings.entries()) {
+        await pg.query(
+            `INSERT INTO mod_listings (source_id, remote_id, name, version, has_download,
+                bumped_at, updated_at, download_id, download_type)
+             VALUES ($1,$2,$3,'1',TRUE,$4,$4,NULL,NULL)`,
+            [listing.source_id, listing.remote_id, listing.name, listing.updated_at]
+        )
+        const state = await registerDownloadable(
+            db,
+            listing,
+            { ...hostedInput(500 + index, 'Old.zip'), policy: MARKER_EXTRACTION_POLICY },
+            settledAt
+        )
+        await settleDownloadable(db, listing, state, 'empty', [], settledAt)
+        await finishDiscovery(db, listing, [], true, settledAt)
+    }
+    await pg.exec(`
+        UPDATE mod_reconciliations SET next_reconcile_at='2000-01-01T00:00:00.000Z' WHERE remote_id=11;
+        UPDATE remote_downloadables SET retired_at='2098-01-01T00:00:00.000Z' WHERE mod_remote_id=21;
+    `)
+    const reconcileAt = async () =>
+        Object.fromEntries(
+            (
+                await pg.query<{ remote_id: string; next_reconcile_at: string }>(
+                    'SELECT remote_id::TEXT, next_reconcile_at FROM mod_reconciliations'
+                )
+            ).rows.map((row) => [row.remote_id, row.next_reconcile_at])
+        )
+    const before = await reconcileAt()
+    const observationsBefore = (await pg.query('SELECT * FROM downloadable_observations')).rows
+
+    assert.equal(migrations[7].version, '008_reopen_unreal_resources')
+    assert.ok(
+        migrations[7].statements[0].includes(`'${UNREAL_EXTRACTION_POLICY}'`),
+        'the reopening migration names the current Unreal policy'
+    )
+    for (const statement of migrations[7].statements) await pg.exec(statement)
+    const reopened = await reconcileAt()
+    const migratedAt = new Date().toISOString()
+    assert.ok(reopened['10'] <= migratedAt, 'a settled PAYDAY 3 listing is due')
+    assert.ok(reopened['20'] <= migratedAt, 'a settled Crime Boss listing is due')
+    assert.equal(reopened['11'], before['11'], 'an overdue listing keeps its earlier turn')
+    assert.equal(reopened['21'], before['21'], 'a retired download does not reopen its listing')
+    assert.equal(reopened['30'], before['30'], 'marker games are untouched')
+    assert.deepEqual(
+        (await pg.query('SELECT * FROM downloadable_observations')).rows,
+        observationsBefore,
+        'reopening deletes and rewrites no observation'
+    )
+    const selected = await selectContentListings(db, 'pd3', 10, new Date('2099-01-01T01:00:00Z'))
+    assert.deepEqual(selected.map((listing) => listing.remote_id).sort(), ['10', '11'])
+
+    const processedAt = new Date('2099-01-01T01:00:00.000Z')
+    const upgraded = await registerDownloadable(
+        db,
+        listings[0],
+        hostedInput(500, 'Old.zip'),
+        processedAt
+    )
+    assert.equal(
+        needsProcessing(upgraded, processedAt),
+        true,
+        'a download settled under the old policy is extracted again'
+    )
+    await settleDownloadable(db, listings[0], upgraded, 'empty', [], processedAt)
+    await finishDiscovery(db, listings[0], [], true, processedAt)
+    for (const statement of migrations[7].statements) await pg.exec(statement)
+    assert.equal(
+        (await reconcileAt())['10'],
+        '2099-01-08T01:00:00.000Z',
+        'rerunning the reopening statement leaves work observed under the new policy alone'
+    )
+    assert.equal(
+        needsProcessing(
+            await registerDownloadable(db, listings[0], hostedInput(500, 'Old.zip'), processedAt),
+            processedAt
+        ),
+        false,
+        'the reopened download is not reopened again'
+    )
+    await pg.close()
+}
+
+{
+    // Entries written under migration 007 carry Bink and INI verdicts. Compaction drops those
+    // columns and keeps every entry, observation and name.
+    const { pg, db } = await unrealCatalog(8)
+    await pg.exec(`
+        INSERT INTO mods (source_id, remote_id, name, url) VALUES (1, 1, 'Intro', 'u');
+        INSERT INTO file_contents (sha256) VALUES ('movie'), ('pak');
+        INSERT INTO remote_downloadables (
+            id, source_id, mod_remote_id, kind, remote_id, metadata_fingerprint, url, status,
+            first_seen_at, last_seen_at, retired_at
+        ) OVERRIDING SYSTEM VALUE VALUES (1, 1, 1, 'file', 1, 'm', 'u', 'complete', 't', 't', 't');
+        INSERT INTO downloadable_observations (
+            id, downloadable_id, metadata_fingerprint, content_fingerprint, version, outcome,
+            observed_at, source_filename, extraction_policy
+        ) OVERRIDING SYSTEM VALUE VALUES
+            (1, 1, 'm', 'c', '1', 'complete', 't', 'Intro.zip', '${UNREAL_EXTRACTION_POLICY}'),
+            (2, 1, 'm', 'c', '2', 'complete', 't', 'Intro.zip', '${UNREAL_EXTRACTION_POLICY}');
+        INSERT INTO downloadable_entries (
+            observation_id, sha256, entry_name, resource_kind, byte_length, detected_format,
+            validation_status
+        ) VALUES
+            (1, 'movie', 'Movies/A.bk2', 'movie', 64, 'bink1', 'valid'),
+            (1, 'movie', 'Movies/B.bk2', 'movie', 64, 'bink1', 'valid'),
+            (1, 'pak', 'Paks/Mod_P.pak', NULL, NULL, NULL, NULL),
+            (2, 'movie', 'Movies/A.bk2', 'movie', 64, 'unrecognized', 'invalid');
+    `)
+    const entries = async () =>
+        (
+            await pg.query(
+                `SELECT observation_id::TEXT, sha256, entry_name, resource_kind, byte_length::TEXT
+                 FROM downloadable_entries ORDER BY observation_id, entry_name`
+            )
+        ).rows
+    const observations = async () =>
+        (await pg.query('SELECT * FROM downloadable_observations ORDER BY id')).rows
+    const entriesBefore = await entries()
+    const observationsBefore = await observations()
+    assert.equal(entriesBefore.length, 4)
+
+    assert.equal(migrations[8].version, '009_compact_resource_entries')
+    await db.transaction(migrations[8].statements.map((text) => ({ text, values: [] })))
+    assert.deepEqual(await entries(), entriesBefore, 'compaction keeps every entry and release')
+    assert.deepEqual(
+        await observations(),
+        observationsBefore,
+        'source filenames and extraction policies are untouched'
+    )
+    await assert.rejects(
+        pg.query('SELECT detected_format FROM downloadable_entries'),
+        /column "detected_format" does not exist/
+    )
+    await assert.rejects(
+        pg.query('SELECT validation_status FROM downloadable_entries'),
+        /column "validation_status" does not exist/
+    )
+    await assert.rejects(
+        pg.exec(`INSERT INTO downloadable_entries (observation_id, sha256, entry_name, resource_kind)
+                 VALUES (1, 'movie', 'Movies/C.bk2', 'movie')`),
+        /downloadable_entries_resource_kind_length/,
+        'a resource needs its byte length'
+    )
+    await assert.rejects(
+        pg.exec(`INSERT INTO downloadable_entries (observation_id, sha256, entry_name, byte_length)
+                 VALUES (1, 'pak', 'Paks/Other.pak', 3)`),
+        /downloadable_entries_resource_kind_length/,
+        'a byte length belongs to a resource'
+    )
+    assert.deepEqual(
+        (await pg.query<ResourceRow>(resourceRowsQuery, ['pd3'])).rows.map((row) => [
+            row.sha256,
+            row.resource_kind,
+            row.byte_length,
+        ]),
+        [['movie', 'movie', '64']],
+        'rows migrated from 007 export as one retired, historical identity'
     )
     await pg.close()
 }

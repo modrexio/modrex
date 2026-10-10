@@ -10,6 +10,7 @@ export interface ModListing {
 
 export interface ModFile {
     id: number
+    name: string
     file: string
     size: number
     type: string
@@ -81,12 +82,31 @@ export function parseFile(value: unknown): ModFile {
         throw new Error('Invalid ModWorkshop file size')
     return {
         id: id(row.id),
+        name: row.name === null || row.name === undefined ? '' : string(row.name, 'name'),
         file: string(row.file, 'file'),
         size: row.size,
         type: row.type === null ? '' : string(row.type, 'type'),
         version: row.version === null ? '' : string(row.version, 'version'),
         download_url: string(row.download_url, 'download_url'),
     }
+}
+
+// An uploader chooses this name, so it is display data and never a path: only its last segment
+// survives, control characters are dropped, and a dot-only or blank name leaves nothing.
+function sanitizedFilename(value: string): string | null {
+    const segment = (value.split(/[\\/]/).pop() ?? '').replace(/[\u0000-\u001f\u007f]/g, '').trim()
+    if (!segment || segment === '.' || segment === '..') return null
+    return segment
+}
+
+// ModWorkshop names the uploaded file in the download URL's filename query, for example
+// ?filename=Club%20of%20the%20Necrodancer.pak, while the file's name field is an editable label
+// that can lack an extension. The label is used only when the URL carries no usable hint.
+export function hostedSourceFilename(file: ModFile): string | null {
+    const hint = URL.canParse(file.download_url)
+        ? new URL(file.download_url).searchParams.get('filename')
+        : null
+    return (hint === null ? null : sanitizedFilename(hint)) ?? sanitizedFilename(file.name)
 }
 
 export function parseLink(value: unknown): ModLink {

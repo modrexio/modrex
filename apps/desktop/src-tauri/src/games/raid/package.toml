@@ -3,6 +3,17 @@ name = "RAID: World War II"
 short_name = "RAID"
 mod_metadata = "diesel"
 
+graphics_config = {
+    filename = "renderer_settings_dx11.xml",
+    locations = [
+        {
+            root = "windows_local_app_data",
+            store = "steam",
+            path = ["RAID WW2", "renderer_settings_dx11.xml"],
+        },
+    ],
+}
+
 sources = [
     {
         provider = "modworkshop",

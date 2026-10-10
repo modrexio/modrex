@@ -178,6 +178,7 @@ export function useDragDrop({
         const srcMod = installed.find((m) => m.uid === item.uid)
         const targetMod = installed.find((m) => m.uid === uid)
         if (!srcMod || !targetMod) return null
+        if (srcMod.deployment || targetMod.deployment) return null
 
         // Secondary-target mods (e.g. mod_overrides) can only reorder within their own scope.
         if (srcMod.location && (srcMod.folderId ?? null) !== (targetMod.folderId ?? null))
@@ -213,7 +214,7 @@ export function useDragDrop({
         if (!item) return null
         if (item.kind === 'mod') {
             const srcMod = installed.find((m) => m.uid === item.uid)
-            if (srcMod?.location) return null
+            if (srcMod?.location || srcMod?.deployment) return null
             return { kind: 'into-folder', folderId }
         }
         // folder dragged over folder header: bottom half = nest inside, top half = reorder before
@@ -230,6 +231,7 @@ export function useDragDrop({
     ): DropTarget {
         const item = dragItemRef.current
         if (!item || item.kind !== 'folder') return null
+        if (installed.find((mod) => mod.uid === uid)?.deployment) return null
         const isBottom = clientY - rect.top > rect.height / 2
         return isBottom
             ? { kind: 'after-child', id: uid, itemType: 'mod', parentId }
@@ -240,7 +242,7 @@ export function useDragDrop({
         const item = dragItemRef.current
         if (!item || item.kind !== 'mod') return null
         const srcMod = installed.find((m) => m.uid === item.uid)
-        if (srcMod?.location) return null
+        if (srcMod?.location || srcMod?.deployment) return null
         return { kind: 'into-folder', folderId }
     }
 
@@ -305,6 +307,7 @@ export function useDragDrop({
         const srcMod = installed.find((m) => m.uid === srcRepUid)
         const targetMod = installed.find((m) => m.uid === targetRepUid)
         if (!srcMod || !targetMod) return
+        if (srcMod.deployment || targetMod.deployment) return
         const srcFolderId = srcMod.folderId ?? null
         const targetFolderId = targetMod.folderId ?? null
         const srcGroupMods = installed
@@ -313,7 +316,7 @@ export function useDragDrop({
 
         if (srcFolderId === targetFolderId) {
             const scopedMods = installed
-                .filter((m) => (m.folderId ?? null) === srcFolderId)
+                .filter((m) => !m.deployment && (m.folderId ?? null) === srcFolderId)
                 .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0))
             const withoutSrc = scopedMods.filter((m) => m.id !== srcMod.id)
             const targetGroupMods = withoutSrc.filter((m) => m.id === targetMod.id)
@@ -332,7 +335,12 @@ export function useDragDrop({
             )
         } else if (!srcMod.location) {
             const targetScopeMods = installed
-                .filter((m) => (m.folderId ?? null) === targetFolderId && m.id !== srcMod.id)
+                .filter(
+                    (m) =>
+                        !m.deployment &&
+                        (m.folderId ?? null) === targetFolderId &&
+                        m.id !== srcMod.id
+                )
                 .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0))
             const toIdx = targetScopeMods.findIndex((m) => m.uid === targetRepUid)
             const targetPosition = isBefore ? toIdx : toIdx + 1
@@ -351,7 +359,13 @@ export function useDragDrop({
     async function applyDropIntoFolder(srcRepUid: string, folderId: string) {
         if (!gamePath) return
         const srcMod = installed.find((m) => m.uid === srcRepUid)
-        if (!srcMod || (srcMod.folderId ?? null) === folderId || srcMod.location) return
+        if (
+            !srcMod ||
+            (srcMod.folderId ?? null) === folderId ||
+            srcMod.location ||
+            srcMod.deployment
+        )
+            return
         const srcGroupMods = installed.filter(
             (m) => (m.folderId ?? null) === (srcMod.folderId ?? null) && m.id === srcMod.id
         )
@@ -371,7 +385,11 @@ export function useDragDrop({
         if (!gamePath) return
         if (targetItemType === 'folder' && targetId === srcFolderId) return
 
-        const contextItems = computeChildren(installed, folders, parentId)
+        const contextItems = computeChildren(
+            installed.filter((mod) => !mod.deployment),
+            folders,
+            parentId
+        )
         const items: TopLevelItem[] = contextItems
             .filter((item) => !(item.type === 'folder' && item.folder.id === srcFolderId))
             .flatMap((item): TopLevelItem[] =>

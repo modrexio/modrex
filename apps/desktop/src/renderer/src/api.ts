@@ -3,7 +3,7 @@ import { getCurrentWindow } from '@tauri-apps/api/window'
 import { getCurrentWebview } from '@tauri-apps/api/webview'
 import {
     commands,
-    type InstallOutcome,
+    type InstallOutcome as BackendInstallOutcome,
     type LoaderPage,
     type LoaderPresence,
     type ReplacementPlan,
@@ -18,10 +18,10 @@ import type {
     PakAsset,
     SisrLaunchIssue,
     SisrStatus,
+    GameLaunchStatus,
 } from '../../shared/bindings'
 export type { LoaderPage, LoaderPresence, ReplacementPlan }
 export type {
-    InstallOutcome,
     DetectedInstall,
     LeftoverFiles,
     LoaderInfo,
@@ -33,6 +33,24 @@ export type {
     SisrLaunchIssue,
     SisrStatus,
 } from '../../shared/bindings'
+export type {
+    ResourceSelection,
+    ResourceRecognition,
+    MovieRecognitionScan,
+    ResourceRecoveryReview,
+    ConfigFileLocation,
+    PendingGameLaunch,
+    GameLaunchStatus,
+} from '../../shared/bindings'
+import type {
+    ResourceSelection,
+    ResourceReview as BackendResourceReview,
+} from '../../shared/bindings'
+import { isGameId, type GameId } from '../../shared/types'
+export type ResourceReview = Omit<BackendResourceReview, 'gameId'> & { gameId: GameId }
+import { requestResourceReview } from './resourceInstall'
+export type InstallOutcome =
+    Exclude<BackendInstallOutcome, { needsResourceReview: unknown }> | 'cancelled'
 
 // The library declares this union without exporting it.
 export type ResizeDirection = Parameters<
@@ -89,13 +107,19 @@ async function trackInstall(install: Promise<unknown>): Promise<void> {
     void commands.recordSuccessfulInstall(!installErrorThisSession)
 }
 
-async function trackInstallOutcome(install: Promise<InstallOutcome>): Promise<InstallOutcome> {
-    let outcome: InstallOutcome
+async function trackInstallOutcome(
+    install: Promise<BackendInstallOutcome>
+): Promise<InstallOutcome> {
+    let outcome: BackendInstallOutcome
     try {
         outcome = await install
     } catch (e) {
         installErrorThisSession = true
         throw e
+    }
+    if (typeof outcome === 'object' && outcome.needsResourceReview !== undefined) {
+        const installed = await requestResourceReview(outcome.needsResourceReview.reviewHandle)
+        return installed ? 'installed' : 'cancelled'
     }
     if (outcome === 'installed') {
         void commands.recordSuccessfulInstall(!installErrorThisSession)
@@ -117,6 +141,54 @@ function onEvent<T>(eventName: string, callback: (payload: T) => void): () => vo
 }
 
 export const api = {
+    inspectMovieResources(gameId: string) {
+        return commands.inspectMovieResources(gameId)
+    },
+    getEngineIniLocation(gameId: string) {
+        return commands.getEngineIniLocation(gameId)
+    },
+    openEngineIni(gameId: string) {
+        return commands.openEngineIni(gameId)
+    },
+    pickEngineIni(gameId: string, title: string, folder = false) {
+        return commands.pickEngineIni(gameId, title, folder)
+    },
+    getGraphicsConfigLocation(gameId: string) {
+        return commands.getGraphicsConfigLocation(gameId)
+    },
+    openGraphicsConfig(gameId: string) {
+        return commands.openGraphicsConfig(gameId)
+    },
+    pickGraphicsConfig(gameId: string, title: string) {
+        return commands.pickGraphicsConfig(gameId, title)
+    },
+    openResourceRecoveryFolder() {
+        return commands.openResourceRecoveryFolder()
+    },
+    async getResourceReview(reviewHandle: string): Promise<ResourceReview> {
+        const review = await commands.getResourceReview(reviewHandle)
+        if (!isGameId(review.gameId)) throw new Error('Resource review belongs to an unknown game.')
+        return { ...review, gameId: review.gameId }
+    },
+    installReviewedResources(reviewHandle: string, selections: ResourceSelection[]) {
+        return commands.installReviewedResources(reviewHandle, selections)
+    },
+    cancelResourceReview(reviewHandle: string) {
+        return commands.cancelResourceReview(reviewHandle)
+    },
+    // The game, install, archive and Nexus identity all come from the review on the Rust side.
+    installNexusReviewPak(reviewHandle: string, entryId: number, folderId: string | null) {
+        return trackInstall(commands.installNexusReviewPak({ reviewHandle, entryId, folderId }))
+    },
+    reviewResourceRecovery(gameId: GameId, uid: string | null) {
+        return commands.reviewResourceRecovery(gameId, uid)
+    },
+    keepCurrentResources(reviewHandle: string) {
+        return commands.keepCurrentResources(reviewHandle)
+    },
+    cancelResourceRecovery(reviewHandle: string) {
+        return commands.cancelResourceRecovery(reviewHandle)
+    },
     // ── Startup ────────────────────────────────────────────────────────────────
     async reportStartupPhase(phase: StartupPhase): Promise<void> {
         await commands.reportStartupPhase(phase)
@@ -301,12 +373,16 @@ export const api = {
         folders: ModFolder[]
         modsHidden: boolean
         stateUnreadable: boolean
+        resourceError?: string | null
+        resourceRecoveryPending: boolean
     }> {
         return commands.getInstalled(gameId) as unknown as Promise<{
             mods: InstalledMod[]
             folders: ModFolder[]
             modsHidden: boolean
             stateUnreadable: boolean
+            resourceError?: string | null
+            resourceRecoveryPending: boolean
         }>
     },
     async openModsFolder(gameId: string): Promise<void> {
@@ -594,6 +670,12 @@ export const api = {
     isGameRunning(gameId: string): Promise<boolean> {
         return commands.isGameRunning(gameId)
     },
+    getGameLaunchStatus(gameId: string): Promise<GameLaunchStatus> {
+        return commands.getGameLaunchStatus(gameId)
+    },
+    async cancelPendingGameLaunch(gameId: string): Promise<void> {
+        await commands.cancelPendingGameLaunch(gameId)
+    },
     async stopGame(gameId: string): Promise<void> {
         await commands.stopGame(gameId)
     },
@@ -670,6 +752,21 @@ export const api = {
     },
     onNxmInstallFailed(callback: (error: string) => void): () => void {
         return onEvent<string>('nxm:install-failed', callback)
+    },
+    onNxmReviewClosed(
+        callback: (info: { gameId: string; modId: number; fileId: number }) => void
+    ): () => void {
+        return onEvent<{ gameId: string; modId: number; fileId: number }>(
+            'nxm:review-closed',
+            callback
+        )
+    },
+    // An nxm download carrying movies or Engine.ini presets installs nothing until reviewed.
+    // nxm:install-complete follows only once something from the review is actually installed.
+    onNxmResourceReview(
+        callback: (info: { gameId: string; reviewHandle: string }) => void
+    ): () => void {
+        return onEvent<{ gameId: string; reviewHandle: string }>('nxm:resource-review', callback)
     },
     onUpdateAvailable(
         callback: (info: {

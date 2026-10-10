@@ -17,7 +17,7 @@ use serde::Serialize;
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
 
 static STEAM: Steam = Steam;
 static EPIC: Epic = Epic;
@@ -199,7 +199,7 @@ pub(crate) fn outside_bundle(cmd: &mut std::process::Command) -> &mut std::proce
     cmd
 }
 
-pub(super) fn open_url(url: &str) {
+pub(super) fn open_url(url: &str) -> Result<(), String> {
     // Never route this through cmd /c start: cmd re-parses its command line,
     // so a & in a query string truncates the URL there and executes what
     // follows as a command, and %..% sequences risk variable expansion.
@@ -213,10 +213,9 @@ pub(super) fn open_url(url: &str) {
         .spawn();
     #[cfg(not(target_os = "windows"))]
     let spawned = outside_bundle(std::process::Command::new("xdg-open").arg(url)).spawn();
-    // A missing xdg-open otherwise looks exactly like a dead button in the UI.
-    if let Err(e) = spawned {
-        log::warn!("could not hand a url to the system opener: {e}");
-    }
+    spawned
+        .map(|_| ())
+        .map_err(|e| format!("Could not hand a URL to the system opener: {e}"))
 }
 
 fn open_path_on_system(path: &str) {
@@ -237,21 +236,26 @@ pub fn identify_launcher_for_path(game_path: &str) -> String {
     "manual".to_string()
 }
 
-fn launch_with(launcher_id: &str, game: &'static GameDef, game_path: &str, opts: Option<&str>) {
+fn launch_with(
+    launcher_id: &str,
+    game: &'static GameDef,
+    game_path: &str,
+    opts: Option<&str>,
+) -> Result<(), String> {
     if let Some(launcher) = all_launchers().iter().find(|l| l.id() == launcher_id) {
-        launcher.launch(game, game_path, opts);
-    } else {
-        let exe_name = game
-            .resolve_executable(game_path)
-            .unwrap_or(game.executables[0]);
-        let exe = Path::new(game_path).join(exe_name);
-        let args: Vec<&str> = opts
-            .map(|o| o.split_whitespace().collect())
-            .unwrap_or_default();
-        if let Err(e) = outside_bundle(std::process::Command::new(&exe).args(&args)).spawn() {
-            log::warn!("launch_game: spawn failed: {e}");
-        }
+        return launcher.launch(game, game_path, opts);
     }
+    let exe_name = game
+        .resolve_executable(game_path)
+        .ok_or("The game executable could not be found in its configured folder")?;
+    let exe = Path::new(game_path).join(exe_name);
+    let args: Vec<&str> = opts
+        .map(|o| o.split_whitespace().collect())
+        .unwrap_or_default();
+    outside_bundle(std::process::Command::new(&exe).args(&args))
+        .spawn()
+        .map(|_| ())
+        .map_err(|e| format!("Could not launch the game: {e}"))
 }
 
 fn pd3_xbox_crash_reporter_dir(game_path: &Path) -> std::path::PathBuf {
@@ -359,7 +363,7 @@ enum Resolution {
     Settle,
 }
 
-fn is_store_launcher(id: &str) -> bool {
+pub(crate) fn is_store_launcher(id: &str) -> bool {
     all_launchers().iter().any(|launcher| launcher.id() == id)
 }
 
@@ -606,6 +610,90 @@ fn do_restore(game_path: &str, cfg: &crate::commands::mods::ModEngineConfig) -> 
     Ok(())
 }
 
+fn hide_package_mods(game_path: &str, cfg: &ModEngineConfig) -> Result<(), String> {
+    for (i, target) in cfg.targets.iter().enumerate() {
+        let mods_dir = mods_base(game_path, target);
+        let mods_bak = backup_dir(game_path, target);
+        if mods_bak.exists() || !mods_dir.exists() {
+            continue;
+        }
+        if !target.is_directory_unit() {
+            fs::rename(&mods_dir, &mods_bak).map_err(|error| {
+                format!("Could not hide the mods folder. Close the game and try again: {error}")
+            })?;
+            continue;
+        }
+        fs::create_dir(&mods_bak)
+            .map_err(|error| format!("Could not create the mods backup folder: {error}"))?;
+        let entries = fs::read_dir(&mods_dir)
+            .map_err(|error| format!("Could not inspect the mods folder: {error}"))?;
+        for entry in entries {
+            let entry =
+                entry.map_err(|error| format!("Could not inspect a mod folder: {error}"))?;
+            if !entry
+                .file_type()
+                .map_err(|error| format!("Could not inspect a mod folder: {error}"))?
+                .is_dir()
+            {
+                continue;
+            }
+            let name = entry.file_name();
+            let name = name.to_string_lossy();
+            // BLT needs base present. Excluded runtime folders are recreated while the game runs.
+            if (i == 0 && name == "base") || target.excluded_names().contains(&name.as_ref()) {
+                continue;
+            }
+            fs::rename(entry.path(), mods_bak.join(entry.file_name()))
+                .map_err(|error| format!("Could not hide mod {name}: {error}"))?;
+        }
+    }
+    Ok(())
+}
+
+fn restore_pending_packages(game_path: &str, cfg: &ModEngineConfig) -> Result<(), String> {
+    for target in cfg.targets {
+        if !target.is_directory_unit()
+            && backup_dir(game_path, target).exists()
+            && mods_base(game_path, target).exists()
+        {
+            return Err("A mods folder was recreated while its backup was hidden. Review both folders before restoring".into());
+        }
+    }
+    do_restore(game_path, cfg)?;
+    if cfg
+        .targets
+        .iter()
+        .any(|target| backup_dir(game_path, target).exists())
+    {
+        return Err("Some mod folders could not be restored. Their backup folders were kept for manual recovery".into());
+    }
+    Ok(())
+}
+
+fn launch_without_packages(
+    game_path: &str,
+    cfg: &ModEngineConfig,
+    launch: impl FnOnce() -> Result<(), String>,
+) -> Result<(), String> {
+    hide_package_mods(game_path, cfg)
+        .and_then(|()| launch())
+        .map_err(|error| match restore_pending_packages(game_path, cfg) {
+            Ok(()) => error,
+            Err(restore_error) => format!("{error}. {restore_error}"),
+        })
+}
+
+// Call with the resource write guard held and the game confirmed idle.
+pub(crate) fn restore_previous_vanilla_launch(
+    app: &AppHandle,
+    game_id: &str,
+) -> Result<bool, String> {
+    app.state::<crate::commands::mods::ResourceLocks>()
+        .restore_vanilla_launch(game_id, |path| {
+            restore_pending_packages(path, engine_for_game(game_id)?)
+        })
+}
+
 #[tauri::command]
 #[specta::specta]
 pub async fn launch_game(
@@ -614,26 +702,29 @@ pub async fn launch_game(
 ) -> Result<Option<crate::commands::sisr::SisrLaunchIssue>, String> {
     let game_id = game_id.as_str();
     let s = read_settings(&app);
-    let Some(gs) = game_settings(&s, game_id) else {
-        return Ok(None);
-    };
-    let Some(ref game_path) = gs.game_path else {
-        return Ok(None);
-    };
+    let gs = game_settings(&s, game_id).ok_or("The game is not configured")?;
+    let game_path = gs
+        .game_path
+        .as_ref()
+        .ok_or("The game folder is not configured")?;
     let cfg = engine_for_game(game_id)?;
+    // Resource recovery is never best effort, unlike the folder restore after it.
+    let launch = crate::commands::mods::resource_launch_preflight(&app, game_id).await?;
     let _ = do_restore(game_path, cfg);
     maybe_suppress_crash_reporter(game_id, gs);
     let sisr_issue = crate::commands::sisr::prepare_for_game_launch(s.auto_launch_sisr).await;
+    launch.handoff(|| {
+        launch_with(
+            gs.launcher.as_deref().unwrap_or("steam"),
+            game_def_for_id(game_id)?,
+            game_path,
+            Some(gs.launch_options.as_str()),
+        )
+    })?;
     crate::commands::analytics::track(
         &app,
         "game_launched",
         serde_json::json!({ "game": game_id, "launcher": gs.launcher.as_deref().unwrap_or("steam") }),
-    );
-    launch_with(
-        gs.launcher.as_deref().unwrap_or("steam"),
-        game_def_for_id(game_id)?,
-        game_path,
-        Some(gs.launch_options.as_str()),
     );
     Ok(sisr_issue)
 }
@@ -646,83 +737,45 @@ pub async fn launch_without_mods(
 ) -> Result<Option<crate::commands::sisr::SisrLaunchIssue>, String> {
     let game_id = game_id.as_str();
     let s = read_settings(&app);
-    let Some(gs) = game_settings(&s, game_id) else {
-        return Ok(None);
-    };
-    let Some(ref game_path) = gs.game_path else {
-        return Ok(None);
-    };
+    let gs = game_settings(&s, game_id).ok_or("The game is not configured")?;
+    let game_path = gs
+        .game_path
+        .as_ref()
+        .ok_or("The game folder is not configured")?;
 
     let cfg = engine_for_game(game_id)?;
-    for (i, target) in cfg.targets.iter().enumerate() {
-        let mods_dir = mods_base(game_path, target);
-        let mods_bak = backup_dir(game_path, target);
-
-        if mods_bak.exists() {
-            continue;
-        }
-
-        if target.is_directory_unit() {
-            if mods_dir.exists() {
-                fs::create_dir(&mods_bak).map_err(|e| {
-                    format!(
-                        "Could not create backup folder — try running as administrator. ({})",
-                        e.kind()
-                    )
-                })?;
-                if let Ok(entries) = fs::read_dir(&mods_dir) {
-                    for entry in entries.flatten() {
-                        if !entry.file_type().map(|t| t.is_dir()).unwrap_or(false) {
-                            continue;
-                        }
-                        let name = entry.file_name();
-                        let name = name.to_string_lossy();
-                        if i == 0 && name == "base" {
-                            continue; // BLT recreates base/ if missing, showing a "base mod missing" dialog
-                        }
-                        // Never back up runtime/infra folders (RAID's downloads/logs/saves): the
-                        // game recreates them in mods/ while running, so a restore would then fail
-                        // to rename the backed-up copy over the fresh one, stranding mods.bak and
-                        // pinning the "mods hidden" banner on forever.
-                        if target.excluded_names().contains(&name.as_ref()) {
-                            continue;
-                        }
-                        let _ = fs::rename(
-                            mods_dir.join(entry.file_name()),
-                            mods_bak.join(entry.file_name()),
-                        );
-                    }
-                }
-            }
-        } else if mods_dir.exists() {
-            fs::rename(&mods_dir, &mods_bak).map_err(|e| {
-                format!(
-                    "Could not hide mods folder — the game may still have files open. Close the game first and try again. ({})",
-                    e.kind()
-                )
-            })?;
-        }
-    }
-
+    // Package exclusion leaves movies and Engine.ini selected. Resource preflight still applies.
+    let launch = crate::commands::mods::resource_launch_preflight(&app, game_id).await?;
+    maybe_suppress_crash_reporter(game_id, gs);
+    let sisr_issue = crate::commands::sisr::prepare_for_game_launch(s.auto_launch_sisr).await;
+    launch.bind_hidden_mods(game_path);
+    launch.handoff(|| {
+        launch_without_packages(game_path, cfg, || {
+            launch_with(
+                gs.launcher.as_deref().unwrap_or("steam"),
+                game_def_for_id(game_id)?,
+                game_path,
+                Some(gs.launch_options.as_str()),
+            )
+        })
+    })?;
     crate::commands::analytics::track(
         &app,
         "launch_without_mods",
         serde_json::json!({ "game": game_id, "launcher": gs.launcher.as_deref().unwrap_or("steam") }),
-    );
-    maybe_suppress_crash_reporter(game_id, gs);
-    let sisr_issue = crate::commands::sisr::prepare_for_game_launch(s.auto_launch_sisr).await;
-    launch_with(
-        gs.launcher.as_deref().unwrap_or("steam"),
-        game_def_for_id(game_id)?,
-        game_path,
-        Some(gs.launch_options.as_str()),
     );
     Ok(sisr_issue)
 }
 
 #[tauri::command]
 #[specta::specta]
-pub fn restore_mods(app: AppHandle, game_id: String) -> Result<(), String> {
+pub async fn restore_mods(app: AppHandle, game_id: String) -> Result<(), String> {
+    let locks = app.state::<crate::commands::mods::ResourceLocks>();
+    let _guard = locks.acquire().await;
+    crate::commands::mods::require_resource_game_idle(&app, &game_id).await?;
+    if restore_previous_vanilla_launch(&app, &game_id)? {
+        return Ok(());
+    }
     let game_id = game_id.as_str();
     let s = read_settings(&app);
     let Some(gs) = game_settings(&s, game_id) else {
@@ -732,7 +785,7 @@ pub fn restore_mods(app: AppHandle, game_id: String) -> Result<(), String> {
         return Ok(());
     };
     let cfg = engine_for_game(game_id)?;
-    do_restore(game_path, cfg)
+    restore_pending_packages(game_path, cfg)
 }
 
 // Native process enumeration (NtQuerySystemInformation on Windows, /proc elsewhere). It
@@ -765,18 +818,77 @@ fn process_matches(p: &sysinfo::Process, process_name: &str) -> bool {
     matches_process(&p.name().to_string_lossy(), &cmd, process_name)
 }
 
+/// Blocking process check, shared with the resource writers that must not run under the game.
+pub(crate) fn game_running(game_id: &str) -> Result<bool, String> {
+    let process_names = game_def_for_id(game_id)?.process_names;
+    let sys = refresh_process_list();
+    Ok(sys
+        .processes()
+        .values()
+        .any(|p| process_names.iter().any(|n| process_matches(p, n))))
+}
+
 #[tauri::command]
 #[specta::specta]
 pub async fn is_game_running(game_id: String) -> Result<bool, String> {
-    let process_names = game_def_for_id(game_id.as_str())?.process_names;
-    tauri::async_runtime::spawn_blocking(move || {
-        let sys = refresh_process_list();
-        sys.processes()
-            .values()
-            .any(|p| process_names.iter().any(|n| process_matches(p, n)))
+    tauri::async_runtime::spawn_blocking(move || game_running(&game_id))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+#[derive(Debug, Serialize, specta::Type)]
+pub struct GameLaunchStatus {
+    pub running: bool,
+    pub pending: Option<crate::commands::mods::PendingGameLaunch>,
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn get_game_launch_status(
+    app: AppHandle,
+    game_id: String,
+) -> Result<GameLaunchStatus, String> {
+    game_def_for_id(&game_id)?;
+    let locks = app.state::<crate::commands::mods::ResourceLocks>();
+    let pending = locks.pending_launch(&game_id);
+    let id = game_id.clone();
+    let running = tauri::async_runtime::spawn_blocking(move || game_running(&id))
+        .await
+        .map_err(|error| error.to_string())??;
+    Ok(GameLaunchStatus {
+        running,
+        pending: locks.observe_launch(&game_id, pending.as_ref(), running),
     })
-    .await
-    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn cancel_pending_game_launch(app: AppHandle, game_id: String) -> Result<(), String> {
+    game_def_for_id(&game_id)?;
+    let locks = app.state::<crate::commands::mods::ResourceLocks>();
+    if locks
+        .pending_launch(&game_id)
+        .is_some_and(|pending| pending.state == crate::commands::mods::PendingGameLaunch::Preparing)
+    {
+        return Err("Wait for Modrex to finish preparing the game launch".into());
+    }
+    let _guard = locks.acquire().await;
+    let pending = locks
+        .pending_launch(&game_id)
+        .ok_or("The pending launch ended while it was checked. Check the game again")?;
+    let id = game_id.clone();
+    let running = tauri::async_runtime::spawn_blocking(move || game_running(&id))
+        .await
+        .map_err(|error| error.to_string())??;
+    if running {
+        return Err("Close the game before resetting its pending launch".into());
+    }
+    locks.cancel_pending_launch(&game_id, &pending, |pending| {
+        if let Some(path) = &pending.hidden_mods_path {
+            restore_pending_packages(path, engine_for_game(&game_id)?)?;
+        }
+        Ok(())
+    })
 }
 
 #[tauri::command]
@@ -809,7 +921,9 @@ fn sanitize_external_url(url: &str) -> Option<&str> {
 #[specta::specta]
 pub fn shell_open_external(url: String) {
     if let Some(safe) = sanitize_external_url(&url) {
-        open_url(safe);
+        if let Err(error) = open_url(safe) {
+            log::warn!("shell_open_external: {error}");
+        }
     }
 }
 

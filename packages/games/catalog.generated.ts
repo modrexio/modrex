@@ -6,11 +6,14 @@ export const GAME_SPECS = {
     cb: {
         name: 'Crime Boss: Rockay City',
         shortName: 'CBRC',
+        modMetadata: 'none',
         workshopId: 857,
         nexusDomain: 'crimebossrockaycity',
         storageKey: 'cb',
         hasNews: false,
         supportsPackageViewer: true,
+        movieReplacement: { extension: 'bk2', storefronts: ['steam', 'epic'] },
+        configPresets: { filename: 'Engine.ini' },
         launchers: ['Steam', 'Epic Games'],
         modTargets: [
             { id: 'mods', path: 'CrimeBoss/Mods' },
@@ -21,11 +24,13 @@ export const GAME_SPECS = {
     pd2: {
         name: 'PAYDAY 2',
         shortName: 'PD2',
+        modMetadata: 'diesel',
         workshopId: 1,
         nexusDomain: 'payday2',
         storageKey: 'pd2',
         hasNews: true,
         supportsPackageViewer: false,
+        graphicsConfig: { filename: 'renderer_settings_dx11.xml' },
         launchers: ['Steam', 'Epic Games'],
         modTargets: [
             { id: 'mods', path: 'mods' },
@@ -35,11 +40,14 @@ export const GAME_SPECS = {
     pd3: {
         name: 'PAYDAY 3',
         shortName: 'PD3',
+        modMetadata: 'none',
         workshopId: 853,
         nexusDomain: 'payday3',
         storageKey: 'pd3',
         hasNews: true,
         supportsPackageViewer: true,
+        movieReplacement: { extension: 'bk2', storefronts: ['steam', 'epic'] },
+        configPresets: { filename: 'Engine.ini' },
         launchers: ['Steam', 'Epic Games', 'Xbox App'],
         modTargets: [
             { id: 'paks', path: 'PAYDAY3/Content/Paks/~mods' },
@@ -49,11 +57,13 @@ export const GAME_SPECS = {
     pdth: {
         name: 'PAYDAY: The Heist',
         shortName: 'PDTH',
+        modMetadata: 'diesel',
         workshopId: 2,
         nexusDomain: 'paydaytheheist',
         storageKey: 'pdth',
         hasNews: true,
         supportsPackageViewer: false,
+        graphicsConfig: { filename: 'renderer_settings.xml' },
         launchers: ['Steam'],
         modTargets: [
             { id: 'mods', path: 'mods' },
@@ -63,10 +73,12 @@ export const GAME_SPECS = {
     raid: {
         name: 'RAID: World War II',
         shortName: 'RAID',
+        modMetadata: 'diesel',
         workshopId: 543,
         storageKey: 'raid',
         hasNews: false,
         supportsPackageViewer: false,
+        graphicsConfig: { filename: 'renderer_settings_dx11.xml' },
         launchers: ['Steam'],
         modTargets: [
             { id: 'mods', path: 'mods' },

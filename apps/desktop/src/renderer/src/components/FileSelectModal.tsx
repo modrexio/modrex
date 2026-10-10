@@ -1,7 +1,13 @@
 import { ScrollArea } from './ScrollArea'
 import { useState, useEffect, useRef } from 'react'
 import { Button } from './ui/Button'
-import type { ModFile, InstalledMod, Mod } from '../../../shared/types'
+import {
+    GAMES,
+    type GameId,
+    type ModFile,
+    type InstalledMod,
+    type Mod,
+} from '../../../shared/types'
 import { Dialog, DialogHeader } from './Dialog'
 import { t } from '../i18n'
 import { NonPakConfirmModal } from './NonPakConfirmModal'
@@ -16,7 +22,7 @@ interface Props {
     files: ModFile[]
     gamePath: string | null
     installedFiles: InstalledMod[]
-    gameId: string
+    gameId: GameId
     onRefreshInstalled: () => Promise<void>
     onClose: () => void
 }
@@ -69,7 +75,11 @@ export function FileSelectModal({
         const toInstall = files.filter(
             (f) => selectedIds.has(f.id) && !installedFiles.some((m) => m.fileId === f.id)
         )
-        if (toInstall.some((f) => isUnsupportedFormat(f.type, f.download_url))) {
+        if (
+            toInstall.some((f) =>
+                isUnsupportedFormat(GAMES[gameId], f.type, f.download_url, f.name)
+            )
+        ) {
             setShowFormatWarning(true)
             return
         }
@@ -181,6 +191,7 @@ export function FileSelectModal({
                         const isInstalled = installedFiles.some((m) => m.fileId === file.id)
                         return (
                             <FileRow
+                                gameId={gameId}
                                 key={file.id}
                                 file={file}
                                 checked={isInstalled || selectedIds.has(file.id)}

@@ -55,5 +55,5 @@ pub trait Launcher: Send + Sync {
     fn is_installed(&self) -> bool;
     fn find_game(&self, game: &GameDef) -> Option<String>;
     fn identify_path(&self, game_path: &str) -> bool;
-    fn launch(&self, game: &GameDef, game_path: &str, opts: Option<&str>);
+    fn launch(&self, game: &GameDef, game_path: &str, opts: Option<&str>) -> Result<(), String>;
 }

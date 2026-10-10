@@ -3,6 +3,17 @@ name = "PAYDAY: The Heist"
 short_name = "PDTH"
 mod_metadata = "diesel"
 
+graphics_config = {
+    filename = "renderer_settings.xml",
+    locations = [
+        {
+            root = "windows_local_app_data",
+            store = "steam",
+            path = ["PAYDAY", "renderer_settings.xml"],
+        },
+    ],
+}
+
 sources = [
     {
         provider = "modworkshop",

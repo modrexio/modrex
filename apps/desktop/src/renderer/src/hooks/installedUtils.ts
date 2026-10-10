@@ -39,6 +39,7 @@ export function hasCatalogLink(m: InstalledMod): boolean {
 // The stable grouping key for one project: several installed files of the same mod belong
 // together. Falls back to the installed record while a mod has no resolved identity.
 export function identityKey(m: InstalledMod): string {
+    if (m.deployment) return `resource:${m.deployment}:${m.uid}`
     const identity = m.identity
     if (identity && isIdentified(m)) return `identity:${identity.namespace}:${identity.key}`
     return hasCatalogLink(m) ? `id:${m.id}` : `uid:${m.uid}`
@@ -155,7 +156,7 @@ export function normalizeModScopes(mods: InstalledMod[]): InstalledMod[] {
     for (const m of mods) {
         // Keyed on the installed record, so this is about catalog installs that split across
         // folders, not about which project a mod belongs to.
-        if (!hasCatalogLink(m)) continue
+        if (m.deployment || !hasCatalogLink(m)) continue
         const g = groups.get(m.id)
         if (g) g.push(m)
         else groups.set(m.id, [m])
@@ -234,7 +235,7 @@ export function computeHealthSummary(mods: InstalledMod[]): HealthSummary {
         // Mods whose identity could not be established from their own files or any catalog.
         // A mod published outside every supported catalog is not one of these: Modrex knows
         // what it is, it just cannot offer catalog features for it.
-        unidentified: groups.filter((g) => g.mods.every((m) => !isIdentified(m))),
+        unidentified: groups.filter((g) => g.mods.every((m) => !m.deployment && !isIdentified(m))),
     }
 }
 
@@ -259,7 +260,8 @@ export function findSuspectDuplicateGroups(mods: InstalledMod[]): SuspectFileGro
         // modworkshop's own install paths (install_mod/install_file/install_from_zip_entry
         // in mod.rs). It has no meaning for a Nexus-sourced entry's uid scheme.
         const isModworkshop = !m.source || m.source === 'modworkshop'
-        if (!isModworkshop || !hasCatalogLink(m) || m.location || m.fileId == null) continue
+        if (m.deployment || !isModworkshop || !hasCatalogLink(m) || m.location || m.fileId == null)
+            continue
         const g = byFileId.get(m.fileId)
         if (g) g.push(m)
         else byFileId.set(m.fileId, [m])
@@ -306,10 +308,11 @@ export function computeChildren(
     hiddenFolderIds?: Set<string>
 ): ChildEntry[] {
     const scopedMods = mods.filter((m) => (m.folderId ?? null) === parentId)
-    const groupMap = new Map<number, InstalledMod[]>()
+    const groupMap = new Map<string, InstalledMod[]>()
     for (const m of scopedMods) {
-        if (!groupMap.has(m.id)) groupMap.set(m.id, [])
-        groupMap.get(m.id)!.push(m)
+        const key = m.deployment ? identityKey(m) : String(m.id)
+        if (!groupMap.has(key)) groupMap.set(key, [])
+        groupMap.get(key)!.push(m)
     }
     const items: ChildEntry[] = []
     for (const groupMods of groupMap.values()) {

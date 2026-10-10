@@ -70,6 +70,9 @@ fn a_discovered_spec_resolves_its_package() {
         assert_eq!(spec.def.name, pkg.name);
         assert_eq!(owned(spec.def.executables), pkg.install.executables);
         assert_eq!(owned(spec.def.process_names), pkg.install.processes);
+        assert_eq!(spec.movie_replacement, pkg.movie_replacement.as_ref());
+        assert_eq!(spec.config_presets, pkg.config_presets.as_ref());
+        assert_eq!(spec.graphics_config, pkg.graphics_config.as_ref());
 
         for store in &pkg.install.stores {
             match store {
@@ -217,6 +220,115 @@ fn a_discovered_spec_resolves_its_package() {
                 _ => panic!("{} target {} changed unit kind", pkg.id, target.tag),
             }
         }
+    }
+}
+
+#[test]
+fn store_executables_are_covered_by_declared_running_processes() {
+    for (_, pkg) in crate::games::discovered() {
+        for executable in pkg
+            .install
+            .stores
+            .iter()
+            .filter_map(package::StoreBinding::own_executable)
+        {
+            let filename = executable.rsplit(['/', '\\']).next().unwrap();
+            assert!(
+                pkg.install
+                    .processes
+                    .iter()
+                    .any(|process| filename.starts_with(process)),
+                "{} does not recognise the running store executable {filename}",
+                pkg.id
+            );
+        }
+    }
+}
+
+#[test]
+fn resource_declarations_follow_a_new_package_without_a_game_id_branch() {
+    let mut pkg = crate::games::discovered()
+        .iter()
+        .find(|(_, pkg)| pkg.movie_replacement.is_some() && pkg.config_presets.is_some())
+        .unwrap()
+        .1
+        .clone();
+    pkg.id = "new_game".into();
+    pkg.name = "New game".into();
+    pkg.package_reader = None;
+    pkg.loaders.clear();
+    pkg.mod_metadata = ModMetadata::Diesel;
+    let pkg = Box::leak(Box::new(pkg));
+    let spec = spec_from(pkg);
+    assert_eq!(spec.id, "new_game");
+    assert!(std::ptr::eq(
+        spec.movie_replacement.unwrap(),
+        pkg.movie_replacement.as_ref().unwrap()
+    ));
+    assert!(std::ptr::eq(
+        spec.config_presets.unwrap(),
+        pkg.config_presets.as_ref().unwrap()
+    ));
+}
+
+#[test]
+fn movie_and_config_resources_are_independent_in_the_adapter() {
+    let pkg = crate::games::discovered()
+        .iter()
+        .find(|(_, pkg)| pkg.movie_replacement.is_some() && pkg.config_presets.is_some())
+        .unwrap()
+        .1
+        .clone();
+    let mut movie_only = pkg.clone();
+    movie_only.config_presets = None;
+    let spec = spec_from(Box::leak(Box::new(movie_only)));
+    assert!(spec.movie_replacement.is_some());
+    assert!(spec.config_presets.is_none());
+    let mut config_only = pkg;
+    config_only.movie_replacement = None;
+    let spec = spec_from(Box::leak(Box::new(config_only)));
+    assert!(spec.movie_replacement.is_none());
+    assert!(spec.config_presets.is_some());
+}
+
+#[test]
+fn graphics_config_access_follows_a_new_package_without_enabling_presets() {
+    let mut pkg = crate::games::discovered()
+        .iter()
+        .find(|(_, pkg)| pkg.graphics_config.is_some())
+        .unwrap()
+        .1
+        .clone();
+    pkg.id = "new_graphics_game".into();
+    let pkg = Box::leak(Box::new(pkg));
+    let spec = spec_from(pkg);
+    assert_eq!(spec.id, "new_graphics_game");
+    assert!(std::ptr::eq(
+        spec.graphics_config.unwrap(),
+        pkg.graphics_config.as_ref().unwrap()
+    ));
+    assert!(spec.config_presets.is_none());
+    assert!(spec.movie_replacement.is_none());
+}
+
+#[test]
+fn diesel_graphics_config_access_names_only_verified_windows_steam_files() {
+    for (id, directory, filename) in [
+        ("pd2", "PAYDAY 2", "renderer_settings_dx11.xml"),
+        ("pdth", "PAYDAY", "renderer_settings.xml"),
+        ("raid", "RAID WW2", "renderer_settings_dx11.xml"),
+    ] {
+        let spec = game_spec(id).unwrap();
+        let config = spec.graphics_config.unwrap();
+        assert_eq!(config.filename, filename);
+        assert_eq!(
+            config.locations,
+            [package::ConfigLocation::WindowsLocalAppData {
+                store: package::Storefront::Steam,
+                path: vec![directory.into(), filename.into()],
+            }]
+        );
+        assert!(spec.config_presets.is_none());
     }
 }
 
@@ -502,7 +614,10 @@ fn pd3_keeps_its_launch_and_storefront_metadata() {
     assert_eq!(spec.engine.mod_metadata, ModMetadata::None);
     assert_eq!(spec.def.name, "PAYDAY 3");
     assert_eq!(spec.def.executables, ["PAYDAY3.exe"]);
-    assert_eq!(spec.def.process_names, ["PAYDAY3-Win64-Shipping"]);
+    assert_eq!(
+        spec.def.process_names,
+        ["PAYDAY3-Win64-Shipping", "PAYDAY3-WinGDK-Shipping"]
+    );
 
     let steam = spec.def.steam.as_ref().expect("pd3 ships on steam");
     assert_eq!(steam.app_id, 1272080);

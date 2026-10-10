@@ -222,4 +222,69 @@ export const migrations: Migration[] = [
             )`,
         ],
     },
+    {
+        // Additive only. Rows observed before this migration keep NULL resource metadata, a NULL
+        // hosted filename and a NULL extraction policy, which read as "not collected under a
+        // policy that records resources", never as a value.
+        version: '007_unreal_resource_entries',
+        statements: [
+            'ALTER TABLE remote_downloadables ADD COLUMN source_filename TEXT',
+            'ALTER TABLE downloadable_observations ADD COLUMN source_filename TEXT',
+            'ALTER TABLE downloadable_observations ADD COLUMN extraction_policy TEXT',
+            `ALTER TABLE downloadable_entries
+                ADD COLUMN resource_kind TEXT CHECK (resource_kind IN ('movie', 'config'))`,
+            'ALTER TABLE downloadable_entries ADD COLUMN byte_length BIGINT CHECK (byte_length >= 0)',
+            'ALTER TABLE downloadable_entries ADD COLUMN detected_format TEXT',
+            `ALTER TABLE downloadable_entries ADD COLUMN validation_status TEXT
+                CHECK (validation_status IN ('valid', 'unsupported', 'invalid'))`,
+            `ALTER TABLE downloadable_entries ADD CONSTRAINT downloadable_entries_resource_metadata
+                CHECK (
+                    (resource_kind IS NULL AND byte_length IS NULL
+                        AND detected_format IS NULL AND validation_status IS NULL)
+                    OR (resource_kind IS NOT NULL AND byte_length IS NOT NULL
+                        AND detected_format IS NOT NULL AND validation_status IS NOT NULL)
+                )`,
+        ],
+    },
+    {
+        // A settled hosted file is re-extracted only when its listing is selected. This makes a
+        // PAYDAY 3 or Crime Boss listing due while a current hosted file has no observation under
+        // the resource policy. LEAST keeps overdue listings ahead, and a file observed under the
+        // policy no longer qualifies, so rerunning the statement is harmless.
+        version: '008_reopen_unreal_resources',
+        statements: [
+            `UPDATE mod_reconciliations
+             SET next_reconcile_at = LEAST(
+                 next_reconcile_at,
+                 to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')
+             )
+             WHERE (source_id, remote_id) IN (
+                 SELECT downloadable.source_id, downloadable.mod_remote_id
+                 FROM remote_downloadables downloadable
+                 JOIN sources ON sources.id = downloadable.source_id
+                 JOIN games ON games.id = sources.game_id
+                 WHERE games.slug IN ('pd3', 'cb')
+                   AND sources.name = 'modworkshop'
+                   AND downloadable.kind = 'file'
+                   AND downloadable.retired_at IS NULL
+                   AND NOT EXISTS (
+                       SELECT 1 FROM downloadable_observations observation
+                       WHERE observation.downloadable_id = downloadable.id
+                         AND observation.extraction_policy = 'unreal-content-v1-resources-v1'
+                   )
+             )`,
+        ],
+    },
+    {
+        // Recognition needs only the resource kind and byte length, and the desktop validates
+        // bytes before installing. Every entry row and its history stay in place.
+        version: '009_compact_resource_entries',
+        statements: [
+            'ALTER TABLE downloadable_entries DROP CONSTRAINT downloadable_entries_resource_metadata',
+            'ALTER TABLE downloadable_entries DROP COLUMN detected_format',
+            'ALTER TABLE downloadable_entries DROP COLUMN validation_status',
+            `ALTER TABLE downloadable_entries ADD CONSTRAINT downloadable_entries_resource_kind_length
+                CHECK ((resource_kind IS NULL) = (byte_length IS NULL))`,
+        ],
+    },
 ]

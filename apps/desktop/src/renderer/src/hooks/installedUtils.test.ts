@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import type { InstalledMod, ModFolder } from '../../../shared/types'
 import {
+    identityKey,
     displayFilename,
     entryFilename,
     stripPriorityPrefix,
@@ -22,6 +23,21 @@ import {
     type ChildEntry,
     type ChildGroup,
 } from './installedUtils'
+
+describe('resource deployment grouping', () => {
+    it('keeps presets and movie selections apart from paks from the same project', () => {
+        const pak = makeMod('pak', 100, 'Pack', catalogIdentity('100'))
+        const movie = { ...pak, uid: 'resource:movie', deployment: 'movie' as const }
+        const ini = { ...pak, uid: 'resource:ini', deployment: 'ini' as const }
+        expect(new Set([pak, movie, ini].map(identityKey)).size).toBe(3)
+        expect(computeChildren([pak, movie, ini], [], null)).toHaveLength(3)
+    })
+
+    it('does not offer a custom resource the ordinary unidentified repair flow', () => {
+        const movie = makeMod('resource:custom', 0, 'Custom intro', { deployment: 'movie' })
+        expect(computeHealthSummary([movie]).unidentified).toEqual([])
+    })
+})
 
 function catalogIdentity(remoteId: string, source = 'modworkshop'): Partial<InstalledMod> {
     return {

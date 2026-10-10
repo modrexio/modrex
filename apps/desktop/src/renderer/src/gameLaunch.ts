@@ -1,12 +1,14 @@
 import { error as logError } from '@tauri-apps/plugin-log'
 import type { GameId } from '../../shared/types'
-import { api, type SisrLaunchIssue } from './api'
+import { api, type PendingGameLaunch, type SisrLaunchIssue } from './api'
 import { refreshInstalled } from './gameData'
+import { t } from './i18n'
 
 type LaunchMode = 'modded' | 'vanilla'
 interface LaunchState {
     running: boolean
     launching: LaunchMode | null
+    pending: PendingGameLaunch | null
     error: string | null
     warning: SisrLaunchIssue | null
 }
@@ -16,12 +18,17 @@ interface LaunchSession {
     timer: ReturnType<typeof setTimeout> | null
     checking: boolean
     pendingRestore: boolean
-    launchPending: boolean
-    startedAt: number | null
-    missedChecks: number
+    operationPending: boolean
+    request: number
 }
 
-const empty: LaunchState = { running: false, launching: null, error: null, warning: null }
+const empty: LaunchState = {
+    running: false,
+    launching: null,
+    pending: null,
+    error: null,
+    warning: null,
+}
 const sessions = new Map<GameId, LaunchSession>()
 
 function sessionFor(gameId: GameId): LaunchSession {
@@ -33,9 +40,8 @@ function sessionFor(gameId: GameId): LaunchSession {
         timer: null,
         checking: false,
         pendingRestore: false,
-        launchPending: false,
-        startedAt: null,
-        missedChecks: 0,
+        operationPending: false,
+        request: 0,
     }
     sessions.set(gameId, session)
     return session
@@ -51,19 +57,23 @@ function update(session: LaunchSession, patch: Partial<LaunchState>) {
 }
 
 function reportError(session: LaunchSession, error: unknown) {
-    update(session, { error: String(error), launching: null })
+    update(session, { error: String(error) })
     void logError('Game launch operation failed: ' + String(error))
 }
 
 function schedule(gameId: GameId, session: LaunchSession) {
-    if (session.timer || session.checking) return
     if (
         session.listeners.size === 0 &&
         !session.pendingRestore &&
-        !session.launchPending &&
-        !session.state.launching
-    )
+        !session.operationPending &&
+        !session.state.launching &&
+        !session.state.pending
+    ) {
+        if (session.timer) clearTimeout(session.timer)
+        session.timer = null
         return
+    }
+    if (session.timer || session.checking) return
     session.timer = setTimeout(() => {
         session.timer = null
         void check(gameId, session)
@@ -73,26 +83,28 @@ function schedule(gameId: GameId, session: LaunchSession) {
 async function check(gameId: GameId, session: LaunchSession) {
     if (session.checking) return
     session.checking = true
+    const current = session.request
     try {
-        const running = await api.isGameRunning(gameId)
-        if (session.launchPending && !running) return
+        const { running, pending } = await api.getGameLaunchStatus(gameId)
+        if (current !== session.request) return
+        if (session.operationPending && !running) return
         const stopped = session.state.running && !running
-        const timedOut = session.startedAt !== null && Date.now() - session.startedAt >= 60_000
-        if (session.state.running !== running) update(session, { running })
-        if (!running && session.state.launching) session.missedChecks++
-        if (running || timedOut || session.missedChecks >= 3) {
-            session.startedAt = null
-            if (session.state.launching) update(session, { launching: null })
-        }
-        if (!stopped) return
-        session.startedAt = null
+        const launching = running || !pending ? null : session.state.launching
+        if (
+            session.state.running !== running ||
+            session.state.pending !== pending ||
+            session.state.launching !== launching
+        )
+            update(session, { running, pending, launching })
+        if (running || pending) return
+        const refresh = stopped || session.pendingRestore
         if (session.pendingRestore) {
             session.pendingRestore = false
             await api.restoreMods(gameId)
         }
-        await refreshInstalled(gameId)
+        if (refresh) await refreshInstalled(gameId)
     } catch (error) {
-        reportError(session, error)
+        if (current === session.request) reportError(session, error)
     } finally {
         session.checking = false
         schedule(gameId, session)
@@ -105,24 +117,28 @@ export function subscribeLaunchState(gameId: GameId, listener: () => void) {
     void check(gameId, session)
     return () => {
         session.listeners.delete(listener)
-        if (
-            session.listeners.size ||
-            session.pendingRestore ||
-            session.launchPending ||
-            session.state.launching
-        )
-            return
-        if (session.timer) clearTimeout(session.timer)
-        session.timer = null
+        schedule(gameId, session)
+    }
+}
+
+async function refreshLaunchFailure(gameId: GameId, failure: unknown): Promise<unknown> {
+    try {
+        await refreshInstalled(gameId)
+        return failure
+    } catch (refreshFailure) {
+        return `${String(failure)}\n${String(refreshFailure)}`
     }
 }
 
 export async function launchGame(gameId: GameId, mode: LaunchMode) {
     const session = sessionFor(gameId)
-    session.launchPending = true
-    session.startedAt = Date.now()
-    session.missedChecks = 0
-    update(session, { launching: mode, error: null, warning: null })
+    if (session.operationPending) {
+        reportError(session, t('topBar.launchOperationPending'))
+        return
+    }
+    session.request += 1
+    session.operationPending = true
+    update(session, { launching: mode, pending: 'preparing', error: null, warning: null })
     try {
         const warning =
             mode === 'vanilla'
@@ -131,10 +147,38 @@ export async function launchGame(gameId: GameId, mode: LaunchMode) {
         session.pendingRestore = mode === 'vanilla'
         update(session, { warning })
     } catch (error) {
-        session.startedAt = null
-        reportError(session, error)
+        update(session, { launching: null, pending: null })
+        reportError(session, await refreshLaunchFailure(gameId, error))
     } finally {
-        session.launchPending = false
+        session.request += 1
+        session.operationPending = false
+        schedule(gameId, session)
+    }
+}
+
+export async function resetPendingLaunch(gameId: GameId) {
+    const session = sessionFor(gameId)
+    if (session.operationPending) throw new Error(t('topBar.launchOperationPending'))
+    session.request += 1
+    session.operationPending = true
+    try {
+        try {
+            await api.cancelPendingGameLaunch(gameId)
+        } catch (error) {
+            const failure = await refreshLaunchFailure(gameId, error)
+            reportError(session, failure)
+            throw failure
+        }
+        session.pendingRestore = false
+        update(session, { running: false, launching: null, pending: null, error: null })
+        try {
+            await refreshInstalled(gameId)
+        } catch (error) {
+            reportError(session, error)
+        }
+    } finally {
+        session.request += 1
+        session.operationPending = false
         schedule(gameId, session)
     }
 }

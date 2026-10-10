@@ -151,7 +151,7 @@ pub fn markdown(examples: &[(&str, &str)]) -> String {
     let mut out = String::new();
     out.push_str(
         "# Authoring a game package\n\n\
-         Generated from the contract in `apps/desktop/game-package/src/lib.rs`. Do not edit.\n\n\
+         Generated from the contract in `apps/desktop/src-tauri/game-package/src/lib.rs`. Do not edit.\n\n\
          One game is one directory under `apps/desktop/src-tauri/src/games/<id>/` containing one\n\
          `package.toml`. Nothing else lists the games. The desktop build script reads every\n\
          manifest, checks it, and compiles it in, so a mistake is a build failure rather than a\n\
@@ -168,6 +168,9 @@ pub fn markdown(examples: &[(&str, &str)]) -> String {
          | `loaders` | no | mod loaders Modrex can install |\n\
          | `decoders` | no | container formats to unpack before install |\n\
          | `package_reader` | no | how to read the game's own packages so a mod's assets can be listed |\n\
+         | `movie_replacement` | no | replacement movie slots in a declared game folder |\n\
+         | `config_presets` | no | config preset syntax and verified automatic locations |\n\
+         | `graphics_config` | no | one graphics config file the user can open in an external application |\n\
          | `targets` | yes | the places mods are installed |\n\n\
          Components are values, not table headers. A repeated component is a list of objects,\n\
          each object is delimited by braces, and each field sits on its own line ending in a\n\
@@ -269,6 +272,55 @@ pub fn markdown(examples: &[(&str, &str)]) -> String {
         "unreal",
         "`aes_key`, 64 hexadecimal characters, covering both pak and IoStore containers",
     ));
+
+    out.push_str(
+        "\n## `movie_replacement`\n\n\
+         Independent of package readers, loaders and config presets. Omit it when this game\n\
+         has no verified movie replacement mechanism.\n\n\
+         | Format | Fields |\n| --- | --- |\n",
+    );
+    out.push_str(&row(
+        "bink",
+        "`directory`, `storefronts`, optional `absent_slots`",
+    ));
+    out.push_str(
+        "\n`directory` is a list of relative components below the selected install. This mechanism\n\
+         accepts `.bk2` movies. `storefronts` lists supported stores from `install.stores`.\n\
+         A manual installation with no recognised store offers only slots found on disk.\n\n\
+         Each `absent_slots` entry names a supported `store` and its verified `filenames`.\n\
+         These slots may be offered even when the files are absent, so declare them only\n\
+         after verifying published replacement instructions for that store. Filenames must\n\
+         be single `.bk2` names and unique ignoring ASCII case.\n",
+    );
+    out.push_str(
+        "\n## `config_presets`\n\n\
+         Independent of movie replacement. An empty or omitted `locations` list means the user\n\
+         chooses the config file or its folder for the selected installation.\n\n\
+         | Format | Fields |\n| --- | --- |\n",
+    );
+    out.push_str(&row("unreal_engine_ini", "optional `locations`"));
+    out.push_str(
+        "\nThis mechanism merges unambiguous scalar assignments into `Engine.ini`. Repeated\n\
+         assignments and Unreal array operators require manual editing. It does not claim\n\
+         support for other INI dialects or config formats.\n\n\
+         Each location names a `root`, a declared `store` and relative `path` components ending\n\
+         in `Engine.ini`. Only one Windows location may be declared for each store.\n\n\
+         | Root | Meaning |\n| --- | --- |\n",
+    );
+    out.push_str(&row("windows_local_app_data", "Windows Local AppData, resolved by the host's Known Folder API. This location applies only on Windows"));
+
+    out.push_str(
+        "\n## `graphics_config`\n\n\
+         Opens one existing graphics config file for manual editing. It does not enable config\n\
+         preset installation or parse the file's contents.\n\n\
+         | Field | Required | Meaning |\n| --- | --- | --- |\n\
+         | `filename` | yes | the single permitted filename, without a directory or path prefix |\n\
+         | `locations` | no | verified automatic locations, using the roots documented under `config_presets` |\n\n\
+         Each location names a declared `store` and relative `path` components ending in\n\
+         `filename`. Only one Windows location may be declared for each store. An empty or omitted\n\
+         list requires the user to choose the file. Finding the file does not prove\n\
+         that it is the game's active configuration.\n",
+    );
 
     out.push_str(
         "\n## `targets`\n\n\

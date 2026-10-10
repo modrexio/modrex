@@ -13,13 +13,16 @@ import {
 } from '../hooks/installedUtils'
 import type { InstalledGroup } from '../hooks/installedUtils'
 import type { HealthItem, MissingDepRef } from '../hooks/healthCheck'
-import type { InstalledMod, ModSummary } from '../../../shared/types'
+import { GAMES, type GameId, type InstalledMod, type ModSummary } from '../../../shared/types'
 import { useThumbnail } from '../hooks/useThumbnail'
 import { api, type LeftoverFiles } from '../api'
 import { uninstallablePromptMessage } from '../installSentinels'
 import { formatBytes } from './modDetail/format'
 import { describeFailures, type ActionFailure } from '../bulkAction'
 import NexusIcon from '../../../../assets/icons/nexusmods.svg?react'
+import { MovieResourceScan } from './MovieResourceScan'
+import { RecoveryFolderButton } from './RecoveryFolderButton'
+import { getSettingsCache } from '../settingsCache'
 
 export interface Leftovers {
     sets: LeftoverFiles[]
@@ -47,13 +50,14 @@ interface Props {
     leftovers: Leftovers
     onLeftoversChanged: () => Promise<void>
     gamePath: string | null
-    gameId: string
+    gameId: GameId
     loadingMod: string | null
     visible: boolean
     onOpenDetail: (modId: number, source?: 'nexus') => void
     onReinstall: (mods: InstalledMod[]) => Promise<string | null>
     onDepInstalled: () => Promise<void>
     onReviewUpdates: () => void
+    onReviewResource?: (mod: InstalledMod) => void
     onClose: () => void
 }
 
@@ -158,9 +162,25 @@ export function HealthCheckModal({
     onReinstall,
     onDepInstalled,
     onReviewUpdates,
+    onReviewResource,
     onClose,
 }: Props) {
     const summary = computeHealthSummary(installed)
+    const game = GAMES[gameId]
+    const settings = getSettingsCache(gameId)?.settings
+    const launcher = settings?.gamePath === gamePath ? settings?.launcher : null
+    const storefront =
+        launcher === 'steam' || launcher === 'epic' || launcher === 'xbox' ? launcher : null
+    const canScanMovies =
+        !!game.movieReplacement &&
+        (!storefront || game.movieReplacement.storefronts.includes(storefront))
+    const showResources =
+        !!game.movieReplacement || !!game.configPresets || installed.some((mod) => !!mod.deployment)
+    const changedResources = installed.filter(
+        (mod) =>
+            mod.deployment &&
+            (mod.resourceStatus === 'blocked' || mod.resourceStatus === 'diverged')
+    )
     const [installingDepId, setInstallingDepId] = useState<number | null>(null)
     const [installingAll, setInstallingAll] = useState(false)
     const [depInstallError, setDepInstallError] = useState<string | null>(null)
@@ -264,9 +284,15 @@ export function HealthCheckModal({
 
     // Lifted out of Tabs.Root (which Radix unmounts along with the rest of Dialog.Content
     // while !visible) so the selected tab survives navigating to a mod's detail page and back.
-    const [activeTab, setActiveTab] = useState(() => (showDepsTab ? 'deps' : 'missing'))
+    const [activeTab, setActiveTab] = useState(() => {
+        if (changedResources.length > 0) return 'resources'
+        return showDepsTab ? 'deps' : 'missing'
+    })
 
     const tabs: { id: string; label: string }[] = [
+        ...(showResources
+            ? [{ id: 'resources', label: t('resources.recognition.healthTab') }]
+            : []),
         ...(showDepsTab
             ? [
                   {
@@ -373,6 +399,46 @@ export function HealthCheckModal({
                 </ScrollArea>
 
                 <ScrollArea hostClassName="flex-1" className="overflow-y-auto p-3">
+                    {showResources && (
+                        <Tabs.Content
+                            value="resources"
+                            className="focus:outline-none flex flex-col gap-3"
+                        >
+                            {changedResources.length === 0 && !canScanMovies && (
+                                <EmptyTab>{t('resources.status.noAttention')}</EmptyTab>
+                            )}
+                            {changedResources.map((mod) => (
+                                <HealthRow
+                                    key={mod.uid}
+                                    name={mod.name}
+                                    secondary={t(
+                                        mod.resourceStatus === 'blocked'
+                                            ? 'resources.status.blocked'
+                                            : 'resources.status.diverged'
+                                    )}
+                                    action={
+                                        onReviewResource && (
+                                            <Button
+                                                variant="secondary"
+                                                size="sm"
+                                                onClick={() => onReviewResource(mod)}
+                                            >
+                                                {t('resources.recovery.review')}
+                                            </Button>
+                                        )
+                                    }
+                                />
+                            ))}
+                            {canScanMovies && <MovieResourceScan activeGame={gameId} />}
+                            <section className="px-3 py-2 flex flex-col gap-2 text-xs text-text-subtle">
+                                <h3 className="font-semibold text-text">
+                                    {t('resources.recovery.folderTitle')}
+                                </h3>
+                                <p>{t('resources.recovery.folderDescription')}</p>
+                                <RecoveryFolderButton />
+                            </section>
+                        </Tabs.Content>
+                    )}
                     {showDepsTab && (
                         <Tabs.Content
                             value="deps"

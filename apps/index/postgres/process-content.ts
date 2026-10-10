@@ -1,11 +1,6 @@
-import { extractContentEntries, type ContentEntry } from './content-archive.js'
-import {
-    TransientFetchError,
-    UnusableDownloadError,
-    downloadArchive,
-    extractMarkerEntry,
-    extractPdmodEntry,
-} from './marker-archive.js'
+import { GAME_IDS, GAMES, isGameId } from '@modrex/games'
+import { extractEntries, extractionPolicy, isLooseResource } from './content-extraction.js'
+import { TransientFetchError, UnusableDownloadError } from './marker-archive.js'
 import { connectDatabase } from './database.js'
 import { refreshContentVersions, selectContentListings } from './content-selection.js'
 import {
@@ -20,14 +15,20 @@ import {
     type DownloadableState,
     type Listing,
 } from './downloadable-state.js'
-import { ModWorkshop, ModWorkshopApiError, type ModFile, type ModLink } from './modworkshop.js'
+import {
+    ModWorkshop,
+    ModWorkshopApiError,
+    hostedSourceFilename,
+    type ModFile,
+    type ModLink,
+} from './modworkshop.js'
 
-const gameArg = process.argv.find((argument) => argument.startsWith('--game='))?.slice(7)
-const supportedGames = ['pd3', 'pd2', 'pdth', 'cb', 'raid'] as const
-if (!supportedGames.includes(gameArg as (typeof supportedGames)[number])) {
-    throw new Error(`--game must be one of ${supportedGames.join(', ')}`)
+const game = process.argv.find((argument) => argument.startsWith('--game='))?.slice(7) ?? null
+if (!isGameId(game)) {
+    throw new Error(`--game must be one of ${GAME_IDS.join(', ')}`)
 }
-const game = gameArg as (typeof supportedGames)[number]
+const gameSpec = GAMES[game]
+if (gameSpec.workshopId === undefined) throw new Error(`${game} has no ModWorkshop binding`)
 const limit = Number(
     process.argv.find((argument) => argument.startsWith('--limit='))?.slice(8) ?? '25'
 )
@@ -37,7 +38,7 @@ if (!Number.isInteger(limit) || limit < 1 || limit > 1000) {
 
 const db = connectDatabase()
 const api = new ModWorkshop()
-const isUnrealGame = game === 'pd3' || game === 'cb'
+const policy = extractionPolicy(gameSpec)
 const now = new Date()
 
 function shouldDownload(type: string): boolean {
@@ -63,24 +64,12 @@ function isFetchableUrl(url: string): boolean {
     }
 }
 
-async function extractEntries(url: string, type: string): Promise<ContentEntry[]> {
-    if (!isUnrealGame) {
-        const isPdmod =
-            type.toLowerCase() === 'pdmod' || new URL(url).pathname.toLowerCase().endsWith('.pdmod')
-        const entry = isPdmod ? await extractPdmodEntry(url) : await extractMarkerEntry(url, null)
-        return entry ? [entry] : []
-    }
-    const archive = await downloadArchive(url)
-    if (!archive) return []
-    const fallbackName = decodeURIComponent(new URL(url).pathname.split('/').pop() ?? '')
-    return extractContentEntries(archive, fallbackName)
-}
-
 const listings = await selectContentListings(db, game, limit, now)
 const versionRefresh = await refreshContentVersions(db, api, listings, now)
 
 function fileInput(file: ModFile): DownloadableInput {
     return {
+        policy,
         kind: 'file',
         remoteId: file.id,
         url: file.download_url,
@@ -88,10 +77,12 @@ function fileInput(file: ModFile): DownloadableInput {
         objectKey: file.file,
         size: file.size,
         mediaType: file.type,
+        sourceFilename: hostedSourceFilename(file),
     }
 }
 function linkInput(link: ModLink): DownloadableInput {
     return {
+        policy,
         kind: 'link',
         remoteId: link.id,
         url: link.url,
@@ -99,6 +90,7 @@ function linkInput(link: ModLink): DownloadableInput {
         objectKey: null,
         size: null,
         mediaType: null,
+        sourceFilename: null,
     }
 }
 
@@ -116,7 +108,7 @@ async function processDownloadable(
         await settleDownloadable(db, listing, state, 'unusable', [], now, 'upload never completed')
         return { indexed: false, pending: false }
     }
-    if (!shouldDownload(state.input.mediaType ?? '')) {
+    if (!shouldDownload(state.input.mediaType ?? '') && !isLooseResource(gameSpec, state.input)) {
         await settleDownloadable(
             db,
             listing,
@@ -129,7 +121,7 @@ async function processDownloadable(
         return { indexed: false, pending: false }
     }
     try {
-        const entries = await extractEntries(state.input.url, state.input.mediaType ?? '')
+        const entries = await extractEntries(gameSpec, state.input)
         await settleDownloadable(
             db,
             listing,
@@ -195,7 +187,7 @@ for (const listing of versionRefresh.processable) {
     )
 
     let fetchableLinkCount = 0
-    if (!isUnrealGame) {
+    if (gameSpec.modMetadata === 'diesel') {
         const links = await api.links(listing.remote_id)
         const fetchableLinks = links.filter((item) => isFetchableUrl(item.url))
         fetchableLinkCount = fetchableLinks.length

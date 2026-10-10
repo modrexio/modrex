@@ -2,9 +2,8 @@ import { GAMES } from '../../shared/types'
 import type { GameId } from '../../shared/types'
 import { entryFilename } from './hooks/installedUtils'
 
-// Remembers which entries each multi-pak archive contains (keyed by remote file id),
-// so ManageFilesModal can show uninstalled entries after they are removed from state.
-// Populated every time ZipPickerModal opens; purely a display convenience.
+// Remembers ModWorkshop multi-pak entries by remote file ID, so ManageFilesModal
+// can display variants removed from the installed list.
 
 const memory = new Map<string, Record<string, string[]>>()
 

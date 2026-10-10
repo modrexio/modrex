@@ -1,5 +1,5 @@
 import { Tag, Download, Clock, AlertTriangle } from 'lucide-react'
-import type { ModFile } from '../../../shared/types'
+import { GAMES, type GameId, type ModFile } from '../../../shared/types'
 import { t } from '../i18n'
 import { ModworkshopMarkup } from './MarkdownContent'
 import { isUnsupportedFormat } from '../formatCheck'
@@ -11,6 +11,7 @@ function formatBytes(bytes: number): string {
 
 interface Props {
     file: ModFile
+    gameId: GameId
     checked: boolean
     installed: boolean
     locked: boolean
@@ -19,7 +20,16 @@ interface Props {
     onToggle: () => void
 }
 
-export function FileRow({ file, checked, installed, locked, disabled, status, onToggle }: Props) {
+export function FileRow({
+    file,
+    gameId,
+    checked,
+    installed,
+    locked,
+    disabled,
+    status,
+    onToggle,
+}: Props) {
     return (
         <div
             onClick={() => !locked && !disabled && onToggle()}
@@ -63,7 +73,12 @@ export function FileRow({ file, checked, installed, locked, disabled, status, on
                 <div className="flex items-center flex-wrap gap-x-3 gap-y-1 mt-1.5 text-xs text-text-subtle">
                     <span className="uppercase">{file.type}</span>
                     <span>{formatBytes(file.size)}</span>
-                    {isUnsupportedFormat(file.type, file.download_url) && (
+                    {isUnsupportedFormat(
+                        GAMES[gameId],
+                        file.type,
+                        file.download_url,
+                        file.name
+                    ) && (
                         <span className="flex items-center gap-1 text-warning">
                             <AlertTriangle className="w-3 h-3 shrink-0" />
                             {t('common.nonPakWarning')}

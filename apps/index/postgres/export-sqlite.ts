@@ -1,10 +1,12 @@
 import { GAME_IDS, isGameId } from '@modrex/games'
 import { neon } from '@neondatabase/serverless'
 
-import { writeSnapshot, type SnapshotSource } from './snapshot.js'
+import { writeSnapshot, type ResourceRow, type SnapshotSource } from './snapshot.js'
 import {
     applySnapshotDelta,
+    compareResourceRows,
     readPreviousSnapshot,
+    resourceRowsQuery,
     snapshotFingerprints,
     snapshotDeltaQuery,
     snapshotSourceQuery,
@@ -29,24 +31,29 @@ if (Boolean(previousPath) !== Boolean(previousSha256))
 
 const previous =
     previousPath && previousSha256
-        ? readPreviousSnapshot(previousPath, previousSha256, game).rows
-        : []
+        ? readPreviousSnapshot(previousPath, previousSha256, game)
+        : { rows: [] }
 const sql = neon(databaseUrl)
 
-// Both queries must observe the same database snapshot, including concurrent catalog edits.
-const [catalog, changes] = (await sql.transaction(
+// All three queries must observe the same database snapshot, including concurrent catalog edits.
+const [catalog, changes, resourceRows] = (await sql.transaction(
     [
         sql.query(snapshotSourceQuery, [game]),
-        sql.query(snapshotDeltaQuery, [game, JSON.stringify(snapshotFingerprints(previous))]),
+        sql.query(snapshotDeltaQuery, [game, JSON.stringify(snapshotFingerprints(previous.rows))]),
+        sql.query(resourceRowsQuery, [game]),
     ],
     { isolationLevel: 'RepeatableRead', readOnly: true }
-)) as [SnapshotSource[], SnapshotDelta[]]
+)) as [SnapshotSource[], SnapshotDelta[], ResourceRow[]]
 if (catalog.length !== 1) throw new Error(`missing ModWorkshop catalog source for ${game}`)
-const rows = applySnapshotDelta(previous, changes)
-if (requireFiles && rows.length === 0) throw new Error(`no indexed file records exist for ${game}`)
+const rows = applySnapshotDelta(previous.rows, changes)
+const resources = resourceRows.sort(compareResourceRows)
+// A game whose only published content is movies or configs still has a catalog to publish.
+if (requireFiles && rows.length === 0 && resources.length === 0)
+    throw new Error(`no indexed file or resource records exist for ${game}`)
 
-const outputPath = writeSnapshot(output, game, catalog[0], rows)
+const outputPath = writeSnapshot(output, game, catalog[0], rows, resources)
 const transferred = changes.filter((change) => change.record !== null).length
 console.log(
     `Exported ${rows.length} file records for ${game} to ${outputPath}; fetched ${transferred} records, removed ${changes.length - transferred} records`
 )
+console.log(`Exported ${resources.length} resource records`)

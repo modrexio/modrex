@@ -112,6 +112,26 @@ export const commands = {
 	 *  registered, and only once.
 	 */
 	discardStagedArchive: (token: string) => __TAURI_INVOKE<void>("discard_staged_archive", { token }),
+	getResourceReview: (reviewHandle: string) => __TAURI_INVOKE<ResourceReview_Serialize>("get_resource_review", { reviewHandle }),
+	installReviewedResources: (reviewHandle: string, selections: ResourceSelection[]) => __TAURI_INVOKE<ResourceInstallResult>("install_reviewed_resources", { reviewHandle, selections }),
+	/**
+	 *  Installs one package a Nexus resource review offers. The game, install, archive, target
+	 *  and Nexus identity all come from the review, never from the renderer, and the review stays
+	 *  open afterwards so its movies and presets can still be chosen or the review cancelled.
+	 */
+	installNexusReviewPak: (args: InstallNexusReviewPakArgs) => __TAURI_INVOKE<null>("install_nexus_review_pak", { args }),
+	cancelResourceReview: (reviewHandle: string) => __TAURI_INVOKE<void>("cancel_resource_review", { reviewHandle }),
+	reviewResourceRecovery: (gameId: string, uid: string | null) => __TAURI_INVOKE<ResourceRecoveryReview>("review_resource_recovery", { gameId, uid }),
+	keepCurrentResources: (reviewHandle: string) => __TAURI_INVOKE<null>("keep_current_resources", { reviewHandle }),
+	cancelResourceRecovery: (reviewHandle: string) => __TAURI_INVOKE<void>("cancel_resource_recovery", { reviewHandle }),
+	openResourceRecoveryFolder: () => __TAURI_INVOKE<boolean>("open_resource_recovery_folder"),
+	getEngineIniLocation: (gameId: string) => __TAURI_INVOKE<ConfigFileLocation>("get_engine_ini_location", { gameId }),
+	openEngineIni: (gameId: string) => __TAURI_INVOKE<null>("open_engine_ini", { gameId }),
+	/**  title comes from the renderer already localized, like pick_folder's. */
+	pickEngineIni: (gameId: string, title: string, folder: boolean) => __TAURI_INVOKE<string | null>("pick_engine_ini", { gameId, title, folder }),
+	getGraphicsConfigLocation: (gameId: string) => __TAURI_INVOKE<ConfigFileLocation>("get_graphics_config_location", { gameId }),
+	pickGraphicsConfig: (gameId: string, title: string) => __TAURI_INVOKE<string | null>("pick_graphics_config", { gameId, title }),
+	openGraphicsConfig: (gameId: string) => __TAURI_INVOKE<null>("open_graphics_config", { gameId }),
 	uninstallMod: (gamePath: string, uid: string, gameId: string) => __TAURI_INVOKE<null>("uninstall_mod", { gamePath, uid, gameId }),
 	enableMod: (gamePath: string, uid: string, gameId: string) => __TAURI_INVOKE<null>("enable_mod", { gamePath, uid, gameId }),
 	disableMod: (gamePath: string, uid: string, gameId: string) => __TAURI_INVOKE<null>("disable_mod", { gamePath, uid, gameId }),
@@ -186,6 +206,8 @@ export const commands = {
 	launchWithoutMods: (gameId: string) => __TAURI_INVOKE<"unsupported" | "notInstalled" | "setupRequired" | "startFailed" | "startUnconfirmed" | null>("launch_without_mods", { gameId }),
 	restoreMods: (gameId: string) => __TAURI_INVOKE<null>("restore_mods", { gameId }),
 	isGameRunning: (gameId: string) => __TAURI_INVOKE<boolean>("is_game_running", { gameId }),
+	getGameLaunchStatus: (gameId: string) => __TAURI_INVOKE<GameLaunchStatus>("get_game_launch_status", { gameId }),
+	cancelPendingGameLaunch: (gameId: string) => __TAURI_INVOKE<null>("cancel_pending_game_launch", { gameId }),
 	stopGame: (gameId: string) => __TAURI_INVOKE<null>("stop_game", { gameId }),
 	shellOpenExternal: (url: string) => __TAURI_INVOKE<void>("shell_open_external", { url }),
 	/**
@@ -209,6 +231,7 @@ export const commands = {
 	 */
 	getThumbnail: (filename: string, full: boolean | null) => __TAURI_INVOKE<string>("get_thumbnail", { filename, full }),
 	getIndexModFiles: (modId: number, gameId: string) => __TAURI_INVOKE<IndexModFile[]>("get_index_mod_files", { modId, gameId }),
+	inspectMovieResources: (gameId: string) => __TAURI_INVOKE<MovieRecognitionScan>("inspect_movie_resources", { gameId }),
 	/**
 	 *  Page 1 only: the cached, TTL-backed entry point used on first
 	 *  load and by the Refresh button.
@@ -269,12 +292,17 @@ export type CbFlatPayload_Serialize = {
 	modVersion?: string | null,
 };
 
+export type ConfigFileLocation = { status: "found"; path: string } | { status: "missing"; path: string } | { status: "needsLocation" };
+
 export type ConfirmLoaderArgs = {
 	archiveHandle: string,
 	gameId: string,
 	gamePath: string,
 	page: LoaderPage | null,
 };
+
+/**  What a file held at one moment. An empty file is Present with size 0, never Absent. */
+export type Content = { state: "absent" } | { state: "present"; sha256: string; size: number };
 
 /**
  *  What the mod says about itself in its own files. A mod with no catalog entry has nothing
@@ -321,6 +349,11 @@ export type DetectedInstall = {
 export type FilePage = {
 	data: ModFile[],
 	meta: PageMeta,
+};
+
+export type GameLaunchStatus = {
+	running: boolean,
+	pending: PendingGameLaunch | null,
 };
 
 export type GameSettings = GameSettings_Serialize | GameSettings_Deserialize;
@@ -489,6 +522,13 @@ export type InstallHostPackArgs = {
 	gameId: string,
 };
 
+export type InstallNexusReviewPakArgs = {
+	reviewHandle: string,
+	/**  Which entry of the review's package picker to install, as issued when it was listed. */
+	entryId: ArchiveEntryId,
+	folderId: string | null,
+};
+
 /**
  *  What an install command produced: a finished install, or an archive that needs a
  *  user decision first. Returned in the Ok channel so the renderer handles every case
@@ -501,14 +541,14 @@ export type InstallOutcome = InstallOutcome_Serialize | InstallOutcome_Deseriali
  *  user decision first. Returned in the Ok channel so the renderer handles every case
  *  with an exhaustive switch instead of parsing sentinel strings out of errors.
  */
-export type InstallOutcome_Deserialize = "installed" | ({ needsPicker: ZipMultiPakPayload_Deserialize }) & { needsCbFlatConfirm?: never; needsHostChoice?: never; needsLoaderConfirm?: never } | ({ needsHostChoice: HostPackPayload_Deserialize }) & { needsCbFlatConfirm?: never; needsLoaderConfirm?: never; needsPicker?: never } | ({ needsCbFlatConfirm: CbFlatPayload_Deserialize }) & { needsHostChoice?: never; needsLoaderConfirm?: never; needsPicker?: never } | ({ needsLoaderConfirm: Ue4ssReplacePayload }) & { needsCbFlatConfirm?: never; needsHostChoice?: never; needsPicker?: never } | "unrecognized";
+export type InstallOutcome_Deserialize = "installed" | ({ needsPicker: ZipMultiPakPayload_Deserialize }) & { needsCbFlatConfirm?: never; needsHostChoice?: never; needsLoaderConfirm?: never; needsResourceReview?: never } | ({ needsHostChoice: HostPackPayload_Deserialize }) & { needsCbFlatConfirm?: never; needsLoaderConfirm?: never; needsPicker?: never; needsResourceReview?: never } | ({ needsCbFlatConfirm: CbFlatPayload_Deserialize }) & { needsHostChoice?: never; needsLoaderConfirm?: never; needsPicker?: never; needsResourceReview?: never } | ({ needsLoaderConfirm: Ue4ssReplacePayload }) & { needsCbFlatConfirm?: never; needsHostChoice?: never; needsPicker?: never; needsResourceReview?: never } | ({ needsResourceReview: ResourceReviewPayload }) & { needsCbFlatConfirm?: never; needsHostChoice?: never; needsLoaderConfirm?: never; needsPicker?: never } | "unrecognized";
 
 /**
  *  What an install command produced: a finished install, or an archive that needs a
  *  user decision first. Returned in the Ok channel so the renderer handles every case
  *  with an exhaustive switch instead of parsing sentinel strings out of errors.
  */
-export type InstallOutcome_Serialize = "installed" | ({ needsPicker: ZipMultiPakPayload_Serialize }) & { needsCbFlatConfirm?: never; needsHostChoice?: never; needsLoaderConfirm?: never } | ({ needsHostChoice: HostPackPayload_Serialize }) & { needsCbFlatConfirm?: never; needsLoaderConfirm?: never; needsPicker?: never } | ({ needsCbFlatConfirm: CbFlatPayload_Serialize }) & { needsHostChoice?: never; needsLoaderConfirm?: never; needsPicker?: never } | ({ needsLoaderConfirm: Ue4ssReplacePayload }) & { needsCbFlatConfirm?: never; needsHostChoice?: never; needsPicker?: never } | "unrecognized";
+export type InstallOutcome_Serialize = "installed" | ({ needsPicker: ZipMultiPakPayload_Serialize }) & { needsCbFlatConfirm?: never; needsHostChoice?: never; needsLoaderConfirm?: never; needsResourceReview?: never } | ({ needsHostChoice: HostPackPayload_Serialize }) & { needsCbFlatConfirm?: never; needsLoaderConfirm?: never; needsPicker?: never; needsResourceReview?: never } | ({ needsCbFlatConfirm: CbFlatPayload_Serialize }) & { needsHostChoice?: never; needsLoaderConfirm?: never; needsPicker?: never; needsResourceReview?: never } | ({ needsLoaderConfirm: Ue4ssReplacePayload }) & { needsCbFlatConfirm?: never; needsHostChoice?: never; needsPicker?: never; needsResourceReview?: never } | ({ needsResourceReview: ResourceReviewPayload }) & { needsCbFlatConfirm?: never; needsHostChoice?: never; needsLoaderConfirm?: never; needsPicker?: never } | "unrecognized";
 
 export type InstalledMod = InstalledMod_Serialize | InstalledMod_Deserialize;
 
@@ -538,6 +578,8 @@ export type InstalledMod_Deserialize = {
 	nexusContentMissed?: boolean | null,
 	identity?: ModIdentity | null,
 	declared?: DeclaredMetadata_Deserialize | null,
+	deployment?: ResourceDeployment | null,
+	resourceStatus?: ResourceStatus | null,
 };
 
 export type InstalledMod_Serialize = {
@@ -566,6 +608,8 @@ export type InstalledMod_Serialize = {
 	nexusContentMissed?: boolean | null,
 	identity?: ModIdentity | null,
 	declared?: DeclaredMetadata_Serialize | null,
+	deployment?: ResourceDeployment | null,
+	resourceStatus?: ResourceStatus | null,
 };
 
 export type InstalledResponse = InstalledResponse_Serialize | InstalledResponse_Deserialize;
@@ -581,6 +625,12 @@ export type InstalledResponse_Deserialize = {
 	 *  the file is readable again.
 	 */
 	stateUnreadable: boolean,
+	/**
+	 *  Failures inspecting movie or Engine.ini records, including pending recovery.
+	 *  Ordinary mod rows remain available.
+	 */
+	resourceError: string | null,
+	resourceRecoveryPending: boolean,
 };
 
 export type InstalledResponse_Serialize = {
@@ -594,6 +644,12 @@ export type InstalledResponse_Serialize = {
 	 *  the file is readable again.
 	 */
 	stateUnreadable: boolean,
+	/**
+	 *  Failures inspecting movie or Engine.ini records, including pending recovery.
+	 *  Ordinary mod rows remain available.
+	 */
+	resourceError: string | null,
+	resourceRecoveryPending: boolean,
 };
 
 export type InstructsTemplate = {
@@ -601,6 +657,14 @@ export type InstructsTemplate = {
 	name: string,
 	instructions: string,
 	dependencies: ModDependency[],
+};
+
+export type KeyChange = {
+	section: string,
+	key: string,
+	/**  The value before the preset applied, or None when the key was absent. Key= is Some(""). */
+	before: string | null,
+	applied: string,
 };
 
 /**
@@ -922,6 +986,17 @@ export type ModUser = {
 
 export type ModVersionResult = { status: "known"; id: number; version: string } | { status: "unversioned"; id: number } | { status: "missing"; id: number } | { status: "failed"; id: number; error: string };
 
+export type MovieRecognition = {
+	path: string,
+	sha256: string | null,
+	recognition: ResourceRecognition,
+};
+
+export type MovieRecognitionScan = {
+	checkedAt: string,
+	movies: MovieRecognition[],
+};
+
 export type NewsItem = {
 	title: string,
 	url: string,
@@ -978,6 +1053,8 @@ export type PakAsset = {
 	path: string,
 };
 
+export type PendingGameLaunch = "preparing" | "handedOff";
+
 /**
  *  What installing a UE4SS release over the current one would change.
  * 
@@ -994,6 +1071,108 @@ export type ReplacementPlan = {
 	 */
 	preserved: string[],
 };
+
+/**  Which resource operation owns a row. Absent for every ordinary mod. */
+export type ResourceDeployment = "movie" | "ini";
+
+export type ResourceEntryKind = "movie" | "ini" | "other";
+
+export type ResourceIniConflict = {
+	name: string,
+	changes: KeyChange[],
+	replacing: boolean,
+};
+
+export type ResourceIniKey = {
+	section: string,
+	key: string,
+};
+
+export type ResourceInstallResult = {
+	installed: boolean,
+	alreadyCurrentMovies: string[],
+};
+
+export type ResourceMovieConflict = {
+	name: string,
+	slots: string[],
+	replacing: boolean,
+};
+
+export type ResourceRecognition = { status: "unavailable" } | { status: "noMatch" } | { status: "ambiguous" } | { status: "matched"; source: string; modRemoteId: number; modName: string };
+
+export type ResourceRecoveryFile = {
+	path: string,
+	current: Content,
+};
+
+export type ResourceRecoveryReview = {
+	reviewHandle: string,
+	gameId: string,
+	deployments: string[],
+	files: ResourceRecoveryFile[],
+};
+
+export type ResourceReview = ResourceReview_Serialize | ResourceReview_Deserialize;
+
+export type ResourceReviewEntry = {
+	entryId: number,
+	name: string,
+	kind: ResourceEntryKind,
+	supported: boolean,
+	reason: string | null,
+	changes: KeyChange[],
+	keys: ResourceIniKey[],
+};
+
+export type ResourceReviewPayload = {
+	reviewHandle: string,
+};
+
+export type ResourceReview_Deserialize = {
+	reviewHandle: string,
+	gameId: string,
+	gamePath: string,
+	modName: string,
+	entries: ResourceReviewEntry[],
+	movieSlots: string[],
+	configPath: string | null,
+	pakPicker: ZipMultiPakPayload_Deserialize | null,
+	/**
+	 *  The catalog the download came from, None for a dropped file. A Nexus review's packages
+	 *  install through install_nexus_review_pak, never the ModWorkshop entry installer.
+	 */
+	source: string | null,
+	moviePackApplied: boolean,
+	movieConflicts: ResourceMovieConflict[],
+	iniConflicts: ResourceIniConflict[],
+};
+
+export type ResourceReview_Serialize = {
+	reviewHandle: string,
+	gameId: string,
+	gamePath: string,
+	modName: string,
+	entries: ResourceReviewEntry[],
+	movieSlots: string[],
+	configPath: string | null,
+	pakPicker: ZipMultiPakPayload_Serialize | null,
+	/**
+	 *  The catalog the download came from, None for a dropped file. A Nexus review's packages
+	 *  install through install_nexus_review_pak, never the ModWorkshop entry installer.
+	 */
+	source: string | null,
+	moviePackApplied: boolean,
+	movieConflicts: ResourceMovieConflict[],
+	iniConflicts: ResourceIniConflict[],
+};
+
+export type ResourceSelection = {
+	entryId: number,
+	slot: string | null,
+};
+
+export type ResourceStatus = "applied" | "disabled" | "diverged" | "blocked";
 
 export type SisrLaunchIssue = "unsupported" | "notInstalled" | "setupRequired" | "startFailed" | "startUnconfirmed";
 

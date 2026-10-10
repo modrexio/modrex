@@ -2,7 +2,7 @@ import Database from 'better-sqlite3'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 
-import type { SnapshotRow, SnapshotSource } from './snapshot.js'
+import type { ResourceRow, SnapshotRow, SnapshotSource } from './snapshot.js'
 
 const columns = {
     mod_id: 'mods.id',
@@ -29,6 +29,25 @@ const snapshotRowsQuery = `
     WHERE games.slug = $1
 `
 
+// Every complete observation, current or historical and including retired downloads, so bytes
+// that were published once stay recognisable after the upload is replaced or withdrawn.
+export const resourceRowsQuery = `
+    SELECT DISTINCT CAST(mods.id AS TEXT) AS mod_id,
+        CAST(mods.remote_id AS TEXT) AS mod_remote_id,
+        mods.name AS mod_name, mods.url AS mod_url,
+        entry.sha256 AS sha256, entry.resource_kind AS resource_kind,
+        CAST(entry.byte_length AS TEXT) AS byte_length
+    FROM downloadable_entries entry
+    JOIN downloadable_observations observation ON observation.id = entry.observation_id
+    JOIN remote_downloadables downloadable ON downloadable.id = observation.downloadable_id
+    JOIN mods ON mods.source_id = downloadable.source_id
+        AND mods.remote_id = downloadable.mod_remote_id
+    JOIN sources ON sources.id = downloadable.source_id
+    JOIN games ON games.id = sources.game_id
+    WHERE games.slug = $1 AND observation.outcome = 'complete'
+      AND entry.resource_kind IS NOT NULL
+`
+
 export const snapshotSourceQuery = `
     SELECT CAST(games.id AS TEXT) AS game_id, games.name AS game_name,
            games.slug AS game_slug, CAST(sources.id AS TEXT) AS source_id,
@@ -40,6 +59,18 @@ export const snapshotSourceQuery = `
 `
 
 // test-snapshot-delta.ts enforces byte-length framing parity with PostgreSQL.
+function framedDigestSql(alias: string, names: readonly string[]): string {
+    return `encode(sha256(convert_to(
+        ${names.map((name) => `octet_length(convert_to(${alias}.${name}, 'UTF8'))::TEXT || ':' || ${alias}.${name}`).join(' || ')}
+    , 'UTF8')), 'base64')`
+}
+
+function framedDigest(values: string[]): string {
+    const digest = createHash('sha256')
+    for (const value of values) digest.update(String(Buffer.byteLength(value)) + ':').update(value)
+    return digest.digest('base64')
+}
+
 export const snapshotDeltaQuery = `
     WITH export_rows AS (${snapshotRowsQuery}),
     previous_rows AS (
@@ -51,9 +82,7 @@ export const snapshotDeltaQuery = `
         END AS record
     FROM export_rows
     FULL JOIN previous_rows USING (file_id)
-    WHERE encode(sha256(convert_to(
-        ${fields.map((field) => `octet_length(convert_to(export_rows.${field}, 'UTF8'))::TEXT || ':' || export_rows.${field}`).join(' || ')}
-    , 'UTF8')), 'base64') IS DISTINCT FROM previous_rows.fingerprint
+    WHERE ${framedDigestSql('export_rows', fields)} IS DISTINCT FROM previous_rows.fingerprint
     ORDER BY COALESCE(export_rows.file_id, previous_rows.file_id)::BIGINT
 `
 
@@ -69,17 +98,26 @@ export interface PreviousSnapshot {
 
 export function snapshotFingerprints(rows: SnapshotRow[]): Record<string, string> {
     return Object.fromEntries(
-        rows.map((row) => {
-            const digest = createHash('sha256')
-            for (const field of fields) {
-                const value = row[field]
-                digest.update(String(Buffer.byteLength(value)) + ':').update(value)
-            }
-            return [row.file_id, digest.digest('base64')]
-        })
+        rows.map((row) => [row.file_id, framedDigest(fields.map((field) => row[field]))])
     )
 }
 
+function compareBytes(left: string, right: string): number {
+    return Buffer.compare(Buffer.from(left, 'utf8'), Buffer.from(right, 'utf8'))
+}
+
+// Byte order rather than a database collation, so shard bytes never depend on server locale.
+export function compareResourceRows(left: ResourceRow, right: ResourceRow): number {
+    const a = BigInt(left.mod_id)
+    const b = BigInt(right.mod_id)
+    if (a !== b) return a < b ? -1 : 1
+    return (
+        compareBytes(left.sha256, right.sha256) ||
+        compareBytes(left.resource_kind, right.resource_kind)
+    )
+}
+
+// Only files feed the delta, so any resource_entries shape in the previous shard is ignored.
 export function readPreviousSnapshot(
     file: string,
     expectedSha256: string,

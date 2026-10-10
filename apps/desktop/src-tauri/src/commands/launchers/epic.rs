@@ -26,16 +26,20 @@ impl Launcher for Epic {
         Path::new(game_path).join(".egstore").exists()
     }
 
-    fn launch(&self, game: &GameDef, _game_path: &str, _opts: Option<&str>) {
-        let Some(def) = game.epic.as_ref() else {
-            return;
-        };
-        if let Some((_, app_name)) = epic_find_game(def.display_name) {
-            super::open_url(&format!(
-                "com.epicgames.launcher://apps/{}?action=launch&silent=true",
-                app_name
-            ));
+    fn launch(&self, game: &GameDef, _game_path: &str, _opts: Option<&str>) -> Result<(), String> {
+        let def = game
+            .epic
+            .as_ref()
+            .ok_or("This game has no Epic launch definition")?;
+        let (_, app_name) = epic_find_game(def.display_name)
+            .ok_or("The Epic launcher installation record for this game could not be found")?;
+        if app_name.is_empty() {
+            return Err("The Epic launcher installation record has no application name".into());
         }
+        super::open_url(&format!(
+            "com.epicgames.launcher://apps/{}?action=launch&silent=true",
+            app_name
+        ))
     }
 }
 

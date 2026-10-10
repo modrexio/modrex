@@ -5,7 +5,9 @@
 use tauri::{AppHandle, Emitter};
 
 use crate::commands::download::download_file;
-use crate::commands::mods::{install_nexus_download, NexusInstallMeta};
+use crate::commands::mods::{
+    cancel_resource_review, install_nexus_download, NexusInstallMeta, NexusInstallOutcome,
+};
 use crate::commands::nexus::{
     game_id_for_domain, nexus_get_download_link, nexus_get_file, nexus_get_mod,
 };
@@ -68,22 +70,69 @@ fn extension_from_name(name: &str) -> Option<String> {
         .map(|e| e.to_string_lossy().to_string())
 }
 
-fn extension_from_uri(uri: &str) -> Option<String> {
-    let parsed = reqwest::Url::parse(uri).ok()?;
-    extension_from_name(parsed.path_segments()?.next_back()?)
+/// A file name and its extension, from the last component only so a name carrying a path
+/// can never name a location.
+fn named_file(name: &str) -> Option<(String, String)> {
+    let name = name.rsplit(['/', '\\']).next()?;
+    extension_from_name(name).map(|ext| (name.to_string(), ext))
 }
 
-// The CDN URI's path doesn't reliably carry a filename (observed live), so the
-// file-details endpoint's file_name is the authoritative fallback.
-async fn resolve_extension(app: &AppHandle, link: &NxmLink, uri: &str) -> Result<String, String> {
-    if let Some(ext) = extension_from_uri(uri) {
-        return Ok(ext);
-    }
+fn file_from_uri(uri: &str) -> Option<(String, String)> {
+    let parsed = reqwest::Url::parse(uri).ok()?;
+    let segment = parsed.path_segments()?.next_back()?;
+    named_file(
+        &percent_encoding::percent_decode_str(segment)
+            .decode_utf8()
+            .ok()?,
+    )
+}
+
+// The published filename decides whether a loose INI is Engine.ini. CDN names can be opaque.
+async fn resolve_file(
+    app: &AppHandle,
+    link: &NxmLink,
+    uri: &str,
+) -> Result<(String, String), String> {
     let file_info = nexus_get_file(app, &link.game_id, link.mod_id, link.file_id).await?;
     file_info["file_name"]
         .as_str()
-        .and_then(extension_from_name)
+        .and_then(named_file)
+        .or_else(|| file_from_uri(uri))
         .ok_or_else(|| "nxm: could not determine file type from URI or file details".to_string())
+}
+
+/// Reports a Nexus download as installed. Sent only once its files are in place, so a page
+/// waiting on the download never shows it installed early.
+pub(crate) fn emit_install_complete(
+    app: &AppHandle,
+    game_id: &str,
+    mod_id: u32,
+    file_id: i64,
+    name: &str,
+) -> Result<(), String> {
+    app.emit(
+        "nxm:install-complete",
+        serde_json::json!({
+            "gameId": game_id,
+            "modId": mod_id,
+            "fileId": file_id,
+            "name": name,
+        }),
+    )
+    .map_err(|e| e.to_string())
+}
+
+pub(crate) fn emit_review_closed(
+    app: &AppHandle,
+    game_id: &str,
+    mod_id: u32,
+    file_id: i64,
+) -> Result<(), String> {
+    app.emit(
+        "nxm:review-closed",
+        serde_json::json!({ "gameId": game_id, "modId": mod_id, "fileId": file_id }),
+    )
+    .map_err(|error| error.to_string())
 }
 
 pub fn spawn_handle_nxm_url(app: &AppHandle, url: String) {
@@ -145,14 +194,14 @@ pub async fn handle_nxm_url(app: &AppHandle, url: &str) -> Result<(), String> {
         .and_then(|v| v.get("URI"))
         .and_then(|v| v.as_str())
         .ok_or("nxm: no download URI in resolved link")?;
-    let ext = resolve_extension(app, &link, uri).await?;
+    let (source_name, ext) = resolve_file(app, &link, uri).await?;
 
     // nxm-prefixed so it never collides with the app's other download-id conventions.
     // Carries the game so the renderer can scope progress to it.
     let download_id = format!("nxm:{}:{}:{}", link.game_id, link.mod_id, link.file_id);
     let dest = download_file(app, uri, &ext, &download_id).await?;
 
-    install_nexus_download(
+    let outcome = install_nexus_download(
         app,
         &link.game_id,
         &game_path,
@@ -165,27 +214,46 @@ pub async fn handle_nxm_url(app: &AppHandle, url: &str) -> Result<(), String> {
             author: mod_author,
             thumbnail_url,
             file_type: ext,
+            source_name,
         },
     )
     .await?;
 
+    let review_handle = match outcome {
+        NexusInstallOutcome::Installed => {
+            log::info!(
+                "nxm install complete: mod {} file {} ({mod_name})",
+                link.mod_id,
+                link.file_id
+            );
+            return emit_install_complete(
+                app,
+                &link.game_id,
+                link.mod_id,
+                i64::from(link.file_id),
+                &mod_name,
+            );
+        }
+        NexusInstallOutcome::NeedsResourceReview(handle) => handle,
+    };
     log::info!(
-        "nxm install complete: mod {} file {} ({mod_name})",
+        "nxm download needs a resource review: mod {} file {} ({mod_name})",
         link.mod_id,
         link.file_id
     );
-
-    app.emit(
-        "nxm:install-complete",
+    // Nothing is installed yet. The completion is sent by whichever review command actually
+    // installs something, so the handle is all the renderer needs to open the review.
+    let emitted = app.emit(
+        "nxm:resource-review",
         serde_json::json!({
             "gameId": link.game_id,
-            "modId": link.mod_id,
-            "fileId": link.file_id,
-            "name": mod_name,
+            "reviewHandle": review_handle,
         }),
-    )
-    .map_err(|e| e.to_string())?;
-
+    );
+    if let Err(e) = emitted {
+        cancel_resource_review(app.clone(), review_handle);
+        return Err(e.to_string());
+    }
     Ok(())
 }
 

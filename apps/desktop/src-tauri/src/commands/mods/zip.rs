@@ -226,6 +226,18 @@ pub(super) fn staged_entry_for_test(archive_path: &Path, name: &str) -> StagedEn
 /// whose names normalize onto each other distinguishable.
 pub(crate) fn extract_entry_at(archive_path: &Path, index: u32, dest: &Path) -> Result<(), String> {
     let budget = &mut extract_budget(archive_path);
+    if matches!(detect_archive(archive_path), Some(ArchiveFormat::Rar)) {
+        check_rar_budget(archive_path, *budget)?;
+    }
+    extract_entry_at_budget(archive_path, index, dest, budget)
+}
+
+pub(crate) fn extract_entry_at_budget(
+    archive_path: &Path,
+    index: u32,
+    dest: &Path,
+    budget: &mut u64,
+) -> Result<(), String> {
     let index = index as usize;
     match detect_archive(archive_path) {
         Some(ArchiveFormat::Zip) => extract_zip_entry_at(archive_path, index, dest, budget),
@@ -243,8 +255,22 @@ pub(crate) fn extract_entry_at(archive_path: &Path, index: u32, dest: &Path) -> 
             budget,
         ),
         Some(ArchiveFormat::Rar) => {
-            check_rar_budget(archive_path, *budget)?;
-            extract_rar_entry_at(archive_path, index, dest)
+            let entry = unrar::Archive::new(archive_path)
+                .open_for_listing()
+                .map_err(|e| e.to_string())?
+                .nth(index)
+                .ok_or_else(|| out_of_range(index))?
+                .map_err(|e| e.to_string())?;
+            if entry.unpacked_size > *budget {
+                return Err("The selected archive entry exceeds its extraction limit".into());
+            }
+            extract_rar_entry_at(archive_path, index, dest)?;
+            let size = std::fs::metadata(dest).map_err(|e| e.to_string())?.len();
+            if size != entry.unpacked_size || size > *budget {
+                return Err("The extracted archive entry has an inconsistent size".into());
+            }
+            *budget -= size;
+            Ok(())
         }
         None => Err("Not a supported archive format".to_string()),
     }
@@ -1332,7 +1358,195 @@ fn stage_archive(
 pub enum ResolveError {
     Prompt(Box<InstallPrompt>),
     Ue4ssLoader(PathBuf),
+    /// Movie or config content that has to be reviewed before anything is installed.
+    Resources(Box<ResourceArchive>),
     Failure(String),
+}
+
+/// A download carrying movie or config files. The install command turns this into a review,
+/// because only it knows the mod and the install it is for.
+#[derive(Debug)]
+pub struct ResourceArchive {
+    /// The downloaded file. A temp artifact the install owns, never a user's dropped original.
+    pub downloaded: PathBuf,
+    /// False for a loose .bk2 or .ini download, which is its own only member.
+    pub is_archive: bool,
+    /// Archive members to review: resources and the components nothing here installs, each
+    /// with its position in the archive's enumeration order. None marks a UE4SS sub-mod
+    /// folder, listed only so it is visible.
+    pub members: Vec<(Option<u32>, String)>,
+    /// The archive's pak files, offered through the ordinary picker over its own grant.
+    pub pak_picker: Option<ZipMultiPakPayload>,
+}
+
+/// Recognizes movie and user-config candidates before the pak fallback.
+/// Loader and sub-mod support INIs retain their package routing.
+fn detect_resources(
+    downloaded: &Path,
+    cfg: &ModEngineConfig,
+    registry: &StagingRegistry,
+) -> Result<Option<ResourceArchive>, ResolveError> {
+    let spec = crate::commands::games::game_spec(cfg.game_id)
+        .ok_or_else(|| ResolveError::Failure(format!("unknown game id '{}'", cfg.game_id)))?;
+    detect_resource_download(
+        downloaded,
+        cfg,
+        registry,
+        spec.movie_replacement,
+        spec.config_presets,
+    )
+}
+
+fn detect_resource_download(
+    downloaded: &Path,
+    cfg: &ModEngineConfig,
+    registry: &StagingRegistry,
+    movies: Option<&crate::game_package::MovieReplacement>,
+    config: Option<&crate::game_package::ConfigPresets>,
+) -> Result<Option<ResourceArchive>, ResolveError> {
+    if movies.is_none() && config.is_none() {
+        if detect_archive(downloaded).is_none()
+            && downloaded.extension().is_some_and(|extension| {
+                extension.eq_ignore_ascii_case("bk2") || extension.eq_ignore_ascii_case("ini")
+            })
+        {
+            return Err(ResolveError::Failure(format!(
+                "Movie replacements and standalone INI presets are not supported for {}",
+                cfg.game_id
+            )));
+        }
+        return Ok(None);
+    }
+    if detect_archive(downloaded).is_none() {
+        let ext = downloaded
+            .extension()
+            .and_then(|value| value.to_str())
+            .unwrap_or("");
+        if (ext.eq_ignore_ascii_case("bk2") && movies.is_none())
+            || (ext.eq_ignore_ascii_case("ini") && config.is_none())
+        {
+            return Err(ResolveError::Failure(format!(
+                "{} are not supported for {}",
+                if ext.eq_ignore_ascii_case("ini") {
+                    "Standalone INI presets"
+                } else {
+                    "Movie replacements"
+                },
+                cfg.game_id
+            )));
+        }
+        if downloaded
+            .extension()
+            .is_some_and(|extension| extension.eq_ignore_ascii_case("bak2"))
+        {
+            return Err(ResolveError::Failure(
+                ".bak2 is not a supported movie extension".into(),
+            ));
+        }
+        let is_resource = movies
+            .is_some_and(|binding| ext.eq_ignore_ascii_case(binding.extension()))
+            || (config.is_some() && ext.eq_ignore_ascii_case("ini"));
+        if !is_resource {
+            return Ok(None);
+        }
+        return Ok(Some(ResourceArchive {
+            downloaded: downloaded.to_path_buf(),
+            is_archive: false,
+            members: Vec::new(),
+            pak_picker: None,
+        }));
+    }
+    if has_ue4ss_loader_signature(downloaded) {
+        return Ok(None);
+    }
+    let entries = list_entries(downloaded)?;
+    let names: Vec<String> = entries
+        .iter()
+        .map(|e| {
+            if e.is_dir && !e.name.ends_with('/') {
+                return format!("{}/", e.name);
+            }
+            e.name.clone()
+        })
+        .collect();
+    let submods: Vec<String> = classify_archive_dirs(&names, cfg)
+        .into_iter()
+        .filter(|(_, tag)| tag.as_deref() == Some("ue4ss_mods"))
+        .map(|(dir, _)| format!("{dir}/"))
+        .collect();
+    let in_submod = |name: &str| submods.iter().any(|d| name.starts_with(d.as_str()));
+    let unit_ext = cfg.primary().content_extension();
+    let is_pak_family = |name: &str| {
+        let ext = Path::new(name)
+            .extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("");
+        unit_ext.is_some_and(|u| ext.eq_ignore_ascii_case(u))
+            || cfg
+                .primary()
+                .companions
+                .iter()
+                .any(|c| ext.eq_ignore_ascii_case(c))
+    };
+    let files: Vec<(u32, &str)> = entries
+        .iter()
+        .enumerate()
+        .filter(|(_, e)| !e.is_dir)
+        .map(|(i, e)| (i as u32, e.name.as_str()))
+        .collect();
+    // Only a movie or Engine.ini starts a review. Other INIs ride
+    // along with real packages, such as the gameplay tag configs Crime Boss ModKit output
+    // carries, and must not divert those archives from their own routing.
+    let starts_review = |name: &str| {
+        let file = entry_file_name(name);
+        movies.is_some_and(|binding| {
+            Path::new(file)
+                .extension()
+                .is_some_and(|extension| extension.eq_ignore_ascii_case(binding.extension()))
+        }) || config.is_some_and(|binding| file.eq_ignore_ascii_case(binding.filename()))
+    };
+    if !files.iter().any(|(_, n)| starts_review(n) && !in_submod(n)) {
+        return Ok(None);
+    }
+    let mut members: Vec<(Option<u32>, String)> = files
+        .iter()
+        .filter(|(_, n)| !is_pak_family(n) && !in_submod(n))
+        .map(|(i, n)| (Some(*i), n.to_string()))
+        .collect();
+    // A sub-mod folder beside movies is listed as one unsupported component, so it is seen.
+    members.extend(submods.iter().map(|d| (None, d.clone())));
+    let paks: Vec<StagedEntry> = match unit_ext {
+        Some(ext) => files
+            .iter()
+            .filter(|(_, name)| {
+                Path::new(name)
+                    .extension()
+                    .is_some_and(|found| found.eq_ignore_ascii_case(ext))
+            })
+            .map(|(index, name)| StagedEntry {
+                source: StagedEntrySource::File { index: *index },
+                display_name: name.to_string(),
+            })
+            .collect(),
+        None => Vec::new(),
+    };
+    let mut pak_picker = None;
+    if !paks.is_empty() {
+        pak_picker = Some(multi_pak_payload(
+            registry,
+            downloaded.to_string_lossy().to_string(),
+            paks,
+            None,
+            None,
+            None,
+        )?);
+    }
+    Ok(Some(ResourceArchive {
+        downloaded: downloaded.to_path_buf(),
+        is_archive: true,
+        members,
+        pak_picker,
+    }))
 }
 
 fn prompt_err(p: InstallPrompt) -> ResolveError {
@@ -1471,6 +1685,9 @@ pub fn resolve_archive_download(
                 Err(e.into())
             }
         };
+    }
+    if let Some(resources) = detect_resources(&downloaded, cfg, registry)? {
+        return Err(ResolveError::Resources(Box::new(resources)));
     }
     if cfg.game_id == "cb" {
         return resolve_crimeboss_archive(downloaded, cfg, registry);
@@ -1985,3 +2202,7 @@ pub fn mark_archive_files(
     }
     (mods, any_checked)
 }
+
+#[cfg(test)]
+#[path = "zip_resource_tests.rs"]
+mod resource_tests;

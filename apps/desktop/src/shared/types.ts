@@ -188,6 +188,8 @@ export interface InstalledMod {
     archiveBroken?: boolean
     containerMissing?: boolean // the pak is only a header and its .ucas and .utoc are gone
     location?: string // scan target tag; absent = primary target
+    deployment?: 'movie' | 'ini'
+    resourceStatus?: 'applied' | 'disabled' | 'diverged' | 'blocked'
     // Whether version is comparable. Kept out of the version string so "unknown" and
     // "outdated" are never mistaken for real version values.
     updateStatus?: 'known' | 'unknown' | 'outdated'

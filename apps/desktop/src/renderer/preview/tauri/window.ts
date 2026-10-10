@@ -15,6 +15,9 @@ const previewWindow = {
             resizeListeners.delete(listener)
         })
     },
+    onCloseRequested(): Promise<() => void> {
+        return Promise.resolve(() => {})
+    },
 }
 
 export function getCurrentWindow() {

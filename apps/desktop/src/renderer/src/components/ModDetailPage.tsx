@@ -32,7 +32,7 @@ import type {
     InstalledMod,
     ModSummary,
 } from '../../../shared/types'
-import { AVATAR_BASE_URL } from '../../../shared/types'
+import { AVATAR_BASE_URL, GAMES } from '../../../shared/types'
 import NexusIcon from '../../../../assets/icons/nexusmods.svg?react'
 import {
     getCachedMod,
@@ -411,18 +411,29 @@ export function ModDetailPage({
                 new Map(prev).set(`file:${modId}:${fileId}`, { downloaded: 0, total: 0 })
             )
         })
-        const offComplete = api.onNxmInstallComplete(({ gameId, modId: evModId, fileId }) => {
+        const clearDownload = ({
+            gameId,
+            modId: evModId,
+            fileId,
+        }: {
+            gameId: string
+            modId: number
+            fileId: number
+        }) => {
             if (gameId !== activeGame || evModId !== modId) return
             setDownloadMap((prev) => {
                 const next = new Map(prev)
                 next.delete(`file:${modId}:${fileId}`)
                 return next
             })
-        })
+        }
+        const offComplete = api.onNxmInstallComplete(clearDownload)
+        const offClosed = api.onNxmReviewClosed(clearDownload)
         const offFailed = api.onNxmInstallFailed(() => setDownloadMap(new Map()))
         return () => {
             offStarted()
             offComplete()
+            offClosed()
             offFailed()
         }
     }, [isNexus, activeGame, modId])
@@ -527,7 +538,12 @@ export function ModDetailPage({
         const checkType = download?.type ?? (files.length === 1 ? files[0].type : undefined)
         const checkUrl =
             download?.download_url ?? (files.length === 1 ? files[0].download_url : undefined)
-        if (isUnsupportedFormat(checkType, checkUrl)) {
+        const checkFilename = download
+            ? files.find((file) => file.id === download.id)?.name
+            : files.length === 1
+              ? files[0].name
+              : undefined
+        if (isUnsupportedFormat(GAMES[activeGame], checkType, checkUrl, checkFilename)) {
             setShowHeaderFormatWarning(true)
             return
         }
@@ -920,8 +936,10 @@ export function ModDetailPage({
                                         </Button>
                                     )}
                                     {isUnsupportedFormat(
+                                        GAMES[activeGame],
                                         detail?.download?.type ?? undefined,
-                                        detail?.download?.download_url ?? undefined
+                                        detail?.download?.download_url ?? undefined,
+                                        files.find((file) => file.id === detail?.download?.id)?.name
                                     ) && (
                                         <span className="flex items-center gap-1 text-xs text-warning">
                                             <AlertTriangle className="w-3 h-3 shrink-0" />

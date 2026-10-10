@@ -23,6 +23,7 @@ use super::cleanup::{self, CleanupPlan};
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum StagedArchiveKind {
     MultiEntry,
+    NexusResourcePak,
     CrimeBossFlat,
     HostPack,
     Ue4ssLoader,
@@ -88,6 +89,19 @@ fn short(token: &str) -> &str {
 }
 
 impl StagingRegistry {
+    pub(crate) fn restrict_to_nexus(&self, token: &str) -> Result<(), String> {
+        let mut grants = self.grants.lock().unwrap_or_else(|e| e.into_inner());
+        let grant = grants
+            .iter_mut()
+            .find(|grant| grant.token == token)
+            .ok_or("This package archive is no longer available")?;
+        if grant.kind != StagedArchiveKind::MultiEntry || grant.borrows != 0 {
+            return Err("This package archive cannot be assigned to a Nexus review".into());
+        }
+        grant.kind = StagedArchiveKind::NexusResourcePak;
+        Ok(())
+    }
+
     pub(crate) fn new() -> Self {
         Self::with_limits(MAX_GRANTS, GRANT_TTL)
     }
@@ -275,6 +289,28 @@ mod tests {
         std::fs::write(&p, b"archive").unwrap();
         let plan = CleanupPlan::RemoveOwnedFile(p.clone());
         (p, plan)
+    }
+
+    #[test]
+    fn nexus_grants_refuse_the_modworkshop_workflow_without_depending_on_an_open_review() {
+        let dir = tempfile::tempdir().unwrap();
+        let registry = StagingRegistry::new();
+        let (path, plan) = staged(&dir, "nexus.zip");
+        let handle = registry
+            .register(StagedArchiveKind::MultiEntry, &path, plan, Vec::new())
+            .unwrap();
+        registry.restrict_to_nexus(&handle).unwrap();
+        assert!(registry
+            .borrow(&handle, StagedArchiveKind::MultiEntry)
+            .is_none());
+        assert_eq!(
+            registry.borrow(&handle, StagedArchiveKind::NexusResourcePak),
+            Some(path.clone())
+        );
+        assert!(registry.finalize(&handle).is_none());
+        registry.release(&handle);
+        cleanup::run_sync(&registry.finalize(&handle).unwrap());
+        assert!(!path.exists());
     }
 
     #[test]

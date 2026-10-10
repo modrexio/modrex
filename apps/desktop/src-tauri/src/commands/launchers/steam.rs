@@ -32,10 +32,11 @@ impl Launcher for Steam {
         Path::new(game_path).join("steam_appid.txt").exists()
     }
 
-    fn launch(&self, game: &GameDef, _game_path: &str, opts: Option<&str>) {
-        let Some(def) = game.steam.as_ref() else {
-            return;
-        };
+    fn launch(&self, game: &GameDef, _game_path: &str, opts: Option<&str>) -> Result<(), String> {
+        let def = game
+            .steam
+            .as_ref()
+            .ok_or("This game has no Steam launch definition")?;
         let trimmed = opts.map(|o| o.trim()).filter(|o| !o.is_empty());
         if let (Some(opts_str), Some(steam_path)) = (trimmed, steam_install_path()) {
             #[cfg(target_os = "windows")]
@@ -54,14 +55,12 @@ impl Launcher for Steam {
             };
             let mut args = vec!["-applaunch".to_string(), def.app_id.to_string()];
             args.extend(opts_str.split_whitespace().map(String::from));
-            if let Err(e) =
-                super::outside_bundle(std::process::Command::new(&exe).args(&args)).spawn()
-            {
-                log::warn!("steam launch: spawn failed: {e}");
-            }
-        } else {
-            super::open_url(&format!("steam://rungameid/{}", def.app_id));
+            return super::outside_bundle(std::process::Command::new(&exe).args(&args))
+                .spawn()
+                .map(|_| ())
+                .map_err(|e| format!("Could not launch the game through Steam: {e}"));
         }
+        super::open_url(&format!("steam://rungameid/{}", def.app_id))
     }
 }
 

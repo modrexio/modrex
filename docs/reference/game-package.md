@@ -1,6 +1,6 @@
 # Authoring a game package
 
-Generated from the contract in `apps/desktop/game-package/src/lib.rs`. Do not edit.
+Generated from the contract in `apps/desktop/src-tauri/game-package/src/lib.rs`. Do not edit.
 
 One game is one directory under `apps/desktop/src-tauri/src/games/<id>/` containing one
 `package.toml`. Nothing else lists the games. The desktop build script reads every
@@ -21,6 +21,9 @@ missing game at runtime.
 | `loaders` | no | mod loaders Modrex can install |
 | `decoders` | no | container formats to unpack before install |
 | `package_reader` | no | how to read the game's own packages so a mod's assets can be listed |
+| `movie_replacement` | no | replacement movie slots in a declared game folder |
+| `config_presets` | no | config preset syntax and verified automatic locations |
+| `graphics_config` | no | one graphics config file the user can open in an external application |
 | `targets` | yes | the places mods are installed |
 
 Components are values, not table headers. A repeated component is a list of objects,
@@ -117,6 +120,59 @@ than guessing a key.
 | Format | Fields |
 | --- | --- |
 | `unreal` | `aes_key`, 64 hexadecimal characters, covering both pak and IoStore containers |
+
+## `movie_replacement`
+
+Independent of package readers, loaders and config presets. Omit it when this game
+has no verified movie replacement mechanism.
+
+| Format | Fields |
+| --- | --- |
+| `bink` | `directory`, `storefronts`, optional `absent_slots` |
+
+`directory` is a list of relative components below the selected install. This mechanism
+accepts `.bk2` movies. `storefronts` lists supported stores from `install.stores`.
+A manual installation with no recognised store offers only slots found on disk.
+
+Each `absent_slots` entry names a supported `store` and its verified `filenames`.
+These slots may be offered even when the files are absent, so declare them only
+after verifying published replacement instructions for that store. Filenames must
+be single `.bk2` names and unique ignoring ASCII case.
+
+## `config_presets`
+
+Independent of movie replacement. An empty or omitted `locations` list means the user
+chooses the config file or its folder for the selected installation.
+
+| Format | Fields |
+| --- | --- |
+| `unreal_engine_ini` | optional `locations` |
+
+This mechanism merges unambiguous scalar assignments into `Engine.ini`. Repeated
+assignments and Unreal array operators require manual editing. It does not claim
+support for other INI dialects or config formats.
+
+Each location names a `root`, a declared `store` and relative `path` components ending
+in `Engine.ini`. Only one Windows location may be declared for each store.
+
+| Root | Meaning |
+| --- | --- |
+| `windows_local_app_data` | Windows Local AppData, resolved by the host's Known Folder API. This location applies only on Windows |
+
+## `graphics_config`
+
+Opens one existing graphics config file for manual editing. It does not enable config
+preset installation or parse the file's contents.
+
+| Field | Required | Meaning |
+| --- | --- | --- |
+| `filename` | yes | the single permitted filename, without a directory or path prefix |
+| `locations` | no | verified automatic locations, using the roots documented under `config_presets` |
+
+Each location names a declared `store` and relative `path` components ending in
+`filename`. Only one Windows location may be declared for each store. An empty or omitted
+list requires the user to choose the file. Finding the file does not prove
+that it is the game's active configuration.
 
 ## `targets`
 
@@ -271,6 +327,17 @@ name = "RAID: World War II"
 short_name = "RAID"
 mod_metadata = "diesel"
 
+graphics_config = {
+    filename = "renderer_settings_dx11.xml",
+    locations = [
+        {
+            root = "windows_local_app_data",
+            store = "steam",
+            path = ["RAID WW2", "renderer_settings_dx11.xml"],
+        },
+    ],
+}
+
 sources = [
     {
         provider = "modworkshop",
@@ -326,6 +393,17 @@ id = "pdth"
 name = "PAYDAY: The Heist"
 short_name = "PDTH"
 mod_metadata = "diesel"
+
+graphics_config = {
+    filename = "renderer_settings.xml",
+    locations = [
+        {
+            root = "windows_local_app_data",
+            store = "steam",
+            path = ["PAYDAY", "renderer_settings.xml"],
+        },
+    ],
+}
 
 sources = [
     {

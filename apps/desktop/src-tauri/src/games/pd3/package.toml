@@ -24,7 +24,7 @@ news = [
 
 install = {
     executables = ["PAYDAY3.exe"],
-    processes = ["PAYDAY3-Win64-Shipping"],
+    processes = ["PAYDAY3-Win64-Shipping", "PAYDAY3-WinGDK-Shipping"],
     stores = [
         {
             provider = "steam",
@@ -62,6 +62,29 @@ loaders = [
 package_reader = {
     format = "unreal",
     aes_key = "27DFBADBB537388ACDE27A7C5F3EBC3721AF0AE0A7602D2D7F8A16548F37D394",
+}
+
+movie_replacement = {
+    format = "bink",
+    directory = ["PAYDAY3", "Content", "Movies"],
+    storefronts = ["steam", "epic"],
+    absent_slots = [
+        {
+            store = "steam",
+            filenames = ["StartUp_Unreal.bk2", "StartUp_DeepSilver.bk2", "StartUp_SBZ.bk2", "BG_LoginVideo_01.bk2"],
+        },
+    ],
+}
+
+config_presets = {
+    format = "unreal_engine_ini",
+    locations = [
+        {
+            root = "windows_local_app_data",
+            store = "steam",
+            path = ["PAYDAY3", "Saved", "Config", "WindowsClient", "Engine.ini"],
+        },
+    ],
 }
 
 targets = [

@@ -6,6 +6,9 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 ### Added
 
+- Added reversible .bk2 movie replacements and Engine.ini presets for supported games.
+- Added shortcuts to open game configuration files.
+- Added a Health Check scan for known movie mods.
 - Added Polish as a language option for the app's interface.
 - Added a Health Check warning for mods missing their .ucas and .utoc files.
 - Added a Leftover files tab to Health Check for removing unused .ucas and .utoc files.
@@ -18,6 +21,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 ### Fixed
 
+- Fixed PAYDAY 3 Xbox builds not being detected as running.
 - Fixed Linux builds disabling graphics acceleration.
 - Fixed Restart & Install not restarting Modrex on Linux after installing an update.
 - Fixed UE4SS mods installing to a folder PAYDAY 3's UE4SS does not read.

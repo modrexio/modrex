@@ -75,6 +75,20 @@ fn ipc_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::mods::install_cb_flat_archive,
             commands::mods::install_host_pack,
             commands::mods::discard_staged_archive,
+            commands::mods::get_resource_review,
+            commands::mods::install_reviewed_resources,
+            commands::mods::install_nexus_review_pak,
+            commands::mods::cancel_resource_review,
+            commands::mods::review_resource_recovery,
+            commands::mods::keep_current_resources,
+            commands::mods::cancel_resource_recovery,
+            commands::mods::open_resource_recovery_folder,
+            commands::mods::get_engine_ini_location,
+            commands::mods::open_engine_ini,
+            commands::mods::pick_engine_ini,
+            commands::mods::get_graphics_config_location,
+            commands::mods::pick_graphics_config,
+            commands::mods::open_graphics_config,
             commands::mods::uninstall_mod,
             commands::mods::enable_mod,
             commands::mods::disable_mod,
@@ -110,6 +124,8 @@ fn ipc_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::launchers::launch_without_mods,
             commands::launchers::restore_mods,
             commands::launchers::is_game_running,
+            commands::launchers::get_game_launch_status,
+            commands::launchers::cancel_pending_game_launch,
             commands::launchers::stop_game,
             commands::launchers::shell_open_external,
             commands::launchers::open_game_folder,
@@ -124,6 +140,7 @@ fn ipc_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::thumbnails::get_thumbnail,
             // mod index
             commands::mod_index::get_index_mod_files,
+            commands::mod_index::inspect_movie_resources,
             // news
             commands::news::fetch_news,
             commands::news::refresh_news,
@@ -178,6 +195,10 @@ pub fn run() {
     let app = builder
         .manage(commands::updater::UpdaterState::new())
         .manage(commands::mods::StateLocks::default())
+        .manage(commands::mods::ResourceLocks::default())
+        .manage(commands::mods::ResourceReviews::default())
+        .manage(commands::mods::IniLocations::default())
+        .manage(commands::mods::GraphicsConfigLocations::default())
         .manage(commands::startup::StartupState::default())
         .manage(discord_state)
         .register_uri_scheme_protocol("thumb", |ctx, request| {
@@ -301,6 +322,7 @@ pub fn run() {
     app.run(|app_handle, event| {
         if matches!(event, tauri::RunEvent::Exit) {
             commands::mods::discard_all_staged_archives(app_handle);
+            commands::mods::discard_all_resource_reviews(app_handle);
         }
     });
 }
