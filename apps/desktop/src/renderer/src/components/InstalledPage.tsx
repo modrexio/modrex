@@ -1,3 +1,4 @@
+import { ScrollArea } from './ScrollArea'
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { TITLE_ROW_MIN_H } from './pageHeader'
 import { Button } from './ui/Button'
@@ -571,9 +572,10 @@ export function InstalledPage({
                         </button>
                     </div>
                 )}
-                <div
+                <ScrollArea
+                    hostClassName="flex-1"
                     ref={scrollContainerRef}
-                    className="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-3"
+                    className="overflow-y-auto px-6 py-4 flex flex-col gap-3"
                 >
                     {!installedReady ? (
                         <div className="flex items-center justify-center h-full text-text-subtle text-sm">
@@ -667,7 +669,7 @@ export function InstalledPage({
                             )}
                         </>
                     )}
-                </div>
+                </ScrollArea>
 
                 {showUpdates && (
                     <UpdatesModal

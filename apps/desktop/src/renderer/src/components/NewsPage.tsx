@@ -1,3 +1,4 @@
+import { ScrollArea } from './ScrollArea'
 import { memo, useEffect, useState } from 'react'
 import { TITLE_ROW_MIN_H } from './pageHeader'
 import { RefreshCw, ExternalLink, Image as ImageIcon } from 'lucide-react'
@@ -195,7 +196,7 @@ function NewsPageImpl({ isActive, activeGame }: Props) {
                 </p>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-6 pb-6">
+            <ScrollArea hostClassName="flex-1" className="overflow-y-auto px-6 pb-6">
                 {loading ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4">
                         {Array.from({ length: 8 }, (_, i) => (
@@ -213,7 +214,7 @@ function NewsPageImpl({ isActive, activeGame }: Props) {
                         ))}
                     </div>
                 )}
-            </div>
+            </ScrollArea>
 
             {items && items.length > 0 && totalPages > 1 && (
                 <div className="px-6 py-3 border-t border-border flex items-center justify-end shrink-0">

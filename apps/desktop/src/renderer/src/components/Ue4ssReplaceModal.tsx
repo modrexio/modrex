@@ -3,6 +3,7 @@ import { Button } from './ui/Button'
 import { Dialog, DialogHeader } from './Dialog'
 import { t } from '../i18n'
 import { api } from '../api'
+import { ScrollArea } from './ScrollArea'
 
 export interface LoaderReplacePayload {
     archiveHandle: string
@@ -30,13 +31,18 @@ export function FileList({ heading, paths }: { heading: string; paths: string[] 
             <div className="text-xs font-medium uppercase tracking-wide text-text-muted">
                 {heading}
             </div>
-            <ul className="max-h-40 overflow-y-auto rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm">
-                {paths.map((path) => (
-                    <li key={path} className="truncate" title={path}>
-                        {path}
-                    </li>
-                ))}
-            </ul>
+            <ScrollArea
+                hostClassName="max-h-40 rounded-lg border border-border bg-surface-2"
+                className="overflow-y-auto px-3 py-2 text-sm"
+            >
+                <ul>
+                    {paths.map((path) => (
+                        <li key={path} className="truncate" title={path}>
+                            {path}
+                        </li>
+                    ))}
+                </ul>
+            </ScrollArea>
         </div>
     )
 }

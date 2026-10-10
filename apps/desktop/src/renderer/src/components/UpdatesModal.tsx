@@ -1,3 +1,4 @@
+import { ScrollArea } from './ScrollArea'
 import { useRef, useState } from 'react'
 import { error as logError } from '@tauri-apps/plugin-log'
 import { Image as ImageIcon } from 'lucide-react'
@@ -388,7 +389,7 @@ export function UpdatesModal({
                     onClose={onClose}
                 />
 
-                <div className="overflow-y-auto flex-1">
+                <ScrollArea hostClassName="flex-1" className="overflow-y-auto">
                     {updatable.map((ins) => (
                         <UpdateModalRow
                             version={updateVersions.get(ins.id)!}
@@ -403,7 +404,7 @@ export function UpdatesModal({
                             onUpdate={() => handleUpdate(ins)}
                         />
                     ))}
-                </div>
+                </ScrollArea>
 
                 <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border shrink-0">
                     {updateError && (

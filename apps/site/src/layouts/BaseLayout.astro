@@ -1,6 +1,7 @@
 ---
 import '../styles/global.css'
 import CookieBanner from '../components/CookieBanner.astro'
+import Scrollbars from '../components/Scrollbars.astro'
 
 interface Props {
     title: string
@@ -98,6 +99,7 @@ const organizationJsonLd = {
             is:inline
             set:html={JSON.stringify(organizationJsonLd)}
         />
+        <Scrollbars />
         <slot name="head" />
 
         <!-- Google Analytics (Consent Mode v2: denied by default) -->

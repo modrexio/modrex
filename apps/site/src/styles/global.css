@@ -1,5 +1,6 @@
 @import './tokens/fonts.css';
 @import 'tailwindcss';
+@import '@modrex/scrollbars/theme.css';
 
 @import './tokens/colors.css';
 @import './tokens/typography.css';

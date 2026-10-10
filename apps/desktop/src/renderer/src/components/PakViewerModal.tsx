@@ -1,3 +1,4 @@
+import { ScrollArea } from './ScrollArea'
 import { useEffect, useMemo, useState } from 'react'
 import {
     ChevronRight,
@@ -214,7 +215,10 @@ export function PakViewerModal({ modName, uid, gameId, onClose }: Props) {
                 )}
             </div>
 
-            <div className="overflow-y-auto flex-1 p-3 flex flex-col gap-0.5">
+            <ScrollArea
+                hostClassName="flex-1"
+                className="overflow-y-auto p-3 flex flex-col gap-0.5"
+            >
                 {error !== null && (
                     <div className="px-4 py-3 rounded-lg bg-danger/30 border border-danger-hover text-sm text-danger-text flex flex-col gap-1">
                         <span className="flex items-center gap-2 font-medium">
@@ -256,7 +260,7 @@ export function PakViewerModal({ modName, uid, gameId, onClose }: Props) {
                         ))}
                     </div>
                 )}
-            </div>
+            </ScrollArea>
         </Dialog>
     )
 }

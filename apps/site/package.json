@@ -40,6 +40,7 @@
     },
     "dependencies": {
         "@modrex/games": "workspace:*",
+        "@modrex/scrollbars": "workspace:*",
         "@astrojs/sitemap": "3.7.4",
         "@astrojs/starlight": "0.42.4",
         "lucide": "1.48.0"

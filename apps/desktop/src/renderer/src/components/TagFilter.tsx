@@ -1,3 +1,4 @@
+import { ScrollArea } from './ScrollArea'
 import * as Popover from '@radix-ui/react-popover'
 import { useState } from 'react'
 import { Tag as TagIcon, ChevronDown, Plus, Minus, X } from 'lucide-react'
@@ -87,7 +88,7 @@ export function TagFilter({ tags, include, exclude, onChange }: Props) {
                         )}
                     </div>
 
-                    <div className="overflow-y-auto p-1">
+                    <ScrollArea className="overflow-y-auto p-1">
                         {filtered.length === 0 ? (
                             <div className="px-3 py-4 text-center text-xs text-text-subtle">
                                 {t('browse.tagFilterEmpty')}
@@ -130,7 +131,7 @@ export function TagFilter({ tags, include, exclude, onChange }: Props) {
                                 )
                             })
                         )}
-                    </div>
+                    </ScrollArea>
                 </Popover.Content>
             </Popover.Portal>
         </Popover.Root>

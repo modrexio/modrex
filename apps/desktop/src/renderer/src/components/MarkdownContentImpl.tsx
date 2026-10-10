@@ -12,6 +12,7 @@ import 'highlight.js/styles/github-dark.css'
 import { api } from '../api'
 import { parseModworkshopModId } from '../modLinks'
 import { EmbedPlayer } from './EmbedPlayer'
+import { ScrollArea } from './ScrollArea'
 
 const InsidePreContext = createContext(false)
 
@@ -122,9 +123,12 @@ function makeComponents(onOpenDetail?: (modId: number) => void): Components {
         code: Code,
         pre: ({ children }) => (
             <InsidePreContext.Provider value={true}>
-                <pre className="bg-surface-hover rounded p-3 my-2 overflow-x-auto text-sm font-mono text-text">
-                    {children}
-                </pre>
+                <ScrollArea
+                    hostClassName="my-2 rounded bg-surface-hover"
+                    className="overflow-x-auto"
+                >
+                    <pre className="p-3 text-sm font-mono text-text">{children}</pre>
+                </ScrollArea>
             </InsidePreContext.Provider>
         ),
         img: ({ src, alt }) => {
@@ -158,9 +162,11 @@ function makeComponents(onOpenDetail?: (modId: number) => void): Components {
             </blockquote>
         ),
         table: ({ children }) => (
-            <table className="block max-w-full overflow-x-auto text-sm text-left border-collapse my-2">
-                {children}
-            </table>
+            <ScrollArea hostClassName="my-2" className="overflow-x-auto">
+                <table className="block max-w-full text-sm text-left border-collapse">
+                    {children}
+                </table>
+            </ScrollArea>
         ),
         th: ({ children, style }) => (
             <th

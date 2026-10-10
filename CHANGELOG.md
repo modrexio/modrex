@@ -13,6 +13,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 ### Changed
 
 - Mod descriptions now look the way they do on ModWorkshop and Nexus.
+- Scrollbars now float over the content, so pages no longer shift when one appears.
 - Health Check stays open while it reinstalls mods or installs dependencies, reinstalls mods one at a time, and shows which ones failed.
 
 ### Fixed

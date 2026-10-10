@@ -1,3 +1,4 @@
+import { ScrollArea } from './ScrollArea'
 import { useState, useEffect, useRef } from 'react'
 import { Button } from './ui/Button'
 import type { ModFile, InstalledMod, Mod } from '../../../shared/types'
@@ -167,7 +168,10 @@ export function FileSelectModal({
                     </div>
                 )}
 
-                <div className="overflow-y-auto flex-1 px-4 py-3 flex flex-col gap-2">
+                <ScrollArea
+                    hostClassName="flex-1"
+                    className="overflow-y-auto px-4 py-3 flex flex-col gap-2"
+                >
                     {installError && (
                         <div className="px-4 py-3 rounded-lg bg-danger/30 border border-danger-hover text-sm text-danger-text">
                             {installError}
@@ -196,7 +200,7 @@ export function FileSelectModal({
                             />
                         )
                     })}
-                </div>
+                </ScrollArea>
 
                 <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border shrink-0">
                     <Button variant="secondary" size="md" onClick={onClose} disabled={isBusy}>

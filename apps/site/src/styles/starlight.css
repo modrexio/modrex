@@ -1,4 +1,5 @@
 @import './tokens/fonts.css';
+@import '@modrex/scrollbars/theme.css';
 @import './tokens/colors.css';
 @import './tokens/typography.css';
 @import './tokens/spacing.css';
@@ -255,12 +256,7 @@ body {
 
 /* Starlight locks scrolling on body while search is open, but html clips its own
    overflow, which stops body's overflow from reaching the window, so the lock
-   has to sit on html. The gutter keeps the page from shifting when the
-   scrollbar goes away. */
-html {
-    scrollbar-gutter: stable;
-}
-
+   has to sit on html. */
 html:has(body[data-search-modal-open]) {
     overflow: hidden;
 }
