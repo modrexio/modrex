@@ -427,9 +427,6 @@ export function SettingsPage({
 
                         {game?.advanced && (
                             <div hidden={activeTab !== 'advanced'} className="flex flex-col gap-4">
-                                <h2 className="text-sm font-semibold">
-                                    {t('resources.toolsTitle', { game: game.name })}
-                                </h2>
                                 {game.advanced(
                                     () => setActiveTab('game'),
                                     isActive && activeTab === 'advanced'

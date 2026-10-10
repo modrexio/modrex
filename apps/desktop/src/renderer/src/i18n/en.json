@@ -26,7 +26,6 @@
         "nonPakConfirmBody": "This file uses an unsupported format. Modrex may not be able to install it correctly."
     },
     "resources": {
-        "toolsTitle": "{game} tools",
         "details": "Technical details",
         "launchWithoutPackages": "Launch without package mods",
         "launchDescription": "Temporarily disables mod folders. Movie replacements and INI settings stay selected.",

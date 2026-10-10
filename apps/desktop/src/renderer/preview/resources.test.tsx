@@ -53,7 +53,7 @@ test('game settings leave resource tools in the game-scoped Advanced tab', async
     expect(await screen.findByRole('heading', { name: 'Launch Options' })).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Open' })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Advanced' }))
-    expect(await screen.findByRole('heading', { name: 'PAYDAY 3 tools' })).toBeTruthy()
+    expect(await screen.findByRole('heading', { name: 'Engine.ini' })).toBeTruthy()
     expect(await screen.findByText('Engine.ini found.')).toBeTruthy()
     expect(screen.getByText(/C:\/Users\/Preview\/AppData\/Local\/PAYDAY3/)).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Open' }))
@@ -131,9 +131,8 @@ test('a config-only declaration supplies settings tools without movie installati
             within(screen.getByRole('complementary')).getByRole('button', { name: 'Settings' })
         )
         fireEvent.click(screen.getByRole('button', { name: 'Advanced' }))
-        expect(await screen.findByRole('heading', { name: 'PAYDAY 2 tools' })).toBeTruthy()
         const iniSettings = within(
-            screen.getByRole('heading', { name: 'Engine.ini' }).closest('section')!
+            (await screen.findByRole('heading', { name: 'Engine.ini' })).closest('section')!
         )
         expect(await iniSettings.findByRole('button', { name: 'Browse' })).toBeTruthy()
     } finally {
@@ -220,16 +219,16 @@ test('global Advanced settings do not inherit a previous game configuration shor
     fireEvent.click(screen.getByRole('button', { name: 'Advanced' }))
     await screen.findByRole('heading', { name: 'Folders' })
     expect(screen.queryByRole('button', { name: 'Open' })).toBeNull()
-    expect(screen.queryByRole('heading', { name: 'PAYDAY 3 tools' })).toBeNull()
+    expect(screen.queryByRole('heading', { name: 'Engine.ini' })).toBeNull()
 })
 
 test.each([
-    ['pd2', 'PAYDAY 2', 'renderer_settings_dx11.xml', 'PAYDAY 2'],
-    ['pdth', 'PAYDAY: The Heist', 'renderer_settings.xml', 'PAYDAY'],
-    ['raid', 'RAID: World War II', 'renderer_settings_dx11.xml', 'RAID WW2'],
+    ['pd2', 'renderer_settings_dx11.xml', 'PAYDAY 2'],
+    ['pdth', 'renderer_settings.xml', 'PAYDAY'],
+    ['raid', 'renderer_settings_dx11.xml', 'RAID WW2'],
 ])(
     'opens graphics configuration in game Advanced settings for %s',
-    async (gameId, name, filename, folder) => {
+    async (gameId, filename, folder) => {
         store.set('modrex:active-game', gameId)
         const { api } = await import('../src/api')
         const open = vi.spyOn(api, 'openGraphicsConfig')
@@ -242,7 +241,7 @@ test.each([
         await screen.findByRole('heading', { name: 'Launch Options' })
         expect(screen.queryByRole('button', { name: 'Open' })).toBeNull()
         fireEvent.click(screen.getByRole('button', { name: 'Advanced' }))
-        await screen.findByRole('heading', { name: `${name} tools` })
+        await screen.findByRole('heading', { name: 'Graphics configuration' })
         await screen.findByText(`${filename} found.`)
         expect(
             screen.getByText(`C:/Users/Preview/AppData/Local/${folder}/${filename}`)
