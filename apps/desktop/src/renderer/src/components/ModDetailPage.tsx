@@ -1,3 +1,4 @@
+import { ScrollArea } from './ScrollArea'
 import { useState, useEffect, useCallback, type ReactNode } from 'react'
 import { Button } from './ui/Button'
 import * as Tabs from '@radix-ui/react-tabs'
@@ -972,7 +973,7 @@ export function ModDetailPage({
             )}
 
             {!loading && !error && mod && (
-                <div className="flex-1 overflow-y-auto">
+                <ScrollArea hostClassName="flex-1" className="overflow-y-auto">
                     {/* The banner slot is always rendered, including for mods that ship no
                         image. Dropping it moves the title, tabs and info card up by the
                         banner's full height, and the loading skeleton reserves the same box,
@@ -1248,7 +1249,7 @@ export function ModDetailPage({
                             </div>
                         </aside>
                     </div>
-                </div>
+                </ScrollArea>
             )}
 
             {lightboxIndex !== null && images.length > 0 && (

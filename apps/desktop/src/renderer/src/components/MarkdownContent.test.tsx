@@ -281,7 +281,7 @@ describe('ModworkshopMarkup formatting', () => {
     it('leaves color tags inside code alone', () => {
         const { container } = render(<ModworkshopMarkup text={'```lua\nlocal c = {red}(x)\n```'} />)
         expect(container.querySelector('pre')?.textContent).toContain('{red}(x)')
-        expect(container.querySelector('[style]')).toBeNull()
+        expect(container.querySelector('pre[style], pre [style]')).toBeNull()
     })
 
     it('handles long malformed color tags without backtracking', () => {

@@ -9,21 +9,39 @@ const scrollbars: PartialOptions['scrollbars'] = {
 
 const axis = (overflow: string) => (/auto|scroll/.test(overflow) ? 'scroll' : 'hidden')
 
-function attach(el: Element, ignore?: string) {
-    // A textarea cannot hold the scrollbar elements.
-    if (!(el instanceof HTMLElement) || el instanceof HTMLTextAreaElement) return
-    if (ignore && el.closest(ignore)) return
-    const { overflowX, overflowY } = getComputedStyle(el)
-    if (!/auto|scroll/.test(overflowX + overflowY)) return
-    OverlayScrollbars(
-        { target: el, elements: { viewport: el } },
+/** Keeps the scrollbar outside its native scrolling viewport. */
+export function overlayScrollbar(viewport: HTMLElement, host: HTMLElement) {
+    const { overflowX, overflowY } = getComputedStyle(viewport)
+    return OverlayScrollbars(
+        { target: viewport, elements: { viewport }, scrollbars: { slot: host } },
         { overflow: { x: axis(overflowX), y: axis(overflowY) }, scrollbars }
     )
+}
+
+const hosts = new WeakMap<HTMLElement, HTMLElement>()
+
+function attach(el: Element, ignore?: string) {
+    if (!(el instanceof HTMLElement) || el instanceof HTMLTextAreaElement) return
+    if (ignore && el.closest(ignore)) return
+    if (OverlayScrollbars(el)) return
+    const { overflowX, overflowY, flex, position } = getComputedStyle(el)
+    if (!/auto|scroll/.test(overflowX + overflowY)) return
+    // Wrapping fixed or absolute panes breaks their positioning and sibling selectors.
+    if (position === 'fixed' || position === 'absolute') return
+    const host = document.createElement('div')
+    host.className = 'modrex-scrollbar-host'
+    host.style.flex = flex
+    el.before(host)
+    host.append(el)
+    hosts.set(el, host)
+    overlayScrollbar(el, host)
 }
 
 function detach(el: Element) {
     if (el.isConnected || !(el instanceof HTMLElement)) return
     OverlayScrollbars(el)?.destroy()
+    hosts.get(el)?.remove()
+    hosts.delete(el)
 }
 
 const subtree = (node: Node) =>
@@ -35,8 +53,8 @@ export function overlayPageScrollbar() {
 }
 
 /**
- * Gives every scroll container in the document the shared overlay scrollbar, now and as they mount.
- * Containers matching or inside ignore keep their native scrollbar.
+ * Wraps static page scroll containers, except those matching or inside ignore, as they mount.
+ * React content supplies its own host through overlayScrollbar to preserve DOM ownership.
  */
 export function overlayScrollContainers(ignore?: string) {
     const attachAll = (node: Node) => subtree(node).forEach((el) => attach(el, ignore))

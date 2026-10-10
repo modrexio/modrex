@@ -1,3 +1,4 @@
+import { ScrollArea } from './ScrollArea'
 import { useState } from 'react'
 import { Dialog, DialogHeader } from './Dialog'
 import { Button } from './ui/Button'
@@ -30,7 +31,10 @@ export function UpdateFileModal({ mod, files, installed, onChoose, onCancel }: P
                 subtitle={t('installed.updatesModal.chooseBody', { name: mod.name })}
                 onClose={onCancel}
             />
-            <div className="overflow-y-auto flex-1 px-4 py-3 flex flex-col gap-2">
+            <ScrollArea
+                hostClassName="flex-1"
+                className="overflow-y-auto px-4 py-3 flex flex-col gap-2"
+            >
                 {files.map((file) => (
                     <FileRow
                         key={file.id}
@@ -43,7 +47,7 @@ export function UpdateFileModal({ mod, files, installed, onChoose, onCancel }: P
                         onToggle={() => setSelected(file.id)}
                     />
                 ))}
-            </div>
+            </ScrollArea>
             <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border shrink-0">
                 <Button variant="secondary" size="md" onClick={onCancel}>
                     {t('common.cancel')}

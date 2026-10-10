@@ -1,3 +1,4 @@
+import { ScrollArea } from './ScrollArea'
 import { useEffect, useState } from 'react'
 import { Button } from './ui/Button'
 import { SearchClearButton } from './ui/SearchClearButton'
@@ -420,7 +421,7 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
                 />
             </div>
 
-            <div className="overflow-y-auto flex-1 p-3 flex flex-col gap-1">
+            <ScrollArea hostClassName="flex-1" className="overflow-y-auto p-3 flex flex-col gap-1">
                 {installError && (
                     <div className="px-4 py-3 rounded-lg bg-danger/30 border border-danger-hover text-sm text-danger-text">
                         {installError}
@@ -532,7 +533,7 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
                         </div>
                     )
                 })}
-            </div>
+            </ScrollArea>
 
             <div className="flex justify-end px-5 py-4 border-t border-border shrink-0">
                 <Button variant="secondary" size="sm" onClick={onClose}>

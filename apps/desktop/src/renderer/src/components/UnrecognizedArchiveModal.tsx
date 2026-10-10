@@ -1,3 +1,4 @@
+import { ScrollArea } from './ScrollArea'
 import { useEffect, useState } from 'react'
 import { Button } from './ui/Button'
 import { Dialog, DialogHeader } from './Dialog'
@@ -47,7 +48,10 @@ export function UnrecognizedArchiveModal({ modId, onClose }: Props) {
         >
             <DialogHeader title={t('unrecognized.title')} onClose={onClose} />
 
-            <div className="px-5 py-4 overflow-y-auto flex-1 flex flex-col gap-3">
+            <ScrollArea
+                hostClassName="flex-1"
+                className="px-5 py-4 overflow-y-auto flex flex-col gap-3"
+            >
                 <p className="text-sm text-text-muted">{t('unrecognized.body')}</p>
                 {instructions === null ? (
                     <SkeletonText />
@@ -58,7 +62,7 @@ export function UnrecognizedArchiveModal({ modId, onClose }: Props) {
                 ) : (
                     <p className="text-sm text-text-subtle">{t('unrecognized.noInstructions')}</p>
                 )}
-            </div>
+            </ScrollArea>
 
             <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border shrink-0">
                 <Button variant="accent" size="lg" onClick={onClose}>

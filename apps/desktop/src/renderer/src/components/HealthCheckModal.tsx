@@ -1,3 +1,4 @@
+import { ScrollArea } from './ScrollArea'
 import { useState, type ReactNode } from 'react'
 import { Image as ImageIcon } from 'lucide-react'
 import { Button } from './ui/Button'
@@ -260,19 +261,21 @@ export function HealthCheckModal({
                 onValueChange={setActiveTab}
                 className="flex flex-col flex-1 min-h-0"
             >
-                <Tabs.List className="flex border-b border-border px-5 overflow-x-auto shrink-0">
-                    {tabs.map((tabItem) => (
-                        <Tabs.Trigger
-                            key={tabItem.id}
-                            value={tabItem.id}
-                            className="relative text-xs px-2.5 py-3 border-b-2 border-transparent transition-colors text-text-subtle hover:text-text-muted before:content-[''] before:absolute before:inset-x-1 before:inset-y-1.5 before:rounded before:transition-colors hover:before:bg-surface-hover data-[state=active]:border-accent data-[state=active]:text-accent focus:outline-none whitespace-nowrap"
-                        >
-                            <span className="relative">{tabItem.label}</span>
-                        </Tabs.Trigger>
-                    ))}
-                </Tabs.List>
+                <ScrollArea hostClassName="shrink-0" className="overflow-x-auto">
+                    <Tabs.List className="flex border-b border-border px-5">
+                        {tabs.map((tabItem) => (
+                            <Tabs.Trigger
+                                key={tabItem.id}
+                                value={tabItem.id}
+                                className="relative text-xs px-2.5 py-3 border-b-2 border-transparent transition-colors text-text-subtle hover:text-text-muted before:content-[''] before:absolute before:inset-x-1 before:inset-y-1.5 before:rounded before:transition-colors hover:before:bg-surface-hover data-[state=active]:border-accent data-[state=active]:text-accent focus:outline-none whitespace-nowrap"
+                            >
+                                <span className="relative">{tabItem.label}</span>
+                            </Tabs.Trigger>
+                        ))}
+                    </Tabs.List>
+                </ScrollArea>
 
-                <div className="overflow-y-auto flex-1 p-3">
+                <ScrollArea hostClassName="flex-1" className="overflow-y-auto p-3">
                     {showDepsTab && (
                         <Tabs.Content
                             value="deps"
@@ -487,7 +490,7 @@ export function HealthCheckModal({
                             })
                         )}
                     </Tabs.Content>
-                </div>
+                </ScrollArea>
             </Tabs.Root>
 
             <div className="flex items-center gap-3 px-5 py-4 border-t border-border shrink-0">

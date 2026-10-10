@@ -7,5 +7,6 @@
 
     overlayPageScrollbar()
     // Expressive Code's all: revert wipes the scrollbar styles, so its blocks wrap instead.
-    overlayScrollContainers('.expressive-code')
+    // Search closes on clicks outside its frame, including an external scrollbar slot.
+    overlayScrollContainers('.expressive-code, .dialog-frame')
 </script>

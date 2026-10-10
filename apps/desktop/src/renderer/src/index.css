@@ -1,6 +1,5 @@
-/* The lowest layer, so the app's own styles always beat the scrollbar library's. */
-@import '@modrex/scrollbars/theme.css' layer(vendor);
 @import 'tailwindcss';
+@import '@modrex/scrollbars/theme.css';
 
 :root {
     color-scheme: dark;

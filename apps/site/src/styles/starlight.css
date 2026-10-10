@@ -1,6 +1,5 @@
 @import './tokens/fonts.css';
-/* The lowest layer, so Starlight's and the site's styles always beat the scrollbar library's. */
-@import '@modrex/scrollbars/theme.css' layer(vendor);
+@import '@modrex/scrollbars/theme.css';
 @import './tokens/colors.css';
 @import './tokens/typography.css';
 @import './tokens/spacing.css';

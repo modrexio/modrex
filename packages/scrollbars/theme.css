@@ -1,5 +1,32 @@
 @import 'overlayscrollbars/overlayscrollbars.scriptingenabled.css';
 
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--color-surface-light);
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--color-text-subtle);
+}
+
+.modrex-scrollbar-host {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    min-width: 0;
+    min-height: 0;
+}
+
+.modrex-scrollbar-host > .os-scrollbar-visible {
+    visibility: inherit;
+}
+
 .os-theme-modrex {
     --os-size: 10px;
     --os-padding-perpendicular: 2px;
