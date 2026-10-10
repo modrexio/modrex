@@ -1,5 +1,9 @@
 import { useSyncExternalStore } from 'react'
-import { parseSourceValue, parseTargetValue, resolveTargetValue } from '../../shared/i18n-values.js'
+import {
+    parseSourceValue,
+    parseTargetValue,
+    resolveTargetValue,
+} from '../../shared/i18n-values.mts'
 import en from './i18n/en.json'
 import { LOCALE_IDS, RAW_BUNDLES, isLocaleId, matchLocale, type LocaleId } from './locales'
 
@@ -19,7 +23,7 @@ type DeepPartial<T> = T extends string ? T : { [K in keyof T]?: DeepPartial<T[K]
 
 type LocaleBundle = DeepPartial<typeof en>
 
-// RAW_BUNDLES is discovered at build time via import.meta.glob, so pnpm check-i18n
+// RAW_BUNDLES is discovered at build time via import.meta.glob, so bun check-i18n
 // validates each translated subset against en.json before it reaches the app.
 const BUNDLES = RAW_BUNDLES as Record<LocaleId, LocaleBundle>
 

@@ -102,7 +102,7 @@
         "tagFilterEmpty": "Тегів не знайдено",
         "noMods": "Модів не знайдено",
         "loadFailed": "Не вдалося завантажити моди",
-        "filterLoadFailed": "! Couldn't load filters: {error}",
+        "filterLoadFailed": "Не вдалося завантажити фільтри: {error}",
         "rateLimited": "ModWorkshop наразі обмежує частоту запитів. Спробуйте ще раз за мить.",
         "modCount": "Модів: {total}",
         "sort": {
@@ -179,17 +179,17 @@
             "staleDuplicateHint": "Це залишок старої версії пакунка завантаження цього файла — його можна безпечно видалити."
         },
         "updatesModal": {
-            "versionChange": "! {from} to {to}",
-            "versionAvailable": "! {version} available",
+            "versionChange": "З {from} до {to}",
+            "versionAvailable": "Доступна версія {version}",
             "title": "Доступні оновлення ({count})",
             "update": "Оновити",
             "updating": "Оновлення...",
             "updatingProgress": "Оновлення: {done} / {total}",
             "updateSelected": "Оновити вибрані ({count})",
             "error": "Не вдалося оновити. Перевірте з’єднання та повторіть спробу.",
-            "chooseTitle": "! Choose a file",
-            "chooseBody": "! {name} has several files. Pick the one to install.",
-            "unavailable": "! {name} can't be updated from Modrex."
+            "chooseTitle": "Виберіть файл",
+            "chooseBody": "{name} містить кілька файлів. Виберіть файл для встановлення.",
+            "unavailable": "Не вдалося оновити {name} через Modrex."
         },
         "pakViewer": {
             "title": "Вміст pak-файлу",
@@ -247,6 +247,7 @@
             "noUpdates": "Усе оновлено.",
             "noMissingDeps": "Усі залежності встановлених модів задоволено.",
             "missingFileHint": "Файл відсутній на диску",
+            "containerMissingHint": "Файли .ucas і .utoc відсутні на диску",
             "brokenArchiveHint": "Не вдалося перевірити архів",
             "outdatedHint": "Рекомендовано перевстановити",
             "unidentifiedRowHint": "Не розпізнано",
@@ -254,7 +255,16 @@
             "installDep": "Встановити",
             "installAllDeps": "Встановити всі залежності",
             "installDepFailed": "Деякі залежності не вдалося встановити автоматично.",
-            "reinstallAll": "Перевстановити всі"
+            "reinstallAll": "Перевстановити всі",
+            "leftoversCount": "Залишкові файли ({count})",
+            "noLeftovers": "Залишкових файлів немає.",
+            "leftoversLoadFailed": "Не вдалося отримати список залишкових файлів: {error}",
+            "leftoverHint": "{files}, {size}. Жоден зі встановлених модів не використовує ці файли.",
+            "deleteLeftover": "Видалити",
+            "confirmDelete": "Підтвердити",
+            "deleteAllLeftovers": "Видалити всі",
+            "confirmDeleteAll": "Підтвердити видалення всіх",
+            "deleteLeftoversFailed": "Не вдалося видалити деякі залишкові файли: {error}"
         }
     },
     "news": {

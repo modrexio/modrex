@@ -20,7 +20,7 @@ function findLicenseText(pkgPath) {
     return statSync(licensePath).isFile() ? readFileSync(licensePath, 'utf-8').trim() : null
 }
 
-const raw = execSync('pnpm --filter modrex licenses list --prod --json', {
+const raw = execSync('bun pm licenses --filter modrex --prod --json', {
     cwd: rootDir,
 }).toString()
 const npmData = JSON.parse(raw)
@@ -70,7 +70,7 @@ const header = [
     '# Third-Party Licenses',
     '',
     'This file lists all third-party dependencies bundled in Modrex and their license terms.',
-    'Regenerate with `pnpm generate-licenses`.',
+    'Regenerate with `bun generate-licenses`.',
     '',
     '---',
     '',

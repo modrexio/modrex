@@ -29,17 +29,12 @@ jobs:
         steps:
             - uses: actions/checkout@v7
 
-            - uses: pnpm/action-setup@v6
+            - uses: oven-sh/setup-bun@v2
               with:
-                  version: 10.32.1
-
-            - uses: actions/setup-node@v7
-              with:
-                  node-version: 22
-                  cache: pnpm
+                  bun-version-file: package.json
 
             - name: Install dependencies
-              run: pnpm install --frozen-lockfile
+              run: bun install --frozen-lockfile
 
             - name: Install AWS CLI
               run: |
@@ -50,7 +45,7 @@ jobs:
             - name: Apply Postgres schema migrations
               env:
                   INDEX_DATABASE_URL: ${{ secrets.INDEX_DATABASE_URL }}
-              run: pnpm --dir apps/index migrate:postgres
+              run: bun run --cwd apps/index migrate:postgres
 
             - name: Export and publish immutable generation
               env:
@@ -62,11 +57,19 @@ jobs:
                   database="apps/index/artifacts/${GAME}.db"
                   key="catalog/${generation}/${GAME}.db"
                   mkdir -p apps/index/artifacts
-                  pnpm --dir apps/index export:postgres-sqlite -- --game="${GAME}" --output="artifacts/${GAME}.db" --require-files
+                  aws s3 cp "s3://${R2_BUCKET}/catalog/latest.json" latest.json --endpoint-url "${R2_ENDPOINT}"
+                  previous_key="$(jq -r --arg game "${GAME}" '.games[$game].key // empty' latest.json)"
+                  previous_sha256="$(jq -r --arg game "${GAME}" '.games[$game].sha256 // empty' latest.json)"
+                  previous_args=()
+                  if [ -n "${previous_key}" ] || [ -n "${previous_sha256}" ]; then
+                      test -n "${previous_key}"
+                      test -n "${previous_sha256}"
+                      aws s3 cp "s3://${R2_BUCKET}/${previous_key}" "apps/index/artifacts/${GAME}.previous.db" --endpoint-url "${R2_ENDPOINT}"
+                      previous_args=(--previous="artifacts/${GAME}.previous.db" --previous-sha256="${previous_sha256}")
+                  fi
+                  bun run --cwd apps/index export:postgres-sqlite --game="${GAME}" --output="artifacts/${GAME}.db" --require-files "${previous_args[@]}"
                   sha256="$(sha256sum "${database}" | cut -d ' ' -f 1)"
                   size="$(wc -c < "${database}")"
-                  aws s3 cp "s3://${R2_BUCKET}/catalog/latest.json" latest.json --endpoint-url "${R2_ENDPOINT}"
-                  previous_sha256="$(jq -r --arg game "${GAME}" '.games[$game].sha256 // empty' latest.json)"
                   if [ "${sha256}" = "${previous_sha256}" ]; then
                       printf 'No content change for %s; keeping the current generation.\n' "${GAME}"
                       exit 0

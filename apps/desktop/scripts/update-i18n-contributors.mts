@@ -1,0 +1,263 @@
+import type { TranslationContributors } from './update-i18n-readme.mts'
+import { writeFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath, pathToFileURL } from 'node:url'
+import { isDeepStrictEqual } from 'node:util'
+import { parseTargetValue, TARGET_VALUE_KIND } from '../src/shared/i18n-values.mts'
+import { inspectLocales } from './i18n-inspection.mts'
+import { flattenBundle } from './i18n-current.mts'
+import { errorMessage } from './i18n-io.mts'
+
+type GitHubCommit = {
+    sha: string
+    parents: { sha: string }[]
+    author: { type: string; login: string } | null
+}
+type FetchCommits = (localeId: string, page: number) => Promise<unknown>
+
+const PER_PAGE = 100
+const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
+const CONTRIBUTORS_PATH = resolve(SCRIPT_DIR, '..', 'translation-contributors.generated.json')
+const LOCALE_PATH = 'apps/desktop/src/renderer/src/i18n'
+
+function readLocaleAtRevision(revision: string, localeId: string) {
+    const path = `${LOCALE_PATH}/${localeId}.json`
+    let listed
+    try {
+        listed = execFileSync('git', ['ls-tree', '-r', '--name-only', revision, '--', path], {
+            encoding: 'utf8',
+        })
+    } catch (error) {
+        throw new Error(`Could not inspect Git revision '${revision}'`, { cause: error })
+    }
+    if (listed.trim().length === 0) return undefined
+    return execFileSync('git', ['show', `${revision}:${path}`], { encoding: 'utf8' })
+}
+
+function canonicalTargetContent(value: unknown, localeId: string) {
+    const errors: string[] = []
+    const flat = flattenBundle(value, localeId, errors)
+    if (errors.length > 0) {
+        throw new Error(`Invalid historical locale '${localeId}': ${errors.join('; ')}`)
+    }
+    const entries = new Map<string, string>()
+    for (const [key, storedValue] of Object.entries(flat)) {
+        const parsed = parseTargetValue(storedValue)
+        if (parsed.kind !== TARGET_VALUE_KIND.UNTRANSLATED_SCAFFOLD) {
+            entries.set(
+                key,
+                (
+                    parsed as Extract<typeof parsed, { kind: 'accepted' | 'pending' }>
+                ).targetText.normalize('NFC')
+            )
+        }
+    }
+    return entries
+}
+
+// A locale file that does not parse as JSON reached main once, and history cannot be rewritten to
+// remove it. Such a revision is uncomparable rather than fatal, so the caller counts it as a change.
+const UNPARSEABLE = Symbol('unparseable')
+
+function parseHistoricalJson(source: string): unknown {
+    try {
+        return JSON.parse(source)
+    } catch {
+        return UNPARSEABLE
+    }
+}
+
+export function localeJsonChanged(
+    previous: string | undefined,
+    current: string,
+    localeId: string,
+    revision?: string
+) {
+    const previousBundle = previous === undefined ? {} : parseHistoricalJson(previous)
+    const currentBundle = parseHistoricalJson(current)
+    if (previousBundle === UNPARSEABLE || currentBundle === UNPARSEABLE) return true
+
+    try {
+        const previousContent = canonicalTargetContent(previousBundle, localeId)
+        const currentContent = canonicalTargetContent(currentBundle, localeId)
+        for (const [key, value] of currentContent) {
+            if (!isDeepStrictEqual(previousContent.get(key), value)) return true
+        }
+        return false
+    } catch (error) {
+        const location = revision ? ` at revision '${revision}'` : ''
+        throw new Error(
+            `Could not compare historical JSON for locale '${localeId}'${location}: ${errorMessage(error)}`,
+            {
+                cause: error,
+            }
+        )
+    }
+}
+
+function commitChangesLocaleJson(localeId: string, commit: GitHubCommit) {
+    const current = readLocaleAtRevision(commit.sha, localeId)
+    if (current === undefined) return false
+    const parent = commit.parents[0]?.sha
+    const previous = parent ? readLocaleAtRevision(parent, localeId) : undefined
+    return localeJsonChanged(previous, current, localeId, commit.sha)
+}
+
+export async function collectTranslationContributors(
+    localeIds: string[],
+    fetchCommits: FetchCommits,
+    changesLocaleJson = commitChangesLocaleJson
+) {
+    const contributors: TranslationContributors = {}
+    const creators: Record<string, string> = {}
+
+    for (const localeId of localeIds) {
+        const usernames = new Set<string>()
+        let oldest: GitHubCommit | undefined
+        for (let page = 1; ; page += 1) {
+            const data = await fetchCommits(localeId, page)
+            if (!Array.isArray(data)) {
+                throw new Error(`GitHub returned invalid commit data for locale '${localeId}'`)
+            }
+
+            const commits = data as GitHubCommit[]
+            for (const commit of commits) {
+                if (typeof commit?.sha !== 'string' || !Array.isArray(commit.parents)) {
+                    throw new Error(`GitHub returned an invalid commit for locale '${localeId}'`)
+                }
+                if (commit.parents.length > 1) continue
+                if (commit.author?.type !== 'User') continue
+                if (typeof commit.author.login !== 'string') {
+                    throw new Error('GitHub returned a user without a login')
+                }
+                const username = commit.author.login
+                if (await changesLocaleJson(localeId, commit)) usernames.add(username)
+            }
+
+            // GitHub returns newest first, including full pages followed by an empty page.
+            if (commits.length > 0) oldest = commits.at(-1)
+            if (commits.length < PER_PAGE) break
+        }
+
+        if (oldest?.author?.type === 'User') creators[localeId] = oldest.author.login
+        if (usernames.size > 0) contributors[localeId] = [...usernames].sort()
+    }
+
+    return { contributors, creators }
+}
+
+export async function fetchGitHubCommits(
+    repository: string,
+    token: string,
+    revision: string,
+    localeId: string,
+    page: number
+): Promise<unknown> {
+    const url = new URL(`https://api.github.com/repos/${repository}/commits`)
+    url.searchParams.set('sha', revision)
+    url.searchParams.set('path', `${LOCALE_PATH}/${localeId}.json`)
+    url.searchParams.set('per_page', String(PER_PAGE))
+    url.searchParams.set('page', String(page))
+
+    const response = await fetch(url, {
+        headers: {
+            Accept: 'application/vnd.github+json',
+            Authorization: `Bearer ${token}`,
+            'X-GitHub-Api-Version': '2022-11-28',
+        },
+    })
+    if (!response.ok) {
+        throw new Error(`GitHub commit request failed with status ${response.status}`)
+    }
+    return response.json()
+}
+
+// A squash merge names the merging maintainer as author, which history cannot tell apart from
+// translation. Creating a locale is the one act that is unambiguously the translator's.
+export function applyMaintainerAttribution(
+    contributors: TranslationContributors,
+    maintainers: Set<string>,
+    creators: Record<string, string>
+) {
+    const filtered: TranslationContributors = {}
+    for (const [localeId, usernames] of Object.entries(contributors)) {
+        const kept = usernames.filter(
+            (username) => !maintainers.has(username) || creators[localeId] === username
+        )
+        if (kept.length > 0) filtered[localeId] = kept
+    }
+    return filtered
+}
+
+// Trusted translators hold push access and org membership, so admin is the only boundary that
+// does not strip their credit. Listing collaborators needs only Metadata read.
+async function fetchMaintainers(repository: string, token: string) {
+    const maintainers = new Set<string>()
+    for (let page = 1; ; page += 1) {
+        const url = new URL(`https://api.github.com/repos/${repository}/collaborators`)
+        url.searchParams.set('permission', 'admin')
+        url.searchParams.set('per_page', String(PER_PAGE))
+        url.searchParams.set('page', String(page))
+
+        const response = await fetch(url, {
+            headers: {
+                Accept: 'application/vnd.github+json',
+                Authorization: `Bearer ${token}`,
+                'X-GitHub-Api-Version': '2022-11-28',
+            },
+        })
+        if (!response.ok) {
+            throw new Error(
+                `GitHub collaborator request failed with status ${response.status}. ` +
+                    'Without the maintainer list every maintainer would be credited as a translator.'
+            )
+        }
+        const collaborators: unknown = await response.json()
+        if (!Array.isArray(collaborators)) {
+            throw new Error('GitHub returned invalid collaborator data')
+        }
+        for (const collaborator of collaborators) {
+            if (typeof collaborator?.login !== 'string') {
+                throw new Error('GitHub returned a collaborator without a login')
+            }
+            maintainers.add(collaborator.login)
+        }
+        if (collaborators.length < PER_PAGE) return maintainers
+    }
+}
+
+async function updateTranslationContributors() {
+    const repository = process.env.GITHUB_REPOSITORY
+    const token = process.env.GITHUB_TOKEN
+    if (!repository || !token) {
+        throw new Error('GITHUB_REPOSITORY and GITHUB_TOKEN are required')
+    }
+
+    const inspection = inspectLocales()
+    if (inspection.errors.length > 0) {
+        throw new Error(
+            `Cannot update translation contributors with invalid locales:\n${inspection.errors.join('\n')}`
+        )
+    }
+
+    const revision = execFileSync('git', ['rev-parse', '--verify', 'HEAD^{commit}'], {
+        encoding: 'utf8',
+    }).trim()
+    const localeIds = inspection.locales.map((locale) => locale.id)
+    const { contributors, creators } = await collectTranslationContributors(
+        localeIds,
+        (localeId, page) => fetchGitHubCommits(repository, token, revision, localeId, page)
+    )
+    const maintainers = await fetchMaintainers(repository, token)
+    const credited = applyMaintainerAttribution(contributors, maintainers, creators)
+    writeFileSync(CONTRIBUTORS_PATH, `${JSON.stringify(credited, null, 4)}\n`)
+    process.stdout.write('update-i18n-contributors: updated contributor metadata\n')
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+    updateTranslationContributors().catch((error) => {
+        process.stderr.write(`update-i18n-contributors: ${errorMessage(error)}\n`)
+        process.exitCode = 1
+    })
+}

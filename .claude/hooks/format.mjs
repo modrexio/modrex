@@ -24,7 +24,7 @@ for (;;) {
 if (!root) process.exit(0)
 
 try {
-    execSync(`pnpm exec prettier --write --ignore-unknown "${file}"`, {
+    execSync(`bun --bun x prettier --write --ignore-unknown "${file}"`, {
         cwd: root,
         stdio: 'ignore',
     })

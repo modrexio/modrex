@@ -165,18 +165,12 @@ const faqPage = {
 <meta name="twitter:image" content={ogImageUrl} />
 <meta name="twitter:image:alt" content={ogImageAlt} />
 <script type="application/ld+json" is:inline set:html={JSON.stringify(organization)} />
-{
-    emitBreadcrumb && (
-        <script type="application/ld+json" is:inline set:html={JSON.stringify(breadcrumb)} />
-    )
-}
-{
-    isGettingStarted && (
-        <script type="application/ld+json" is:inline set:html={JSON.stringify(howTo)} />
-    )
-}
-{
-    isTroubleshooting && (
-        <script type="application/ld+json" is:inline set:html={JSON.stringify(faqPage)} />
-    )
-}
+{emitBreadcrumb && (
+    <script type="application/ld+json" is:inline set:html={JSON.stringify(breadcrumb)} />
+)}
+{isGettingStarted && (
+    <script type="application/ld+json" is:inline set:html={JSON.stringify(howTo)} />
+)}
+{isTroubleshooting && (
+    <script type="application/ld+json" is:inline set:html={JSON.stringify(faqPage)} />
+)}

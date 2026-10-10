@@ -27,7 +27,7 @@ functions/install.sh.ts  ← Cloudflare Pages Function serving modrex.net/instal
 
 ### API (Cloudflare Pages Functions)
 
-`functions/api/collect.ts` is a near-transparent proxy for the desktop app's analytics: it forwards `POST /api/collect` (query string + body) to GA4's Measurement Protocol `mp/collect` endpoint. It exists because DNS-level/hosts-file blocklists and outbound firewalls commonly block `google-analytics.com` itself, for every process on a machine — not just browsers — and modrex-main's audience runs that tooling heavily; routing through `modrex.net` means the request only has to survive being blocked by name, not by Google's domain. See `modrex-main/src-tauri/src/commands/analytics.rs` for the other half. File-based routing: a file at `functions/<path>.ts` maps to that route (`functions/api/collect.ts` → `/api/collect`); export `onRequestPost`/`onRequestGet`/etc. per HTTP method. Deploys automatically alongside the static site via the existing Cloudflare Pages Git integration — no separate build step, not part of `pnpm build`/`pnpm typecheck` (Astro's checker doesn't walk this directory, confirmed: `astro check` only reports on files under `src/`).
+`functions/api/collect.ts` is a near-transparent proxy for the desktop app's analytics: it forwards `POST /api/collect` (query string + body) to GA4's Measurement Protocol `mp/collect` endpoint. It exists because DNS-level/hosts-file blocklists and outbound firewalls commonly block `google-analytics.com` itself, for every process on a machine — not just browsers — and modrex-main's audience runs that tooling heavily; routing through `modrex.net` means the request only has to survive being blocked by name, not by Google's domain. See `modrex-main/src-tauri/src/commands/analytics.rs` for the other half. File-based routing: a file at `functions/<path>.ts` maps to that route (`functions/api/collect.ts` → `/api/collect`); export `onRequestPost`/`onRequestGet`/etc. per HTTP method. Deploys automatically alongside the static site via the existing Cloudflare Pages Git integration — no separate build step, not part of `bun run build`/`bun typecheck` (Astro's checker doesn't walk this directory, confirmed: `astro check` only reports on files under `src/`).
 
 The function requires the `MODREX_GA_API_SECRET` Pages secret (503 without it), a `measurement_id` query param and an object-shaped JSON body (400 otherwise). The GA4 API secret is injected here and never ships in the desktop binary; an `api_secret` query param from older releases is ignored. It checks the measurement ID against `MODREX_GA_MEASUREMENT_ID` when configured, otherwise only its `G-[A-Z0-9]{4,}` shape (403 on mismatch). Configure the environment variable to restrict the relay to one property. **Fire-and-forget**: it returns 204 and performs the upstream fetch inside `waitUntil`, with a ten-second timeout. Upstream failures are recorded in Pages logs without request URLs, payloads or secrets. A 204 acknowledges proxy receipt, not acceptance into GA4 reports.
 
@@ -185,11 +185,11 @@ The fullscreen viewer is a native `<dialog>` opened with `showModal()`, which ma
 ## Local Pages Function testing
 
 ```bash
-pnpm build && npx wrangler pages dev dist   # serves /api/collect and /install.sh locally
+bun run build && bunx wrangler pages dev dist   # serves /api/collect and /install.sh locally
 curl -fsSL http://localhost:8788/install.sh | sh -n   # syntax-check the assembled script without running it
 ```
 
-`astro check` and `pnpm typecheck` do not cover `functions/` — TypeScript errors there are only caught at deploy time or via manual `tsc` invocation.
+`astro check` and `bun typecheck` do not cover `functions/` — TypeScript errors there are only caught at deploy time or via manual `tsc` invocation.
 
 ## Rules
 

@@ -10,6 +10,7 @@ import type {
 import { THUMBNAIL_BASE_URL } from '../../../shared/types'
 import { computeChildren, syntheticMod } from './installedUtils'
 import { api } from '../api'
+import { runBulkAction } from '../bulkAction'
 
 export type DragItem = { kind: 'mod'; uid: string } | { kind: 'folder'; id: string }
 
@@ -51,6 +52,7 @@ export function useDragDrop({
 }: Options) {
     const [dragItem, setDragItemState] = useState<DragItem | null>(null)
     const [dropTarget, setDropTargetState] = useState<DropTarget>(null)
+    const [dropError, setDropError] = useState<string | null>(null)
     const dragItemRef = useRef<DragItem | null>(null)
     const dropTargetRef = useRef<DropTarget>(null)
     const scrollContainerRef = useRef<HTMLDivElement>(null)
@@ -344,7 +346,6 @@ export function useDragDrop({
                 )
             }
         }
-        await onRefreshInstalled()
     }
 
     async function applyDropIntoFolder(srcRepUid: string, folderId: string) {
@@ -358,7 +359,6 @@ export function useDragDrop({
         for (const m of srcGroupMods) {
             await api.moveModToFolder(m.uid, folderId, folderMods.length, gamePath, activeGame)
         }
-        await onRefreshInstalled()
     }
 
     async function applyChildDrop(
@@ -392,13 +392,11 @@ export function useDragDrop({
             await api.moveFolder(srcFolderId, parentId, gamePath, activeGame)
         }
         await api.reorderChildren(parentId, items, gamePath, activeGame)
-        await onRefreshInstalled()
     }
 
     async function applyNestFolder(srcFolderId: string, targetFolderId: string) {
         if (!gamePath || srcFolderId === targetFolderId) return
         await api.moveFolder(srcFolderId, targetFolderId, gamePath, activeGame)
-        await onRefreshInstalled()
     }
 
     // ── Pointer lifecycle ───────────────────────────────────────────────────────
@@ -465,32 +463,44 @@ export function useDragDrop({
         updateDropTarget(e.clientX, e.clientY)
     }
 
+    async function applyDrop(item: DragItem, dt: NonNullable<DropTarget>) {
+        if (item.kind === 'mod') {
+            if (dt.kind === 'before-mod' || dt.kind === 'after-mod') {
+                return applyModReorder(item.uid, dt.uid, dt.kind === 'before-mod')
+            }
+            if (dt.kind === 'into-folder') return applyDropIntoFolder(item.uid, dt.folderId)
+            return
+        }
+        if (dt.kind === 'into-folder') return applyNestFolder(item.id, dt.folderId)
+        if (dt.kind === 'before-child' || dt.kind === 'after-child') {
+            return applyChildDrop(
+                item.id,
+                dt.id,
+                dt.itemType,
+                dt.parentId,
+                dt.kind === 'after-child'
+            )
+        }
+    }
+
+    function dragItemName(item: DragItem): string {
+        if (item.kind === 'mod') return installed.find((m) => m.uid === item.uid)?.name ?? item.uid
+        return folders.find((f) => f.id === item.id)?.displayName ?? item.id
+    }
+
     async function runDrop() {
         const item = dragItemRef.current
         const dt = dropTargetRef.current
-        const srcUid = item?.kind === 'mod' ? item.uid : null
-        const srcFolderId = item?.kind === 'folder' ? item.id : null
         resetDrag()
         if (!item || !dt || !gamePath) return
-        if (item.kind === 'mod' && srcUid) {
-            if (dt.kind === 'before-mod' || dt.kind === 'after-mod') {
-                await applyModReorder(srcUid, dt.uid, dt.kind === 'before-mod')
-            } else if (dt.kind === 'into-folder') {
-                await applyDropIntoFolder(srcUid, dt.folderId)
-            }
-        } else if (item.kind === 'folder' && srcFolderId) {
-            if (dt.kind === 'into-folder') {
-                await applyNestFolder(srcFolderId, dt.folderId)
-            } else if (dt.kind === 'before-child' || dt.kind === 'after-child') {
-                await applyChildDrop(
-                    srcFolderId,
-                    dt.id,
-                    dt.itemType,
-                    dt.parentId,
-                    dt.kind === 'after-child'
-                )
-            }
-        }
+        setDropError(
+            await runBulkAction(
+                [item],
+                dragItemName,
+                (dragged) => applyDrop(dragged, dt),
+                onRefreshInstalled
+            )
+        )
     }
 
     function handlePointerUp() {
@@ -558,6 +568,8 @@ export function useDragDrop({
     return {
         dragItem,
         dropTarget,
+        dropError,
+        clearDropError: () => setDropError(null),
         scrollContainerRef,
         onModPointerDown,
         onFolderPointerDown,

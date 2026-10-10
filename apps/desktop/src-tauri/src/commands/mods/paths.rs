@@ -172,6 +172,19 @@ pub fn disabled_mod_path(
     }
 }
 
+pub fn installed_mod_path(
+    game_path: &str,
+    filename: &str,
+    folder_rel: Option<&str>,
+    target: &ScanTarget,
+    enabled: bool,
+) -> PathBuf {
+    if enabled {
+        return active_mod_path(game_path, filename, folder_rel, target);
+    }
+    disabled_mod_path(game_path, filename, folder_rel, target)
+}
+
 pub(crate) fn resolve_pak_path(
     game_path: &str,
     cfg: &ModEngineConfig,

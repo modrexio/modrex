@@ -9,19 +9,25 @@ To review the desktop interface in a browser, use the [app preview guide](docs/c
 
 ## Development setup
 
-| Command                  | Description                                     |
-| ------------------------ | ----------------------------------------------- |
-| `pnpm install`           | Install dependencies                            |
-| `pnpm dev`               | Start with hot reload                           |
-| `pnpm build`             | Production build                                |
-| `pnpm typecheck`         | Type-check renderer                             |
-| `pnpm format`            | Format all files with Prettier                  |
-| `pnpm lint`              | Lint renderer source                            |
-| `pnpm test`              | Run all tests (Rust + renderer)                 |
-| `pnpm checks`            | Run the full CI gate locally                    |
-| `pnpm generate-licenses` | Regenerate apps/desktop/THIRD_PARTY_LICENSES.md |
+The workspace runs on [Bun](https://bun.sh). Install the version named by `packageManager` in
+the root `package.json`, then run every command below from the repository root.
 
-`pnpm checks` is the one to run before opening a pull request: it runs everything CI does
+Scripts run as `bun <script>`, except `bun run build` and `bun run test`: plain `bun build` and
+`bun test` start Bun's own bundler and test runner instead of these scripts.
+
+| Command                 | Description                                     |
+| ----------------------- | ----------------------------------------------- |
+| `bun install`           | Install dependencies                            |
+| `bun dev`               | Start with hot reload                           |
+| `bun run build`         | Production build                                |
+| `bun typecheck`         | Type-check renderer                             |
+| `bun format`            | Format all files with Prettier                  |
+| `bun lint`              | Lint renderer source                            |
+| `bun run test`          | Run all tests (Rust + renderer)                 |
+| `bun checks`            | Run the full CI gate locally                    |
+| `bun generate-licenses` | Regenerate apps/desktop/THIRD_PARTY_LICENSES.md |
+
+`bun checks` is the one to run before opening a pull request: it runs everything CI does
 (formatting, lint, typecheck, tests, and the consistency checks below) in one pass.
 
 ## Tech stack
@@ -32,15 +38,15 @@ Tauri v2 · React · Tailwind CSS · Lucide · TypeScript
 
 Pre-commit hooks run automatically via Husky:
 
-- **`prettier --check`** - run `pnpm format` to fix formatting failures
-- **`eslint`** - run `pnpm lint:fix` to fix lint failures
+- **`prettier --check`** - run `bun format` to fix formatting failures
+- **`eslint`** - run `bun lint:fix` to fix lint failures
 - **`check-commands`** - see Backend commands below
 - **`commitlint`** - enforces the commit message format (see Commit style below)
 
 When a desktop dependency file is staged, the hook also regenerates
 `apps/desktop/THIRD_PARTY_LICENSES.md` and
 stages it for you (this takes about 15 seconds). You can run it yourself with
-`pnpm generate-licenses`. CI enforces it via the `check-licenses` job, so the build fails
+`bun generate-licenses`. CI enforces it via the `check-licenses` job, so the build fails
 if that file is out of date.
 
 ## Backend commands
@@ -56,12 +62,12 @@ If you add, rename, or change the signature of a `#[tauri::command]`:
 3. Call it from `apps/desktop/src/renderer/src/api.ts`, which is the only renderer file allowed to
    touch the IPC layer
 
-`pnpm check-commands` enforces all of that: a command registered but never called, called
+`bun check-commands` enforces all of that: a command registered but never called, called
 but never registered, stale bindings, or an `invoke` outside `api.ts` each fail the check.
 
 ## Code style
 
-Formatting and lint are automated: `pnpm format` and `pnpm lint:fix` fix most issues.
+Formatting and lint are automated: `bun format` and `bun lint:fix` fix most issues.
 The rules below are the ones tooling cannot check for you.
 
 Code: keep the happy path flat, use guard clauses for invalid cases, validate at
@@ -87,7 +93,7 @@ Common types: `feat`, `fix`, `perf`, `refactor`, `test`, `docs`, `chore`.
 
 ## Submitting changes
 
-Open a pull request against `main`. Run `pnpm checks` first, it runs the same gate CI does.
+Open a pull request against `main`. Run `bun checks` first, it runs the same gate CI does.
 
 ## Games, sources and loaders
 
@@ -118,8 +124,8 @@ English is the source language for product development:
 
 - Feature and bug-fix contributions add or change source strings in
   `apps/desktop/src/renderer/src/i18n/en.json`. Do not add unmarked English copies to non-English
-  files. Translators can use `pnpm i18n:create <locale>` for a new language or
-  `pnpm i18n:fill <locale>` for an existing language when they want marked source text for IDE
+  files. Translators can use `bun i18n:create <locale>` for a new language or
+  `bun i18n:fill <locale>` for an existing language when they want marked source text for IDE
   editing.
 - Keep translation-only pull requests focused when practical. Developers may include relevant
   human-written translations with a product change.
@@ -130,7 +136,7 @@ translation for specific named locales.
 
 The translator-focused workflow, optional commands, locale rules, and new-language steps are in
 [translation guide](docs/contributing/translating.md). Local tooling is optional; CI can perform validation without
-pnpm, application dependencies, Rust, Tauri, or launching Modrex.
+Bun, application dependencies, Rust, Tauri, or launching Modrex.
 
 ### Who owns what
 
@@ -148,10 +154,10 @@ and verifies its own output before committing, so derived files may lag briefly 
 
 Maintainers can verify or regenerate the README translation table and per-locale status SVGs:
 
-| Command                        | Description                                                                                |
-| ------------------------------ | ------------------------------------------------------------------------------------------ |
-| `pnpm i18n:presentation-check` | Exit non-zero when the README translation table or a status SVG is stale, without writing. |
-| `pnpm i18n:presentation-write` | Materialize the README translation table and status SVGs from current locale state.        |
-| `pnpm i18n:check-sync`         | Exit non-zero when derived locale markers are stale. The bot's check, not a contributor's. |
+| Command                       | Description                                                                                |
+| ----------------------------- | ------------------------------------------------------------------------------------------ |
+| `bun i18n:presentation-check` | Exit non-zero when the README translation table or a status SVG is stale, without writing. |
+| `bun i18n:presentation-write` | Materialize the README translation table and status SVGs from current locale state.        |
+| `bun i18n:check-sync`         | Exit non-zero when derived locale markers are stale. The bot's check, not a contributor's. |
 
 Locale files remain the source for language discovery and coverage.

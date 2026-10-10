@@ -247,6 +247,7 @@
             "noUpdates": "Tutto è aggiornato.",
             "noMissingDeps": "Tutte le mod installate hanno le proprie dipendenze.",
             "missingFileHint": "File mancante dal disco",
+            "containerMissingHint": "! Its .ucas and .utoc files are missing from disk",
             "brokenArchiveHint": "Non è possibile verificare l'archivio",
             "outdatedHint": "Re-installazione raccomandata",
             "unidentifiedRowHint": "Non riconosciuta",
@@ -254,7 +255,16 @@
             "installDep": "Installa",
             "installAllDeps": "Installa tutte le dipendenze",
             "installDepFailed": "Alcune dipendenze non possono essere installate automaticamente.",
-            "reinstallAll": "Re-installa tutto"
+            "reinstallAll": "Re-installa tutto",
+            "leftoversCount": "! Leftover files ({count})",
+            "noLeftovers": "! No leftover files.",
+            "leftoversLoadFailed": "! Leftover files couldn't be listed: {error}",
+            "leftoverHint": "! {files}, {size}. No installed mod uses these files.",
+            "deleteLeftover": "! Delete",
+            "confirmDelete": "! Confirm",
+            "deleteAllLeftovers": "! Delete All",
+            "confirmDeleteAll": "! Confirm Delete All",
+            "deleteLeftoversFailed": "! Some leftover files couldn't be deleted: {error}"
         }
     },
     "news": {

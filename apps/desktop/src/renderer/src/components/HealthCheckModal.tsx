@@ -15,9 +15,20 @@ import type { InstalledGroup } from '../hooks/installedUtils'
 import type { HealthItem, MissingDepRef } from '../hooks/healthCheck'
 import type { InstalledMod, ModSummary } from '../../../shared/types'
 import { useThumbnail } from '../hooks/useThumbnail'
-import { api } from '../api'
+import { api, type LeftoverFiles } from '../api'
 import { uninstallablePromptMessage } from '../installSentinels'
+import { formatBytes } from './modDetail/format'
+import { describeFailures, type ActionFailure } from '../bulkAction'
 import NexusIcon from '../../../../assets/icons/nexusmods.svg?react'
+
+export interface Leftovers {
+    sets: LeftoverFiles[]
+    error: string | null
+}
+
+function leftoverKey(l: LeftoverFiles): string {
+    return `${l.target}|${l.disabled}|${l.folder}|${l.stem}`
+}
 
 interface LocalHealthItem {
     id: number
@@ -33,12 +44,14 @@ interface Props {
     modData: Map<number, ModSummary>
     missingDeps: HealthItem[]
     showDepsTab: boolean
+    leftovers: Leftovers
+    onLeftoversChanged: () => Promise<void>
     gamePath: string | null
     gameId: string
     loadingMod: string | null
     visible: boolean
     onOpenDetail: (modId: number, source?: 'nexus') => void
-    onReinstall: (mods: InstalledMod[]) => void
+    onReinstall: (mods: InstalledMod[]) => Promise<string | null>
     onDepInstalled: () => Promise<void>
     onReviewUpdates: () => void
     onClose: () => void
@@ -135,6 +148,8 @@ export function HealthCheckModal({
     modData,
     missingDeps,
     showDepsTab,
+    leftovers,
+    onLeftoversChanged,
     gamePath,
     gameId,
     loadingMod,
@@ -149,6 +164,44 @@ export function HealthCheckModal({
     const [installingDepId, setInstallingDepId] = useState<number | null>(null)
     const [installingAll, setInstallingAll] = useState(false)
     const [depInstallError, setDepInstallError] = useState<string | null>(null)
+    // A delete asks twice: the first click arms it, the second deletes.
+    const [armedLeftover, setArmedLeftover] = useState<string | null>(null)
+    const [deletingLeftovers, setDeletingLeftovers] = useState(false)
+    const [leftoverError, setLeftoverError] = useState<string | null>(null)
+
+    async function deleteLeftovers(sets: LeftoverFiles[]) {
+        setDeletingLeftovers(true)
+        setLeftoverError(null)
+        try {
+            await api.deleteLeftoverFiles(sets, gameId)
+        } catch (e) {
+            setLeftoverError(t('installed.health.deleteLeftoversFailed', { error: String(e) }))
+        } finally {
+            setArmedLeftover(null)
+            setDeletingLeftovers(false)
+        }
+        await onLeftoversChanged()
+    }
+
+    const [reinstalling, setReinstalling] = useState(false)
+    const [reinstallFailure, setReinstallFailure] = useState<string | null>(null)
+
+    // One at a time: reinstalls share one loading slot, and every failure is kept to show here.
+    async function reinstallItems(items: LocalHealthItem[]) {
+        setReinstalling(true)
+        setReinstallFailure(null)
+        const failures: ActionFailure[] = []
+        for (const item of items) {
+            try {
+                const failure = await onReinstall(item.mods)
+                if (failure) failures.push({ name: item.name, error: failure })
+            } catch (e) {
+                failures.push({ name: item.name, error: String(e) })
+            }
+        }
+        setReinstalling(false)
+        setReinstallFailure(describeFailures(failures))
+    }
 
     async function installDep(depId: number) {
         if (!gamePath || installingDepId !== null || installingAll) return
@@ -197,9 +250,7 @@ export function HealthCheckModal({
         setInstallingAll(false)
         if (hadError || blockedMessage) {
             setDepInstallError(hadError ? t('installed.health.installDepFailed') : blockedMessage)
-            return
         }
-        onClose()
     }
 
     function toItems(groups: InstalledGroup[]): LocalHealthItem[] {
@@ -241,10 +292,56 @@ export function HealthCheckModal({
             label: t('installed.health.unidentifiedCount', { count: unidentifiedItems.length }),
         },
         {
+            id: 'leftovers',
+            label: t('installed.health.leftoversCount', { count: leftovers.sets.length }),
+        },
+        {
             id: 'updates',
             label: t('installed.health.updatesCount', { count: updatable.length }),
         },
     ]
+
+    function leftoversContent() {
+        if (leftovers.error !== null) {
+            return (
+                <EmptyTab>
+                    {t('installed.health.leftoversLoadFailed', { error: leftovers.error })}
+                </EmptyTab>
+            )
+        }
+        if (leftovers.sets.length === 0) {
+            return <EmptyTab>{t('installed.health.noLeftovers')}</EmptyTab>
+        }
+        return leftovers.sets.map((l) => {
+            const key = leftoverKey(l)
+            const armed = armedLeftover === key
+            return (
+                <HealthRow
+                    key={key}
+                    name={l.folder ? `${l.folder}/${l.stem}` : l.stem}
+                    secondary={t('installed.health.leftoverHint', {
+                        files: l.files.join(', '),
+                        size: formatBytes(l.bytes),
+                    })}
+                    action={
+                        <Button
+                            variant={armed ? 'danger' : 'secondary'}
+                            size="sm"
+                            disabled={deletingLeftovers}
+                            onClick={() =>
+                                armed ? void deleteLeftovers([l]) : setArmedLeftover(key)
+                            }
+                            className="px-2.5 shrink-0"
+                        >
+                            {armed
+                                ? t('installed.health.confirmDelete')
+                                : t('installed.health.deleteLeftover')}
+                        </Button>
+                    }
+                />
+            )
+        })
+    }
 
     return (
         <Dialog
@@ -349,7 +446,11 @@ export function HealthCheckModal({
                                         thumbnailFile={modData.get(item.id)?.thumbnail?.file}
                                         source={item.mods[0]?.source}
                                         name={item.name}
-                                        secondary={t('installed.health.missingFileHint')}
+                                        secondary={
+                                            item.mods.some((m) => m.missing)
+                                                ? t('installed.health.missingFileHint')
+                                                : t('installed.health.containerMissingHint')
+                                        }
                                         clickable={hasCatalogLink(item.mods[0])}
                                         onOpen={
                                             hasCatalogLink(item.mods[0])
@@ -359,8 +460,8 @@ export function HealthCheckModal({
                                         action={
                                             hasCatalogLink(item.mods[0]) ? (
                                                 <button
-                                                    onClick={() => onReinstall(item.mods)}
-                                                    disabled={isLoading}
+                                                    onClick={() => void reinstallItems([item])}
+                                                    disabled={isLoading || reinstalling}
                                                     className="text-xs px-2.5 py-1 rounded bg-surface-active hover:bg-surface-light shrink-0 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                                                 >
                                                     {isLoading
@@ -401,8 +502,8 @@ export function HealthCheckModal({
                                         action={
                                             hasCatalogLink(item.mods[0]) ? (
                                                 <button
-                                                    onClick={() => onReinstall(item.mods)}
-                                                    disabled={isLoading}
+                                                    onClick={() => void reinstallItems([item])}
+                                                    disabled={isLoading || reinstalling}
                                                     className="text-xs px-2.5 py-1 rounded bg-surface-active hover:bg-surface-light shrink-0 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                                                 >
                                                     {isLoading
@@ -438,8 +539,8 @@ export function HealthCheckModal({
                                         onOpen={() => onOpenDetail(...detailNavArgs(item.mods[0]))}
                                         action={
                                             <button
-                                                onClick={() => onReinstall(item.mods)}
-                                                disabled={isLoading}
+                                                onClick={() => void reinstallItems([item])}
+                                                disabled={isLoading || reinstalling}
                                                 className="text-xs px-2.5 py-1 rounded bg-surface-active hover:bg-surface-light shrink-0 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                                             >
                                                 {isLoading
@@ -468,6 +569,12 @@ export function HealthCheckModal({
                                 />
                             ))
                         )}
+                    </Tabs.Content>
+                    <Tabs.Content
+                        value="leftovers"
+                        className="focus:outline-none flex flex-col gap-0.5"
+                    >
+                        {leftoversContent()}
                     </Tabs.Content>
                     <Tabs.Content
                         value="updates"
@@ -514,18 +621,20 @@ export function HealthCheckModal({
                             </Button>
                         </>
                     )}
+                {['missing', 'broken', 'outdated'].includes(activeTab) && reinstallFailure && (
+                    <span className="text-xs text-danger-text truncate">{reinstallFailure}</span>
+                )}
                 {activeTab === 'missing' &&
                     missingItems.some((item) => hasCatalogLink(item.mods[0])) && (
                         <Button
                             variant="accent"
                             size="md"
-                            disabled={loadingMod !== null}
-                            onClick={() => {
-                                missingItems
-                                    .filter((item) => hasCatalogLink(item.mods[0]))
-                                    .forEach((item) => onReinstall(item.mods))
-                                onClose()
-                            }}
+                            disabled={loadingMod !== null || reinstalling}
+                            onClick={() =>
+                                void reinstallItems(
+                                    missingItems.filter((item) => hasCatalogLink(item.mods[0]))
+                                )
+                            }
                         >
                             {t('installed.health.reinstallAll')}
                         </Button>
@@ -535,13 +644,12 @@ export function HealthCheckModal({
                         <Button
                             variant="accent"
                             size="md"
-                            disabled={loadingMod !== null}
-                            onClick={() => {
-                                brokenItems
-                                    .filter((item) => hasCatalogLink(item.mods[0]))
-                                    .forEach((item) => onReinstall(item.mods))
-                                onClose()
-                            }}
+                            disabled={loadingMod !== null || reinstalling}
+                            onClick={() =>
+                                void reinstallItems(
+                                    brokenItems.filter((item) => hasCatalogLink(item.mods[0]))
+                                )
+                            }
                         >
                             {t('installed.health.reinstallAll')}
                         </Button>
@@ -550,13 +658,36 @@ export function HealthCheckModal({
                     <Button
                         variant="accent"
                         size="md"
-                        disabled={loadingMod !== null}
-                        onClick={() => {
-                            outdatedItems.forEach((item) => onReinstall(item.mods))
-                        }}
+                        disabled={loadingMod !== null || reinstalling}
+                        onClick={() => void reinstallItems(outdatedItems)}
                     >
                         {t('installed.health.reinstallAll')}
                     </Button>
+                )}
+                {activeTab === 'leftovers' && (
+                    <>
+                        {leftoverError && (
+                            <span className="text-xs text-danger-text truncate">
+                                {leftoverError}
+                            </span>
+                        )}
+                        {leftovers.sets.length > 0 && (
+                            <Button
+                                variant={armedLeftover === 'all' ? 'danger' : 'accent'}
+                                size="md"
+                                disabled={deletingLeftovers}
+                                onClick={() =>
+                                    armedLeftover === 'all'
+                                        ? void deleteLeftovers(leftovers.sets)
+                                        : setArmedLeftover('all')
+                                }
+                            >
+                                {armedLeftover === 'all'
+                                    ? t('installed.health.confirmDeleteAll')
+                                    : t('installed.health.deleteAllLeftovers')}
+                            </Button>
+                        )}
+                    </>
                 )}
                 {activeTab === 'updates' && updatable.length > 0 && (
                     <Button variant="accent" size="md" onClick={onReviewUpdates}>

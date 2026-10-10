@@ -76,7 +76,7 @@ Commit type is a starting hint, not the final answer:
 
 - Only ever edit the `## Unreleased` section. Released sections (`## X.Y.Z`) are
   historical — never rewrite them.
-- Never write a version number — `pnpm version` stamps `Unreleased` into a versioned
+- Never write a version number — `bun release` stamps `Unreleased` into a versioned
   section at release time.
 - Edit the file and stop. Do not run `git commit` — suggest `/commit` afterward if the
   user wants the changelog update committed.

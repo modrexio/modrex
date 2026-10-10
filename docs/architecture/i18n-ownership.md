@@ -1,5 +1,9 @@
 # Translation ownership
 
+The tooling runs its TypeScript modules directly on Bun, without installing dependencies
+or compiling JavaScript. Development type checking
+runs separately with bun i18n:typecheck.
+
 Modrex reconstructs translation state from Git history. This page says who is allowed to
 change what, and which check enforces which half of that.
 
@@ -8,17 +12,17 @@ change what, and which check enforces which half of that.
 Every key, in every non-English locale, is in exactly one state. The state is derived from
 history, not read off whichever marker the file currently holds.
 
-| State    | Meaning                                                                      | Stored form                                              |
-| -------- | ---------------------------------------------------------------------------- | -------------------------------------------------------- |
-| Accepted | A human accepted this text against the English that is in the file right now | the translation, unmarked                                |
-| Review   | English moved since the acceptance, or somebody asked for a second look      | `? <translation>`, or still unmarked before the bot runs |
-| Missing  | Nobody has translated this key                                               | absent, or `! <English>`                                 |
+| State    | Meaning                                                           | Stored form                                              |
+| -------- | ----------------------------------------------------------------- | -------------------------------------------------------- |
+| Accepted | Acceptance is proven for this target and current English          | the translation, unmarked                                |
+| Review   | A target exists, but acceptance for current English is not proven | `? <translation>`, or still unmarked before the bot runs |
+| Missing  | There is no usable target                                         | absent, or `! <English>`                                 |
 
 The last column is where the subtlety lives. A translation whose English changed is in Review
 the moment the English commit lands, whether or not its `? ` has been written yet. `en.json` is
 the only file a product change has to touch, so a marker is always written later, by the bot, in
 a separate commit. Code that reads state from the stored marker would call that entry Accepted
-and would be wrong. `summarizeHistory` in `apps/desktop/scripts/i18n-history.mjs` exposes this as
+and would be wrong. `summarizeHistory` in `apps/desktop/scripts/i18n-history.mts` exposes this as
 `effectiveState`, and it is the one interpretation the validators, the synchronizer, the review
 command and the CLI summaries all read.
 
@@ -39,13 +43,13 @@ happens to match some historical value is not evidence that anyone reviewed the 
 Two different questions, deliberately separated. Conflating them is what previously forced a
 contributor to commit the bot's future output.
 
-| Question                                      | Command                        | Who runs it         |
-| --------------------------------------------- | ------------------------------ | ------------------- |
-| Is this valid translation data?               | `pnpm i18n:check-readonly`     | CI, on every push   |
-| Same, restricted to the staged files          | `pnpm i18n:check-staged`       | the pre-commit hook |
-| Structural validation plus effective coverage | `pnpm check-i18n`              | CI and contributors |
-| Have the locale markers caught up?            | `pnpm i18n:check-sync`         | the bot only        |
-| Have the README and SVGs caught up?           | `pnpm i18n:presentation-check` | the bot only        |
+| Question                                      | Command                       | Who runs it         |
+| --------------------------------------------- | ----------------------------- | ------------------- |
+| Is this valid translation data?               | `bun i18n:check-readonly`     | CI, on every push   |
+| Same, restricted to the staged files          | `bun i18n:check-staged`       | the pre-commit hook |
+| Structural validation plus effective coverage | `bun check-i18n`              | CI and contributors |
+| Have the locale markers caught up?            | `bun i18n:check-sync`         | the bot only        |
+| Have the README and SVGs caught up?           | `bun i18n:presentation-check` | the bot only        |
 
 The validity checks pass for a new English key with no translation, for changed English over an
 unchanged translation, and for a scaffold quoting superseded English. They fail for a translation
@@ -53,12 +57,12 @@ whose `{placeholders}` disagree with English that has not changed, an unknown ke
 translated text, invalid marker syntax, empty values, and unsafe Unicode.
 
 When Git history is unavailable, a check that needs it reports what it could not determine and
-exits non-zero. It never assumes the tree is fine. `pnpm i18n:fill` deliberately needs no history
+exits non-zero. It never assumes the tree is fine. `bun i18n:fill` deliberately needs no history
 and stays usable in a shallow clone; it writes English scaffolds and never decides acceptance.
 
 ## Acceptance has to exist in Git
 
-`pnpm i18n:review` lists every entry that is effectively Review, including those whose `?` the
+`bun i18n:review` lists every entry that is effectively Review, including those whose `?` the
 bot has not written yet, and it refuses any decision that would leave no trace. Keeping a
 translation writes back the text that is already there, so it is only a real acceptance when the
 committed file holds the `?` marker that the write removes. An Edit that retypes the committed
@@ -66,7 +70,7 @@ text is refused for the same reason.
 
 Both checks compare against the committed tree, never the working tree: a marker that sync wrote
 but nobody committed produces an empty diff, so removing it would record nothing while the
-command reported a successful Keep. When Keep is unavailable, run `pnpm i18n:sync`, commit the
+command reported a successful Keep. When Keep is unavailable, run `bun i18n:sync`, commit the
 marker, and review again — or Edit, which writes new text and needs no marker first.
 
 A Review whose placeholders no longer match English can still be reviewed. Only Keep is
@@ -79,8 +83,33 @@ Between an English commit and the bot's next run, every intermediate revision ho
 quoting superseded English. History replay walks every revision from the audited baseline, so
 rejecting that drift would let a single ordinary commit break every later analysis permanently.
 `analyzeCommittedHistory` therefore does not check scaffold freshness. Malformed markers,
-unreadable bundles, Pending without accepted lineage, and a missing or non-ancestor baseline all
-still fail closed.
+Pending without accepted lineage, and a missing or non-ancestor baseline still fail closed.
+
+## Unreadable historical evidence
+
+Intermediate JSON or UTF-8 corruption is recorded as a scoped evidence gap. Readable English
+and other locales still replay. A corrupt source affects every dependent target, while a
+corrupt target affects only that locale. Baseline, latest and candidate revisions must be
+readable within the command's scope.
+
+A gap never creates acceptance or an automatic review-marker request. Previously proven
+checkpoints remain historical facts. A present target with unproven acceptance is Review,
+with incomplete evidence reported separately. History-dependent validation and marker planning
+fail before writing when a usable target still depends on that evidence. Absence and scaffolds
+remain Missing.
+
+Malformed historical files are never repaired in code. Once a fix lands, the baseline may move
+to the fixing commit if replay from there yields the same effective state for every entry.
+Otherwise the affected targets stay Review until they are accepted again.
+
+An observable Edit against readable English or removal of a committed explicit review marker
+can prove fresh acceptance. Byte-identical endpoints and source returns alone cannot resolve an
+unreadable gap. Review can offer an Edit, but keeping already committed plain text records no
+decision. An explicit review marker must be committed before Keep can remove it.
+
+bun i18n:check <locale> applies the same semantic rules as the default check to English and
+the selected locale. Unrelated corrupt locales do not block it. bun i18n:status remains
+structural and Git-independent. Its counts describe stored markers, not proven acceptance.
 
 ## What the writer checks before it commits
 
@@ -92,7 +121,7 @@ no CI. Everything that commit is checked against therefore has to happen inside
 2. synchronize markers, regenerate contributors, README and SVGs
 3. strict marker and presentation freshness against the regenerated tree
 4. a second generation pass produces no further change
-5. `scripts/i18n-writer-guard.mjs` proves only allowed paths changed and no translated text was
+5. `scripts/i18n-writer-guard.mts` proves only allowed paths changed and no translated text was
    created, rewritten or deleted
 6. stage the owned paths by name, commit, and push without force
 
@@ -105,7 +134,7 @@ attempts. A translator's commit is never overwritten and history is never force-
 
 ## Runtime is unaffected
 
-`resolveTargetValue` in `apps/desktop/src/shared/i18n-values.js` is the whole runtime rule:
+`resolveTargetValue` in `apps/desktop/src/shared/i18n-values.mts` is the whole runtime rule:
 
 - absent or `! ` target: render current English
 - Accepted or `? ` target whose placeholders match English: render the target, without the marker

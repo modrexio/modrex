@@ -69,14 +69,20 @@ Open it from the toolbar on the Installed tab.
 
 Each category has its own tab and a bulk action in the footer:
 
-| Tab             | What it flags                                                 | Bulk action              |
-| --------------- | ------------------------------------------------------------- | ------------------------ |
-| Dependencies    | Mods whose required loader or dependency isn't installed      | Install All Dependencies |
-| Missing files   | Mods whose files are no longer on disk                        | Reinstall All            |
-| Broken archives | Mods whose installed file is a corrupt or unextracted archive | Reinstall All            |
-| Outdated        | Mods with a version mismatch or a stale duplicate file        | Reinstall All            |
-| Unidentified    | Mods Modrex can't match to a known mod                        | None                     |
-| Updates         | Mods with a newer version available                           | Review updates           |
+| Tab             | What it flags                                                                   | Bulk action              |
+| --------------- | ------------------------------------------------------------------------------- | ------------------------ |
+| Dependencies    | Mods whose required loader or dependency isn't installed                        | Install All Dependencies |
+| Missing files   | Mods whose files, or the `.ucas` and `.utoc` files their `.pak` needs, are gone | Reinstall All            |
+| Broken archives | Mods whose installed file is a corrupt or unextracted archive                   | Reinstall All            |
+| Outdated        | Mods with a version mismatch or a stale duplicate file                          | Reinstall All            |
+| Unidentified    | Mods Modrex can't match to a known mod                                          | None                     |
+| Leftover files  | `.ucas` and `.utoc` files that no installed `.pak` uses                         | Delete All               |
+| Updates         | Mods with a newer version available                                             | Review updates           |
 
 You can also act on individual rows inside each tab. Installing a missing dependency updates the
-tab immediately so you can see what's still outstanding without closing the modal.
+tab immediately so you can see what's still outstanding without closing the modal. Reinstalling
+works the same way: mods reinstall one at a time, the Health Check stays open, and anything that
+failed is listed in the footer. It only steps aside when a reinstall needs you to choose something first.
+
+The game never loads leftover files, but only you know whether one of them is yours, so each
+delete in the Leftover files tab asks you to confirm.

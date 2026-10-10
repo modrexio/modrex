@@ -1,5 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { parseSourceValue, parseTargetValue, resolveTargetValue } from '../../shared/i18n-values.js'
+import {
+    formatTargetValue,
+    parseSourceValue,
+    parseTargetValue,
+    resolveTargetValue,
+} from '../../shared/i18n-values.mts'
 
 function freshStorage() {
     const store = new Map<string, string>()
@@ -37,7 +42,11 @@ describe('t', () => {
         vi.stubGlobal('navigator', { language: 'en-US', languages: ['en-US'] })
     })
 
-    afterEach(() => vi.doUnmock('./locales'))
+    // Keep the block body. Under Bun, a hook that returns the result of vi.doUnmock leaves
+    // the locales mock active for every later test in this file.
+    afterEach(() => {
+        vi.doUnmock('./locales')
+    })
 
     it('resolves a known key', async () => {
         const { t } = await loadModule()
@@ -115,6 +124,12 @@ describe('t', () => {
 })
 
 describe('runtime value resolution', () => {
+    it('round-trips stored values without changing workflow payload bytes', () => {
+        for (const value of [undefined, ' Hallo ', '?  Hallo \n', '!  English \n']) {
+            expect(formatTargetValue(parseTargetValue(value))).toBe(value)
+        }
+    })
+
     it('keeps workflow-looking English source text raw', () => {
         for (const sourceText of ['? English question', '! English statement']) {
             expect(

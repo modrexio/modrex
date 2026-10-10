@@ -123,6 +123,8 @@ export const commands = {
 	createFolder: (gamePath: string, displayName: string, parentId: string | null, gameId: string) => __TAURI_INVOKE<ModFolder>("create_folder", { gamePath, displayName, parentId, gameId }),
 	renameFolder: (gamePath: string, folderId: string, displayName: string, gameId: string) => __TAURI_INVOKE<null>("rename_folder", { gamePath, folderId, displayName, gameId }),
 	deleteFolder: (gamePath: string, folderId: string, gameId: string) => __TAURI_INVOKE<null>("delete_folder", { gamePath, folderId, gameId }),
+	listLeftoverFiles: (gameId: string) => __TAURI_INVOKE<LeftoverFiles[]>("list_leftover_files", { gameId }),
+	deleteLeftoverFiles: (gameId: string, sets: LeftoverFiles[]) => __TAURI_INVOKE<null>("delete_leftover_files", { gameId, sets }),
 	openModsFolder: (gameId: string) => __TAURI_INVOKE<null>("open_mods_folder", { gameId }),
 	listModFolders: (gameId: string) => __TAURI_INVOKE<ModFolderInfo[]>("list_mod_folders", { gameId }),
 	openModFolder: (gameId: string, tag: string) => __TAURI_INVOKE<null>("open_mod_folder", { gameId, tag }),
@@ -530,6 +532,7 @@ export type InstalledMod_Deserialize = {
 	missing: boolean | null,
 	folderId?: string | null,
 	archiveBroken?: boolean | null,
+	containerMissing?: boolean | null,
 	location?: string | null,
 	updateStatus?: UpdateStatus,
 	nexusContentMissed?: boolean | null,
@@ -557,6 +560,7 @@ export type InstalledMod_Serialize = {
 	missing?: boolean | null,
 	folderId?: string | null,
 	archiveBroken?: boolean | null,
+	containerMissing?: boolean | null,
 	location?: string | null,
 	updateStatus?: UpdateStatus,
 	nexusContentMissed?: boolean | null,
@@ -597,6 +601,19 @@ export type InstructsTemplate = {
 	name: string,
 	instructions: string,
 	dependencies: ModDependency[],
+};
+
+/**
+ *  A companion set no pak uses, as Health Check lists it. target, disabled, folder and stem
+ *  name the set. files and bytes are only for display.
+ */
+export type LeftoverFiles = {
+	target: string,
+	disabled: boolean,
+	folder: string,
+	stem: string,
+	files: string[],
+	bytes: number,
 };
 
 export type LinkPage = {

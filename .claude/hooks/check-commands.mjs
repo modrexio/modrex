@@ -13,7 +13,7 @@ if (!suffix) process.exit(0)
 
 const root = file.slice(0, -suffix.length)
 try {
-    execSync('pnpm check-commands', { cwd: root, stdio: 'pipe' })
+    execSync('bun run check-commands', { cwd: root, stdio: 'pipe' })
 } catch (e) {
     console.error(String(e.stdout ?? '') + String(e.stderr ?? ''))
     process.exit(2)

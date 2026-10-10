@@ -1,4 +1,5 @@
 mod cleanup;
+mod companions;
 mod crimeboss_settings;
 mod decisions;
 mod diesel_signals;
@@ -8,6 +9,7 @@ mod host_mods;
 mod identify;
 pub mod identity;
 mod install;
+mod moves;
 mod naming;
 mod nexus_content;
 mod paths;
@@ -22,6 +24,7 @@ mod ue4ss_modstxt;
 mod zip;
 
 // Public API used by lib.rs, launchers/, and other modules
+pub use self::companions::LeftoverFiles;
 pub use self::engine::{
     backup_dir, engine_for_game, ModEngineConfig, ModUnit, ScanTarget, StoreLayout,
 };
@@ -42,7 +45,8 @@ use self::identify::staged_content_sha256;
 pub(crate) use self::identify::{embedded_modworkshop_id, upgrade_negative_ids_with_conn};
 pub(crate) use self::identify::{
     ensure_untracked_folders, hash_untracked, hashable_file_for_mod_dir, identify_untracked,
-    regroup_negative_ids_by_name_suffix, resync_crimeboss_enabled_flags, upgrade_negative_ids,
+    regroup_negative_ids_by_name_suffix, restore_install_identities,
+    resync_crimeboss_enabled_flags, upgrade_negative_ids,
 };
 pub(crate) use self::ue4ss_modstxt::entry_name as ue4ss_entry_name;
 use crate::commands::analytics::track_mod_installed;
@@ -78,7 +82,7 @@ pub(crate) use self::crimeboss_settings::{
 pub(crate) use self::engine::{disabled_dir, mods_dir, Activation};
 #[cfg(test)]
 pub(crate) use self::naming::{
-    apply_priority_prefix, derive_content_segment, make_uid, mod_folder_name,
+    apply_priority_prefix, derive_content_segment, install_file_id, make_uid, mod_folder_name,
     recover_published_filename,
 };
 #[cfg(test)]
@@ -228,7 +232,9 @@ pub async fn get_installed(app: AppHandle, game_id: String) -> Result<InstalledR
     let mods_hidden = backup_dir(&game_path, cfg.primary()).exists();
 
     let (mut state, writeback) = load_for_scan(&game_path, &state_path, cfg);
-    let any_upgraded = upgrade_negative_ids(&app, &game_path, cfg, &state.folders, &mut state.mods);
+    let repaired = !mods_hidden && repair_installs(&app, &game_path, cfg, &mut state);
+    let any_upgraded =
+        upgrade_negative_ids(&app, &game_path, cfg, &state.folders, &mut state.mods) || repaired;
     regroup_negative_ids_by_name_suffix(&mut state.mods);
 
     // The player can also toggle mods from Crime Boss's own Options > Mods screen, so pull
@@ -341,8 +347,17 @@ pub async fn get_installed(app: AppHandle, game_id: String) -> Result<InstalledR
             &mut state.mods,
             index.as_ref(),
         );
-        let (mods, any_checked) = mark_archive_files(&game_path, &state.folders, state.mods, cfg);
-        if any_checked || any_upgraded || discovered_hosts || cb_resynced || identified {
+        let (mut mods, any_checked) =
+            mark_archive_files(&game_path, &state.folders, state.mods, cfg);
+        let containers_changed =
+            mark_containers(&game_path, game_id, cfg, &state.folders, &mut mods);
+        if any_checked
+            || any_upgraded
+            || discovered_hosts
+            || cb_resynced
+            || identified
+            || containers_changed
+        {
             writeback.save(
                 &state_path,
                 &ModsState {
@@ -352,7 +367,6 @@ pub async fn get_installed(app: AppHandle, game_id: String) -> Result<InstalledR
                 "refreshed identities",
             );
         }
-        let mut mods = mods;
         push_installed_loaders(cfg, &game_path, &settings, &mut mods);
         return Ok(InstalledResponse {
             mods,
@@ -385,7 +399,8 @@ pub async fn get_installed(app: AppHandle, game_id: String) -> Result<InstalledR
     let folders = state.folders;
     let mut mods = mods;
     identity::ensure_identities(&game_path, cfg, &folders, &mut mods, index.as_ref());
-    let (mods, _) = mark_archive_files(&game_path, &folders, mods, cfg);
+    let (mut mods, _) = mark_archive_files(&game_path, &folders, mods, cfg);
+    mark_containers(&game_path, game_id, cfg, &folders, &mut mods);
     writeback.save(
         &state_path,
         &ModsState {
@@ -394,7 +409,6 @@ pub async fn get_installed(app: AppHandle, game_id: String) -> Result<InstalledR
         },
         "the scanned state",
     );
-    let mut mods = mods;
     push_installed_loaders(cfg, &game_path, &settings, &mut mods);
     Ok(InstalledResponse {
         mods,
@@ -402,6 +416,77 @@ pub async fn get_installed(app: AppHandle, game_id: String) -> Result<InstalledR
         mods_hidden: false,
         state_unreadable: writeback.blocked(),
     })
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn list_leftover_files(
+    app: AppHandle,
+    game_id: String,
+) -> Result<Vec<LeftoverFiles>, String> {
+    let cfg = engine_for_game(&game_id)?;
+    let settings = read_settings(&app);
+    let Some(game_path) = game_settings(&settings, &game_id).and_then(|gs| gs.game_path.clone())
+    else {
+        return Ok(vec![]);
+    };
+    let _state_guard = lock_game_state(&app, &game_id).await;
+    companions::leftover_sets(&game_path, cfg)
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn delete_leftover_files(
+    app: AppHandle,
+    game_id: String,
+    sets: Vec<LeftoverFiles>,
+) -> Result<(), String> {
+    let cfg = engine_for_game(&game_id)?;
+    let settings = read_settings(&app);
+    let Some(game_path) = game_settings(&settings, &game_id).and_then(|gs| gs.game_path.clone())
+    else {
+        return Err(format!("{game_id} has no configured game path"));
+    };
+    let _state_guard = lock_game_state(&app, &game_id).await;
+    companions::delete_leftover_sets(&game_path, cfg, &sets)
+}
+
+/// Puts back what earlier releases broke before anything reads the records: companions a
+/// reorder split from their pak, and identities an older build rewrote. True when a record
+/// changed. The index stays open only for this, since the index refresh cannot replace a
+/// database file that is open on Windows.
+fn repair_installs(
+    app: &AppHandle,
+    game_path: &str,
+    cfg: &ModEngineConfig,
+    state: &mut ModsState,
+) -> bool {
+    let index = mod_index::open_index(app, cfg.game_id);
+    companions::rejoin_split_companions(
+        game_path,
+        cfg,
+        &state.folders,
+        &state.mods,
+        index.as_ref(),
+    );
+    index.as_ref().is_some_and(|conn| {
+        restore_install_identities(conn, game_path, cfg, &state.folders, &mut state.mods)
+    })
+}
+
+fn mark_containers(
+    game_path: &str,
+    game_id: &str,
+    cfg: &ModEngineConfig,
+    folders: &[ModFolder],
+    mods: &mut [InstalledMod],
+) -> bool {
+    let Some(crate::game_package::PackageReaderBinding::Unreal { aes_key }) =
+        crate::commands::games::game_spec(game_id).and_then(|spec| spec.package_reader)
+    else {
+        return false;
+    };
+    companions::mark_container_missing(game_path, cfg, folders, mods, aes_key)
 }
 
 #[tauri::command]

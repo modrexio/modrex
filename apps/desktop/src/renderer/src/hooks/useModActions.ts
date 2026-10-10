@@ -48,7 +48,7 @@ export interface ModActions {
     handleUninstall: (mods: InstalledMod[]) => Promise<void>
     handleEnable: (mods: InstalledMod[]) => Promise<void>
     handleDisable: (mods: InstalledMod[]) => Promise<void>
-    handleReinstall: (mods: InstalledMod[]) => Promise<void>
+    handleReinstall: (mods: InstalledMod[]) => Promise<string | null>
     handleIdentifyViaNexus: (mod: InstalledMod) => Promise<void>
     requestMoveCrimeBossTarget: (mod: InstalledMod) => void
     confirmMoveCrimeBossTarget: () => Promise<void>
@@ -186,12 +186,13 @@ export function useModActions(
         }
     }
 
-    async function handleReinstall(mods: InstalledMod[]) {
+    // Resolves to the failure, or null when it installed or is waiting on a choice.
+    async function handleReinstall(mods: InstalledMod[]): Promise<string | null> {
         // Reinstall goes through the modworkshop-only api.installMod, which needs a
         // real modworkshop id. InstalledMod.id is an opaque local key, never that.
         const isModworkshop = !mods[0].source || mods[0].source === 'modworkshop'
         const remoteId = Number(mods[0].remoteId)
-        if (!gamePath || !isModworkshop || !Number.isFinite(remoteId) || remoteId <= 0) return
+        if (!gamePath || !isModworkshop || !Number.isFinite(remoteId) || remoteId <= 0) return null
 
         setLoadingMod(mods[0].uid)
         setReinstallError(null)
@@ -201,7 +202,7 @@ export function useModActions(
         } catch (e) {
             setReinstallError(String(e))
             setLoadingMod(null)
-            return
+            return String(e)
         }
         const [detail, files] = found
         const fileIds = new Set(mods.map((m) => m.fileId))
@@ -211,6 +212,7 @@ export function useModActions(
             return reinstall(mods, remoteId)
         setLoadingMod(null)
         setReinstallChoices((prev) => [...prev, { mods, mod: detail, files }])
+        return null
     }
 
     async function chooseReinstallFile(fileId: number) {
@@ -219,8 +221,13 @@ export function useModActions(
         await reinstall(reinstallChoice.mods, reinstallChoice.mod.id, fileId)
     }
 
-    async function reinstall(mods: InstalledMod[], remoteId: number, fileId?: number) {
-        if (!gamePath) return
+    async function reinstall(
+        mods: InstalledMod[],
+        remoteId: number,
+        fileId?: number
+    ): Promise<string | null> {
+        if (!gamePath) return null
+        let failure: string | null = null
         const missingMods = mods.filter((m) => m.missing)
 
         setLoadingMod(mods[0].uid)
@@ -267,7 +274,8 @@ export function useModActions(
                             onRefreshInstalled
                         )
                     } catch (installErr) {
-                        setReinstallError(String(installErr))
+                        failure = String(installErr)
+                        setReinstallError(failure)
                     }
                 } else {
                     setZipPickerData(zipPayload)
@@ -282,13 +290,15 @@ export function useModActions(
                 })
             }
         } catch (e) {
-            setReinstallError(String(e))
+            failure = String(e)
+            setReinstallError(failure)
         } finally {
             unsub()
             setReinstallProgress(null)
             setLoadingMod(null)
         }
         await onRefreshInstalled()
+        return failure
     }
 
     // Both directions ask for confirmation before moving. Mods/ (ModKit) to ~mods drops Data

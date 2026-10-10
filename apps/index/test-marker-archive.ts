@@ -395,8 +395,7 @@ try {
 
 const guardedEnv = { ...process.env }
 delete guardedEnv.MODREX_INDEX_ALLOW_LOOPBACK_FETCH
-execFileSync(
-    process.execPath,
-    [fileURLToPath(import.meta.resolve('tsx/cli')), fileURLToPath(import.meta.url), '--guarded'],
-    { stdio: 'inherit', env: guardedEnv }
-)
+execFileSync(process.execPath, [fileURLToPath(import.meta.url), '--guarded'], {
+    stdio: 'inherit',
+    env: guardedEnv,
+})

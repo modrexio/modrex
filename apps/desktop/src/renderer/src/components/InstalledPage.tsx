@@ -23,7 +23,7 @@ import { Ue4ssReplaceModal } from './Ue4ssReplaceModal'
 import { Ue4ssRemoveModal } from './Ue4ssRemoveModal'
 import { MoveCrimeBossTargetModal } from './MoveCrimeBossTargetModal'
 import { UpdatesModal } from './UpdatesModal'
-import { HealthCheckModal } from './HealthCheckModal'
+import { HealthCheckModal, type Leftovers } from './HealthCheckModal'
 import { DeleteFolderModal } from './DeleteFolderModal'
 import { FolderSection, NewFolderInput } from './FolderSection'
 import { InstalledModItem } from './InstalledModItem'
@@ -93,6 +93,7 @@ export function InstalledPage({
         null
     )
     const [healthMissingDeps, setHealthMissingDeps] = useState<HealthItem[]>([])
+    const [healthLeftovers, setHealthLeftovers] = useState<Leftovers>({ sets: [], error: null })
     const cancelHealthRef = useRef(false)
     const showDepsTab = !!gamePath && modworkshopRemoteIds(installed).length > 0
 
@@ -115,17 +116,21 @@ export function InstalledPage({
         const positiveIds = modworkshopRemoteIds(installed)
         setHealthProgress(positiveIds.length > 0 ? { checked: 0, total: positiveIds.length } : null)
         try {
-            const deps = gamePath
-                ? await checkMissingDependencies(
-                      installed,
-                      positiveIds,
-                      gamePath,
-                      activeGame,
-                      (checked, total) => setHealthProgress({ checked, total })
-                  )
-                : []
+            const [deps, leftovers] = await Promise.all([
+                gamePath
+                    ? checkMissingDependencies(
+                          installed,
+                          positiveIds,
+                          gamePath,
+                          activeGame,
+                          (checked, total) => setHealthProgress({ checked, total })
+                      )
+                    : Promise.resolve([]),
+                loadLeftovers(),
+            ])
             if (!cancelHealthRef.current) {
                 setHealthMissingDeps(deps)
+                setHealthLeftovers(leftovers)
                 setShowHealth(true)
             }
         } finally {
@@ -133,6 +138,14 @@ export function InstalledPage({
             setCheckingHealth(false)
         }
     }
+    async function loadLeftovers(): Promise<Leftovers> {
+        try {
+            return { sets: await api.listLeftoverFiles(activeGame), error: null }
+        } catch (e) {
+            return { sets: [], error: String(e) }
+        }
+    }
+
     // Two api.getInstalled calls: onRefreshInstalled updates App state but doesn't
     // return the fresh list, so we fetch once more (local filesystem, ~2ms).
     async function handleDepInstalled() {
@@ -203,10 +216,17 @@ export function InstalledPage({
 
     useAutoIdentifyNexusMods({ installed, gamePath, activeGame, onRefreshInstalled })
 
-    const folderActions = useFolderActions(gamePath, onRefreshInstalled, activeGame)
+    const folderActions = useFolderActions(gamePath, folders, onRefreshInstalled, activeGame)
 
-    const { dragItem, dropTarget, scrollContainerRef, onModPointerDown, onFolderPointerDown } =
-        useDragDrop({ installed, folders, gamePath, modData, onRefreshInstalled, activeGame })
+    const {
+        dragItem,
+        dropTarget,
+        dropError,
+        clearDropError,
+        scrollContainerRef,
+        onModPointerDown,
+        onFolderPointerDown,
+    } = useDragDrop({ installed, folders, gamePath, modData, onRefreshInstalled, activeGame })
 
     const isFiltering = filterQuery.trim().length > 0
     const { mods: displayMods, visibleFolderIds } = isFiltering
@@ -500,6 +520,17 @@ export function InstalledPage({
                         </button>
                     </div>
                 )}
+                {dropError && (
+                    <div className="px-6 py-2 shrink-0 flex items-center justify-between gap-3 bg-danger/10 border-b border-danger/30 text-danger text-xs">
+                        <span className="truncate">{dropError}</span>
+                        <button
+                            onClick={clearDropError}
+                            className="shrink-0 hover:opacity-70 transition-opacity"
+                        >
+                            <X className="w-3.5 h-3.5" />
+                        </button>
+                    </div>
+                )}
                 {folderActions.folderActionError && (
                     <div className="px-6 py-2 shrink-0 flex items-center justify-between gap-3 bg-danger/10 border-b border-danger/30 text-danger text-xs">
                         <span className="truncate">{folderActions.folderActionError}</span>
@@ -663,6 +694,8 @@ export function InstalledPage({
                         modData={modData}
                         missingDeps={healthMissingDeps}
                         showDepsTab={showDepsTab}
+                        leftovers={healthLeftovers}
+                        onLeftoversChanged={async () => setHealthLeftovers(await loadLeftovers())}
                         gamePath={gamePath}
                         gameId={activeGame}
                         loadingMod={loadingMod}

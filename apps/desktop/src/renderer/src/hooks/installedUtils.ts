@@ -223,7 +223,7 @@ export function computeHealthSummary(mods: InstalledMod[]): HealthSummary {
     const groups = groupInstalledByIdentity(mods)
     const suspectFileIds = new Set(findSuspectDuplicateGroups(mods).map((s) => s.fileId))
     return {
-        missing: groups.filter((g) => g.mods.some((m) => m.missing)),
+        missing: groups.filter((g) => g.mods.some((m) => m.missing || m.containerMissing)),
         archiveBroken: groups.filter((g) => g.mods.some((m) => m.archiveBroken)),
         outdated: groups.filter(
             (g) =>

@@ -45,14 +45,9 @@ jobs:
         steps:
             - uses: actions/checkout@v7
 
-            - uses: pnpm/action-setup@v6
+            - uses: oven-sh/setup-bun@v2
               with:
-                  version: 10.32.1
-
-            - uses: actions/setup-node@v7
-              with:
-                  node-version: 22
-                  cache: pnpm
+                  bun-version-file: package.json
 
             - name: Install system dependencies
               run: |
@@ -62,7 +57,7 @@ jobs:
                   sudo ./aws/install --update
 
             - name: Install dependencies
-              run: pnpm install --frozen-lockfile
+              run: bun install --frozen-lockfile
 
             - name: Refresh and publish game indexes
               run: |
@@ -73,11 +68,16 @@ jobs:
                   if [ "${LIMIT}" -lt 1 ] || [ "${LIMIT}" -gt 1000 ]; then
                       exit 1
                   fi
-                  pnpm --dir apps/index migrate:postgres
-                  pnpm --dir apps/index verify:postgres-catalog
-                  pnpm --dir apps/index sync:postgres-listings
+                  bun run --cwd apps/index migrate:postgres
+                  bun run --cwd apps/index verify:postgres-catalog
+                  bun run --cwd apps/index sync:postgres-listings
+                  case "${GAME}" in
+                      all|auto) publish_games='pd3 pd2 pdth cb raid' ;;
+                      pd3|pd2|pdth|cb|raid) publish_games="${GAME}" ;;
+                      *) exit 1 ;;
+                  esac
                   if [ "${GAME}" = auto ]; then
-                      GAME="$(pnpm --dir apps/index exec tsx postgres/select-game.ts)"
+                      GAME="$(bun run --cwd apps/index postgres/select-game.ts)"
                       if [ -z "${GAME}" ]; then
                           GAME=none
                       fi
@@ -90,12 +90,22 @@ jobs:
                   esac
                   mkdir -p apps/index/artifacts
                   for game in ${games}; do
-                      pnpm --dir apps/index process:postgres-content -- --game="${game}" --limit="${LIMIT}"
+                      bun run --cwd apps/index process:postgres-content --game="${game}" --limit="${LIMIT}"
+                  done
+                  for game in ${publish_games}; do
                       database="apps/index/artifacts/${game}.db"
-                      pnpm --dir apps/index export:postgres-sqlite -- --game="${game}" --output="artifacts/${game}.db" --require-files
-                      sha256="$(sha256sum "${database}" | cut -d ' ' -f 1)"
                       aws s3 cp "s3://${R2_BUCKET}/catalog/latest.json" latest.json --endpoint-url "${R2_ENDPOINT}"
+                      previous_key="$(jq -r --arg game "${game}" '.games[$game].key // empty' latest.json)"
                       previous_sha256="$(jq -r --arg game "${game}" '.games[$game].sha256 // empty' latest.json)"
+                      previous_args=()
+                      if [ -n "${previous_key}" ] || [ -n "${previous_sha256}" ]; then
+                          test -n "${previous_key}"
+                          test -n "${previous_sha256}"
+                          aws s3 cp "s3://${R2_BUCKET}/${previous_key}" "apps/index/artifacts/${game}.previous.db" --endpoint-url "${R2_ENDPOINT}"
+                          previous_args=(--previous="artifacts/${game}.previous.db" --previous-sha256="${previous_sha256}")
+                      fi
+                      bun run --cwd apps/index export:postgres-sqlite --game="${game}" --output="artifacts/${game}.db" --require-files "${previous_args[@]}"
+                      sha256="$(sha256sum "${database}" | cut -d ' ' -f 1)"
                       if [ "${sha256}" = "${previous_sha256}" ]; then
                           printf 'No content change for %s; keeping the current generation.\n' "${game}"
                           continue
@@ -110,7 +120,7 @@ jobs:
                       aws s3 cp latest.next.json "s3://${R2_BUCKET}/catalog/latest.json" --endpoint-url "${R2_ENDPOINT}" --content-type application/json --cache-control 'no-cache'
                       printf 'Published %s with sha256 %s\n' "${key}" "${sha256}"
                   done
-                  supported_mods="$(pnpm --dir apps/index exec tsx postgres/report-stats.ts)"
+                  supported_mods="$(bun run --cwd apps/index postgres/report-stats.ts)"
                   aws s3 cp "s3://${R2_BUCKET}/catalog/latest.json" latest.json --endpoint-url "${R2_ENDPOINT}"
                   previous_supported_mods="$(jq -r '.stats.supportedMods // empty' latest.json)"
                   if [ "${supported_mods}" != "${previous_supported_mods}" ]; then
@@ -122,4 +132,4 @@ jobs:
                   fi
 
             - name: Report remaining archive work
-              run: pnpm --dir apps/index report:postgres-coverage
+              run: bun run --cwd apps/index report:postgres-coverage

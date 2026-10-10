@@ -10,6 +10,8 @@ Report vulnerabilities privately through GitHub's advisory form:
 
 **<https://github.com/modrexio/modrex/security/advisories/new>**
 
+If you can't use GitHub, email **security@modrex.net** instead.
+
 Please do not open a public issue and do not post details in Discord. Both are public, and an exploitable bug in a mod manager can put every user's machine at risk before a fix exists.
 
 A useful report includes:
@@ -32,7 +34,7 @@ Modrex downloads and installs third-party content, renders third-party text, and
 - the Linux install script delivered at modrex.net/install.sh
 - Nexus Mods OAuth tokens landing outside the OS credential store on a platform where one is available, or being exposed in logs
 
-Vulnerabilities in the companion repositories ([modrex-index](https://github.com/modrexio/modrex-index), [modrex-site](https://github.com/modrexio/modrex-site), [mget](https://github.com/modrexio/mget)) affect the same users - report them through the same form.
+Vulnerabilities in the companion repositories ([modrex-index](https://github.com/modrexio/modrex-index), [modrex-site](https://github.com/modrexio/modrex-site), [mget](https://github.com/modrexio/mget)) affect the same users - report them the same way.
 
 Out of scope:
 

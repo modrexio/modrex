@@ -247,6 +247,7 @@
             "noUpdates": "Всё актуально.",
             "noMissingDeps": "У всех установленных модов есть все необходимые зависимости.",
             "missingFileHint": "Файл отсутствует на диске",
+            "containerMissingHint": "! Its .ucas and .utoc files are missing from disk",
             "brokenArchiveHint": "Архив не удалось проверить",
             "outdatedHint": "Рекомендуется переустановка",
             "unidentifiedRowHint": "Не распознано",
@@ -254,7 +255,16 @@
             "installDep": "Установить",
             "installAllDeps": "Установить все зависимости",
             "installDepFailed": "Не удалось установить некоторые зависимости автоматически.",
-            "reinstallAll": "Переустановить всё"
+            "reinstallAll": "Переустановить всё",
+            "leftoversCount": "! Leftover files ({count})",
+            "noLeftovers": "! No leftover files.",
+            "leftoversLoadFailed": "! Leftover files couldn't be listed: {error}",
+            "leftoverHint": "! {files}, {size}. No installed mod uses these files.",
+            "deleteLeftover": "! Delete",
+            "confirmDelete": "! Confirm",
+            "deleteAllLeftovers": "! Delete All",
+            "confirmDeleteAll": "! Confirm Delete All",
+            "deleteLeftoversFailed": "! Some leftover files couldn't be deleted: {error}"
         }
     },
     "news": {

@@ -1,9 +1,9 @@
-#!/usr/bin/env npx tsx
+#!/usr/bin/env bun
 /**
  * Builds the PD3 + PD2 + PDTH + Crime Boss + RAID WW2 mod hash index from modworkshop
  * directly into SQLite.
  *
- * Run:   pnpm build-index
+ * Run:   bun build-index
  * Output: index.db
  *
  * Resumable: already-indexed fileIds are skipped on re-run.

@@ -24,25 +24,23 @@ fn normalized_asset_path(path: &str) -> String {
         .replace('\\', "/")
 }
 
-fn list_legacy_pak(pak_path: &Path, aes_key: &str) -> Result<Vec<PakAsset>, String> {
+/// The paths a pak's own index lists. An IoStore stub lists none: its content lives in the
+/// .ucas the .utoc beside it describes.
+pub(crate) fn pak_entries(pak_path: &Path, aes_key: &str) -> Result<Vec<String>, String> {
     let key_bytes = hex::decode(aes_key).map_err(|e| format!("invalid AES key: {e}"))?;
     let key = aes::Aes256::new_from_slice(&key_bytes)
         .map_err(|_| "invalid AES key length".to_string())?;
-    let mut input = BufReader::new(
-        File::open(pak_path).map_err(|e| format!("failed to open {}: {e}", pak_path.display()))?,
-    );
+    let name = pak_path
+        .file_name()
+        .map(|name| name.to_string_lossy())
+        .unwrap_or_default();
+    let mut input =
+        BufReader::new(File::open(pak_path).map_err(|e| format!("failed to open {name}: {e}"))?);
     let pak = repak::PakBuilder::new()
         .key(key)
         .reader(&mut input)
-        .map_err(|e| format!("failed to read {}: {e}", pak_path.display()))?;
-
-    Ok(pak
-        .files()
-        .into_iter()
-        .map(|path| PakAsset {
-            path: normalized_asset_path(&path),
-        })
-        .collect())
+        .map_err(|e| format!("failed to read {name}: {e}"))?;
+    Ok(pak.files())
 }
 
 fn list_iostore(utoc_path: &Path, aes_key: &str) -> Result<Vec<PakAsset>, String> {
@@ -90,7 +88,19 @@ fn list_unreal_assets(
     {
         return list_iostore(&utoc_path, aes_key);
     }
-    list_legacy_pak(pak_path, aes_key)
+    let entries = pak_entries(pak_path, aes_key)?;
+    if entries.is_empty() {
+        return Err(
+            "this pak holds no assets itself, and the .ucas and .utoc it needs are missing. Reinstall the mod."
+                .to_string(),
+        );
+    }
+    Ok(entries
+        .iter()
+        .map(|path| PakAsset {
+            path: normalized_asset_path(path),
+        })
+        .collect())
 }
 
 #[tauri::command]
@@ -126,3 +136,7 @@ pub async fn list_pak_assets(
         .await
         .map_err(|e| format!("pak reader task failed: {e}"))?
 }
+
+#[cfg(test)]
+#[path = "pak_viewer_tests.rs"]
+mod tests;

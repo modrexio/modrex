@@ -91,6 +91,17 @@ pub fn make_uid(file_id: Option<i64>, filename: &str) -> String {
     }
 }
 
+/// The ModWorkshop file id a record's uid was minted from: the file id alone, or the file id
+/// and the archive entry. A record keeps its uid for life, so this outlasts later changes to
+/// its other fields.
+pub fn install_file_id(uid: &str) -> Option<i64> {
+    let digits = uid.split('_').next()?;
+    if digits.is_empty() || !digits.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    digits.parse().ok().filter(|id| *id > 0)
+}
+
 /// Recovers a File-unit mod's published filename from its on-disk name, for querying
 /// Nexus's content index. Modrex rewrites the name on disk (a numeric priority prefix,
 /// and a disabled_suffix appended when the mod is off); querying either as-is returns

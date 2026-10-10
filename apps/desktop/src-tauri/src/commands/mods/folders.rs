@@ -1,7 +1,8 @@
 use super::engine::ModEngineConfig;
+use super::moves::{exists, Moves};
 use super::naming::log_name;
 use super::naming::{apply_priority_prefix, strip_priority_prefix};
-use super::paths::{active_mod_path, disabled_base, disabled_mod_path, mods_base};
+use super::paths::{disabled_base, installed_mod_path, mods_base};
 use super::state::{get_folder_path, read_state, save_error, save_state};
 use super::types::ModFolder;
 use std::fs;
@@ -251,12 +252,10 @@ pub fn delete_folder_op(
 
     let mods_b = mods_base(game_path, cfg.primary());
     let dis_b = disabled_base(game_path, cfg.primary());
-
-    if let Some(r) = &target_parent_rel {
-        if let Err(e) = fs::create_dir_all(mods_b.join(r)) {
-            log::warn!("delete_folder: create_dir_all target: {e}");
-        }
-    }
+    let into_parent = |base: &Path| match &target_parent_rel {
+        Some(r) => base.join(r),
+        None => base.to_path_buf(),
+    };
 
     let mut max_p = {
         let f = state
@@ -276,6 +275,10 @@ pub fn delete_folder_op(
         f.max(m)
     };
 
+    let mut moves = Moves::default();
+    let mut into_active = false;
+    let mut into_disabled = false;
+
     for m in state.mods.iter_mut() {
         if m.folder_id.as_deref() != Some(folder_id) {
             continue;
@@ -287,30 +290,18 @@ pub fn delete_folder_op(
         } else {
             m.filename.clone()
         };
-        let old = if m.enabled {
-            active_mod_path(game_path, &m.filename, Some(&folder_rel), target)
-        } else {
-            disabled_mod_path(game_path, &m.filename, Some(&folder_rel), target)
-        };
-        let new = if m.enabled {
-            active_mod_path(
+        let old = installed_mod_path(game_path, &m.filename, Some(&folder_rel), target, m.enabled);
+        if exists(&old)? {
+            let new = installed_mod_path(
                 game_path,
                 &new_filename,
                 target_parent_rel.as_deref(),
                 target,
-            )
-        } else {
-            disabled_mod_path(
-                game_path,
-                &new_filename,
-                target_parent_rel.as_deref(),
-                target,
-            )
-        };
-        if old.exists() {
-            if let Err(e) = fs::rename(&old, &new) {
-                log::warn!("delete_folder: move mod {}: {e}", log_name(&old));
-            }
+                m.enabled,
+            );
+            moves.unit(target, old, new);
+            into_active |= m.enabled;
+            into_disabled |= !m.enabled;
         }
         m.filename = new_filename;
         m.priority = Some(max_p);
@@ -340,31 +331,14 @@ pub fn delete_folder_op(
         let old_rel = get_folder_path(&state.folders, Some(cf_id)).unwrap_or_default();
 
         let old_a = mods_b.join(&old_rel);
-        let new_a = match &target_parent_rel {
-            Some(r) => mods_b.join(r).join(&new_disk),
-            None => mods_b.join(&new_disk),
-        };
-        if old_a.exists() {
-            if let Err(e) = fs::rename(&old_a, &new_a) {
-                log::warn!(
-                    "delete_folder: move subfolder active {}: {e}",
-                    log_name(&old_a)
-                );
-            }
+        if exists(&old_a)? {
+            moves.path(old_a, into_parent(&mods_b).join(&new_disk));
+            into_active = true;
         }
-
         let old_d = dis_b.join(&old_rel);
-        let new_d = match &target_parent_rel {
-            Some(r) => dis_b.join(r).join(&new_disk),
-            None => dis_b.join(&new_disk),
-        };
-        if old_d.exists() {
-            if let Err(e) = fs::rename(&old_d, &new_d) {
-                log::warn!(
-                    "delete_folder: move subfolder disabled {}: {e}",
-                    log_name(&old_d)
-                );
-            }
+        if exists(&old_d)? {
+            moves.path(old_d, into_parent(&dis_b).join(&new_disk));
+            into_disabled = true;
         }
 
         for f in state.folders.iter_mut() {
@@ -376,20 +350,38 @@ pub fn delete_folder_op(
         }
     }
 
-    let active_dir = mods_b.join(&folder_rel);
-    if active_dir.exists() {
-        if let Err(e) = fs::remove_dir_all(&active_dir) {
-            log::warn!("delete_folder: remove_dir_all active {folder_rel:?}: {e}");
+    for (base, needed) in [(&mods_b, into_active), (&dis_b, into_disabled)] {
+        if needed {
+            fs::create_dir_all(into_parent(base))
+                .map_err(|e| format!("could not prepare the parent folder: {e}"))?;
         }
     }
-    let dis_dir = dis_b.join(&folder_rel);
-    if dis_dir.exists() {
-        if let Err(e) = fs::remove_dir_all(&dis_dir) {
-            log::warn!("delete_folder: remove_dir_all disabled {folder_rel:?}: {e}");
-        }
-    }
-
+    let applied = moves.run()?;
     state.folders.retain(|f| f.id != folder_id);
-    save_state(state_path, &state).map_err(save_error)?;
+    applied.save(state_path, &state)?;
+
+    remove_emptied(&mods_b.join(&folder_rel));
+    remove_emptied(&dis_b.join(&folder_rel));
     Ok(())
+}
+
+/// Removes dir and the empty folders under it. Anything else Modrex does not track, such as a
+/// file the user put there, keeps its folder in place.
+fn remove_emptied(dir: &Path) {
+    let entries = match fs::read_dir(dir) {
+        Ok(entries) => entries,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return,
+        Err(e) => {
+            log::warn!("delete_folder: read {}: {e}", log_name(dir));
+            return;
+        }
+    };
+    for entry in entries.flatten() {
+        if entry.file_type().is_ok_and(|t| t.is_dir()) {
+            remove_emptied(&entry.path());
+        }
+    }
+    if let Err(e) = fs::remove_dir(dir) {
+        log::info!("delete_folder: kept {}: {e}", log_name(dir));
+    }
 }

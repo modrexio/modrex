@@ -13,3 +13,9 @@
   Permissions-Policy: camera=(), microphone=(), geolocation=(), browsing-topics=()
   Strict-Transport-Security: max-age=31536000; includeSubDomains
   Content-Security-Policy-Report-Only: default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://img.shields.io https://*.githubusercontent.com https://*.google-analytics.com; connect-src 'self' https://github.com https://*.githubusercontent.com https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com https://index.modrex.net; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests
+
+# The production deploy is also served at the project's pages.dev hostname. Without this,
+# search engines can index that copy as a duplicate of modrex.net. Preview deployments
+# already get noindex from Cloudflare, this covers the production alias.
+https://:project.pages.dev/*
+  X-Robots-Tag: noindex

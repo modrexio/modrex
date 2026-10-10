@@ -54,8 +54,8 @@ a retrospective, exact inventory of everyone's currently installed version.
 
 - `cargo test commands::analytics::tests --lib` in `apps/desktop/src-tauri` covers timing,
   session expiry, consent reset, environment fields and the renderer allowlist.
-- `pnpm exec vitest run functions/api/collect.test.ts` in `apps/site` covers forwarding,
-  country attribution and failures. `pnpm typecheck:functions` checks the proxy types.
+- `bun --bun x vitest run functions/api/collect.test.ts` in `apps/site` covers forwarding,
+  country attribution and failures. `bun run typecheck:functions` checks the proxy types.
 - Point `MODREX_ANALYTICS_ENDPOINT` at a local receiver with a dummy id to inspect
   requests without sending production events.
 - GA4's `/debug/mp/collect` validates payloads without collecting them. Production

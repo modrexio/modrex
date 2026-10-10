@@ -247,6 +247,7 @@
             "noUpdates": "Alles ist auf dem neuesten Stand.",
             "noMissingDeps": "Die Abhängigkeiten jeder installierten Mod sind erfüllt.",
             "missingFileHint": "Datei auf der Festplatte nicht gefunden",
+            "containerMissingHint": "! Its .ucas and .utoc files are missing from disk",
             "brokenArchiveHint": "Archiv konnte nicht verifiziert werden",
             "outdatedHint": "Empfohlene Neuinstallation",
             "unidentifiedRowHint": "Nicht erkannt",
@@ -254,7 +255,16 @@
             "installDep": "Installieren",
             "installAllDeps": "Alle Abhängigkeiten installieren",
             "installDepFailed": "Einige Abhängigkeiten konnten nicht automatisch installiert werden.",
-            "reinstallAll": "Alle neu installieren"
+            "reinstallAll": "Alle neu installieren",
+            "leftoversCount": "! Leftover files ({count})",
+            "noLeftovers": "! No leftover files.",
+            "leftoversLoadFailed": "! Leftover files couldn't be listed: {error}",
+            "leftoverHint": "! {files}, {size}. No installed mod uses these files.",
+            "deleteLeftover": "! Delete",
+            "confirmDelete": "! Confirm",
+            "deleteAllLeftovers": "! Delete All",
+            "confirmDeleteAll": "! Confirm Delete All",
+            "deleteLeftoversFailed": "! Some leftover files couldn't be deleted: {error}"
         }
     },
     "news": {

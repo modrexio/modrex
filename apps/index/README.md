@@ -22,8 +22,8 @@ through 0.12.2. It is not fed by this pipeline and does not receive new games.
 ## Running locally
 
 ```bash
-pnpm install
-pnpm index:build
-pnpm index:build -- --concurrency=10
-pnpm index:test
+bun install
+bun index:build
+bun index:build --concurrency=10
+bun index:test
 ```

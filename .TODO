@@ -68,7 +68,7 @@ belong only in en.json.
 ## TODO: i18n-maintenance-audit
 
 Translation ownership itself is finished: ownership is documented in
-docs/architecture/i18n-ownership.md and regressions live in scripts/i18n-ownership.test.mjs.
+docs/architecture/i18n-ownership.md and regressions live in scripts/i18n-ownership.test.mts.
 
 The audit itself is only partly done. Four demonstrated duplications were
 consolidated there, each deleting the replaced path in the same change:

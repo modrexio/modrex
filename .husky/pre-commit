@@ -1,13 +1,13 @@
-pnpm format:check || (echo "" && echo "Format errors found. Run: pnpm format" && exit 1)
-pnpm lint || (echo "" && echo "Lint errors found. Run: pnpm lint:fix" && exit 1)
-pnpm check-commands || (echo "" && echo "Command registration mismatch, see errors above." && exit 1)
-pnpm check-csp || (echo "" && echo "CSP mismatch between csp and devCsp, see errors above." && exit 1)
-pnpm i18n:check-staged || (echo "" && echo "Staged i18n data is invalid or its history is unavailable. CI enforces this check; this commit is not blocked.")
-pnpm site:check-legal-dates || (echo "" && echo "Legal page edited without bumping its date, see errors above." && exit 1)
+bun run format:check || (echo "" && echo "Format errors found. Run: bun format" && exit 1)
+bun run lint || (echo "" && echo "Lint errors found. Run: bun lint:fix" && exit 1)
+bun run check-commands || (echo "" && echo "Command registration mismatch, see errors above." && exit 1)
+bun run check-csp || (echo "" && echo "CSP mismatch between csp and devCsp, see errors above." && exit 1)
+bun run i18n:check-staged || (echo "" && echo "Staged i18n data is invalid or its history is unavailable. CI enforces this check; this commit is not blocked.")
+bun run site:check-legal-dates || (echo "" && echo "Legal page edited without bumping its date, see errors above." && exit 1)
 
-if git diff --cached --name-only | grep -qE '(apps/desktop/package\.json|apps/desktop/src-tauri/Cargo\.toml|apps/desktop/src-tauri/Cargo\.lock|pnpm-lock\.yaml)'; then
+if git diff --cached --name-only | grep -qE '(apps/desktop/package\.json|apps/desktop/src-tauri/Cargo\.toml|apps/desktop/src-tauri/Cargo\.lock|bun\.lock)'; then
     echo "Dep files changed — regenerating THIRD_PARTY_LICENSES.md (may take ~15s)..."
-    pnpm generate-licenses
+    bun run generate-licenses
     git add apps/desktop/THIRD_PARTY_LICENSES.md
     echo "THIRD_PARTY_LICENSES.md updated and staged."
 fi

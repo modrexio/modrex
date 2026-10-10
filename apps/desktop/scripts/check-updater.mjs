@@ -80,9 +80,9 @@ if (!jqFilter) {
     }
 }
 
-if (!release.includes('run: pnpm build:signed')) {
+if (!release.includes('run: bun run build:signed')) {
     problems.push(
-        'release.yml must build with pnpm build:signed (plain pnpm build skips updater signatures)'
+        'release.yml must build with bun run build:signed (plain bun run build skips updater signatures)'
     )
 }
 for (const signaturePattern of [

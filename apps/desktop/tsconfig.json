@@ -9,7 +9,9 @@
         "skipLibCheck": true,
         "incremental": true,
         "types": ["node", "vite-plugin-svgr/client"],
-        "resolveJsonModule": true
+        "resolveJsonModule": true,
+        "noEmit": true,
+        "allowImportingTsExtensions": true
     },
     "include": ["src/**/*", "vite.config.*"],
     "exclude": ["node_modules", "out", "commitlint.config.ts", "src/main", "src/preload"]

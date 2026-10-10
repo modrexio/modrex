@@ -1,4 +1,4 @@
-// @vitest-environment jsdom
+// @vitest-environment happy-dom
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, fireEvent, cleanup } from '@testing-library/react'
 import { MarkdownContent, ModworkshopMarkup } from './MarkdownContentImpl'
@@ -248,7 +248,7 @@ describe('ModworkshopMarkup centering', () => {
 describe('ModworkshopMarkup formatting', () => {
     it('keeps modworkshop color tags working', () => {
         const { getByText } = render(<ModworkshopMarkup text={'{#ff0000}(hot text)'} />)
-        expect(getByText('hot text').style.color).toBe('rgb(255, 0, 0)')
+        expect(getByText('hot text').style.color).toBe('#ff0000')
     })
 
     // A text color class on strong is a declared property on the element itself, so it
@@ -266,7 +266,7 @@ describe('ModworkshopMarkup formatting', () => {
             <ModworkshopMarkup text={'{Red}(outer (text) {#00ff00}(inner))'} />
         )
         expect(getByText(/outer/).style.color).toBe('red')
-        expect(getByText('inner').style.color).toBe('rgb(0, 255, 0)')
+        expect(getByText('inner').style.color).toBe('#00ff00')
     })
 
     it('drops hex colors too dark to read, like ModWorkshop does', () => {
@@ -275,7 +275,7 @@ describe('ModworkshopMarkup formatting', () => {
         )
         expect(getByText('black').style.color).toBe('')
         expect(getByText('grey').style.color).toBe('')
-        expect(getByText('blue').style.color).toBe('rgb(90, 141, 238)')
+        expect(getByText('blue').style.color).toBe('#5a8dee')
     })
 
     it('leaves color tags inside code alone', () => {
@@ -336,7 +336,7 @@ describe('ModworkshopMarkup legacy text', () => {
         )
         expect(getByText('Meth Helper').tagName).toBe('A')
         expect(container.querySelector('hr')).not.toBeNull()
-        expect(getByText('About This Mod').style.color).toBe('rgb(255, 215, 0)')
+        expect(getByText('About This Mod').style.color).toBe('#ffd700')
         expect(getByText('Meth Helper Updated').tagName).toBe('STRONG')
         expect(container.querySelectorAll('ul li')).toHaveLength(2)
         expect(container.textContent).not.toMatch(/\[\/?(url|hr|color|b|list|\*)/)

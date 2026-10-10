@@ -35,6 +35,7 @@ export interface FolderActions {
 
 export function useFolderActions(
     gamePath: string | null,
+    folders: ModFolder[],
     onRefreshInstalled: () => Promise<void>,
     activeGame: GameId
 ): FolderActions {
@@ -80,8 +81,14 @@ export function useFolderActions(
         if (!deletingFolderId || !gamePath) return
         const folderId = deletingFolderId
         setDeletingFolderId(null)
-        await api.deleteFolder(folderId, gamePath, activeGame)
-        await onRefreshInstalled()
+        setFolderActionError(
+            await runBulkAction(
+                [folderId],
+                (id) => folders.find((f) => f.id === id)?.displayName ?? id,
+                (id) => api.deleteFolder(id, gamePath, activeGame),
+                onRefreshInstalled
+            )
+        )
     }
 
     function cancelDelete() {

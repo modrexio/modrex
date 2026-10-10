@@ -5,12 +5,12 @@ Marketing and documentation site for [Modrex](https://github.com/modrexio/modrex
 ## Development
 
 ```bash
-pnpm install
-pnpm dev        # Start dev server at localhost:4321
-pnpm build      # Static build to dist/
-pnpm typecheck  # Type-check .astro and .ts files
-pnpm lint       # ESLint
-pnpm format     # Prettier
+bun install
+bun dev        # Start dev server at localhost:4321
+bun run build      # Static build to dist/
+bun typecheck  # Type-check .astro and .ts files
+bun lint       # ESLint
+bun format     # Prettier
 ```
 
 ## Stack

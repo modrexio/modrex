@@ -7,11 +7,10 @@ import { strict as assert } from 'node:assert'
 import { spawn } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 
-const tsxCli = fileURLToPath(import.meta.resolve('tsx/cli'))
 const processor = fileURLToPath(new URL('postgres/process-content.ts', import.meta.url))
 
 async function exitCode(env: Record<string, string | undefined>, args: string[]): Promise<number> {
-    const child = spawn(process.execPath, [tsxCli, processor, ...args], {
+    const child = spawn(process.execPath, [processor, ...args], {
         env: { ...process.env, ...env },
         stdio: 'ignore',
     })

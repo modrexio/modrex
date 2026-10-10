@@ -1,5 +1,4 @@
-import type MarkdownIt from 'markdown-it'
-import type { StateBlock } from 'markdown-it'
+import type { MarkdownIt, StateBlock } from 'markdown-it'
 
 // A closing run must be at least as long as the opening one. Unclosed runs to the end.
 export function markdownContainer(md: MarkdownIt, name: string, marker: string) {

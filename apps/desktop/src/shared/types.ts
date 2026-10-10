@@ -186,6 +186,7 @@ export interface InstalledMod {
     missing?: boolean
     folderId?: string | null // null or absent = root level
     archiveBroken?: boolean
+    containerMissing?: boolean // the pak is only a header and its .ucas and .utoc are gone
     location?: string // scan target tag; absent = primary target
     // Whether version is comparable. Kept out of the version string so "unknown" and
     // "outdated" are never mistaken for real version values.

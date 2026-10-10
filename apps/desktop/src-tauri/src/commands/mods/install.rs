@@ -1,6 +1,7 @@
 use super::crimeboss_settings;
 use super::engine::{Activation, ModEngineConfig, ModUnit, ScanTarget};
 use super::host_mods::{host_target_by_id, parse_host_location};
+use super::moves::put_back;
 use super::naming::log_name;
 use super::naming::{apply_priority_prefix, mod_folder_name, sidecar_path, strip_priority_prefix};
 use super::paths::{
@@ -790,23 +791,6 @@ fn move_host_pack(
     })
 }
 
-/// Puts back the moves a failed group move already made, most recent first so each
-/// destination is free before the one before it is restored.
-fn undo_moves(moved: &[(std::path::PathBuf, std::path::PathBuf)]) -> Result<(), String> {
-    let problems: Vec<String> = moved
-        .iter()
-        .rev()
-        .filter_map(|(from, to)| match fs::rename(from, to) {
-            Ok(()) => None,
-            Err(e) => Some(format!("{}: {e}", log_name(to))),
-        })
-        .collect();
-    if problems.is_empty() {
-        return Ok(());
-    }
-    Err(problems.join("; "))
-}
-
 /// Copies src to dest, plus any companion sharing src's stem, as one unit.
 ///
 /// A missing companion is normal. A companion that fails to copy is not: an Unreal pak
@@ -888,7 +872,7 @@ pub(super) fn rename_with_sidecars(
         };
         if let Err(e) = fs::rename(&sidecar, &to_sidecar) {
             let failed = format!("could not move {}: {e}", log_name(&sidecar));
-            return Err(match undo_moves(&moved) {
+            return Err(match put_back(&moved) {
                 Ok(()) => failed,
                 Err(undo) => format!("{failed}; and putting the mod back failed: {undo}"),
             });
