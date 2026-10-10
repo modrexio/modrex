@@ -57,7 +57,7 @@
         "index:build": "bun run --cwd apps/index build-index",
         "index:test": "bun run --cwd apps/index test:export-determinism && bun run --cwd apps/index test:snapshot-delta && bun run --cwd apps/index test:game-schedule && bun run --cwd apps/index test:marker-contract && bun run --cwd apps/index test:marker-archive && bun run --cwd apps/index test:process-failure && bun run --cwd apps/index test:postgres-architecture && bun run --cwd apps/index test:postgres-queries && bun run --cwd apps/index test:staged-rebuild && bun run --cwd apps/index test:unreal-resources",
         "index:typecheck": "bun run --cwd apps/index tsc --noEmit",
-        "audit:deps": "bun run --cwd apps/site test:cache-security && bun audit --ignore=GHSA-vwc7-r8mq-g2x9 --ignore=GHSA-ch52-4w7c-c8xp",
+        "audit:deps": "bun audit --ignore=GHSA-vwc7-r8mq-g2x9",
         "prepare": "husky",
         "i18n:typecheck": "bun run --cwd apps/desktop typecheck:i18n"
     },
@@ -70,6 +70,7 @@
         "typescript": "6.0.3"
     },
     "overrides": {
+        "http-cache-semantics": "4.3.0",
         "postcss": "8.5.25",
         "postcss-selector-parser": "7.1.6",
         "source-map-js": "1.2.2",
@@ -79,9 +80,6 @@
         "fast-uri": "3.1.8",
         "js-yaml": "^4.3.2",
         "@babel/core": "^7.29.6"
-    },
-    "patchedDependencies": {
-        "http-cache-semantics@4.2.0": "patches/http-cache-semantics@4.2.0.patch"
     },
     "workspaces": [
         "apps/*",
