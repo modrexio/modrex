@@ -62,6 +62,55 @@ test('game settings leave resource tools in the game-scoped Advanced tab', async
     expect(screen.queryByRole('textbox', { name: 'Engine.ini' })).toBeNull()
 })
 
+test.each([
+    { gameId: 'pd3', filename: 'Engine.ini', command: 'getEngineIniLocation' },
+    { gameId: 'pd2', filename: 'renderer_settings_dx11.xml', command: 'getGraphicsConfigLocation' },
+] as const)('returning to Advanced preserves $filename while rechecking it', async (config) => {
+    store.set('modrex:active-game', config.gameId)
+    const { api } = await import('../src/api')
+    const lookup = vi.spyOn(api, config.command)
+    const { default: App } = await import('../src/App')
+    render(<App />)
+    fireEvent.click(
+        within(screen.getByRole('complementary')).getByRole('button', { name: 'Settings' })
+    )
+    expect(lookup).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Advanced' }))
+    await screen.findByText(`${config.filename} found.`)
+    const open = screen.getByRole('button', { name: 'Open' })
+    const statusRow = screen.getByText(`${config.filename} found.`)
+    const browse = screen.getByRole('button', { name: 'Browse' })
+    const browseStyle = browse.className
+    fireEvent.click(screen.getByRole('button', { name: 'Application' }))
+    expect(screen.queryByRole('heading', { name: config.filename })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Open' })).toBeNull()
+    let resolveCheck!: (location: ConfigFileLocation) => void
+    lookup.mockImplementationOnce(() => new Promise((resolve) => (resolveCheck = resolve)))
+    fireEvent.click(screen.getByRole('button', { name: 'Advanced' }))
+    expect(lookup).toHaveBeenCalledTimes(2)
+    expect(screen.getByRole('button', { name: 'Open' })).toBe(open)
+    expect(screen.getByText(`${config.filename} found.`)).toBe(statusRow)
+    expect(screen.getByRole('button', { name: 'Browse' })).toBe(browse)
+    expect(browse.className).toBe(browseStyle)
+    expect(screen.queryByText(`Checking the ${config.filename} location...`)).toBeNull()
+    expect(open.hasAttribute('disabled')).toBe(true)
+    await act(async () => resolveCheck({ status: 'found', path: `C:/Config/${config.filename}` }))
+    expect(screen.getByText(`C:/Config/${config.filename}`)).toBeTruthy()
+    expect(open.hasAttribute('disabled')).toBe(false)
+    fireEvent.click(
+        within(screen.getByRole('complementary')).getByRole('button', { name: 'Browse Mods' })
+    )
+    lookup.mockImplementationOnce(() => new Promise((resolve) => (resolveCheck = resolve)))
+    fireEvent.click(
+        within(screen.getByRole('complementary')).getByRole('button', { name: 'Settings' })
+    )
+    expect(lookup).toHaveBeenCalledTimes(3)
+    expect(screen.getByRole('button', { name: 'Open' })).toBe(open)
+    expect(screen.getByText(`C:/Config/${config.filename}`)).toBeTruthy()
+    await act(async () => resolveCheck({ status: 'found', path: `C:/Config/${config.filename}` }))
+    expect(open.hasAttribute('disabled')).toBe(false)
+})
+
 test('a config-only declaration supplies settings tools without movie installation or scanning', async () => {
     store.set('modrex:active-game', 'pd2')
     const { GAMES } = await import('@modrex/games')

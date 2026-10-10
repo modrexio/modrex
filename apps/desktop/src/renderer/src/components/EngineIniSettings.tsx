@@ -5,16 +5,19 @@ import { ConfigFileSettings } from './ConfigFileSettings'
 
 export function EngineIniSettings({
     activeGame,
+    isActive,
     gamePath,
     onOpenGameSettings,
 }: {
     activeGame: GameId
+    isActive: boolean
     gamePath: string | null | undefined
     onOpenGameSettings: () => void
 }) {
     return (
         <ConfigFileSettings
             activeGame={activeGame}
+            isActive={isActive}
             gamePath={gamePath}
             onOpenGameSettings={onOpenGameSettings}
             getLocation={api.getEngineIniLocation}

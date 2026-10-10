@@ -83,7 +83,7 @@ export function SettingsPage({
         name: string
         content: ReactNode
         folders: ReactNode
-        advanced?: (openGameSettings: () => void) => ReactNode
+        advanced?: (openGameSettings: () => void, isActive: boolean) => ReactNode
     }
 }) {
     const [checkState, setCheckState] = useState<'idle' | 'checking' | 'upToDate'>('idle')
@@ -425,16 +425,19 @@ export function SettingsPage({
                             </>
                         )}
 
+                        {game?.advanced && (
+                            <div hidden={activeTab !== 'advanced'} className="flex flex-col gap-4">
+                                <h2 className="text-sm font-semibold">
+                                    {t('resources.toolsTitle', { game: game.name })}
+                                </h2>
+                                {game.advanced(
+                                    () => setActiveTab('game'),
+                                    isActive && activeTab === 'advanced'
+                                )}
+                            </div>
+                        )}
                         {activeTab === 'advanced' && (
                             <>
-                                {game?.advanced && (
-                                    <div className="flex flex-col gap-4">
-                                        <h2 className="text-sm font-semibold">
-                                            {t('resources.toolsTitle', { game: game.name })}
-                                        </h2>
-                                        {game.advanced(() => setActiveTab('game'))}
-                                    </div>
-                                )}
                                 <SisrSettings isActive={isActive} />
 
                                 <Section

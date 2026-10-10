@@ -15,7 +15,7 @@ vi.mock('../api', () => ({
         pickGraphicsConfig: vi.fn(),
     },
 }))
-const context = { gamePath: 'G:/Games', onOpenGameSettings: vi.fn() }
+const context = { isActive: true, gamePath: 'G:/Games', onOpenGameSettings: vi.fn() }
 const filename = 'renderer_settings_dx11.xml'
 const wrappers = [
     {

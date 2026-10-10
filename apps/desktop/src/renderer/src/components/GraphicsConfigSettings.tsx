@@ -5,11 +5,13 @@ import { ConfigFileSettings } from './ConfigFileSettings'
 
 export function GraphicsConfigSettings({
     activeGame,
+    isActive,
     gamePath,
     onOpenGameSettings,
     filename,
 }: {
     activeGame: GameId
+    isActive: boolean
     gamePath: string | null | undefined
     onOpenGameSettings: () => void
     filename: string
@@ -17,6 +19,7 @@ export function GraphicsConfigSettings({
     return (
         <ConfigFileSettings
             activeGame={activeGame}
+            isActive={isActive}
             gamePath={gamePath}
             onOpenGameSettings={onOpenGameSettings}
             getLocation={api.getGraphicsConfigLocation}

@@ -392,12 +392,13 @@ export function GameWorkspace({
                                 advanced:
                                     GAMES[activeGame].configPresets ||
                                     GAMES[activeGame].graphicsConfig
-                                        ? (openGameSettings) => (
+                                        ? (openGameSettings, isActive) => (
                                               <>
                                                   {GAMES[activeGame].configPresets && (
                                                       <EngineIniSettings
                                                           key={`ini:${configContext}`}
                                                           activeGame={activeGame}
+                                                          isActive={isActive}
                                                           gamePath={data.path}
                                                           onOpenGameSettings={openGameSettings}
                                                       />
@@ -406,6 +407,7 @@ export function GameWorkspace({
                                                       <GraphicsConfigSettings
                                                           key={`graphics:${configContext}`}
                                                           activeGame={activeGame}
+                                                          isActive={isActive}
                                                           gamePath={data.path}
                                                           onOpenGameSettings={openGameSettings}
                                                           filename={

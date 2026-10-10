@@ -9,6 +9,7 @@ const pickFile = vi.fn<(gameId: string, title: string) => Promise<string | null>
 const openFile = vi.fn<(gameId: string) => Promise<null>>()
 const onOpenGameSettings = vi.fn()
 const configContext = {
+    isActive: true,
     filename: 'Engine.ini',
     title: 'Engine.ini',
     gamePath: 'G:/Games',
@@ -25,6 +26,120 @@ beforeEach(() => {
     openFile.mockResolvedValue(null)
 })
 afterEach(cleanup)
+
+test('reserves the status and action layout during initial discovery', async () => {
+    let resolveCheck!: (location: ConfigFileLocation) => void
+    getLocation.mockReturnValueOnce(new Promise((resolve) => (resolveCheck = resolve)))
+    render(<ConfigFileSettings {...configContext} activeGame="pd3" />)
+    const statusRow = screen.getByRole('status')
+    const open = screen.getByText('Open').closest('button')!
+    const browse = screen.getByRole('button', { name: 'Browse' })
+    const browseStyle = browse.className
+    expect(open.hasAttribute('disabled')).toBe(true)
+    expect(statusRow.textContent).toBe('Checking the Engine.ini location...')
+    await act(async () => resolveCheck(found))
+    expect(screen.getByRole('button', { name: 'Open' })).toBe(open)
+    expect(screen.getByRole('status')).toBe(statusRow)
+    expect(browse.className).toBe(browseStyle)
+})
+
+test('revalidates on activation without clearing the resolved location', async () => {
+    let resolveCheck!: (location: ConfigFileLocation) => void
+    const view = render(<ConfigFileSettings {...configContext} activeGame="pd3" />)
+    await screen.findByText('Engine.ini found.')
+    const open = screen.getByRole('button', { name: 'Open' })
+    const browse = screen.getByRole('button', { name: 'Browse' })
+    view.rerender(<ConfigFileSettings {...configContext} activeGame="pd3" isActive={false} />)
+    getLocation.mockReturnValueOnce(new Promise((resolve) => (resolveCheck = resolve)))
+    view.rerender(<ConfigFileSettings {...configContext} activeGame="pd3" />)
+    expect(getLocation).toHaveBeenCalledTimes(2)
+    expect(screen.getByRole('button', { name: 'Open' })).toBe(open)
+    expect(screen.getByRole('button', { name: 'Browse' })).toBe(browse)
+    expect(screen.getByText(found.path)).toBeTruthy()
+    expect(screen.getByText('Engine.ini found.')).toBeTruthy()
+    expect(screen.queryByText('Checking the Engine.ini location...')).toBeNull()
+    await act(async () => resolveCheck({ status: 'missing', path: found.path }))
+    expect(screen.getByText('Engine.ini not found.')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Open' })).toBeNull()
+})
+
+test('reports an activation check failure instead of retaining a found status', async () => {
+    const view = render(<ConfigFileSettings {...configContext} activeGame="pd3" />)
+    await screen.findByText('Engine.ini found.')
+    view.rerender(<ConfigFileSettings {...configContext} activeGame="pd3" isActive={false} />)
+    getLocation.mockRejectedValueOnce(new Error('Permission denied'))
+    view.rerender(<ConfigFileSettings {...configContext} activeGame="pd3" />)
+    expect((await screen.findByRole('alert')).textContent).toContain('Permission denied')
+    expect(screen.queryByText('Engine.ini found.')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Open' })).toBeNull()
+})
+
+test('activation does not supersede an open file picker', async () => {
+    let resolvePicker!: (path: string | null) => void
+    pickFile.mockReturnValueOnce(new Promise((resolve) => (resolvePicker = resolve)))
+    const view = render(<ConfigFileSettings {...configContext} activeGame="pd3" />)
+    await screen.findByText('Engine.ini found.')
+    fireEvent.click(screen.getByRole('button', { name: 'Browse' }))
+    view.rerender(<ConfigFileSettings {...configContext} activeGame="pd3" isActive={false} />)
+    view.rerender(<ConfigFileSettings {...configContext} activeGame="pd3" />)
+    expect(getLocation).toHaveBeenCalledTimes(1)
+    await act(async () => resolvePicker(found.path))
+    expect(openFile).toHaveBeenCalledExactlyOnceWith('pd3')
+    expect(screen.getByRole('button', { name: 'Open' }).hasAttribute('disabled')).toBe(false)
+})
+
+test('rechecks on activation after cancelling a file picker', async () => {
+    pickFile.mockResolvedValueOnce(null)
+    const view = render(<ConfigFileSettings {...configContext} activeGame="pd3" />)
+    await screen.findByText('Engine.ini found.')
+    fireEvent.click(screen.getByRole('button', { name: 'Browse' }))
+    await waitFor(() =>
+        expect(screen.getByRole('button', { name: 'Browse' }).hasAttribute('disabled')).toBe(false)
+    )
+    view.rerender(<ConfigFileSettings {...configContext} activeGame="pd3" isActive={false} />)
+    view.rerender(<ConfigFileSettings {...configContext} activeGame="pd3" />)
+    expect(getLocation).toHaveBeenCalledTimes(2)
+    expect(openFile).not.toHaveBeenCalled()
+})
+
+test('preserves a failed lookup when Browse is cancelled', async () => {
+    getLocation.mockRejectedValueOnce(new Error('Permission denied'))
+    pickFile.mockResolvedValueOnce(null)
+    render(<ConfigFileSettings {...configContext} activeGame="pd3" />)
+    const error = await screen.findByRole('alert')
+    const browse = screen.getByRole('button', { name: 'Browse' })
+    fireEvent.click(browse)
+    await waitFor(() => expect(browse.hasAttribute('disabled')).toBe(false))
+    expect(screen.getByRole('alert')).toBe(error)
+    expect(screen.getByRole('status').textContent).toBe(
+        'Modrex could not check the Engine.ini location.'
+    )
+    expect(screen.getByRole('button', { name: 'Check again' })).toBeTruthy()
+    expect(screen.queryByText('Checking the Engine.ini location...')).toBeNull()
+    expect(getLocation).toHaveBeenCalledTimes(1)
+    expect(openFile).not.toHaveBeenCalled()
+})
+
+test('clears a previous installation while hidden and discovers the new path on activation', async () => {
+    const view = render(<ConfigFileSettings {...configContext} activeGame="pd3" />)
+    await screen.findByText('Engine.ini found.')
+    view.rerender(
+        <ConfigFileSettings
+            {...configContext}
+            activeGame="pd3"
+            gamePath="G:/Other game"
+            isActive={false}
+        />
+    )
+    expect(screen.queryByText(found.path)).toBeNull()
+    expect(getLocation).toHaveBeenCalledTimes(1)
+    getLocation.mockResolvedValueOnce({ status: 'found', path: 'G:/Other/Engine.ini' })
+    view.rerender(
+        <ConfigFileSettings {...configContext} activeGame="pd3" gamePath="G:/Other game" />
+    )
+    await screen.findByText('G:/Other/Engine.ini')
+    expect(getLocation).toHaveBeenCalledTimes(2)
+})
 
 test('keeps the path, status and buttons in place while Open rechecks the file', async () => {
     let resolveCheck!: (location: ConfigFileLocation) => void
@@ -92,6 +207,18 @@ test('shows a failed editor handoff and permits another attempt', async () => {
     fireEvent.click(open)
     await waitFor(() => expect(openFile).toHaveBeenCalledTimes(2))
     expect(screen.queryByRole('alert')).toBeNull()
+})
+
+test('clears the found status when the Open recheck fails', async () => {
+    getLocation.mockResolvedValueOnce(found).mockRejectedValueOnce(new Error('Permission denied'))
+    render(<ConfigFileSettings {...configContext} activeGame="pd3" />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Open' }))
+    expect((await screen.findByRole('alert')).textContent).toContain('Permission denied')
+    expect(screen.queryByText('Engine.ini found.')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Open' })).toBeNull()
+    expect(openFile).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Check again' }))
+    await screen.findByRole('button', { name: 'Open' })
 })
 
 test('clears the old path when an accepted selection cannot be checked', async () => {

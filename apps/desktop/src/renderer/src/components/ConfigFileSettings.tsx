@@ -9,6 +9,7 @@ import { Button } from './ui/Button'
 
 export function ConfigFileSettings({
     activeGame,
+    isActive,
     gamePath,
     onOpenGameSettings,
     getLocation,
@@ -18,6 +19,7 @@ export function ConfigFileSettings({
     title,
 }: {
     activeGame: GameId
+    isActive: boolean
     gamePath: string | null | undefined
     onOpenGameSettings: () => void
     getLocation: (gameId: string) => Promise<ConfigFileLocation>
@@ -30,33 +32,44 @@ export function ConfigFileSettings({
     const [busy, setBusy] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const request = useRef(0)
+    const opening = useRef(false)
 
     const checkLocation = useCallback(async () => {
         const current = ++request.current
         setBusy(true)
-        setLocation(null)
         setError(null)
         try {
             const result = await getLocation(activeGame)
             if (current === request.current) setLocation(result)
         } catch (failure) {
-            if (current === request.current) setError(String(failure))
+            if (current === request.current) {
+                setLocation(null)
+                setError(String(failure))
+            }
         } finally {
             if (current === request.current) setBusy(false)
         }
     }, [activeGame, getLocation])
 
     useEffect(() => {
-        if (gamePath != null) void checkLocation()
+        setLocation(null)
+        setError(null)
+        setBusy(true)
+        opening.current = false
         return () => {
             request.current += 1
         }
     }, [checkLocation, gamePath])
 
+    useEffect(() => {
+        if (isActive && gamePath != null && !opening.current) void checkLocation()
+    }, [isActive, checkLocation, gamePath])
+
     async function open(pick: boolean) {
         const current = ++request.current
+        opening.current = true
         setBusy(true)
-        setError(null)
+        if (!pick) setError(null)
         try {
             if (pick) {
                 const path = await pickFile(
@@ -65,10 +78,14 @@ export function ConfigFileSettings({
                 )
                 if (!path) return
                 if (current !== request.current) return
+                setError(null)
                 setLocation(null)
             }
             if (current !== request.current) return
-            const result = await getLocation(activeGame)
+            const result = await getLocation(activeGame).catch((failure) => {
+                if (current === request.current) setLocation(null)
+                throw failure
+            })
             if (current !== request.current) return
             setLocation(result)
             if (result.status !== 'found') return
@@ -76,7 +93,10 @@ export function ConfigFileSettings({
         } catch (failure) {
             if (current === request.current) setError(String(failure))
         } finally {
-            if (current === request.current) setBusy(false)
+            if (current === request.current) {
+                opening.current = false
+                setBusy(false)
+            }
         }
     }
 
@@ -98,12 +118,9 @@ export function ConfigFileSettings({
         <SettingsSection title={title} description={t('resources.config.description')}>
             <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-surface-hover border border-border mt-1">
                 {checking ? (
-                    <span
-                        role="status"
-                        className="text-sm flex-1 min-w-0 text-text-muted flex items-center gap-2"
-                    >
+                    <span className="text-sm flex-1 min-w-0 text-text-muted flex items-center gap-2">
                         <Loader aria-hidden="true" className="w-3.5 h-3.5 animate-spin shrink-0" />
-                        {statusText}
+                        <span className="truncate">{statusText}</span>
                     </span>
                 ) : (
                     <span className="text-sm font-mono truncate flex-1 min-w-0 text-text-muted">
@@ -111,11 +128,12 @@ export function ConfigFileSettings({
                     </span>
                 )}
                 <div className="flex gap-2 shrink-0">
-                    {status === 'found' && (
+                    {(status === 'found' || status === 'checking') && (
                         <Button
                             variant="accent"
                             size="md"
-                            className={focusRing}
+                            className={`${focusRing} ${status === 'checking' ? 'invisible' : ''}`}
+                            aria-hidden={status === 'checking' ? true : undefined}
                             disabled={busy}
                             onClick={() => void open(false)}
                         >
@@ -124,7 +142,9 @@ export function ConfigFileSettings({
                     )}
                     {gamePath != null && (
                         <Button
-                            variant={status === 'found' ? 'secondary' : 'accent'}
+                            variant={
+                                status === 'found' || status === 'checking' ? 'secondary' : 'accent'
+                            }
                             size="md"
                             className={focusRing}
                             disabled={busy}
@@ -146,14 +166,12 @@ export function ConfigFileSettings({
                     )}
                 </div>
             </div>
-            {!checking && (
-                <p
-                    role="status"
-                    className={`text-xs ${status === 'found' ? 'text-success-text' : status === 'needsLocation' ? 'text-text-subtle' : 'text-danger-text'}`}
-                >
-                    {statusText}
-                </p>
-            )}
+            <p
+                role="status"
+                className={`min-h-4 text-xs ${status === 'found' ? 'text-success-text' : status === 'needsLocation' ? 'text-text-subtle' : 'text-danger-text'}`}
+            >
+                <span className={checking ? 'sr-only' : undefined}>{statusText}</span>
+            </p>
             {status === 'missing' && (
                 <p className="text-xs text-text-subtle">{t('resources.config.missingHint')}</p>
             )}
