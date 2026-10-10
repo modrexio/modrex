@@ -12,6 +12,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - Added Polish as a language option for the app's interface.
 - Added a Health Check warning for mods missing their .ucas and .utoc files.
 - Added a Leftover files tab to Health Check for removing unused .ucas and .utoc files.
+- Added translation coverage and contributor credits in language settings.
 
 ### Changed
 
