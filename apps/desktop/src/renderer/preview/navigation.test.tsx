@@ -92,6 +92,28 @@ test('repeated settings clicks stay global and keep that scope after restart', a
     expect(restarted.calls.presence).toHaveBeenCalledExactlyOnceWith('')
 })
 
+test('translations shows bundled languages and restores focus after Escape', async () => {
+    store.set('modrex:scope', 'global-settings')
+    await mount()
+    const trigger = await screen.findByRole('button', { name: 'Translations' })
+    trigger.focus()
+    fireEvent.click(trigger)
+
+    const dialog = await screen.findByRole('dialog', { name: 'Translations' })
+    const table = within(dialog).getByRole('table')
+    expect(within(table).getByRole('row', { name: /English EN 100%/ })).toBeTruthy()
+    expect(within(table).getByRole('button', { name: 'TarekLP' })).toBeTruthy()
+    const ukrainian = within(within(table).getByRole('row', { name: /Українська/ }))
+    expect(ukrainian.getByRole('button', { name: 'ShevRuslan1' })).toBeTruthy()
+    expect(ukrainian.getByRole('button', { name: 'illianezheviasov' })).toBeTruthy()
+
+    fireEvent.keyDown(dialog, { key: 'Escape' })
+    await vi.waitFor(() => {
+        expect(screen.queryByRole('dialog', { name: 'Translations' })).toBeNull()
+        expect(document.activeElement).toBe(trigger)
+    })
+})
+
 test('global advanced settings have no game folder actions', async () => {
     store.set('modrex:scope', 'global-settings')
     store.set('modrex:active-game', 'pd3')

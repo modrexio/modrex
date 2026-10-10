@@ -1,5 +1,5 @@
 import { ScrollArea } from './ScrollArea'
-import { useState, useEffect, useMemo, type ReactNode } from 'react'
+import { useState, useEffect, useMemo, useRef, type ReactNode } from 'react'
 import { SettingsSection as Section } from './SettingsSection'
 import { BetaBadge } from './BetaBadge'
 import { TITLE_ROW_MIN_H } from './pageHeader'
@@ -25,6 +25,8 @@ import { Select } from './Select'
 import { Dialog, DialogHeader } from './Dialog'
 import { Toggle } from './Toggle'
 import { TelemetryConsentDialog } from './TelemetryConsentDialog'
+import { TranslationStatusDialog } from './TranslationStatusDialog'
+import { Tooltip } from './Tooltip'
 import { StorageSettings } from './StorageSettings'
 import { SisrSettings } from './SisrSettings'
 import { api } from '../api'
@@ -89,6 +91,8 @@ export function SettingsPage({
     const [checkState, setCheckState] = useState<'idle' | 'checking' | 'upToDate'>('idle')
     const hasGameSettings = game !== undefined
     const [showAnalyticsDetails, setShowAnalyticsDetails] = useState(false)
+    const [showTranslationStatus, setShowTranslationStatus] = useState(false)
+    const translationStatusTrigger = useRef<HTMLButtonElement>(null)
     const [activeTab, setActiveTabState] = useState<SettingsTab>(() =>
         readSavedTab(hasGameSettings)
     )
@@ -231,6 +235,24 @@ export function SettingsPage({
                                 <Section
                                     title={t('settings.language.title')}
                                     description={t('settings.language.description')}
+                                    badge={
+                                        <Tooltip content={t('settings.language.status')}>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="focus-visible:ring-2 focus-visible:ring-accent/60"
+                                                aria-label={t('settings.language.status')}
+                                                aria-haspopup="dialog"
+                                                onClick={(event) => {
+                                                    translationStatusTrigger.current =
+                                                        event.currentTarget
+                                                    setShowTranslationStatus(true)
+                                                }}
+                                            >
+                                                <Info className="w-3.5 h-3.5" aria-hidden />
+                                            </Button>
+                                        </Tooltip>
+                                    }
                                 >
                                     <div className="mt-1">
                                         <Select
@@ -567,6 +589,11 @@ export function SettingsPage({
                 </ScrollArea>
             </div>
 
+            <TranslationStatusDialog
+                open={showTranslationStatus}
+                onClose={() => setShowTranslationStatus(false)}
+                returnFocus={() => translationStatusTrigger.current?.focus()}
+            />
             <TelemetryConsentDialog
                 open={showAnalyticsDetails}
                 dismissable

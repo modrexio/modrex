@@ -99,18 +99,25 @@ export function formatTargetValue(value: TargetValue): string | undefined {
     return undefined
 }
 
-export function resolveTargetValue(sourceValue: SourceValue, targetValue: TargetValue): string {
+export function usableTargetText(
+    sourceValue: SourceValue,
+    targetValue: TargetValue
+): string | undefined {
     if (
         targetValue.kind === TARGET_VALUE_KIND.ABSENT ||
         targetValue.kind === TARGET_VALUE_KIND.UNTRANSLATED_SCAFFOLD
     ) {
-        return sourceValue.sourceText
+        return undefined
     }
 
     const { missing, unexpected } = placeholderDifferences(
         sourceValue.placeholderContract,
         targetValue.placeholderContract
     )
-    if (missing.length > 0 || unexpected.length > 0) return sourceValue.sourceText
+    if (missing.length > 0 || unexpected.length > 0) return undefined
     return targetValue.targetText
+}
+
+export function resolveTargetValue(sourceValue: SourceValue, targetValue: TargetValue): string {
+    return usableTargetText(sourceValue, targetValue) ?? sourceValue.sourceText
 }
