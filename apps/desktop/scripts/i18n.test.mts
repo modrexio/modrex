@@ -1298,62 +1298,114 @@ test('translation contributor metadata rejects duplicates and invalid GitHub use
     }
 })
 
-test('--stdout prints the prospective README without modifying it', () => {
-    const directory = mkdtempSync(join(tmpdir(), 'modrex-readme-'))
-    const readmePath = join(directory, 'README.md')
-    const original = [
-        '# Project',
-        '<!-- TRANSLATION_STATUS_START -->',
-        'stale',
-        '<!-- TRANSLATION_STATUS_END -->',
-    ].join('\n')
-    writeFileSync(readmePath, original)
+test('README generation keeps supplied locales structurally strict', () => {
+    withLocales(
+        { 'en.json': { key: 'English' }, 'de.json': { key: '! Superseded English' } },
+        (i18nDir) => {
+            assert.throws(() => expectedReadme('', { i18nDir }), /stale untranslated scaffold/)
+        }
+    )
+})
 
-    try {
+test('README generation rejects contributor locales missing from its supplied data', () => {
+    withLocales({ 'en.json': { key: 'English' }, 'de.json': { key: 'Deutsch' } }, (i18nDir) => {
+        const contributorsPath = join(i18nDir, 'contributors.fixture')
+        writeFileSync(contributorsPath, JSON.stringify({ uk: ['FixtureUser'] }))
+        assert.throws(
+            () => expectedReadme('', { i18nDir, contributorsPath }),
+            /Translation contributors reference unknown locale 'uk'/
+        )
+    })
+})
+
+test('--stdout prints the prospective README without modifying it', () => {
+    withLocales({ 'en.json': { key: 'English' }, 'de.json': { key: 'Deutsch' } }, (i18nDir) => {
+        const readmePath = join(i18nDir, 'README.md')
+        const original = [
+            '# Project',
+            '<!-- TRANSLATION_STATUS_START -->',
+            'stale',
+            '<!-- TRANSLATION_STATUS_END -->',
+        ].join('\n')
+        writeFileSync(readmePath, original)
+        const contributorsPath = join(i18nDir, 'contributors.fixture')
+        writeFileSync(contributorsPath, JSON.stringify({ de: ['FixtureUser'] }))
+
         const stdout = captureStream()
-        const status = runReadmeCommand(['--stdout'], { readmePath, stdout: stdout.stream })
+        const status = runReadmeCommand(['--stdout'], {
+            readmePath,
+            i18nDir,
+            contributorsPath,
+            stdout: stdout.stream,
+        })
         assert.equal(status, 0)
         assert.equal(readFileSync(readmePath, 'utf8'), original)
-        assert.equal(stdout.value(), expectedReadme(original))
-    } finally {
-        rmSync(directory, { recursive: true, force: true })
-    }
+        assert.equal(stdout.value(), expectedReadme(original, { i18nDir, contributorsPath }))
+    })
 })
 
 test('--check detects stale and current README content without modifying it', () => {
-    const directory = mkdtempSync(join(tmpdir(), 'modrex-readme-'))
-    const readmePath = join(directory, 'README.md')
-    const stale = [
-        '# Project',
-        '<!-- TRANSLATION_STATUS_START -->',
-        'stale',
-        '<!-- TRANSLATION_STATUS_END -->',
-    ].join('\n')
-    writeFileSync(readmePath, stale)
+    withLocales({ 'en.json': { key: 'English' }, 'de.json': { key: 'Deutsch' } }, (i18nDir) => {
+        const readmePath = join(i18nDir, 'README.md')
+        const stale = [
+            '# Project',
+            '<!-- TRANSLATION_STATUS_START -->',
+            'stale',
+            '<!-- TRANSLATION_STATUS_END -->',
+        ].join('\n')
+        writeFileSync(readmePath, stale)
+        const contributorsPath = join(i18nDir, 'contributors.fixture')
+        writeFileSync(contributorsPath, JSON.stringify({ de: ['FixtureUser'] }))
 
-    try {
         const staleError = captureStream()
         const staleStatus = runReadmeCommand(['--check'], {
             readmePath,
+            i18nDir,
+            contributorsPath,
             stderr: staleError.stream,
         })
         assert.equal(staleStatus, 1)
         assert.match(staleError.value(), /README\.md is out of date/)
         assert.equal(readFileSync(readmePath, 'utf8'), stale)
 
-        const current = expectedReadme(stale)
+        const current = expectedReadme(stale, { i18nDir, contributorsPath })
         writeFileSync(readmePath, current)
         const currentOutput = captureStream()
         const currentStatus = runReadmeCommand(['--check'], {
             readmePath,
+            i18nDir,
+            contributorsPath,
             stdout: currentOutput.stream,
         })
         assert.equal(currentStatus, 0)
         assert.match(currentOutput.value(), /README\.md is current/)
         assert.equal(readFileSync(readmePath, 'utf8'), current)
-    } finally {
-        rmSync(directory, { recursive: true, force: true })
-    }
+    })
+})
+
+test('--write materializes supplied README inputs idempotently', () => {
+    withLocales({ 'en.json': { key: 'English' }, 'de.json': { key: 'Deutsch' } }, (i18nDir) => {
+        const readmePath = join(i18nDir, 'README.md')
+        const contributorsPath = join(i18nDir, 'contributors.fixture')
+        const original =
+            '<!-- TRANSLATION_STATUS_START -->\nstale\n<!-- TRANSLATION_STATUS_END -->\n'
+        writeFileSync(readmePath, original)
+        writeFileSync(contributorsPath, JSON.stringify({ de: ['FixtureUser'] }))
+        const inputs = { i18nDir, contributorsPath }
+        const expected = expectedReadme(original, inputs)
+        for (let iteration = 0; iteration < 2; iteration++) {
+            const stdout = captureStream()
+            assert.equal(
+                runReadmeCommand(['--write'], { ...inputs, readmePath, stdout: stdout.stream }),
+                0
+            )
+            assert.equal(readFileSync(readmePath, 'utf8'), expected)
+            assert.match(
+                stdout.value(),
+                iteration === 0 ? /updated README/ : /README\.md is current/
+            )
+        }
+    })
 })
 
 test('typed parser boundaries reject every non-string JSON value', () => {

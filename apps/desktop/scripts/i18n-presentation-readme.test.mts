@@ -5,6 +5,10 @@ import { join } from 'node:path'
 import test from 'node:test'
 import { inspectLocales, localeNativeName } from './i18n-inspection.mts'
 import {
+    createSynchronizedRepositoryLocales,
+    repositoryHistorySkipReason,
+} from './i18n-repository-fixture.mts'
+import {
     buildStatusSummaries,
     deriveTargetStatus,
     type TargetStatusSummary,
@@ -136,6 +140,10 @@ test('Step 6 command rendering does not write README.md', () => {
     const readmePath = join(directory, 'README.md')
     const original = '<!-- TRANSLATION_STATUS_START -->\nstale\n<!-- TRANSLATION_STATUS_END -->\n'
     writeFileSync(readmePath, original)
+    writeFileSync(join(directory, 'en.json'), JSON.stringify({ key: 'English' }))
+    writeFileSync(join(directory, 'de.json'), JSON.stringify({ key: 'Deutsch' }))
+    const contributorsPath = join(directory, 'contributors.fixture')
+    writeFileSync(contributorsPath, JSON.stringify({ de: ['FixtureUser'] }))
     try {
         const stdout = {
             value: '',
@@ -143,7 +151,10 @@ test('Step 6 command rendering does not write README.md', () => {
                 this.value += chunk
             },
         }
-        assert.equal(runReadmeCommand([], { readmePath, stdout }), 0)
+        assert.equal(
+            runReadmeCommand([], { readmePath, i18nDir: directory, contributorsPath, stdout }),
+            0
+        )
         assert.equal(readFileSync(readmePath, 'utf8'), original)
         assert.match(stdout.value, /README\.md unchanged/u)
     } finally {
@@ -228,25 +239,29 @@ test('table pipes and Markdown-special locale names remain one safe table cell',
     assert.ok(row.includes('A \\| B \\[x\\] \\(y\\) \\\\ (de)'))
 })
 
-test('current summaries and contributors remain reflected in the expected block', () => {
-    const inspection = inspectLocales()
-    const summaries = buildStatusSummaries(inspection)
-    const names = Object.fromEntries([
-        [inspection.sourceLocale, localeNativeName(inspection.sourceLocale)],
-        ...inspection.locales.map((locale) => [locale.id, localeNativeName(locale.id)]),
-    ])
-    const contributors = readTranslationContributors()
-    const output = renderTranslationStatusReadme({ summaries, names, contributors })
-    assert.match(output, /English \(en\)[^\n]*en\.svg[^\n]*> Complete/u)
-    for (const summary of summaries.targets) {
-        const row = output.split('\n').find((line) => line.includes(`${summary.locale}.svg`))
-        assert.ok(row)
-        assert.match(
-            row,
-            new RegExp(`> ${deriveTargetStatus(summary).label.replaceAll('%', '\\%')}`)
-        )
-        for (const username of contributors[summary.locale] ?? []) {
-            assert.match(row, new RegExp(`https://github\\.com/${username}`))
+test(
+    'current summaries and contributors remain reflected in the expected block',
+    { skip: repositoryHistorySkipReason },
+    (context) => {
+        const inspection = inspectLocales(createSynchronizedRepositoryLocales(context))
+        const summaries = buildStatusSummaries(inspection)
+        const names = Object.fromEntries([
+            [inspection.sourceLocale, localeNativeName(inspection.sourceLocale)],
+            ...inspection.locales.map((locale) => [locale.id, localeNativeName(locale.id)]),
+        ])
+        const contributors = readTranslationContributors()
+        const output = renderTranslationStatusReadme({ summaries, names, contributors })
+        assert.match(output, /English \(en\)[^\n]*en\.svg[^\n]*> Complete/u)
+        for (const summary of summaries.targets) {
+            const row = output.split('\n').find((line) => line.includes(`${summary.locale}.svg`))
+            assert.ok(row)
+            assert.match(
+                row,
+                new RegExp(`> ${deriveTargetStatus(summary).label.replaceAll('%', '\\%')}`)
+            )
+            for (const username of contributors[summary.locale] ?? []) {
+                assert.match(row, new RegExp(`https://github\\.com/${username}`))
+            }
         }
     }
-})
+)

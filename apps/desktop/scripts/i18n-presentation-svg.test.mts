@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, readdirSync } from 'node:fs'
+import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
@@ -14,6 +14,10 @@ import {
     type TargetStatusSummary,
 } from './i18n-presentation.mts'
 import { inspectLocales, validateLocaleId } from './i18n-inspection.mts'
+import {
+    createSynchronizedRepositoryLocales,
+    repositoryHistorySkipReason,
+} from './i18n-repository-fixture.mts'
 
 const REVIEW = '#D4A72C'
 
@@ -184,21 +188,27 @@ test('XML values are escaped and SVG contains no visible text or external resour
 // question with a different owner: the bot writes them, and bun i18n:presentation-check
 // verifies them afterwards. Asserting it here would require a contributor's locale commit to
 // already contain the bot's later output.
-test('current summaries render byte-consistent simple assets', () => {
-    const summaries = buildStatusSummaries(inspectLocales())
-    const directory = mkdtempSync(join(tmpdir(), 'modrex-svg-'))
-    const result = generateStatusAssets({ outputDir: directory })
-    const expectedAssets = [summaries.source, ...summaries.targets]
-        .map((summary) => `${summary.locale}.svg`)
-        .sort()
-    assert.deepEqual(readdirSync(directory).sort(), expectedAssets)
-    for (const summary of [summaries.source, ...summaries.targets]) {
-        assert.equal(
-            readFileSync(join(directory, `${summary.locale}.svg`), 'utf8'),
-            renderStatusSvg(summary)
-        )
+test(
+    'current summaries render byte-consistent simple assets',
+    { skip: repositoryHistorySkipReason },
+    (context) => {
+        const i18nDir = createSynchronizedRepositoryLocales(context)
+        const summaries = buildStatusSummaries(inspectLocales(i18nDir))
+        const directory = mkdtempSync(join(tmpdir(), 'modrex-svg-'))
+        context.after(() => rmSync(directory, { recursive: true, force: true }))
+        const result = generateStatusAssets({ i18nDir, outputDir: directory })
+        const expectedAssets = [summaries.source, ...summaries.targets]
+            .map((summary) => `${summary.locale}.svg`)
+            .sort()
+        assert.deepEqual(readdirSync(directory).sort(), expectedAssets)
+        for (const summary of [summaries.source, ...summaries.targets]) {
+            assert.equal(
+                readFileSync(join(directory, `${summary.locale}.svg`), 'utf8'),
+                renderStatusSvg(summary)
+            )
+        }
+        assert.equal(result.written.length, expectedAssets.length)
+        const second = generateStatusAssets({ i18nDir, outputDir: directory })
+        assert.deepEqual(second.written, [])
     }
-    assert.equal(result.written.length, expectedAssets.length)
-    const second = generateStatusAssets({ outputDir: directory })
-    assert.deepEqual(second.written, [])
-})
+)

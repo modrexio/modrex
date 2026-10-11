@@ -25,7 +25,6 @@ import { writeLocaleAtomically, type LocaleBundle } from './i18n-files.mts'
 import { createGitAdapter } from './i18n-git.mts'
 import {
     analyzeCommittedHistory,
-    analyzeProspective,
     analyzeRepairableProspective,
     describeHistoryAvailability,
     I18N_LOCALE_DIR,
@@ -988,7 +987,7 @@ test(
         )
         const indexBefore = git(REPOSITORY_ROOT, ['write-tree'])
         const committed = analyzeCommittedHistory({ cwd: REPOSITORY_ROOT })
-        const history = analyzeProspective(
+        const history = analyzeRepairableProspective(
             committed,
             workingTreeSnapshot(REPOSITORY_ROOT, I18N_LOCALE_DIR)
         )

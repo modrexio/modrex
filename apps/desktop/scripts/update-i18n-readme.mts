@@ -8,7 +8,7 @@ import type {
 import { readFileSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { inspectLocales, localeNativeName } from './i18n-inspection.mts'
+import { I18N_DIR, inspectLocales, localeNativeName } from './i18n-inspection.mts'
 import {
     buildStatusSummaries,
     deriveTargetStatus,
@@ -17,6 +17,7 @@ import {
 
 export type TranslationContributors = Record<string, string[]>
 type Metadata = { names: Record<string, string>; contributors: TranslationContributors }
+type ReadmeInputs = { i18nDir?: string; contributorsPath?: string }
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
 const README_PATH = resolve(SCRIPT_DIR, '../../..', 'README.md')
@@ -192,20 +193,23 @@ export function replaceTranslationTable(readme: string, table: string) {
     return `${before}\n\n${table}\n\n${after}`
 }
 
-export function expectedReadme(readme: string) {
-    const inspection = inspectLocales()
+export function expectedReadme(
+    readme: string,
+    { i18nDir = I18N_DIR, contributorsPath = CONTRIBUTORS_PATH }: ReadmeInputs = {}
+) {
+    const inspection = inspectLocales(i18nDir)
     if (inspection.errors.length > 0) {
         throw new Error(
             `Cannot update README with invalid locales:\n${inspection.errors.join('\n')}`
         )
     }
-    const contributors = readTranslationContributors()
+    const contributors = readTranslationContributors(contributorsPath)
     return replaceTranslationTable(readme, buildTranslationTable(inspection, contributors))
 }
 
-export function materializeReadme(readmePath = README_PATH) {
+export function materializeReadme(readmePath = README_PATH, inputs: ReadmeInputs = {}) {
     const current = readFileSync(readmePath, 'utf8')
-    const expected = expectedReadme(current)
+    const expected = expectedReadme(current, inputs)
     if (expected !== current) writeFileSync(readmePath, expected)
     return expected
 }
@@ -214,9 +218,11 @@ export function runReadmeCommand(
     args: string[],
     {
         readmePath = README_PATH,
+        i18nDir = I18N_DIR,
+        contributorsPath = CONTRIBUTORS_PATH,
         stdout = process.stdout,
         stderr = process.stderr,
-    }: CliIO & { readmePath?: string } = {}
+    }: CliIO & ReadmeInputs & { readmePath?: string } = {}
 ) {
     const supported =
         args.length === 0 ||
@@ -227,7 +233,7 @@ export function runReadmeCommand(
     }
 
     const current = readFileSync(readmePath, 'utf8')
-    const expected = expectedReadme(current)
+    const expected = expectedReadme(current, { i18nDir, contributorsPath })
 
     if (args[0] === '--stdout') {
         stdout.write(expected)
@@ -244,7 +250,7 @@ export function runReadmeCommand(
     }
 
     if (args[0] === '--write') {
-        const expected = materializeReadme(readmePath)
+        const expected = materializeReadme(readmePath, { i18nDir, contributorsPath })
         stdout.write(
             expected === current
                 ? 'update-i18n-readme: README.md is current\n'

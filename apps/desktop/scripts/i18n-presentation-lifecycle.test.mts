@@ -18,6 +18,10 @@ import {
 } from './i18n-presentation-lifecycle.mts'
 import { deriveTargetStatus } from './i18n-presentation.mts'
 import { renderStatusSvg } from './i18n-presentation-svg.mts'
+import {
+    createSynchronizedRepositoryLocales,
+    repositoryHistorySkipReason,
+} from './i18n-repository-fixture.mts'
 
 const README_FIXTURE =
     '# Fixture\n\n<!-- TRANSLATION_STATUS_START -->\nstale placeholder\n<!-- TRANSLATION_STATUS_END -->\n\nAfter marker text.\n'
@@ -537,16 +541,22 @@ test('planning failure via CLI reports exit 1 with a descriptive message and no 
 // locale or a broken contributors file must fail loudly here. Whether the committed outputs
 // are current is asked by bun i18n:presentation-check, which the writer runs on its own
 // output, because between a locale commit and the bot's run they are expected to lag.
-test('the real repository still produces a complete presentation plan', () => {
-    const plan = buildI18nPresentationPlan()
-    assert.equal(plan.readme.expected.includes('<!-- TRANSLATION_STATUS_START -->'), true)
-    assert.deepEqual(
-        plan.assets.map((asset) => asset.locale).sort(),
-        [plan.summaries.source, ...plan.summaries.targets].map((item) => item.locale).sort()
-    )
-    for (const asset of plan.assets) assert.match(asset.expected, /^<svg /u)
-    assert.deepEqual(plan.obsolete, [])
-})
+test(
+    'the real repository still produces a complete presentation plan',
+    { skip: repositoryHistorySkipReason },
+    (context) => {
+        const plan = buildI18nPresentationPlan({
+            i18nDir: createSynchronizedRepositoryLocales(context),
+        })
+        assert.equal(plan.readme.expected.includes('<!-- TRANSLATION_STATUS_START -->'), true)
+        assert.deepEqual(
+            plan.assets.map((asset) => asset.locale).sort(),
+            [plan.summaries.source, ...plan.summaries.targets].map((item) => item.locale).sort()
+        )
+        for (const asset of plan.assets) assert.match(asset.expected, /^<svg /u)
+        assert.deepEqual(plan.obsolete, [])
+    }
+)
 
 test('the documentation workflow materializes presentation outputs and stages only owned paths', () => {
     const workflow = readFileSync(

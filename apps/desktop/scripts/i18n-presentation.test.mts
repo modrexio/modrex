@@ -21,6 +21,10 @@ import {
 } from './i18n-presentation-cli.mts'
 import type { CliOutput } from './i18n-io.mts'
 import { inspectLocales, runI18nStatus } from './check-i18n.mts'
+import {
+    createSynchronizedRepositoryLocales,
+    repositoryHistorySkipReason,
+} from './i18n-repository-fixture.mts'
 
 function inspection(sourceCount: number, locales: ReturnType<typeof locale>[] = []) {
     return {
@@ -691,78 +695,110 @@ test('status success uses stdout and rich English output has only source semanti
 
 // Coverage changes with every contribution, so the real-locale tests below derive what they
 // expect from the inspection the renderer is given and assert how it is presented.
-test('current real status uses compact one-row semantics without recommendations', () => {
-    const stream = outputStream({ isTTY: true, columns: 100 })
-    const stderr = outputStream()
-    assert.equal(runI18nStatus({ stdout: stream.stream, stderr: stderr.stream, env: {} }), 0)
-    const text = stripAnsi(stream.value())
-    const summaries = buildStatusSummaries(inspectLocales())
-
-    const rows = text.split('\n').filter((line) => line.length > 0)
-    assert.equal(rows.length, summaries.targets.length + 1)
-    assert.match(
-        text,
-        new RegExp(`English \\(en\\).*Complete.*${summaries.source.total} source`, 'u')
-    )
-
-    for (const target of summaries.targets) {
-        const status = deriveTargetStatus(target)
-        const row = rows.find((line) => line.includes(`(${target.locale})`))
-        assert.ok(row, `no row for ${target.locale}`)
-        assert.ok(row.includes(status.label), `${target.locale} row omits ${status.label}: ${row}`)
-
-        // A row names only the segments it has. Dropping the zero ones is what keeps every
-        // locale to a single line.
-        const segments = [`${status.accepted} accepted`]
-        if (status.pending > 0) segments.push(`${status.pending} review`)
-        if (status.missing > 0) segments.push(`${status.missing} missing`)
-        assert.ok(row.endsWith(segments.join(', ')), `${target.locale} row: ${row}`)
-    }
-
-    // Anchored on a word boundary so a real count ending in zero, such as 20 missing, is not
-    // read as the zero segment this is checking for.
-    assert.doesNotMatch(text, /Next:|0 missing|0 review/u)
-    assert.equal(stderr.value(), '')
-})
-
-test('current real rich rows never exceed the declared terminal width', () => {
-    for (const columns of [80, 90, 79]) {
-        const stream = outputStream({ isTTY: true, columns })
+test(
+    'current real status uses compact one-row semantics without recommendations',
+    { skip: repositoryHistorySkipReason },
+    (context) => {
+        const i18nDir = createSynchronizedRepositoryLocales(context)
+        const stream = outputStream({ isTTY: true, columns: 100 })
         const stderr = outputStream()
-        assert.equal(runI18nStatus({ stdout: stream.stream, stderr: stderr.stream, env: {} }), 0)
-        const lines = stripAnsi(stream.value())
-            .split('\n')
-            .filter((line) => line.length > 0)
-        assert.equal(lines.length, inspectLocales().locales.length + 1)
-        for (const line of lines) {
+        assert.equal(
+            runI18nStatus({ i18nDir, stdout: stream.stream, stderr: stderr.stream, env: {} }),
+            0
+        )
+        const text = stripAnsi(stream.value())
+        const summaries = buildStatusSummaries(inspectLocales(i18nDir))
+
+        const rows = text.split('\n').filter((line) => line.length > 0)
+        assert.equal(rows.length, summaries.targets.length + 1)
+        assert.match(
+            text,
+            new RegExp(`English \\(en\\).*Complete.*${summaries.source.total} source`, 'u')
+        )
+
+        for (const target of summaries.targets) {
+            const status = deriveTargetStatus(target)
+            const row = rows.find((line) => line.includes(`(${target.locale})`))
+            assert.ok(row, `no row for ${target.locale}`)
             assert.ok(
-                line.length <= columns,
-                `line "${line}" (${line.length} cols) exceeds declared columns=${columns}`
+                row.includes(status.label),
+                `${target.locale} row omits ${status.label}: ${row}`
             )
+
+            // A row names only the segments it has. Dropping the zero ones is what keeps every
+            // locale to a single line.
+            const segments = [`${status.accepted} accepted`]
+            if (status.pending > 0) segments.push(`${status.pending} review`)
+            if (status.missing > 0) segments.push(`${status.missing} missing`)
+            assert.ok(row.endsWith(segments.join(', ')), `${target.locale} row: ${row}`)
+        }
+
+        // Anchored on a word boundary so a real count ending in zero, such as 20 missing, is not
+        // read as the zero segment this is checking for.
+        assert.doesNotMatch(text, /Next:|0 missing|0 review/u)
+        assert.equal(stderr.value(), '')
+    }
+)
+
+test(
+    'current real rich rows never exceed the declared terminal width',
+    { skip: repositoryHistorySkipReason },
+    (context) => {
+        const i18nDir = createSynchronizedRepositoryLocales(context)
+        for (const columns of [80, 90, 79]) {
+            const stream = outputStream({ isTTY: true, columns })
+            const stderr = outputStream()
+            assert.equal(
+                runI18nStatus({ i18nDir, stdout: stream.stream, stderr: stderr.stream, env: {} }),
+                0
+            )
+            const lines = stripAnsi(stream.value())
+                .split('\n')
+                .filter((line) => line.length > 0)
+            assert.equal(lines.length, inspectLocales(i18nDir).locales.length + 1)
+            for (const line of lines) {
+                assert.ok(
+                    line.length <= columns,
+                    `line "${line}" (${line.length} cols) exceeds declared columns=${columns}`
+                )
+            }
         }
     }
-})
+)
 
 // The bar takes whatever width the counts text leaves over, and that text shrinks as locales
 // complete, so a column count near the threshold flips with ordinary translation work.
-test('current real status suppresses the bar below the shared minimum width and renders it once width allows', () => {
-    const narrow = outputStream({ isTTY: true, columns: 40 })
-    assert.equal(
-        runI18nStatus({ stdout: narrow.stream, stderr: outputStream().stream, env: {} }),
-        0
-    )
-    const linesNarrow = stripAnsi(narrow.value())
-        .split('\n')
-        .filter((line) => line.length > 0)
-    for (const line of linesNarrow) assert.equal((line.match(/━/gu) ?? []).length, 0)
+test(
+    'current real status suppresses the bar below the shared minimum width and renders it once width allows',
+    { skip: repositoryHistorySkipReason },
+    (context) => {
+        const i18nDir = createSynchronizedRepositoryLocales(context)
+        const narrow = outputStream({ isTTY: true, columns: 40 })
+        assert.equal(
+            runI18nStatus({
+                i18nDir,
+                stdout: narrow.stream,
+                stderr: outputStream().stream,
+                env: {},
+            }),
+            0
+        )
+        const linesNarrow = stripAnsi(narrow.value())
+            .split('\n')
+            .filter((line) => line.length > 0)
+        for (const line of linesNarrow) assert.equal((line.match(/━/gu) ?? []).length, 0)
 
-    const wide = outputStream({ isTTY: true, columns: 240 })
-    assert.equal(runI18nStatus({ stdout: wide.stream, stderr: outputStream().stream, env: {} }), 0)
-    const linesWide = stripAnsi(wide.value())
-        .split('\n')
-        .filter((line) => line.length > 0)
-    for (const line of linesWide) assert.equal((line.match(/━/gu) ?? []).length, 40)
-})
+        const wide = outputStream({ isTTY: true, columns: 240 })
+        assert.equal(
+            runI18nStatus({ i18nDir, stdout: wide.stream, stderr: outputStream().stream, env: {} }),
+            0
+        )
+        const linesWide = stripAnsi(wide.value())
+            .split('\n')
+            .filter((line) => line.length > 0)
+        for (const line of linesWide) assert.equal((line.match(/━/gu) ?? []).length, 40)
+    }
+)
 
 test('bold styling applies only to the locale label, not the whole row', () => {
     for (const finalState of [
