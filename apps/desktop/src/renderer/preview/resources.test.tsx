@@ -85,7 +85,9 @@ test('Ready or Not offers its Windows config files and package-only launch', asy
             'C:/Users/Preview/AppData/Local/ReadyOrNot/Saved/Config/Windows/Engine.ini'
         )
     ).toBeTruthy()
-    expect(within(iniSection).getByText(/clear that attribute before installing/)).toBeTruthy()
+    expect(
+        within(iniSection).getByText(/clear that attribute before changing presets/)
+    ).toBeTruthy()
     expect(
         within(graphicsSection).getByText(
             'C:/Users/Preview/AppData/Local/ReadyOrNot/Saved/Config/Windows/GameUserSettings.ini'
