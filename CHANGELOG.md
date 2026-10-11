@@ -6,6 +6,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 ### Added
 
+- Added Ready or Not Pak mod support for Windows Steam installations, including Nexus archives and existing manual mods.
 - Added reversible .bk2 movie replacements and Engine.ini presets for supported games.
 - Added shortcuts to open game configuration files.
 - Added a Health Check scan for known movie mods.

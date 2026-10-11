@@ -30,7 +30,7 @@ Common target tags:
 | Tag             | Meaning                                                          |
 | --------------- | ---------------------------------------------------------------- |
 | `mods`          | Directory-based loader mods, or a game's primary mod folder.     |
-| `paks`          | Loose Unreal `.pak` files in a `~mods` folder.                   |
+| `paks`          | Unreal `.pak` files in the game's declared Paks location.        |
 | `mod_overrides` | Asset replacement folders under `assets/mod_overrides`.          |
 | `ue4ss_mods`    | UE4SS Lua mod folders, where the game's UE4SS loader reads them. |
 
@@ -44,4 +44,4 @@ Secondary targets are still tracked when the game supports them. For example, a 
 
 ## Why this matters
 
-Targets control where files are installed, how enable and disable works, whether priority can be written to disk, and which folders are temporarily backed up when launching without mods.
+Targets control where files are installed, how enable and disable works, whether priority can be written to disk, and which folders are temporarily backed up when a game uses backup-based launching without mods.

@@ -102,6 +102,16 @@ export const docsGameRegistry: Partial<Record<GameId, DocsGameRegistration>> = {
             },
         ],
     },
+    ron: {
+        slug: 'ready-or-not',
+        targets: [
+            {
+                label: 'Pak mods',
+                targetId: 'paks',
+                notes: 'Installs .pak files with their original filenames. The shared folder contains game files that Modrex protects. Mod.io-managed files are excluded.',
+            },
+        ],
+    },
 }
 
 export type DocsGameId = GameId

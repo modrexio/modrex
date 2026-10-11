@@ -7,17 +7,18 @@ import Callout from '../../../components/docs/Callout.astro'
 
 ## From Browse
 
-The **Browse** tab shows the catalog for the active game. ModWorkshop is available for every
-supported game. PAYDAY 3, PAYDAY 2, PAYDAY: The Heist, and Crime Boss also have a source selector
-for **Nexus Mods**.
+The **Browse** tab shows the sources available for the active game. Ready or Not uses
+**Nexus Mods**. Other games offer ModWorkshop, Nexus Mods, or both.
 
 For ModWorkshop, click any mod to open its detail page, then click **Install**. Modrex downloads
 the file, extracts it if needed, and places it in the correct location automatically. The Install
 button shows a live download percentage and progress bar while the file is transferring.
 
-To browse Nexus Mods, sign in from **Settings > Advanced > Nexus Mods Account**, then select Nexus at the
-top of Browse. Open the mod’s **Files** tab on Nexus and choose **Mod Manager Download**. Nexus
-hands the download back to Modrex, which shows its progress and installs it into the active game.
+To browse Nexus Mods, sign in from **Settings > Advanced > Nexus Mods Account**. If the game has
+multiple sources, select Nexus at the top of Browse. Open the mod’s **Files** tab on Nexus and choose **Mod Manager Download**. Nexus
+hands the download back to Modrex, which shows its progress and installs supported files into the
+active game. Ready or Not needs an archive download from Nexus. See
+[Ready or Not](/docs/games/ready-or-not) for loose Pak files and packages requiring manual installation.
 
 Use search, category, and sort controls to narrow a catalog. ModWorkshop also supports tag filters:
 select a tag once to include it, again to exclude it, and once more to clear that filter.
@@ -32,8 +33,9 @@ game-specific folder layouts. Modrex routes entries based on the active game's i
 ### Multi-file mods
 
 Some mods ship multiple files or folders inside a single archive. When Modrex detects this, it opens
-a picker so you can choose which entries to install. All entries are pre-selected by default -
-deselect any you don't want.
+a picker so you can choose which entries to install. Ready or Not archives start with no entries
+selected, unless Modrex can match your selection from an earlier version. Choose only the files
+the author tells you to use. Other games pre-select entries by default.
 
 ### Loader and host-mod dependencies
 

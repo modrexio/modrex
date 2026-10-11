@@ -19,6 +19,7 @@ interface NexusGamesResponse {
     data?: {
         payday?: { nodes?: NexusGameNode[] }
         crimeBoss?: { nodes?: NexusGameNode[] }
+        readyOrNot?: { nodes?: NexusGameNode[] }
     }
     errors?: unknown
 }
@@ -42,6 +43,9 @@ export async function getNexusModCounts(): Promise<NexusModCounts | null> {
         crimeBoss: games(filter: { name: [{ value: "Crime Boss", op: WILDCARD }] }, count: 10) {
             nodes { domainName modCount }
         }
+        readyOrNot: games(filter: { name: [{ value: "Ready or Not", op: EQUALS }] }, count: 1) {
+            nodes { domainName modCount }
+        }
     }`
 
     const res = await fetch(NEXUS_GRAPHQL_URL, {
@@ -59,7 +63,11 @@ export async function getNexusModCounts(): Promise<NexusModCounts | null> {
     if (body.errors)
         throw new Error(`Nexus mod count graphql error: ${JSON.stringify(body.errors)}`)
 
-    const nodes = [...(body.data?.payday?.nodes ?? []), ...(body.data?.crimeBoss?.nodes ?? [])]
+    const nodes = [
+        ...(body.data?.payday?.nodes ?? []),
+        ...(body.data?.crimeBoss?.nodes ?? []),
+        ...(body.data?.readyOrNot?.nodes ?? []),
+    ]
     const total = nodes
         .filter((n) => NEXUS_GAME_DOMAINS.has(n.domainName))
         .reduce((sum, n) => sum + (n.modCount ?? 0), 0)

@@ -5,7 +5,7 @@ sidebar:
     order: 40
 ---
 
-Modrex can start the active game with managed mods enabled or temporarily move managed mods aside for a clean session.
+Modrex can start the active game with managed mods enabled or launch without supported mods.
 
 ## Launch modded
 
@@ -17,7 +17,11 @@ Disabled mods stay disabled. Missing files are not restored during launch; reins
 
 Use **Launch without mods** when you want to start the active game as vanilla without uninstalling your mod setup.
 
-Modrex temporarily backs up the active game's managed targets, launches the game, then restores the targets when it detects that the game has closed.
+Ready or Not uses the game's Safe Mode for Pak mods. Its shared Paks folder stays in place.
+Manually installed DLLs or scripts are not disabled by this launch mode.
+
+For other games, Modrex temporarily backs up the managed targets, launches the game, then restores
+the targets when it detects that the game has closed.
 
 ## Target-scoped backups
 
@@ -27,7 +31,7 @@ This keeps secondary targets from being left behind during a clean launch.
 
 ## Restore behavior
 
-After the game closes, Modrex restores the backed-up targets automatically. While a vanilla session
+For backup-based launches, Modrex restores the backed-up targets automatically after the game closes. While a vanilla session
 may still be running, a banner reminds you mods are hidden and offers a manual **Restore mods**
 button. If the app was closed before restore completed, reopen Modrex and use that button (or the
 normal installed-mod view) to confirm your files are back in place.
