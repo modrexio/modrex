@@ -226,7 +226,13 @@ pub(crate) fn rejoin_split_companions(
                 );
                 continue;
             }
-            let mut moves = Moves::default();
+            let mut moves = match Moves::for_game(game_path, cfg) {
+                Ok(moves) => moves,
+                Err(error) => {
+                    log::warn!("Could not verify companion repair paths: {error}");
+                    continue;
+                }
+            };
             for (ext, from) in &chosen.files {
                 let Some(to) = sidecar_path(pak, extension, ext) else {
                     continue;
@@ -318,6 +324,7 @@ pub(crate) fn delete_leftover_sets(
     cfg: &ModEngineConfig,
     requested: &[LeftoverFiles],
 ) -> Result<(), String> {
+    let native = super::native_files::NativeGuard::load(game_path, cfg)?;
     let same = |a: &LeftoverFiles, b: &LeftoverFiles| {
         a.target == b.target && a.disabled == b.disabled && a.folder == b.folder && a.stem == b.stem
     };
@@ -331,6 +338,14 @@ pub(crate) fn delete_leftover_sets(
     }
 
     let mut problems = Vec::new();
+    for want in requested {
+        if let Some((_, paths)) = current.iter().find(|(have, _)| same(have, want)) {
+            for path in paths {
+                native.check_file(path)?;
+            }
+        }
+    }
+    native.verify_unchanged()?;
     for want in requested {
         let Some((_, paths)) = current.iter().find(|(have, _)| same(have, want)) else {
             problems.push(format!("{} is no longer a leftover", want.stem));

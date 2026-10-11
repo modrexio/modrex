@@ -173,6 +173,7 @@ fn target(value: &Target) -> String {
         tag,
         label,
         primary,
+        scope,
         path,
         backup,
         store_paths,
@@ -181,7 +182,7 @@ fn target(value: &Target) -> String {
         unit: shape,
     } = value;
     format!(
-        "{PATH}::Target {{ tag: {}, label: {}, primary: {primary}, path: {}, backup: {}, store_paths: {}, activation: {}, load_order: {}, unit: {} }}",
+        "{PATH}::Target {{ tag: {}, label: {}, primary: {primary}, scope: {PATH}::TargetScope::{scope:?}, path: {}, backup: {}, store_paths: {}, activation: {}, load_order: {}, unit: {} }}",
         text(tag),
         target_label(*label),
         texts(path),
@@ -244,13 +245,15 @@ fn install(value: &Install) -> String {
         executables,
         processes,
         launch_flag,
+        steam_windows_no_mods_argument,
         stores,
     } = value;
     format!(
-        "{PATH}::Install {{ executables: {}, processes: {}, launch_flag: {}, stores: {} }}",
+        "{PATH}::Install {{ executables: {}, processes: {}, launch_flag: {}, steam_windows_no_mods_argument: {}, stores: {} }}",
         texts(executables),
         texts(processes),
         optional(launch_flag.as_deref().map(text)),
+        optional(steam_windows_no_mods_argument.as_deref().map(text)),
         list(stores.iter().map(store).collect()),
     )
 }

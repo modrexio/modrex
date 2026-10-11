@@ -7,7 +7,7 @@
 use crate::{
     Activation, ConfigLocation, ConfigPresets, Discovery, FileFamily, GamePackage, LoaderBinding,
     MarkerMode, MovieReplacement, NewsBinding, PackageReaderBinding, SourceBinding, StoreBinding,
-    Target, Unit,
+    Target, TargetScope, Unit,
 };
 
 /// Rejects a manifest that parses but could not work, so a contributor sees the problem at
@@ -45,6 +45,14 @@ pub fn check(id: &str, package: &GamePackage) -> Result<(), String> {
     }
     if package.install.stores.is_empty() {
         return Err("lists no store, so the game could never be found".to_string());
+    }
+    if let Some(argument) = &package.install.steam_windows_no_mods_argument {
+        if !argument.starts_with('-') || argument.chars().any(char::is_whitespace) {
+            return Err("the Steam no-mods argument must be one nonempty flag".to_string());
+        }
+        if package.install.store(crate::Storefront::Steam).is_none() {
+            return Err("the Steam no-mods argument requires a Steam binding".to_string());
+        }
     }
     if let Some(duplicate) = first_duplicate(package.loaders.iter().map(LoaderBinding::id)) {
         return Err(format!("declares the '{duplicate}' loader twice"));
@@ -128,6 +136,30 @@ pub fn check(id: &str, package: &GamePackage) -> Result<(), String> {
         }
     }
     for target in &package.targets {
+        if target.scope == TargetScope::UnrealPaks {
+            check_resource_path(&target.path, "shared Unreal Paks path")?;
+            if !matches!(target.path.as_slice(), [.., content, paks] if content == "Content" && paks == "Paks")
+            {
+                return Err(
+                    "a shared Unreal Paks target must name its native Content/Paks directory"
+                        .into(),
+                );
+            }
+            if package.install.stores.len() != 1
+                || package.install.store(crate::Storefront::Steam).is_none()
+            {
+                return Err(
+                    "shared Unreal Paks require an installed Steam depot catalog".to_string(),
+                );
+            }
+            if !matches!(&target.unit, Unit::File { family, filename: crate::FileNaming::Archive, .. } if family.extension == "pak")
+                || target.activation != Activation::Filesystem
+                || target.load_order != crate::LoadOrder::None
+                || !target.store_paths.is_empty()
+            {
+                return Err("shared Unreal Paks require archive-named Pak files and filesystem activation without filename ordering".to_string());
+            }
+        }
         check_target(target).map_err(|problem| format!("target '{}' {problem}", target.tag))?;
         check_store_paths(target, package)
             .map_err(|problem| format!("target '{}' {problem}", target.tag))?;

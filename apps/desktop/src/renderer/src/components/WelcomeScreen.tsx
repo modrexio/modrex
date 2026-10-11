@@ -17,6 +17,7 @@ const CDN_URLS: Partial<Record<GameId, string>> = {
     pdth: 'https://cdn.akamai.steamstatic.com/steam/apps/24240/library_600x900.jpg',
     cb: 'https://cdn.akamai.steamstatic.com/steam/apps/2933080/library_600x900.jpg',
     raid: 'https://cdn.akamai.steamstatic.com/steam/apps/414740/library_600x900.jpg',
+    ron: 'https://cdn.akamai.steamstatic.com/steam/apps/1144200/library_600x900.jpg',
 }
 
 const FALLBACK_STYLES: Partial<Record<GameId, { background: string; nameColor: string }>> = {

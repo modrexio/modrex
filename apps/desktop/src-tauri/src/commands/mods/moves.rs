@@ -1,5 +1,6 @@
 use super::engine::{ModUnit, ScanTarget};
 use super::naming::{log_name, sidecar_path};
+use super::native_files::NativeGuard;
 use super::state::{save_error, save_state};
 use super::types::ModsState;
 use std::collections::HashSet;
@@ -12,7 +13,10 @@ use std::path::{Path, PathBuf};
 /// only through a pak of the same name, so a pak renamed alone loads nothing. A plan either
 /// completes or leaves every file where it started.
 #[derive(Default)]
-pub struct Moves(Vec<Unit>);
+pub struct Moves {
+    units: Vec<Unit>,
+    native: Option<NativeGuard>,
+}
 
 #[derive(Default)]
 struct Unit {
@@ -22,6 +26,19 @@ struct Unit {
 }
 
 impl Moves {
+    #[cfg(test)]
+    pub(super) fn with_native_guard(native: NativeGuard) -> Self {
+        Self {
+            units: Vec::new(),
+            native: Some(native),
+        }
+    }
+    pub fn for_game(game_path: &str, cfg: &super::engine::ModEngineConfig) -> Result<Self, String> {
+        Ok(Self {
+            units: Vec::new(),
+            native: Some(NativeGuard::load(game_path, cfg)?),
+        })
+    }
     pub fn unit(&mut self, target: &ScanTarget, from: PathBuf, to: PathBuf) {
         let mut unit = Unit::default();
         if let ModUnit::File { extension, .. } = &target.unit {
@@ -36,11 +53,11 @@ impl Moves {
             }
         }
         unit.files.push((from, to));
-        self.0.push(unit);
+        self.units.push(unit);
     }
 
     pub fn path(&mut self, from: PathBuf, to: PathBuf) {
-        self.0.push(Unit {
+        self.units.push(Unit {
             files: vec![(from, to)],
             companions: Vec::new(),
         });
@@ -51,7 +68,7 @@ impl Moves {
     /// a pak and its companions still share a stem if Modrex dies between the two passes.
     pub fn run(self) -> Result<Applied, String> {
         let mut units: Vec<Vec<(PathBuf, PathBuf)>> = Vec::new();
-        for unit in self.0 {
+        for unit in self.units {
             let mut files = unit.files;
             for (a, b) in unit.companions {
                 if exists(&a)? {
@@ -63,17 +80,36 @@ impl Moves {
                 units.push(files);
             }
         }
-        let sources: HashSet<&Path> = units.iter().flatten().map(|(a, _)| a.as_path()).collect();
-        let mut destinations = HashSet::new();
-        for (_, to) in units.iter().flatten() {
-            if !destinations.insert(to.as_path()) {
-                return Err(format!("two files would both be named {}", log_name(to)));
+        if let Some(native) = &self.native {
+            native.verify_unchanged()?;
+            for (index, files) in units.iter().enumerate() {
+                for (from, to) in files {
+                    native.check_tree(from)?;
+                    native.check_tree(to)?;
+                    native.check_tree(&staging_path(from, index))?;
+                }
             }
-            if !sources.contains(to.as_path()) && exists(to)? {
-                return Err(format!(
-                    "{} is in the way. Move or delete it, then try again.",
-                    log_name(to)
-                ));
+        }
+        if let Some(native) = self
+            .native
+            .as_ref()
+            .filter(|native| native.shares_native_files())
+        {
+            native.check_move_destinations(&units.iter().flatten().cloned().collect::<Vec<_>>())?;
+        } else {
+            let sources: HashSet<&Path> =
+                units.iter().flatten().map(|(a, _)| a.as_path()).collect();
+            let mut destinations = HashSet::new();
+            for (_, to) in units.iter().flatten() {
+                if !destinations.insert(to.as_path()) {
+                    return Err(format!("two files would both be named {}", log_name(to)));
+                }
+                if !sources.contains(to.as_path()) && exists(to)? {
+                    return Err(format!(
+                        "{} is in the way. Move or delete it, then try again.",
+                        log_name(to)
+                    ));
+                }
             }
         }
 
@@ -95,29 +131,41 @@ impl Moves {
                 rename(&staging_path(from, n), to, &mut done)?;
             }
         }
-        Ok(Applied(units))
+        Ok(Applied {
+            units,
+            native: self.native,
+        })
     }
 }
 
-pub struct Applied(Vec<Vec<(PathBuf, PathBuf)>>);
+pub struct Applied {
+    units: Vec<Vec<(PathBuf, PathBuf)>>,
+    native: Option<NativeGuard>,
+}
 
 impl Applied {
     /// Saves the state that describes the moved files, or puts the files back when it cannot
     /// be saved, since the record on disk would then name files that are not there.
     pub fn save(self, state_path: &Path, state: &ModsState) -> Result<(), String> {
-        let Err(e) = save_state(state_path, state) else {
+        let result = self
+            .native
+            .as_ref()
+            .map_or(Ok(()), |native| native.check_state_path(state_path))
+            .and_then(|()| save_state(state_path, state).map_err(save_error));
+        let Err(failure) = result else {
             return Ok(());
         };
-        let failure = save_error(e);
-        let inverse = Moves(
-            self.0
+        let inverse = Moves {
+            units: self
+                .units
                 .into_iter()
                 .map(|files| Unit {
                     files: files.into_iter().map(|(a, b)| (b, a)).collect(),
                     companions: Vec::new(),
                 })
                 .collect(),
-        );
+            native: None,
+        };
         match inverse.run() {
             Ok(_) => Err(failure),
             Err(undo) => Err(format!(

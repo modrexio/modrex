@@ -84,6 +84,14 @@ fn scan_target(pkg: &'static GamePackage, target: &'static package::Target) -> S
     ScanTarget {
         tag: &target.tag,
         label_key: target.label.key(),
+        native_steam_app: (target.scope == package::TargetScope::UnrealPaks).then(|| {
+            match pkg.install.store(package::Storefront::Steam) {
+                Some(package::StoreBinding::Steam { app_id, .. }) => *app_id,
+                _ => {
+                    unreachable!("validate::check requires a Steam binding for shared Unreal Paks")
+                }
+            }
+        }),
         unit: match &target.unit {
             package::Unit::File {
                 family,

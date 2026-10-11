@@ -42,6 +42,10 @@
             {
                 "gameId": "pdth",
                 "nativeId": "paydaytheheist"
+            },
+            {
+                "gameId": "ron",
+                "nativeId": "readyornot"
             }
         ]
     }

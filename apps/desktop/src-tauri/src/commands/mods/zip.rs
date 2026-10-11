@@ -1,5 +1,5 @@
 use super::cleanup::{self, CleanupPlan};
-use super::engine::{DecoderBinding, ModEngineConfig, ModUnit};
+use super::engine::{DecoderBinding, ModEngineConfig, ModUnit, ScanTarget};
 use super::host_mods::detect_host_pack;
 use super::paths::{active_mod_path, disabled_mod_path};
 use super::staged::{NameSource, Staged};
@@ -142,7 +142,7 @@ fn list_unit_entries_indexed(path: &Path, extension: &str) -> Result<Vec<(u32, S
     Ok(list_entries(path)?
         .into_iter()
         .enumerate()
-        .filter(|(_, e)| !e.is_dir && e.name.ends_with(&suffix))
+        .filter(|(_, e)| !e.is_dir && e.name.to_ascii_lowercase().ends_with(&suffix))
         .map(|(i, e)| (i as u32, e.name))
         .collect())
 }
@@ -151,7 +151,7 @@ pub fn list_unit_entries(path: &Path, extension: &str) -> Result<Vec<String>, St
     let suffix = format!(".{extension}");
     Ok(list_entries(path)?
         .into_iter()
-        .filter(|e| !e.is_dir && e.name.ends_with(&suffix))
+        .filter(|e| !e.is_dir && e.name.to_ascii_lowercase().ends_with(&suffix))
         .map(|e| e.name)
         .collect())
 }
@@ -1206,6 +1206,8 @@ pub struct ZipMultiPakPayload {
     /// each other; these cannot.
     pub entry_ids: Vec<ArchiveEntryId>,
     pub target_tag: Option<String>,
+    #[serde(default)]
+    pub shared_paks: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub entry_tags: Option<Vec<Option<String>>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1315,6 +1317,7 @@ fn multi_pak_payload(
         entries,
         entry_ids,
         target_tag,
+        shared_paks: false,
         entry_tags,
         entry_kind,
         mod_id: None,
@@ -1655,14 +1658,127 @@ fn decoder_for(cfg: &ModEngineConfig, downloaded: &Path) -> Option<&'static Deco
     })
 }
 
-/// Resolves a downloaded archive into an installable path plus the detected scan-target tag.
-/// Returns (extracted_path, original_archive, location_tag) where location_tag is None
-/// for the primary target and Some(tag) for any secondary target (e.g. "mod_overrides").
+fn inert_pak_document(name: &str) -> bool {
+    let name = entry_file_name(name).to_ascii_lowercase();
+    let (stem, extension) = name.rsplit_once('.').unwrap_or((&name, ""));
+    if !matches!(extension, "" | "txt" | "md") {
+        return false;
+    }
+    matches!(
+        stem,
+        "readme" | "license" | "licence" | "changelog" | "changes" | "credits"
+    ) || (extension.is_empty() && (name.starts_with("created by ") || name.starts_with("discord ")))
+}
+
+fn validate_shared_pak_download(downloaded: &Path, target: &ScanTarget) -> Result<(), String> {
+    let ModUnit::File { extension, .. } = &target.unit else {
+        return Err("Shared Pak targets must install file units".to_string());
+    };
+    if detect_archive(downloaded).is_none() {
+        if downloaded
+            .extension()
+            .and_then(|value| value.to_str())
+            .is_some_and(|value| value.eq_ignore_ascii_case(extension))
+        {
+            return Ok(());
+        }
+        return Err(format!(
+            "This game currently supports .{extension} packages only. Install this file using its author's instructions."
+        ));
+    }
+    let entries = list_entries(downloaded)?;
+    let mut member_names = HashSet::new();
+    for entry in &entries {
+        if !entry.is_dir && !member_names.insert(entry.name.to_ascii_lowercase()) {
+            return Err(format!(
+                "This archive contains duplicate package paths ('{}'). Nothing was installed. Ask the author for an archive with distinct file paths.",
+                entry.name
+            ));
+        }
+        if entry
+            .name
+            .split('/')
+            .any(|part| part.eq_ignore_ascii_case("mod.io"))
+        {
+            return Err("This archive targets mod.io subscription files, which Modrex does not manage. Nothing was installed. Follow the author's mod.io installation instructions.".into());
+        }
+        if entry.is_dir {
+            continue;
+        }
+        if entry
+            .name
+            .to_ascii_lowercase()
+            .ends_with(&format!(".{extension}"))
+            || inert_pak_document(&entry.name)
+        {
+            continue;
+        }
+        return Err(format!(
+            "This package contains unsupported file '{}'. Nothing was installed. This game currently supports .{extension} packages and author documentation only. Install this package using its author's instructions.",
+            entry.name
+        ));
+    }
+    Ok(())
+}
+
+pub(crate) fn require_nexus_pak_archive(downloaded: &Path) -> Result<(), String> {
+    if detect_archive(downloaded).is_some() {
+        return Ok(());
+    }
+    Err("Nexus Pak installs for this game require an archive that preserves the author's filenames. For a loose Pak, follow the author's rename instructions and drop the correctly named file into Modrex.".into())
+}
+
+pub(crate) fn shared_pak_update_choice(
+    downloaded: PathBuf,
+    cfg: &ModEngineConfig,
+    registry: &StagingRegistry,
+) -> ResolvedArchive {
+    if let Err(error) = validate_shared_pak_download(&downloaded, cfg.primary()) {
+        cleanup::run_sync(&CleanupPlan::RemoveOwnedFile(downloaded));
+        return Err(ResolveError::Failure(error));
+    }
+    let extension = cfg
+        .primary()
+        .content_extension()
+        .expect("Shared Pak targets install file units");
+    let entries = list_unit_entries_indexed(&downloaded, extension)?;
+    if entries.is_empty() {
+        cleanup::run_sync(&CleanupPlan::RemoveOwnedFile(downloaded));
+        return Err(ResolveError::Failure(format!(
+            "This archive contains no .{extension} packages"
+        )));
+    }
+    let staged = entries
+        .into_iter()
+        .map(|(index, display_name)| StagedEntry {
+            source: StagedEntrySource::File { index },
+            display_name,
+        })
+        .collect();
+    let mut picker = multi_pak_payload(
+        registry,
+        downloaded.to_string_lossy().into(),
+        staged,
+        None,
+        None,
+        None,
+    )?;
+    picker.shared_paks = true;
+    Err(prompt_err(InstallPrompt::ZipMultiPak(picker)))
+}
+
+/// Stages a downloaded package or returns a typed install choice.
 pub fn resolve_archive_download(
     downloaded: PathBuf,
     cfg: &ModEngineConfig,
     registry: &StagingRegistry,
 ) -> ResolvedArchive {
+    if cfg.primary().native_steam_app.is_some() {
+        if let Err(error) = validate_shared_pak_download(&downloaded, cfg.primary()) {
+            cleanup::run_sync(&CleanupPlan::RemoveOwnedFile(downloaded));
+            return Err(ResolveError::Failure(error));
+        }
+    }
     // Must run before detect_archive: a decoded container is a ZIP by magic bytes and would
     // fall through to the Directory-unit path without this early check.
     if let Some(binding) = decoder_for(cfg, &downloaded) {
@@ -1787,7 +1903,9 @@ pub fn resolve_archive_download(
                             display_name: name,
                         })
                         .collect();
-                    let payload = multi_pak_payload(registry, zip_path, staged, None, None, None)?;
+                    let mut payload =
+                        multi_pak_payload(registry, zip_path, staged, None, None, None)?;
+                    payload.shared_paks = cfg.primary().native_steam_app.is_some();
                     Err(prompt_err(InstallPrompt::ZipMultiPak(payload)))
                 }
             }

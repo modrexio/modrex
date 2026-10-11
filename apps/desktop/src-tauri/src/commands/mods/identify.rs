@@ -657,12 +657,23 @@ pub(crate) fn unique_uid(
     by_uid: &HashMap<String, InstalledMod>,
     filename: &str,
     rel_path: &str,
+    preserve_filename: bool,
 ) -> String {
-    let from_filename = strip_priority_prefix(filename).to_string();
+    let from_filename = if preserve_filename {
+        filename
+    } else {
+        strip_priority_prefix(filename)
+    }
+    .to_string();
     if !by_uid.contains_key(&from_filename) {
         return from_filename;
     }
-    let from_path = strip_priority_prefix(rel_path).to_string();
+    let from_path = if preserve_filename {
+        rel_path
+    } else {
+        strip_priority_prefix(rel_path)
+    }
+    .to_string();
     if !by_uid.contains_key(&from_path) {
         return from_path;
     }
@@ -968,6 +979,10 @@ pub(crate) fn identify_untracked(
                         .parse::<i64>()
                         .ok()
                         .filter(|&num_id| num_id > 0)
+                        .filter(|_| {
+                            crate::commands::sources::native_id("modworkshop", cfg.game_id)
+                                .is_some()
+                        })
                         .map(|num_id| {
                             (
                                 num_id,
@@ -1053,12 +1068,22 @@ pub(crate) fn identify_untracked(
             Some(fid) => {
                 let candidate = fid.to_string();
                 if by_uid.contains_key(&candidate) {
-                    unique_uid(&by_uid, &filename, rel_path)
+                    unique_uid(
+                        &by_uid,
+                        &filename,
+                        rel_path,
+                        entry_target.native_steam_app.is_some(),
+                    )
                 } else {
                     candidate
                 }
             }
-            None => unique_uid(&by_uid, &filename, rel_path),
+            None => unique_uid(
+                &by_uid,
+                &filename,
+                rel_path,
+                entry_target.native_steam_app.is_some(),
+            ),
         };
 
         // Evidence is present exactly when this match produced a real modworkshop id; the

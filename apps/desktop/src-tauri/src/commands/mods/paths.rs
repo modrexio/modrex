@@ -217,7 +217,7 @@ pub async fn find_untracked_paks(
 ) -> Vec<(String, bool, Option<String>)> {
     let mut out = Vec::new();
     for (i, target) in cfg.targets.iter().enumerate() {
-        if engine_backup_dir(game_path, target).exists() {
+        if target.native_steam_app.is_none() && engine_backup_dir(game_path, target).exists() {
             continue;
         }
         let tag = if i == 0 { "" } else { target.tag };
@@ -273,6 +273,13 @@ async fn scan_active(
         if prefix.is_empty() && (name == "disabled" || (skip_base && name == "base")) {
             continue;
         }
+        // The mod.io SDK owns this subtree and its subscription metadata.
+        if prefix.is_empty()
+            && target.native_steam_app.is_some()
+            && name.eq_ignore_ascii_case("mod.io")
+        {
+            continue;
+        }
         let ft = match entry.file_type().await {
             Ok(t) => t,
             Err(_) => continue,
@@ -282,11 +289,23 @@ async fn scan_active(
         } else {
             format!("{}/{}", prefix, name)
         };
+        if target.native_steam_app.is_some() {
+            if let Err(error) = super::native_files::reject_link(&entry.path()) {
+                log::warn!("Skipping an unsupported shared Paks path: {error}");
+                continue;
+            }
+        }
         match &target.unit {
             ModUnit::File { extension, .. } => {
+                let suffix = format!(".{extension}");
+                let matches = if target.native_steam_app.is_some() {
+                    ft.is_file() && name.to_ascii_lowercase().ends_with(&suffix)
+                } else {
+                    name.ends_with(&suffix)
+                };
                 if ft.is_dir() {
                     subdirs.push((entry.path(), rel));
-                } else if name.ends_with(&format!(".{extension}")) && !known.contains(&rel) {
+                } else if matches && !known.contains(&rel) {
                     out.push((rel, true));
                 }
             }
@@ -337,6 +356,12 @@ async fn scan_disabled(
             Ok(t) => t,
             Err(_) => continue,
         };
+        if target.native_steam_app.is_some() {
+            if let Err(error) = super::native_files::reject_link(&entry.path()) {
+                log::warn!("Skipping unsupported shared Paks path: {error}");
+                continue;
+            }
+        }
         let sub = if prefix.is_empty() {
             name.clone()
         } else {
@@ -348,13 +373,16 @@ async fn scan_disabled(
                 disabled_suffix,
                 ..
             } => {
+                let suffix = format!(".{extension}{disabled_suffix}");
+                let matches = if target.native_steam_app.is_some() {
+                    ft.is_file() && name.to_ascii_lowercase().ends_with(&suffix)
+                } else {
+                    name.ends_with(&suffix)
+                };
                 if ft.is_dir() {
                     subdirs.push((entry.path(), sub));
-                } else if name.ends_with(&format!(".{extension}{disabled_suffix}")) {
-                    let active = name
-                        .strip_suffix(disabled_suffix)
-                        .expect("the suffix matched above")
-                        .to_string();
+                } else if matches {
+                    let active = name[..name.len() - disabled_suffix.len()].to_string();
                     let rel = if prefix.is_empty() {
                         active.clone()
                     } else {

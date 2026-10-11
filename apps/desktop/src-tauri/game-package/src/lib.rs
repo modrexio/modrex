@@ -193,6 +193,9 @@ pub struct Install {
     /// options, so this is what the interface tells them to include.
     #[serde(default)]
     pub launch_flag: Option<String>,
+    /// A verified Windows Steam argument that starts the game without loading Pak mods.
+    #[serde(default)]
+    pub steam_windows_no_mods_argument: Option<String>,
     pub stores: Vec<StoreBinding>,
 }
 
@@ -522,6 +525,8 @@ pub struct Target {
     pub label: TargetLabel,
     #[serde(default)]
     pub primary: bool,
+    #[serde(default)]
+    pub scope: TargetScope,
     pub path: Vec<String>,
     /// Where launching without mods moves this target's contents. Not derived from path
     /// because PAYDAY 3 and Crime Boss must place it outside Paks/, which Unreal mounts
@@ -534,6 +539,16 @@ pub struct Target {
     pub activation: Activation,
     pub load_order: LoadOrder,
     pub unit: Unit,
+}
+
+/// Whether the target is dedicated to mods or also contains the game's own Unreal files.
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum TargetScope {
+    #[default]
+    Mods,
+    /// Native paths come from the installed Steam depot manifests, never filename guesses.
+    UnrealPaks,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]

@@ -1,0 +1,47 @@
+id = "ron"
+name = "Ready or Not"
+short_name = "RoN"
+mod_metadata = "none"
+
+sources = [
+    {
+        provider = "nexus",
+        domain = "readyornot",
+        numeric_id = 4205,
+    },
+]
+
+install = {
+    executables = ["ReadyOrNot.exe"],
+    processes = ["ReadyOrNotSteam-Win64-Shipping"],
+    steam_windows_no_mods_argument = "-paksafemode",
+    stores = [
+        {
+            provider = "steam",
+            app_id = 1144200,
+            folder = "Ready Or Not",
+        },
+    ],
+}
+
+targets = [
+    {
+        tag = "paks",
+        label = "mods",
+        primary = true,
+        scope = "unreal_paks",
+        path = ["ReadyOrNot", "Content", "Paks"],
+        backup = ["ReadyOrNot", "Content", "Paks.mods.bak"],
+        activation = "filesystem",
+        load_order = "none",
+        unit = {
+            kind = "file",
+            disabled_suffix = ".disabled",
+            filename = "archive",
+            family = {
+                extension = "pak",
+                companions = [],
+            },
+        },
+    },
+]

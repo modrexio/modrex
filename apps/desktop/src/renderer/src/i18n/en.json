@@ -473,6 +473,7 @@
         "installSelected": "Install Selected ({count})"
     },
     "zipPicker": {
+        "sharedHelp": "Choose only the packages required by the author's instructions. Some archives contain alternative profiles that must not be installed together.",
         "title": "Install from archive",
         "subtitle": "{modName}: select which files to install.",
         "installSelected": "Install Selected ({count})",

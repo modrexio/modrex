@@ -2,7 +2,7 @@ use super::engine::ModEngineConfig;
 use super::moves::{exists, Moves};
 use super::naming::{apply_priority_prefix, strip_priority_prefix};
 use super::paths::{disabled_base, installed_mod_path, mods_base};
-use super::state::{get_folder_path, read_state};
+use super::state::{get_folder_path, read_state_for_game};
 use super::types::{InstalledMod, TopLevelItem};
 use std::fs;
 use std::path::Path;
@@ -14,10 +14,10 @@ pub fn reorder_mods_in_folder_op(
     ordered_uids: &[String],
     cfg: &ModEngineConfig,
 ) -> Result<(), String> {
-    let mut state = read_state(state_path).map_err(|e| e.to_string())?;
+    let mut state = read_state_for_game(game_path, state_path, cfg).map_err(|e| e.to_string())?;
     let folder_rel = get_folder_path(&state.folders, folder_id);
     let total = ordered_uids.len() as i64;
-    let mut moves = Moves::default();
+    let mut moves = Moves::for_game(game_path, cfg)?;
 
     for m in state.mods.iter_mut() {
         if m.folder_id.as_deref() != folder_id {
@@ -64,7 +64,7 @@ pub fn move_mod_to_folder_op(
     target_position: usize,
     cfg: &ModEngineConfig,
 ) -> Result<(), String> {
-    let mut state = read_state(state_path).map_err(|e| e.to_string())?;
+    let mut state = read_state_for_game(game_path, state_path, cfg).map_err(|e| e.to_string())?;
     let Some(moving) = state.mods.iter().find(|m| m.uid == uid).cloned() else {
         return Ok(());
     };
@@ -101,10 +101,13 @@ pub fn move_mod_to_folder_op(
     } else {
         disabled_dir
     };
+    let native = super::native_files::NativeGuard::load(game_path, cfg)?;
+    native.check_path(&destination_dir)?;
+    native.verify_unchanged()?;
     fs::create_dir_all(&destination_dir)
         .map_err(|e| format!("could not prepare the destination folder: {e}"))?;
 
-    let mut moves = Moves::default();
+    let mut moves = Moves::for_game(game_path, cfg)?;
     for m in state.mods.iter_mut() {
         let Some(p) = target_mods.iter().position(|tm| tm.uid == m.uid) else {
             continue;
@@ -142,7 +145,7 @@ pub fn reorder_children_op(
     items: &[TopLevelItem],
     cfg: &ModEngineConfig,
 ) -> Result<(), String> {
-    let mut state = read_state(state_path).map_err(|e| e.to_string())?;
+    let mut state = read_state_for_game(game_path, state_path, cfg).map_err(|e| e.to_string())?;
     let parent_rel = get_folder_path(&state.folders, parent_id);
     let (mods_dir, dis_dir) = match &parent_rel {
         Some(r) => (
@@ -156,7 +159,7 @@ pub fn reorder_children_op(
     };
     let total = items.len() as i64;
     let folders_before = state.folders.clone();
-    let mut moves = Moves::default();
+    let mut moves = Moves::for_game(game_path, cfg)?;
 
     for (pos, item) in items.iter().enumerate() {
         let priority = total - pos as i64;
@@ -168,7 +171,7 @@ pub fn reorder_children_op(
                 let disk_name = if cfg.primary().priority_prefix_enabled() {
                     apply_priority_prefix(strip_priority_prefix(&f.disk_name), priority)
                 } else {
-                    strip_priority_prefix(&f.disk_name).to_string()
+                    f.disk_name.clone()
                 };
                 for base in [&mods_dir, &dis_dir] {
                     let from = base.join(&f.disk_name);

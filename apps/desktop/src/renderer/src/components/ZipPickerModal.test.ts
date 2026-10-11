@@ -61,6 +61,40 @@ beforeEach(async () => {
 })
 
 describe('computeAutoUpdateSelection', () => {
+    it('keeps shared Nexus choices distinct when relative variants share a basename', () => {
+        const payload = makePayload({
+            source: 'nexus',
+            sharedPaks: true,
+            entries: ['Hard/Payload_P.pak', 'Realistic/Payload_P.pak'],
+            entryIds: [0, 1],
+        })
+        const installed = [
+            makeInstalled({
+                source: 'nexus',
+                uid: 'nexus:100:190:entry:Hard/Payload_P.pak',
+                fileId: 190,
+                filename: 'Payload_P.pak',
+            }),
+        ]
+        expect(mod.computeAutoUpdateSelection(payload, installed)).toEqual([0])
+        expect(
+            mod.computeAutoUpdateSelection(payload, [
+                { ...installed[0], uid: 'nexus:100:190:Payload_P' },
+            ])
+        ).toBeNull()
+        expect(
+            mod.computeAutoUpdateSelection(
+                { ...payload, entries: ['New/Payload_P.pak'], entryIds: [0] },
+                installed
+            )
+        ).toBeNull()
+        expect(
+            mod.computeAutoUpdateSelection(
+                { ...payload, entries: ['Other_P.pak'], entryIds: [0] },
+                installed
+            )
+        ).toBeNull()
+    })
     it('matches an installed Nexus entry by its own source and uid even with a directory filename', () => {
         const installed = [
             makeInstalled({
@@ -140,6 +174,28 @@ describe('computeAutoUpdateSelection', () => {
 })
 
 describe('installZipPickerEntries', () => {
+    it('installs chosen shared packages in the selected root without creating author wrapper folders', async () => {
+        const payload = makePayload({
+            sharedPaks: true,
+            entries: ['Hard/Payload_P.pak', 'Realistic/Payload_P.pak'],
+            entryIds: [4, 7],
+        })
+        const installEntry = vi.fn().mockResolvedValue(undefined)
+        await mod.installZipPickerEntries(
+            payload,
+            [1],
+            '/game',
+            'ron',
+            null,
+            async () => {},
+            undefined,
+            installEntry
+        )
+        expect(installEntry).toHaveBeenCalledExactlyOnceWith(1, null, undefined)
+        expect(mockCreateFolder).not.toHaveBeenCalled()
+        expect(mockInstallFromZipEntry).not.toHaveBeenCalled()
+        expect(mockDeleteTempFile).toHaveBeenCalledExactlyOnceWith(payload.archiveHandle)
+    })
     it('installs only the given entries and cleans up the temp file', async () => {
         const payload = makePayload()
         await mod.installZipPickerEntries(payload, [0, 2], '/game', 'pd3', null, async () => {})

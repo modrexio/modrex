@@ -29,7 +29,21 @@ impl Launcher for Steam {
     }
 
     fn identify_path(&self, game_path: &str) -> bool {
-        Path::new(game_path).join("steam_appid.txt").exists()
+        let root = Path::new(game_path);
+        if root.join("steam_appid.txt").exists() {
+            return true;
+        }
+        crate::commands::games::GAME_REGISTRY
+            .iter()
+            .filter_map(|game| game.def.steam.as_ref())
+            .any(|steam| {
+                super::steam_manifest::matches_installation(root, steam.app_id).unwrap_or_else(
+                    |error| {
+                        log::warn!("Could not recognize Steam app {}: {error}", steam.app_id);
+                        false
+                    },
+                )
+            })
     }
 
     fn launch(&self, game: &GameDef, _game_path: &str, opts: Option<&str>) -> Result<(), String> {
@@ -60,12 +74,39 @@ impl Launcher for Steam {
                 .map(|_| ())
                 .map_err(|e| format!("Could not launch the game through Steam: {e}"));
         }
+        #[cfg(target_os = "windows")]
+        {
+            let verified_argument = crate::games::discovered().iter().find_map(|(_, package)| {
+                if !matches!(
+                    package.install.store(crate::game_package::Storefront::Steam),
+                    Some(crate::game_package::StoreBinding::Steam { app_id, .. }) if *app_id == def.app_id
+                ) {
+                    return None;
+                }
+                package.install.steam_windows_no_mods_argument.as_deref()
+            });
+            verify_uri_fallback(trimmed, verified_argument)?;
+        }
         super::open_url(&format!("steam://rungameid/{}", def.app_id))
     }
 }
 
+#[cfg(any(target_os = "windows", test))]
+fn verify_uri_fallback(
+    options: Option<&str>,
+    verified_no_mods_argument: Option<&str>,
+) -> Result<(), String> {
+    let Some(argument) = verified_no_mods_argument else {
+        return Ok(());
+    };
+    if options.is_some_and(|options| options.split_whitespace().any(|option| option == argument)) {
+        return Err("Steam's executable could not be located, so the verified no-mods launch option cannot be passed. Open Steam and retry.".into());
+    }
+    Ok(())
+}
+
 #[cfg(target_os = "windows")]
-fn steam_install_path() -> Option<String> {
+pub(crate) fn steam_install_path() -> Option<String> {
     use std::sync::OnceLock;
     static CACHE: OnceLock<Option<String>> = OnceLock::new();
     CACHE
@@ -88,7 +129,7 @@ fn steam_install_path() -> Option<String> {
 }
 
 #[cfg(not(target_os = "windows"))]
-fn steam_install_path() -> Option<String> {
+pub(crate) fn steam_install_path() -> Option<String> {
     let home = std::env::var("HOME").unwrap_or_default();
     let xdg = std::env::var("XDG_DATA_HOME").unwrap_or_else(|_| format!("{}/.local/share", home));
     let steam_dir = std::env::var("STEAM_DIR").ok();
@@ -127,4 +168,21 @@ pub(super) fn steam_libraries(steam_path: &str) -> Vec<String> {
         }
     }
     paths
+}
+
+#[cfg(test)]
+mod tests {
+    use super::verify_uri_fallback;
+
+    #[test]
+    fn uri_fallback_refuses_to_drop_a_verified_no_mods_option() {
+        assert!(verify_uri_fallback(
+            Some("-windowed -synthetic-no-mods"),
+            Some("-synthetic-no-mods")
+        )
+        .is_err());
+        assert!(verify_uri_fallback(Some("-windowed"), Some("-synthetic-no-mods")).is_ok());
+        assert!(verify_uri_fallback(None, Some("-synthetic-no-mods")).is_ok());
+        assert!(verify_uri_fallback(Some("-windowed"), None).is_ok());
+    }
 }

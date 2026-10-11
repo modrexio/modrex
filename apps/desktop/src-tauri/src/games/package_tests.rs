@@ -11,6 +11,28 @@ fn raid() -> &'static GamePackage {
         .1
 }
 
+#[test]
+fn shared_unreal_paks_are_a_target_capability_independent_of_game_id() {
+    let mut package = super::discovered()
+        .iter()
+        .find(|(id, _)| *id == "ron")
+        .unwrap()
+        .1
+        .clone();
+    assert!(package.package_reader.is_none());
+    assert!(package.loaders.is_empty());
+    assert!(
+        matches!(package.sources.as_slice(), [SourceBinding::Nexus { domain, numeric_id: 4205 }] if domain == "readyornot")
+    );
+    package.id = "other_unreal_game".into();
+    crate::game_package::validate::check("other_unreal_game", &package).unwrap();
+    package.targets[0].load_order = LoadOrder::FilenamePrefix;
+    assert!(crate::game_package::validate::check("other_unreal_game", &package).is_err());
+    package.targets[0].load_order = LoadOrder::None;
+    package.targets[0].path.push("~mods".into());
+    assert!(crate::game_package::validate::check("other_unreal_game", &package).is_err());
+}
+
 /// Repeated lookups hand back the same values, so a package is built once per process and
 /// the runtime registry can borrow from it rather than copying it.
 #[test]

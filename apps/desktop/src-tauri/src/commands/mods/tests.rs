@@ -3355,6 +3355,7 @@ const fn companion_target(companions: &'static [&'static str]) -> ScanTarget {
     ScanTarget {
         tag: "paks",
         label_key: "mods",
+        native_steam_app: None,
         unit: ModUnit::File {
             keeps_archive_filename: false,
             extension: "pak",
@@ -3394,6 +3395,7 @@ static SIG_COMPANION: ModEngineConfig = companion_engine(&SIG_COMPANION_TARGETS)
 const VPK_TARGETS: [ScanTarget; 1] = [ScanTarget {
     tag: "paks",
     label_key: "mods",
+    native_steam_app: None,
     unit: ModUnit::File {
         keeps_archive_filename: false,
         extension: "vpk",
@@ -4170,6 +4172,7 @@ const fn overrides_target() -> ScanTarget {
     ScanTarget {
         tag: "mod_overrides",
         label_key: "overrides",
+        native_steam_app: None,
         unit: ModUnit::Directory {
             entry_markers: &[],
             scan_markers: &[],
@@ -4301,6 +4304,7 @@ const fn crossed_target(tag: &'static str, enabled_state: Activation) -> ScanTar
     ScanTarget {
         tag,
         label_key: "ue4ssMods",
+        native_steam_app: None,
         unit: ModUnit::Directory {
             entry_markers: &["Scripts/main.lua"],
             scan_markers: &["Scripts/main.lua"],
@@ -7331,7 +7335,12 @@ fn two_same_named_files_in_different_folders_both_stay_visible() {
             ..InstalledMod::default()
         },
     );
-    let uid = super::identify::unique_uid(&by_uid, "001_CoolMod.pak", "Favourites/001_CoolMod.pak");
+    let uid = super::identify::unique_uid(
+        &by_uid,
+        "001_CoolMod.pak",
+        "Favourites/001_CoolMod.pak",
+        false,
+    );
     assert_eq!(uid, "Favourites/001_CoolMod.pak");
     assert!(!by_uid.contains_key(&uid));
 }
@@ -7343,8 +7352,18 @@ fn a_uid_is_found_even_when_the_path_is_taken_too() {
     for taken in ["CoolMod.pak", "Favourites/CoolMod.pak"] {
         by_uid.insert(taken.to_string(), InstalledMod::default());
     }
-    let uid = super::identify::unique_uid(&by_uid, "CoolMod.pak", "Favourites/CoolMod.pak");
+    let uid = super::identify::unique_uid(&by_uid, "CoolMod.pak", "Favourites/CoolMod.pak", false);
     assert_eq!(uid, "Favourites/CoolMod.pak#2");
+}
+
+#[test]
+fn shared_author_prefixes_keep_distinct_scan_identities() {
+    let mut by_uid = std::collections::HashMap::new();
+    let first = super::identify::unique_uid(&by_uid, "001_Foo_P.pak", "001_Foo_P.pak", true);
+    by_uid.insert(first.clone(), InstalledMod::default());
+    let second = super::identify::unique_uid(&by_uid, "002_Foo_P.pak", "002_Foo_P.pak", true);
+    assert_eq!(first, "001_Foo_P.pak");
+    assert_eq!(second, "002_Foo_P.pak");
 }
 
 #[test]

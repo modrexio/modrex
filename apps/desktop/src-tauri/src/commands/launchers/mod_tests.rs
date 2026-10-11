@@ -962,6 +962,40 @@ fn plan_settles_a_game_that_was_never_pinned_even_with_a_valid_path() {
 // ── identify_launcher_for_path ────────────────────────────────────────────
 
 #[test]
+fn shared_unreal_target_never_hides_or_restores_the_native_directory() {
+    let temp = tempfile::TempDir::new().unwrap();
+    let cfg = engine_for_game("ron").unwrap();
+    let paks = mods_base(temp.path().to_str().unwrap(), cfg.primary());
+    let backup = backup_dir(temp.path().to_str().unwrap(), cfg.primary());
+    fs::create_dir_all(&paks).unwrap();
+    fs::create_dir_all(&backup).unwrap();
+    fs::write(paks.join("native.pak"), b"native").unwrap();
+    fs::write(backup.join("retained.pak"), b"retained").unwrap();
+    assert!(hide_package_mods(temp.path().to_str().unwrap(), cfg).is_err());
+    do_restore(temp.path().to_str().unwrap(), cfg).unwrap();
+    restore_pending_packages(temp.path().to_str().unwrap(), cfg).unwrap();
+    assert_eq!(fs::read(paks.join("native.pak")).unwrap(), b"native");
+    assert_eq!(fs::read(backup.join("retained.pak")).unwrap(), b"retained");
+}
+
+#[test]
+fn no_mods_launch_preserves_user_options_and_rejects_unverified_launchers() {
+    if cfg!(target_os = "windows") {
+        assert_eq!(
+            no_mods_launch_options("ron", "steam", "-dx12 -windowed").unwrap(),
+            Some("-dx12 -windowed -paksafemode".into())
+        );
+    } else {
+        assert!(no_mods_launch_options("ron", "steam", "-dx12").is_err());
+    }
+    assert!(no_mods_launch_options("ron", "manual", "").is_err());
+    assert_eq!(
+        no_mods_launch_options("pd3", "steam", "-dx11").unwrap(),
+        None
+    );
+}
+
+#[test]
 fn identify_launcher_steam() {
     let dir = TempDir::new().unwrap();
     std::fs::write(dir.path().join("steam_appid.txt"), "1272080").unwrap();

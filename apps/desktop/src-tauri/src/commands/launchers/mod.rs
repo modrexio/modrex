@@ -1,5 +1,7 @@
 mod epic;
 mod steam;
+pub(crate) mod steam_manifest;
+pub(crate) use steam::steam_install_path;
 mod types;
 mod xbox;
 
@@ -565,6 +567,9 @@ const DISPOSABLE_BACKUP_DIRS: &[&str] = &["logs", "downloads"];
 
 fn do_restore(game_path: &str, cfg: &crate::commands::mods::ModEngineConfig) -> Result<(), String> {
     for target in cfg.targets {
+        if target.native_steam_app.is_some() {
+            continue;
+        }
         let mods_dir = mods_base(game_path, target);
         let mods_bak = backup_dir(game_path, target);
 
@@ -611,6 +616,13 @@ fn do_restore(game_path: &str, cfg: &crate::commands::mods::ModEngineConfig) -> 
 }
 
 fn hide_package_mods(game_path: &str, cfg: &ModEngineConfig) -> Result<(), String> {
+    if cfg
+        .targets
+        .iter()
+        .any(|target| target.native_steam_app.is_some())
+    {
+        return Err("This game shares its Paks directory with native files. Use its supported no-mods launch option.".into());
+    }
     for (i, target) in cfg.targets.iter().enumerate() {
         let mods_dir = mods_base(game_path, target);
         let mods_bak = backup_dir(game_path, target);
@@ -652,6 +664,9 @@ fn hide_package_mods(game_path: &str, cfg: &ModEngineConfig) -> Result<(), Strin
 
 fn restore_pending_packages(game_path: &str, cfg: &ModEngineConfig) -> Result<(), String> {
     for target in cfg.targets {
+        if target.native_steam_app.is_some() {
+            continue;
+        }
         if !target.is_directory_unit()
             && backup_dir(game_path, target).exists()
             && mods_base(game_path, target).exists()
@@ -663,7 +678,7 @@ fn restore_pending_packages(game_path: &str, cfg: &ModEngineConfig) -> Result<()
     if cfg
         .targets
         .iter()
-        .any(|target| backup_dir(game_path, target).exists())
+        .any(|target| target.native_steam_app.is_none() && backup_dir(game_path, target).exists())
     {
         return Err("Some mod folders could not be restored. Their backup folders were kept for manual recovery".into());
     }
@@ -744,12 +759,27 @@ pub async fn launch_without_mods(
         .ok_or("The game folder is not configured")?;
 
     let cfg = engine_for_game(game_id)?;
+    let safe_options = no_mods_launch_options(
+        game_id,
+        gs.launcher.as_deref().unwrap_or("steam"),
+        &gs.launch_options,
+    )?;
     // Package exclusion leaves movies and Engine.ini selected. Resource preflight still applies.
     let launch = crate::commands::mods::resource_launch_preflight(&app, game_id).await?;
     maybe_suppress_crash_reporter(game_id, gs);
     let sisr_issue = crate::commands::sisr::prepare_for_game_launch(s.auto_launch_sisr).await;
-    launch.bind_hidden_mods(game_path);
+    if safe_options.is_none() {
+        launch.bind_hidden_mods(game_path);
+    }
     launch.handoff(|| {
+        if let Some(options) = safe_options {
+            return launch_with(
+                gs.launcher.as_deref().unwrap_or("steam"),
+                game_def_for_id(game_id)?,
+                game_path,
+                Some(&options),
+            );
+        }
         launch_without_packages(game_path, cfg, || {
             launch_with(
                 gs.launcher.as_deref().unwrap_or("steam"),
@@ -765,6 +795,33 @@ pub async fn launch_without_mods(
         serde_json::json!({ "game": game_id, "launcher": gs.launcher.as_deref().unwrap_or("steam") }),
     );
     Ok(sisr_issue)
+}
+
+fn no_mods_launch_options(
+    game_id: &str,
+    launcher: &str,
+    options: &str,
+) -> Result<Option<String>, String> {
+    let package = crate::games::discovered()
+        .iter()
+        .find(|(id, _)| *id == game_id)
+        .map(|(_, package)| package)
+        .ok_or_else(|| format!("unknown game id '{game_id}'"))?;
+    if cfg!(target_os = "windows") && launcher == "steam" {
+        if let Some(argument) = &package.install.steam_windows_no_mods_argument {
+            return Ok(Some(
+                format!("{} {argument}", options.trim()).trim().to_string(),
+            ));
+        }
+    }
+    if package
+        .targets
+        .iter()
+        .any(|target| target.scope == crate::game_package::TargetScope::UnrealPaks)
+    {
+        return Err("Launching without Pak mods is supported only through this game's verified Windows Steam launch option.".into());
+    }
+    Ok(None)
 }
 
 #[tauri::command]

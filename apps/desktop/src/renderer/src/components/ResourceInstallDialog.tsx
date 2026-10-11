@@ -25,11 +25,13 @@ function Review({ handle }: { handle: string }) {
     const [error, setError] = useState<string | null>(null)
     const [pakChoice, setPakChoice] = useState<InstalledMod[] | null>(null)
     const [pakApplied, setPakApplied] = useState(false)
+    const [pakComplete, setPakComplete] = useState(false)
     const [completion, setCompletion] = useState<Awaited<
         ReturnType<typeof api.installReviewedResources>
     > | null>(null)
     const conflicts = review ? resourceConflicts(review, selection) : null
     const selectionIssue = review ? resourceSelectionIssue(review, selection) : null
+    const packagesOnly = !!review?.pakPicker && review.entries.length === 0
 
     useEffect(() => {
         let cancelled = false
@@ -285,12 +287,21 @@ function Review({ handle }: { handle: string }) {
                     await refreshInstalled(review.gameId)
                     setPakChoice(pakCandidates((await api.getInstalled(review.gameId)).mods))
                 }}
-                onInstalled={() => setPakApplied(true)}
+                onInstalled={() => {
+                    setPakApplied(true)
+                    setPakComplete(true)
+                }}
                 onClose={() => setPakChoice(null)}
                 installEntry={
                     review.source === 'nexus'
-                        ? (pos, folderId) =>
-                              api.installNexusReviewPak(handle, picker.entryIds[pos], folderId)
+                        ? async (pos, folderId) => {
+                              await api.installNexusReviewPak(
+                                  handle,
+                                  picker.entryIds[pos],
+                                  folderId
+                              )
+                              setPakApplied(true)
+                          }
                         : undefined
                 }
             />
@@ -312,7 +323,9 @@ function Review({ handle }: { handle: string }) {
                 closeDisabled={busy}
             />
             <div className="flex-1 min-h-0 overflow-y-auto p-5 flex flex-col gap-4">
-                <p className="text-xs text-text-muted">{t('resources.install.description')}</p>
+                <p className="text-xs text-text-muted">
+                    {t(packagesOnly ? 'zipPicker.sharedHelp' : 'resources.install.description')}
+                </p>
                 {conflicts?.movies.map((pack) => (
                     <p key={pack.name} className="text-xs text-warning">
                         {pack.restoredSlots.length > 0
@@ -345,16 +358,18 @@ function Review({ handle }: { handle: string }) {
                 )}
                 {review?.pakPicker && (
                     <div className="flex flex-col gap-2">
-                        <p className="text-xs text-text-muted">
-                            {t('resources.install.mixedComponents')}
-                        </p>
+                        {!packagesOnly && (
+                            <p className="text-xs text-text-muted">
+                                {t('resources.install.mixedComponents')}
+                            </p>
+                        )}
                         <Button
                             variant="secondary"
                             size="sm"
-                            disabled={busy || pakApplied}
+                            disabled={busy || pakComplete}
                             onClick={() => void choosePaks()}
                         >
-                            {pakApplied
+                            {pakComplete
                                 ? t('resources.install.packagesApplied')
                                 : t('resources.install.choosePackages')}
                         </Button>
@@ -493,8 +508,12 @@ function Review({ handle }: { handle: string }) {
                 )}
             </div>
             <div className="flex flex-col gap-3 p-4 border-t border-border shrink-0">
-                <p className="text-xs text-text-muted">{t('resources.install.previousSetup')}</p>
-                {selectionIssue && (
+                {!packagesOnly && (
+                    <p className="text-xs text-text-muted">
+                        {t('resources.install.previousSetup')}
+                    </p>
+                )}
+                {!packagesOnly && selectionIssue && (
                     <p role="status" className="text-xs text-warning">
                         {t(`resources.install.next.${selectionIssue}`)}
                     </p>
@@ -510,14 +529,16 @@ function Review({ handle }: { handle: string }) {
                             ? t('resources.install.finish')
                             : t('common.cancel')}
                     </Button>
-                    <Button
-                        variant="accent"
-                        size="sm"
-                        disabled={busy || !review || selectionIssue !== null}
-                        onClick={() => void install()}
-                    >
-                        {t('resources.install.apply')}
-                    </Button>
+                    {!packagesOnly && (
+                        <Button
+                            variant="accent"
+                            size="sm"
+                            disabled={busy || !review || selectionIssue !== null}
+                            onClick={() => void install()}
+                        >
+                            {t('resources.install.apply')}
+                        </Button>
+                    )}
                 </div>
             </div>
         </Dialog>

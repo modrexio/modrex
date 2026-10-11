@@ -5,15 +5,11 @@ use serde::Serialize;
 use serde_json::Value;
 use std::collections::BTreeMap;
 
-use crate::commands::domain::{FilePage, LinkPage, ModDetail};
+use crate::commands::domain::{FilePage, LinkPage, ModDetail, ModPage, PageMeta};
+use crate::game_package::SourceBinding;
 
 const FIXTURES_DIR: &str = "../src/renderer/preview/fixtures";
 const LISTING_LIMIT: u32 = 24;
-
-struct Snapshot {
-    game_id: &'static str,
-    workshop_id: u32,
-}
 
 #[derive(Serialize)]
 struct ModRecord {
@@ -21,29 +17,6 @@ struct ModRecord {
     files: FilePage,
     links: LinkPage,
 }
-
-const SNAPSHOTS: &[Snapshot] = &[
-    Snapshot {
-        game_id: "pd3",
-        workshop_id: 853,
-    },
-    Snapshot {
-        game_id: "pd2",
-        workshop_id: 1,
-    },
-    Snapshot {
-        game_id: "pdth",
-        workshop_id: 2,
-    },
-    Snapshot {
-        game_id: "cb",
-        workshop_id: 857,
-    },
-    Snapshot {
-        game_id: "raid",
-        workshop_id: 543,
-    },
-];
 
 async fn get(path: &str, query: &[(&str, &str)]) -> Value {
     let params = query.iter().map(|(k, v)| (*k, v.to_string())).collect();
@@ -67,6 +40,27 @@ fn write<T: Serialize>(name: &str, value: &T) {
     std::fs::write(&path, text).unwrap_or_else(|e| panic!("cannot write {}: {e}", path.display()));
 }
 
+fn write_empty_workshop_fixtures(game_id: &str) {
+    write(
+        &format!("{game_id}/mods"),
+        &ModPage {
+            data: Vec::new(),
+            meta: PageMeta {
+                current_page: 1,
+                last_page: 1,
+                per_page: i64::from(LISTING_LIMIT),
+                total: 0,
+            },
+        },
+    );
+    write(
+        &format!("{game_id}/mod-records"),
+        &BTreeMap::<i64, ModRecord>::new(),
+    );
+    write(&format!("{game_id}/categories"), &Vec::<Value>::new());
+    write(&format!("{game_id}/tags"), &Vec::<Value>::new());
+}
+
 #[doc(hidden)]
 pub fn export_preview_fixtures() {
     rustls::crypto::ring::default_provider()
@@ -75,11 +69,25 @@ pub fn export_preview_fixtures() {
     tauri::async_runtime::block_on(async {
         write("loaders", &crate::commands::loaders::list_loaders());
         write("sources", &crate::commands::sources::list_sources());
-        for snapshot in SNAPSHOTS {
-            let folders = crate::commands::mods::list_mod_folders(snapshot.game_id.to_string())
-                .unwrap_or_else(|e| panic!("{} mod folders: {e}", snapshot.game_id));
-            write(&format!("{}/mod-folders", snapshot.game_id), &folders);
-            let game = format!("/games/{}", snapshot.workshop_id);
+        for (game_id, package) in crate::games::discovered() {
+            let folders = crate::commands::mods::list_mod_folders(game_id.to_string())
+                .unwrap_or_else(|e| panic!("{game_id} mod folders: {e}"));
+            write(&format!("{game_id}/mod-folders"), &folders);
+            if !package.news.is_empty() {
+                let news = crate::commands::news::fetch_news_page(game_id.to_string(), 1)
+                    .await
+                    .unwrap_or_else(|e| panic!("{game_id} news: {e}"));
+                write(&format!("{game_id}/news"), &news);
+            }
+            let workshop_id = package.sources.iter().find_map(|source| match source {
+                SourceBinding::ModWorkshop { game_id } => Some(game_id),
+                SourceBinding::Nexus { .. } => None,
+            });
+            let Some(workshop_id) = workshop_id else {
+                write_empty_workshop_fixtures(game_id);
+                continue;
+            };
+            let game = format!("/games/{workshop_id}");
             let limit = LISTING_LIMIT.to_string();
             let listing = get(
                 &format!("{game}/mods"),
@@ -87,7 +95,7 @@ pub fn export_preview_fixtures() {
             )
             .await;
             let page = crate::commands::domain::parse_mod_page(listing)
-                .unwrap_or_else(|e| panic!("{} listing: {e}", snapshot.game_id));
+                .unwrap_or_else(|e| panic!("{game_id} listing: {e}"));
             let mut records = BTreeMap::new();
             for summary in &page.data {
                 let id = summary.id;
@@ -112,25 +120,36 @@ pub fn export_preview_fixtures() {
                     },
                 );
             }
-            write(&format!("{}/mods", snapshot.game_id), &page);
-            write(&format!("{}/mod-records", snapshot.game_id), &records);
-            if crate::games::discovered()
-                .iter()
-                .any(|(id, def)| *id == snapshot.game_id && !def.news.is_empty())
-            {
-                let news = crate::commands::news::fetch_news_page(snapshot.game_id.to_string(), 1)
-                    .await
-                    .unwrap_or_else(|e| panic!("{} news: {e}", snapshot.game_id));
-                write(&format!("{}/news", snapshot.game_id), &news);
-            }
+            write(&format!("{game_id}/mods"), &page);
+            write(&format!("{game_id}/mod-records"), &records);
             write(
-                &format!("{}/categories", snapshot.game_id),
+                &format!("{game_id}/categories"),
                 &get(&format!("{game}/categories"), &[]).await,
             );
             write(
-                &format!("{}/tags", snapshot.game_id),
+                &format!("{game_id}/tags"),
                 &get(&format!("{game}/tags"), &[("type", "mod"), ("global", "1")]).await,
             );
         }
     });
+}
+
+#[test]
+#[ignore = "writes source-less preview fixtures and registry projections"]
+fn export_source_less_preview_fixtures() {
+    write("loaders", &crate::commands::loaders::list_loaders());
+    write("sources", &crate::commands::sources::list_sources());
+    for (game_id, package) in crate::games::discovered() {
+        if package
+            .sources
+            .iter()
+            .any(|source| matches!(source, SourceBinding::ModWorkshop { .. }))
+        {
+            continue;
+        }
+        let folders = crate::commands::mods::list_mod_folders(game_id.to_string())
+            .unwrap_or_else(|e| panic!("{game_id} mod folders: {e}"));
+        write(&format!("{game_id}/mod-folders"), &folders);
+        write_empty_workshop_fixtures(game_id);
+    }
 }

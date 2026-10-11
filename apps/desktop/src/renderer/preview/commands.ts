@@ -57,6 +57,7 @@ const steamFolders: Record<GameId, string> = {
     pdth: 'PAYDAY The Heist',
     cb: 'Crime Boss Rockay City',
     raid: 'RAID World War II',
+    ron: 'Ready Or Not',
 }
 
 const fixtures = new Map<GameId, Promise<GameFixtures>>()
@@ -288,7 +289,8 @@ const handlers = {
         const lib = library(id)
         if (previewState.library !== 'empty' && !lib.seeded) {
             if (previewState.library === 'resources') resourceFixtures.seedResourceLibrary(id)
-            else lib.seed((await load(id)).modRecords, previewState.library)
+            else if (GAMES[id].workshopId !== undefined)
+                lib.seed((await load(id)).modRecords, previewState.library)
         }
         return lib.response()
     },

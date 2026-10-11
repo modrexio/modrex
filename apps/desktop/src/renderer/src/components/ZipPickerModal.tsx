@@ -20,6 +20,7 @@ export interface ZipMultiPakPayload {
     fileType: string
     modVersion: string
     targetTag?: string
+    sharedPaks?: boolean
     // Per-entry destination tag, parallel to entries. Sent by the backend only for archives
     // that span more than one scan target (e.g. a modpack with both mods/ and mod_overrides/
     // content). null = primary target. Absent for single-target archives.
@@ -91,6 +92,15 @@ function targetLabel(tag: string | null): string {
     return tag === 'mod_overrides' ? t('zipPicker.targetOverrides') : t('zipPicker.targetMods')
 }
 
+function nexusArchiveMember(uid: string): string | null {
+    const suffix = uid.split(':').slice(3).join(':')
+    return suffix.startsWith('entry:') ? suffix.slice('entry:'.length) : null
+}
+
+function isLocalSharedArchive(payload: ZipMultiPakPayload): boolean {
+    return !!payload.sharedPaks && payload.source !== 'nexus' && payload.modId <= 0
+}
+
 // Entries already installed from this archive (uid is {fileId}_{stem}; the prefix-stripped
 // filename match covers entries whose uid was reassigned by SHA256 reconciliation, where
 // filenames carry the NNN_ disk prefix).
@@ -99,20 +109,29 @@ function computeInstalledEntries(
     installedFiles: InstalledMod[]
 ): Set<number> {
     const set = new Set<number>()
-    const source = payload.source ?? 'modworkshop'
+    const localArchive = isLocalSharedArchive(payload)
+    const source = localArchive ? 'local' : (payload.source ?? 'modworkshop')
     payload.entries.forEach((entry, pos) => {
-        const uid =
-            source === 'nexus'
-                ? `nexus:${payload.modId}:${payload.fileId}:${entryStem(entry)}`
-                : `${payload.fileId}_${entryStem(entry)}`
+        const uid = localArchive
+            ? `local:${payload.fileId}:entry:${entry}`
+            : source === 'nexus'
+              ? payload.sharedPaks
+                  ? `nexus:${payload.modId}:${payload.fileId}:entry:${entry}`
+                  : `nexus:${payload.modId}:${payload.fileId}:${entryStem(entry)}`
+              : `${payload.fileId}_${entryStem(entry)}`
         const filename = entryFilename(entry)
-        const isInstalled = installedFiles.some(
-            (m) =>
-                (m.source ?? 'modworkshop') === source &&
-                !m.missing &&
-                (m.uid === uid ||
-                    (m.fileId === payload.fileId && stripPriorityPrefix(m.filename) === filename))
-        )
+        const uniqueFilename =
+            payload.entries.filter((other) => entryFilename(other) === filename).length === 1
+        const isInstalled = installedFiles.some((mod) => {
+            if ((mod.source ?? 'modworkshop') !== source || mod.missing) return false
+            if (mod.uid === uid) return true
+            if (localArchive) return false
+            if (mod.fileId !== payload.fileId) return false
+            if (!payload.sharedPaks) return stripPriorityPrefix(mod.filename) === filename
+            const member = nexusArchiveMember(mod.uid)
+            if (member !== null) return member === entry
+            return uniqueFilename && mod.filename === filename
+        })
         if (isInstalled) set.add(pos)
     })
     return set
@@ -127,6 +146,9 @@ export function computeAutoUpdateSelection(
     installedFiles: InstalledMod[]
 ): number[] | null {
     const installedEntries = computeInstalledEntries(payload, installedFiles)
+    if (isLocalSharedArchive(payload)) {
+        return installedEntries.size === payload.entries.length ? [] : null
+    }
     // payload.modId is a remote id: ModWorkshop's, or Nexus's for a Nexus resource review,
     // whose caller passes only Nexus records. InstalledMod.id is an opaque local key, so
     // match against remoteId instead.
@@ -144,6 +166,17 @@ export function computeAutoUpdateSelection(
         if (installedEntries.has(pos)) return
         const filename = entryFilename(entry)
         const stem = entryStem(entry)
+        if (payload.sharedPaks) {
+            const uniqueFilename =
+                payload.entries.filter((other) => entryFilename(other) === filename).length === 1
+            const matches = priorEntriesForMod.filter((mod) => {
+                const recordedMember = nexusArchiveMember(mod.uid)
+                if (recordedMember !== null) return recordedMember === entry
+                return uniqueFilename && mod.filename === filename
+            })
+            if (matches.length === 1) matched.push(pos)
+            return
+        }
         if (
             priorEntriesForMod.some(
                 (m) =>
@@ -199,10 +232,11 @@ export async function installZipPickerEntries(
     }
     const multiTarget = tagByPos.size > 0 && new Set(tagByPos.values()).size > 1
 
-    if (multiTarget) {
+    if (multiTarget || payload.sharedPaks) {
         for (const pos of toInstall) {
             onProgress?.(payload.entries[pos])
-            await installEntry(pos, null, tagByPos.get(pos) ?? undefined)
+            const targetTag = multiTarget ? (tagByPos.get(pos) ?? undefined) : payload.targetTag
+            await installEntry(pos, payload.sharedPaks ? (folderId ?? null) : null, targetTag)
             await onRefreshInstalled()
         }
         onProgress?.(null)
@@ -295,6 +329,7 @@ export function ZipPickerModal({
         if (matchedPriorSelection && matchedPriorSelection.length > 0) {
             return new Set(matchedPriorSelection)
         }
+        if (payload.sharedPaks) return new Set()
         return new Set(
             payload.entries.map((_, pos) => pos).filter((pos) => !installedEntries.has(pos))
         )
@@ -357,7 +392,7 @@ export function ZipPickerModal({
     }, [payload.entries, tagByPos])
 
     useEffect(() => {
-        if (payload.source === 'nexus') return
+        if (payload.source === 'nexus' || isLocalSharedArchive(payload)) return
         setArchiveEntries(gameId as GameId, payload.fileId, payload.entries)
     }, [payload, gameId])
 
@@ -431,13 +466,19 @@ export function ZipPickerModal({
             >
                 <input
                     type="checkbox"
+                    aria-label={entry}
                     checked={isInstalled || selected.has(pos)}
                     onChange={() => toggle(pos)}
                     disabled={isInstalled || isBusy}
                     onClick={(e) => e.stopPropagation()}
                     className="w-4 h-4 shrink-0"
                 />
-                <span className="text-sm font-medium truncate flex-1">{name}</span>
+                <span
+                    title={entry}
+                    className={`text-sm font-medium flex-1 ${payload.sharedPaks ? 'break-all' : 'truncate'}`}
+                >
+                    {name}
+                </span>
                 {isInstalling ? (
                     <span className="text-xs text-text-muted shrink-0">
                         {t('common.installing')}
@@ -474,6 +515,9 @@ export function ZipPickerModal({
                     <div className="px-4 py-3 rounded-lg bg-danger/30 border border-danger-hover text-sm text-danger-text">
                         {error}
                     </div>
+                )}
+                {payload.sharedPaks && (
+                    <p className="px-3 text-xs text-text-muted">{t('zipPicker.sharedHelp')}</p>
                 )}
 
                 <div

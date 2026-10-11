@@ -3,7 +3,7 @@ use super::moves::{exists, Moves};
 use super::naming::log_name;
 use super::naming::{apply_priority_prefix, strip_priority_prefix};
 use super::paths::{disabled_base, installed_mod_path, mods_base};
-use super::state::{get_folder_path, read_state, save_error, save_state};
+use super::state::{get_folder_path, read_state_for_game, save_error, save_state};
 use super::types::ModFolder;
 use std::fs;
 use std::path::Path;
@@ -16,7 +16,7 @@ pub fn create_folder_op(
     parent_id: Option<String>,
     cfg: &ModEngineConfig,
 ) -> Result<ModFolder, String> {
-    let mut state = read_state(state_path).map_err(|e| e.to_string())?;
+    let mut state = read_state_for_game(game_path, state_path, cfg).map_err(|e| e.to_string())?;
 
     if let Some(existing) = state
         .folders
@@ -57,6 +57,10 @@ pub fn create_folder_op(
         Some(r) => mods_base(game_path, cfg.primary()).join(r).join(&disk_name),
         None => mods_base(game_path, cfg.primary()).join(&disk_name),
     };
+    let native = super::native_files::NativeGuard::load(game_path, cfg)?;
+    native.check_path(&dir)?;
+    native.check_state_path(state_path)?;
+    let already_exists = dir.try_exists().map_err(|error| error.to_string())?;
     fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
 
     let folder = ModFolder {
@@ -67,7 +71,17 @@ pub fn create_folder_op(
         parent_id,
     };
     state.folders.push(folder.clone());
-    save_state(state_path, &state).map_err(save_error)?;
+    let saved = native
+        .check_state_path(state_path)
+        .and_then(|()| save_state(state_path, &state).map_err(save_error));
+    if let Err(failure) = saved {
+        if !already_exists {
+            fs::remove_dir(&dir).map_err(|error| {
+                format!("{failure}. Could not remove the unsaved folder: {error}")
+            })?;
+        }
+        return Err(failure);
+    }
     Ok(folder)
 }
 
@@ -78,7 +92,7 @@ pub fn move_folder_op(
     target_parent_id: Option<String>,
     cfg: &ModEngineConfig,
 ) -> Result<(), String> {
-    let mut state = read_state(state_path).map_err(|e| e.to_string())?;
+    let mut state = read_state_for_game(game_path, state_path, cfg).map_err(|e| e.to_string())?;
     let Some(folder) = state.folders.iter().find(|f| f.id == folder_id).cloned() else {
         return Ok(());
     };
@@ -120,7 +134,7 @@ pub fn move_folder_op(
     let new_disk_name = if cfg.primary().priority_prefix_enabled() {
         apply_priority_prefix(strip_priority_prefix(&folder.disk_name), new_priority)
     } else {
-        strip_priority_prefix(&folder.disk_name).to_string()
+        folder.disk_name.clone()
     };
 
     for f in state.folders.iter_mut() {
@@ -143,6 +157,31 @@ pub fn move_folder_op(
     };
 
     let old_a = mods_b.join(&old_rel);
+    let old_d = dis_b.join(&old_rel);
+    if cfg.primary().native_steam_app.is_some() {
+        let native = super::native_files::NativeGuard::load(game_path, cfg)?;
+        native.check_path(&active_tgt_parent)?;
+        native.check_path(&dis_tgt_parent)?;
+        native.check_tree(&old_a)?;
+        native.check_tree(&old_d)?;
+        native.check_tree(&mods_b.join(&new_rel))?;
+        native.check_tree(&dis_b.join(&new_rel))?;
+        native.check_state_path(state_path)?;
+        let mut moves = Moves::for_game(game_path, cfg)?;
+        for (from, to) in [
+            (old_a.clone(), mods_b.join(&new_rel)),
+            (old_d.clone(), dis_b.join(&new_rel)),
+        ] {
+            if exists(&from)? {
+                moves.path(from, to);
+            }
+        }
+        fs::create_dir_all(&active_tgt_parent)
+            .map_err(|error| format!("Could not prepare the destination: {error}"))?;
+        fs::create_dir_all(&dis_tgt_parent)
+            .map_err(|error| format!("Could not prepare the destination: {error}"))?;
+        return moves.run()?.save(state_path, &state);
+    }
     if old_a.exists() {
         if let Err(e) = fs::create_dir_all(&active_tgt_parent) {
             log::warn!("move_folder: create_dir_all active: {e}");
@@ -151,7 +190,6 @@ pub fn move_folder_op(
             log::warn!("move_folder: rename active {}: {e}", log_name(&old_a));
         }
     }
-    let old_d = dis_b.join(&old_rel);
     if old_d.exists() {
         if let Err(e) = fs::create_dir_all(&dis_tgt_parent) {
             log::warn!("move_folder: create_dir_all disabled: {e}");
@@ -172,7 +210,7 @@ pub fn rename_folder_op(
     display_name: &str,
     cfg: &ModEngineConfig,
 ) -> Result<(), String> {
-    let mut state = read_state(state_path).map_err(|e| e.to_string())?;
+    let mut state = read_state_for_game(game_path, state_path, cfg).map_err(|e| e.to_string())?;
     let Some(folder) = state.folders.iter().find(|f| f.id == folder_id).cloned() else {
         return Ok(());
     };
@@ -192,6 +230,31 @@ pub fn rename_folder_op(
     } else {
         slug
     };
+
+    if cfg.primary().native_steam_app.is_some() {
+        let parent = get_folder_path(&state.folders, folder.parent_id.as_deref());
+        let mut moves = Moves::for_game(game_path, cfg)?;
+        for base in [
+            mods_base(game_path, cfg.primary()),
+            disabled_base(game_path, cfg.primary()),
+        ] {
+            let parent_dir = parent
+                .as_ref()
+                .map_or(base.clone(), |relative| base.join(relative));
+            let from = parent_dir.join(&folder.disk_name);
+            if exists(&from)? {
+                moves.path(from, parent_dir.join(&new_disk_name));
+            }
+        }
+        let entry = state
+            .folders
+            .iter_mut()
+            .find(|entry| entry.id == folder_id)
+            .expect("the folder was found above");
+        entry.display_name = display_name.to_string();
+        entry.disk_name = new_disk_name;
+        return moves.run()?.save(state_path, &state);
+    }
 
     if new_disk_name != folder.disk_name {
         let parent_rel = get_folder_path(&state.folders, folder.parent_id.as_deref());
@@ -241,7 +304,7 @@ pub fn delete_folder_op(
     folder_id: &str,
     cfg: &ModEngineConfig,
 ) -> Result<(), String> {
-    let mut state = read_state(state_path).map_err(|e| e.to_string())?;
+    let mut state = read_state_for_game(game_path, state_path, cfg).map_err(|e| e.to_string())?;
     let Some(folder) = state.folders.iter().find(|f| f.id == folder_id).cloned() else {
         return Ok(());
     };
@@ -275,7 +338,7 @@ pub fn delete_folder_op(
         f.max(m)
     };
 
-    let mut moves = Moves::default();
+    let mut moves = Moves::for_game(game_path, cfg)?;
     let mut into_active = false;
     let mut into_disabled = false;
 
@@ -326,7 +389,7 @@ pub fn delete_folder_op(
         let new_disk = if cfg.primary().priority_prefix_enabled() {
             apply_priority_prefix(strip_priority_prefix(&cf.disk_name), max_p)
         } else {
-            strip_priority_prefix(&cf.disk_name).to_string()
+            cf.disk_name.clone()
         };
         let old_rel = get_folder_path(&state.folders, Some(cf_id)).unwrap_or_default();
 
@@ -350,6 +413,13 @@ pub fn delete_folder_op(
         }
     }
 
+    let native = super::native_files::NativeGuard::load(game_path, cfg)?;
+    native.check_state_path(state_path)?;
+    for (base, needed) in [(&mods_b, into_active), (&dis_b, into_disabled)] {
+        if needed {
+            native.check_path(&into_parent(base))?;
+        }
+    }
     for (base, needed) in [(&mods_b, into_active), (&dis_b, into_disabled)] {
         if needed {
             fs::create_dir_all(into_parent(base))
@@ -360,8 +430,18 @@ pub fn delete_folder_op(
     state.folders.retain(|f| f.id != folder_id);
     applied.save(state_path, &state)?;
 
-    remove_emptied(&mods_b.join(&folder_rel));
-    remove_emptied(&dis_b.join(&folder_rel));
+    if let Err(error) = native.verify_unchanged() {
+        log::warn!("delete_folder: kept the empty folders: {error}");
+        return Ok(());
+    }
+    for base in [&mods_b, &dis_b] {
+        let dir = base.join(&folder_rel);
+        if let Err(error) = native.check_tree(&dir) {
+            log::warn!("delete_folder: kept {}: {error}", log_name(&dir));
+            continue;
+        }
+        remove_emptied(&dir);
+    }
     Ok(())
 }
 

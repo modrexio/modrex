@@ -1290,6 +1290,7 @@ export type ZipMultiPakPayload_Deserialize = {
 	 */
 	entryIds: ArchiveEntryId[],
 	targetTag: string | null,
+	sharedPaks?: boolean,
 	entryTags?: (string | null)[] | null,
 	entryKind?: string | null,
 	modId?: number | null,
@@ -1318,6 +1319,7 @@ export type ZipMultiPakPayload_Serialize = {
 	 */
 	entryIds: ArchiveEntryId[],
 	targetTag: string | null,
+	sharedPaks: boolean,
 	entryTags?: (string | null)[] | null,
 	entryKind?: string | null,
 	modId?: number | null,

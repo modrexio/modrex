@@ -216,6 +216,7 @@ pub fn markdown(examples: &[(&str, &str)]) -> String {
          | Provider | Fields |\n| --- | --- |\n",
     );
     out.push_str(&storefront_rows());
+    out.push_str("\n`steam_windows_no_mods_argument` is an optional single verified Windows Steam flag for launching without Pak mods. It preserves user launch options and never hides the shared native Paks directory.\n");
 
     out.push_str(
         "\n## `loaders`\n\n\
@@ -331,6 +332,7 @@ pub fn markdown(examples: &[(&str, &str)]) -> String {
          | `tag` | yes | stable id, stored in every installed mod's record. Renaming one is a data migration |\n\
          | `label` | yes | which folder name the interface shows |\n\
          | `primary` | no | defaults to `false`; exactly one target must set it |\n\
+         | `scope` | no | `mods` by default. `unreal_paks` shares native game files and requires a complete installed Steam depot catalog before mod changes. It supports archive-named Pak file units without filename ordering and never moves the whole target |\n\
          | `path` | yes | components below the game path |\n\
          | `backup` | yes | where launching without mods moves the contents |\n\
          | `store_paths` | no | `path` and `backup` for a store build laid out differently |\n\

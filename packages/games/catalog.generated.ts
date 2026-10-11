@@ -84,4 +84,17 @@ export const GAME_SPECS = {
             { id: 'mods', path: 'mods' },
         ],
     },
+    ron: {
+        name: 'Ready or Not',
+        shortName: 'RoN',
+        modMetadata: 'none',
+        nexusDomain: 'readyornot',
+        storageKey: 'ron',
+        hasNews: false,
+        supportsPackageViewer: false,
+        launchers: ['Steam'],
+        modTargets: [
+            { id: 'paks', path: 'ReadyOrNot/Content/Paks' },
+        ],
+    },
 } satisfies Record<string, GameSpec>

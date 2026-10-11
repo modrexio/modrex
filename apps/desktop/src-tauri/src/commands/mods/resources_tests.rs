@@ -577,6 +577,7 @@ fn review_from(source: Option<&str>, picker: Option<ZipMultiPakPayload>) -> Revi
 
 fn picker() -> ZipMultiPakPayload {
     ZipMultiPakPayload {
+        shared_paks: false,
         archive_handle: "grant".into(),
         entries: vec!["Skip_P.pak".into()],
         entry_ids: Vec::new(),

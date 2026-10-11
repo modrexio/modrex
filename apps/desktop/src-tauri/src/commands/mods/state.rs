@@ -10,19 +10,34 @@ use super::ue4ss_modstxt;
 use crate::commands::sources;
 use std::collections::{HashMap, HashSet};
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::io::Write;
+use std::path::{Component, Path, PathBuf};
 
 /// Modrex's own record of what it installed, kept inside the primary target's mods dir.
 pub const STATE_FILENAME: &str = ".modrex.json";
 
 pub fn get_folder_path(folders: &[ModFolder], folder_id: Option<&str>) -> Option<String> {
-    let folder_id = folder_id?;
-    let folder = folders.iter().find(|f| f.id == folder_id)?;
-    let parent = get_folder_path(folders, folder.parent_id.as_deref());
-    Some(match parent {
-        Some(p) => format!("{}/{}", p, folder.disk_name),
-        None => folder.disk_name.clone(),
-    })
+    let mut folder_id = folder_id?;
+    let mut visited = HashSet::new();
+    let mut parts = Vec::new();
+    loop {
+        if !visited.insert(folder_id) {
+            return None;
+        }
+        let Some(folder) = folders.iter().find(|folder| folder.id == folder_id) else {
+            break;
+        };
+        parts.push(folder.disk_name.as_str());
+        let Some(parent) = folder.parent_id.as_deref() else {
+            break;
+        };
+        folder_id = parent;
+    }
+    if parts.is_empty() {
+        return None;
+    }
+    parts.reverse();
+    Some(parts.join("/"))
 }
 
 // State files written before update_status existed encoded these two states in the version
@@ -117,6 +132,135 @@ pub fn read_state(state_path: &Path) -> Result<ModsState, StateLoadError> {
     Ok(ModsState { folders, mods })
 }
 
+pub(super) fn read_state_for_game(
+    game_path: &str,
+    state_path: &Path,
+    cfg: &ModEngineConfig,
+) -> Result<ModsState, StateLoadError> {
+    let state = read_state(state_path)?;
+    if !cfg
+        .targets
+        .iter()
+        .any(|target| target.native_steam_app.is_some())
+    {
+        return Ok(state);
+    }
+    let mut folders = HashMap::new();
+    for (index, folder) in state.folders.iter().enumerate() {
+        if folders.insert(folder.id.as_str(), index).is_some() {
+            return Err(StateLoadError::Invalid("folder IDs are duplicated".into()));
+        }
+    }
+    let mut parents = Vec::with_capacity(state.folders.len());
+    for folder in &state.folders {
+        let parent = folder
+            .parent_id
+            .as_deref()
+            .map(|parent| {
+                folders.get(parent).copied().ok_or_else(|| {
+                    StateLoadError::Invalid("a folder references a missing parent".into())
+                })
+            })
+            .transpose()?;
+        parents.push(parent);
+    }
+    let mut complete = vec![false; parents.len()];
+    let mut visiting = vec![false; parents.len()];
+    let mut branch = Vec::new();
+    for index in 0..parents.len() {
+        let mut next = Some(index);
+        while let Some(index) = next {
+            if complete[index] {
+                break;
+            }
+            if visiting[index] {
+                return Err(StateLoadError::Invalid(
+                    "folder parents contain a cycle".into(),
+                ));
+            }
+            visiting[index] = true;
+            branch.push(index);
+            next = parents[index];
+        }
+        for index in branch.drain(..) {
+            visiting[index] = false;
+            complete[index] = true;
+        }
+    }
+    for entry in &state.mods {
+        if entry
+            .folder_id
+            .as_deref()
+            .is_some_and(|id| !folders.contains_key(id))
+        {
+            return Err(StateLoadError::Invalid(
+                "a mod references a missing folder".into(),
+            ));
+        }
+    }
+    if cfg.primary().native_steam_app.is_some() {
+        let root = mods_base(game_path, cfg.primary());
+        for folder in &state.folders {
+            let relative = get_folder_path(&state.folders, Some(&folder.id))
+                .expect("the folder graph was validated above");
+            check_shared_state_path(game_path, &root, &root.join(relative))?;
+        }
+    }
+    let mut owned_paths = Vec::<PathBuf>::new();
+    for entry in &state.mods {
+        let target = cfg.target_for(entry.location.as_deref());
+        if target.native_steam_app.is_none() {
+            continue;
+        }
+        let folder = get_folder_path(&state.folders, entry.folder_id.as_deref());
+        let path = active_mod_path(game_path, &entry.filename, folder.as_deref(), target);
+        check_shared_state_path(game_path, &mods_base(game_path, target), &path)?;
+        let resolved = super::native_files::resolve_existing_ancestor(&path)
+            .map_err(StateLoadError::Invalid)?;
+        for owned in &owned_paths {
+            if super::native_files::paths_equal(&resolved, owned)
+                .map_err(StateLoadError::Invalid)?
+            {
+                return Err(StateLoadError::Invalid(
+                    "multiple mods own the same Pak path".into(),
+                ));
+            }
+        }
+        owned_paths.push(resolved);
+    }
+    Ok(state)
+}
+
+fn check_shared_state_path(
+    game_path: &str,
+    root: &Path,
+    path: &Path,
+) -> Result<(), StateLoadError> {
+    let relative = path.strip_prefix(game_path).map_err(|_| {
+        StateLoadError::Invalid("a mod path leaves the configured game directory".into())
+    })?;
+    if relative
+        .components()
+        .any(|component| !matches!(component, Component::Normal(_)))
+    {
+        return Err(StateLoadError::Invalid(
+            "a mod path contains an unsafe component".into(),
+        ));
+    }
+    if !path.starts_with(root) {
+        return Err(StateLoadError::Invalid(
+            "a mod path leaves its shared Paks directory".into(),
+        ));
+    }
+    let mut ancestor = PathBuf::from(game_path);
+    super::native_files::reject_link(&ancestor).map_err(StateLoadError::Invalid)?;
+    for component in relative.components() {
+        ancestor.push(component);
+        super::native_files::reject_link(&ancestor).map_err(StateLoadError::Invalid)?;
+    }
+    Ok(())
+}
+
 /// One wording for a failed persist, so the interface reads the same wherever it surfaces.
 /// Carries no path, for the reason given on StateLoadError.
 pub fn save_error(e: std::io::Error) -> String {
@@ -133,18 +277,32 @@ pub fn save_state(state_path: &Path, state: &ModsState) -> std::io::Result<()> {
     fs::create_dir_all(parent)?;
     let body = serde_json::to_string_pretty(state)
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
-    let mut tmp_name = state_path
-        .file_name()
-        .unwrap_or_else(|| std::ffi::OsStr::new("state"))
-        .to_os_string();
-    tmp_name.push(".tmp");
-    let tmp = state_path.with_file_name(tmp_name);
-    fs::write(&tmp, body)?;
+    let tmp = temporary_state_path(state_path);
+    // Exclusive creation keeps a pre-existing link from redirecting the state write.
+    let mut file = fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&tmp)?;
+    let written = file.write_all(body.as_bytes());
+    drop(file);
+    if let Err(error) = written {
+        let _ = fs::remove_file(&tmp);
+        return Err(error);
+    }
     if let Err(e) = fs::rename(&tmp, state_path) {
         let _ = fs::remove_file(&tmp);
         return Err(e);
     }
     Ok(())
+}
+
+pub(super) fn temporary_state_path(state_path: &Path) -> PathBuf {
+    let mut tmp_name = state_path
+        .file_name()
+        .unwrap_or_else(|| std::ffi::OsStr::new("state"))
+        .to_os_string();
+    tmp_name.push(".tmp");
+    state_path.with_file_name(tmp_name)
 }
 
 fn compact_folder_priorities(
@@ -180,13 +338,15 @@ fn compact_folder_priorities(
             if f.priority == new_priority {
                 continue;
             }
+            if !priority_prefix_enabled {
+                compacted[idx].priority = new_priority;
+                any_changed = true;
+                continue;
+            }
 
             let old_disk_name = f.disk_name.clone();
-            let new_disk_name = if priority_prefix_enabled {
-                apply_priority_prefix(strip_priority_prefix(&old_disk_name), new_priority)
-            } else {
-                strip_priority_prefix(&old_disk_name).to_string()
-            };
+            let new_disk_name =
+                apply_priority_prefix(strip_priority_prefix(&old_disk_name), new_priority);
             let parent_rel = get_folder_path(&compacted, parent_id.as_deref());
 
             let (old_active, new_active) = match &parent_rel {
@@ -233,6 +393,35 @@ fn compact_folder_priorities(
     }
 
     (compacted, any_changed)
+}
+
+#[cfg(test)]
+#[test]
+fn compacting_metadata_preserves_author_folder_names_without_filename_ordering() {
+    let temp = tempfile::TempDir::new().unwrap();
+    let active = temp.path().join("Paks");
+    let disabled = active.join("disabled");
+    let manual = active.join("001_Manual");
+    fs::create_dir_all(&manual).unwrap();
+    fs::write(manual.join("Mod.pak"), b"manual mod").unwrap();
+    fs::write(manual.join("settings.json"), b"author settings").unwrap();
+    let folder = ModFolder {
+        id: "manual".into(),
+        display_name: "Manual".into(),
+        disk_name: "001_Manual".into(),
+        priority: 9,
+        parent_id: None,
+    };
+    let (folders, changed) = compact_folder_priorities(&[folder], &active, &disabled, false);
+    assert!(changed);
+    assert_eq!(folders[0].priority, 1);
+    assert_eq!(folders[0].disk_name, "001_Manual");
+    assert_eq!(fs::read(manual.join("Mod.pak")).unwrap(), b"manual mod");
+    assert_eq!(
+        fs::read(manual.join("settings.json")).unwrap(),
+        b"author settings"
+    );
+    assert!(!active.join("Manual").exists());
 }
 
 /// Permission to write the state file back, held only when it could be read.
@@ -534,22 +723,53 @@ pub fn reconcile_state(
     cfg: &ModEngineConfig,
 ) -> Result<ModsState, StateLoadError> {
     let bak = backup_dir(game_path, cfg.primary());
-    if bak.exists() {
+    if cfg.primary().native_steam_app.is_none() && bak.exists() {
         if cfg.primary().is_directory_unit() {
             // BLT: state file stays in mods/ because only user mod dirs were moved to backup.
-            return read_state(state_path);
+            return read_state_for_game(game_path, state_path, cfg);
         }
         // PD3: the entire mods folder was renamed, so the state file is inside the backup.
-        return read_state(&bak.join(STATE_FILENAME));
+        return read_state_for_game(game_path, &bak.join(STATE_FILENAME), cfg);
     }
 
-    // Migrate legacy state file name from .pd3mm.json to .modrex.json.
     let legacy = state_path.with_file_name(".pd3mm.json");
-    if legacy.exists() && !state_path.exists() {
-        let _ = fs::rename(&legacy, state_path);
+    let migrate_legacy = legacy.exists() && !state_path.exists();
+    let mut state = read_state_for_game(
+        game_path,
+        if migrate_legacy { &legacy } else { state_path },
+        cfg,
+    )?;
+    let native_guard =
+        super::native_files::NativeGuard::load(game_path, cfg).map_err(StateLoadError::Invalid)?;
+    native_guard
+        .check_state_path(state_path)
+        .map_err(StateLoadError::Invalid)?;
+    if migrate_legacy {
+        native_guard
+            .check_path(&legacy)
+            .map_err(StateLoadError::Invalid)?;
+        fs::rename(&legacy, state_path).map_err(StateLoadError::Unreadable)?;
     }
 
-    let mut state = read_state(state_path)?;
+    let mut protected = HashSet::new();
+    for entry in &state.mods {
+        let target = cfg.target_for(entry.location.as_deref());
+        let folder = get_folder_path(&state.folders, entry.folder_id.as_deref());
+        let active = active_mod_path(game_path, &entry.filename, folder.as_deref(), target);
+        if native_guard
+            .protects(&active)
+            .map_err(StateLoadError::Invalid)?
+        {
+            protected.insert(entry.uid.clone());
+            continue;
+        }
+        if target.native_steam_app.is_some() {
+            native_guard
+                .check_file(&active)
+                .map_err(StateLoadError::Invalid)?;
+        }
+    }
+    state.mods.retain(|entry| !protected.contains(&entry.uid));
 
     // Recover source-native identity for entries written before remote_id existed:
     // their uid already encodes it as {source}:{mod_id}:{file_id} (the nexus install
@@ -660,6 +880,13 @@ pub fn reconcile_state(
     let disabled_mods: Vec<InstalledMod> =
         state.mods.iter().filter(|m| !m.enabled).cloned().collect();
     for m in &disabled_mods {
+        if cfg
+            .target_for(m.location.as_deref())
+            .native_steam_app
+            .is_some()
+        {
+            continue;
+        }
         let folder_rel = get_folder_path(&state.folders, m.folder_id.as_deref());
         let new_path = disabled_mod_path(
             game_path,
@@ -773,6 +1000,7 @@ pub fn reconcile_state(
     );
 
     if state_changed
+        || !protected.is_empty()
         || !phantom_ids.is_empty()
         || any_compacted
         || cleanup_changed
@@ -780,6 +1008,9 @@ pub fn reconcile_state(
         || identity_id_repaired
         || !superseded.is_empty()
     {
+        native_guard
+            .check_state_path(state_path)
+            .map_err(StateLoadError::Invalid)?;
         // Class C: everything written here is re-derived on the next load, and the folder
         // renames compact_folder_priorities already performed converge to the same names on
         // that load. Failing the whole read over a repeatable write would take the installed
@@ -819,6 +1050,9 @@ pub fn reconcile_state(
             })
             .collect();
         // Class C: the priority backfill recomputes identically on the next load.
+        native_guard
+            .check_state_path(state_path)
+            .map_err(StateLoadError::Invalid)?;
         if let Err(e) = save_state(
             state_path,
             &ModsState {
@@ -839,3 +1073,7 @@ pub fn reconcile_state(
         mods: reconciled,
     })
 }
+
+#[cfg(test)]
+#[path = "shared_state_tests.rs"]
+mod shared_state_tests;

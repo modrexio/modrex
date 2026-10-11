@@ -16,8 +16,13 @@ vi.mock('../api', () => ({
         cancelResourceReview: vi.fn(() => Promise.resolve()),
         pickEngineIni: vi.fn(),
         openEngineIni: vi.fn(),
+        getInstalled: vi.fn(),
+        installNexusReviewPak: vi.fn(),
+        discardStagedArchive: vi.fn(() => Promise.resolve()),
     },
 }))
+
+vi.mock('../gameData', () => ({ refreshInstalled: vi.fn(() => Promise.resolve()) }))
 
 vi.mock('./Select', () => ({
     Select: ({
@@ -70,6 +75,28 @@ const reviewFixture: ResourceReview = {
     ],
 }
 
+const pakReview: ResourceReview = {
+    ...reviewFixture,
+    gameId: 'ron',
+    gamePath: 'G:/Ready Or Not',
+    modName: 'Six Days',
+    source: 'nexus',
+    entries: [],
+    movieSlots: [],
+    pakPicker: {
+        archiveHandle: 'nexus-paks',
+        sharedPaks: true,
+        entries: ['Hard/Hard_P.pak', 'Realistic/Realistic_P.pak'],
+        entryIds: [5, 8],
+        targetTag: null,
+        modId: 2759,
+        fileId: 30700,
+        modName: 'Six Days',
+        fileType: 'zip',
+        modVersion: '13',
+    },
+}
+
 afterEach(() => {
     cleanup()
     const handle = getPendingResourceReview()
@@ -78,6 +105,75 @@ afterEach(() => {
 })
 
 describe('resource review completion', () => {
+    it('installs only the explicitly chosen Nexus package and completes its review', async () => {
+        vi.mocked(api.getResourceReview).mockResolvedValue(pakReview)
+        vi.mocked(api.getInstalled).mockResolvedValue({
+            mods: [],
+            folders: [],
+            modsHidden: false,
+            stateUnreadable: false,
+            resourceRecoveryPending: false,
+        })
+        vi.mocked(api.installNexusReviewPak).mockResolvedValue(undefined)
+        const completed = requestResourceReview('matching')
+        render(<ResourceInstallDialog />)
+        fireEvent.click(await screen.findByRole('button', { name: 'Review package mods' }))
+        expect(await screen.findByRole('button', { name: 'Install Selected (0)' })).toHaveProperty(
+            'disabled',
+            true
+        )
+        expect(api.installNexusReviewPak).not.toHaveBeenCalled()
+        fireEvent.click(screen.getByText('Realistic_P.pak'))
+        fireEvent.click(screen.getByRole('button', { name: 'Install Selected (1)' }))
+        await screen.findByRole('button', { name: 'Package mods installed' })
+        expect(api.installNexusReviewPak).toHaveBeenCalledExactlyOnceWith('matching', 8, null)
+        expect(api.discardStagedArchive).toHaveBeenCalledExactlyOnceWith('nexus-paks')
+        expect(api.installReviewedResources).not.toHaveBeenCalled()
+        fireEvent.click(screen.getByRole('button', { name: 'Finish review' }))
+        await expect(completed).resolves.toBe(true)
+        expect(api.cancelResourceReview).toHaveBeenCalledExactlyOnceWith('matching')
+    })
+
+    it('cancels a pending package review without reporting an install', async () => {
+        vi.mocked(api.getResourceReview).mockResolvedValue(pakReview)
+        const completed = requestResourceReview('matching')
+        render(<ResourceInstallDialog />)
+        fireEvent.click(await screen.findByRole('button', { name: 'Cancel' }))
+        await expect(completed).resolves.toBe(false)
+        expect(api.cancelResourceReview).toHaveBeenCalledExactlyOnceWith('matching')
+        expect(api.installNexusReviewPak).not.toHaveBeenCalled()
+        expect(api.discardStagedArchive).not.toHaveBeenCalled()
+    })
+
+    it('keeps the Nexus grant pending after an install failure and reports an applied earlier entry', async () => {
+        vi.mocked(api.getResourceReview).mockResolvedValue(pakReview)
+        vi.mocked(api.getInstalled).mockResolvedValue({
+            mods: [],
+            folders: [],
+            modsHidden: false,
+            stateUnreadable: false,
+            resourceRecoveryPending: false,
+        })
+        vi.mocked(api.installNexusReviewPak)
+            .mockResolvedValueOnce(undefined)
+            .mockRejectedValueOnce(new Error('Previous variant needs review'))
+        const completed = requestResourceReview('matching')
+        render(<ResourceInstallDialog />)
+        fireEvent.click(await screen.findByRole('button', { name: 'Review package mods' }))
+        fireEvent.click(await screen.findByText('Hard_P.pak'))
+        fireEvent.click(screen.getByText('Realistic_P.pak'))
+        fireEvent.click(screen.getByRole('button', { name: 'Install Selected (2)' }))
+        await screen.findByText('Error: Previous variant needs review')
+        expect(api.discardStagedArchive).not.toHaveBeenCalled()
+        fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+        expect(await screen.findByRole('button', { name: 'Review package mods' })).toHaveProperty(
+            'disabled',
+            false
+        )
+        fireEvent.click(await screen.findByRole('button', { name: 'Finish review' }))
+        await expect(completed).resolves.toBe(true)
+        expect(api.cancelResourceReview).toHaveBeenCalledExactlyOnceWith('matching')
+    })
     it('reports matching movies without canceling an already completed review', async () => {
         vi.mocked(api.getResourceReview).mockResolvedValue(reviewFixture)
         vi.mocked(api.installReviewedResources).mockResolvedValue({
