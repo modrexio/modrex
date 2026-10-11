@@ -652,12 +652,16 @@ impl ResourceStore {
     }
 
     pub(crate) fn read_object(&self, sha256: &str, size: u64) -> Result<Vec<u8>, String> {
-        let bytes = fs::read(self.object_path(sha256)).map_err(|_| {
+        let file = File::open(self.object_path(sha256)).map_err(|_| {
             format!(
                 "recovery copy {} is missing",
                 &sha256[..sha256.len().min(12)]
             )
         })?;
+        let mut bytes = Vec::new();
+        file.take(size.saturating_add(1))
+            .read_to_end(&mut bytes)
+            .map_err(|error| format!("could not read recovery copy: {error}"))?;
         if bytes.len() as u64 != size || sha256_hex(&bytes) != sha256 {
             return Err(format!(
                 "recovery copy {} is damaged",

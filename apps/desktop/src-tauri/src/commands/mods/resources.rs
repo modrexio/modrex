@@ -817,14 +817,18 @@ fn assess(
 }
 
 fn preset_assignments(name: &str, staged: &Path) -> Result<Vec<ini::Assignment>, String> {
-    if !file_name_of(name).eq_ignore_ascii_case("Engine.ini") {
-        return Err("only Engine.ini presets are supported".to_string());
-    }
     let (bytes, revision) = read_ini_bytes(staged)?;
     if revision == Content::Absent {
         return Err("The staged preset is missing".into());
     }
-    let decoded = ini::decode(&bytes)?;
+    preset_assignments_from_bytes(name, &bytes)
+}
+
+fn preset_assignments_from_bytes(name: &str, bytes: &[u8]) -> Result<Vec<ini::Assignment>, String> {
+    if !file_name_of(name).eq_ignore_ascii_case("Engine.ini") {
+        return Err("only Engine.ini presets are supported".to_string());
+    }
+    let decoded = ini::decode(bytes)?;
     if decoded.eol == ini::LineEnding::Mixed {
         return Err(
             "The preset mixes line endings. Use your text editor for manual installation".into(),
@@ -1587,7 +1591,7 @@ async fn install_preset(
     if resolve_engine_ini(app, &review.context)? != Some(config.clone()) {
         return Err("Engine.ini changed destination while preparing the install".into());
     }
-    let mut preset = new_deployment(
+    let preset = new_deployment(
         review,
         DeploymentBody::Ini {
             preset: IniPreset {
@@ -1601,44 +1605,65 @@ async fn install_preset(
             },
         },
     );
-    let game_id = review.context.game_id.clone();
     let review_manifest_revision = review.manifest_revision;
     let review_config_revision = review
         .config_revision
         .clone()
         .ok_or("Review the configuration destination before applying the preset")?;
     blocking(move || {
-        let Content::Present { sha256, size } = store.capture(&staged)? else {
-            return Err("the preset disappeared from staging".to_string());
-        };
-        if let DeploymentBody::Ini { preset: p } = &mut preset.body {
-            p.source_sha256 = sha256;
-            p.source_size = size;
-        }
-        let manifest = store.load_manifest()?;
-        if manifest.deployments.iter().any(|d| d.id == preset.id) {
-            return Ok(());
-        }
-        if Some(manifest.revision) != review_manifest_revision {
-            return Err(
-                "Managed resources changed after this review. Review the destinations again".into(),
-            );
-        }
-        if live_content(&config)? != review_config_revision {
-            return Err("Engine.ini changed after this review. Review its settings again".into());
-        }
-        let previous = same_project(&manifest, &preset).cloned();
-        if let Some(old) = previous.as_ref().filter(|old| !old.enabled) {
-            // An update of a disabled preset must not activate it.
-            preset.enabled = false;
-            return store.apply(&game_id, Vec::new(), |m| {
-                m.deployments.retain(|d| d.id != old.id);
-                upsert(m, preset);
-            });
-        }
-        apply_preset(&store, &game_id, &manifest, preset, previous.map(|p| p.id))
+        install_preset_from_staging(
+            &store,
+            preset,
+            &staged,
+            review_manifest_revision,
+            &review_config_revision,
+        )
     })
     .await
+}
+
+fn install_preset_from_staging(
+    store: &ResourceStore,
+    mut preset: Deployment,
+    staged: &Path,
+    review_manifest_revision: Option<u64>,
+    review_config_revision: &Content,
+) -> Result<(), String> {
+    let (bytes, revision) = read_ini_bytes(staged)?;
+    let Content::Present { sha256, size } = revision else {
+        return Err("the preset disappeared from staging".to_string());
+    };
+    store.put_bytes(&bytes)?;
+    let source = preset_of(&preset).expect("an INI deployment");
+    preset_assignments(&source.source_entry, &store.object_path(&sha256))?;
+    let config = PathBuf::from(&source.config_path);
+    if let DeploymentBody::Ini { preset: p } = &mut preset.body {
+        p.source_sha256 = sha256;
+        p.source_size = size;
+    }
+    let manifest = store.load_manifest()?;
+    if manifest.deployments.iter().any(|d| d.id == preset.id) {
+        return Ok(());
+    }
+    if Some(manifest.revision) != review_manifest_revision {
+        return Err(
+            "Managed resources changed after this review. Review the destinations again".into(),
+        );
+    }
+    if live_content(&config)? != *review_config_revision {
+        return Err("Engine.ini changed after this review. Review its settings again".into());
+    }
+    let game_id = preset.game_id.clone();
+    let previous = same_project(&manifest, &preset).cloned();
+    if let Some(old) = previous.as_ref().filter(|old| !old.enabled) {
+        // An update of a disabled preset must not activate it.
+        preset.enabled = false;
+        return store.apply(&game_id, Vec::new(), |m| {
+            m.deployments.retain(|d| d.id != old.id);
+            upsert(m, preset);
+        });
+    }
+    apply_preset(store, &game_id, &manifest, preset, previous.map(|p| p.id))
 }
 
 fn preset_of(d: &Deployment) -> Option<&IniPreset> {
@@ -1749,8 +1774,11 @@ fn apply_preset(
     let p = preset_of(&preset).expect("an INI deployment").clone();
     let path = PathBuf::from(&p.config_path);
     let (_original, decoded, original_revision) = read_config(&path)?;
+    if p.source_size > MAX_INI_BYTES {
+        return Err("Engine.ini exceeds the 1 MiB configuration limit".into());
+    }
     let source = store.read_object(&p.source_sha256, p.source_size)?;
-    let assignments = ini::scalar_assignments(&ini::decode(&source)?.text)?;
+    let assignments = preset_assignments_from_bytes(&p.source_entry, &source)?;
     let mut text = decoded.text.clone();
     let mut switched_off = Vec::new();
     for d in manifest

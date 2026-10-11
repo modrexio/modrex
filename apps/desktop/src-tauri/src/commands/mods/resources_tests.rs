@@ -1,6 +1,178 @@
 use super::*;
 use std::fs;
 
+#[test]
+fn changed_staged_ini_sources_cannot_replace_disabled_presets() {
+    for (changed, expected) in [
+        (b"".as_slice(), "sets nothing"),
+        (b"[S]\n+A=2\n".as_slice(), "array operator"),
+        (b"\xEF\xBB\xBF\xFF".as_slice(), "UTF-8"),
+        (b"[S]\r\nA=2\n".as_slice(), "mixes line endings"),
+    ] {
+        let temp = tempfile::tempdir().unwrap();
+        let store = ResourceStore::at(temp.path().join("recovery"));
+        let config = temp.path().canonicalize().unwrap().join("Engine.ini");
+        let original = b"[S]\nA=0\n";
+        fs::write(&config, original).unwrap();
+        let mut previous = preset(&store, &config, b"[S]\nA=1\n");
+        previous.game_id = "ron".into();
+        previous.source = Some("nexus".into());
+        previous.remote_id = Some("6849".into());
+        previous.enabled = false;
+        store
+            .apply("ron", vec![], |m| m.deployments.push(previous.clone()))
+            .unwrap();
+        let manifest = store.load_manifest().unwrap();
+        let before = serde_json::to_vec(&manifest).unwrap();
+        let mut incoming = previous;
+        incoming.id = "update".into();
+        incoming.version = "2".into();
+        let staged = temp.path().join("staged.ini");
+        fs::write(&staged, b"[S]\nA=2\n").unwrap();
+        assert!(preset_assignments("Engine.ini", &staged).is_ok());
+        fs::write(&staged, changed).unwrap();
+        let error = install_preset_from_staging(
+            &store,
+            incoming,
+            &staged,
+            Some(manifest.revision),
+            &live_content(&config).unwrap(),
+        )
+        .unwrap_err();
+        assert!(error.contains(expected), "{error}");
+        assert_eq!(fs::read(&config).unwrap(), original);
+        assert_eq!(
+            serde_json::to_vec(&store.load_manifest().unwrap()).unwrap(),
+            before
+        );
+    }
+}
+
+#[test]
+fn a_valid_disabled_preset_update_preserves_the_disabled_state_and_live_config() {
+    let temp = tempfile::tempdir().unwrap();
+    let store = ResourceStore::at(temp.path().join("recovery"));
+    let config = temp.path().canonicalize().unwrap().join("Engine.ini");
+    let original = b"[S]\nA=0\n";
+    fs::write(&config, original).unwrap();
+    let mut previous = preset(&store, &config, b"[S]\nA=1\n");
+    previous.game_id = "ron".into();
+    previous.source = Some("nexus".into());
+    previous.remote_id = Some("6849".into());
+    previous.enabled = false;
+    store
+        .apply("ron", vec![], |m| m.deployments.push(previous.clone()))
+        .unwrap();
+    let manifest = store.load_manifest().unwrap();
+    let mut incoming = previous;
+    incoming.id = "update".into();
+    incoming.version = "2".into();
+    let staged = temp.path().join("staged.ini");
+    let source = b"[S]\nA=2\n";
+    fs::write(&staged, source).unwrap();
+    install_preset_from_staging(
+        &store,
+        incoming,
+        &staged,
+        Some(manifest.revision),
+        &live_content(&config).unwrap(),
+    )
+    .unwrap();
+    let manifest = store.load_manifest().unwrap();
+    assert_eq!(manifest.deployments.len(), 1);
+    let updated = &manifest.deployments[0];
+    assert_eq!(updated.id, "update");
+    assert_eq!(updated.version, "2");
+    assert!(!updated.enabled);
+    let body = preset_of(updated).unwrap();
+    assert_eq!(body.source_sha256, sha256_hex(source));
+    assert_eq!(
+        store
+            .read_object(&body.source_sha256, body.source_size)
+            .unwrap(),
+        source
+    );
+    assert_eq!(fs::read(&config).unwrap(), original);
+}
+
+#[test]
+fn an_oversized_staged_preset_is_rejected_before_creating_a_recovery_copy() {
+    let temp = tempfile::tempdir().unwrap();
+    let store = ResourceStore::at(temp.path().join("recovery"));
+    let config = temp.path().canonicalize().unwrap().join("Engine.ini");
+    let original = b"[S]\nA=0\n";
+    fs::write(&config, original).unwrap();
+    let mut previous = preset(&store, &config, b"[S]\nA=1\n");
+    previous.enabled = false;
+    store
+        .apply("pd3", vec![], |m| m.deployments.push(previous.clone()))
+        .unwrap();
+    let manifest = store.load_manifest().unwrap();
+    let before = serde_json::to_vec(&manifest).unwrap();
+    let object_count = fs::read_dir(store.object_path("")).unwrap().count();
+    let mut incoming = previous;
+    incoming.id = "update".into();
+    let staged = temp.path().join("staged.ini");
+    fs::write(&staged, b"[S]\nA=2\n").unwrap();
+    fs::OpenOptions::new()
+        .write(true)
+        .open(&staged)
+        .unwrap()
+        .set_len(MAX_INI_BYTES + 1)
+        .unwrap();
+    let error = install_preset_from_staging(
+        &store,
+        incoming,
+        &staged,
+        Some(manifest.revision),
+        &live_content(&config).unwrap(),
+    )
+    .unwrap_err();
+    assert!(error.contains("1 MiB"));
+    assert_eq!(
+        fs::read_dir(store.object_path("")).unwrap().count(),
+        object_count
+    );
+    assert_eq!(fs::read(&config).unwrap(), original);
+    assert_eq!(
+        serde_json::to_vec(&store.load_manifest().unwrap()).unwrap(),
+        before
+    );
+}
+
+#[test]
+fn stored_ini_sources_keep_the_same_admission_rules_when_enabled() {
+    for (source, source_entry, expected) in [
+        (
+            b"[S]\r\nA=1\n".as_slice(),
+            "Engine.ini",
+            "mixes line endings",
+        ),
+        (b"[S]\nA=1\n".as_slice(), "Input.ini", "only Engine.ini"),
+    ] {
+        let temp = tempfile::tempdir().unwrap();
+        let store = ResourceStore::at(temp.path().join("recovery"));
+        let config = temp.path().canonicalize().unwrap().join("Engine.ini");
+        let original = b"[S]\nA=0\n";
+        fs::write(&config, original).unwrap();
+        let mut deployment = preset(&store, &config, source);
+        deployment.enabled = false;
+        let DeploymentBody::Ini { preset } = &mut deployment.body else {
+            unreachable!()
+        };
+        preset.source_entry = source_entry.into();
+        let manifest = store.load_manifest().unwrap();
+        let before = serde_json::to_vec(&manifest).unwrap();
+        let error = apply_preset(&store, "pd3", &manifest, deployment, None).unwrap_err();
+        assert!(error.contains(expected), "{error}");
+        assert_eq!(fs::read(&config).unwrap(), original);
+        assert_eq!(
+            serde_json::to_vec(&store.load_manifest().unwrap()).unwrap(),
+            before
+        );
+    }
+}
+
 #[tokio::test]
 async fn pending_launch_blocks_writers_during_preparation_and_delayed_store_handoff() {
     let locks = ResourceLocks::default();

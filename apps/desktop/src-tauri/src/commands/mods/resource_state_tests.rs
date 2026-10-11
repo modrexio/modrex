@@ -1,6 +1,23 @@
 use super::*;
 
 #[test]
+fn stored_source_reads_reject_extra_bytes_after_an_intact_prefix() {
+    let temp = tempfile::tempdir().unwrap();
+    let store = ResourceStore::at(temp.path().join("recovery"));
+    let source = b"[SystemSettings]\nr.MotionBlurQuality=0\n";
+    let Content::Present { sha256, size } = store.put_bytes(source).unwrap() else {
+        unreachable!()
+    };
+    let mut changed = source.to_vec();
+    changed.extend(vec![b'X'; 128 * 1024]);
+    fs::write(store.object_path(&sha256), changed).unwrap();
+    assert!(store
+        .read_object(&sha256, size)
+        .unwrap_err()
+        .contains("damaged"));
+}
+
+#[test]
 fn recovery_folder_lookup_does_not_create_missing_storage() {
     let temp = tempfile::tempdir().unwrap();
     let root = temp.path().join("resources");
