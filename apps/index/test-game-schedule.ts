@@ -9,8 +9,6 @@ import { GAME_IDS, type GameId } from '@modrex/games'
 
 import { SERVICE_CEILING, chooseNextGame, turnKey } from './postgres/game-schedule.js'
 
-const BOUND = SERVICE_CEILING + GAME_IDS.length - 1
-
 type Counts = Record<GameId, number>
 
 interface Workload {
@@ -43,6 +41,7 @@ function simulate(scenario: Scenario, runs: number, limit = 1000) {
         number | null
     >
     const order: GameId[] = []
+    const activeGames = new Set<GameId>()
     let maxTurn = 0
 
     for (let run = 1; run <= runs; run++) {
@@ -57,6 +56,7 @@ function simulate(scenario: Scenario, runs: number, limit = 1000) {
         const candidates = GAME_IDS.filter((game) => real[game] + residue[game] > 0).map(
             (game) => ({ game, pending: real[game] + residue[game], lastTurn: lastTurn[game] })
         )
+        for (const candidate of candidates) activeGames.add(candidate.game)
         const next = chooseNextGame(candidates, maxTurn)
         if (next) {
             order.push(next)
@@ -74,7 +74,8 @@ function simulate(scenario: Scenario, runs: number, limit = 1000) {
     }
 
     const totalPicks = GAME_IDS.reduce((sum, game) => sum + picks[game], 0)
-    return { picks, order, worstWait, totalPicks, real, residue }
+    const serviceBound = SERVICE_CEILING + activeGames.size - 1
+    return { picks, order, worstWait, totalPicks, real, residue, serviceBound }
 }
 
 const worstOf = (result: { worstWait: Counts }) =>
@@ -214,9 +215,9 @@ const starvation = simulate(
 )
 assert.equal(starvation.picks.pd3 > 0, true, 'a residue-backed trickle must not starve pd3')
 assert.equal(
-    worstOf(starvation) <= BOUND,
+    worstOf(starvation) <= starvation.serviceBound,
     true,
-    `worst wait ${worstOf(starvation)} must stay within ${BOUND}`
+    `worst wait ${worstOf(starvation)} must stay within ${starvation.serviceBound}`
 )
 
 // Bounded service across the shapes the pipeline actually produces.
@@ -237,7 +238,7 @@ const scenarios: Record<string, Scenario> = {
             workload.real.pd2 += 1
         },
     },
-    'every game residue only': { residue: { pd3: 3, pd2: 3, pdth: 3, cb: 3, raid: 3 } },
+    'every game residue only': { residue: Object.fromEntries(GAME_IDS.map((game) => [game, 3])) },
     'an empty game receives one listing': {
         residue: { pd2: 27 },
         arrive: (workload, run) => {
@@ -268,9 +269,9 @@ const scenarios: Record<string, Scenario> = {
 for (const [name, scenario] of Object.entries(scenarios)) {
     const result = simulate(scenario, 400)
     assert.equal(
-        worstOf(result) <= BOUND,
+        worstOf(result) <= result.serviceBound,
         true,
-        `${name}: worst wait ${worstOf(result)} exceeded ${BOUND}`
+        `${name}: worst wait ${worstOf(result)} exceeded ${result.serviceBound}`
     )
 }
 
@@ -297,17 +298,25 @@ assert.equal(proportional.totalPicks, 15, 'no run is spent once every backlog ha
 // The share holds only while that game stays the largest, so the backlog here is far
 // bigger than the run count can drain. Comparable backlogs are the case above.
 
-const dominant = simulate(
-    { real: { pd2: 1_000_000_000 }, residue: { pd3: 5, pdth: 5, cb: 5, raid: 5 } },
-    3000
-)
-const dominantShare = dominant.picks.pd2 / dominant.totalPicks
-const predictedShare = 1 - (GAME_IDS.length - 1) / (SERVICE_CEILING + 1)
-assert.equal(
-    Math.abs(dominantShare - predictedShare) < 0.01,
-    true,
-    `dominant share ${dominantShare.toFixed(3)} must hold near ${predictedShare.toFixed(3)}`
-)
+const competingResidues = [
+    { pd3: 5, pdth: 5, cb: 5, raid: 5 },
+    { pd3: 5 },
+    Object.fromEntries(
+        GAME_IDS.filter((game) => game !== 'pd2')
+            .slice(0, SERVICE_CEILING)
+            .map((game) => [game, 5])
+    ),
+]
+for (const residue of competingResidues) {
+    const dominant = simulate({ real: { pd2: 1_000_000_000 }, residue }, 3000)
+    const dominantShare = dominant.picks.pd2 / dominant.totalPicks
+    const predictedShare = 1 - Object.keys(residue).length / (SERVICE_CEILING + 1)
+    assert.equal(
+        Math.abs(dominantShare - predictedShare) < 0.01,
+        true,
+        `dominant share ${dominantShare.toFixed(3)} must hold near ${predictedShare.toFixed(3)}`
+    )
+}
 
 // Randomised shapes, because the bound has to survive candidates coming and going.
 
@@ -337,9 +346,9 @@ for (let trial = 0; trial < 100; trial++) {
         500
     )
     assert.equal(
-        worstOf(result) <= BOUND,
+        worstOf(result) <= result.serviceBound,
         true,
-        `randomised trial ${trial}: worst wait ${worstOf(result)} exceeded ${BOUND}`
+        `randomised trial ${trial}: worst wait ${worstOf(result)} exceeded ${result.serviceBound}`
     )
 }
 

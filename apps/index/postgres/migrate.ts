@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 
+import { GAMES } from '@modrex/games'
 import { neon } from '@neondatabase/serverless'
 
 import { bootstrapCatalog } from './bootstrap.js'
@@ -44,5 +45,11 @@ for (const migration of migrations) {
     console.log(`Applied ${migration.version}`)
 }
 
-await bootstrapCatalog(sql)
+await bootstrapCatalog(
+    {
+        query: async <T>(text: string, values: unknown[] = []) =>
+            (await sql.query(text, values)) as T[],
+    },
+    GAMES
+)
 console.log('Bootstrapped game catalog')

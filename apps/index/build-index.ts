@@ -54,7 +54,7 @@ const RECHECK_ALL = process.argv.includes('--recheck-all')
 const STAGED_REBUILD = process.argv.includes('--staged-rebuild')
 const FINALIZE_REBUILD = process.argv.includes('--finalize-rebuild')
 const SELECTED_GAME = process.argv.find((a) => a.startsWith('--game='))?.split('=')[1] ?? null
-const VALID_GAMES = GAME_IDS
+const VALID_GAMES = GAME_IDS.filter((game) => GAMES[game].workshopId !== undefined)
 type GameSlug = GameId
 const MAX_RUNTIME_MINUTES = parseFloat(
     process.argv.find((a) => a.startsWith('--max-runtime-minutes='))?.split('=')[1] ?? '0'

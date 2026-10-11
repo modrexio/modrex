@@ -4,7 +4,14 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { PGlite } from '@electric-sql/pglite'
+import { GAMES } from '@modrex/games'
 import Sqlite from 'better-sqlite3'
+import { bootstrapCatalog } from './postgres/bootstrap.js'
+import {
+    verifyModWorkshopSources,
+    type CatalogGames,
+    type ModWorkshopSource,
+} from './postgres/catalog.js'
 import type { Database, Statement } from './postgres/database.js'
 import { syncGameListings } from './postgres/listing-sync.js'
 import { ModWorkshop, parseFile, parseVersions } from './postgres/modworkshop.js'
@@ -80,6 +87,106 @@ async function catalog(): Promise<{ pg: PGlite; db: Database }> {
         SELECT id, 'modworkshop', 'https://modworkshop.net', '1' FROM games;
     `)
     return { pg, db: database(pg) }
+}
+
+{
+    const pg = new PGlite('memory://')
+    for (const migration of migrations) {
+        for (const statement of migration.statements) await pg.exec(statement)
+    }
+    const db = database(pg)
+    const nexusOnlyGame = { name: 'Nexus Only', nexusDomain: 'nexusonly' }
+    const games: CatalogGames = { ...GAMES, nexus_only: nexusOnlyGame }
+    await bootstrapCatalog(db, games)
+    await bootstrapCatalog(db, games)
+
+    const storedGames = await db.query<{ slug: string; name: string }>(
+        'SELECT slug, name FROM games ORDER BY slug'
+    )
+    assert.deepEqual(
+        storedGames,
+        Object.entries(games)
+            .map(([slug, game]) => ({ slug, name: game.name }))
+            .sort((left, right) => left.slug.localeCompare(right.slug)),
+        'bootstrap preserves every declared game without duplicate rows'
+    )
+
+    const rows = await db.query<ModWorkshopSource>(`
+        SELECT games.slug, games.name, sources.game_ref
+        FROM games
+        JOIN sources ON sources.game_id = games.id
+        WHERE sources.name = 'modworkshop'
+        ORDER BY games.slug
+    `)
+    verifyModWorkshopSources(rows, games)
+    const legacyBindings = { cb: '857', pd2: '1', pd3: '853', pdth: '2', raid: '543' }
+    assert.deepEqual(
+        Object.fromEntries(
+            rows
+                .filter((row) => Object.hasOwn(legacyBindings, row.slug))
+                .map((row) => [row.slug, row.game_ref])
+        ),
+        legacyBindings,
+        'the existing ModWorkshop bindings remain unchanged'
+    )
+    assert.deepEqual(
+        await db.query<{ base_url: string }>(
+            'SELECT DISTINCT base_url FROM sources WHERE name = $1',
+            ['modworkshop']
+        ),
+        [{ base_url: 'https://api.modworkshop.net' }]
+    )
+    for (const [slug, game] of Object.entries(games)) {
+        if (game.workshopId !== undefined) continue
+        assert.deepEqual(
+            await db.query<{ name: string }>(
+                `SELECT sources.name FROM sources JOIN games ON games.id = sources.game_id
+                 WHERE games.slug = $1`,
+                [slug]
+            ),
+            [],
+            `${slug} has no fabricated index source`
+        )
+        assert.deepEqual(await selectContentListings(db, slug, 10, new Date()), [])
+    }
+    assert.throws(() => verifyModWorkshopSources(rows.slice(1), games), /Expected/)
+    assert.throws(
+        () =>
+            verifyModWorkshopSources([{ ...rows[0], name: 'Wrong name' }, ...rows.slice(1)], games),
+        /name does not match/
+    )
+    assert.throws(
+        () =>
+            verifyModWorkshopSources(
+                [{ ...rows[0], game_ref: 'undefined' }, ...rows.slice(1)],
+                games
+            ),
+        /ModWorkshop ID does not match/
+    )
+    assert.throws(
+        () =>
+            verifyModWorkshopSources([{ ...rows[0], slug: 'nexus_only' }, ...rows.slice(1)], games),
+        /Missing cb ModWorkshop source/
+    )
+    assert.throws(
+        () => verifyModWorkshopSources([rows[1], ...rows.slice(1)], games),
+        /Missing cb ModWorkshop source/
+    )
+    verifyModWorkshopSources([], { nexus_only: games.nexus_only })
+
+    await pg.exec(`
+        INSERT INTO sources (game_id, name, base_url, game_ref)
+        SELECT id, 'modworkshop', 'https://api.modworkshop.net', 'undefined'
+        FROM games WHERE slug = 'nexus_only';
+    `)
+    const pollutedRows = await db.query<ModWorkshopSource>(`
+        SELECT games.slug, games.name, sources.game_ref
+        FROM games
+        JOIN sources ON sources.game_id = games.id
+        WHERE sources.name = 'modworkshop'
+    `)
+    assert.throws(() => verifyModWorkshopSources(pollutedRows, games), /Expected/)
+    await pg.close()
 }
 
 function response(body: unknown, status = 200): Response {

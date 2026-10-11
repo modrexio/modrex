@@ -7,13 +7,9 @@ export interface ScheduleCandidate {
     lastTurn: number | null
 }
 
-// A refresh run processes one game, so a game that is never selected is never indexed.
-// A game holding pending work is forced into service once it has gone this many turns
-// without one, which bounds the wait at SERVICE_CEILING + GAME_IDS.length - 1 runs, six
-// hours against the thirty minute dispatch cadence. Each competitor can claim at most one
-// turn per SERVICE_CEILING + 1 runs, so a game that keeps winning the pending comparison
-// still holds 1 - (GAME_IDS.length - 1) / (SERVICE_CEILING + 1) of the turns. Raising the
-// ceiling buys that share back and lengthens the wait by the same number of runs.
+// Eight turns retain a dominant backlog's majority when four rivals stay pending.
+// Raising the ceiling gives that backlog more turns and postpones forced rival service.
+// test-game-schedule.ts enforces the service bound and active-competitor share.
 export const SERVICE_CEILING = 8
 
 export function turnKey(game: GameId): string {
