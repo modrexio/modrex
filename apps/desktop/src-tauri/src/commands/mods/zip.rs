@@ -1,5 +1,5 @@
 use super::cleanup::{self, CleanupPlan};
-use super::engine::{DecoderBinding, ModEngineConfig, ModUnit, ScanTarget};
+use super::engine::{DecoderBinding, ModEngineConfig, ModUnit};
 use super::host_mods::detect_host_pack;
 use super::paths::{active_mod_path, disabled_mod_path};
 use super::staged::{NameSource, Staged};
@@ -1372,7 +1372,7 @@ pub enum ResolveError {
 pub struct ResourceArchive {
     /// The downloaded file. A temp artifact the install owns, never a user's dropped original.
     pub downloaded: PathBuf,
-    /// False for a loose .bk2 or .ini download, which is its own only member.
+    /// False for a loose movie or INI download, which is its own only member.
     pub is_archive: bool,
     /// Archive members to review: resources and the components nothing here installs, each
     /// with its position in the archive's enumeration order. None marks a UE4SS sub-mod
@@ -1410,7 +1410,9 @@ fn detect_resource_download(
     if movies.is_none() && config.is_none() {
         if detect_archive(downloaded).is_none()
             && downloaded.extension().is_some_and(|extension| {
-                extension.eq_ignore_ascii_case("bk2") || extension.eq_ignore_ascii_case("ini")
+                extension.eq_ignore_ascii_case("bk2")
+                    || extension.eq_ignore_ascii_case("mp4")
+                    || extension.eq_ignore_ascii_case("ini")
             })
         {
             return Err(ResolveError::Failure(format!(
@@ -1425,18 +1427,24 @@ fn detect_resource_download(
             .extension()
             .and_then(|value| value.to_str())
             .unwrap_or("");
-        if (ext.eq_ignore_ascii_case("bk2") && movies.is_none())
-            || (ext.eq_ignore_ascii_case("ini") && config.is_none())
-        {
+        if ext.eq_ignore_ascii_case("ini") && config.is_none() {
             return Err(ResolveError::Failure(format!(
-                "{} are not supported for {}",
-                if ext.eq_ignore_ascii_case("ini") {
-                    "Standalone INI presets"
-                } else {
-                    "Movie replacements"
-                },
+                "Standalone INI presets are not supported for {}",
                 cfg.game_id
             )));
+        }
+        if (ext.eq_ignore_ascii_case("bk2") || ext.eq_ignore_ascii_case("mp4"))
+            && !movies.is_some_and(|binding| ext.eq_ignore_ascii_case(binding.extension()))
+        {
+            let error = match movies {
+                Some(binding) => format!(
+                    "{} accepts .{} movie replacements",
+                    cfg.game_id,
+                    binding.extension()
+                ),
+                None => format!("Movie replacements are not supported for {}", cfg.game_id),
+            };
+            return Err(ResolveError::Failure(error));
         }
         if downloaded
             .extension()
@@ -1535,14 +1543,16 @@ fn detect_resource_download(
     };
     let mut pak_picker = None;
     if !paks.is_empty() {
-        pak_picker = Some(multi_pak_payload(
+        let mut picker = multi_pak_payload(
             registry,
             downloaded.to_string_lossy().to_string(),
             paks,
             None,
             None,
             None,
-        )?);
+        )?;
+        picker.shared_paks = cfg.primary().native_steam_app.is_some();
+        pak_picker = Some(picker);
     }
     Ok(Some(ResourceArchive {
         downloaded: downloaded.to_path_buf(),
@@ -1670,26 +1680,78 @@ fn inert_pak_document(name: &str) -> bool {
     ) || (extension.is_empty() && (name.starts_with("created by ") || name.starts_with("discord ")))
 }
 
-fn validate_shared_pak_download(downloaded: &Path, target: &ScanTarget) -> Result<(), String> {
-    let ModUnit::File { extension, .. } = &target.unit else {
+#[cfg(windows)]
+fn validate_shared_windows_member_paths(names: &HashSet<String>) -> Result<(), String> {
+    if names.iter().all(|name| name.is_ascii()) {
+        return Ok(());
+    }
+    let mut paths: Vec<_> = names
+        .iter()
+        .map(|name| (name.encode_utf16().collect::<Vec<_>>(), name))
+        .collect();
+    let mut failure = None;
+    paths.sort_unstable_by(|(left, _), (right, _)| {
+        match crate::commands::launchers::steam_manifest::windows_path_order(left, right) {
+            Ok(order) => order,
+            Err(error) => {
+                failure = Some(error);
+                left.cmp(right)
+            }
+        }
+    });
+    if let Some(error) = failure {
+        return Err(error);
+    }
+    for pair in paths.windows(2) {
+        if crate::commands::launchers::steam_manifest::windows_path_order(&pair[0].0, &pair[1].0)?
+            == std::cmp::Ordering::Equal
+        {
+            return Err(format!(
+                "This archive contains duplicate package paths ('{}') under Windows ordinal casing. Nothing was installed. Ask the author for an archive with distinct file paths.",
+                pair[1].1
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn validate_shared_pak_download(downloaded: &Path, cfg: &ModEngineConfig) -> Result<(), String> {
+    let ModUnit::File { extension, .. } = &cfg.primary().unit else {
         return Err("Shared Pak targets must install file units".to_string());
     };
+    let spec = crate::commands::games::game_spec(cfg.game_id)
+        .ok_or_else(|| format!("unknown game id '{}'", cfg.game_id))?;
     if detect_archive(downloaded).is_none() {
         if downloaded
             .extension()
             .and_then(|value| value.to_str())
-            .is_some_and(|value| value.eq_ignore_ascii_case(extension))
+            .is_some_and(|value| {
+                value.eq_ignore_ascii_case(extension)
+                    || spec
+                        .movie_replacement
+                        .is_some_and(|binding| value.eq_ignore_ascii_case(binding.extension()))
+                    || (spec.config_presets.is_some() && value.eq_ignore_ascii_case("ini"))
+            })
         {
             return Ok(());
         }
-        return Err(format!(
-            "This game currently supports .{extension} packages only. Install this file using its author's instructions."
-        ));
+        return Err("This game does not support this file as a package, movie replacement or Engine.ini preset. Install this file using its author's instructions.".into());
     }
     let entries = list_entries(downloaded)?;
     let mut member_names = HashSet::new();
     for entry in &entries {
-        if !entry.is_dir && !member_names.insert(entry.name.to_ascii_lowercase()) {
+        let relative = safe_dest(Path::new(""), &entry.name).ok_or_else(|| {
+            format!(
+                "This package contains unsafe path '{}'. Nothing was installed. Ask the author for an archive with safe relative paths.",
+                entry.name
+            )
+        })?;
+        let normalized: PathBuf = relative
+            .components()
+            .filter(|component| matches!(component, std::path::Component::Normal(_)))
+            .collect();
+        if !entry.is_dir && !member_names.insert(normalized.to_string_lossy().to_ascii_lowercase())
+        {
             return Err(format!(
                 "This archive contains duplicate package paths ('{}'). Nothing was installed. Ask the author for an archive with distinct file paths.",
                 entry.name
@@ -1705,19 +1767,29 @@ fn validate_shared_pak_download(downloaded: &Path, target: &ScanTarget) -> Resul
         if entry.is_dir {
             continue;
         }
-        if entry
-            .name
-            .to_ascii_lowercase()
-            .ends_with(&format!(".{extension}"))
+        let filename = entry_file_name(&entry.name);
+        let member_extension = Path::new(filename)
+            .extension()
+            .and_then(|value| value.to_str())
+            .unwrap_or("");
+        if member_extension.eq_ignore_ascii_case(extension)
+            || spec
+                .movie_replacement
+                .is_some_and(|binding| member_extension.eq_ignore_ascii_case(binding.extension()))
+            || spec
+                .config_presets
+                .is_some_and(|binding| filename.eq_ignore_ascii_case(binding.filename()))
             || inert_pak_document(&entry.name)
         {
             continue;
         }
         return Err(format!(
-            "This package contains unsupported file '{}'. Nothing was installed. This game currently supports .{extension} packages and author documentation only. Install this package using its author's instructions.",
+            "This package contains unsupported file '{}'. Nothing was installed. Only supported packages, declared movie replacements, Engine.ini presets and author documentation can be installed. Follow this package author's instructions.",
             entry.name
         ));
     }
+    #[cfg(windows)]
+    validate_shared_windows_member_paths(&member_names)?;
     Ok(())
 }
 
@@ -1733,9 +1805,12 @@ pub(crate) fn shared_pak_update_choice(
     cfg: &ModEngineConfig,
     registry: &StagingRegistry,
 ) -> ResolvedArchive {
-    if let Err(error) = validate_shared_pak_download(&downloaded, cfg.primary()) {
+    if let Err(error) = validate_shared_pak_download(&downloaded, cfg) {
         cleanup::run_sync(&CleanupPlan::RemoveOwnedFile(downloaded));
         return Err(ResolveError::Failure(error));
+    }
+    if let Some(resources) = detect_resources(&downloaded, cfg, registry)? {
+        return Err(ResolveError::Resources(Box::new(resources)));
     }
     let extension = cfg
         .primary()
@@ -1774,7 +1849,7 @@ pub fn resolve_archive_download(
     registry: &StagingRegistry,
 ) -> ResolvedArchive {
     if cfg.primary().native_steam_app.is_some() {
-        if let Err(error) = validate_shared_pak_download(&downloaded, cfg.primary()) {
+        if let Err(error) = validate_shared_pak_download(&downloaded, cfg) {
             cleanup::run_sync(&CleanupPlan::RemoveOwnedFile(downloaded));
             return Err(ResolveError::Failure(error));
         }

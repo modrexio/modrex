@@ -28,9 +28,9 @@
     "resources": {
         "details": "Technical details",
         "launchWithoutPackages": "Launch without package mods",
-        "launchDescription": "Temporarily disables mod folders. Movie replacements and INI settings stay selected.",
-        "launchMoviesDescription": "Temporarily disables mod folders. Movie replacements stay selected.",
-        "launchConfigDescription": "Temporarily disables mod folders. INI settings stay selected.",
+        "launchDescription": "Movie replacements and INI settings are unchanged.",
+        "launchMoviesDescription": "Movie replacements are unchanged.",
+        "launchConfigDescription": "INI settings are unchanged.",
         "movie": "Movie replacement",
         "ini": "INI preset",
         "status": {
@@ -83,6 +83,7 @@
             "configTarget": "Engine.ini location",
             "configUnavailable": "Modrex needs your game's active Engine.ini before it can check and apply these presets. Choose it below.",
             "singleVariant": "Choose one preset. Modrex applies its supported settings and keeps your other preferences.",
+            "readOnlyHelp": "If Engine.ini is read-only, clear that attribute before changing presets in Modrex. Restore it afterward if the mod author requires it.",
             "apply": "Install selected",
             "next": {
                 "chooseFiles": "Select a movie replacement or INI preset to install.",

@@ -3,6 +3,34 @@ name = "Ready or Not"
 short_name = "RoN"
 mod_metadata = "none"
 
+movie_replacement = {
+    format = "mp4",
+    directory = ["ReadyOrNot", "Content", "Movies"],
+    storefronts = ["steam"],
+}
+
+config_presets = {
+    format = "unreal_engine_ini",
+    locations = [
+        {
+            root = "windows_local_app_data",
+            store = "steam",
+            path = ["ReadyOrNot", "Saved", "Config", "Windows", "Engine.ini"],
+        },
+    ],
+}
+
+graphics_config = {
+    filename = "GameUserSettings.ini",
+    locations = [
+        {
+            root = "windows_local_app_data",
+            store = "steam",
+            path = ["ReadyOrNot", "Saved", "Config", "Windows", "GameUserSettings.ini"],
+        },
+    ],
+}
+
 sources = [
     {
         provider = "nexus",

@@ -173,6 +173,91 @@ fn stored_ini_sources_keep_the_same_admission_rules_when_enabled() {
     }
 }
 
+#[test]
+fn ready_or_not_scalar_presets_preserve_repeated_paths_and_existing_manual_settings() {
+    let temp = tempfile::tempdir().unwrap();
+    let store = ResourceStore::at(temp.path().join("recovery"));
+    let path = temp.path().canonicalize().unwrap().join("Engine.ini");
+    let original = b"[Core.System]\r\nPaths=../../../Engine/Content\r\nPaths=%GAMEDIR%Content\r\n[SystemSettings]\r\nr.MotionBlurQuality=1\r\nr.Tonemapper.Sharpen=0.5\r\n";
+    fs::write(&path, original).unwrap();
+    let mut deployment = preset(
+        &store,
+        &path,
+        b"[SystemSettings]\nr.MotionBlurQuality=0\nr.Tonemapper.Sharpen=0.5\n",
+    );
+    deployment.game_id = "ron".into();
+    deployment.source = Some("local".into());
+    deployment.remote_id = None;
+    deployment.file_id = None;
+    apply_preset(
+        &store,
+        "ron",
+        &store.load_manifest().unwrap(),
+        deployment,
+        None,
+    )
+    .unwrap();
+    let manifest = store.load_manifest().unwrap();
+    let deployment = &manifest.deployments[0];
+    assert_eq!(preset_of(deployment).unwrap().changes.len(), 1);
+    let expected = String::from_utf8(original.to_vec())
+        .unwrap()
+        .replace("r.MotionBlurQuality=1", "r.MotionBlurQuality=0");
+    assert_eq!(fs::read(&path).unwrap(), expected.as_bytes());
+    fs::write(&path, format!("{expected}r.Anisotropy=8\r\n")).unwrap();
+    release_preset(&store, "ron", deployment, true).unwrap();
+    let mut restored = original.to_vec();
+    restored.extend_from_slice(b"r.Anisotropy=8\r\n");
+    assert_eq!(fs::read(&path).unwrap(), restored);
+    assert!(store.load_manifest().unwrap().deployments.is_empty());
+}
+
+#[test]
+fn a_read_only_ready_or_not_config_refuses_application_without_claiming_the_file() {
+    let temp = tempfile::tempdir().unwrap();
+    let store = ResourceStore::at(temp.path().join("recovery"));
+    let path = temp.path().canonicalize().unwrap().join("Engine.ini");
+    let original = b"[SystemSettings]\r\nr.MotionBlurQuality=1\r\n";
+    fs::write(&path, original).unwrap();
+    let mut deployment = preset(&store, &path, b"[SystemSettings]\nr.MotionBlurQuality=0\n");
+    deployment.game_id = "ron".into();
+    let permissions = fs::metadata(&path).unwrap().permissions();
+    let mut read_only = permissions.clone();
+    read_only.set_readonly(true);
+    fs::set_permissions(&path, read_only).unwrap();
+    let before = serde_json::to_vec(&store.load_manifest().unwrap()).unwrap();
+    let result = apply_preset(
+        &store,
+        "ron",
+        &store.load_manifest().unwrap(),
+        deployment,
+        None,
+    );
+    let preserved = fs::read(&path).unwrap();
+    let still_read_only = fs::metadata(&path).unwrap().permissions().readonly();
+    fs::set_permissions(&path, permissions).unwrap();
+    assert!(result.unwrap_err().contains("read-only"));
+    assert_eq!(preserved, original);
+    assert!(still_read_only);
+    assert_eq!(
+        serde_json::to_vec(&store.load_manifest().unwrap()).unwrap(),
+        before
+    );
+}
+
+#[test]
+fn loose_presets_require_the_author_filename_before_scalar_review() {
+    let temp = tempfile::tempdir().unwrap();
+    let path = temp.path().join("download.ini");
+    let bytes = b"[SystemSettings]\nr.MotionBlurQuality=0\n";
+    fs::write(&path, bytes).unwrap();
+    assert!(preset_assignments("Engine.ini", &path).is_ok());
+    for name in ["Input.ini", "Engine-6849-1-0.ini", "GameUserSettings.ini"] {
+        assert!(preset_assignments(name, &path).is_err(), "{name}");
+        assert_eq!(fs::read(&path).unwrap(), bytes);
+    }
+}
+
 #[tokio::test]
 async fn pending_launch_blocks_writers_during_preparation_and_delayed_store_handoff() {
     let locks = ResourceLocks::default();
@@ -398,6 +483,17 @@ fn recovery_opener_does_not_wait_for_or_kill_a_running_file_manager() {
     child.wait().unwrap();
     assert!(result.is_ok());
     assert!(running);
+}
+
+#[test]
+fn movies_in_the_wrong_declared_format_are_rejected_without_staging() {
+    for (game_id, name, extension) in [("pd3", "trailer.mp4", "bk2"), ("ron", "trailer.bk2", "mp4")]
+    {
+        let spec = game_spec(game_id).unwrap();
+        let (kind, verdict) = assess(name, None, &Ok(vec![]), spec.movie_replacement, None);
+        assert!(matches!(kind, ResourceEntryKind::Movie));
+        assert!(verdict.unwrap_err().contains(&format!(".{extension}")));
+    }
 }
 
 #[test]

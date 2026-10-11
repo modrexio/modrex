@@ -92,6 +92,9 @@ export const GAME_SPECS = {
         storageKey: 'ron',
         hasNews: false,
         supportsPackageViewer: false,
+        movieReplacement: { extension: 'mp4', storefronts: ['steam'] },
+        configPresets: { filename: 'Engine.ini' },
+        graphicsConfig: { filename: 'GameUserSettings.ini' },
         launchers: ['Steam'],
         modTargets: [
             { id: 'paks', path: 'ReadyOrNot/Content/Paks' },

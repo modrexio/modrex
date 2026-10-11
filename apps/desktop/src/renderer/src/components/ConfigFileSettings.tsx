@@ -116,6 +116,9 @@ export function ConfigFileSettings({
 
     return (
         <SettingsSection title={title} description={t('resources.config.description')}>
+            {filename === 'Engine.ini' && (
+                <p className="text-xs text-text-subtle">{t('resources.install.readOnlyHelp')}</p>
+            )}
             <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-surface-hover border border-border mt-1">
                 {checking ? (
                     <span className="text-sm flex-1 min-w-0 text-text-muted flex items-center gap-2">

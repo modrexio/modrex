@@ -194,9 +194,7 @@ it.each(['movies', 'config'] as const)(
         render(<GameTopBar activeGame="pd2" gamePath="C:/game" />)
         const button = screen.getByRole('button', { name: 'Launch without package mods' })
         expect(button.parentElement?.getAttribute('data-description')).toBe(
-            kind === 'movies'
-                ? 'Temporarily disables mod folders. Movie replacements stay selected.'
-                : 'Temporarily disables mod folders. INI settings stay selected.'
+            kind === 'movies' ? 'Movie replacements are unchanged.' : 'INI settings are unchanged.'
         )
     }
 )

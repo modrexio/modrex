@@ -1,15 +1,16 @@
 ---
 title: Ready or Not
-description: Windows Steam setup and PAK mod installation from Nexus archives or local files.
+description: Windows Steam setup, Pak mods, MP4 movie replacements, and Engine.ini presets.
 sidebar:
     order: 60
 ---
 
 import GameFacts from '../../../../components/docs/GameFacts.astro'
 
-Ready or Not support covers `.pak` mods on Windows Steam. Browse Nexus Mods after signing in
+Ready or Not support covers `.pak` mods, `.mp4` movie replacements, and scalar `Engine.ini`
+presets on Windows Steam. Browse Nexus Mods after signing in
 and choose an archive download, or drop a local archive or correctly named `.pak` file into Modrex.
-Files install into `ReadyOrNot/Content/Paks` with their
+Pak files install into `ReadyOrNot/Content/Paks` with their
 original filenames, following the mod author's instructions.
 
 <GameFacts game="ron" />
@@ -22,8 +23,34 @@ to use. A single `.pak` may contain several maps and is still installed as one f
 Loose `.pak` downloads from Nexus need manual preparation. Download the file, give it the exact
 filename required by the author, then drop it into Modrex.
 
-Archives that require DLLs, UE4SS scripts, loose audio, videos, or configuration changes
-need manual installation. Follow the author's instructions for these packages.
+Archives that require DLLs, UE4SS scripts, audio banks, `Input.ini`, or multi-file configuration
+changes need manual installation. Modrex refuses those packages before installing their files.
+
+## Movie replacements
+
+Movie replacements install into `ReadyOrNot/Content/Movies`. Modrex reviews H.264 MP4 files,
+with optional AAC LC audio, and lets you choose the existing game movie each file replaces.
+Use the author's instructions to select `ReadyOrNot_StartupMovie.mp4`, `RoNLogo.mp4`, or another
+offered destination. Short, silent videos are supported. Empty files and requests to delete a
+movie are not movie replacements.
+
+Turning a replacement off restores the bytes captured before Modrex applied it. If a movie was
+already modified manually, that manual version is the saved previous setup. An identical file
+is left unchanged without creating a restoration copy.
+
+## Configuration presets
+
+The active configuration folder is `%LOCALAPPDATA%/ReadyOrNot/Saved/Config/Windows`.
+An `Engine.ini` preset is reviewed as individual scalar settings, preserving unrelated settings
+and repeated game paths. Choose one alternative preset from an archive, following the author.
+
+Some authors require `Engine.ini` to be **Read-only**. Clear that attribute in Windows file
+properties before applying, updating, enabling, disabling, or removing a preset. Reapply it afterward
+when the author's instructions require it. Modrex leaves that attribute under your control.
+
+Open `Engine.ini` or `GameUserSettings.ini` from the game's **Settings > Advanced** tab.
+Opening `GameUserSettings.ini` is an editor shortcut. It does not install multi-file graphics
+packs, input bindings, or other INI files.
 
 ## Existing mods and game files
 
@@ -36,4 +63,5 @@ Modrex preserves author filenames and does not rename files to change their load
 ## Launch without mods
 
 This action uses the game's Safe Mode for Pak mods and leaves the shared Paks folder in place.
-It does not disable manually installed DLLs or scripts.
+Movie replacements and INI settings remain applied. It does not disable manually installed
+DLLs or scripts.

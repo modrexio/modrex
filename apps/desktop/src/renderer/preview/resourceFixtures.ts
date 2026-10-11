@@ -22,7 +22,7 @@ export function seedResourceLibrary(gameId: GameId) {
                 id: -9001,
                 source: 'local',
                 name: 'Skip startup movies',
-                filename: 'Intro.bk2',
+                filename: gameId === 'ron' ? 'ReadyOrNot_StartupMovie.mp4' : 'Intro.bk2',
                 deployment: 'movie',
                 enabled: true,
                 resourceStatus: 'applied',
@@ -34,7 +34,7 @@ export function seedResourceLibrary(gameId: GameId) {
                 id: -9003,
                 source: 'local',
                 name: 'Custom intro movie',
-                filename: 'Background.bk2',
+                filename: gameId === 'ron' ? 'RoNLogo.mp4' : 'Background.bk2',
                 deployment: 'movie',
                 enabled: true,
                 resourceStatus: 'diverged',
@@ -65,11 +65,13 @@ export function createResourceReview(gameId: GameId, gamePath: string): string {
     if (!game.movieReplacement && !game.configPresets)
         throw new Error('This game declares no movie or config support')
     const handle = crypto.randomUUID()
-    const slot = 'Intro.bk2'
+    const slot = gameId === 'ron' ? 'ReadyOrNot_StartupMovie.mp4' : 'Intro.bk2'
     const configPath =
         gameId === 'pd3'
             ? 'C:/Users/Preview/AppData/Local/PAYDAY3/Saved/Config/WindowsClient/Engine.ini'
-            : 'C:/Preview/chosen-config/Engine.ini'
+            : gameId === 'ron'
+              ? 'C:/Users/Preview/AppData/Local/ReadyOrNot/Saved/Config/Windows/Engine.ini'
+              : 'C:/Preview/chosen-config/Engine.ini'
     reviews.set(handle, {
         reviewHandle: handle,
         gameId,

@@ -62,6 +62,41 @@ test('game settings leave resource tools in the game-scoped Advanced tab', async
     expect(screen.queryByRole('textbox', { name: 'Engine.ini' })).toBeNull()
 })
 
+test('Ready or Not offers its Windows config files and package-only launch', async () => {
+    store.set('modrex:active-game', 'ron')
+    const { api } = await import('../src/api')
+    const openIni = vi.spyOn(api, 'openEngineIni')
+    const openGraphics = vi.spyOn(api, 'openGraphicsConfig')
+    const { default: App } = await import('../src/App')
+    render(<App />)
+    await screen.findByRole('button', { name: 'Launch without package mods' })
+    fireEvent.click(
+        within(screen.getByRole('complementary')).getByRole('button', { name: 'Settings' })
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Advanced' }))
+    await screen.findByText('Engine.ini found.')
+    await screen.findByText('GameUserSettings.ini found.')
+    const iniSection = screen.getByRole('heading', { name: 'Engine.ini' }).closest('section')!
+    const graphicsSection = screen
+        .getByRole('heading', { name: 'Graphics configuration' })
+        .closest('section')!
+    expect(
+        within(iniSection).getByText(
+            'C:/Users/Preview/AppData/Local/ReadyOrNot/Saved/Config/Windows/Engine.ini'
+        )
+    ).toBeTruthy()
+    expect(within(iniSection).getByText(/clear that attribute before installing/)).toBeTruthy()
+    expect(
+        within(graphicsSection).getByText(
+            'C:/Users/Preview/AppData/Local/ReadyOrNot/Saved/Config/Windows/GameUserSettings.ini'
+        )
+    ).toBeTruthy()
+    fireEvent.click(within(iniSection).getByRole('button', { name: 'Open' }))
+    await vi.waitFor(() => expect(openIni).toHaveBeenCalledExactlyOnceWith('ron'))
+    fireEvent.click(within(graphicsSection).getByRole('button', { name: 'Open' }))
+    await vi.waitFor(() => expect(openGraphics).toHaveBeenCalledExactlyOnceWith('ron'))
+})
+
 test.each([
     { gameId: 'pd3', filename: 'Engine.ini', command: 'getEngineIniLocation' },
     { gameId: 'pd2', filename: 'renderer_settings_dx11.xml', command: 'getGraphicsConfigLocation' },

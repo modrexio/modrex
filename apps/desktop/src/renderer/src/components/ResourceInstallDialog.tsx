@@ -405,6 +405,9 @@ function Review({ handle }: { handle: string }) {
                         <p className="text-xs text-text-muted">
                             {t('resources.install.singleVariant')}
                         </p>
+                        <p className="text-xs text-text-subtle">
+                            {t('resources.install.readOnlyHelp')}
+                        </p>
                         {!review.configPath ? (
                             <div className="rounded-lg border border-warning/30 bg-warning/10 p-3 text-xs">
                                 <p className="text-warning mb-3">

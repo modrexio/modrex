@@ -1073,7 +1073,14 @@ pub(crate) async fn install_nexus_download(
     } = meta;
     let cfg = engine_for_game(game_id)?;
     let dl_path = downloaded.clone();
-    if cfg.primary().native_steam_app.is_some() && file_type.eq_ignore_ascii_case("pak") {
+    if cfg.primary().native_steam_app.is_some()
+        && (file_type.eq_ignore_ascii_case("pak")
+            || downloaded.extension().is_some_and(|extension| {
+                cfg.primary()
+                    .content_extension()
+                    .is_some_and(|expected| extension.eq_ignore_ascii_case(expected))
+            }))
+    {
         if let Err(error) = zip::require_nexus_pak_archive(&downloaded) {
             cleanup::run(&cleanup::CleanupPlan::RemoveOwnedFile(dl_path)).await;
             return Err(error);

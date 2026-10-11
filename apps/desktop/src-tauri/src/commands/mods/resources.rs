@@ -2285,3 +2285,7 @@ fn installed_rows_for(
 #[cfg(test)]
 #[path = "resources_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "resources_mp4_tests.rs"]
+mod mp4_tests;

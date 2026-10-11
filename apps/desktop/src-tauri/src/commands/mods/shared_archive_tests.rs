@@ -94,8 +94,11 @@ fn shared_archive_refuses_every_unsupported_member_before_issuing_a_grant() {
     for name in [
         "Music.bank",
         "VO_MOD/TOC/line.ogg",
-        "Intro.mp4",
-        "Engine.ini",
+        "Intro.bk2",
+        "Input.ini",
+        "GameUserSettings.ini",
+        "Scalability.ini",
+        "ReShade.ini",
         "mods.txt",
         "mods.json",
         "ue4ss/UE4SS-settings.ini",
@@ -159,6 +162,12 @@ fn shared_archive_loose_drops_keep_the_author_name_and_reject_runtime_formats() 
             cleanup::run_sync(&staged.cleanup);
             continue;
         }
+        if extension.eq_ignore_ascii_case("ini") || extension.eq_ignore_ascii_case("mp4") {
+            assert!(matches!(result, Err(zip::ResolveError::Resources(_))));
+            assert_eq!(fs::read(&path).unwrap(), b"payload");
+            fs::remove_file(&path).unwrap();
+            continue;
+        }
         assert!(matches!(result, Err(zip::ResolveError::Failure(_))));
         assert!(!path.exists());
     }
@@ -213,6 +222,8 @@ fn shared_archive_duplicate_normalized_members_fail_before_staging() {
         ["Raw\\Payload_P.pak", "Raw/Payload_P.pak"],
         ["Raw/Payload_P.pak", "raw/payload_p.PAK"],
         ["Raw/Payload_P.pak", "Raw/Payload_P.pak"],
+        ["Raw/Payload_P.pak", "Raw/./Payload_P.pak"],
+        ["Raw/Payload_P.pak", "Raw//Payload_P.pak"],
     ] {
         let file = NamedTempFile::new().unwrap();
         let encoder = flate2::write::GzEncoder::new(
