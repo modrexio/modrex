@@ -24,6 +24,9 @@ vi.mock('./api', () => ({
         getAnalyticsConsent: vi.fn().mockResolvedValue(false),
         getGameSettings: vi.fn().mockResolvedValue({ launchOptions: '', launcher: 'steam' }),
         getDetectedInstalls: vi.fn().mockResolvedValue([]),
+        windowIsMaximized: vi.fn().mockResolvedValue(false),
+        windowStartResizeDragging: vi.fn().mockResolvedValue(undefined),
+        onWindowResized: vi.fn(() => () => {}),
         onNxmInstallComplete: vi.fn(() => () => {}),
         onNxmResourceReview: vi.fn(() => () => {}),
         onUpdateAvailable: vi.fn(() => () => {}),
@@ -110,6 +113,7 @@ const modworkshop: SourceInfo = {
 }
 
 beforeEach(() => {
+    vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue('Linux')
     vi.resetModules()
     vi.clearAllMocks()
     localStorage.clear()
@@ -122,7 +126,10 @@ beforeEach(() => {
     mocks.log.mockResolvedValue(undefined)
 })
 
-afterEach(cleanup)
+afterEach(() => {
+    cleanup()
+    vi.restoreAllMocks()
+})
 
 async function mount() {
     const { default: App } = await import('./App')
