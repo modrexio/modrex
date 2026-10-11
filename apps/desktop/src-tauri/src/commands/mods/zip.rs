@@ -794,6 +794,10 @@ pub(crate) fn classify_archive_dirs(
 /// are attacker-controlled, so directory extractors must route writes through this (Zip-Slip).
 pub(crate) fn safe_dest(dest: &Path, relative: &str) -> Option<PathBuf> {
     use std::path::Component;
+    // Unix path parsing treats Windows drive prefixes as ordinary names.
+    if matches!(relative.as_bytes(), [drive, b':', ..] if drive.is_ascii_alphabetic()) {
+        return None;
+    }
     for comp in Path::new(relative).components() {
         match comp {
             Component::Normal(_) | Component::CurDir => {}

@@ -245,6 +245,10 @@ fn shared_resource_unsafe_and_ambiguous_paths_refuse_before_grants() {
         ["../Engine.ini", "Payload_P.pak"],
         ["/Engine.ini", "Payload_P.pak"],
         ["C:/Engine.ini", "Payload_P.pak"],
+        ["C:Profile/Engine.ini", "Payload_P.pak"],
+        [r"C:\Engine.ini", "Payload_P.pak"],
+        [r"..\Engine.ini", "Payload_P.pak"],
+        [r"\\server\share\Engine.ini", "Payload_P.pak"],
         ["Profile/Engine.ini", "Profile/./Engine.ini"],
         ["Profile/Engine.ini", "Profile//Engine.ini"],
         ["Profile/Engine.ini", "profile/ENGINE.ini"],
@@ -258,10 +262,16 @@ fn shared_resource_unsafe_and_ambiguous_paths_refuse_before_grants() {
                 resolve_archive_download(archive.path().into(), cfg, &registry)
             };
             let Err(ResolveError::Failure(error)) = result else {
-                panic!("Unsafe or duplicate paths must refuse before review");
+                panic!("Archive paths must refuse before review: {members:?}, updating={updating}");
             };
-            assert!(error.contains("Nothing was installed"), "{error}");
-            assert!(!error.contains("Too many archives"), "{error}");
+            assert!(
+                error.contains("Nothing was installed"),
+                "{members:?}, updating={updating}: {error}"
+            );
+            assert!(
+                !error.contains("Too many archives"),
+                "{members:?}, updating={updating}: {error}"
+            );
             assert!(!archive.path().exists());
         }
     }

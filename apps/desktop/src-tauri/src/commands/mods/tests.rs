@@ -2533,6 +2533,33 @@ fn safe_dest_rejects_absolute_path() {
     assert_eq!(safe_dest(dest, "/etc/passwd"), None);
 }
 
+#[test]
+fn safe_dest_rejects_windows_drive_paths() {
+    let dest = std::path::Path::new("/tmp/out");
+    for relative in [
+        "C:/escape.pak",
+        "c:/escape.pak",
+        "Z:escape.pak",
+        "z:",
+        r"C:\escape.pak",
+    ] {
+        assert_eq!(safe_dest(dest, relative), None, "{relative}");
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn safe_dest_allows_unix_colon_names() {
+    let dest = std::path::Path::new("/tmp/out");
+    for relative in ["version:two.pak", "nested/C:file.pak", "./file.pak"] {
+        assert_eq!(
+            safe_dest(dest, relative),
+            Some(dest.join(relative)),
+            "{relative}"
+        );
+    }
+}
+
 // ── extract_dir_entry Zip-Slip behavior ───────────────────────────────────
 
 #[test]
