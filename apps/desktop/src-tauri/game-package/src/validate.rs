@@ -168,12 +168,9 @@ pub fn check(id: &str, package: &GamePackage) -> Result<(), String> {
 }
 
 fn check_movies(movies: &MovieReplacement, package: &GamePackage) -> Result<(), String> {
-    let MovieReplacement::Bink {
-        directory,
-        storefronts,
-        absent_slots,
-    } = movies;
-    check_resource_path(directory, "movie directory")?;
+    let storefronts = movies.storefronts();
+    let absent_slots = movies.absent_slots();
+    check_resource_path(movies.directory(), "movie directory")?;
     if storefronts.is_empty() {
         return Err("movie replacement lists no supported storefronts".into());
     }
@@ -217,9 +214,13 @@ fn check_movies(movies: &MovieReplacement, package: &GamePackage) -> Result<(), 
         }
         for filename in &slots.filenames {
             check_resource_path(std::slice::from_ref(filename), "movie slot")?;
-            if !filename.to_ascii_lowercase().ends_with(".bk2") {
+            let extension = movies.extension();
+            if !filename
+                .to_ascii_lowercase()
+                .ends_with(&format!(".{extension}"))
+            {
                 return Err(format!(
-                    "movie slot '{filename}' must have the .bk2 extension"
+                    "movie slot '{filename}' must have the .{extension} extension"
                 ));
             }
         }

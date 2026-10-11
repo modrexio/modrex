@@ -368,18 +368,16 @@ impl GamePackage {
 }
 
 fn movie_replacement(value: &MovieReplacement) -> String {
-    match value {
-        MovieReplacement::Bink {
-            directory,
-            storefronts,
-            absent_slots,
-        } => format!(
-            "{PATH}::MovieReplacement::Bink {{ directory: {}, storefronts: {}, absent_slots: {} }}",
-            texts(directory),
-            list(storefronts.iter().map(|store| storefront(*store)).collect()),
-            list(absent_slots.iter().map(movie_slots).collect()),
-        ),
-    }
+    let variant = match value {
+        MovieReplacement::Bink { .. } => "Bink",
+        MovieReplacement::Mp4 { .. } => "Mp4",
+    };
+    format!(
+        "{PATH}::MovieReplacement::{variant} {{ directory: {}, storefronts: {}, absent_slots: {} }}",
+        texts(value.directory()),
+        list(value.storefronts().iter().map(|store| storefront(*store)).collect()),
+        list(value.absent_slots().iter().map(movie_slots).collect()),
+    )
 }
 
 fn movie_slots(value: &MovieSlots) -> String {

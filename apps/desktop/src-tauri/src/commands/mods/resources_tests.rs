@@ -407,13 +407,14 @@ fn config_presets_can_be_reviewed_without_movie_support() {
     fs::write(&path, b"[S]\nA=1\n").unwrap();
     let config = ConfigPresets::UnrealEngineIni { locations: vec![] };
     let no_movies = Err("Movie replacements are not supported".into());
-    let (kind, verdict) = assess("Engine.ini", Some(&path), &no_movies, Some(&config));
+    let (kind, verdict) = assess("Engine.ini", Some(&path), &no_movies, None, Some(&config));
     assert!(matches!(kind, ResourceEntryKind::Ini));
     assert!(verdict.is_ok());
     assert!(assess(
         "Engine.ini",
         Some(&path),
         &Ok(vec!["Intro.bk2".into()]),
+        None,
         None
     )
     .1
@@ -579,10 +580,22 @@ fn matching_preexisting_movie_is_not_adopted_and_never_becomes_a_baseline() {
     let temp = tempfile::tempdir().unwrap();
     let store = ResourceStore::at(temp.path().join("recovery"));
     let path = temp.path().join("Intro.bk2");
-    fs::write(&path, b"existing manual replacement").unwrap();
-    let Content::Present { sha256, size } =
-        store.put_bytes(b"existing manual replacement").unwrap()
-    else {
+    let mut payload = vec![0u8; 64];
+    payload[..4].copy_from_slice(b"KB2i");
+    for (offset, value) in [
+        (4, 56u32),
+        (8, 1),
+        (12, 16),
+        (20, 1280),
+        (24, 720),
+        (28, 30),
+        (32, 1),
+        (48, 52),
+    ] {
+        payload[offset..offset + 4].copy_from_slice(&value.to_le_bytes());
+    }
+    fs::write(&path, &payload).unwrap();
+    let Content::Present { sha256, size } = store.put_bytes(&payload).unwrap() else {
         unreachable!()
     };
     let mut deployment = preset(&store, &path, b"[S]\nA=1\n");
@@ -611,7 +624,7 @@ fn matching_preexisting_movie_is_not_adopted_and_never_becomes_a_baseline() {
     let manifest = store.load_manifest().unwrap();
     assert!(manifest.deployments.is_empty());
     assert!(manifest.movie_baselines.is_empty());
-    assert_eq!(fs::read(&path).unwrap(), b"existing manual replacement");
+    assert_eq!(fs::read(&path).unwrap(), payload);
 }
 
 #[test]

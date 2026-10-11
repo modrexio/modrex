@@ -14,6 +14,7 @@ mod ini;
 mod install;
 mod moves;
 pub(crate) mod movies;
+mod mp4;
 mod naming;
 mod native_files;
 mod nexus_content;
@@ -3087,6 +3088,9 @@ mod tests;
 
 #[cfg(test)]
 mod shared_archive_tests;
+
+#[cfg(test)]
+mod mp4_tests;
 
 #[cfg(test)]
 #[path = "decisions_tests.rs"]

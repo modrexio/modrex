@@ -455,6 +455,7 @@ fn with_root_declaration(declaration: &str) -> String {
 }
 
 const MOVIES: &str = r#"movie_replacement = { format = "bink", directory = ["Content", "Movies"], storefronts = ["steam"], absent_slots = [{ store = "steam", filenames = ["Intro.bk2"] }] }"#;
+const MP4_MOVIES: &str = r#"movie_replacement = { format = "mp4", directory = ["Content", "Movies"], storefronts = ["steam"], absent_slots = [{ store = "steam", filenames = ["Intro.mp4"] }] }"#;
 const CONFIGS: &str = r#"config_presets = { format = "unreal_engine_ini" }"#;
 const CONFIG_LOCATION: &str = r#"config_presets = { format = "unreal_engine_ini", locations = [{ root = "windows_local_app_data", store = "steam", path = ["Fixture", "Saved", "Engine.ini"] }] }"#;
 const GRAPHICS: &str = r#"graphics_config = { filename = "renderer_settings.xml" }"#;
@@ -465,6 +466,7 @@ fn resource_capabilities_are_optional_and_independent() {
     for (declaration, movies, configs) in [
         (String::new(), false, false),
         (MOVIES.into(), true, false),
+        (MP4_MOVIES.into(), true, false),
         (CONFIGS.into(), false, true),
         (format!("{MOVIES}\n{CONFIG_LOCATION}"), true, true),
     ] {
@@ -478,7 +480,7 @@ fn resource_capabilities_are_optional_and_independent() {
 #[test]
 fn resource_contract_rejects_unimplemented_formats_and_unknown_fields() {
     for (declaration, expected) in [
-        (MOVIES.replace("bink", "mp4"), "unknown variant"),
+        (MOVIES.replace("bink", "webm"), "unknown variant"),
         (
             MOVIES.replace("format =", "callback = \"run\", format ="),
             "unknown field",
@@ -497,6 +499,29 @@ fn resource_contract_rejects_unimplemented_formats_and_unknown_fields() {
         ),
     ] {
         assert_rejected(&with_root_declaration(&declaration), expected);
+    }
+}
+
+#[test]
+fn movie_formats_keep_distinct_extensions_and_store_slots() {
+    for (declaration, extension) in [(MOVIES, "bk2"), (MP4_MOVIES, "mp4")] {
+        let package: GamePackage = toml::from_str(&with_root_declaration(declaration)).unwrap();
+        validate::check("fixture", &package).unwrap();
+        let movies = package.movie_replacement.unwrap();
+        assert_eq!(movies.extension(), extension);
+        assert_eq!(movies.directory(), ["Content", "Movies"]);
+        assert_eq!(movies.storefronts().len(), 1);
+        assert_eq!(
+            movies.absent_slots()[0].filenames,
+            [format!("Intro.{extension}")]
+        );
+        let other = if extension == "bk2" { "mp4" } else { "bk2" };
+        assert_rejected(
+            &with_root_declaration(
+                &declaration.replace(&format!("Intro.{extension}"), &format!("Intro.{other}")),
+            ),
+            &format!(".{extension} extension"),
+        );
     }
 }
 

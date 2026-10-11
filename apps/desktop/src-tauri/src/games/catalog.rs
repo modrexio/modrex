@@ -1,6 +1,4 @@
-use crate::game_package::{
-    GamePackage, ModMetadata, MovieReplacement, SourceBinding, StoreBinding, Storefront,
-};
+use crate::game_package::{GamePackage, ModMetadata, SourceBinding, StoreBinding, Storefront};
 use std::fmt::Write as _;
 
 /// Relative to the crate root, which is the directory cargo runs a test binary from.
@@ -79,8 +77,8 @@ pub fn catalog_typescript() -> String {
             let _ = writeln!(out, "        requiredLaunchFlag: {},", quote(flag));
         }
         if let Some(movies) = &pkg.movie_replacement {
-            let MovieReplacement::Bink { storefronts, .. } = movies;
-            let stores = storefronts
+            let stores = movies
+                .storefronts()
                 .iter()
                 .map(|store| quote(store.provider()))
                 .collect::<Vec<_>>()

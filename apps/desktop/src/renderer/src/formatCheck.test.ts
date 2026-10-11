@@ -6,6 +6,9 @@ const noResources: Pick<GameSpec, 'movieReplacement' | 'configPresets'> = {}
 const movieOnly: typeof noResources = {
     movieReplacement: { extension: 'bk2', storefronts: ['steam'] },
 }
+const mp4Only: typeof noResources = {
+    movieReplacement: { extension: 'mp4', storefronts: ['steam'] },
+}
 const configOnly: typeof noResources = { configPresets: { filename: 'Engine.ini' } }
 
 describe('isUnsupportedFormat', () => {
@@ -113,6 +116,21 @@ describe('isUnsupportedFormat', () => {
 })
 
 describe('declared resource formats', () => {
+    it("restricts movie downloads to the game's declared format", () => {
+        expect(isUnsupportedFormat(mp4Only, 'mp4')).toBe(false)
+        expect(isUnsupportedFormat(mp4Only, 'MP4')).toBe(false)
+        expect(isUnsupportedFormat(mp4Only, 'bk2')).toBe(true)
+        expect(isUnsupportedFormat(movieOnly, 'mp4')).toBe(true)
+        expect(isUnsupportedFormat(noResources, 'mp4')).toBe(true)
+        expect(isUnsupportedFormat(mp4Only, undefined, 'https://example.com/alternate.MP4')).toBe(
+            false
+        )
+        expect(isUnsupportedFormat(mp4Only, undefined, 'https://example.com/Intro.bk2')).toBe(true)
+        expect(isUnsupportedFormat(movieOnly, undefined, 'https://example.com/Intro.mp4')).toBe(
+            true
+        )
+    })
+
     it('allows Bink movies independently of config presets', () => {
         expect(isUnsupportedFormat(movieOnly, 'bk2')).toBe(false)
         expect(isUnsupportedFormat(configOnly, 'bk2')).toBe(true)

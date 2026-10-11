@@ -1,4 +1,4 @@
-//! Bink movie replacement using the destinations a game package declares.
+//! Movie replacement using the format and destinations a game package declares.
 //!
 //! Destinations are files the declared directory holds, plus absent slots authorized for the
 //! selected store. Archive entry names identify payloads and never decide a destination.
@@ -40,15 +40,11 @@ fn movies_dir_for(
     game_path: &str,
     launcher: Option<&str>,
 ) -> Result<PathBuf, String> {
-    let MovieReplacement::Bink {
-        directory,
-        storefronts,
-        ..
-    } = replacement;
     if let Some(store) =
         launcher.filter(|store| crate::commands::launchers::is_store_launcher(store))
     {
-        if !storefronts
+        if !replacement
+            .storefronts()
             .iter()
             .any(|allowed| allowed.provider() == store)
         {
@@ -57,7 +53,7 @@ fn movies_dir_for(
             ));
         }
     }
-    let sub = directory.join("/");
+    let sub = replacement.directory().join("/");
     let root = Path::new(game_path)
         .canonicalize()
         .map_err(|e| format!("the game folder could not be resolved: {e}"))?;
@@ -98,37 +94,65 @@ fn slot_inventory_for(
         let Some(name) = entry.file_name().to_str().map(String::from) else {
             continue;
         };
-        if is_bk2_name(&name) {
+        if has_movie_extension(&name, replacement.extension()) {
             slots.push(name);
         }
     }
-    let MovieReplacement::Bink { absent_slots, .. } = replacement;
-    for verified in absent_slots
+    for verified in replacement
+        .absent_slots()
         .iter()
         .filter(|slots| launcher == Some(slots.store.provider()))
     {
         for slot in &verified.filenames {
-            if !slots.iter().any(|s| s.eq_ignore_ascii_case(slot)) {
-                slots.push(slot.clone());
+            let present =
+                slots
+                    .iter()
+                    .try_fold(false, |found, existing| -> Result<bool, String> {
+                        Ok(found || same_slot_name(existing, slot)?)
+                    })?;
+            if present {
+                continue;
             }
+            slots.push(slot.clone());
         }
     }
-    let mut unique = HashSet::new();
-    for slot in &slots {
-        if !unique.insert(slot.to_ascii_lowercase()) {
-            return Err("The movie folder contains filenames that differ only in case. Resolve that conflict before replacing movies".into());
+    for (index, slot) in slots.iter().enumerate() {
+        for other in &slots[..index] {
+            if same_slot_name(slot, other)? {
+                return Err("The movie folder contains filenames that differ only in case. Resolve that conflict before replacing movies".into());
+            }
         }
     }
     slots.sort();
     Ok(slots)
 }
 
-/// .bk2 only. .bak2 and other lookalikes are never treated as movies.
-pub(crate) fn is_bk2_name(name: &str) -> bool {
+fn same_slot_name(left: &str, right: &str) -> Result<bool, String> {
+    if left.eq_ignore_ascii_case(right) {
+        return Ok(true);
+    }
+    super::native_files::paths_equal(Path::new(left), Path::new(right))
+}
+
+pub(crate) fn has_movie_extension(name: &str, extension: &str) -> bool {
     Path::new(name)
         .extension()
         .and_then(|e| e.to_str())
-        .is_some_and(|e| e.eq_ignore_ascii_case("bk2"))
+        .is_some_and(|e| e.eq_ignore_ascii_case(extension))
+}
+
+pub(crate) fn validate_payload(game_id: &str, path: &Path) -> Result<(), String> {
+    validate_payload_for(replacement(game_id)?, path)
+}
+
+pub(crate) fn validate_payload_for(
+    replacement: &MovieReplacement,
+    path: &Path,
+) -> Result<(), String> {
+    match replacement {
+        MovieReplacement::Bink { .. } => validate_bink(path).map(|_| ()),
+        MovieReplacement::Mp4 { .. } => super::mp4::validate_mp4(path),
+    }
 }
 
 /// Resolves a chosen slot, refusing symbolic links and Unix hard-link aliases.
@@ -284,7 +308,7 @@ fn enabled_owner<'a>(
         })
 }
 
-fn slots_of(d: &Deployment) -> &[MovieSlot] {
+pub(super) fn slots_of(d: &Deployment) -> &[MovieSlot] {
     match &d.body {
         DeploymentBody::Movie { slots } => slots,
         DeploymentBody::Ini { .. } => &[],

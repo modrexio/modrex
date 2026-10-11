@@ -9,7 +9,7 @@ export function isUnsupportedFormat(
     sourceFilename?: string | null
 ): boolean {
     const normalized = type?.toLowerCase()
-    if (normalized && normalized !== 'bk2' && normalized !== 'ini')
+    if (normalized && normalized !== 'bk2' && normalized !== 'mp4' && normalized !== 'ini')
         return !SUPPORTED_FORMATS.has(normalized)
 
     const url = downloadUrl && URL.canParse(downloadUrl) ? new URL(downloadUrl) : null
@@ -25,7 +25,8 @@ export function isUnsupportedFormat(
         .toLowerCase()
     const dot = filename.lastIndexOf('.')
     const extension = normalized || filename.slice(dot + 1)
-    if (extension === 'bk2') return !game.movieReplacement
+    if (extension === 'bk2' || extension === 'mp4')
+        return game.movieReplacement?.extension !== extension
     if (extension === 'ini')
         return !game.configPresets || filename !== game.configPresets.filename.toLowerCase()
     if (filename.endsWith('.tar.gz') || filename.endsWith('.tar.xz')) return false

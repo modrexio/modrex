@@ -333,12 +333,37 @@ pub enum MovieReplacement {
         #[serde(default)]
         absent_slots: Vec<MovieSlots>,
     },
+    Mp4 {
+        directory: Vec<String>,
+        storefronts: Vec<Storefront>,
+        #[serde(default)]
+        absent_slots: Vec<MovieSlots>,
+    },
 }
 
 impl MovieReplacement {
     pub fn extension(&self) -> &'static str {
         match self {
             Self::Bink { .. } => "bk2",
+            Self::Mp4 { .. } => "mp4",
+        }
+    }
+
+    pub fn directory(&self) -> &[String] {
+        match self {
+            Self::Bink { directory, .. } | Self::Mp4 { directory, .. } => directory,
+        }
+    }
+
+    pub fn storefronts(&self) -> &[Storefront] {
+        match self {
+            Self::Bink { storefronts, .. } | Self::Mp4 { storefronts, .. } => storefronts,
+        }
+    }
+
+    pub fn absent_slots(&self) -> &[MovieSlots] {
+        match self {
+            Self::Bink { absent_slots, .. } | Self::Mp4 { absent_slots, .. } => absent_slots,
         }
     }
 }

@@ -14,6 +14,67 @@ fn declared_movies() -> MovieReplacement {
 }
 
 #[test]
+fn mp4_inventory_uses_the_declared_extension_and_exact_native_names() {
+    let temp = tempfile::tempdir().unwrap();
+    for name in [
+        "ReadyOrNot_StartupMovie.MP4",
+        "Intro.bk2",
+        "intro.bak2",
+        "hidden.mp4.disabled",
+    ] {
+        fs::write(temp.path().join(name), b"on disk").unwrap();
+    }
+    fs::create_dir(temp.path().join("folder.mp4")).unwrap();
+    let definition = MovieReplacement::Mp4 {
+        directory: vec!["Media".into()],
+        storefronts: vec![Storefront::Steam],
+        absent_slots: vec![],
+    };
+    let inventory = slot_inventory_for(&definition, temp.path(), Some("steam")).unwrap();
+    assert_eq!(inventory, ["ReadyOrNot_StartupMovie.MP4"]);
+    assert_eq!(
+        slot_destination(temp.path(), &inventory[0], &inventory).unwrap(),
+        temp.path().join(&inventory[0])
+    );
+    assert!(slot_destination(
+        temp.path(),
+        "Sins_MovieScreen_Cherade1963_film_B.mp4",
+        &inventory
+    )
+    .is_err());
+    assert_eq!(
+        slot_inventory_for(&declared_movies(), temp.path(), None).unwrap(),
+        ["Intro.bk2"]
+    );
+}
+
+#[test]
+fn an_authorized_absent_slot_keeps_an_existing_slots_exact_spelling() {
+    let temp = tempfile::tempdir().unwrap();
+    fs::write(temp.path().join("Intro.MP4"), b"manual clip").unwrap();
+    let definition = MovieReplacement::Mp4 {
+        directory: vec!["Media".into()],
+        storefronts: vec![Storefront::Steam],
+        absent_slots: vec![MovieSlots {
+            store: Storefront::Steam,
+            filenames: vec!["intro.mp4".into()],
+        }],
+    };
+    assert_eq!(
+        slot_inventory_for(&definition, temp.path(), Some("steam")).unwrap(),
+        ["Intro.MP4"]
+    );
+}
+
+#[cfg(windows)]
+#[test]
+fn movie_slot_identity_uses_windows_ordinal_case_comparison() {
+    assert!(same_slot_name("INTRO.MP4", "intro.mp4").unwrap());
+    assert!(same_slot_name("Ä.MP4", "ä.mp4").unwrap());
+    assert!(!same_slot_name("Ä.MP4", "a.mp4").unwrap());
+}
+
+#[test]
 fn movie_destinations_and_store_permissions_follow_the_declaration() {
     let temp = tempfile::tempdir().unwrap();
     let directory = temp.path().join("Media");
@@ -216,6 +277,16 @@ fn container_validation_checks_frame_index_and_known_revisions() {
         }
         fs::write(&path, &bytes).unwrap();
         assert!(validate_bink(&path).is_ok());
+        assert!(validate_payload_for(&declared_movies(), &path).is_ok());
+        assert!(validate_payload_for(
+            &MovieReplacement::Mp4 {
+                directory: vec!["Media".into()],
+                storefronts: vec![Storefront::Steam],
+                absent_slots: vec![],
+            },
+            &path
+        )
+        .is_err());
         bytes[index..index + 4].copy_from_slice(&0u32.to_le_bytes());
         fs::write(&path, &bytes).unwrap();
         assert!(validate_bink(&path).is_err());
@@ -223,7 +294,7 @@ fn container_validation_checks_frame_index_and_known_revisions() {
         fs::write(&path, &bytes).unwrap();
         assert!(validate_bink(&path).is_err());
     }
-    assert!(is_bk2_name("INTRO.BK2"));
-    assert!(!is_bk2_name("intro.bak2"));
+    assert!(has_movie_extension("INTRO.BK2", "bk2"));
+    assert!(!has_movie_extension("intro.bak2", "bk2"));
     assert!(slot_destination(temp.path(), "../Intro.bk2", &["Intro.bk2".into()]).is_err());
 }

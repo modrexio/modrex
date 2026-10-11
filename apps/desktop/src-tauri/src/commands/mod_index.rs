@@ -118,6 +118,10 @@ pub async fn inspect_movie_resources(
     game_id: String,
 ) -> Result<MovieRecognitionScan, String> {
     let cfg = crate::commands::mods::engine_for_game(&game_id)?;
+    let extension = crate::commands::games::game_spec(&game_id)
+        .and_then(|game| game.movie_replacement)
+        .ok_or("Movie replacement is not supported for this game.")?
+        .extension();
     let settings = crate::commands::settings::read_settings(&app);
     let install = crate::commands::settings::game_settings(&settings, &game_id)
         .and_then(|game| game.game_path.as_ref())
@@ -165,7 +169,7 @@ pub async fn inspect_movie_resources(
         for path in paths {
             if !path
                 .extension()
-                .is_some_and(|extension| extension.eq_ignore_ascii_case("bk2"))
+                .is_some_and(|candidate| candidate.eq_ignore_ascii_case(extension))
             {
                 continue;
             }

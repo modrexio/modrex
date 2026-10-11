@@ -1,6 +1,31 @@
 use super::*;
 
 #[test]
+fn bounded_payload_capture_discards_oversized_copies_and_preserves_sources() {
+    let temp = tempfile::tempdir().unwrap();
+    let store = ResourceStore::at(temp.path().join("recovery"));
+    let path = temp.path().join("replacement.mp4");
+    let bytes = vec![42; 128 * 1024];
+    fs::write(&path, &bytes).unwrap();
+    assert!(store
+        .capture_bounded(&path, bytes.len() as u64 - 1)
+        .unwrap_err()
+        .contains("resource limit"));
+    assert_eq!(fs::read(&path).unwrap(), bytes);
+    assert_eq!(fs::read_dir(store.root.join("objects")).unwrap().count(), 0);
+    assert!(store.load_manifest().unwrap().deployments.is_empty());
+    let captured = store.capture_bounded(&path, bytes.len() as u64).unwrap();
+    let Content::Present { sha256, size } = captured else {
+        unreachable!()
+    };
+    assert_eq!(store.read_object(&sha256, size).unwrap(), bytes);
+    assert_eq!(
+        store.capture(&path).unwrap(),
+        Content::Present { sha256, size }
+    );
+}
+
+#[test]
 fn stored_source_reads_reject_extra_bytes_after_an_intact_prefix() {
     let temp = tempfile::tempdir().unwrap();
     let store = ResourceStore::at(temp.path().join("recovery"));
