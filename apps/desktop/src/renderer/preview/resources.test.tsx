@@ -71,6 +71,7 @@ test.each([
     const lookup = vi.spyOn(api, config.command)
     const { default: App } = await import('../src/App')
     render(<App />)
+    await screen.findByRole('button', { name: 'Browse Mods' })
     fireEvent.click(
         within(screen.getByRole('complementary')).getByRole('button', { name: 'Settings' })
     )

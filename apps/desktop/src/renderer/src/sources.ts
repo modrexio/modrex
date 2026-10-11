@@ -10,11 +10,7 @@ export async function loadSourceRegistry(): Promise<void> {
     registry = await api.listSources()
 }
 
-/**
- * The sources a game offers. modworkshop covers every game; Nexus has no RAID presence,
- * so this is empty of Nexus for RAID only. Order follows the registry, which puts
- * modworkshop first, so callers can treat the first entry as the default.
- */
+/** The sources declared for a game, in registry order. */
 export function sourcesForGame(gameId: string): SourceInfo[] {
     return registry.filter((s) => s.games.some((g) => g.gameId === gameId))
 }

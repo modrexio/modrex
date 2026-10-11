@@ -15,6 +15,7 @@ import { t } from '../i18n'
 import type { StringKey } from '../i18n'
 import type { GameId } from '../../../shared/types'
 import { GAMES } from '../../../shared/types'
+import { sourcesForGame } from '../sources'
 import { Tooltip } from './Tooltip'
 
 type NavView = 'browse' | 'installed' | 'news' | 'settings'
@@ -86,7 +87,10 @@ export function Sidebar({ navigation, onShowWelcome }: Props) {
                 {navigation.kind === 'game' &&
                     navItems
                         .filter(
-                            (item) => item.id !== 'news' || GAMES[navigation.activeGame].hasNews
+                            (item) =>
+                                (item.id !== 'news' || GAMES[navigation.activeGame].hasNews) &&
+                                (item.id !== 'browse' ||
+                                    sourcesForGame(navigation.activeGame).length > 0)
                         )
                         .map((item) => {
                             const Icon = item.icon

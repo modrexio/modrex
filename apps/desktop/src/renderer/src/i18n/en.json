@@ -141,6 +141,9 @@
         }
     },
     "app": {
+        "sourcesLoading": "Loading mod sources...",
+        "sourcesLoadFailed": "Mod sources could not be loaded.",
+        "sourcesRetry": "Try again",
         "modsHidden": "Mods are hidden; the game was launched in vanilla mode and may still be running.",
         "stateUnreadable": "Modrex could not read its own mod list for this game, so the mods below were found by scanning the folder and no changes are being saved. Details are in the log.",
         "restoreMods": "Restore mods",

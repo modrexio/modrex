@@ -34,6 +34,10 @@ function reportStartupPhase(phase: StartupPhase) {
 export default function App() {
     const locale = useLocale()
     const [route, setRoute] = useState<AppRoute>(readAppRoute)
+    const [sourceLoad, setSourceLoad] = useState<
+        { status: 'loading' | 'ready' } | { status: 'failed'; error: string }
+    >({ status: 'loading' })
+    const [sourceLoadAttempt, setSourceLoadAttempt] = useState(0)
     const startupPending = useRef(true)
     const onStartupPhase = useCallback((phase: StartupPhase) => {
         if (!startupPending.current) return
@@ -100,8 +104,32 @@ export default function App() {
     // loader badges), so it is loaded once here before those pages can be reached.
     useEffect(() => {
         void loadLoaderRegistry()
-        void loadSourceRegistry()
     }, [])
+
+    useEffect(() => {
+        let cancelled = false
+        async function load() {
+            try {
+                await loadSourceRegistry()
+                if (cancelled) return
+                setSourceLoad({ status: 'ready' })
+            } catch (error) {
+                if (cancelled) return
+                setSourceLoad({ status: 'failed', error: String(error) })
+                void logError('Mod source initialization failed: ' + String(error))
+                onStartupPhase('error')
+            }
+        }
+        void load()
+        return () => {
+            cancelled = true
+        }
+    }, [sourceLoadAttempt, onStartupPhase])
+
+    function retrySources() {
+        setSourceLoad({ status: 'loading' })
+        setSourceLoadAttempt((attempt) => attempt + 1)
+    }
 
     useEffect(() => {
         // Dev builds run whatever version the branch has and would nag about the
@@ -218,7 +246,8 @@ export default function App() {
                 <ResourceInstallDialog />
                 <div className="flex flex-col h-screen bg-surface text-text">
                     {navigator.userAgent.includes('Linux') && <ResizeHandles />}
-                    {route.kind === 'game' ? (
+                    {/* Workspace source lookups are synchronous, so the registry must load before mounting. */}
+                    {route.kind === 'game' && sourceLoad.status === 'ready' ? (
                         <GameWorkspace
                             key={route.gameId}
                             activeGame={route.gameId}
@@ -236,13 +265,38 @@ export default function App() {
                                 <Sidebar
                                     navigation={{
                                         kind: 'global',
-                                        view: route.kind === 'picker' ? 'picker' : 'settings',
+                                        view:
+                                            route.kind === 'global-settings'
+                                                ? 'settings'
+                                                : 'picker',
                                         onViewChange: handleGlobalSettings,
                                     }}
                                     onShowWelcome={handleShowWelcome}
                                 />
                                 <main className="relative flex-1 overflow-hidden">
-                                    {route.kind === 'picker' ? (
+                                    {route.kind === 'game' ? (
+                                        <div className="flex h-full flex-col items-center justify-center gap-4 p-6 text-center">
+                                            {sourceLoad.status === 'failed' ? (
+                                                <div role="alert" className="space-y-2">
+                                                    <p>{t('app.sourcesLoadFailed')}</p>
+                                                    <p className="text-xs text-text-muted whitespace-pre-wrap">
+                                                        {sourceLoad.error}
+                                                    </p>
+                                                    <Button
+                                                        variant="secondary"
+                                                        onClick={retrySources}
+                                                    >
+                                                        {t('app.sourcesRetry')}
+                                                    </Button>
+                                                </div>
+                                            ) : (
+                                                <p role="status">{t('app.sourcesLoading')}</p>
+                                            )}
+                                            <Button variant="ghost" onClick={handleShowWelcome}>
+                                                {t('sidebar.changeGame')}
+                                            </Button>
+                                        </div>
+                                    ) : route.kind === 'picker' ? (
                                         <WelcomeScreen onSelectGame={handleGameChange} />
                                     ) : (
                                         <SettingsPage {...settings} isActive />

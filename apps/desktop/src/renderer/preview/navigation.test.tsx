@@ -152,7 +152,7 @@ test('a delayed path lookup cannot continue loading a workspace after it closes'
             })
     )
     const { calls } = await mount()
-    fireEvent.click(sidebar().getByRole('button', { name: 'PAYDAY 3' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'PAYDAY 3' }))
     await act(async () => {
         finishPath('C:\\PAYDAY 3')
     })

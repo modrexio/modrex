@@ -4,7 +4,7 @@ import { error as logError } from '@tauri-apps/plugin-log'
 import type { GameId, ModSummary, InstalledMod, ModFolder } from '../../shared/types'
 import { GAMES } from '../../shared/types'
 import { api, type StartupPhase } from './api'
-import { hasSource } from './sources'
+import { hasSource, sourcesForGame } from './sources'
 import { t, useLocale } from './i18n'
 import {
     getGameData,
@@ -38,11 +38,9 @@ const BrowsePageMemo = memo(BrowsePage)
 const emptyMods: InstalledMod[] = []
 const emptyFolders: ModFolder[] = []
 
-// Falls back to modworkshop whenever the saved source is not one this game offers, which
-// also covers a game that has no Nexus presence at all.
-function readBrowseSource(gameId: string): string {
+function readBrowseSource(gameId: string): string | null {
     const saved = localStorage.getItem(`modrex:${gameId}:browse-source`)
-    return saved && hasSource(gameId, saved) ? saved : 'modworkshop'
+    return saved && hasSource(gameId, saved) ? saved : (sourcesForGame(gameId)[0]?.id ?? null)
 }
 
 interface Props {
@@ -64,9 +62,12 @@ export function GameWorkspace({
 }: Props) {
     const [recoveryOpen, setRecoveryOpen] = useState(false)
     const locale = useLocale()
-    const [view, setView] = useState<GameView | 'detail'>(() => readGameView(activeGame))
-    const [prevView, setPrevView] = useState<'browse' | 'installed'>('browse')
     const [browseSource, setBrowseSource] = useState(() => readBrowseSource(activeGame))
+    const [view, setView] = useState<GameView | 'detail'>(() => {
+        const saved = readGameView(activeGame)
+        return saved === 'browse' && browseSource === null ? 'installed' : saved
+    })
+    const [prevView, setPrevView] = useState<'browse' | 'installed'>('browse')
     const [detailStack, setDetailStack] = useState<
         { modId: number; initialMod?: ModSummary; source?: 'nexus' }[]
     >([])
@@ -316,22 +317,23 @@ export function GameWorkspace({
                     <div
                         className={`absolute inset-0 ${view === 'browse' && browseSource === 'modworkshop' ? '' : 'invisible pointer-events-none'}`}
                     >
-                        {GAMES[activeGame].workshopId !== undefined && (
-                            <BrowsePageMemo
-                                key={activeGame}
-                                activeGame={activeGame}
-                                workshopId={GAMES[activeGame].workshopId}
-                                isActive={view === 'browse' && browseSource === 'modworkshop'}
-                                source={browseSource}
-                                onSourceChange={handleSourceChange}
-                                gamePath={gamePath}
-                                gamePathReady={gamePathReady}
-                                installed={installed}
-                                onRefreshInstalled={refreshInstalled}
-                                onOpenDetail={openDetailFromBrowse}
-                                onGoToSettings={goToSettings}
-                            />
-                        )}
+                        {GAMES[activeGame].workshopId !== undefined &&
+                            hasSource(activeGame, 'modworkshop') && (
+                                <BrowsePageMemo
+                                    key={activeGame}
+                                    activeGame={activeGame}
+                                    workshopId={GAMES[activeGame].workshopId}
+                                    isActive={view === 'browse' && browseSource === 'modworkshop'}
+                                    source="modworkshop"
+                                    onSourceChange={handleSourceChange}
+                                    gamePath={gamePath}
+                                    gamePathReady={gamePathReady}
+                                    installed={installed}
+                                    onRefreshInstalled={refreshInstalled}
+                                    onOpenDetail={openDetailFromBrowse}
+                                    onGoToSettings={goToSettings}
+                                />
+                            )}
                     </div>
                     <div
                         className={`absolute inset-0 ${view === 'browse' && browseSource === 'nexus' ? '' : 'invisible pointer-events-none'}`}
@@ -341,7 +343,7 @@ export function GameWorkspace({
                                 key={activeGame}
                                 activeGame={activeGame}
                                 isActive={view === 'browse' && browseSource === 'nexus'}
-                                source={browseSource}
+                                source="nexus"
                                 onSourceChange={handleSourceChange}
                                 gamePath={gamePath}
                                 installed={installed}
