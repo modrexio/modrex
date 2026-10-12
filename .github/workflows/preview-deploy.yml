@@ -28,9 +28,13 @@ jobs:
         steps:
             - name: Resolve pull request
               id: pr
+              env:
+                  HEAD_OWNER: ${{ github.event.workflow_run.head_repository.owner.login }}
+                  HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
               run: |
-                  number=$(gh api "repos/$GITHUB_REPOSITORY/commits/$SHA/pulls" \
-                    --jq "[.[] | select(.state == \"open\" and .head.sha == \"$SHA\")][0].number // empty")
+                  number=$(gh api -X GET "repos/$GITHUB_REPOSITORY/pulls" \
+                    -f state=open -f head="$HEAD_OWNER:$HEAD_BRANCH" \
+                    --jq "[.[] | select(.head.sha == \"$SHA\")][0].number // empty")
                   echo "number=$number" >> "$GITHUB_OUTPUT"
                   [ -n "$number" ] || echo "$SHA is not the head of an open pull request; nothing to do."
 
