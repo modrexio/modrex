@@ -94,10 +94,6 @@ pub fn install_filename_for_source_file(
     }
 }
 
-/// Filename for a dropped archive, whose directory fallback is the stem recovered from the
-/// drop rather than the staged directory's own name.
-/// The name staging gave the file, when the target keeps archive filenames and staging took
-/// that name from an archive.
 fn staged_file_name(target: &ScanTarget, tmp: &Path, name_source: NameSource) -> Option<String> {
     if !target.keeps_archive_filename() || name_source != NameSource::FromArchive {
         return None;
@@ -105,6 +101,8 @@ fn staged_file_name(target: &ScanTarget, tmp: &Path, name_source: NameSource) ->
     tmp.file_name().and_then(|s| s.to_str()).map(str::to_string)
 }
 
+/// Filename for a dropped archive, whose directory fallback is the stem recovered from the
+/// drop rather than the staged directory's own name.
 pub fn install_filename_for_dropped(
     cfg: &ModEngineConfig,
     target: &ScanTarget,

@@ -92,9 +92,10 @@ function targetLabel(tag: string | null): string {
     return tag === 'mod_overrides' ? t('zipPicker.targetOverrides') : t('zipPicker.targetMods')
 }
 
-function nexusArchiveMember(uid: string): string | null {
-    const suffix = uid.split(':').slice(3).join(':')
-    return suffix.startsWith('entry:') ? suffix.slice('entry:'.length) : null
+function matchesSharedMember(mod: InstalledMod, entry: string, uniqueFilename: boolean): boolean {
+    const member = mod.uid.split(':').slice(3).join(':')
+    if (member.startsWith('entry:')) return member.slice('entry:'.length) === entry
+    return uniqueFilename && mod.filename === entryFilename(entry)
 }
 
 function isLocalSharedArchive(payload: ZipMultiPakPayload): boolean {
@@ -128,9 +129,7 @@ function computeInstalledEntries(
             if (localArchive) return false
             if (mod.fileId !== payload.fileId) return false
             if (!payload.sharedPaks) return stripPriorityPrefix(mod.filename) === filename
-            const member = nexusArchiveMember(mod.uid)
-            if (member !== null) return member === entry
-            return uniqueFilename && mod.filename === filename
+            return matchesSharedMember(mod, entry, uniqueFilename)
         })
         if (isInstalled) set.add(pos)
     })
@@ -169,11 +168,9 @@ export function computeAutoUpdateSelection(
         if (payload.sharedPaks) {
             const uniqueFilename =
                 payload.entries.filter((other) => entryFilename(other) === filename).length === 1
-            const matches = priorEntriesForMod.filter((mod) => {
-                const recordedMember = nexusArchiveMember(mod.uid)
-                if (recordedMember !== null) return recordedMember === entry
-                return uniqueFilename && mod.filename === filename
-            })
+            const matches = priorEntriesForMod.filter((mod) =>
+                matchesSharedMember(mod, entry, uniqueFilename)
+            )
             if (matches.length === 1) matched.push(pos)
             return
         }
