@@ -1693,19 +1693,7 @@ fn validate_shared_windows_member_paths(names: &HashSet<String>) -> Result<(), S
         .iter()
         .map(|name| (name.encode_utf16().collect::<Vec<_>>(), name))
         .collect();
-    let mut failure = None;
-    paths.sort_unstable_by(|(left, _), (right, _)| {
-        match crate::commands::launchers::steam_manifest::windows_path_order(left, right) {
-            Ok(order) => order,
-            Err(error) => {
-                failure = Some(error);
-                left.cmp(right)
-            }
-        }
-    });
-    if let Some(error) = failure {
-        return Err(error);
-    }
+    crate::commands::launchers::steam_manifest::sort_windows_paths(&mut paths)?;
     for pair in paths.windows(2) {
         if crate::commands::launchers::steam_manifest::windows_path_order(&pair[0].0, &pair[1].0)?
             == std::cmp::Ordering::Equal

@@ -421,15 +421,7 @@ pub(crate) fn windows_path_order(
 }
 
 #[cfg(windows)]
-fn validate_windows_paths<'a>(paths: impl Iterator<Item = (&'a str, bool)>) -> Result<(), String> {
-    let paths: Vec<_> = paths.collect();
-    if paths.iter().all(|(path, _)| path.is_ascii()) {
-        return Ok(());
-    }
-    let mut paths: Vec<_> = paths
-        .into_iter()
-        .map(|(path, directory)| (path.encode_utf16().collect::<Vec<_>>(), directory))
-        .collect();
+pub(crate) fn sort_windows_paths<T>(paths: &mut [(Vec<u16>, T)]) -> Result<(), String> {
     let mut failure = None;
     paths.sort_unstable_by(
         |(left, _), (right, _)| match windows_path_order(left, right) {
@@ -440,9 +432,20 @@ fn validate_windows_paths<'a>(paths: impl Iterator<Item = (&'a str, bool)>) -> R
             }
         },
     );
-    if let Some(error) = failure {
-        return Err(error);
+    failure.map_or(Ok(()), Err)
+}
+
+#[cfg(windows)]
+fn validate_windows_paths<'a>(paths: impl Iterator<Item = (&'a str, bool)>) -> Result<(), String> {
+    let paths: Vec<_> = paths.collect();
+    if paths.iter().all(|(path, _)| path.is_ascii()) {
+        return Ok(());
     }
+    let mut paths: Vec<_> = paths
+        .into_iter()
+        .map(|(path, directory)| (path.encode_utf16().collect::<Vec<_>>(), directory))
+        .collect();
+    sort_windows_paths(&mut paths)?;
     for pair in paths.windows(2) {
         if windows_path_order(&pair[0].0, &pair[1].0)? == std::cmp::Ordering::Equal {
             return Err("Steam native paths contain a Windows ordinal case collision".into());
@@ -1042,14 +1045,10 @@ fn validate_chunk(bytes: &[u8]) -> Result<(), String> {
 
 // SteamKit serializes the little-endian payload length before calculating CRC32.
 fn payload_crc(payload: &[u8]) -> u32 {
-    let mut crc = u32::MAX;
-    for byte in (payload.len() as u32).to_le_bytes().iter().chain(payload) {
-        crc ^= u32::from(*byte);
-        for _ in 0..8 {
-            crc = (crc >> 1) ^ (0xedb8_8320 & (0u32.wrapping_sub(crc & 1)));
-        }
-    }
-    !crc
+    let mut crc = crc32fast::Hasher::new();
+    crc.update(&(payload.len() as u32).to_le_bytes());
+    crc.update(payload);
+    crc.finalize()
 }
 
 #[cfg(test)]

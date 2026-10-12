@@ -3014,6 +3014,7 @@ dependencies = [
  "aes",
  "base64 0.23.1",
  "chrono",
+ "crc32fast",
  "discord-rich-presence",
  "filetime",
  "flate2",
