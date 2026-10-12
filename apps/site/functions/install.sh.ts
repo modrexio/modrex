@@ -25,29 +25,35 @@ interface GhTag {
     name: string
 }
 
-// GitHub rejects unauthenticated API requests with no User-Agent.
-const GH_API_HEADERS = { 'User-Agent': 'modrex-install-worker' }
-
 export function parseSemver(tag: string): { major: number; minor: number; patch: number } | null {
     const m = tag.match(/^v(\d+)\.(\d+)\.(\d+)$/)
     return m ? { major: Number(m[1]), minor: Number(m[2]), patch: Number(m[3]) } : null
 }
 
-async function fetchTags(): Promise<GhTag[]> {
+// Unauthenticated calls share 60 requests an hour per egress IP with every other
+// Cloudflare tenant on that IP, which routinely exhausts it. The token gives this
+// function its own 5000. GitHub rejects requests with no User-Agent.
+async function fetchTags(token: string | undefined): Promise<GhTag[]> {
+    const headers: Record<string, string> = { 'User-Agent': 'modrex-install-worker' }
+    if (token) headers.Authorization = `Bearer ${token}`
     const res = await fetch('https://api.github.com/repos/modrexio/mget/tags?per_page=100', {
-        headers: GH_API_HEADERS,
+        headers,
     })
-    if (!res.ok) throw new Error(`GitHub API (tags) failed: ${res.status}`)
+    if (!res.ok) {
+        const body = (await res.text()).slice(0, 300).replace(/\s+/g, ' ')
+        const auth = token ? 'token present' : 'token absent'
+        throw new Error(`GitHub API (tags) failed: ${res.status} (${auth}): ${body}`)
+    }
     return res.json()
 }
 
-export async function resolveEngineTag(pin: string): Promise<string> {
+export async function resolveEngineTag(pin: string, token?: string): Promise<string> {
     if (parseSemver(pin)) return pin // exact tag, no API call needed
 
     const majorMatch = pin.match(/^v(\d+)$/)
     if (pin !== 'latest' && !majorMatch) throw new Error(`invalid ENGINE_PIN: ${pin}`)
 
-    const tags = await fetchTags()
+    const tags = await fetchTags(token)
     const wantedMajor = majorMatch ? Number(majorMatch[1]) : null
     const best = tags
         .map((t) => parseSemver(t.name))
@@ -90,11 +96,11 @@ export function buildPrelude(config: InstallConfig): string {
         .join('\n')
 }
 
-export async function onRequestGet(): Promise<Response> {
+export async function onRequestGet({ env }: { env: { GITHUB_TOKEN?: string } }): Promise<Response> {
     let engine: string
     let config: InstallConfig
     try {
-        const engineTag = await resolveEngineTag(ENGINE_PIN)
+        const engineTag = await resolveEngineTag(ENGINE_PIN, env.GITHUB_TOKEN)
         const engineUrl = `https://raw.githubusercontent.com/modrexio/mget/${engineTag}/install.sh`
         const [engineRes, configRes] = await Promise.all([fetch(engineUrl), fetch(CONFIG_URL)])
         if (!engineRes.ok) {
