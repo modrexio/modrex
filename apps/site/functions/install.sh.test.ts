@@ -50,7 +50,8 @@ describe('resolveEngineTag', () => {
 
     function stubTags(names: string[]) {
         const fetchMock = vi.fn(
-            async () => new Response(JSON.stringify(names.map((name) => ({ name }))))
+            async (_input: RequestInfo | URL, _init?: RequestInit) =>
+                new Response(JSON.stringify(names.map((name) => ({ name }))))
         )
         vi.stubGlobal('fetch', fetchMock)
         return fetchMock
