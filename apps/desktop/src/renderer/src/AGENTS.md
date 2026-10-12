@@ -104,7 +104,7 @@ English lacks it too.
 `GameWorkspace`'s page containers — switching language remounts translated content so every
 `t()` call re-evaluates, while application state, workspace navigation and data
 subscriptions live above the remounted subtree and survive it. Module-scope `t()` calls are
-blocked by an ESLint rule (`eslint.config.js`) since they'd freeze at import time and never
+blocked by an oxlint rule (`oxlint.config.ts`) since they'd freeze at import time and never
 react to a switch — call `t()` inside a component, typically via `useMemo`. `bun check-i18n`
 validates translated keys and interpolation parameters against English; the translation
 workflow itself is described in `apps/desktop/AGENTS.md`.

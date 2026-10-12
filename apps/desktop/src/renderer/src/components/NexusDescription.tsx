@@ -21,7 +21,7 @@ function NexusAnchor({ href, children }: { href: string; children: ReactNode }) 
     const modId = onOpenDetail ? parseModworkshopModId(href) : null
 
     return (
-        // eslint-disable-next-line no-restricted-syntax -- gated: scheme allowlisted, click routed through onOpenDetail or api.openExternal
+        // eslint-disable-next-line eslint-js/no-restricted-syntax -- gated: scheme allowlisted, click routed through onOpenDetail or api.openExternal
         <a
             href={href}
             onClick={(e) => {

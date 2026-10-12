@@ -39,7 +39,7 @@ Tauri v2 · React · Tailwind CSS · Lucide · TypeScript
 Pre-commit hooks run automatically via Husky:
 
 - **`prettier --check`** - run `bun format` to fix formatting failures
-- **`eslint`** - run `bun lint:fix` to fix lint failures
+- **`oxlint`** (ESLint for `apps/site`) - run `bun lint:fix` to fix lint failures
 - **`check-commands`** - see Backend commands below
 - **`commitlint`** - enforces the commit message format (see Commit style below)
 

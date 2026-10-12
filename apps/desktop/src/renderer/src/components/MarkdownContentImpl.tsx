@@ -88,7 +88,7 @@ function makeComponents(onOpenDetail?: (modId: number) => void): Components {
             const modId = onOpenDetail ? parseModworkshopModId(href) : null
             if (modId !== null && onOpenDetail) {
                 return (
-                    // eslint-disable-next-line no-restricted-syntax -- internal mod link navigation routed to onOpenDetail
+                    // eslint-disable-next-line eslint-js/no-restricted-syntax -- internal mod link navigation routed to onOpenDetail
                     <a
                         onClick={(e) => {
                             e.preventDefault()
@@ -102,7 +102,7 @@ function makeComponents(onOpenDetail?: (modId: number) => void): Components {
             }
             if (!/^(https?|mailto):/i.test(href)) return <>{children}</>
             return (
-                // eslint-disable-next-line no-restricted-syntax -- gated markdown link: scheme allowlisted above; click routed through api.openExternal (shell_open_external)
+                // eslint-disable-next-line eslint-js/no-restricted-syntax -- gated markdown link, scheme allowlisted above, click routed through api.openExternal (shell_open_external)
                 <a
                     onClick={(e) => {
                         e.preventDefault()

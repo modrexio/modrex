@@ -20,8 +20,8 @@ bun check-i18n   # Validate each locale's translated subset and {var} interpolat
 bun checks       # Run the full CI gate locally: all check-* scripts, format:check, lint, typecheck, tests
 bun format       # Format all files with prettier
 bun format:check # Check formatting without writing
-bun lint         # ESLint on renderer source (src/renderer/src/)
-bun lint:fix     # ESLint with auto-fix
+bun lint         # oxlint on renderer source and scripts
+bun lint:fix     # oxlint with auto-fix
 bun run test         # Run all tests: Rust (cargo test) then renderer (vitest)
 bun test:renderer # Run only renderer TypeScript tests (vitest)
 cd src-tauri && cargo test --test export_preview_fixtures -- --ignored # Refresh preview fixtures from live modworkshop
