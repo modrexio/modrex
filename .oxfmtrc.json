@@ -1,0 +1,27 @@
+{
+    "$schema": "./node_modules/oxfmt/configuration_schema.json",
+    "semi": false,
+    "tabWidth": 4,
+    "singleQuote": true,
+    "trailingComma": "es5",
+    "printWidth": 100,
+    "sortPackageJson": false,
+    "ignorePatterns": [
+        // Game manifests and the starter manifest are TOML 1.1, and no TOML formatter may run over them.
+        "**/*.toml",
+        // The site formats with Prettier until oxfmt formats .astro files.
+        "apps/site/",
+        "apps/desktop/src-tauri/",
+        "apps/desktop/src/shared/bindings.ts",
+        "apps/desktop/src/renderer/preview/fixtures/",
+        "apps/desktop/translation-contributors.generated.json",
+        "THIRD_PARTY_LICENSES.md",
+        "packages/games/catalog.generated.ts",
+        "docs/reference/game-package.md",
+        "CHANGELOG.md",
+        "AGENTS.md",
+        "CLAUDE.md",
+        ".agents/",
+        "bun.lock"
+    ]
+}

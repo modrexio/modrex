@@ -39,8 +39,8 @@
         "checks": "bun run check-version && bun run check-commands && bun run check-csp && bun run check-updater && bun run check-i18n && bun run site:check-legal-dates && bun run format:check && bun run lint && bun run typecheck && bun run test && bun run site:build",
         "test": "bun run --cwd apps/desktop test && bun run site:test && bun run index:test",
         "test:renderer": "bun run --cwd apps/desktop test:renderer",
-        "format": "prettier --write . && bun run --cwd apps/site format",
-        "format:check": "prettier --check . && bun run site:format:check",
+        "format": "oxfmt && bun run --cwd apps/site format",
+        "format:check": "oxfmt --check && bun run site:format:check",
         "lint": "bun run --cwd apps/desktop lint && bun run site:lint",
         "lint:fix": "bun run --cwd apps/desktop lint:fix && bun run --cwd apps/site lint:fix",
         "generate-licenses": "bun run --cwd apps/desktop generate-licenses",
@@ -67,7 +67,7 @@
         "@commitlint/config-conventional": "21.2.3",
         "@types/node": "^22.20.5",
         "husky": "^9.1.7",
-        "prettier": "^3.9.9",
+        "oxfmt": "0.72.0",
         "typescript": "6.0.3"
     },
     "overrides": {

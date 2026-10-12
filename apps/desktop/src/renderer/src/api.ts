@@ -50,7 +50,8 @@ import { isGameId, type GameId } from '../../shared/types'
 export type ResourceReview = Omit<BackendResourceReview, 'gameId'> & { gameId: GameId }
 import { requestResourceReview } from './resourceInstall'
 export type InstallOutcome =
-    Exclude<BackendInstallOutcome, { needsResourceReview: unknown }> | 'cancelled'
+    | Exclude<BackendInstallOutcome, { needsResourceReview: unknown }>
+    | 'cancelled'
 
 // The library declares this union without exporting it.
 export type ResizeDirection = Parameters<

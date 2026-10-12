@@ -2,7 +2,9 @@ import { GAMES, isGameId, type GameId } from '../../shared/types'
 
 export type GameView = 'browse' | 'installed' | 'news' | 'settings'
 export type AppRoute =
-    { kind: 'picker' } | { kind: 'global-settings' } | { kind: 'game'; gameId: GameId }
+    | { kind: 'picker' }
+    | { kind: 'global-settings' }
+    | { kind: 'game'; gameId: GameId }
 
 export function readAppRoute(): AppRoute {
     const scope = localStorage.getItem('modrex:scope')

@@ -1,10 +1,12 @@
 import type { ModSummary, InstalledMod, ModFolder, ModFile } from '../../../shared/types'
 
 export type ChildEntry =
-    { type: 'folder'; folder: ModFolder } | { type: 'mod'; mods: InstalledMod[] }
+    | { type: 'folder'; folder: ModFolder }
+    | { type: 'mod'; mods: InstalledMod[] }
 
 export type ChildGroup =
-    { type: 'folder'; folder: ModFolder } | { type: 'root-group'; groups: InstalledMod[][] }
+    | { type: 'folder'; folder: ModFolder }
+    | { type: 'root-group'; groups: InstalledMod[][] }
 
 // Filenames on disk carry a NNN_ priority prefix; archive entry names don't.
 // Strip it when comparing the two.

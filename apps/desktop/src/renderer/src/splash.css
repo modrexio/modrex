@@ -11,12 +11,7 @@ body {
     background: var(--color-surface);
     color: var(--color-text);
     font-family:
-        ui-sans-serif,
-        system-ui,
-        -apple-system,
-        BlinkMacSystemFont,
-        'Segoe UI',
-        sans-serif;
+        ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     user-select: none;
 }
 

@@ -21,7 +21,7 @@ Scripts run as `bun <script>`, except `bun run build` and `bun run test`: plain 
 | `bun dev`               | Start with hot reload                           |
 | `bun run build`         | Production build                                |
 | `bun typecheck`         | Type-check renderer                             |
-| `bun format`            | Format all files with Prettier                  |
+| `bun format`            | Format all files with oxfmt and Prettier        |
 | `bun lint`              | Lint renderer source                            |
 | `bun run test`          | Run all tests (Rust + renderer)                 |
 | `bun checks`            | Run the full CI gate locally                    |
@@ -38,7 +38,7 @@ Tauri v2 · React · Tailwind CSS · Lucide · TypeScript
 
 Pre-commit hooks run automatically via Husky:
 
-- **`prettier --check`** - run `bun format` to fix formatting failures
+- **`oxfmt --check`** (Prettier for `apps/site`) - run `bun format` to fix formatting failures
 - **`oxlint`** (ESLint for `apps/site`) - run `bun lint:fix` to fix lint failures
 - **`check-commands`** - see Backend commands below
 - **`commitlint`** - enforces the commit message format (see Commit style below)

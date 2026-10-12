@@ -1201,7 +1201,8 @@ async function main(): Promise<void> {
     }
 
     const lastRunRow = db.prepare('SELECT value FROM metadata WHERE key = ?').get('last_run_at') as
-        { value: string } | undefined
+        | { value: string }
+        | undefined
     const dbLastRunAt = lastRunRow ? new Date(lastRunRow.value) : null
     // The stats copy is newer whenever the previous run exited 2 (its index.db upload was
     // skipped, so the DB's metadata is stale). Take whichever timestamp is later.

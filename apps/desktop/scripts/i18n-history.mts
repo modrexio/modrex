@@ -70,7 +70,8 @@ export type HistoryAnalysis = {
     }
 }
 type BundleObservation =
-    { kind: 'parsed'; value: unknown } | { kind: 'invalid-json' | 'invalid-utf8'; cause: unknown }
+    | { kind: 'parsed'; value: unknown }
+    | { kind: 'invalid-json' | 'invalid-utf8'; cause: unknown }
 export type EffectiveState = 'accepted' | 'review' | 'missing'
 type SummaryBase = {
     locale: string
