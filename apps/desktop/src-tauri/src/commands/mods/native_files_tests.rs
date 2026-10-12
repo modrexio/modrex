@@ -1,7 +1,10 @@
 use super::*;
 use crate::commands::launchers::steam_manifest::write_test_catalog;
 use crate::commands::mods::engine::{Activation, ModMetadata, ModUnit, ScanTarget};
-use crate::commands::mods::{get_state_path, InstalledMod, ModsState};
+use crate::commands::mods::{
+    decisions, file_transaction, get_state_path, install, paths, state, InstalledMod, ModFolder,
+    ModsState,
+};
 use tempfile::TempDir;
 
 static SHARED_PAK_ENGINE: ModEngineConfig = ModEngineConfig {
@@ -210,108 +213,325 @@ fn preexisting_mod_file_moves_and_failed_state_save_restore_its_exact_path() {
 }
 
 #[test]
-fn replacement_save_failure_restores_existing_mod_bytes_and_other_files() {
+fn shared_disabled_update_save_failure_restores_mod_and_state() {
     let fixture = fixture();
     let source = fixture.game.join("new.pak");
     fs::write(&source, b"replacement").unwrap();
-    let dest = fixture.paks.join("pakchunk99-Manual.pak");
+    let dest = fixture.paks.join("disabled/pakchunk99-Manual.pak.disabled");
+    fs::create_dir_all(dest.parent().unwrap()).unwrap();
     fs::write(&dest, b"old manual mod").unwrap();
-    let bad_state = fixture.paks.join("cannot-save");
-    fs::create_dir(&bad_state).unwrap();
-    let result = crate::commands::mods::file_transaction::replace_family(
-        Some(&source),
-        &dest,
-        Some(&dest),
+    let mod_data = InstalledMod {
+        uid: "manual".into(),
+        filename: "pakchunk99-Manual.pak".into(),
+        enabled: false,
+        ..InstalledMod::default()
+    };
+    let state = ModsState {
+        folders: vec![],
+        mods: vec![mod_data.clone()],
+    };
+    let state_path = get_state_path(fixture.game.to_str().unwrap(), &SHARED_PAK_ENGINE);
+    state::save_state(&state_path, &state).unwrap();
+    let before = fs::read(&state_path).unwrap();
+    fs::create_dir(state::temporary_state_path(&state_path)).unwrap();
+    let result = install::install_shared_pak(
+        fixture.game.to_str().unwrap(),
+        &state_path,
+        InstalledMod {
+            enabled: true,
+            ..mod_data
+        },
+        &source,
+        &SHARED_PAK_ENGINE,
         SHARED_PAK_ENGINE.primary(),
+        state,
         &fixture.native,
-        &bad_state,
-        &ModsState::default(),
     );
     assert!(result.is_err());
     assert_eq!(fs::read(&dest).unwrap(), b"old manual mod");
-    assert_eq!(
-        fs::read(fixture.paks.join("native.pak")).unwrap(),
-        b"native pak"
-    );
-    assert_eq!(
-        fs::read(fixture.paks.join("native.sig")).unwrap(),
-        b"native signature"
-    );
-}
-
-#[test]
-fn installing_and_uninstalling_a_manual_mod_preserve_native_files() {
-    let fixture = fixture();
-    let cfg = &SHARED_PAK_ENGINE;
-    let state_path = get_state_path(fixture.game.to_str().unwrap(), cfg);
-    let dest = fixture.paks.join("pakchunk99-Manual.pak");
-    fs::write(&dest, b"manual mod").unwrap();
-    let source = fixture.game.join("download.pak");
-    fs::write(&source, b"updated mod").unwrap();
-    let state = ModsState {
-        folders: vec![],
-        mods: vec![InstalledMod {
-            uid: "manual".into(),
-            filename: "pakchunk99-Manual.pak".into(),
-            enabled: true,
-            ..InstalledMod::default()
-        }],
-    };
-    crate::commands::mods::file_transaction::replace_family(
-        Some(&source),
-        &dest,
-        Some(&dest),
-        cfg.primary(),
-        &fixture.native,
-        &state_path,
-        &state,
-    )
-    .unwrap();
-    assert_eq!(fs::read(&dest).unwrap(), b"updated mod");
-    crate::commands::mods::file_transaction::replace_family(
-        None,
-        &dest,
-        None,
-        cfg.primary(),
-        &fixture.native,
-        &state_path,
-        &ModsState::default(),
-    )
-    .unwrap();
-    assert!(!dest.exists());
-    assert_eq!(
-        fs::read(fixture.paks.join("native.pak")).unwrap(),
-        b"native pak"
-    );
-    assert_eq!(
-        fs::read(fixture.paks.join("native.sig")).unwrap(),
-        b"native signature"
-    );
-    assert!(fs::read_to_string(&state_path)
+    assert!(!fixture.paks.join("pakchunk99-Manual.pak").exists());
+    assert_eq!(fs::read(&state_path).unwrap(), before);
+    assert!(fs::read_dir(dest.parent().unwrap())
         .unwrap()
-        .contains("\"mods\": []"));
+        .all(|entry| !entry
+            .unwrap()
+            .file_name()
+            .to_string_lossy()
+            .starts_with(".modrex-install-")));
+    assert_eq!(
+        fs::read(fixture.paks.join("native.pak")).unwrap(),
+        b"native pak"
+    );
+    assert_eq!(
+        fs::read(fixture.paks.join("native.sig")).unwrap(),
+        b"native signature"
+    );
 }
 
 #[test]
-fn changed_depot_catalog_blocks_mutation_before_overwriting_existing_mod() {
-    let fixture = fixture();
-    let dest = fixture.paks.join("Manual.pak");
-    fs::write(&dest, b"manual bytes").unwrap();
-    let source = fixture.game.join("download.pak");
-    fs::write(&source, b"new bytes").unwrap();
-    fs::write(fixture.steam.join("depotcache/12_34.manifest"), b"changed").unwrap();
-    let cfg = &SHARED_PAK_ENGINE;
-    assert!(crate::commands::mods::file_transaction::replace_family(
-        Some(&source),
-        &dest,
-        None,
-        cfg.primary(),
-        &fixture.native,
-        &get_state_path(fixture.game.to_str().unwrap(), cfg),
-        &ModsState::default()
-    )
-    .is_err());
-    assert_eq!(fs::read(dest).unwrap(), b"manual bytes");
+fn shared_installs_preserve_activation_identity_folders_and_native_files() {
+    for (uid, source_kind, previous_enabled, folder_id) in [
+        ("manual", "local", Some(true), None),
+        (
+            "nexus:2759:30000:entry:Hard/pakchunk99-Manual.pak",
+            "nexus",
+            Some(false),
+            Some("profile"),
+        ),
+        (
+            "nexus:2759:30000:pakchunk99-Manual",
+            "nexus",
+            Some(false),
+            Some("profile"),
+        ),
+        (
+            "nexus:2759:30000:entry:Hard/pakchunk99-Manual.pak",
+            "nexus",
+            Some(true),
+            None,
+        ),
+        ("nexus:2759:30800", "nexus", None, None),
+    ] {
+        let fixture = fixture();
+        let cfg = &SHARED_PAK_ENGINE;
+        let game = fixture.game.to_str().unwrap();
+        let state_path = get_state_path(game, cfg);
+        let original = InstalledMod {
+            uid: uid.into(),
+            filename: "pakchunk99-Manual.pak".into(),
+            source: source_kind.into(),
+            remote_id: (source_kind == "nexus").then(|| "2759".into()),
+            file_id: Some(30000),
+            enabled: previous_enabled.unwrap_or(false),
+            folder_id: folder_id.map(String::from),
+            ..InstalledMod::default()
+        };
+        let state = ModsState {
+            folders: folder_id
+                .map(|id| ModFolder {
+                    id: id.into(),
+                    disk_name: "001_Profile".into(),
+                    display_name: "Profile".into(),
+                    priority: 1,
+                    parent_id: None,
+                })
+                .into_iter()
+                .collect(),
+            mods: previous_enabled
+                .map(|_| original.clone())
+                .into_iter()
+                .collect(),
+        };
+        let folder = state::get_folder_path(&state.folders, folder_id);
+        let dest = paths::installed_mod_path(
+            game,
+            &original.filename,
+            folder.as_deref(),
+            cfg.primary(),
+            previous_enabled.unwrap_or(true),
+        );
+        if previous_enabled.is_some() {
+            fs::create_dir_all(dest.parent().unwrap()).unwrap();
+            fs::write(&dest, b"manual mod").unwrap();
+        }
+        state::save_state(&state_path, &state).unwrap();
+        let matched = if source_kind == "nexus" {
+            decisions::shared_nexus_update(
+                &state.mods,
+                2759,
+                30800,
+                &original.filename,
+                Some("Hard/pakchunk99-Manual.pak"),
+                None,
+                true,
+            )
+            .unwrap()
+        } else {
+            state.mods.first()
+        };
+        let update = InstalledMod {
+            enabled: true,
+            file_id: Some(30800),
+            version: "2".into(),
+            ..matched.cloned().unwrap_or(original)
+        };
+        let download = fixture.game.join("download.pak");
+        fs::write(&download, b"updated mod").unwrap();
+        install::install_shared_pak(
+            game,
+            &state_path,
+            update,
+            &download,
+            cfg,
+            cfg.primary(),
+            state,
+            &fixture.native,
+        )
+        .unwrap();
+        let saved = state::read_state(&state_path).unwrap();
+        assert_eq!(saved.mods.len(), 1);
+        let installed = &saved.mods[0];
+        assert_eq!(installed.enabled, previous_enabled.unwrap_or(true));
+        assert_eq!(installed.uid, uid);
+        assert_eq!(installed.filename, "pakchunk99-Manual.pak");
+        assert_eq!(installed.folder_id.as_deref(), folder_id);
+        assert_eq!(installed.file_id, Some(30800));
+        assert_eq!(installed.version, "2");
+        assert_eq!(fs::read(&dest).unwrap(), b"updated mod");
+        if previous_enabled == Some(false) {
+            assert!(!paths::active_mod_path(
+                game,
+                &installed.filename,
+                folder.as_deref(),
+                cfg.primary()
+            )
+            .exists());
+        }
+        file_transaction::replace_family(
+            None,
+            &dest,
+            None,
+            cfg.primary(),
+            &fixture.native,
+            &state_path,
+            &ModsState::default(),
+        )
+        .unwrap();
+        assert!(!dest.exists());
+        assert_eq!(
+            fs::read(fixture.paks.join("native.pak")).unwrap(),
+            b"native pak"
+        );
+        assert_eq!(
+            fs::read(fixture.paks.join("native.sig")).unwrap(),
+            b"native signature"
+        );
+        assert!(state::read_state(&state_path).unwrap().mods.is_empty());
+    }
+}
+
+#[test]
+fn shared_install_refusals_preserve_every_file_and_the_saved_state() {
+    for case in [
+        "both",
+        "active-only",
+        "relocated-both",
+        "relocated-active-only",
+        "relocated-enabled",
+        "untracked",
+        "native-new",
+        "native-old",
+        "catalog",
+    ] {
+        let fixture = fixture();
+        let cfg = &SHARED_PAK_ENGINE;
+        let game = fixture.game.to_str().unwrap();
+        let state_path = get_state_path(game, cfg);
+        let folders = vec![ModFolder {
+            id: "folder".into(),
+            disk_name: "Profile".into(),
+            display_name: "Profile".into(),
+            priority: 0,
+            parent_id: None,
+        }];
+        let old = InstalledMod {
+            uid: "manual".into(),
+            filename: if case == "native-old" {
+                "native.pak"
+            } else {
+                "Manual.pak"
+            }
+            .into(),
+            enabled: case == "relocated-enabled",
+            folder_id: case.starts_with("relocated").then(|| "folder".into()),
+            ..InstalledMod::default()
+        };
+        let folder = state::get_folder_path(&folders, old.folder_id.as_deref());
+        let disabled =
+            paths::disabled_mod_path(game, &old.filename, folder.as_deref(), cfg.primary());
+        fs::create_dir_all(disabled.parent().unwrap()).unwrap();
+        fs::write(&disabled, b"disabled original").unwrap();
+        let active = paths::active_mod_path(game, &old.filename, folder.as_deref(), cfg.primary());
+        let occupied = fixture.paks.join("disabled/Untracked.pak.disabled");
+        match case {
+            "both"
+            | "active-only"
+            | "relocated-both"
+            | "relocated-active-only"
+            | "relocated-enabled" => {
+                fs::create_dir_all(active.parent().unwrap()).unwrap();
+                fs::write(&active, b"active original").unwrap();
+            }
+            "untracked" => {
+                fs::write(&occupied, b"untracked original").unwrap();
+            }
+            "catalog" => {
+                fs::write(fixture.steam.join("depotcache/12_34.manifest"), b"changed").unwrap();
+            }
+            _ => {}
+        }
+        if case.ends_with("active-only") {
+            fs::remove_file(&disabled).unwrap();
+        }
+        let state = ModsState {
+            folders,
+            mods: vec![old.clone()],
+        };
+        state::save_state(&state_path, &state).unwrap();
+        let source = fixture.game.join("download.pak");
+        fs::write(&source, b"new bytes").unwrap();
+        let watched = [
+            disabled,
+            active,
+            occupied,
+            fixture.paks.join("native.pak"),
+            fixture.paks.join("native.sig"),
+            fixture.paks.join("Replacement.pak"),
+            fixture.paks.join("disabled/Replacement.pak.disabled"),
+            fixture.paks.join("Manual.pak"),
+            fixture.paks.join("disabled/Manual.pak.disabled"),
+            state_path.clone(),
+            source.clone(),
+        ];
+        let contents = || {
+            watched
+                .iter()
+                .map(|path| match fs::read(path) {
+                    Ok(bytes) => Some(bytes),
+                    Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+                    Err(error) => panic!("Could not inspect test file: {error}"),
+                })
+                .collect::<Vec<_>>()
+        };
+        let before = contents();
+        let update = InstalledMod {
+            filename: match case {
+                "native-new" => "native.pak".into(),
+                "native-old" => "Replacement.pak".into(),
+                "untracked" => "Untracked.pak".into(),
+                _ => old.filename.clone(),
+            },
+            enabled: true,
+            folder_id: None,
+            ..old
+        };
+        assert!(
+            install::install_shared_pak(
+                game,
+                &state_path,
+                update,
+                &source,
+                cfg,
+                cfg.primary(),
+                state,
+                &fixture.native
+            )
+            .is_err(),
+            "{case}"
+        );
+        assert_eq!(contents(), before, "{case}");
+        assert!(!state::temporary_state_path(&state_path).exists());
+    }
 }
 
 #[test]
@@ -353,13 +573,13 @@ fn state_temp_hard_link_refuses_replacement_and_preserves_native_bytes() {
     let fixture = fixture();
     let cfg = &SHARED_PAK_ENGINE;
     let state_path = get_state_path(fixture.game.to_str().unwrap(), cfg);
-    let state_temp = crate::commands::mods::state::temporary_state_path(&state_path);
+    let state_temp = state::temporary_state_path(&state_path);
     fs::hard_link(fixture.paks.join("native.pak"), &state_temp).unwrap();
     let destination = fixture.paks.join("Manual.pak");
     fs::write(&destination, b"old manual bytes").unwrap();
     let source = fixture.game.join("download.pak");
     fs::write(&source, b"new manual bytes").unwrap();
-    let result = crate::commands::mods::file_transaction::replace_family(
+    let result = file_transaction::replace_family(
         Some(&source),
         &destination,
         Some(&destination),
