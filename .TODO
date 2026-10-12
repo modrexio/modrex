@@ -947,3 +947,23 @@ code or a separately justified Tier 2 capability. Do not add hooks speculatively
 make every hypothetical community game expressible.
 
 ---
+
+## TODO: site-oxc-tooling
+
+apps/site still lints with ESLint (eslint-plugin-astro) and formats with Prettier
+(prettier-plugin-astro), while the rest of the repository uses oxlint and oxfmt (#132).
+Finish the move once the oxc tools cover Astro. Recheck both conditions first:
+
+- Formatting: oxfmt formats .astro files in a released version (oxc-project/oxc#27386
+  was still open on 2026-10-12). Then remove apps/site/.prettierrc.json, the site's
+  .prettierignore, prettier and prettier-plugin-astro, drop apps/site/ from the root
+  .oxfmtrc.json ignorePatterns, and reduce .claude/hooks/format.mjs to oxfmt only.
+- Linting: oxlint lints Astro templates, not only frontmatter scripts. Until then
+  eslint-plugin-astro stays, since dropping it loses the template rules. Keep the
+  inline-script constraint in apps/site/AGENTS.md working (prefer-rest-params and
+  no-undef per is:inline block).
+
+The two halves can land separately. Prove parity the way #132 did: one violating probe
+per enabled ESLint rule, and the same file coverage for oxfmt as for Prettier.
+
+---
