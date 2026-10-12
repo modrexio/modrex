@@ -1653,7 +1653,7 @@ fn install_preset_from_staging(
     };
     store.put_bytes(&bytes)?;
     let source = preset_of(&preset).expect("an INI deployment");
-    preset_assignments(&source.source_entry, &store.object_path(&sha256))?;
+    preset_assignments_from_bytes(&source.source_entry, &bytes)?;
     let config = PathBuf::from(&source.config_path);
     if let DeploymentBody::Ini { preset: p } = &mut preset.body {
         p.source_sha256 = sha256;
