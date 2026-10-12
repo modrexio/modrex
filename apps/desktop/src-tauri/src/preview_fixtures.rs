@@ -133,23 +133,3 @@ pub fn export_preview_fixtures() {
         }
     });
 }
-
-#[test]
-#[ignore = "writes source-less preview fixtures and registry projections"]
-fn export_source_less_preview_fixtures() {
-    write("loaders", &crate::commands::loaders::list_loaders());
-    write("sources", &crate::commands::sources::list_sources());
-    for (game_id, package) in crate::games::discovered() {
-        if package
-            .sources
-            .iter()
-            .any(|source| matches!(source, SourceBinding::ModWorkshop { .. }))
-        {
-            continue;
-        }
-        let folders = crate::commands::mods::list_mod_folders(game_id.to_string())
-            .unwrap_or_else(|e| panic!("{game_id} mod folders: {e}"));
-        write(&format!("{game_id}/mod-folders"), &folders);
-        write_empty_workshop_fixtures(game_id);
-    }
-}
