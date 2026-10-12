@@ -1,6 +1,6 @@
 type PagesContext = {
     request: Request
-    params: { number: string | string[] }
+    params: { number: string | string[]; path?: string[] }
     env?: { GITHUB_TOKEN?: string }
 }
 
@@ -9,15 +9,19 @@ type Status = { context: string; state: string; target_url?: string | null }
 
 const REPO = 'modrexio/modrex'
 const GITHUB_API = `https://api.github.com/repos/${REPO}`
-const APP = { project: 'modrex-app-pr', context: 'preview/app', redirect: false }
+const APP = { project: 'modrex-app-pr', context: 'preview/app', site: false }
 const HOSTS: Record<string, typeof APP> = {
     'site-preview.modrex.net': {
         project: 'modrex-site-pr',
         context: 'preview/site',
-        redirect: true,
+        site: true,
     },
 }
 const ROOT_ASSET_URL = /((?:src|href)=["'])\/(?!\/)/g
+const TAG = /<([a-zA-Z][\w-]*)\b[^>]*>/g
+const URL_ATTRIBUTE = /(\s(src|href|srcset)=["'])([^"']*)/g
+const ROOT_PATH = /^\/(?!\/)/
+const ROOT_SRCSET_PATH = /(^|,\s*)\/(?!\/)/g
 // A pull request without a preview status this soon after its last update is still queueing CI.
 const BUILD_GRACE_MS = 10 * 60 * 1000
 
@@ -29,6 +33,16 @@ export async function onRequestGet({ request, params, env }: PagesContext): Prom
 
     const url = new URL(request.url)
     const target = HOSTS[url.hostname] ?? APP
+    const path = params.path ?? []
+    const base = `/pr/${number}`
+    if (!target.site && path.length > 0) {
+        return page(404, 'Not found', 'The app preview only has one page.')
+    }
+    // Relative links on the home page only resolve under /pr/N/ with the slash.
+    if (target.site && path.length === 0 && !url.pathname.endsWith('/')) {
+        return redirect(`${base}/${url.search}`)
+    }
+
     const headers: Record<string, string> = {
         Accept: 'application/vnd.github+json',
         'User-Agent': 'modrex-preview',
@@ -36,6 +50,8 @@ export async function onRequestGet({ request, params, env }: PagesContext): Prom
     if (env?.GITHUB_TOKEN) headers.Authorization = `Bearer ${env.GITHUB_TOKEN}`
     const checks = `https://github.com/${REPO}/pull/${number}/checks`
     const preview = new URL(`https://pr-${number}.${target.project}.pages.dev`)
+    preview.pathname = `/${path.map(encodeURIComponent).join('/')}`
+    if (url.pathname.endsWith('/') && path.length > 0) preview.pathname += '/'
     preview.search = url.search
 
     try {
@@ -58,7 +74,7 @@ export async function onRequestGet({ request, params, env }: PagesContext): Prom
 
         switch (status?.state) {
             case 'success':
-                return target.redirect ? redirect(preview) : proxy(preview)
+                return target.site ? proxySite(preview, base) : proxy(preview)
             case 'pending':
                 return page(503, 'Building', 'The preview for the latest commit is being built.', {
                     refresh: 30,
@@ -109,10 +125,39 @@ async function proxy(target: URL): Promise<Response> {
     })
 }
 
-function redirect(target: URL): Response {
+async function proxySite(target: URL, base: string): Promise<Response> {
+    const response = await fetch(target.toString(), { redirect: 'manual' })
+    const location = response.headers.get('Location')
+    if (location) return redirect(publicPath(new URL(location, target), target, base))
+
+    const contentType = response.headers.get('Content-Type') ?? 'application/octet-stream'
+    const headers = { 'Cache-Control': 'no-store', 'Content-Type': contentType }
+    if (!contentType.startsWith('text/html')) {
+        return new Response(response.body, { status: response.status, headers })
+    }
+    const html = rewriteSitePage(await response.text(), target.origin, base)
+    return new Response(html, { status: response.status, headers })
+}
+
+export function rewriteSitePage(html: string, origin: string, base: string): string {
+    return html.replace(TAG, (tag, name: string) =>
+        tag.replace(URL_ATTRIBUTE, (_, prefix: string, attribute: string, value: string) => {
+            const root = name.toLowerCase() === 'a' ? base : origin
+            const pattern = attribute === 'srcset' ? ROOT_SRCSET_PATH : ROOT_PATH
+            return prefix + value.replace(pattern, (match) => `${match.slice(0, -1)}${root}/`)
+        })
+    )
+}
+
+function publicPath(location: URL, target: URL, base: string): string {
+    if (location.origin !== target.origin) return location.toString()
+    return `${base}${location.pathname}${location.search}${location.hash}`
+}
+
+function redirect(location: string): Response {
     return new Response(null, {
         status: 302,
-        headers: { Location: target.toString(), 'Cache-Control': 'no-store' },
+        headers: { Location: location, 'Cache-Control': 'no-store' },
     })
 }
 
