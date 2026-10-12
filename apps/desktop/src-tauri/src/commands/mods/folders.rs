@@ -167,7 +167,7 @@ pub fn move_folder_op(
         native.check_tree(&mods_b.join(&new_rel))?;
         native.check_tree(&dis_b.join(&new_rel))?;
         native.check_state_path(state_path)?;
-        let mut moves = Moves::for_game(game_path, cfg)?;
+        let mut moves = Moves::with_native_guard(native);
         for (from, to) in [
             (old_a.clone(), mods_b.join(&new_rel)),
             (old_d.clone(), dis_b.join(&new_rel)),

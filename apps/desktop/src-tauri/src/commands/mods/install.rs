@@ -661,17 +661,20 @@ fn set_activation(
                 m.name
             ));
         }
-        let mut moves = super::moves::Moves::for_game(game_path, cfg)?;
-        if placement != wanted_placement(enable) {
-            let (from, to) = if enable {
-                (&disabled, &active)
-            } else {
-                (&active, &disabled)
-            };
+        let (from, to) = if enable {
+            (&disabled, &active)
+        } else {
+            (&active, &disabled)
+        };
+        let needs_move = placement != wanted_placement(enable);
+        if needs_move {
             let parent = to.parent().expect("the mod path has a target directory");
             native.check_path(parent)?;
             fs::create_dir_all(parent)
                 .map_err(|error| format!("Could not prepare the mod folder: {error}"))?;
+        }
+        let mut moves = super::moves::Moves::with_native_guard(native);
+        if needs_move {
             moves.unit(target, from.clone(), to.clone());
         }
         state

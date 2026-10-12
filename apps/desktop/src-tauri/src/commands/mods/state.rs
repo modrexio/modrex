@@ -11,7 +11,7 @@ use crate::commands::sources;
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::io::Write;
-use std::path::{Component, Path, PathBuf};
+use std::path::{Path, PathBuf};
 
 /// Modrex's own record of what it installed, kept inside the primary target's mods dir.
 pub const STATE_FILENAME: &str = ".modrex.json";
@@ -236,27 +236,12 @@ fn check_shared_state_path(
     root: &Path,
     path: &Path,
 ) -> Result<(), StateLoadError> {
-    let relative = path.strip_prefix(game_path).map_err(|_| {
-        StateLoadError::Invalid("a mod path leaves the configured game directory".into())
-    })?;
-    if relative
-        .components()
-        .any(|component| !matches!(component, Component::Normal(_)))
-    {
-        return Err(StateLoadError::Invalid(
-            "a mod path contains an unsafe component".into(),
-        ));
-    }
+    super::native_files::check_contained_path(Path::new(game_path), path)
+        .map_err(StateLoadError::Invalid)?;
     if !path.starts_with(root) {
         return Err(StateLoadError::Invalid(
             "a mod path leaves its shared Paks directory".into(),
         ));
-    }
-    let mut ancestor = PathBuf::from(game_path);
-    super::native_files::reject_link(&ancestor).map_err(StateLoadError::Invalid)?;
-    for component in relative.components() {
-        ancestor.push(component);
-        super::native_files::reject_link(&ancestor).map_err(StateLoadError::Invalid)?;
     }
     Ok(())
 }

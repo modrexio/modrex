@@ -26,7 +26,6 @@ struct Unit {
 }
 
 impl Moves {
-    #[cfg(test)]
     pub(super) fn with_native_guard(native: NativeGuard) -> Self {
         Self {
             units: Vec::new(),
@@ -34,10 +33,7 @@ impl Moves {
         }
     }
     pub fn for_game(game_path: &str, cfg: &super::engine::ModEngineConfig) -> Result<Self, String> {
-        Ok(Self {
-            units: Vec::new(),
-            native: Some(NativeGuard::load(game_path, cfg)?),
-        })
+        Ok(Self::with_native_guard(NativeGuard::load(game_path, cfg)?))
     }
     pub fn unit(&mut self, target: &ScanTarget, from: PathBuf, to: PathBuf) {
         let mut unit = Unit::default();

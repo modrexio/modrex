@@ -242,15 +242,7 @@ impl NativeGuard {
         if self.targets.is_empty() {
             return Ok(());
         }
-        let relative = path
-            .strip_prefix(&self.game_root)
-            .map_err(|_| "The mod path leaves the configured game directory")?;
-        if relative
-            .components()
-            .any(|component| !matches!(component, Component::Normal(_)))
-        {
-            return Err("The mod path contains an unsafe component".into());
-        }
+        check_contained_path(&self.game_root, path)?;
         for target in &self.targets {
             if let Ok(relative) = path.strip_prefix(&target.root) {
                 if relative.components().next().is_some_and(|component| {
@@ -283,13 +275,6 @@ impl NativeGuard {
                 }
             }
         }
-        // Junctions and symbolic links can redirect an otherwise relative mod path.
-        let mut ancestor = self.game_root.clone();
-        reject_link(&ancestor)?;
-        for component in relative.components() {
-            ancestor.push(component);
-            reject_link(&ancestor)?;
-        }
         if self.protects(path)? {
             return Err(format!(
                 "{} belongs to the game and cannot be modified",
@@ -298,6 +283,26 @@ impl NativeGuard {
         }
         Ok(())
     }
+}
+
+pub(super) fn check_contained_path(root: &Path, path: &Path) -> Result<(), String> {
+    let relative = path
+        .strip_prefix(root)
+        .map_err(|_| "The mod path leaves the configured game directory")?;
+    if relative
+        .components()
+        .any(|component| !matches!(component, Component::Normal(_)))
+    {
+        return Err("The mod path contains an unsafe component".into());
+    }
+    // Junctions and symbolic links can redirect an otherwise relative mod path.
+    let mut ancestor = root.to_path_buf();
+    reject_link(&ancestor)?;
+    for component in relative.components() {
+        ancestor.push(component);
+        reject_link(&ancestor)?;
+    }
+    Ok(())
 }
 
 pub(super) fn paths_equal(left: &Path, right: &Path) -> Result<bool, String> {

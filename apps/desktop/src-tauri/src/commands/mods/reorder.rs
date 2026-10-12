@@ -107,7 +107,7 @@ pub fn move_mod_to_folder_op(
     fs::create_dir_all(&destination_dir)
         .map_err(|e| format!("could not prepare the destination folder: {e}"))?;
 
-    let mut moves = Moves::for_game(game_path, cfg)?;
+    let mut moves = Moves::with_native_guard(native);
     for m in state.mods.iter_mut() {
         let Some(p) = target_mods.iter().position(|tm| tm.uid == m.uid) else {
             continue;
