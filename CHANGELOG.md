@@ -23,6 +23,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 ### Fixed
 
+- Fixed missing installation progress on mod pages.
 - Fixed PAYDAY 3 Xbox builds not being detected as running.
 - Fixed Linux builds disabling graphics acceleration.
 - Fixed Restart & Install not restarting Modrex on Linux after installing an update.
