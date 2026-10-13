@@ -607,7 +607,7 @@ pub(crate) async fn open_engine_ini(app: &AppHandle, game_id: &str) -> Result<()
         require_context(&opener_app, &ctx)?;
         #[cfg(windows)]
         let spawned = std::process::Command::new("explorer.exe")
-            .arg(shell_config_path(&path))
+            .arg(crate::commands::path_display::shell_path(&path))
             .spawn();
         #[cfg(not(windows))]
         let spawned = crate::commands::launchers::outside_bundle(
@@ -619,27 +619,6 @@ pub(crate) async fn open_engine_ini(app: &AppHandle, game_id: &str) -> Result<()
             .map_err(|error| format!("Could not open Engine.ini in the system editor: {error}"))
     })
     .await
-}
-
-#[cfg(windows)]
-pub(super) fn shell_config_path(path: &Path) -> PathBuf {
-    use std::path::{Component, Prefix};
-    // The Windows shell needs ordinary paths, while resource locks keep canonical paths.
-    let mut components = path.components();
-    let Some(Component::Prefix(prefix)) = components.next() else {
-        return path.to_path_buf();
-    };
-    let root = match prefix.kind() {
-        Prefix::VerbatimDisk(drive) => PathBuf::from(format!("{}:", char::from(drive))),
-        Prefix::VerbatimUNC(server, share) => {
-            let mut root = PathBuf::from(r"\\");
-            root.push(server);
-            root.push(share);
-            root
-        }
-        _ => return path.to_path_buf(),
-    };
-    root.join(components.as_path())
 }
 
 pub(crate) async fn pick_engine_ini(

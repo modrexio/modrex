@@ -591,26 +591,6 @@ fn configuration_location_checks_report_invalid_files_as_errors() {
     .contains("not a regular file"));
 }
 
-#[cfg(windows)]
-#[test]
-fn system_editor_paths_preserve_drive_unc_and_unicode_without_verbatim_prefixes() {
-    for (input, expected) in [
-        (
-            r"\\?\G:\Config & Files\Engine.ini",
-            r"G:\Config & Files\Engine.ini",
-        ),
-        (
-            r"\\?\UNC\server\share\Config\Engine.ini",
-            r"\\server\share\Config\Engine.ini",
-        ),
-        (r"C:\Config\Engine.ini", r"C:\Config\Engine.ini"),
-        (r"\\?\C:\Ігри\Engine.ini", r"C:\Ігри\Engine.ini"),
-    ] {
-        let path = Path::new(input);
-        assert_eq!(shell_config_path(path), PathBuf::from(expected));
-    }
-}
-
 #[test]
 fn a_shared_configuration_checks_every_bound_game_before_writing() {
     let temp = tempfile::tempdir().unwrap();

@@ -93,6 +93,12 @@ fn appstate(app_id: u32, install_dir: &str, depots: &[InstalledDepot]) -> String
     )
 }
 
+fn pending_appstate() -> String {
+    appstate(78, "Synthetic Game", &[DEPOT])
+        .replace("\"StateFlags\" \"4\"", "\"StateFlags\" \"6\"")
+        .replace("\"TargetBuildID\" \"56\"", "\"TargetBuildID\" \"57\"")
+}
+
 pub(crate) fn write_test_catalog(
     steam_root: &Path,
     game_root: &Path,
@@ -390,7 +396,6 @@ fn directory_records_are_validated_but_not_file_protection_entries() {
 fn appstate_requires_stable_build_complete_depots_and_unambiguous_keys() {
     let original = appstate(78, "Synthetic Game", &[DEPOT]);
     for text in [
-        original.replace("\"StateFlags\" \"4\"", "\"StateFlags\" \"6\""),
         original.replace("\"StateFlags\" \"4\"", "\"StateFlags\" \"1024\""),
         original.replace("\"TargetBuildID\" \"56\"", "\"TargetBuildID\" \"57\""),
         original.replace("\"UpdateResult\" \"0\"", "\"UpdateResult\" \"1\""),
@@ -421,6 +426,194 @@ fn appstate_requires_stable_build_complete_depots_and_unambiguous_keys() {
         parse_appstate(comments.as_bytes(), 78).unwrap().build_id,
         56
     );
+}
+
+#[test]
+fn appstate_accepts_only_installed_and_pending_update_states() {
+    let original = appstate(78, "Synthetic Game", &[DEPOT]);
+    for (flags, accepted) in [
+        (0u64, false),
+        (1, false),
+        (2, false),
+        (4, true),
+        (6, true),
+        (12, false),
+        (14, false),
+        (20, false),
+        (36, false),
+        (68, false),
+        (132, false),
+        (260, false),
+        (262, false),
+        (516, false),
+        (1030, false),
+        (1286, false),
+        (2052, false),
+        (4100, false),
+        (8196, false),
+        (16388, false),
+        (32772, false),
+        (65540, false),
+        (131076, false),
+        (6 | (1 << 17), false),
+        (6 | (1 << 20), false),
+        (6 | (1 << 21), false),
+        (6 | (1 << 22), false),
+        (u64::MAX, false),
+    ] {
+        let text = original.replace(
+            "\"StateFlags\" \"4\"",
+            &format!("\"StateFlags\" \"{flags}\""),
+        );
+        assert_eq!(
+            parse_appstate(text.as_bytes(), 78).is_ok(),
+            accepted,
+            "StateFlags {flags}"
+        );
+    }
+}
+
+#[test]
+fn pending_update_uses_installed_depots_and_allows_optional_target_metadata() {
+    let pending = pending_appstate();
+    for text in [
+        pending.clone(),
+        pending.replace("\"TargetBuildID\" \"57\"", "\"TargetBuildID\" \"56\""),
+        pending.replace("\"TargetBuildID\" \"57\"", ""),
+        pending.replace(
+            "\"UpdateResult\" \"0\"",
+            "\"UpdateResult\" \"0\" \"BytesDownloaded\" \"100\" \"BytesStaged\" \"200\"",
+        ),
+        pending.replace(
+            "\"UpdateResult\" \"0\"",
+            "\"UpdateResult\" \"0\" \"StagedDepots\" {}",
+        ),
+    ] {
+        let app = parse_appstate(text.as_bytes(), 78).unwrap();
+        assert_eq!(app.build_id, 56);
+        assert_eq!(app.depots.len(), 1);
+        assert_eq!(app.depots[0].identity, DEPOT);
+    }
+    for (text, error) in [
+        (
+            pending.replace("\"UpdateResult\" \"0\"", "\"UpdateResult\" \"1\""),
+            "unsuccessful update",
+        ),
+        (
+            pending.replace("\"TargetBuildID\" \"57\"", "\"TargetBuildID\" \"invalid\""),
+            "Invalid Steam numeric field",
+        ),
+        (
+            pending.replace(
+                "\"UpdateResult\" \"0\"",
+                "\"UpdateResult\" \"0\" \"StagedDepots\" { \"12\" { \"manifest\" \"35\" } }",
+            ),
+            "staged depots",
+        ),
+        (
+            pending.replace(
+                "\"UpdateResult\" \"0\"",
+                "\"UpdateResult\" \"0\" \"StagedDepots\" \"invalid\"",
+            ),
+            "StagedDepots is not an object",
+        ),
+    ] {
+        assert!(
+            parse_appstate(text.as_bytes(), 78)
+                .err()
+                .unwrap()
+                .contains(error),
+            "{error}"
+        );
+    }
+}
+
+#[test]
+fn pending_update_catalog_protects_native_files_and_rejects_changed_sources() {
+    let (_temp, steam, game) = fixture();
+    let acf = game
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .join("appmanifest_78.acf");
+    fs::write(&acf, pending_appstate()).unwrap();
+    let snapshot = read_native_files(&steam, &game, 78).unwrap();
+    assert_eq!(snapshot.build_id, 56);
+    assert_eq!(snapshot.depots, vec![DEPOT]);
+    assert!(snapshot
+        .protects(Path::new("Content/Paks/base.pak"))
+        .unwrap());
+    assert!(snapshot
+        .protects(Path::new("Content/Paks/base.sig"))
+        .unwrap());
+    assert!(snapshot.protects_tree(Path::new("Content/Paks")).unwrap());
+    assert!(!snapshot
+        .protects(Path::new("Content/Paks/manual.pak"))
+        .unwrap());
+    snapshot.verify_unchanged().unwrap();
+    fs::write(
+        &acf,
+        pending_appstate().replace("\"StateFlags\" \"6\"", "\"StateFlags\" \"262\""),
+    )
+    .unwrap();
+    assert!(snapshot.verify_unchanged().unwrap_err().contains("changed"));
+    assert!(read_native_files(&steam, &game, 78).is_err());
+    fs::write(&acf, pending_appstate()).unwrap();
+    fs::remove_file(steam.join("depotcache/12_34.manifest")).unwrap();
+    assert!(snapshot.verify_unchanged().is_err());
+    assert!(read_native_files(&steam, &game, 78).is_err());
+}
+
+#[cfg(windows)]
+#[test]
+fn catalog_errors_show_readable_paths_and_keep_canonical_snapshot_sources() {
+    let (_temp, steam, game) = fixture();
+    let acf = game
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .join("appmanifest_78.acf");
+    let depot = steam.join("depotcache/12_34.manifest");
+    let original_app = fs::read(&acf).unwrap();
+    let original_depot = fs::read(&depot).unwrap();
+    let readable_acf = display_path(&fs::canonicalize(&acf).unwrap());
+    let readable_depot = display_path(&fs::canonicalize(&depot).unwrap());
+    let check_path = |error: String, source: &str| {
+        assert!(error.contains(source), "{error}");
+        assert!(!error.contains(r"\\?\"), "{error}");
+    };
+    fs::write(
+        &acf,
+        appstate(78, "Synthetic Game", &[DEPOT])
+            .replace("\"StateFlags\" \"4\"", "\"StateFlags\" \"262\""),
+    )
+    .unwrap();
+    check_path(
+        read_native_files(&steam, &game, 78).unwrap_err(),
+        &readable_acf,
+    );
+    fs::write(&acf, &original_app).unwrap();
+    fs::remove_file(&depot).unwrap();
+    check_path(
+        read_native_files(&steam, &game, 78).unwrap_err(),
+        &readable_depot,
+    );
+    fs::write(&depot, b"invalid depot").unwrap();
+    check_path(
+        read_native_files(&steam, &game, 78).unwrap_err(),
+        &readable_depot,
+    );
+    fs::write(&depot, &original_depot).unwrap();
+    let snapshot = read_native_files(&steam, &game, 78).unwrap();
+    assert!(snapshot.game_root.to_string_lossy().starts_with(r"\\?\"));
+    assert!(snapshot
+        .sources
+        .iter()
+        .all(|source| source.path.to_string_lossy().starts_with(r"\\?\")));
+    fs::write(&acf, [original_app, b"\n".to_vec()].concat()).unwrap();
+    check_path(snapshot.verify_unchanged().unwrap_err(), &readable_acf);
 }
 
 #[test]

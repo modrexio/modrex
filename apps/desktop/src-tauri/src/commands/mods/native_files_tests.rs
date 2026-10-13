@@ -70,6 +70,100 @@ fn fixture() -> Fixture {
     }
 }
 
+fn pending_update_fixture() -> Fixture {
+    let mut fixture = fixture();
+    let acf = fixture
+        .game
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .join("appmanifest_78.acf");
+    let app = fs::read_to_string(&acf)
+        .unwrap()
+        .replace("\"StateFlags\" \"4\"", "\"StateFlags\" \"6\"")
+        .replace("\"TargetBuildID\" \"56\"", "\"TargetBuildID\" \"57\"");
+    fs::write(acf, app).unwrap();
+    fixture.native = NativeGuard::load_from_steam_root(
+        fixture.game.to_str().unwrap(),
+        &SHARED_PAK_ENGINE,
+        &fixture.steam,
+    )
+    .unwrap();
+    fixture
+}
+
+#[test]
+fn pending_steam_update_preserves_native_files_and_allows_manual_mod_moves() {
+    let fixture = pending_update_fixture();
+    assert!(fixture
+        .native
+        .check_file(&fixture.paks.join("native.pak"))
+        .is_err());
+    assert!(fixture
+        .native
+        .protects(&fixture.paks.join("native.sig"))
+        .unwrap());
+    assert!(fixture
+        .native
+        .check_tree(&fixture.paks.join("native-folder"))
+        .is_err());
+    let source = fixture.paks.join("Manual.pak");
+    let destination = fixture.paks.join("Manual.pak.disabled");
+    fs::write(&source, b"manual bytes").unwrap();
+    let state_path = get_state_path(fixture.game.to_str().unwrap(), &SHARED_PAK_ENGINE);
+    let mut moves = crate::commands::mods::moves::Moves::with_native_guard(fixture.native);
+    moves.path(source.clone(), destination.clone());
+    moves
+        .run()
+        .unwrap()
+        .save(&state_path, &ModsState::default())
+        .unwrap();
+    assert!(!source.exists());
+    assert_eq!(fs::read(destination).unwrap(), b"manual bytes");
+    assert_eq!(
+        fs::read(fixture.paks.join("native.pak")).unwrap(),
+        b"native pak"
+    );
+    assert_eq!(
+        fs::read(fixture.paks.join("native.sig")).unwrap(),
+        b"native signature"
+    );
+    assert!(state_path.is_file());
+}
+
+#[test]
+fn starting_a_pending_steam_update_blocks_mod_moves_before_any_changes() {
+    let fixture = pending_update_fixture();
+    let source = fixture.paks.join("Manual.pak");
+    let destination = fixture.paks.join("Moved.pak");
+    fs::write(&source, b"manual bytes").unwrap();
+    let acf = fixture
+        .game
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .join("appmanifest_78.acf");
+    let app = fs::read_to_string(&acf)
+        .unwrap()
+        .replace("\"StateFlags\" \"6\"", "\"StateFlags\" \"262\"");
+    fs::write(acf, app).unwrap();
+    let mut moves = crate::commands::mods::moves::Moves::with_native_guard(fixture.native);
+    moves.path(source.clone(), destination.clone());
+    assert!(moves.run().is_err());
+    assert_eq!(fs::read(source).unwrap(), b"manual bytes");
+    assert!(!destination.exists());
+    assert_eq!(
+        fs::read(fixture.paks.join("native.pak")).unwrap(),
+        b"native pak"
+    );
+    assert_eq!(
+        fs::read(fixture.paks.join("native.sig")).unwrap(),
+        b"native signature"
+    );
+}
+
 #[cfg(windows)]
 #[test]
 fn merging_windows_equivalent_destinations_preserves_both_manual_files() {

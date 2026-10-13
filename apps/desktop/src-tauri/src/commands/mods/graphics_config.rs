@@ -3,6 +3,7 @@ use super::resources::{
     InstallContext,
 };
 use crate::commands::games::game_spec;
+use crate::commands::path_display::display_path;
 use crate::game_package::GraphicsConfig;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -85,12 +86,6 @@ fn validate_file(path: &Path, filename: &str) -> Result<PathBuf, String> {
     }
     path.canonicalize()
         .map_err(|error| format!("Could not resolve {}: {error}", display_path(path)))
-}
-
-fn display_path(path: &Path) -> String {
-    #[cfg(windows)]
-    let path = super::resources::shell_config_path(path);
-    path.to_string_lossy().into_owned()
 }
 
 fn inspect(destination: GraphicsDestination, filename: &str) -> Result<ConfigFileLocation, String> {
@@ -221,7 +216,7 @@ fn open_external(path: &Path) -> Result<(), String> {
         fn CoInitializeEx(reserved: *mut c_void, model: u32) -> i32;
         fn CoUninitialize();
     }
-    let file: Vec<_> = super::resources::shell_config_path(path)
+    let file: Vec<_> = crate::commands::path_display::shell_path(path)
         .as_os_str()
         .encode_wide()
         .chain(Some(0))

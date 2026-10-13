@@ -47,7 +47,7 @@ impl NativeGuard {
                 continue;
             };
             let snapshot = read_native_files(steam_root, &game_root, app_id)
-                .map_err(|error| format!("Cannot verify native game files: {error}. Open Steam and finish or verify the game installation, then retry."))?;
+                .map_err(|error| format!("Cannot verify the game's original files: {error}. Open Steam to finish or verify the installation, then return to Modrex."))?;
             log::debug!(
                 "Verified native files for Steam app {} build {} from {} depots",
                 snapshot.app_id,

@@ -15,6 +15,7 @@ pub mod nexus;
 pub mod nexus_oauth;
 pub mod nxm;
 pub mod pak_viewer;
+mod path_display;
 pub mod secrets;
 pub mod settings;
 pub mod sisr;

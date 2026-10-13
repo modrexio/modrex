@@ -1,3 +1,4 @@
+use crate::commands::path_display::display_path;
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs::{self, File};
@@ -112,7 +113,7 @@ impl NativeFilesSnapshot {
             if <[u8; 32]>::from(Sha256::digest(&bytes)) != source.digest {
                 return Err(format!(
                     "Steam native-file catalog changed during the operation: {}",
-                    source.path.display()
+                    display_path(&source.path)
                 ));
             }
         }
@@ -144,7 +145,7 @@ pub(crate) fn read_native_files(
     let appmanifest = steamapps.join(format!("appmanifest_{app_id}.acf"));
     let app_bytes = read_bounded(&appmanifest, MAX_APPSTATE_BYTES)?;
     let app = parse_appstate(&app_bytes, app_id)
-        .map_err(|e| format!("Invalid Steam AppState {}: {e}", appmanifest.display()))?;
+        .map_err(|e| format!("Invalid Steam AppState {}: {e}", display_path(&appmanifest)))?;
     let declared_root = fs::canonicalize(common.join(&app.install_dir))
         .map_err(|e| format!("Could not resolve AppState installation directory: {e}"))?;
     if declared_root != game_root {
@@ -174,7 +175,7 @@ pub(crate) fn read_native_files(
             .filter(|&total| total <= MAX_CATALOG_BYTES)
             .ok_or("Steam native-file catalog exceeds the byte limit")?;
         let manifest = parse_depot_manifest(&bytes, &depot.identity)
-            .map_err(|e| format!("Invalid Steam depot manifest {}: {e}", path.display()))?;
+            .map_err(|e| format!("Invalid Steam depot manifest {}: {e}", display_path(&path)))?;
         if depot.size.is_some_and(|size| size != manifest.size) {
             return Err(format!(
                 "Steam depot {} size does not match AppState",
@@ -259,13 +260,13 @@ pub(crate) fn matches_installation(game_root: &Path, app_id: u32) -> Result<bool
         Err(error) => {
             return Err(format!(
                 "Could not inspect Steam AppState {}: {error}",
-                path.display()
+                display_path(&path)
             ))
         }
     }
     let bytes = read_bounded(&path, MAX_APPSTATE_BYTES)?;
     let entries = parse_app_entries(&bytes)
-        .map_err(|e| format!("Invalid Steam AppState {}: {e}", path.display()))?;
+        .map_err(|e| format!("Invalid Steam AppState {}: {e}", display_path(&path)))?;
     if kv_number(&entries, "appid")? != u64::from(app_id) {
         return Err("Steam AppState app ID does not match its filename".into());
     }
@@ -294,7 +295,7 @@ fn read_bounded(path: &Path, limit: usize) -> Result<Vec<u8>, String> {
     let file = File::open(path).map_err(|e| {
         format!(
             "Could not read Steam catalog source {}: {e}",
-            path.display()
+            display_path(path)
         )
     })?;
     if !file
@@ -302,14 +303,14 @@ fn read_bounded(path: &Path, limit: usize) -> Result<Vec<u8>, String> {
         .map_err(|e| {
             format!(
                 "Could not inspect Steam catalog source {}: {e}",
-                path.display()
+                display_path(path)
             )
         })?
         .is_file()
     {
         return Err(format!(
             "Steam catalog source is not a file: {}",
-            path.display()
+            display_path(path)
         ));
     }
     let mut bytes = Vec::new();
@@ -318,13 +319,13 @@ fn read_bounded(path: &Path, limit: usize) -> Result<Vec<u8>, String> {
         .map_err(|e| {
             format!(
                 "Could not read Steam catalog source {}: {e}",
-                path.display()
+                display_path(path)
             )
         })?;
     if bytes.len() > limit {
         return Err(format!(
             "Steam catalog source exceeds its byte limit: {}",
-            path.display()
+            display_path(path)
         ));
     }
     Ok(bytes)
@@ -645,14 +646,29 @@ fn parse_appstate(bytes: &[u8], app_id: u32) -> Result<AppState, String> {
     if kv_number(&entries, "appid")? != u64::from(app_id) {
         return Err("Steam AppState app ID does not match the selected game".into());
     }
-    if kv_number(&entries, "stateflags")? != 4 {
+    // InstalledDepots protects the installed build while a Steam update is pending.
+    let state_flags = kv_number(&entries, "stateflags")?;
+    if !matches!(state_flags, 4 | 6) {
         return Err("Steam installation is not fully installed or is being updated".into());
+    }
+    if state_flags == 6 {
+        match entries.get("stageddepots") {
+            None => {}
+            Some(KeyValue::Object(depots)) if depots.is_empty() => {}
+            Some(KeyValue::Object(_)) => {
+                return Err("Steam installation has staged depots awaiting an update".into());
+            }
+            Some(_) => return Err("Steam AppState StagedDepots is not an object".into()),
+        }
     }
     let build_id = kv_number(&entries, "buildid")?;
     if build_id == 0 {
         return Err("Steam AppState has no installed build".into());
     }
-    if entries.contains_key("targetbuildid") && kv_number(&entries, "targetbuildid")? != build_id {
+    if entries.contains_key("targetbuildid")
+        && kv_number(&entries, "targetbuildid")? != build_id
+        && state_flags != 6
+    {
         return Err("Steam installation target build differs from the installed build".into());
     }
     if entries.contains_key("updateresult") && kv_number(&entries, "updateresult")? != 0 {
