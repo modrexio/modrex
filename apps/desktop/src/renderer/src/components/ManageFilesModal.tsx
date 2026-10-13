@@ -267,11 +267,13 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
         } catch (e) {
             setInstallError(String(e))
         } finally {
-            try {
-                if (archiveHandle) await api.discardStagedArchive(archiveHandle)
-            } catch (error) {
-                if (archiveHandle) failArchiveInstall(archiveHandle, error)
-                setInstallError(String(error))
+            if (archiveHandle) {
+                try {
+                    await api.discardStagedArchive(archiveHandle)
+                } catch (error) {
+                    failArchiveInstall(archiveHandle, error)
+                    setInstallError(String(error))
+                }
             }
             setInstallingEntry(null)
         }
