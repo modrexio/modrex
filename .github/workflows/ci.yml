@@ -3,68 +3,101 @@ name: CI
 on:
     push:
         branches: [main]
-        paths-ignore:
-            - '**.md'
-            - '.gitignore'
-            - 'LICENSE'
     pull_request:
         branches: [main]
-        paths-ignore:
-            - '**.md'
-            - '.gitignore'
-            - 'LICENSE'
+    workflow_dispatch:
 
 permissions:
     contents: read
 
+concurrency:
+    group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.run_id }}
+    cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
-    index:
-        runs-on: ubuntu-latest
+    changes:
+        runs-on: ubuntu-24.04
+        permissions:
+            contents: read
+            pull-requests: read
+        outputs:
+            rust: ${{ steps.full.outputs.full == 'true' || steps.filter.outputs.rust == 'true' }}
+            renderer: ${{ steps.full.outputs.full == 'true' || steps.filter.outputs.renderer == 'true' }}
+            tooling: ${{ steps.full.outputs.full == 'true' || steps.filter.outputs.tooling == 'true' }}
+            site: ${{ steps.full.outputs.full == 'true' || steps.filter.outputs.site == 'true' }}
+            index: ${{ steps.full.outputs.full == 'true' || steps.filter.outputs.index == 'true' }}
+            licenses: ${{ steps.full.outputs.full == 'true' || steps.filter.outputs.licenses == 'true' }}
         steps:
-            - uses: actions/checkout@v7
-
-            - uses: oven-sh/setup-bun@v2
+            - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d
+              if: github.event_name == 'pull_request'
+              id: filter
               with:
-                  bun-version-file: package.json
-            - run: bun install --frozen-lockfile
-            - run: bun run index:test
+                  predicate-quantifier: some-with-excludes
+                  filters: |
+                      common:
+                          - '**'
+                          - '!apps/desktop/**'
+                          - '!apps/site/**'
+                          - '!apps/index/**'
+                          - '!packages/games/**'
+                          - '!packages/scrollbars/**'
+                          - '!docs/**'
+                          - '!assets/i18n/**'
+                          - '!README.md'
+                          - '!LICENSE'
+                          - '!CHANGELOG.md'
+                          - '!AGENTS.md'
+                          - '!CLAUDE.md'
+                          - '!.agents/**'
+                          - '!.claude/**'
+                          - '!.codex/**'
+                      dependencies:
+                          - '**/package.json'
+                          - 'bun.lock'
+                          - 'bunfig.toml'
+                          - '**/Cargo.toml'
+                          - '**/Cargo.lock'
+                      rust:
+                          - 'apps/desktop/src-tauri/**'
+                          - 'apps/desktop/src/shared/bindings.ts'
+                          - 'apps/desktop/THIRD_PARTY_LICENSES.md'
+                          - 'apps/index/marker-contract.json'
+                          - 'packages/games/**'
+                          - 'docs/reference/**'
+                          - 'LICENSE'
+                      renderer:
+                          - 'apps/desktop/**'
+                          - 'packages/**'
+                      tooling:
+                          - 'apps/desktop/**'
+                          - 'packages/**'
+                          - 'assets/i18n/**'
+                          - '.husky/**'
+                          - 'README.md'
+                      site:
+                          - 'apps/site/**'
+                          - 'packages/**'
+                          - 'install.config.json'
+                      index:
+                          - 'apps/index/**'
+                          - 'packages/games/**'
+                      licenses:
+                          - 'apps/desktop/scripts/generate-licenses.mjs'
+                          - 'apps/desktop/THIRD_PARTY_LICENSES.md'
+                          - 'apps/desktop/src-tauri/about.toml'
+                          - 'apps/desktop/src-tauri/about.hbs'
+                          - 'apps/desktop/src-tauri/.cargo/**'
+                          - 'LICENSE'
 
-    site:
-        runs-on: ubuntu-latest
+            - id: full
+              run: echo "full=${{ github.event_name != 'pull_request' || steps.filter.outputs.common == 'true' || steps.filter.outputs.dependencies == 'true' }}" >> "$GITHUB_OUTPUT"
+
+    checks:
+        runs-on: ubuntu-24.04
         steps:
-            # Full history: check-legal-dates compares each legal page against the commit
-            # that last touched it, which a shallow clone cannot answer.
             - uses: actions/checkout@v7
               with:
                   fetch-depth: 0
-
-            - uses: oven-sh/setup-bun@v2
-              with:
-                  bun-version-file: package.json
-            - run: bun install --frozen-lockfile
-            - run: bun run site:typecheck
-            - run: bun run site:typecheck:functions
-            - run: bun run site:check-legal-dates
-            - run: bun run site:lint
-            - run: bun run site:format:check
-            - run: bun run site:test
-            - run: bun run site:build
-
-    test:
-        runs-on: ubuntu-latest
-        steps:
-            - uses: actions/checkout@v7
-              with:
-                  fetch-depth: 0
-
-            - name: Install system dependencies
-              run: |
-                  sudo apt-get update
-                  sudo apt-get install -y \
-                    libwebkit2gtk-4.1-dev \
-                    libappindicator3-dev \
-                    librsvg2-dev \
-                    patchelf
 
             - uses: oven-sh/setup-bun@v2
               with:
@@ -77,26 +110,75 @@ jobs:
             - run: bun run check-i18n
             - name: i18n read-only check
               run: bun run i18n:check-readonly
+            - run: bun run format:check
+            - run: bun run lint
             - run: bun run typecheck
-            - run: cargo clippy --workspace --all-targets -- -D warnings
+
+    rust-linux:
+        needs: changes
+        if: needs.changes.outputs.rust == 'true'
+        runs-on: ubuntu-24.04
+        steps:
+            - uses: actions/checkout@v7
+
+            - name: Install system dependencies
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install -y \
+                    libwebkit2gtk-4.1-dev \
+                    libappindicator3-dev \
+                    librsvg2-dev \
+                    patchelf
+
+            - uses: dtolnay/rust-toolchain@stable
+            - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+              with:
+                  workspaces: apps/desktop/src-tauri
+                  shared-key: ci-ubuntu-24.04-v1
+                  cache-bin: false
+                  save-if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+
+            - run: cargo clippy --locked --workspace --all-targets -- -D warnings
               working-directory: apps/desktop/src-tauri
-            - run: bun run test
+            - run: cargo check --locked --release --workspace --all-targets
+              working-directory: apps/desktop/src-tauri
+            - run: cargo test --locked --workspace
+              working-directory: apps/desktop/src-tauri
 
-            # cargo test just regenerated apps/desktop/src/shared/bindings.ts from the command
-            # registry; a diff means the committed bindings are stale.
+            # The export tests regenerate these committed artifacts even on a cache hit.
             - name: Fail if generated bindings are stale
-              run: git diff --exit-code apps/desktop/src/shared/bindings.ts
-
-            # Same test run regenerated the frontend game catalogue from the Rust packages.
+              run: git diff --exit-code -- apps/desktop/src/shared/bindings.ts
             - name: Fail if the generated game catalogue is stale
-              run: git diff --exit-code packages/games/catalog.generated.ts
-
-            # And the contributor reference, which is rendered from the package contract.
+              run: git diff --exit-code -- packages/games/catalog.generated.ts
             - name: Fail if the generated package reference is stale
-              run: git diff --exit-code docs/reference/game-package.md
+              run: git diff --exit-code -- docs/reference/game-package.md
 
-    check-licenses:
-        runs-on: ubuntu-latest
+    rust-windows:
+        needs: changes
+        if: needs.changes.outputs.rust == 'true'
+        runs-on: windows-2025
+        steps:
+            - uses: actions/checkout@v7
+
+            - uses: dtolnay/rust-toolchain@stable
+            - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+              with:
+                  workspaces: apps/desktop/src-tauri
+                  shared-key: ci-windows-2025-v1
+                  cache-bin: false
+                  save-if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+
+            - run: cargo clippy --locked --workspace --all-targets -- -D warnings
+              working-directory: apps/desktop/src-tauri
+            - run: cargo check --locked --release --workspace --all-targets
+              working-directory: apps/desktop/src-tauri
+            - run: cargo test --locked --workspace
+              working-directory: apps/desktop/src-tauri
+
+    renderer:
+        needs: changes
+        if: needs.changes.outputs.renderer == 'true'
+        runs-on: ubuntu-24.04
         steps:
             - uses: actions/checkout@v7
 
@@ -104,47 +186,126 @@ jobs:
               with:
                   bun-version-file: package.json
             - run: bun install --frozen-lockfile
+            - run: bun run test:renderer
+            - run: bun run --cwd apps/desktop test:preview
+
+    tooling:
+        needs: changes
+        if: needs.changes.outputs.tooling == 'true'
+        runs-on: ubuntu-24.04
+        steps:
+            - uses: actions/checkout@v7
+              with:
+                  fetch-depth: 0
+
+            - uses: oven-sh/setup-bun@v2
+              with:
+                  bun-version-file: package.json
+            - run: bun install --frozen-lockfile
+            - run: bun run --cwd apps/desktop test:scripts
+
+    site:
+        needs: changes
+        if: needs.changes.outputs.site == 'true'
+        runs-on: ubuntu-24.04
+        steps:
+            # Legal dates are checked against the commits that changed each page.
+            - uses: actions/checkout@v7
+              with:
+                  fetch-depth: 0
+
+            - uses: oven-sh/setup-bun@v2
+              with:
+                  bun-version-file: package.json
+            - run: bun install --frozen-lockfile
+            - run: bun run site:check-legal-dates
+            - run: bun run site:test
+            - run: bun run site:build
+              env:
+                  GITHUB_TOKEN: ${{ github.token }}
+
+    index:
+        needs: changes
+        if: needs.changes.outputs.index == 'true'
+        runs-on: ubuntu-24.04
+        steps:
+            - uses: actions/checkout@v7
+
+            - uses: oven-sh/setup-bun@v2
+              with:
+                  bun-version-file: package.json
+            - run: bun install --frozen-lockfile
+            - name: Install pinned 7-Zip
+              run: bash apps/index/scripts/install-7zip.sh
+            - run: bun run index:test
+
+    check-licenses:
+        needs: changes
+        if: needs.changes.outputs.licenses == 'true'
+        runs-on: ubuntu-24.04
+        steps:
+            - uses: actions/checkout@v7
+
+            - uses: oven-sh/setup-bun@v2
+              with:
+                  bun-version-file: package.json
+            - run: bun install --frozen-lockfile
+            - uses: dtolnay/rust-toolchain@stable
 
             - name: Cache cargo-about
               id: cache-cargo-about
               uses: actions/cache@v6
               with:
                   path: ~/.cargo/bin/cargo-about
-                  key: cargo-about-${{ runner.os }}-v0.9.0
+                  key: cargo-about-${{ runner.os }}-${{ runner.arch }}-0.9.0-v2
 
             - name: Install cargo-about
               if: steps.cache-cargo-about.outputs.cache-hit != 'true'
-              run: cargo install cargo-about --features=cli
+              run: cargo install cargo-about --version 0.9.0 --locked --features=cli
 
             - run: bun run generate-licenses
-
             - name: Fail if desktop third-party licenses are stale
-              run: git diff --exit-code apps/desktop/THIRD_PARTY_LICENSES.md
+              run: git diff --exit-code -- apps/desktop/THIRD_PARTY_LICENSES.md
 
     security-audit:
-        runs-on: ubuntu-latest
+        uses: ./.github/workflows/security-audit.yml
+
+    ci-summary:
+        needs:
+            - changes
+            - checks
+            - rust-linux
+            - rust-windows
+            - renderer
+            - tooling
+            - site
+            - index
+            - check-licenses
+            - security-audit
+        if: always()
+        runs-on: ubuntu-24.04
         steps:
-            - uses: actions/checkout@v7
-
-            - uses: oven-sh/setup-bun@v2
-              with:
-                  bun-version-file: package.json
-            - run: bun install --frozen-lockfile
-
-            - name: Audit npm dependencies
-              run: bun run audit:deps
-
-            - name: Cache cargo-audit
-              id: cache-cargo-audit
-              uses: actions/cache@v6
-              with:
-                  path: ~/.cargo/bin/cargo-audit
-                  key: cargo-audit-${{ runner.os }}
-
-            - name: Install cargo-audit
-              if: steps.cache-cargo-audit.outputs.cache-hit != 'true'
-              run: cargo install cargo-audit --locked
-
-            - name: Audit Rust dependencies
-              working-directory: apps/desktop/src-tauri
-              run: cargo audit
+            - name: Verify selected jobs
+              env:
+                  NEEDS_JSON: ${{ toJSON(needs) }}
+              run: |
+                  printf '%s\n' "$NEEDS_JSON" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
+                  printf '%s\n' "$NEEDS_JSON" | jq -e '
+                    . as $needs |
+                    .changes.result == "success" and
+                    .checks.result == "success" and
+                    .["security-audit"].result == "success" and
+                    all([
+                      ["rust-linux", "rust"],
+                      ["rust-windows", "rust"],
+                      ["renderer", "renderer"],
+                      ["tooling", "tooling"],
+                      ["site", "site"],
+                      ["index", "index"],
+                      ["check-licenses", "licenses"]
+                    ][];
+                      $needs.changes.outputs[.[1]] as $selected |
+                      ($selected == "true" and $needs[.[0]].result == "success") or
+                      ($selected == "false" and $needs[.[0]].result == "skipped")
+                    )
+                  '

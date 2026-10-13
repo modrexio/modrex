@@ -1,0 +1,39 @@
+name: Security audit
+
+on:
+    workflow_call:
+    workflow_dispatch:
+    schedule:
+        - cron: '0 6 * * 1'
+
+permissions:
+    contents: read
+
+jobs:
+    audit:
+        runs-on: ubuntu-24.04
+        steps:
+            - uses: actions/checkout@v7
+
+            - uses: oven-sh/setup-bun@v2
+              with:
+                  bun-version-file: package.json
+            - run: bun install --frozen-lockfile
+            - name: Audit npm dependencies
+              run: bun run audit:deps
+
+            - uses: dtolnay/rust-toolchain@stable
+            - name: Cache cargo-audit
+              id: cache-cargo-audit
+              uses: actions/cache@v6
+              with:
+                  path: ~/.cargo/bin/cargo-audit
+                  key: cargo-audit-${{ runner.os }}-${{ runner.arch }}-0.22.2
+
+            - name: Install cargo-audit
+              if: steps.cache-cargo-audit.outputs.cache-hit != 'true'
+              run: cargo install cargo-audit --version 0.22.2 --locked
+
+            - name: Audit Rust dependencies
+              working-directory: apps/desktop/src-tauri
+              run: cargo audit
