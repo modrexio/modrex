@@ -283,6 +283,7 @@ export async function installZipPickerEntries(
 }
 
 interface Props {
+    visible?: boolean
     payload: ZipMultiPakPayload
     gamePath: string
     installedFiles: InstalledMod[]
@@ -295,6 +296,7 @@ interface Props {
 }
 
 export function ZipPickerModal({
+    visible = true,
     payload,
     gamePath,
     installedFiles,
@@ -491,7 +493,7 @@ export function ZipPickerModal({
 
     return (
         <Dialog
-            open={true}
+            open={visible}
             onOpenChange={(open) => !open && !isBusy && onClose()}
             title={t('zipPicker.title')}
             size="list"

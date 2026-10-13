@@ -596,6 +596,10 @@ pub async fn install_mod(
     folder_id: Option<String>,
     game_id: String,
 ) -> Result<InstallOutcome, String> {
+    let download_id = match file_id {
+        Some(file_id) => format!("file:{mod_id}:{file_id}"),
+        None => format!("mod:{mod_id}"),
+    };
     let prep = async {
         let mod_val = api_get(&app, &format!("/mods/{}", mod_id), vec![]).await?;
 
@@ -626,11 +630,17 @@ pub async fn install_mod(
             file["type"].as_str().unwrap_or("pak").to_string(),
         );
 
-        let download_id = format!("mod:{mod_id}");
         let source_name = hosted_resource_name(&download_url)
             .or_else(|| file["name"].as_str().map(str::to_owned))
             .unwrap_or_else(|| format!("{mod_name}.{file_type}"));
-        let downloaded = download_file(&app, &download_url, &file_type, &download_id).await?;
+        let downloaded = download_file(
+            &app,
+            &download_url,
+            &file_type,
+            &download_id,
+            Some(&game_id),
+        )
+        .await?;
         Ok::<_, String>((
             mod_name,
             mod_version,
@@ -854,7 +864,15 @@ pub async fn install_file(
     let source_name =
         hosted_resource_name(&download_url).unwrap_or_else(|| format!("{mod_name}.{file_type}"));
     let download_id = format!("file:{mod_id}:{file_id}");
-    let downloaded = match download_file(&app, &download_url, &file_type, &download_id).await {
+    let downloaded = match download_file(
+        &app,
+        &download_url,
+        &file_type,
+        &download_id,
+        Some(&game_id),
+    )
+    .await
+    {
         Ok(v) => v,
         Err(e) => {
             log::warn!("install_file {mod_id}/{file_id}: {e}");

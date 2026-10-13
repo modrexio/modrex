@@ -6,7 +6,15 @@ import { THUMBNAIL_BASE_URL } from '../../../shared/types'
 import { Dialog, DialogHeader } from './Dialog'
 import { t } from '../i18n'
 import { api } from '../api'
-import { uninstallablePromptMessage } from '../installSentinels'
+import {
+    useInstallOperations,
+    getModInstall,
+    isInstallBusy,
+    installProgress,
+    installLabel,
+} from '../installState'
+import { rejectInstallPrompt } from '../installSentinels'
+import { useInstallChoiceOpen } from '../installChoices'
 import { getCachedMod } from '../modCache'
 import { isLoaderDep, offsiteDepHost } from '../deps'
 
@@ -40,18 +48,8 @@ export function DepsWarningModal({
     const [isBltUnsupported, setIsBltUnsupported] = useState(false)
     const [installingAll, setInstallingAll] = useState(false)
     const [installError, setInstallError] = useState<string | null>(null)
-    const [downloadProgress, setDownloadProgress] = useState<
-        Map<number, { downloaded: number; total: number }>
-    >(new Map())
-
-    useEffect(() => {
-        return api.onDownloadProgress(({ download_id, downloaded, total }) => {
-            const match = download_id.match(/^mod:(\d+)$/)
-            if (!match) return
-            const modId = Number(match[1])
-            setDownloadProgress((prev) => new Map(prev).set(modId, { downloaded, total }))
-        })
-    }, [])
+    const operations = useInstallOperations(gameId)
+    const choiceOpen = useInstallChoiceOpen()
 
     useEffect(() => {
         if (missingRequired.length === 0) onClose()
@@ -84,7 +82,7 @@ export function DepsWarningModal({
                 return
             }
             const outcome = await api.installMod(dep.mod.id, gamePath, gameId)
-            const blocked = uninstallablePromptMessage(outcome)
+            const blocked = await rejectInstallPrompt(outcome)
             if (blocked) {
                 setInstallError(blocked)
                 return
@@ -118,7 +116,7 @@ export function DepsWarningModal({
 
     return (
         <Dialog
-            open={true}
+            open={!choiceOpen}
             onOpenChange={(open) => !open && onClose()}
             title={t('depsWarning.title')}
             className="w-[480px]"
@@ -196,10 +194,11 @@ export function DepsWarningModal({
                             const thumbUrl = dep.mod!.thumbnail
                                 ? `${THUMBNAIL_BASE_URL}/${dep.mod!.thumbnail.file}`
                                 : null
+                            const operation = getModInstall(operations, 'modworkshop', dep.mod!.id)
                             const isInstalling = isLoaderMod
                                 ? installingLoader
-                                : installingDeps[dep.mod!.id]
-                            const progress = downloadProgress.get(dep.mod!.id) ?? null
+                                : installingDeps[dep.mod!.id] || isInstallBusy(operation)
+                            const progress = installProgress(operation)
                             const progressPct =
                                 isInstalling && progress && progress.total > 0
                                     ? Math.round((progress.downloaded / progress.total) * 100)
@@ -258,11 +257,9 @@ export function DepsWarningModal({
                                             className="shrink-0"
                                         >
                                             {isInstalling
-                                                ? progressPct !== null
-                                                    ? `${progressPct}%`
-                                                    : progress
-                                                      ? t('common.downloading')
-                                                      : t('common.installing')
+                                                ? isInstallBusy(operation)
+                                                    ? installLabel(operation)
+                                                    : t('common.installing')
                                                 : t('common.install')}
                                         </Button>
                                     )}

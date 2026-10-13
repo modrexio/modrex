@@ -49,6 +49,22 @@ import type {
 import { isGameId, type GameId } from '../../shared/types'
 export type ResourceReview = Omit<BackendResourceReview, 'gameId'> & { gameId: GameId }
 import { requestResourceReview } from './resourceInstall'
+import { refreshInstalled } from './gameData'
+import { error as logError } from '@tauri-apps/plugin-log'
+import {
+    acceptNexusInstall,
+    archiveHandleForOutcome,
+    beginInstall,
+    finishArchiveInstall,
+    finishInstall,
+    getArchiveInstall,
+    getDownloadInstall,
+    getInstallOperations,
+    getModInstall,
+    getResourceInstall,
+    updateInstall,
+    type InstallTarget,
+} from './installState'
 export type InstallOutcome =
     | Exclude<BackendInstallOutcome, { needsResourceReview: unknown }>
     | 'cancelled'
@@ -109,7 +125,8 @@ async function trackInstall(install: Promise<unknown>): Promise<void> {
 }
 
 async function trackInstallOutcome(
-    install: Promise<BackendInstallOutcome>
+    install: Promise<BackendInstallOutcome>,
+    onResourceReview?: (handle: string) => void
 ): Promise<InstallOutcome> {
     let outcome: BackendInstallOutcome
     try {
@@ -119,6 +136,7 @@ async function trackInstallOutcome(
         throw e
     }
     if (typeof outcome === 'object' && outcome.needsResourceReview !== undefined) {
+        onResourceReview?.(outcome.needsResourceReview.reviewHandle)
         const installed = await requestResourceReview(outcome.needsResourceReview.reviewHandle)
         return installed ? 'installed' : 'cancelled'
     }
@@ -126,6 +144,76 @@ async function trackInstallOutcome(
         void commands.recordSuccessfulInstall(!installErrorThisSession)
     }
     return outcome
+}
+
+async function trackModInstall(
+    target: InstallTarget,
+    install: () => Promise<BackendInstallOutcome>
+): Promise<InstallOutcome> {
+    if (!isGameId(target.gameId)) throw new Error('Unknown installation game: ' + target.gameId)
+    const operation = beginInstall(target)
+    try {
+        const outcome = await trackInstallOutcome(install(), (reviewHandle) =>
+            updateInstall(operation.id, { phase: 'review', reviewHandle })
+        )
+        if (typeof outcome === 'object') {
+            updateInstall(operation.id, {
+                phase: 'review',
+                archiveHandle: archiveHandleForOutcome(outcome),
+            })
+            return outcome
+        }
+        if (outcome === 'installed') {
+            await refreshInstalled(target.gameId)
+        }
+        finishInstall(operation.id)
+        return outcome
+    } catch (error) {
+        updateInstall(operation.id, { phase: 'failed', error: String(error) })
+        throw error
+    }
+}
+
+async function trackArchiveInstall(handle: string, install: () => Promise<unknown>): Promise<void> {
+    const operation = getArchiveInstall(handle)
+    if (operation) updateInstall(operation.id, { phase: 'installing', error: undefined })
+    try {
+        await trackInstall(install())
+        if (operation) updateInstall(operation.id, { phase: 'review' })
+    } catch (error) {
+        if (operation) updateInstall(operation.id, { phase: 'review', error: String(error) })
+        throw error
+    }
+}
+
+async function trackResourceInstall<T>(handle: string, install: () => Promise<T>): Promise<T> {
+    const operation = getResourceInstall(handle)
+    if (operation) updateInstall(operation.id, { phase: 'installing', error: undefined })
+    try {
+        const result = await install()
+        if (operation) updateInstall(operation.id, { phase: 'review' })
+        return result
+    } catch (error) {
+        if (operation) updateInstall(operation.id, { phase: 'review', error: String(error) })
+        throw error
+    }
+}
+
+async function completeArchiveInstall(
+    handle: string,
+    install: () => Promise<unknown>
+): Promise<void> {
+    const operation = getArchiveInstall(handle)
+    try {
+        await trackArchiveInstall(handle, install)
+        if (operation && isGameId(operation.target.gameId)) {
+            await refreshInstalled(operation.target.gameId)
+        }
+        finishArchiveInstall(handle)
+    } catch (error) {
+        if (operation) updateInstall(operation.id, { phase: 'review', error: String(error) })
+        throw error
+    }
 }
 
 function onEvent<T>(eventName: string, callback: (payload: T) => void): () => void {
@@ -141,7 +229,120 @@ function onEvent<T>(eventName: string, callback: (payload: T) => void): () => vo
     }
 }
 
+type NxmInstallFailure = {
+    gameId: string | null
+    modId: number | null
+    fileId: number | null
+    message: string
+}
+
+function observeInstalls(): () => void {
+    const unsubscribe = [
+        onEvent<{ download_id: string; game_id: string | null; downloaded: number; total: number }>(
+            'download:progress',
+            ({ download_id, game_id, downloaded, total }) => {
+                if (!game_id) return
+                const operation = getDownloadInstall(game_id, download_id)
+                if (!operation || !['preparing', 'downloading'].includes(operation.phase)) return
+                updateInstall(operation.id, { phase: 'downloading', downloaded, total })
+            }
+        ),
+        onEvent<{ download_id: string; game_id: string | null }>(
+            'download:finished',
+            ({ download_id, game_id }) => {
+                if (!game_id) return
+                const operation = getDownloadInstall(game_id, download_id)
+                if (!operation || !['preparing', 'downloading'].includes(operation.phase)) return
+                updateInstall(operation.id, { phase: 'installing' })
+            }
+        ),
+        onEvent<{ gameId: string; modId: number; fileId: number }>(
+            'nxm:install-started',
+            ({ gameId, modId, fileId }) => {
+                acceptNexusInstall({ gameId, source: 'nexus', modId, fileId })
+            }
+        ),
+        onEvent<{ gameId: string; modId: number; fileId: number; reviewHandle: string }>(
+            'nxm:resource-review',
+            ({ gameId, modId, fileId, reviewHandle }) => {
+                const operation = acceptNexusInstall({ gameId, source: 'nexus', modId, fileId })
+                updateInstall(operation.id, { phase: 'review', reviewHandle })
+            }
+        ),
+        onEvent<{ gameId: string; modId: number; fileId: number }>(
+            'nxm:install-complete',
+            ({ gameId, modId, fileId }) => {
+                const operation = getModInstall(
+                    getInstallOperations(gameId),
+                    'nexus',
+                    modId,
+                    fileId
+                )
+                if (!isGameId(gameId)) {
+                    void logError('Nexus install completed for an unknown game: ' + gameId)
+                    return
+                }
+                void refreshInstalled(gameId).then(
+                    () => {
+                        if (operation && !operation.reviewHandle) finishInstall(operation.id)
+                    },
+                    (error) => {
+                        if (operation) {
+                            updateInstall(operation.id, {
+                                phase: operation.reviewHandle ? 'review' : 'failed',
+                                error: String(error),
+                            })
+                        }
+                        void logError('Installed refresh failed: ' + String(error))
+                    }
+                )
+            }
+        ),
+        onEvent<{ gameId: string; modId: number; fileId: number }>(
+            'nxm:review-closed',
+            ({ gameId, modId, fileId }) => {
+                const operation = getModInstall(
+                    getInstallOperations(gameId),
+                    'nexus',
+                    modId,
+                    fileId
+                )
+                if (operation) finishInstall(operation.id)
+            }
+        ),
+        onEvent<NxmInstallFailure>('nxm:install-failed', ({ gameId, modId, fileId, message }) => {
+            if (gameId === null || modId === null || fileId === null) {
+                void logError('Nexus handoff failed: ' + message)
+                return
+            }
+            const operation = getModInstall(getInstallOperations(gameId), 'nexus', modId, fileId)
+            if (operation) updateInstall(operation.id, { phase: 'failed', error: message })
+        }),
+    ]
+    return () => unsubscribe.forEach((off) => off())
+}
+
 export const api = {
+    observeInstalls,
+    async requestNexusDownload(
+        gameId: string,
+        modId: number,
+        url: string,
+        fileId?: number
+    ): Promise<void> {
+        const operation = beginInstall({ gameId, source: 'nexus', modId, fileId }, 'awaitingNexus')
+        const timer = globalThis.setTimeout(() => {
+            const current = getInstallOperations(gameId).find((value) => value.id === operation.id)
+            if (current?.phase === 'awaitingNexus') finishInstall(operation.id)
+        }, 180_000)
+        try {
+            await commands.shellOpenExternal(url)
+        } catch (error) {
+            globalThis.clearTimeout(timer)
+            updateInstall(operation.id, { phase: 'failed', error: String(error) })
+            throw error
+        }
+    },
     inspectMovieResources(gameId: string) {
         return commands.inspectMovieResources(gameId)
     },
@@ -169,17 +370,25 @@ export const api = {
     async getResourceReview(reviewHandle: string): Promise<ResourceReview> {
         const review = await commands.getResourceReview(reviewHandle)
         if (!isGameId(review.gameId)) throw new Error('Resource review belongs to an unknown game.')
+        const operation = getResourceInstall(reviewHandle)
+        if (operation && review.pakPicker) {
+            updateInstall(operation.id, { archiveHandle: review.pakPicker.archiveHandle })
+        }
         return { ...review, gameId: review.gameId }
     },
     installReviewedResources(reviewHandle: string, selections: ResourceSelection[]) {
-        return commands.installReviewedResources(reviewHandle, selections)
+        return trackResourceInstall(reviewHandle, () =>
+            commands.installReviewedResources(reviewHandle, selections)
+        )
     },
     cancelResourceReview(reviewHandle: string) {
         return commands.cancelResourceReview(reviewHandle)
     },
     // The game, install, archive and Nexus identity all come from the review on the Rust side.
     installNexusReviewPak(reviewHandle: string, entryId: number, folderId: string | null) {
-        return trackInstall(commands.installNexusReviewPak({ reviewHandle, entryId, folderId }))
+        return trackResourceInstall(reviewHandle, () =>
+            trackInstall(commands.installNexusReviewPak({ reviewHandle, entryId, folderId }))
+        )
     },
     reviewResourceRecovery(gameId: GameId, uid: string | null) {
         return commands.reviewResourceRecovery(gameId, uid)
@@ -401,7 +610,7 @@ export const api = {
         gameId: string,
         fileId?: number
     ): Promise<InstallOutcome> {
-        return trackInstallOutcome(
+        return trackModInstall({ gameId, source: 'modworkshop', modId, fileId }, () =>
             commands.installMod(modId, fileId ?? null, gamePath, null, gameId)
         )
     },
@@ -425,7 +634,7 @@ export const api = {
         gamePath: string,
         gameId: string
     ): Promise<InstallOutcome> {
-        return trackInstallOutcome(
+        return trackModInstall({ gameId, source: 'modworkshop', modId, fileId }, () =>
             commands.installFile(
                 modId,
                 modName,
@@ -438,8 +647,9 @@ export const api = {
             )
         )
     },
-    discardStagedArchive(archiveHandle: string): Promise<void> {
-        return commands.discardStagedArchive(archiveHandle)
+    async discardStagedArchive(archiveHandle: string): Promise<void> {
+        await commands.discardStagedArchive(archiveHandle)
+        finishArchiveInstall(archiveHandle)
     },
     getIndexModFiles(modId: number, gameId: string): Promise<IndexModFile[]> {
         return commands.getIndexModFiles(modId, gameId)
@@ -473,7 +683,7 @@ export const api = {
         locationTag?: string,
         entryKind?: string
     ): Promise<void> {
-        return trackInstall(
+        return trackArchiveInstall(archiveHandle, () =>
             commands.installFromZipEntry({
                 archiveHandle,
                 entryId,
@@ -496,7 +706,7 @@ export const api = {
         gamePath: string,
         page: LoaderPage | null
     ): Promise<void> {
-        return trackInstall(
+        return completeArchiveInstall(archiveHandle, () =>
             commands.installConfirmedLoader({ archiveHandle, gameId, gamePath, page })
         )
     },
@@ -510,7 +720,7 @@ export const api = {
         gamePath: string,
         folderId?: string | null
     ): Promise<void> {
-        return trackInstall(
+        return completeArchiveInstall(archiveHandle, () =>
             commands.installCbFlatArchive(
                 archiveHandle,
                 modId,
@@ -536,7 +746,7 @@ export const api = {
         hostSubpath: string,
         gameId: string
     ): Promise<void> {
-        return trackInstall(
+        return trackArchiveInstall(archiveHandle, () =>
             commands.installHostPack({
                 archiveHandle,
                 entryName,
@@ -709,34 +919,8 @@ export const api = {
     },
 
     // ── Events ─────────────────────────────────────────────────────────────────
-    onDownloadProgress(
-        callback: (info: { download_id: string; downloaded: number; total: number }) => void
-    ): () => void {
-        return onEvent<{ download_id: string; downloaded: number; total: number }>(
-            'download:progress',
-            callback
-        )
-    },
     onInstallScan(callback: (info: { phase: string; total: number }) => void): () => void {
         return onEvent<{ phase: string; total: number }>('installed:scan', callback)
-    },
-    // Fired by the nxm:// handoff as soon as a link is accepted, before any
-    // network work, so the UI can react instantly.
-    onNxmInstallStarted(
-        callback: (info: { gameId: string; modId: number; fileId: number }) => void
-    ): () => void {
-        return onEvent<{ gameId: string; modId: number; fileId: number }>(
-            'nxm:install-started',
-            callback
-        )
-    },
-    onNxmInstallComplete(
-        callback: (info: { gameId: string; modId: number; fileId: number; name: string }) => void
-    ): () => void {
-        return onEvent<{ gameId: string; modId: number; fileId: number; name: string }>(
-            'nxm:install-complete',
-            callback
-        )
     },
     onNexusOAuthSignedIn(callback: () => void): () => void {
         return onEvent<null>('nexus-oauth:signed-in', () => callback())
@@ -751,23 +935,20 @@ export const api = {
     onNexusSessionExpired(callback: () => void): () => void {
         return onEvent<null>('nexus-oauth:expired', () => callback())
     },
-    onNxmInstallFailed(callback: (error: string) => void): () => void {
-        return onEvent<string>('nxm:install-failed', callback)
-    },
-    onNxmReviewClosed(
-        callback: (info: { gameId: string; modId: number; fileId: number }) => void
-    ): () => void {
-        return onEvent<{ gameId: string; modId: number; fileId: number }>(
-            'nxm:review-closed',
-            callback
-        )
-    },
     // An nxm download carrying movies or Engine.ini presets installs nothing until reviewed.
     // nxm:install-complete follows only once something from the review is actually installed.
     onNxmResourceReview(
-        callback: (info: { gameId: string; reviewHandle: string }) => void
+        callback: (info: {
+            gameId: string
+            modId: number
+            fileId: number
+            reviewHandle: string
+        }) => void
     ): () => void {
-        return onEvent<{ gameId: string; reviewHandle: string }>('nxm:resource-review', callback)
+        return onEvent<{ gameId: string; modId: number; fileId: number; reviewHandle: string }>(
+            'nxm:resource-review',
+            callback
+        )
     },
     onUpdateAvailable(
         callback: (info: {

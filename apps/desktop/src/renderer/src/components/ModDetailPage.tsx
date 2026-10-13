@@ -53,26 +53,25 @@ import { NexusDescription } from './NexusDescription'
 import { DepsWarningModal } from './DepsWarningModal'
 import { FileSelectModal } from './FileSelectModal'
 import { NonPakConfirmModal } from './NonPakConfirmModal'
-import { ZipPickerModal } from './ZipPickerModal'
-import type { ZipMultiPakPayload } from './ZipPickerModal'
-import { HostPackModal } from './HostPackModal'
-import type { HostPackPayload } from './HostPackModal'
-import { UnrecognizedArchiveModal } from './UnrecognizedArchiveModal'
-import { CrimeBossFlatArchiveModal } from './CrimeBossFlatArchiveModal'
-import type { CbFlatArchivePayload } from './CrimeBossFlatArchiveModal'
-import { Ue4ssReplaceModal } from './Ue4ssReplaceModal'
 import { Ue4ssRemoveModal } from './Ue4ssRemoveModal'
-import type { LoaderReplacePayload } from './Ue4ssReplaceModal'
 import { CrimeBossInstallTargetModal } from './CrimeBossInstallTargetModal'
 import { useCrimeBossInstallTarget } from '../hooks/useCrimeBossInstallTarget'
 import { isUnsupportedFormat } from '../formatCheck'
-import { handleInstallOutcome } from '../installSentinels'
 import { collectDeps, isLoaderDep, missingRequiredDeps } from '../deps'
 import { loaderForModId, loadersForGame } from '../loaders'
 import { useLoaderState } from '../hooks/useLoaderState'
 import { resolveDepCheck } from '../installDepCheck'
 import { useThumbnail } from '../hooks/useThumbnail'
 import { api } from '../api'
+import { requestInstallChoice } from '../installChoices'
+import {
+    useInstallOperations,
+    getModInstall,
+    isInstallBusy,
+    installProgress,
+    installLabel,
+    clearInstallError,
+} from '../installState'
 import { runBulkAction } from '../bulkAction'
 import { markForegroundActivity } from '../requestPriority'
 import { DescriptionTab, ChangelogTab, LicenseTab } from './modDetail/textTabs'
@@ -298,20 +297,17 @@ export function ModDetailPage({
     } = useLoaderState(activeGame, gamePath)
     const [showFileSelect, setShowFileSelect] = useState(false)
     const [showHeaderFormatWarning, setShowHeaderFormatWarning] = useState(false)
-    const [zipPickerData, setZipPickerData] = useState<ZipMultiPakPayload | null>(null)
-    const [hostPackData, setHostPackData] = useState<HostPackPayload | null>(null)
-    const [unrecognizedModId, setUnrecognizedModId] = useState<number | null>(null)
-    const [cbFlatArchiveData, setCbFlatArchiveData] = useState<CbFlatArchivePayload | null>(null)
-    const [loaderReplaceData, setLoaderReplaceData] = useState<LoaderReplacePayload | null>(null)
     const [removingLoader, setRemovingLoader] = useState(false)
     const crimeBossInstallTarget = useCrimeBossInstallTarget(
         activeGame,
         gamePath,
         onRefreshInstalled
     )
-    const [downloadMap, setDownloadMap] = useState<
-        ReadonlyMap<string, { downloaded: number; total: number }>
-    >(new Map())
+    const operations = useInstallOperations(activeGame)
+    const operation = getModInstall(operations, isNexus ? 'nexus' : 'modworkshop', modId)
+    const installBusy = isInstallBusy(operation)
+    const progress = installProgress(operation)
+    const visibleInstallError = installError ?? operation?.error
 
     // InstalledMod.id is an opaque local key regardless of source (see
     // sources::source_native_local_id), whereas modId here is always a real id (Nexus or
@@ -380,64 +376,6 @@ export function ModDetailPage({
         fetchData()
     }, [fetchData])
 
-    useEffect(() => {
-        return api.onDownloadProgress(({ download_id, downloaded, total }) => {
-            setDownloadMap((prev) => {
-                const next = new Map(prev).set(download_id, { downloaded, total })
-                // nxm downloads report under "nxm:{gameId}:{modId}:{fileId}", not the
-                // "file:{modId}:{fileId}" key DownloadsTab reads for a file's own
-                // progress, so a Nexus install mirrors into that key too once it's
-                // confirmed to belong to this page's mod.
-                if (isNexus) {
-                    const [prefix, gameId, evModId, fileId] = download_id.split(':')
-                    if (prefix === 'nxm' && gameId === activeGame && Number(evModId) === modId) {
-                        next.set(`file:${modId}:${fileId}`, { downloaded, total })
-                    }
-                }
-                return next
-            })
-        })
-    }, [isNexus, activeGame, modId])
-
-    // A Nexus file download arrives via the OS nxm:// deep link, resolved by a second
-    // app instance rather than anything this page triggered directly, so its progress
-    // is driven by these events rather than a promise. DownloadsTab owns the visible
-    // error banner for a failure, since it is scoped to one file's download.
-    useEffect(() => {
-        if (!isNexus) return
-        const offStarted = api.onNxmInstallStarted(({ gameId, modId: evModId, fileId }) => {
-            if (gameId !== activeGame || evModId !== modId) return
-            setDownloadMap((prev) =>
-                new Map(prev).set(`file:${modId}:${fileId}`, { downloaded: 0, total: 0 })
-            )
-        })
-        const clearDownload = ({
-            gameId,
-            modId: evModId,
-            fileId,
-        }: {
-            gameId: string
-            modId: number
-            fileId: number
-        }) => {
-            if (gameId !== activeGame || evModId !== modId) return
-            setDownloadMap((prev) => {
-                const next = new Map(prev)
-                next.delete(`file:${modId}:${fileId}`)
-                return next
-            })
-        }
-        const offComplete = api.onNxmInstallComplete(clearDownload)
-        const offClosed = api.onNxmReviewClosed(clearDownload)
-        const offFailed = api.onNxmInstallFailed(() => setDownloadMap(new Map()))
-        return () => {
-            offStarted()
-            offComplete()
-            offClosed()
-            offFailed()
-        }
-    }, [isNexus, activeGame, modId])
-
     const images = detail?.images ?? []
 
     useEffect(() => {
@@ -496,12 +434,18 @@ export function ModDetailPage({
         const download = detail.download
         // No in-app install trigger for Nexus. The free-tier flow is the site's own
         // "Mod Manager Download" button, which hands back an nxm:// link Modrex
-        // registers and handles. Matches NexusBrowsePage's openOnNexus.
+        // registers and handles.
         if (isNexus) {
             if (nexusDomain) {
-                api.openExternal(
-                    `https://www.nexusmods.com/${nexusDomain}/mods/${mod.id}?tab=files`
-                )
+                try {
+                    await api.requestNexusDownload(
+                        activeGame,
+                        modId,
+                        `https://www.nexusmods.com/${nexusDomain}/mods/${mod.id}?tab=files`
+                    )
+                } catch (error) {
+                    setInstallError(String(error))
+                }
             }
             return
         }
@@ -512,14 +456,9 @@ export function ModDetailPage({
         // Dep check runs here, before FileSelectModal, because multi-file mods
         // (download === null, files.length > 1) go through FileSelectModal which has
         // no dep check of its own, so doInstall is never reached for them.
-        let checkedMod = detail
-        if (!checkedMod) {
-            checkedMod = await getCachedMod(modId)
-            setDetail(checkedMod)
-        }
         const depResult = await resolveDepCheck(
             modId,
-            checkedMod,
+            detail,
             gamePath,
             activeGame,
             installed,
@@ -557,35 +496,22 @@ export function ModDetailPage({
     async function doInstall() {
         if (!gamePath || !mod) return
         setInstallError(null)
-        setActionLoading(true)
-        try {
-            // A loader with a direct download installs through its own command; UE4SS
-            // (viaModFlow) has no canonical host and rides the normal mod install.
-            if (thisLoader && !thisLoader.viaModFlow) {
+        if (thisLoader && !thisLoader.viaModFlow) {
+            setActionLoading(true)
+            try {
                 await installLoader(mod.id)
-            } else {
-                const outcome = await api.installMod(mod.id, gamePath, activeGame)
-                if (
-                    handleInstallOutcome(outcome, {
-                        onZipMultiPak: setZipPickerData,
-                        onHostModPack: setHostPackData,
-                        onCbFlatArchive: setCbFlatArchiveData,
-                        onLoaderReplace: setLoaderReplaceData,
-                        onUnrecognizedArchive: () => setUnrecognizedModId(mod.id),
-                    })
-                ) {
-                    return
-                }
+            } finally {
+                setActionLoading(false)
             }
-            await onRefreshInstalled()
-        } finally {
-            setDownloadMap((prev) => {
-                const next = new Map(prev)
-                next.delete(`mod:${modId}`)
-                return next
-            })
-            setActionLoading(false)
+        } else {
+            const outcome = await api.installMod(mod.id, gamePath, activeGame)
+            await requestInstallChoice(outcome, activeGame, gamePath, installedFiles, null, mod.id)
+            if (thisLoader) {
+                await refreshLoader(thisLoader.id)
+                await refreshUe4ssPage()
+            }
         }
+        await onRefreshInstalled()
     }
 
     // loaderModId is the dependency's modworkshop id, or null for an offsite BLT dep
@@ -646,7 +572,7 @@ export function ModDetailPage({
         }
     }
 
-    const canAct = !!gamePath && !actionLoading && !loading
+    const canAct = !!gamePath && !actionLoading && !installBusy && !loading
 
     const allDeps: ModDependency[] = collectDeps(detail)
 
@@ -740,43 +666,6 @@ export function ModDetailPage({
                     onCancel={crimeBossInstallTarget.cancelChoice}
                 />
             )}
-            {zipPickerData && gamePath && (
-                <ZipPickerModal
-                    payload={zipPickerData}
-                    gamePath={gamePath}
-                    installedFiles={installedFiles}
-                    gameId={activeGame}
-                    onRefreshInstalled={onRefreshInstalled}
-                    onClose={() => setZipPickerData(null)}
-                />
-            )}
-            {hostPackData && gamePath && (
-                <HostPackModal
-                    payload={hostPackData}
-                    gamePath={gamePath}
-                    installed={installed}
-                    gameId={activeGame}
-                    onRefreshInstalled={onRefreshInstalled}
-                    onClose={() => setHostPackData(null)}
-                />
-            )}
-            {cbFlatArchiveData && gamePath && (
-                <CrimeBossFlatArchiveModal
-                    payload={cbFlatArchiveData}
-                    gamePath={gamePath}
-                    onRefreshInstalled={onRefreshInstalled}
-                    onClose={() => setCbFlatArchiveData(null)}
-                />
-            )}
-            {loaderReplaceData && gamePath && (
-                <Ue4ssReplaceModal
-                    payload={loaderReplaceData}
-                    gameId={activeGame}
-                    gamePath={gamePath}
-                    onRefreshInstalled={onRefreshInstalled}
-                    onClose={() => setLoaderReplaceData(null)}
-                />
-            )}
             {removingLoader && gamePath && (
                 <Ue4ssRemoveModal
                     gameId={activeGame}
@@ -787,12 +676,6 @@ export function ModDetailPage({
                         await onRefreshInstalled()
                     }}
                     onClose={() => setRemovingLoader(false)}
-                />
-            )}
-            {unrecognizedModId !== null && (
-                <UnrecognizedArchiveModal
-                    modId={unrecognizedModId}
-                    onClose={() => setUnrecognizedModId(null)}
                 />
             )}
             {showFileSelect && detail && (
@@ -858,6 +741,11 @@ export function ModDetailPage({
                     </span>
                 )}
                 <div className="ml-auto flex items-center gap-2 shrink-0">
+                    {installBusy && installedFiles.length > 0 && (
+                        <span className="text-xs text-accent" role="status">
+                            {installLabel(operation)}
+                        </span>
+                    )}
                     {mod && installedMod && !isLoaderMod && (
                         <>
                             <Toggle
@@ -922,17 +810,14 @@ export function ModDetailPage({
                                             disabled={!canAct}
                                             onClick={handleInstall}
                                         >
-                                            {!actionLoading && <Download className="w-3.5 h-3.5" />}
-                                            {actionLoading
-                                                ? (() => {
-                                                      const p = downloadMap.get(`mod:${modId}`)
-                                                      return p
-                                                          ? p.total > 0
-                                                              ? `${Math.round((p.downloaded / p.total) * 100)}%`
-                                                              : t('common.downloading')
-                                                          : t('common.installing')
-                                                  })()
-                                                : t('common.install')}
+                                            {!installBusy && !actionLoading && (
+                                                <Download className="w-3.5 h-3.5" />
+                                            )}
+                                            {installBusy
+                                                ? installLabel(operation)
+                                                : actionLoading
+                                                  ? t('common.installing')
+                                                  : t('common.install')}
                                         </Button>
                                     )}
                                     {isUnsupportedFormat(
@@ -952,29 +837,29 @@ export function ModDetailPage({
                     )}
                 </div>
             </div>
-            {(() => {
-                const p = downloadMap.get(`mod:${modId}`)
-                return p ? (
-                    <div className="h-0.5 bg-surface-active shrink-0">
-                        {p.total > 0 ? (
-                            <div
-                                className="h-full bg-accent transition-[width] duration-100"
-                                style={{
-                                    width: `${Math.round((p.downloaded / p.total) * 100)}%`,
-                                }}
-                            />
-                        ) : (
-                            <div className="h-full bg-accent animate-pulse w-full" />
-                        )}
-                    </div>
-                ) : null
-            })()}
+            {progress && (
+                <div className="h-0.5 bg-surface-active shrink-0">
+                    {progress.total > 0 ? (
+                        <div
+                            className="h-full bg-accent transition-[width] duration-100"
+                            style={{
+                                width: `${Math.round((progress.downloaded / progress.total) * 100)}%`,
+                            }}
+                        />
+                    ) : (
+                        <div className="h-full bg-accent animate-pulse w-full" />
+                    )}
+                </div>
+            )}
 
-            {installError && (
+            {visibleInstallError && (
                 <div className="px-6 py-2 bg-danger/20 border-b border-danger/30 text-xs text-danger-text flex items-center justify-between shrink-0">
-                    <span>{installError}</span>
+                    <span>{visibleInstallError}</span>
                     <button
-                        onClick={() => setInstallError(null)}
+                        onClick={() => {
+                            setInstallError(null)
+                            if (operation) clearInstallError(operation.id)
+                        }}
                         className="ml-2 shrink-0 p-1 rounded text-danger-text/70 hover:text-danger-text hover:bg-danger/20 transition-colors"
                     >
                         <X className="w-3.5 h-3.5" />
@@ -1073,7 +958,11 @@ export function ModDetailPage({
                                         onOpenImage={setLightboxIndex}
                                     />
                                 </Tabs.Content>
-                                <Tabs.Content value="downloads" className="py-5 focus:outline-none">
+                                <Tabs.Content
+                                    value="downloads"
+                                    forceMount
+                                    className="py-5 focus:outline-none data-[state=inactive]:hidden"
+                                >
                                     <DownloadsTab
                                         modVersion={detail?.version}
                                         files={files}
@@ -1082,9 +971,7 @@ export function ModDetailPage({
                                         mod={mod}
                                         images={images}
                                         gamePath={gamePath}
-                                        installed={installed}
                                         installedFiles={installedFiles}
-                                        downloadMap={downloadMap}
                                         activeGame={activeGame}
                                         onRefreshInstalled={onRefreshInstalled}
                                         onOpenDetail={onOpenDetail}

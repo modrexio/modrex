@@ -25,6 +25,8 @@ import { readAppRoute, saveAppRoute, type AppRoute } from './navigation'
 import { refreshInstalled } from './gameData'
 import { ResourceInstallDialog } from './components/ResourceInstallDialog'
 import { requestResourceReview } from './resourceInstall'
+import { InstallChoiceDialog } from './components/InstallChoiceDialog'
+import { finishResourceInstall } from './installState'
 function reportStartupPhase(phase: StartupPhase) {
     void api
         .reportStartupPhase(phase)
@@ -32,6 +34,7 @@ function reportStartupPhase(phase: StartupPhase) {
 }
 
 export default function App() {
+    useEffect(() => api.observeInstalls(), [])
     const locale = useLocale()
     const [route, setRoute] = useState<AppRoute>(readAppRoute)
     const [sourceLoad, setSourceLoad] = useState<
@@ -140,20 +143,6 @@ export default function App() {
 
     useEffect(
         () =>
-            api.onNxmInstallComplete(({ gameId }) => {
-                if (!isGameId(gameId)) {
-                    void logError('Nexus install completed for an unknown game: ' + gameId)
-                    return
-                }
-                void refreshInstalled(gameId).catch((error) =>
-                    logError('Installed refresh failed: ' + String(error))
-                )
-            }),
-        []
-    )
-
-    useEffect(
-        () =>
             api.onNxmResourceReview(({ gameId, reviewHandle }) => {
                 if (!isGameId(gameId)) {
                     void logError('Nexus resource review for an unknown game: ' + gameId)
@@ -163,6 +152,7 @@ export default function App() {
                 void requestResourceReview(reviewHandle)
                     .then((installed) => (installed ? refreshInstalled(gameId) : undefined))
                     .catch((error) => logError('Installed refresh failed: ' + String(error)))
+                    .finally(() => finishResourceInstall(reviewHandle))
             }),
         []
     )
@@ -244,6 +234,7 @@ export default function App() {
         <TooltipProvider delayDuration={400}>
             <FileDropInstall>
                 <ResourceInstallDialog />
+                <InstallChoiceDialog />
                 <div className="flex flex-col h-screen bg-surface text-text">
                     {navigator.userAgent.includes('Linux') && <ResizeHandles />}
                     {/* Workspace source lookups are synchronous, so the registry must load before mounting. */}

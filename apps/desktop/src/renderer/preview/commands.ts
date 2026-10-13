@@ -311,7 +311,8 @@ const handlers = {
                 ? (detail.download ?? files.data[0])
                 : files.data.find((f) => f.id === fileId)
         if (!file) throw new Error(`preview: mod ${modId} has no download`)
-        await simulateDownload(`mod:${modId}`, file.size)
+        const downloadId = fileId === null ? `mod:${modId}` : `file:${modId}:${fileId}`
+        await simulateDownload(game(gameId), downloadId, file.size)
         library(game(gameId)).install(installedFromWorkshop(detail, file, folderId))
         return 'installed'
     },
@@ -327,7 +328,7 @@ const handlers = {
     ) => {
         const { detail } = await modRecord(modId)
         const file = { id: fileId, version: modVersion, type: fileType, size: null }
-        await simulateDownload(`file:${modId}:${fileId}`, file.size)
+        await simulateDownload(game(gameId), `file:${modId}:${fileId}`, file.size)
         library(game(gameId)).install(installedFromWorkshop(detail, file, null))
         return 'installed'
     },

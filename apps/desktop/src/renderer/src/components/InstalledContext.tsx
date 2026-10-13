@@ -21,7 +21,6 @@ export interface InstalledContextValue {
     manageFilesKey: string | null
     setManageFilesKey: (key: string | null) => void
     loadingMod: string | null
-    reinstallProgress: { downloaded: number; total: number } | null
     reinstallError: string | null
     clearReinstallError: () => void
     handleUninstall: (mods: InstalledMod[]) => Promise<void>

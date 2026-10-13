@@ -33,16 +33,6 @@ import { SourceSelect } from './SourceSelect'
 import { DepsWarningModal } from './DepsWarningModal'
 import { FileSelectModal } from './FileSelectModal'
 import { NonPakConfirmModal } from './NonPakConfirmModal'
-import { ZipPickerModal } from './ZipPickerModal'
-import type { ZipMultiPakPayload } from './ZipPickerModal'
-import { HostPackModal } from './HostPackModal'
-import type { HostPackPayload } from './HostPackModal'
-import { UnrecognizedArchiveModal } from './UnrecognizedArchiveModal'
-import { CrimeBossFlatArchiveModal } from './CrimeBossFlatArchiveModal'
-import type { CbFlatArchivePayload } from './CrimeBossFlatArchiveModal'
-import { Ue4ssReplaceModal } from './Ue4ssReplaceModal'
-import type { LoaderReplacePayload } from './Ue4ssReplaceModal'
-import { handleInstallOutcome } from '../installSentinels'
 import { CrimeBossInstallTargetModal } from './CrimeBossInstallTargetModal'
 import { useCrimeBossInstallTarget } from '../hooks/useCrimeBossInstallTarget'
 import { isUnsupportedFormat } from '../formatCheck'
@@ -52,6 +42,15 @@ import { useLoaderState } from '../hooks/useLoaderState'
 import { resolveDepCheck } from '../installDepCheck'
 import { t } from '../i18n'
 import { api } from '../api'
+import { requestInstallChoice } from '../installChoices'
+import {
+    useInstallOperations,
+    getModInstall,
+    isInstallBusy,
+    installProgress,
+    installLabel,
+    type InstallOperation,
+} from '../installState'
 import { runBulkAction } from '../bulkAction'
 import { trackSearch } from '../lib/analytics/events'
 import { markForegroundActivity, waitForForegroundClear } from '../requestPriority'
@@ -118,6 +117,7 @@ interface GridCardProps extends CardHandlers {
     gamePath: string | null
     loading: boolean
     progress: { downloaded: number; total: number } | null
+    loadingLabel?: string
     loaderInstalled?: boolean
 }
 
@@ -130,6 +130,7 @@ const GridCard = memo(function GridCard(p: GridCardProps) {
             gamePath={p.gamePath}
             loading={p.loading}
             progress={p.progress}
+            loadingLabel={p.loadingLabel}
             showMeta
             onOpen={() => p.onOpen(p.mod.id, p.mod)}
             onPrefetch={() => p.onPrefetch(p.mod.id)}
@@ -147,7 +148,7 @@ interface ModGridProps extends CardHandlers {
     installedByModId: Map<number, InstalledMod[]>
     gamePath: string | null
     installingMods: ReadonlySet<number>
-    downloadMap: ReadonlyMap<string, { downloaded: number; total: number }>
+    operations: readonly InstallOperation[]
     loaderInstalledIds: Set<number>
 }
 
@@ -157,7 +158,7 @@ const ModGrid = memo(function ModGrid({
     installedByModId,
     gamePath,
     installingMods,
-    downloadMap,
+    operations,
     loaderInstalledIds,
     ...handlers
 }: ModGridProps) {
@@ -189,18 +190,24 @@ const ModGrid = memo(function ModGrid({
     }
     return (
         <div className="grid grid-cols-2 gap-4 xl:grid-cols-3 2xl:grid-cols-4">
-            {result.data.map((mod) => (
-                <GridCard
-                    key={mod.id}
-                    mod={mod}
-                    installed={installedByModId.get(mod.id)?.[0]}
-                    loaderInstalled={loaderInstalledIds.has(mod.id) ? true : undefined}
-                    gamePath={gamePath}
-                    loading={installingMods.has(mod.id) || downloadMap.has(`mod:${mod.id}`)}
-                    progress={downloadMap.get(`mod:${mod.id}`) ?? null}
-                    {...handlers}
-                />
-            ))}
+            {result.data.map((mod) => {
+                const operation = getModInstall(operations, 'modworkshop', mod.id)
+                return (
+                    <GridCard
+                        key={mod.id}
+                        mod={mod}
+                        installed={installedByModId.get(mod.id)?.[0]}
+                        loaderInstalled={loaderInstalledIds.has(mod.id) ? true : undefined}
+                        gamePath={gamePath}
+                        loading={installingMods.has(mod.id) || isInstallBusy(operation)}
+                        progress={installProgress(operation)}
+                        loadingLabel={
+                            isInstallBusy(operation) ? installLabel(operation) : undefined
+                        }
+                        {...handlers}
+                    />
+                )
+            })}
         </div>
     )
 })
@@ -238,9 +245,7 @@ export function BrowsePage({
     const [tags, setTags] = useState<ModTag[]>(() => getTagsCache(workshopId) ?? [])
     const [loadingMods, setLoadingMods] = useState(!initialCache)
     const [installingMods, setInstallingMods] = useState<ReadonlySet<number>>(new Set())
-    const [downloadMap, setDownloadMap] = useState<
-        ReadonlyMap<string, { downloaded: number; total: number }>
-    >(new Map())
+    const operations = useInstallOperations(activeGame)
     const [error, setError] = useState<string | null>(null)
     const [categoryError, setCategoryError] = useState<string | null>(null)
     const [tagError, setTagError] = useState<string | null>(null)
@@ -266,11 +271,6 @@ export function BrowsePage({
         ],
         []
     )
-    const [zipPickerData, setZipPickerData] = useState<ZipMultiPakPayload | null>(null)
-    const [hostPackData, setHostPackData] = useState<HostPackPayload | null>(null)
-    const [unrecognizedModId, setUnrecognizedModId] = useState<number | null>(null)
-    const [cbFlatArchiveData, setCbFlatArchiveData] = useState<CbFlatArchivePayload | null>(null)
-    const [loaderReplaceData, setLoaderReplaceData] = useState<LoaderReplacePayload | null>(null)
     const crimeBossInstallTarget = useCrimeBossInstallTarget(
         activeGame,
         gamePath,
@@ -291,26 +291,6 @@ export function BrowsePage({
         ue4ssPageId,
         refreshUe4ssPage,
     } = useLoaderState(activeGame, gamePath)
-
-    useEffect(() => {
-        return api.onDownloadProgress(({ download_id, downloaded, total }) => {
-            setDownloadMap((prev) => new Map(prev).set(download_id, { downloaded, total }))
-        })
-    }, [])
-
-    // UpdatesModal installs emit download:progress events that populate downloadMap here,
-    // but never call removeInstalling, so stale entries are purged on each refresh.
-    useEffect(() => {
-        setDownloadMap((prev) => {
-            if (prev.size === 0) return prev
-            const next = new Map(prev)
-            for (const key of next.keys()) {
-                const id = Number(key.replace('mod:', ''))
-                if (!installingMods.has(id)) next.delete(key)
-            }
-            return next.size === prev.size ? prev : next
-        })
-    }, [installed, installingMods])
 
     // Re-runs on browse re-activation, not just gamePath, so a loader installed from a mod's
     // detail page (which updates only that page's own presence state) is reflected on the
@@ -492,11 +472,6 @@ export function BrowsePage({
             s.delete(id)
             return s
         })
-        setDownloadMap((prev) => {
-            const m = new Map(prev)
-            m.delete(`mod:${id}`)
-            return m
-        })
     }, [])
 
     const doInstall = useCallback(
@@ -508,16 +483,10 @@ export function BrowsePage({
                 await refreshLoader(loader.id)
             } else {
                 const outcome = await api.installMod(modId, gamePath, activeGame)
-                if (
-                    handleInstallOutcome(outcome, {
-                        onZipMultiPak: setZipPickerData,
-                        onHostModPack: setHostPackData,
-                        onCbFlatArchive: setCbFlatArchiveData,
-                        onLoaderReplace: setLoaderReplaceData,
-                        onUnrecognizedArchive: () => setUnrecognizedModId(modId),
-                    })
-                ) {
-                    return
+                await requestInstallChoice(outcome, activeGame, gamePath, installed, null, modId)
+                if (typeof outcome === 'object' && 'needsLoaderConfirm' in outcome) {
+                    await refreshUe4ssPage()
+                    await refreshLoader('ue4ss')
                 }
                 // A viaModFlow loader is not tracked in the installed list; its install is
                 // routed server-side via the UE4SS_LOADER sentinel, so re-read presence to
@@ -526,7 +495,7 @@ export function BrowsePage({
             }
             await onRefreshInstalled()
         },
-        [gamePath, activeGame, onRefreshInstalled, refreshLoader]
+        [gamePath, activeGame, installed, onRefreshInstalled, refreshLoader, refreshUe4ssPage]
     )
 
     const handleInstall = useCallback(
@@ -603,14 +572,6 @@ export function BrowsePage({
             removeInstalling,
         ]
     )
-
-    // A replacement changes which page the installed files came from, so the card that claims
-    // it has to be re-read rather than assumed to be the one just installed.
-    const refreshAfterLoaderReplace = useCallback(async () => {
-        await refreshUe4ssPage()
-        await refreshLoader('ue4ss')
-        await onRefreshInstalled()
-    }, [refreshUe4ssPage, refreshLoader, onRefreshInstalled])
 
     const handleUninstall = useCallback(
         async (modId: number) => {
@@ -751,43 +712,6 @@ export function BrowsePage({
                     onClose={() => setFileSelect(null)}
                 />
             )}
-            {zipPickerData && gamePath && (
-                <ZipPickerModal
-                    payload={zipPickerData}
-                    gamePath={gamePath}
-                    installedFiles={installed}
-                    gameId={activeGame}
-                    onRefreshInstalled={onRefreshInstalled}
-                    onClose={() => setZipPickerData(null)}
-                />
-            )}
-            {hostPackData && gamePath && (
-                <HostPackModal
-                    payload={hostPackData}
-                    gamePath={gamePath}
-                    installed={installed}
-                    gameId={activeGame}
-                    onRefreshInstalled={onRefreshInstalled}
-                    onClose={() => setHostPackData(null)}
-                />
-            )}
-            {cbFlatArchiveData && gamePath && (
-                <CrimeBossFlatArchiveModal
-                    payload={cbFlatArchiveData}
-                    gamePath={gamePath}
-                    onRefreshInstalled={onRefreshInstalled}
-                    onClose={() => setCbFlatArchiveData(null)}
-                />
-            )}
-            {loaderReplaceData && gamePath && (
-                <Ue4ssReplaceModal
-                    payload={loaderReplaceData}
-                    gameId={activeGame}
-                    gamePath={gamePath}
-                    onRefreshInstalled={refreshAfterLoaderReplace}
-                    onClose={() => setLoaderReplaceData(null)}
-                />
-            )}
             {crimeBossInstallTarget.pendingChoice && (
                 <CrimeBossInstallTargetModal
                     modName={crimeBossInstallTarget.pendingChoice.modName}
@@ -795,12 +719,6 @@ export function BrowsePage({
                     error={crimeBossInstallTarget.error}
                     onChoose={crimeBossInstallTarget.confirmChoice}
                     onCancel={crimeBossInstallTarget.cancelChoice}
-                />
-            )}
-            {unrecognizedModId !== null && (
-                <UnrecognizedArchiveModal
-                    modId={unrecognizedModId}
-                    onClose={() => setUnrecognizedModId(null)}
                 />
             )}
             {depsWarning && (
@@ -934,7 +852,7 @@ export function BrowsePage({
                     installedByModId={installedByModId}
                     gamePath={gamePath}
                     installingMods={installingMods}
-                    downloadMap={downloadMap}
+                    operations={operations}
                     loaderInstalledIds={
                         new Set(
                             loadersForGame(activeGame)

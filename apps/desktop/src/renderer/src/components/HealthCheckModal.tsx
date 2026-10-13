@@ -16,7 +16,7 @@ import type { HealthItem, MissingDepRef } from '../hooks/healthCheck'
 import { GAMES, type GameId, type InstalledMod, type ModSummary } from '../../../shared/types'
 import { useThumbnail } from '../hooks/useThumbnail'
 import { api, type LeftoverFiles } from '../api'
-import { uninstallablePromptMessage } from '../installSentinels'
+import { rejectInstallPrompt } from '../installSentinels'
 import { formatBytes } from './modDetail/format'
 import { describeFailures, type ActionFailure } from '../bulkAction'
 import NexusIcon from '../../../../assets/icons/nexusmods.svg?react'
@@ -229,7 +229,7 @@ export function HealthCheckModal({
         setDepInstallError(null)
         try {
             const outcome = await api.installMod(depId, gamePath, gameId)
-            const blocked = uninstallablePromptMessage(outcome)
+            const blocked = await rejectInstallPrompt(outcome)
             if (blocked) {
                 setDepInstallError(blocked)
                 return
@@ -261,7 +261,8 @@ export function HealthCheckModal({
         for (const depId of uniqueDepIds) {
             try {
                 const outcome = await api.installMod(depId, gamePath, gameId)
-                blockedMessage = blockedMessage ?? uninstallablePromptMessage(outcome)
+                const blocked = await rejectInstallPrompt(outcome)
+                blockedMessage ??= blocked
             } catch {
                 hadError = true
             }

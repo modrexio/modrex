@@ -13,6 +13,13 @@ import { PakViewerModal } from './PakViewerModal'
 import { hasSource } from '../sources'
 import { Button } from './ui/Button'
 import { Tooltip } from './Tooltip'
+import {
+    useInstallOperations,
+    getModInstall,
+    isInstallBusy,
+    installProgress,
+    installLabel,
+} from '../installState'
 
 export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
     const {
@@ -22,7 +29,6 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
         modData,
         failedIds,
         loadingMod,
-        reinstallProgress,
         dragItem,
         dropTarget,
         onOpenDetail,
@@ -61,7 +67,13 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
     const showManageFiles = manageFilesKey === groupKey
     const showPakViewer = pakViewerKey === groupKey
     const apiMod = modData.get(id)
-    const isBusy = mods.some((m) => loadingMod === m.uid)
+    const operations = useInstallOperations(activeGame)
+    const operation = getModInstall(
+        operations,
+        ins.source === 'nexus' ? 'nexus' : 'modworkshop',
+        Number(ins.remoteId)
+    )
+    const isBusy = mods.some((m) => loadingMod === m.uid) || isInstallBusy(operation)
     const isDragging = dragItem?.kind === 'mod' && dragItem.uid === repUid
     const combined: InstalledMod = {
         ...ins,
@@ -258,7 +270,8 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
                     installed={combined}
                     gamePath={gamePath}
                     loading={isBusy}
-                    progress={isBusy ? reinstallProgress : null}
+                    progress={installProgress(operation)}
+                    loadingLabel={isInstallBusy(operation) ? installLabel(operation) : undefined}
                     isDragging={isDragging}
                     onOpen={handleOpen}
                     onUninstall={() => handleUninstall(mods)}
@@ -305,7 +318,8 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
                 installed={combined}
                 gamePath={gamePath}
                 loading={isBusy}
-                progress={isBusy ? reinstallProgress : null}
+                progress={installProgress(operation)}
+                loadingLabel={isInstallBusy(operation) ? installLabel(operation) : undefined}
                 onOpen={handleOpen}
                 onInstall={() => {}}
                 onUninstall={() => handleUninstall(mods)}

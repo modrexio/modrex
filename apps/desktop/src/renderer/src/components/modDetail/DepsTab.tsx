@@ -12,7 +12,7 @@ import { Tooltip } from '../Tooltip'
 import { t } from '../../i18n'
 import { useThumbnail } from '../../hooks/useThumbnail'
 import { isLoaderDep, offsiteDepHost } from '../../deps'
-import { uninstallablePromptMessage } from '../../installSentinels'
+import { rejectInstallPrompt } from '../../installSentinels'
 import { api } from '../../api'
 import { useModVersions } from '../../hooks/useModVersions'
 
@@ -276,7 +276,7 @@ function DepRow({
                 await onInstallLoader(mod!.id)
             } else {
                 const outcome = await api.installMod(mod!.id, gamePath, activeGame)
-                const blocked = uninstallablePromptMessage(outcome)
+                const blocked = await rejectInstallPrompt(outcome)
                 if (blocked) {
                     setInstallNote(blocked)
                     return

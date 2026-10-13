@@ -14,6 +14,7 @@ export interface LoaderReplacePayload {
 }
 
 interface Props {
+    visible?: boolean
     payload: LoaderReplacePayload
     gameId: string
     gamePath: string
@@ -55,6 +56,7 @@ export function FileList({ heading, paths }: { heading: string; paths: string[] 
  * the only way the user can tell an update apart from losing their setup.
  */
 export function Ue4ssReplaceModal({
+    visible = true,
     payload,
     gameId,
     gamePath,
@@ -85,7 +87,7 @@ export function Ue4ssReplaceModal({
 
     return (
         <Dialog
-            open={true}
+            open={visible}
             onOpenChange={(open) => !open && handleCancel()}
             title={t('ue4ssReplace.title')}
             className="w-[520px]"

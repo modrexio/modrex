@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { beforeEach, describe, it, expect, vi } from 'vitest'
-import { renderHook, waitFor } from '@testing-library/react'
+import { act, renderHook, waitFor, render, screen, fireEvent } from '@testing-library/react'
 import type { InstalledMod } from '../../../shared/types'
 
 const disableMod = vi.fn<(uid: string, gamePath: string, gameId: string) => Promise<void>>()
@@ -19,6 +19,9 @@ function mod(uid: string, name: string): InstalledMod {
 }
 
 const installMod = vi.fn()
+const uninstallMod = vi.fn().mockResolvedValue(undefined)
+const discardStagedArchive = vi.fn().mockResolvedValue(undefined)
+const installZipPickerEntries = vi.fn().mockResolvedValue(undefined)
 const refreshModDetail = vi.fn()
 const getCachedModFiles = vi.fn()
 
@@ -28,12 +31,14 @@ async function loadHook() {
         api: {
             disableMod,
             enableMod,
-            uninstallMod: vi.fn().mockResolvedValue(undefined),
+            uninstallMod,
+            discardStagedArchive,
             onDownloadProgress: vi.fn(() => () => {}),
             installMod,
         },
     }))
     vi.doMock('../modCache', () => ({ refreshModDetail, getCachedModFiles }))
+    vi.doMock('../components/ZipPickerModal', () => ({ installZipPickerEntries }))
     return (await import('./useModActions')).useModActions
 }
 
@@ -142,6 +147,9 @@ describe('useModActions reinstall', () => {
 
     beforeEach(() => {
         installMod.mockReset().mockResolvedValue('installed')
+        uninstallMod.mockReset().mockResolvedValue(undefined)
+        discardStagedArchive.mockReset().mockResolvedValue(undefined)
+        installZipPickerEntries.mockReset().mockResolvedValue(undefined)
         refreshModDetail.mockReset().mockResolvedValue(variants)
     })
 
@@ -206,5 +214,83 @@ describe('useModActions reinstall', () => {
 
         getCachedModFiles.mockReset().mockResolvedValue([{ id: 13 }, { id: 12 }])
         expect(await result.current.handleReinstall([installed])).toBeNull()
+    })
+
+    it.each(['uninstall', 'extract'])(
+        'discards the staged archive when automatic reinstall fails during %s',
+        async (step) => {
+            getCachedModFiles.mockReset().mockResolvedValue([{ id: 11 }])
+            installMod.mockResolvedValue({
+                needsPicker: {
+                    archiveHandle: 'handle',
+                    entries: ['a.pak'],
+                    entryIds: [0],
+                    modId: 7,
+                    modName: 'Alpha',
+                    fileId: 11,
+                    fileType: 'zip',
+                    modVersion: '1',
+                },
+            })
+            if (step === 'uninstall') uninstallMod.mockRejectedValueOnce('file locked')
+            else installZipPickerEntries.mockRejectedValueOnce('file locked')
+            const useModActions = await loadHook()
+            const { result } = renderHook(() =>
+                useModActions('C:/game', vi.fn().mockResolvedValue(undefined), 'pd3')
+            )
+
+            await act(async () => {
+                expect(await result.current.handleReinstall([installed])).toBe('file locked')
+            })
+            expect(discardStagedArchive).toHaveBeenCalledWith('handle')
+            await waitFor(() => expect(result.current.loadingMod).toBeNull())
+            expect(result.current.reinstallError).toBe('file locked')
+        }
+    )
+
+    it('keeps failed automatic cleanup available for retry before reporting reinstall failure', async () => {
+        getCachedModFiles.mockResolvedValue([{ id: 11 }])
+        installMod.mockResolvedValue({
+            needsPicker: {
+                archiveHandle: 'retry-handle',
+                entries: ['a.pak'],
+                entryIds: [0],
+                modId: 7,
+                modName: 'Alpha',
+                fileId: 11,
+                fileType: 'zip',
+                modVersion: '1',
+            },
+        })
+        uninstallMod.mockRejectedValueOnce('file locked')
+        const useModActions = await loadHook()
+        const state = await import('../installState')
+        const choices = await import('../installChoices')
+        const { InstallChoiceDialog } = await import('../components/InstallChoiceDialog')
+        const operation = state.beginInstall({ gameId: 'pd3', source: 'modworkshop', modId: 7 })
+        state.updateInstall(operation.id, { phase: 'review', archiveHandle: 'retry-handle' })
+        discardStagedArchive.mockImplementation(async (handle: string) =>
+            state.finishArchiveInstall(handle)
+        )
+        discardStagedArchive.mockRejectedValueOnce(new Error('cleanup unavailable'))
+        const { result } = renderHook(() =>
+            useModActions('C:/game', vi.fn().mockResolvedValue(undefined), 'pd3')
+        )
+        let reinstall!: Promise<string | null>
+        act(() => {
+            reinstall = result.current.handleReinstall([installed])
+        })
+        await waitFor(() =>
+            expect(choices.getPendingInstallChoice()?.cleanupError).toContain('cleanup unavailable')
+        )
+        expect(state.getArchiveInstall('retry-handle')?.phase).toBe('review')
+        render(<InstallChoiceDialog />)
+        fireEvent.click(screen.getByText('Try again'))
+        await act(async () => {
+            expect(await reinstall).toBe('file locked\nError: cleanup unavailable')
+        })
+        expect(state.getArchiveInstall('retry-handle')).toBeUndefined()
+        expect(choices.getPendingInstallChoice()).toBeNull()
+        expect(result.current.reinstallError).toBe('file locked\nError: cleanup unavailable')
     })
 })

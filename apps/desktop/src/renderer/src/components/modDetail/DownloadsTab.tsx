@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import {
     AlertTriangle,
     Tag,
@@ -19,23 +19,20 @@ import type {
 } from '../../../../shared/types'
 import { THUMBNAIL_BASE_URL, GAMES } from '../../../../shared/types'
 import { api } from '../../api'
+import { requestInstallChoice } from '../../installChoices'
+import {
+    useInstallOperations,
+    getModInstall,
+    isInstallBusy,
+    installLabel,
+} from '../../installState'
 import { t } from '../../i18n'
 import { isUnsupportedFormat } from '../../formatCheck'
-import { handleInstallOutcome } from '../../installSentinels'
 import { useCrimeBossInstallTarget } from '../../hooks/useCrimeBossInstallTarget'
 import { ModworkshopMarkup } from '../MarkdownContent'
 import { NexusDescription } from '../NexusDescription'
 import { Tooltip } from '../Tooltip'
 import { CrimeBossInstallTargetModal } from '../CrimeBossInstallTargetModal'
-import { ZipPickerModal } from '../ZipPickerModal'
-import type { ZipMultiPakPayload } from '../ZipPickerModal'
-import { HostPackModal } from '../HostPackModal'
-import type { HostPackPayload } from '../HostPackModal'
-import { CrimeBossFlatArchiveModal } from '../CrimeBossFlatArchiveModal'
-import type { CbFlatArchivePayload } from '../CrimeBossFlatArchiveModal'
-import { Ue4ssReplaceModal } from '../Ue4ssReplaceModal'
-import type { LoaderReplacePayload } from '../Ue4ssReplaceModal'
-import { UnrecognizedArchiveModal } from '../UnrecognizedArchiveModal'
 import { NonPakConfirmModal } from '../NonPakConfirmModal'
 import { formatBytes, formatDate } from './format'
 import { SkeletonBar } from '../Skeleton'
@@ -111,9 +108,7 @@ export function DownloadsTab({
     mod,
     images,
     gamePath,
-    installed,
     installedFiles,
-    downloadMap,
     activeGame,
     onRefreshInstalled,
     onOpenDetail,
@@ -127,9 +122,7 @@ export function DownloadsTab({
     mod: ModSummary
     images: ModImage[]
     gamePath: string | null
-    installed: InstalledMod[]
     installedFiles: InstalledMod[]
-    downloadMap: ReadonlyMap<string, { downloaded: number; total: number }>
     activeGame: GameId
     onRefreshInstalled: () => Promise<void>
     onOpenDetail?: (modId: number) => void
@@ -142,41 +135,25 @@ export function DownloadsTab({
     // rather than a flat list, so both need a source-aware render path.
     isNexus?: boolean
 }) {
-    const [installingId, setInstallingId] = useState<number | null>(null)
     const [uninstallingId, setUninstallingId] = useState<number | null>(null)
     const [installError, setInstallError] = useState<string | null>(null)
     const [formatWarningFile, setFormatWarningFile] = useState<ModFile | null>(null)
-    const [zipPickerData, setZipPickerData] = useState<ZipMultiPakPayload | null>(null)
-    const [hostPackData, setHostPackData] = useState<HostPackPayload | null>(null)
-    const [unrecognizedModId, setUnrecognizedModId] = useState<number | null>(null)
-    const [cbFlatArchiveData, setCbFlatArchiveData] = useState<CbFlatArchivePayload | null>(null)
-    const [loaderReplaceData, setLoaderReplaceData] = useState<LoaderReplacePayload | null>(null)
     const crimeBossInstallTarget = useCrimeBossInstallTarget(
-        activeGame ?? 'pd3',
+        activeGame,
         gamePath,
         onRefreshInstalled
     )
-    // Tracks the moment between clicking "Download via Nexus" (which only opens the
-    // browser) and the nxm:// callback actually landing back in the app, so the click
-    // has visible feedback instead of looking like it did nothing. Superseded once
-    // downloadMap carries real progress for the file (see ModDetailPage), and cleared
-    // on its own after a while in case the browser flow is abandoned.
-    const [awaitingNxmFileId, setAwaitingNxmFileId] = useState<number | null>(null)
+    const operations = useInstallOperations(activeGame)
+    const modOperation = getModInstall(operations, isNexus ? 'nexus' : 'modworkshop', mod.id)
+    const modBusy = isInstallBusy(modOperation)
 
-    useEffect(() => {
-        if (!isNexus) return
-        return api.onNxmInstallFailed((e) => {
-            setAwaitingNxmFileId(null)
-            setInstallError(e)
-        })
-    }, [isNexus])
-
-    function handleNexusDownloadClick(file: ModFile) {
-        setAwaitingNxmFileId(file.id)
-        api.openExternal(file.url!)
-        window.setTimeout(() => {
-            setAwaitingNxmFileId((cur) => (cur === file.id ? null : cur))
-        }, 180_000)
+    async function handleNexusDownloadClick(file: ModFile) {
+        setInstallError(null)
+        try {
+            await api.requestNexusDownload(activeGame, mod.id, file.url!, file.id)
+        } catch (error) {
+            setInstallError(String(error))
+        }
     }
 
     async function handleUninstallFile(file: ModFile) {
@@ -192,17 +169,20 @@ export function DownloadsTab({
         }
     }
 
-    function handleInstallFile(file: ModFile) {
+    async function handleInstallFile(file: ModFile) {
         if (isUnsupportedFormat(GAMES[activeGame], file.type, file.download_url, file.name)) {
             setFormatWarningFile(file)
             return
         }
-        crimeBossInstallTarget.runInstall(mod.id, mod.name, () => doInstallFile(file))
+        try {
+            await crimeBossInstallTarget.runInstall(mod.id, mod.name, () => doInstallFile(file))
+        } catch (error) {
+            setInstallError(String(error))
+        }
     }
 
     async function doInstallFile(file: ModFile) {
         if (!gamePath || modVersion === undefined) return
-        setInstallingId(file.id)
         setInstallError(null)
         try {
             const outcome = await api.installModFile(
@@ -215,29 +195,22 @@ export function DownloadsTab({
                 gamePath,
                 activeGame
             )
-            if (
-                handleInstallOutcome(outcome, {
-                    onZipMultiPak: setZipPickerData,
-                    onHostModPack: setHostPackData,
-                    onCbFlatArchive: setCbFlatArchiveData,
-                    onLoaderReplace: setLoaderReplaceData,
-                    onUnrecognizedArchive: () => setUnrecognizedModId(mod.id),
-                })
-            ) {
-                return
-            }
+            await requestInstallChoice(outcome, activeGame, gamePath, installedFiles, null, mod.id)
             await onRefreshInstalled()
         } catch (e) {
             setInstallError(String(e))
-        } finally {
-            setInstallingId(null)
         }
     }
 
     function renderFile(file: ModFile, thumbUrl: string | null) {
         const isInstalled = installedFiles.some((m) => m.fileId === file.id)
-        const isInstalling = installingId === file.id
-        const fileProgress = downloadMap.get(`file:${mod.id}:${file.id}`)
+        const operation = getModInstall(
+            operations,
+            isNexus ? 'nexus' : 'modworkshop',
+            mod.id,
+            file.id
+        )
+        const isInstalling = isInstallBusy(operation)
         const isUninstalling = uninstallingId === file.id
         return (
             <div
@@ -315,7 +288,14 @@ export function DownloadsTab({
 
                 <div className="flex items-center gap-2 shrink-0">
                     {file.url && !file.download_url ? (
-                        isNexus && isInstalled ? (
+                        isNexus && isInstalling ? (
+                            <span
+                                className="text-xs px-4 py-2 rounded-lg bg-accent/20 border border-accent/40 text-text"
+                                role="status"
+                            >
+                                {installLabel(operation)}
+                            </span>
+                        ) : isNexus && isInstalled ? (
                             <>
                                 <span className="text-xs px-4 py-2 rounded-lg bg-success/20 border border-success/40 text-success-text">
                                     {t('common.installed')}
@@ -324,7 +304,7 @@ export function DownloadsTab({
                                     <Button
                                         variant="danger"
                                         size="icon-md"
-                                        disabled={!gamePath || isUninstalling}
+                                        disabled={!gamePath || isUninstalling || modBusy}
                                         onClick={() => handleUninstallFile(file)}
                                         className="p-2 rounded-lg"
                                     >
@@ -332,18 +312,11 @@ export function DownloadsTab({
                                     </Button>
                                 </Tooltip>
                             </>
-                        ) : isNexus && (awaitingNxmFileId === file.id || fileProgress) ? (
-                            <span className="text-xs px-4 py-2 rounded-lg bg-accent/20 border border-accent/40 text-text">
-                                {fileProgress
-                                    ? fileProgress.total > 0
-                                        ? `${Math.round((fileProgress.downloaded / fileProgress.total) * 100)}%`
-                                        : t('common.downloading')
-                                    : t('detail.downloads.awaitingNexus')}
-                            </span>
                         ) : (
                             <Button
                                 variant="accent"
                                 size="lg"
+                                disabled={isNexus && modBusy}
                                 onClick={() =>
                                     isNexus
                                         ? handleNexusDownloadClick(file)
@@ -365,7 +338,7 @@ export function DownloadsTab({
                                 disabled={
                                     !gamePath ||
                                     modVersion === undefined ||
-                                    isInstalling ||
+                                    modBusy ||
                                     isInstalled ||
                                     !!mod.disable_mod_managers
                                 }
@@ -380,11 +353,7 @@ export function DownloadsTab({
                                     <Download className="w-3.5 h-3.5" />
                                 )}
                                 {isInstalling
-                                    ? fileProgress
-                                        ? fileProgress.total > 0
-                                            ? `${Math.round((fileProgress.downloaded / fileProgress.total) * 100)}%`
-                                            : t('common.downloading')
-                                        : t('common.installing')
+                                    ? installLabel(operation)
                                     : isInstalled
                                       ? t('common.installed')
                                       : `${t('common.install')}${file.type ? ` ${file.type.toUpperCase()}` : ''} (${formatBytes(file.size)})`}
@@ -394,7 +363,7 @@ export function DownloadsTab({
                                     <Button
                                         variant="danger"
                                         size="icon-md"
-                                        disabled={!gamePath || isUninstalling}
+                                        disabled={!gamePath || isUninstalling || modBusy}
                                         onClick={() => handleUninstallFile(file)}
                                         className="p-2 rounded-lg"
                                     >
@@ -455,64 +424,25 @@ export function DownloadsTab({
                     onCancel={crimeBossInstallTarget.cancelChoice}
                 />
             )}
-            {zipPickerData && gamePath && (
-                <ZipPickerModal
-                    payload={zipPickerData}
-                    gamePath={gamePath}
-                    installedFiles={installedFiles}
-                    gameId={activeGame}
-                    onRefreshInstalled={onRefreshInstalled}
-                    onClose={() => setZipPickerData(null)}
-                />
-            )}
-            {hostPackData && gamePath && (
-                <HostPackModal
-                    payload={hostPackData}
-                    gamePath={gamePath}
-                    installed={installed}
-                    gameId={activeGame}
-                    onRefreshInstalled={onRefreshInstalled}
-                    onClose={() => setHostPackData(null)}
-                />
-            )}
-            {cbFlatArchiveData && gamePath && (
-                <CrimeBossFlatArchiveModal
-                    payload={cbFlatArchiveData}
-                    gamePath={gamePath}
-                    onRefreshInstalled={onRefreshInstalled}
-                    onClose={() => setCbFlatArchiveData(null)}
-                />
-            )}
-            {loaderReplaceData && gamePath && (
-                <Ue4ssReplaceModal
-                    payload={loaderReplaceData}
-                    gameId={activeGame}
-                    gamePath={gamePath}
-                    onRefreshInstalled={onRefreshInstalled}
-                    onClose={() => setLoaderReplaceData(null)}
-                />
-            )}
-            {unrecognizedModId !== null && (
-                <UnrecognizedArchiveModal
-                    modId={unrecognizedModId}
-                    onClose={() => setUnrecognizedModId(null)}
-                />
-            )}
             {formatWarningFile && (
                 <NonPakConfirmModal
-                    onConfirm={() => {
+                    onConfirm={async () => {
                         const file = formatWarningFile!
                         setFormatWarningFile(null)
-                        crimeBossInstallTarget.runInstall(mod.id, mod.name, () =>
-                            doInstallFile(file)
-                        )
+                        try {
+                            await crimeBossInstallTarget.runInstall(mod.id, mod.name, () =>
+                                doInstallFile(file)
+                            )
+                        } catch (error) {
+                            setInstallError(String(error))
+                        }
                     }}
                     onCancel={() => setFormatWarningFile(null)}
                 />
             )}
-            {installError && (
+            {(installError ?? modOperation?.error) && (
                 <div className="px-4 py-3 rounded-lg bg-danger/30 border border-danger-hover text-sm text-danger-text">
-                    {installError}
+                    {installError ?? modOperation?.error}
                 </div>
             )}
             {isNexus

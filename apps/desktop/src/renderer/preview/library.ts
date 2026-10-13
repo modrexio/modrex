@@ -208,14 +208,20 @@ export function library(gameId: GameId): Library {
     return created
 }
 
-export async function simulateDownload(downloadId: string, size: number | null) {
+export async function simulateDownload(gameId: GameId, downloadId: string, size: number | null) {
     const total = size ?? DEFAULT_SIZE
     const stepMs = previewState.network === 'slow' ? DOWNLOAD_STEP_MS * 8 : DOWNLOAD_STEP_MS
     for (let step = 1; step <= DOWNLOAD_STEPS; step++) {
         await new Promise((resolve) => setTimeout(resolve, stepMs))
         const downloaded = Math.round((total * step) / DOWNLOAD_STEPS)
-        await emit('download:progress', { download_id: downloadId, downloaded, total })
+        await emit('download:progress', {
+            download_id: downloadId,
+            game_id: gameId,
+            downloaded,
+            total,
+        })
     }
+    await emit('download:finished', { download_id: downloadId, game_id: gameId })
 }
 
 // InstalledMod.id is an opaque source-scoped key (sources::source_native_local_id in Rust)

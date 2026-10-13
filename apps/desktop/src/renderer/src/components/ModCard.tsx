@@ -25,6 +25,7 @@ interface Props {
     onReviewResource?: () => void
     onPrefetch?: () => void
     loading: boolean
+    loadingLabel?: string
     gamePath: string | null
     progress?: { downloaded: number; total: number } | null
     showMeta?: boolean
@@ -44,6 +45,7 @@ export function ModCard({
     onReviewResource,
     onPrefetch,
     loading,
+    loadingLabel,
     gamePath,
     progress = null,
     showMeta = false,
@@ -174,16 +176,22 @@ export function ModCard({
                     >
                         {!loading && <Download className="w-3.5 h-3.5" />}
                         {loading
-                            ? progressPct !== null
-                                ? `${progressPct}%`
-                                : progress
-                                  ? t('common.downloading')
-                                  : t('common.installing')
+                            ? (loadingLabel ??
+                              (progressPct !== null
+                                  ? `${progressPct}%`
+                                  : progress
+                                    ? t('common.downloading')
+                                    : t('common.installing')))
                             : t('common.install')}
                     </Button>
                 )}
                 {installed && (
                     <div className="flex items-center gap-2">
+                        {loading && loadingLabel && (
+                            <span className="text-xs text-accent" role="status">
+                                {loadingLabel}
+                            </span>
+                        )}
                         {needsResourceReview && onReviewResource && (
                             <Button
                                 variant="secondary"

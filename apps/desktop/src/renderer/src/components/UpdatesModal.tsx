@@ -10,19 +10,10 @@ import { api } from '../api'
 import { useThumbnail } from '../hooks/useThumbnail'
 import NexusIcon from '../../../../assets/icons/nexusmods.svg?react'
 import type { InstallOutcome } from '../api'
-import {
-    ZipPickerModal,
-    computeAutoUpdateSelection,
-    installZipPickerEntries,
-} from './ZipPickerModal'
+import { computeAutoUpdateSelection, installZipPickerEntries } from './ZipPickerModal'
 import type { ZipMultiPakPayload } from './ZipPickerModal'
-import { HostPackModal } from './HostPackModal'
-import type { HostPackPayload } from './HostPackModal'
-import { CrimeBossFlatArchiveModal } from './CrimeBossFlatArchiveModal'
-import type { CbFlatArchivePayload } from './CrimeBossFlatArchiveModal'
-import { Ue4ssReplaceModal } from './Ue4ssReplaceModal'
-import type { LoaderReplacePayload } from './Ue4ssReplaceModal'
-import { UnrecognizedArchiveModal } from './UnrecognizedArchiveModal'
+import { requestInstallChoice, useInstallChoiceOpen } from '../installChoices'
+import { getModInstall, installLabel, isInstallBusy, useInstallOperations } from '../installState'
 import { detailNavArgs, syntheticMod } from '../hooks/installedUtils'
 import { nativeIdFor } from '../sources'
 import { getCachedModFiles, refreshModDetail } from '../modCache'
@@ -60,6 +51,7 @@ function UpdateModalRow({
     mod,
     checked,
     isLoading,
+    gameId,
     gamePath,
     onToggle,
     onOpenDetail,
@@ -70,6 +62,7 @@ function UpdateModalRow({
     mod: ModSummary
     checked: boolean
     isLoading: boolean
+    gameId: GameId
     gamePath: string | null
     onToggle: () => void
     onOpenDetail: () => void
@@ -79,12 +72,19 @@ function UpdateModalRow({
     // unlike a bare THUMBNAIL_BASE_URL concatenation, which would have doubled up
     // into a broken URL for any Nexus mod that actually has a picture.
     const thumbSrc = useThumbnail(mod.thumbnail?.file)
+    const operations = useInstallOperations(gameId)
+    const installation = getModInstall(
+        operations,
+        ins.source === 'nexus' ? 'nexus' : 'modworkshop',
+        Number(ins.remoteId)
+    )
+    const busy = isLoading || isInstallBusy(installation)
     return (
         <div className="flex items-center gap-3 px-5 py-3 border-b border-border last:border-0">
             <input
                 type="checkbox"
                 checked={checked}
-                disabled={isLoading}
+                disabled={busy}
                 onChange={onToggle}
                 className="w-4 h-4 shrink-0 cursor-pointer disabled:cursor-not-allowed"
             />
@@ -116,15 +116,17 @@ function UpdateModalRow({
                 </div>
             </button>
             <button
-                disabled={!gamePath || isLoading}
+                disabled={!gamePath || busy}
                 onClick={onUpdate}
                 className="text-xs px-3 py-1 rounded bg-surface-active hover:bg-surface-light disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0"
             >
-                {isLoading
-                    ? t('installed.updatesModal.updating')
-                    : ins.source === 'nexus'
-                      ? t('detail.downloads.viaNexus')
-                      : t('installed.updatesModal.update')}
+                {installation
+                    ? installLabel(installation)
+                    : isLoading
+                      ? t('installed.updatesModal.updating')
+                      : ins.source === 'nexus'
+                        ? t('detail.downloads.viaNexus')
+                        : t('installed.updatesModal.update')}
             </button>
         </div>
     )
@@ -151,20 +153,13 @@ export function UpdatesModal({
         null
     )
     const [updateError, setUpdateError] = useState<string | null>(null)
-    const [zipPickerData, setZipPickerData] = useState<ZipMultiPakPayload | null>(null)
-    const [hostPackData, setHostPackData] = useState<HostPackPayload | null>(null)
-    const [cbFlatArchiveData, setCbFlatArchiveData] = useState<CbFlatArchivePayload | null>(null)
-    const [loaderReplaceData, setLoaderReplaceData] = useState<LoaderReplacePayload | null>(null)
-    const [unrecognizedModId, setUnrecognizedModId] = useState<number | null>(null)
     const [fileChoice, setFileChoice] = useState<{
         ins: InstalledMod
         mod: Mod
         files: ModFile[]
+        resolve: (fileId: number | null) => void
     } | null>(null)
-
-    // Remaining mods for the in-progress batch update; lets processQueue resume after a
-    // picker modal closes instead of abandoning the rest of the selection.
-    const queueRef = useRef<InstalledMod[]>([])
+    const choiceOpen = useInstallChoiceOpen()
     const skippedRef = useRef(false)
 
     function toggleSelected(id: number) {
@@ -180,54 +175,34 @@ export function UpdatesModal({
     async function resolveInstallPrompt(
         outcome: Exclude<InstallOutcome, 'installed'>,
         modId: number
-    ): Promise<'resolved' | 'manual'> {
-        if (outcome === 'cancelled') return 'resolved'
-        if (outcome === 'unrecognized') {
-            setUnrecognizedModId(modId)
-            return 'manual'
-        }
-        if ('needsPicker' in outcome) {
+    ): Promise<void> {
+        if (!gamePath) return
+        if (typeof outcome !== 'string' && 'needsPicker' in outcome) {
             const zipData = outcome.needsPicker as unknown as ZipMultiPakPayload
-            if (gamePath) {
-                const autoEntries = computeAutoUpdateSelection(zipData, installed)
-                if (!autoEntries) {
-                    setZipPickerData(zipData)
-                    return 'manual'
-                }
-                const entriesToInstall = autoEntries
+            const autoEntries = computeAutoUpdateSelection(zipData, installed)
+            if (autoEntries) {
                 try {
                     await installZipPickerEntries(
                         zipData,
-                        entriesToInstall,
+                        autoEntries,
                         gamePath,
                         gameId,
                         null,
                         onRefreshInstalled
                     )
-                    return 'resolved'
+                    return
                 } catch (error) {
                     setUpdateError(String(error))
                 }
             }
-            setZipPickerData(zipData)
-            return 'manual'
         }
-        if ('needsHostChoice' in outcome) {
-            setHostPackData(outcome.needsHostChoice as unknown as HostPackPayload)
-            return 'manual'
-        }
-        if ('needsLoaderConfirm' in outcome) {
-            setLoaderReplaceData(outcome.needsLoaderConfirm as unknown as LoaderReplacePayload)
-            return 'manual'
-        }
-        setCbFlatArchiveData(outcome.needsCbFlatConfirm as unknown as CbFlatArchivePayload)
-        return 'manual'
+        await requestInstallChoice(outcome, gameId, gamePath, installed, null, modId)
     }
 
     async function installUpdate(
         ins: InstalledMod,
         installPath: string
-    ): Promise<InstallOutcome | 'unchanged' | 'unavailable' | 'choosing'> {
+    ): Promise<InstallOutcome | 'unchanged' | 'unavailable'> {
         const remoteId = Number(ins.remoteId)
         const [detail, files] = await Promise.all([
             refreshModDetail(remoteId),
@@ -248,8 +223,12 @@ export function UpdatesModal({
             return 'unavailable'
         }
         if (target.status === 'choose') {
-            setFileChoice({ ins, mod: detail, files })
-            return 'choosing'
+            const fileId = await new Promise<number | null>((resolve) =>
+                setFileChoice({ ins, mod: detail, files, resolve })
+            )
+            setFileChoice(null)
+            if (fileId === null) return 'cancelled'
+            return api.installMod(remoteId, installPath, gameId, fileId)
         }
         return api.installMod(remoteId, installPath, gameId)
     }
@@ -257,25 +236,21 @@ export function UpdatesModal({
     async function handleUpdate(ins: InstalledMod) {
         if (!gamePath) return
         const nexusUrl = nexusUpdateUrl(ins, gameId)
-        if (nexusUrl) {
-            api.openExternal(nexusUrl)
-            return
-        }
-        // Not a Nexus mod at this point, so the real modworkshop id, which is what
-        // api.installMod needs, lives in remoteId, never InstalledMod.id
-        // (an opaque local key).
         const remoteId = Number(ins.remoteId)
         if (!Number.isFinite(remoteId) || remoteId <= 0) return
         setLoadingMod(ins.uid)
         setUpdateError(null)
         try {
+            if (nexusUrl) {
+                await api.requestNexusDownload(gameId, remoteId, nexusUrl)
+                return
+            }
             const outcome = await installUpdate(ins, gamePath)
             if (outcome === 'installed') {
                 await onRefreshInstalled()
                 return
             }
-            if (outcome === 'unchanged' || outcome === 'unavailable' || outcome === 'choosing')
-                return
+            if (outcome === 'unchanged' || outcome === 'unavailable') return
             await resolveInstallPrompt(outcome, remoteId)
         } catch (error) {
             reportFailure(error)
@@ -292,37 +267,28 @@ export function UpdatesModal({
     function stopBatch() {
         setUpdatingAll(false)
         setUpdateProgress(null)
-        queueRef.current = []
     }
 
-    // Stops without finishing the batch when a sentinel needs a manual picker; the picker's
-    // onClose calls this again to resume with the next mod.
-    async function processQueue() {
+    async function processQueue(queue: InstalledMod[]) {
         if (!gamePath) return
-        while (queueRef.current.length > 0) {
-            const ins = queueRef.current[0]
-            queueRef.current = queueRef.current.slice(1)
+        for (const ins of queue) {
             const nexusUrl = nexusUpdateUrl(ins, gameId)
-            if (nexusUrl) {
-                api.openExternal(nexusUrl)
-                setUpdateProgress((prev) => prev && { done: prev.done + 1, total: prev.total })
-                continue
-            }
             const remoteId = Number(ins.remoteId)
             if (!Number.isFinite(remoteId) || remoteId <= 0) continue
             try {
+                if (nexusUrl) {
+                    await api.requestNexusDownload(gameId, remoteId, nexusUrl)
+                    setUpdateProgress((prev) => prev && { done: prev.done + 1, total: prev.total })
+                    continue
+                }
                 const outcome = await installUpdate(ins, gamePath)
                 setUpdateProgress((prev) => prev && { done: prev.done + 1, total: prev.total })
-                if (outcome === 'choosing') return
                 if (
                     outcome !== 'installed' &&
                     outcome !== 'unchanged' &&
                     outcome !== 'unavailable'
                 ) {
-                    const resolution = await resolveInstallPrompt(outcome, remoteId)
-                    // 'resolved' = auto-applied silently, continue with the next mod;
-                    // 'manual' = picker handles this mod, pause until its onClose resumes.
-                    if (resolution === 'manual') return
+                    await resolveInstallPrompt(outcome, remoteId)
                 }
             } catch (error) {
                 reportFailure(error)
@@ -330,31 +296,14 @@ export function UpdatesModal({
                 return
             }
         }
-        await onRefreshInstalled()
-        stopBatch()
-        if (!skippedRef.current) onClose()
-    }
-
-    async function installChosenFile(ins: InstalledMod, fileId: number) {
-        setFileChoice(null)
-        if (!gamePath) return
-        const remoteId = Number(ins.remoteId)
-        setLoadingMod(ins.uid)
         try {
-            const outcome = await api.installMod(remoteId, gamePath, gameId, fileId)
-            if (outcome === 'installed') await onRefreshInstalled()
-            else if ((await resolveInstallPrompt(outcome, remoteId)) === 'manual') return
-            resumeQueueIfBatch()
+            await onRefreshInstalled()
+            if (!skippedRef.current) onClose()
         } catch (error) {
             reportFailure(error)
-            stopBatch()
         } finally {
-            setLoadingMod(null)
+            stopBatch()
         }
-    }
-
-    function resumeQueueIfBatch() {
-        if (updatingAll) void processQueue()
     }
 
     async function handleUpdateSelected() {
@@ -363,23 +312,14 @@ export function UpdatesModal({
         skippedRef.current = false
         setUpdatingAll(true)
         const queue = updatable.filter((m) => selectedIds.has(m.id))
-        queueRef.current = queue
         setUpdateProgress({ done: 0, total: queue.length })
-        await processQueue()
+        await processQueue(queue)
     }
 
     return (
         <>
             <Dialog
-                open={
-                    visible &&
-                    !fileChoice &&
-                    !zipPickerData &&
-                    !hostPackData &&
-                    !cbFlatArchiveData &&
-                    !loaderReplaceData &&
-                    unrecognizedModId === null
-                }
+                open={visible && !fileChoice && !choiceOpen}
                 onOpenChange={(open) => !open && onClose()}
                 title={t('installed.updatesModal.title', { count: updatable.length })}
                 size="list"
@@ -399,6 +339,7 @@ export function UpdatesModal({
                             mod={modData.get(ins.id) ?? syntheticMod(ins)}
                             checked={selectedIds.has(ins.id)}
                             isLoading={loadingMod === ins.uid || updatingAll}
+                            gameId={gameId}
                             gamePath={gamePath}
                             onToggle={() => toggleSelected(ins.id)}
                             onOpenDetail={() => onOpenDetail(...detailNavArgs(ins))}
@@ -433,75 +374,14 @@ export function UpdatesModal({
                     </Button>
                 </div>
             </Dialog>
-            {zipPickerData && gamePath && (
-                <ZipPickerModal
-                    payload={zipPickerData}
-                    gamePath={gamePath}
-                    installedFiles={installed}
-                    gameId={gameId}
-                    onRefreshInstalled={onRefreshInstalled}
-                    onClose={() => {
-                        setZipPickerData(null)
-                        resumeQueueIfBatch()
-                    }}
-                />
-            )}
-            {hostPackData && gamePath && (
-                <HostPackModal
-                    payload={hostPackData}
-                    gamePath={gamePath}
-                    installed={installed}
-                    gameId={gameId}
-                    onRefreshInstalled={onRefreshInstalled}
-                    onClose={() => {
-                        setHostPackData(null)
-                        resumeQueueIfBatch()
-                    }}
-                />
-            )}
-            {cbFlatArchiveData && gamePath && (
-                <CrimeBossFlatArchiveModal
-                    payload={cbFlatArchiveData}
-                    gamePath={gamePath}
-                    onRefreshInstalled={onRefreshInstalled}
-                    onClose={() => {
-                        setCbFlatArchiveData(null)
-                        resumeQueueIfBatch()
-                    }}
-                />
-            )}
-            {loaderReplaceData && gamePath && (
-                <Ue4ssReplaceModal
-                    payload={loaderReplaceData}
-                    gameId={gameId}
-                    gamePath={gamePath}
-                    onRefreshInstalled={onRefreshInstalled}
-                    onClose={() => {
-                        setLoaderReplaceData(null)
-                        resumeQueueIfBatch()
-                    }}
-                />
-            )}
             {fileChoice && (
                 <UpdateFileModal
                     gameId={gameId}
                     mod={fileChoice.mod}
                     files={fileChoice.files}
                     installed={installed.filter((mod) => mod.id === fileChoice.ins.id)}
-                    onChoose={(fileId) => void installChosenFile(fileChoice.ins, fileId)}
-                    onCancel={() => {
-                        setFileChoice(null)
-                        resumeQueueIfBatch()
-                    }}
-                />
-            )}
-            {unrecognizedModId !== null && (
-                <UnrecognizedArchiveModal
-                    modId={unrecognizedModId}
-                    onClose={() => {
-                        setUnrecognizedModId(null)
-                        resumeQueueIfBatch()
-                    }}
+                    onChoose={fileChoice.resolve}
+                    onCancel={() => fileChoice.resolve(null)}
                 />
             )}
         </>

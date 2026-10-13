@@ -298,7 +298,7 @@ pub async fn install_loader_package(
     };
 
     let download_id = format!("loader:{}", spec.id);
-    let zip_path = download_file(app, url, "zip", &download_id).await?;
+    let zip_path = download_file(app, url, "zip", &download_id, None).await?;
     let dest_dir = std::path::Path::new(game_path).to_path_buf();
 
     let result = match entries {

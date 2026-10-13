@@ -15,11 +15,7 @@ import {
 } from 'lucide-react'
 import { t } from '../i18n'
 import { Tooltip } from './Tooltip'
-import { ZipPickerModal } from './ZipPickerModal'
-import { HostPackModal } from './HostPackModal'
-import { UnrecognizedArchiveModal } from './UnrecognizedArchiveModal'
-import { CrimeBossFlatArchiveModal } from './CrimeBossFlatArchiveModal'
-import { Ue4ssReplaceModal } from './Ue4ssReplaceModal'
+import { useInstallChoiceOpen } from '../installChoices'
 import { Ue4ssRemoveModal } from './Ue4ssRemoveModal'
 import { MoveCrimeBossTargetModal } from './MoveCrimeBossTargetModal'
 import { UpdatesModal } from './UpdatesModal'
@@ -166,7 +162,6 @@ export function InstalledPage({
 
     const {
         loadingMod,
-        reinstallProgress,
         reinstallError,
         clearReinstallError,
         reinstallChoice,
@@ -175,16 +170,6 @@ export function InstalledPage({
         modActionError,
         clearModActionError,
         refreshing,
-        zipPickerData,
-        clearZipPickerData,
-        hostPackData,
-        clearHostPackData,
-        unrecognizedModId,
-        clearUnrecognizedModId,
-        cbFlatArchiveData,
-        clearCbFlatArchiveData,
-        loaderReplaceData,
-        clearLoaderReplaceData,
         removingLoader,
         clearRemovingLoader,
         movingCrimeBossTarget,
@@ -203,18 +188,7 @@ export function InstalledPage({
         cancelMoveCrimeBossTarget,
     } = useModActions(gamePath, onRefreshInstalled, activeGame)
 
-    // Sentinel modals (ZipPicker, HostPack, CbFlatArchive, Ue4ssReplace) portal to body but
-    // Radix focus traps prevent interacting with them while HealthCheckModal is also open.
-    useEffect(() => {
-        if (
-            zipPickerData ||
-            hostPackData ||
-            cbFlatArchiveData ||
-            loaderReplaceData ||
-            reinstallChoice
-        )
-            setShowHealth(false)
-    }, [zipPickerData, hostPackData, cbFlatArchiveData, loaderReplaceData, reinstallChoice])
+    const choiceOpen = useInstallChoiceOpen()
 
     useAutoIdentifyNexusMods({ installed, gamePath, activeGame, onRefreshInstalled })
 
@@ -305,7 +279,6 @@ export function InstalledPage({
         manageFilesKey,
         setManageFilesKey,
         loadingMod,
-        reinstallProgress,
         reinstallError,
         clearReinstallError,
         handleUninstall,
@@ -325,43 +298,6 @@ export function InstalledPage({
     return (
         <InstalledContext.Provider value={ctx}>
             <div className="h-full flex flex-col">
-                {zipPickerData && gamePath && (
-                    <ZipPickerModal
-                        payload={zipPickerData}
-                        gamePath={gamePath}
-                        installedFiles={installed}
-                        gameId={activeGame}
-                        onRefreshInstalled={onRefreshInstalled}
-                        onClose={clearZipPickerData}
-                    />
-                )}
-                {hostPackData && gamePath && (
-                    <HostPackModal
-                        payload={hostPackData}
-                        gamePath={gamePath}
-                        installed={installed}
-                        gameId={activeGame}
-                        onRefreshInstalled={onRefreshInstalled}
-                        onClose={clearHostPackData}
-                    />
-                )}
-                {cbFlatArchiveData && gamePath && (
-                    <CrimeBossFlatArchiveModal
-                        payload={cbFlatArchiveData}
-                        gamePath={gamePath}
-                        onRefreshInstalled={onRefreshInstalled}
-                        onClose={clearCbFlatArchiveData}
-                    />
-                )}
-                {loaderReplaceData && gamePath && (
-                    <Ue4ssReplaceModal
-                        payload={loaderReplaceData}
-                        gameId={activeGame}
-                        gamePath={gamePath}
-                        onRefreshInstalled={onRefreshInstalled}
-                        onClose={clearLoaderReplaceData}
-                    />
-                )}
                 {reinstallChoice && (
                     <UpdateFileModal
                         gameId={activeGame}
@@ -378,12 +314,6 @@ export function InstalledPage({
                         gamePath={gamePath}
                         onRefreshInstalled={onRefreshInstalled}
                         onClose={clearRemovingLoader}
-                    />
-                )}
-                {unrecognizedModId !== null && (
-                    <UnrecognizedArchiveModal
-                        modId={unrecognizedModId}
-                        onClose={clearUnrecognizedModId}
                     />
                 )}
                 {movingCrimeBossTarget && (
@@ -697,7 +627,7 @@ export function InstalledPage({
                         installed={installed}
                         gamePath={gamePath}
                         gameId={activeGame}
-                        visible={isActive}
+                        visible={isActive && !choiceOpen && !reinstallChoice}
                         onRefreshInstalled={onRefreshInstalled}
                         onClose={() => setShowUpdates(false)}
                         onOpenDetail={onOpenDetail}
@@ -717,7 +647,7 @@ export function InstalledPage({
                         gamePath={gamePath}
                         gameId={activeGame}
                         loadingMod={loadingMod}
-                        visible={isActive}
+                        visible={isActive && !choiceOpen && !reinstallChoice}
                         onOpenDetail={onOpenDetail}
                         onReinstall={handleReinstall}
                         onDepInstalled={handleDepInstalled}

@@ -2,6 +2,7 @@
 // nexus.rs's nexus_get_download_link for why this path exists at all.
 // Shape: nxm://<domain>/mods/<mod_id>/files/<file_id>?key=...&expires=...
 
+use serde::Serialize;
 use tauri::{AppHandle, Emitter};
 
 use crate::commands::download::download_file;
@@ -20,6 +21,15 @@ pub struct NxmLink {
     pub file_id: u32,
     pub key: String,
     pub expires: String,
+}
+
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct NxmInstallFailure {
+    game_id: Option<String>,
+    mod_id: Option<u32>,
+    file_id: Option<u32>,
+    message: String,
 }
 
 pub fn parse_nxm_url(url: &str) -> Result<NxmLink, String> {
@@ -138,16 +148,30 @@ pub(crate) fn emit_review_closed(
 pub fn spawn_handle_nxm_url(app: &AppHandle, url: String) {
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
-        if let Err(e) = handle_nxm_url(&app, &url).await {
-            log::warn!("nxm handoff failed: {e}");
-            let _ = app.emit("nxm:install-failed", e);
+        let parsed = parse_nxm_url(&url);
+        let link = parsed.as_ref().ok();
+        let result = match &parsed {
+            Ok(link) => handle_nxm_link(&app, link).await,
+            Err(error) => Err(error.clone()),
+        };
+        if let Err(message) = result {
+            log::warn!("nxm handoff failed: {message}");
+            if let Err(error) = app.emit(
+                "nxm:install-failed",
+                NxmInstallFailure {
+                    game_id: link.map(|link| link.game_id.clone()),
+                    mod_id: link.map(|link| link.mod_id),
+                    file_id: link.map(|link| link.file_id),
+                    message,
+                },
+            ) {
+                log::warn!("nxm failure notification failed: {error}");
+            }
         }
     });
 }
 
-pub async fn handle_nxm_url(app: &AppHandle, url: &str) -> Result<(), String> {
-    let link = parse_nxm_url(url)?;
-
+async fn handle_nxm_link(app: &AppHandle, link: &NxmLink) -> Result<(), String> {
     // Fired before any network work so the card leaves its idle state the moment
     // the handoff lands, not seconds later when download bytes start flowing.
     let _ = app.emit(
@@ -194,12 +218,12 @@ pub async fn handle_nxm_url(app: &AppHandle, url: &str) -> Result<(), String> {
         .and_then(|v| v.get("URI"))
         .and_then(|v| v.as_str())
         .ok_or("nxm: no download URI in resolved link")?;
-    let (source_name, ext) = resolve_file(app, &link, uri).await?;
+    let (source_name, ext) = resolve_file(app, link, uri).await?;
 
     // nxm-prefixed so it never collides with the app's other download-id conventions.
     // Carries the game so the renderer can scope progress to it.
     let download_id = format!("nxm:{}:{}:{}", link.game_id, link.mod_id, link.file_id);
-    let dest = download_file(app, uri, &ext, &download_id).await?;
+    let dest = download_file(app, uri, &ext, &download_id, Some(&link.game_id)).await?;
 
     let outcome = install_nexus_download(
         app,
@@ -247,6 +271,8 @@ pub async fn handle_nxm_url(app: &AppHandle, url: &str) -> Result<(), String> {
         "nxm:resource-review",
         serde_json::json!({
             "gameId": link.game_id,
+            "modId": link.mod_id,
+            "fileId": link.file_id,
             "reviewHandle": review_handle,
         }),
     );

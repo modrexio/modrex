@@ -14,6 +14,7 @@ export interface CbFlatArchivePayload {
 }
 
 interface Props {
+    visible?: boolean
     payload: CbFlatArchivePayload
     gamePath: string
     folderId?: string | null
@@ -27,6 +28,7 @@ interface Props {
  * yes/no confirmation rather than a picker.
  */
 export function CrimeBossFlatArchiveModal({
+    visible = true,
     payload,
     gamePath,
     folderId,
@@ -66,7 +68,7 @@ export function CrimeBossFlatArchiveModal({
 
     return (
         <Dialog
-            open={true}
+            open={visible}
             onOpenChange={(open) => !open && handleCancel()}
             title={t('cbFlatArchive.title')}
             className="w-[460px]"

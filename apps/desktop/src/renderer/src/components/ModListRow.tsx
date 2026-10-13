@@ -16,6 +16,7 @@ interface Props {
     installed: InstalledMod
     gamePath: string | null
     loading: boolean
+    loadingLabel?: string
     progress?: { downloaded: number; total: number } | null
     isDragging?: boolean
     onOpen: () => void
@@ -32,6 +33,7 @@ export function ModListRow({
     installed,
     gamePath,
     loading,
+    loadingLabel,
     progress = null,
     isDragging,
     onOpen,
@@ -115,6 +117,11 @@ export function ModListRow({
                     <p className="text-xs text-text-subtle mt-1 tabular-nums">
                         {installed.version}
                     </p>
+                    {loading && loadingLabel && (
+                        <p className="text-xs text-accent mt-1" role="status">
+                            {loadingLabel}
+                        </p>
+                    )}
                 </button>
 
                 <div className="flex items-center gap-2 px-4 shrink-0">

@@ -9,6 +9,8 @@ import { Dialog, DialogHeader } from './Dialog'
 import { Tooltip } from './Tooltip'
 import { t } from '../i18n'
 import { api } from '../api'
+import { rejectInstallPrompt } from '../installSentinels'
+import { failArchiveInstall } from '../installState'
 import {
     displayFilename,
     entryFilename,
@@ -210,6 +212,7 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
         if (!Number.isFinite(modRemoteId) || modRemoteId <= 0) return
         setInstallError(null)
         setInstallingEntry(ghost.entry)
+        let archiveHandle: string | null = null
         try {
             const files = await getCachedModFiles(modRemoteId)
             const file = files.find((f) => f.id === ghost.fileId)
@@ -229,12 +232,12 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
             )
             if (typeof outcome !== 'string' && 'needsPicker' in outcome) {
                 const zip = outcome.needsPicker as unknown as ZipMultiPakPayload
+                archiveHandle = zip.archiveHandle
                 // The archive is authoritative, so heal the cache and resolve the
                 // real entry path (cached ghosts may carry a reconstructed one).
                 setArchiveEntries(activeGame, zip.fileId, zip.entries)
                 const realIdx = resolveGhostEntryIndex(zip.entries, ghost.entry)
                 if (realIdx === null) {
-                    await api.discardStagedArchive(zip.archiveHandle)
                     setInstallError(t('installed.manageFiles.fileUnavailable'))
                     return
                 }
@@ -253,12 +256,23 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
                     ghost.folderId,
                     locationTag
                 )
-                await api.discardStagedArchive(zip.archiveHandle)
+            } else {
+                const blocked = await rejectInstallPrompt(outcome)
+                if (blocked) {
+                    setInstallError(blocked)
+                    return
+                }
             }
             await onRefreshInstalled()
         } catch (e) {
             setInstallError(String(e))
         } finally {
+            try {
+                if (archiveHandle) await api.discardStagedArchive(archiveHandle)
+            } catch (error) {
+                if (archiveHandle) failArchiveInstall(archiveHandle, error)
+                setInstallError(String(error))
+            }
             setInstallingEntry(null)
         }
     }

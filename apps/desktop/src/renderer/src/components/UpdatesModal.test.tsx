@@ -18,6 +18,8 @@ vi.mock('../api', () => ({
 vi.mock('../modCache', () => ({ refreshModDetail: refresh, getCachedModFiles: files }))
 vi.mock('../hooks/useThumbnail', () => ({ useThumbnail: () => null }))
 import { UpdatesModal } from './UpdatesModal'
+import { InstallChoiceDialog } from './InstallChoiceDialog'
+import { beginInstall, updateInstall, finishArchiveInstall } from '../installState'
 
 function installed(id: number): InstalledMod {
     return {
@@ -85,28 +87,31 @@ function mount(entries: InstalledMod[] = []) {
     const open = vi.fn()
     const close = vi.fn()
     render(
-        <UpdatesModal
-            updatable={mods}
-            installed={[...mods, ...entries]}
-            modData={
-                new Map([
-                    [1, detail(1)],
-                    [2, detail(2)],
-                ])
-            }
-            updateVersions={
-                new Map([
-                    [1, 'new'],
-                    [2, 'new'],
-                ])
-            }
-            gamePath="/game"
-            gameId="pd3"
-            visible={true}
-            onRefreshInstalled={vi.fn().mockResolvedValue(undefined)}
-            onClose={close}
-            onOpenDetail={open}
-        />
+        <>
+            <InstallChoiceDialog />
+            <UpdatesModal
+                updatable={mods}
+                installed={[...mods, ...entries]}
+                modData={
+                    new Map([
+                        [1, detail(1)],
+                        [2, detail(2)],
+                    ])
+                }
+                updateVersions={
+                    new Map([
+                        [1, 'new'],
+                        [2, 'new'],
+                    ])
+                }
+                gamePath="/game"
+                gameId="pd3"
+                visible={true}
+                onRefreshInstalled={vi.fn().mockResolvedValue(undefined)}
+                onClose={close}
+                onOpenDetail={open}
+            />
+        </>
     )
     return { open, close }
 }
@@ -196,6 +201,9 @@ describe('update target revalidation', () => {
     })
 
     it('hides the list while an archive picker is open', async () => {
+        const operation = beginInstall({ gameId: 'pd3', source: 'modworkshop', modId: 1 })
+        updateInstall(operation.id, { phase: 'review', archiveHandle: 'h' })
+        discard.mockImplementation(async (handle: string) => finishArchiveInstall(handle))
         install.mockResolvedValue({
             needsPicker: {
                 archiveHandle: 'h',
@@ -212,6 +220,9 @@ describe('update target revalidation', () => {
         fireEvent.click(screen.getAllByText('Update')[0])
         expect(await screen.findAllByText('Install from archive')).not.toHaveLength(0)
         expect(screen.queryByText('Available updates (2)')).toBeNull()
+        fireEvent.click(screen.getByText('Cancel'))
+        await screen.findByRole('dialog', { name: 'Available updates (2)' })
+        expect(discard).toHaveBeenCalledWith('h')
     })
 
     it('does not install when fresh detail fails', async () => {

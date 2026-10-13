@@ -4,6 +4,7 @@ import type { GameId, InstalledMod } from '../../../shared/types'
 import { Dialog, DialogHeader } from './Dialog'
 import { t } from '../i18n'
 import { api } from '../api'
+import { rejectInstallPrompt } from '../installSentinels'
 
 export interface HostPackPayload {
     archiveHandle: string
@@ -19,6 +20,7 @@ export interface HostPackPayload {
 }
 
 interface Props {
+    visible?: boolean
     payload: HostPackPayload
     gamePath: string
     installed: InstalledMod[]
@@ -37,6 +39,7 @@ function setName(entry: string): string {
  * host's folder via install_host_pack.
  */
 export function HostPackModal({
+    visible = true,
     payload,
     gamePath,
     installed,
@@ -55,7 +58,9 @@ export function HostPackModal({
         setBusy(true)
         setError(null)
         try {
-            await api.installMod(payload.hostModId, gamePath, gameId)
+            const outcome = await api.installMod(payload.hostModId, gamePath, gameId)
+            const blocked = await rejectInstallPrompt(outcome)
+            if (blocked) throw new Error(blocked)
             await onRefreshInstalled()
         } catch (e) {
             setError(String(e))
@@ -94,7 +99,7 @@ export function HostPackModal({
 
     return (
         <Dialog
-            open={true}
+            open={visible}
             onOpenChange={(open) => !open && !busy && onClose()}
             title={t('hostPack.title')}
             className="w-[460px]"

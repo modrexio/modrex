@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react'
 import type { GameId } from '../../../shared/types'
 import { api } from '../api'
+import { requestInstallChoice } from '../installChoices'
 import {
     buildLoaderModIds,
     loaderForModId,
@@ -58,7 +59,8 @@ export function useLoaderState(activeGame: GameId, gamePath: string | null) {
             const loader =
                 loaderModId === null ? undefined : loaderForModId(activeGame, loaderModId)
             if (loader?.viaModFlow) {
-                await api.installMod(loaderModId!, gamePath, activeGame)
+                const outcome = await api.installMod(loaderModId!, gamePath, activeGame)
+                await requestInstallChoice(outcome, activeGame, gamePath, [], null, loaderModId!)
                 return refreshLoader(loader.id)
             }
             const id = loader?.id ?? 'superblt'

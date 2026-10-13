@@ -8,8 +8,15 @@ use uuid::Uuid;
 #[derive(Clone, Serialize)]
 pub struct DownloadProgress {
     pub download_id: String,
+    pub game_id: Option<String>,
     pub downloaded: u64,
     pub total: u64,
+}
+
+#[derive(Clone, Serialize)]
+struct DownloadFinished {
+    download_id: String,
+    game_id: Option<String>,
 }
 
 /// Downloads url to a temp file with the given extension, emitting download:progress
@@ -19,6 +26,7 @@ pub async fn download_file(
     url: &str,
     ext: &str,
     download_id: &str,
+    game_id: Option<&str>,
 ) -> Result<PathBuf, String> {
     let dest = std::env::temp_dir().join(format!("modrex-{}.{}", Uuid::new_v4(), ext));
 
@@ -48,6 +56,7 @@ pub async fn download_file(
             "download:progress",
             DownloadProgress {
                 download_id: download_id.to_string(),
+                game_id: game_id.map(str::to_string),
                 downloaded,
                 total,
             },
@@ -55,5 +64,14 @@ pub async fn download_file(
     }
 
     file.flush().await.map_err(|e| e.to_string())?;
+    if let Err(error) = app.emit(
+        "download:finished",
+        DownloadFinished {
+            download_id: download_id.to_string(),
+            game_id: game_id.map(str::to_string),
+        },
+    ) {
+        log::warn!("download {download_id}: finished notification failed: {error}");
+    }
     Ok(dest)
 }

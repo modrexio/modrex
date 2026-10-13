@@ -1,5 +1,5 @@
 import { ScrollArea } from './ScrollArea'
-import { useState, useEffect, useRef } from 'react'
+import { useState } from 'react'
 import { Button } from './ui/Button'
 import {
     GAMES,
@@ -11,8 +11,14 @@ import {
 import { Dialog, DialogHeader } from './Dialog'
 import { t } from '../i18n'
 import { NonPakConfirmModal } from './NonPakConfirmModal'
-import { ZipPickerModal } from './ZipPickerModal'
-import type { ZipMultiPakPayload } from './ZipPickerModal'
+import { requestInstallChoice, useInstallChoiceOpen } from '../installChoices'
+import {
+    getModInstall,
+    installLabel,
+    installProgress,
+    isInstallBusy,
+    useInstallOperations,
+} from '../installState'
 import { isUnsupportedFormat } from '../formatCheck'
 import { api } from '../api'
 import { FileRow } from './FileRow'
@@ -44,22 +50,10 @@ export function FileSelectModal({
     const [installingId, setInstallingId] = useState<number | null>(null)
     const [installError, setInstallError] = useState<string | null>(null)
     const [showFormatWarning, setShowFormatWarning] = useState(false)
-    const [zipPayload, setZipPayload] = useState<ZipMultiPakPayload | null>(null)
-    const zipResolveRef = useRef<(() => void) | null>(null)
-    const [downloadProgress, setDownloadProgress] = useState<{
-        downloaded: number
-        total: number
-    } | null>(null)
-    const installingIdRef = useRef<number | null>(null)
-
-    useEffect(() => {
-        return api.onDownloadProgress(({ download_id, downloaded, total }) => {
-            const id = installingIdRef.current
-            if (id !== null && download_id === `file:${mod.id}:${id}`) {
-                setDownloadProgress({ downloaded, total })
-            }
-        })
-    }, [mod.id])
+    const choiceOpen = useInstallChoiceOpen()
+    const operations = useInstallOperations(gameId)
+    const installation = getModInstall(operations, 'modworkshop', mod.id, installingId ?? undefined)
+    const downloadProgress = installProgress(installation)
 
     function toggleFile(fileId: number) {
         setSelectedIds((prev) => {
@@ -94,8 +88,6 @@ export function FileSelectModal({
         )
         for (const file of toInstall) {
             setInstallingId(file.id)
-            installingIdRef.current = file.id
-            setDownloadProgress(null)
             try {
                 const outcome = await api.installModFile(
                     mod.id,
@@ -107,26 +99,7 @@ export function FileSelectModal({
                     gamePath,
                     gameId
                 )
-                if (typeof outcome !== 'string' && 'needsPicker' in outcome) {
-                    setZipPayload(outcome.needsPicker as unknown as ZipMultiPakPayload)
-                    await new Promise<void>((resolve) => {
-                        zipResolveRef.current = resolve
-                    })
-                    setZipPayload(null)
-                    setSelectedIds((prev) => {
-                        const next = new Set(prev)
-                        next.delete(file.id)
-                        return next
-                    })
-                    continue
-                }
-                if (outcome !== 'installed') {
-                    // Host-pack / CB-flat / unrecognized prompts have no inline UI in this
-                    // modal (they never did); surface the kind instead of installing wrong.
-                    setInstallError(typeof outcome === 'string' ? outcome : Object.keys(outcome)[0])
-                    setInstallingId(null)
-                    return
-                }
+                await requestInstallChoice(outcome, gameId, gamePath, installedFiles, null, mod.id)
                 await onRefreshInstalled()
                 setSelectedIds((prev) => {
                     const next = new Set(prev)
@@ -146,12 +119,12 @@ export function FileSelectModal({
     const pendingCount = [...selectedIds].filter(
         (id) => !installedFiles.some((m) => m.fileId === id)
     ).length
-    const isBusy = installingId !== null
+    const isBusy = installingId !== null || isInstallBusy(installation)
 
     return (
         <>
             <Dialog
-                open={true}
+                open={!choiceOpen && !showFormatWarning}
                 onOpenChange={(open) => !open && onClose()}
                 title={t('fileSelect.title')}
                 size="list"
@@ -189,6 +162,12 @@ export function FileSelectModal({
                     )}
                     {files.map((file) => {
                         const isInstalled = installedFiles.some((m) => m.fileId === file.id)
+                        const fileInstall = getModInstall(
+                            operations,
+                            'modworkshop',
+                            mod.id,
+                            file.id
+                        )
                         return (
                             <FileRow
                                 gameId={gameId}
@@ -199,13 +178,11 @@ export function FileSelectModal({
                                 locked={isInstalled}
                                 disabled={isBusy}
                                 status={
-                                    installingId !== file.id
-                                        ? null
-                                        : downloadProgress
-                                          ? downloadProgress.total > 0
-                                              ? `${Math.round((downloadProgress.downloaded / downloadProgress.total) * 100)}%`
-                                              : t('common.downloading')
-                                          : t('common.installing')
+                                    fileInstall
+                                        ? installLabel(fileInstall)
+                                        : installingId === file.id
+                                          ? t('common.installing')
+                                          : null
                                 }
                                 onToggle={() => toggleFile(file.id)}
                             />
@@ -240,19 +217,6 @@ export function FileSelectModal({
                         doInstallSelected()
                     }}
                     onCancel={() => setShowFormatWarning(false)}
-                />
-            )}
-            {zipPayload && gamePath && (
-                <ZipPickerModal
-                    payload={zipPayload}
-                    gamePath={gamePath}
-                    installedFiles={installedFiles}
-                    gameId={gameId}
-                    onRefreshInstalled={onRefreshInstalled}
-                    onClose={() => {
-                        zipResolveRef.current?.()
-                        zipResolveRef.current = null
-                    }}
                 />
             )}
         </>

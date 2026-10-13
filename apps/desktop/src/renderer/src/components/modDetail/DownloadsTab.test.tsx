@@ -55,9 +55,7 @@ it('renders a Nexus file description as BBCode', () => {
                 mod={mod}
                 images={[]}
                 gamePath={null}
-                installed={[]}
                 installedFiles={[]}
-                downloadMap={new Map()}
                 activeGame="pd3"
                 onRefreshInstalled={async () => {}}
                 isNexus

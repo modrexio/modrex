@@ -2,14 +2,12 @@ import { useEffect, useRef, useState } from 'react'
 import type { GameId, InstalledMod, Mod, ModFile } from '../../../shared/types'
 import type { ZipMultiPakPayload } from '../components/ZipPickerModal'
 import { installZipPickerEntries } from '../components/ZipPickerModal'
-import type { HostPackPayload } from '../components/HostPackModal'
-import type { CbFlatArchivePayload } from '../components/CrimeBossFlatArchiveModal'
-import type { LoaderReplacePayload } from '../components/Ue4ssReplaceModal'
 import { isLoader } from './installedUtils'
-import { handleInstallOutcome } from '../installSentinels'
+import { requestInstallChoice } from '../installChoices'
+import { archiveHandleForOutcome } from '../installState'
 import { entryFilename, stripPriorityPrefix } from './installedUtils'
 import { t } from '../i18n'
-import { api } from '../api'
+import { api, type InstallOutcome } from '../api'
 import { runBulkAction } from '../bulkAction'
 import { getCachedModFiles, refreshModDetail } from '../modCache'
 import { defaultFileIsUnambiguous } from '../updatePolicy'
@@ -20,23 +18,12 @@ export interface ModActions {
     loadingMod: string | null
     modActionError: string | null
     clearModActionError: () => void
-    reinstallProgress: { downloaded: number; total: number } | null
     reinstallError: string | null
     clearReinstallError: () => void
     reinstallChoice: { mods: InstalledMod[]; mod: Mod; files: ModFile[] } | null
     chooseReinstallFile: (fileId: number) => Promise<void>
     clearReinstallChoice: () => void
     refreshing: boolean
-    zipPickerData: ZipMultiPakPayload | null
-    clearZipPickerData: () => void
-    hostPackData: HostPackPayload | null
-    clearHostPackData: () => void
-    unrecognizedModId: number | null
-    clearUnrecognizedModId: () => void
-    cbFlatArchiveData: CbFlatArchivePayload | null
-    clearCbFlatArchiveData: () => void
-    loaderReplaceData: LoaderReplacePayload | null
-    clearLoaderReplaceData: () => void
     removingLoader: boolean
     clearRemovingLoader: () => void
     movingCrimeBossTarget: InstalledMod | null
@@ -62,21 +49,12 @@ export function useModActions(
 ): ModActions {
     const [loadingMod, setLoadingMod] = useState<string | null>(null)
     const [modActionError, setModActionError] = useState<string | null>(null)
-    const [reinstallProgress, setReinstallProgress] = useState<{
-        downloaded: number
-        total: number
-    } | null>(null)
     const [reinstallError, setReinstallError] = useState<string | null>(null)
     const [reinstallChoices, setReinstallChoices] = useState<
         NonNullable<ModActions['reinstallChoice']>[]
     >([])
     const reinstallChoice = reinstallChoices[0] ?? null
     const [refreshing, setRefreshing] = useState(false)
-    const [zipPickerData, setZipPickerData] = useState<ZipMultiPakPayload | null>(null)
-    const [hostPackData, setHostPackData] = useState<HostPackPayload | null>(null)
-    const [unrecognizedModId, setUnrecognizedModId] = useState<number | null>(null)
-    const [cbFlatArchiveData, setCbFlatArchiveData] = useState<CbFlatArchivePayload | null>(null)
-    const [loaderReplaceData, setLoaderReplaceData] = useState<LoaderReplacePayload | null>(null)
     const [removingLoader, setRemovingLoader] = useState(false)
     const [movingCrimeBossTarget, setMovingCrimeBossTarget] = useState<InstalledMod | null>(null)
     const [crimeBossMoveBusy, setCrimeBossMoveBusy] = useState(false)
@@ -228,29 +206,23 @@ export function useModActions(
     ): Promise<string | null> {
         if (!gamePath) return null
         let failure: string | null = null
+        let archiveOutcome: Exclude<InstallOutcome, string> | null = null
         const missingMods = mods.filter((m) => m.missing && !m.deployment)
 
         setLoadingMod(mods[0].uid)
-        setReinstallProgress(null)
         setReinstallError(null)
-
-        // ZIP-installed paks use {file_id}_{stem} uids and install_mod creates {file_id}.
-        // Older entries stay missing without this.
-        for (const m of missingMods) {
-            await api.uninstallMod(m.uid, gamePath, activeGame)
-        }
-
-        const targetId = `mod:${remoteId}`
-        const unsub = api.onDownloadProgress(({ download_id, downloaded, total }) => {
-            if (download_id === targetId) setReinstallProgress({ downloaded, total })
-        })
         try {
+            // Archive entries and direct files have different record keys, so a missing
+            // entry must be removed before installing its replacement.
+            for (const m of missingMods) {
+                await api.uninstallMod(m.uid, gamePath, activeGame)
+            }
             const outcome = await api.installMod(remoteId, gamePath, activeGame, fileId)
+            if (typeof outcome === 'object') archiveOutcome = outcome
             if (typeof outcome !== 'string' && 'needsPicker' in outcome) {
                 const zipPayload = outcome.needsPicker as unknown as ZipMultiPakPayload
-                // install_from_zip_entry keeps entries the new archive no longer ships.
-                // missingMods were already removed above.
-                // ZipPickerModal is also blocked by Radix's focus trap when HealthCheckModal is open.
+                // Archive installation keeps unselected entries, so remove the prior
+                // files before restoring the matching variants.
                 const priorMods = mods.filter((m) => !m.missing)
                 for (const m of priorMods) {
                     await api.uninstallMod(m.uid, gamePath, activeGame)
@@ -264,40 +236,62 @@ export function useModActions(
                     )
                     .map(({ pos }) => pos)
                 if (toReinstall.length > 0) {
-                    try {
-                        await installZipPickerEntries(
-                            zipPayload,
-                            toReinstall,
-                            gamePath,
-                            activeGame,
-                            mods[0].folderId ?? null,
-                            onRefreshInstalled
-                        )
-                    } catch (installErr) {
-                        failure = String(installErr)
-                        setReinstallError(failure)
-                    }
+                    await installZipPickerEntries(
+                        zipPayload,
+                        toReinstall,
+                        gamePath,
+                        activeGame,
+                        mods[0].folderId ?? null,
+                        onRefreshInstalled
+                    )
                 } else {
-                    setZipPickerData(zipPayload)
+                    await requestInstallChoice(
+                        outcome,
+                        activeGame,
+                        gamePath,
+                        mods,
+                        mods[0].folderId ?? null,
+                        remoteId
+                    )
                 }
             } else {
-                handleInstallOutcome(outcome, {
-                    onZipMultiPak: setZipPickerData, // unreachable: the needsPicker branch above
-                    onHostModPack: setHostPackData,
-                    onCbFlatArchive: setCbFlatArchiveData,
-                    onLoaderReplace: setLoaderReplaceData,
-                    onUnrecognizedArchive: () => setUnrecognizedModId(remoteId),
-                })
+                await requestInstallChoice(
+                    outcome,
+                    activeGame,
+                    gamePath,
+                    mods,
+                    mods[0].folderId ?? null,
+                    remoteId
+                )
             }
         } catch (e) {
             failure = String(e)
+            if (archiveOutcome) {
+                try {
+                    await api.discardStagedArchive(archiveHandleForOutcome(archiveOutcome))
+                } catch (cleanupError) {
+                    failure += '\n' + String(cleanupError)
+                    await requestInstallChoice(
+                        archiveOutcome,
+                        activeGame,
+                        gamePath,
+                        mods,
+                        mods[0].folderId ?? null,
+                        remoteId,
+                        String(cleanupError)
+                    )
+                }
+            }
             setReinstallError(failure)
         } finally {
-            unsub()
-            setReinstallProgress(null)
             setLoadingMod(null)
         }
-        await onRefreshInstalled()
+        try {
+            await onRefreshInstalled()
+        } catch (refreshError) {
+            failure = [failure, String(refreshError)].filter(Boolean).join('\n')
+            setReinstallError(failure)
+        }
         return failure
     }
 
@@ -337,23 +331,12 @@ export function useModActions(
         loadingMod,
         modActionError,
         clearModActionError: () => setModActionError(null),
-        reinstallProgress,
         reinstallError,
         clearReinstallError: () => setReinstallError(null),
         reinstallChoice,
         chooseReinstallFile,
         clearReinstallChoice: () => setReinstallChoices((prev) => prev.slice(1)),
         refreshing,
-        zipPickerData,
-        clearZipPickerData: () => setZipPickerData(null),
-        hostPackData,
-        clearHostPackData: () => setHostPackData(null),
-        unrecognizedModId,
-        clearUnrecognizedModId: () => setUnrecognizedModId(null),
-        cbFlatArchiveData,
-        clearCbFlatArchiveData: () => setCbFlatArchiveData(null),
-        loaderReplaceData,
-        clearLoaderReplaceData: () => setLoaderReplaceData(null),
         removingLoader,
         clearRemovingLoader: () => setRemovingLoader(false),
         movingCrimeBossTarget,

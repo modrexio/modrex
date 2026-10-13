@@ -1,4 +1,5 @@
-import type { InstallOutcome } from './api'
+import { api, type InstallOutcome } from './api'
+import { archiveHandleForOutcome, failArchiveInstall } from './installState'
 import { t } from './i18n'
 import type { ZipMultiPakPayload } from './components/ZipPickerModal'
 import type { HostPackPayload } from './components/HostPackModal'
@@ -19,6 +20,19 @@ export function uninstallablePromptMessage(outcome: InstallOutcome): string | nu
     if (outcome === 'installed') return null
     if (outcome === 'cancelled') return t('resources.install.cancelled')
     return t('common.depNeedsManualInstall')
+}
+
+export async function rejectInstallPrompt(outcome: InstallOutcome): Promise<string | null> {
+    const handle = archiveHandleForOutcome(outcome)
+    if (handle) {
+        try {
+            await api.discardStagedArchive(handle)
+        } catch (error) {
+            failArchiveInstall(handle, error)
+            throw error
+        }
+    }
+    return uninstallablePromptMessage(outcome)
 }
 
 /** Dispatches archive choices after api has completed resource review. Returns false after installation. */

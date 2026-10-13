@@ -8,6 +8,7 @@ import { getCachedMod } from '../modCache'
 import { SkeletonText } from './Skeleton'
 
 interface Props {
+    visible?: boolean
     modId: number
     onClose: () => void
 }
@@ -17,7 +18,7 @@ interface Props {
  * installs inside some other mod that Modrex can't infer. Surfaces the author's instructions
  * instead of silently mislaying the files.
  */
-export function UnrecognizedArchiveModal({ modId, onClose }: Props) {
+export function UnrecognizedArchiveModal({ visible = true, modId, onClose }: Props) {
     const [instructions, setInstructions] = useState<string | null>(null)
     const [legacyMarkup, setLegacyMarkup] = useState(false)
 
@@ -40,7 +41,7 @@ export function UnrecognizedArchiveModal({ modId, onClose }: Props) {
 
     return (
         <Dialog
-            open={true}
+            open={visible}
             onOpenChange={(open) => !open && onClose()}
             title={t('unrecognized.title')}
             size="list"

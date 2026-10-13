@@ -12,6 +12,13 @@ import { Select } from './Select'
 import { SourceSelect } from './SourceSelect'
 import { t } from '../i18n'
 import { api } from '../api'
+import {
+    useInstallOperations,
+    getModInstall,
+    isInstallBusy,
+    installProgress,
+    installLabel,
+} from '../installState'
 
 interface Props {
     activeGame: GameId
@@ -53,14 +60,6 @@ function buildPages(current: number, last: number): (number | '...')[] {
     return pages
 }
 
-// The files tab hosts "Mod Manager Download", which hands the download back to
-// Modrex via the nxm:// deep link, the sanctioned free-tier flow. There is no
-// in-app install trigger, so ModCard's onInstall routes here. onOpen instead goes
-// to the in-app detail page (ModDetailPage), matching modworkshop's ModCard.
-function openOnNexus(mod: ModSummary, domain: string) {
-    api.openExternal(`https://www.nexusmods.com/${domain}/mods/${mod.id}?tab=files`)
-}
-
 export function NexusBrowsePage({
     activeGame,
     isActive,
@@ -82,9 +81,11 @@ export function NexusBrowsePage({
     const [signedIn, setSignedIn] = useState<boolean | null>(null)
     const [sessionExpired, setSessionExpired] = useState(false)
     const [busyUid, setBusyUid] = useState<string | null>(null)
-    const [downloadMap, setDownloadMap] = useState<
-        ReadonlyMap<number, { downloaded: number; total: number; fileId: number }>
-    >(new Map())
+    const operations = useInstallOperations(activeGame)
+    const installError = operations.find(
+        (operation) => operation.target.source === 'nexus' && operation.error
+    )?.error
+    const visibleError = error ?? installError
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const fetchIdRef = useRef(0)
     const lastFetchedRef = useRef('')
@@ -134,57 +135,6 @@ export function NexusBrowsePage({
     function handleDisable(ins: InstalledMod) {
         void runModAction(ins, () => api.disableMod(ins.uid, gamePath!, activeGame))
     }
-
-    // The nxm:// handoff runs entirely in the backend; these listeners are what
-    // make the browser-initiated download visible on the cards. Progress ids are
-    // "nxm:{gameId}:{modId}:{fileId}"; Nexus mod ids repeat across game domains,
-    // so events for other games must be ignored. Completion only clears the entry
-    // when the file matches, so a second file of the same mod keeps its progress.
-    // A failure payload carries no ids (it can occur before the link is even
-    // parsed), so it clears everything.
-    useEffect(() => {
-        const offStarted = api.onNxmInstallStarted(({ gameId, modId, fileId }) => {
-            if (gameId !== activeGame) return
-            setDownloadMap((prev) => new Map(prev).set(modId, { downloaded: 0, total: 0, fileId }))
-        })
-        const offProgress = api.onDownloadProgress(({ download_id, downloaded, total }) => {
-            const [prefix, gameId, modId, fileId] = download_id.split(':')
-            if (prefix !== 'nxm' || gameId !== activeGame) return
-            setDownloadMap((prev) =>
-                new Map(prev).set(Number(modId), { downloaded, total, fileId: Number(fileId) })
-            )
-        })
-        const clearDownload = ({
-            gameId,
-            modId,
-            fileId,
-        }: {
-            gameId: string
-            modId: number
-            fileId: number
-        }) => {
-            if (gameId !== activeGame) return
-            setDownloadMap((prev) => {
-                if (prev.get(modId)?.fileId !== fileId) return prev
-                const next = new Map(prev)
-                next.delete(modId)
-                return next
-            })
-        }
-        const offComplete = api.onNxmInstallComplete(clearDownload)
-        const offClosed = api.onNxmReviewClosed(clearDownload)
-        const offFailed = api.onNxmInstallFailed((e) => {
-            setError(e)
-            setDownloadMap(new Map())
-        })
-        return () => {
-            offStarted()
-            offProgress()
-            offComplete()
-            offClosed()
-            offFailed()
-        }
-    }, [activeGame])
 
     // Re-check on activation because sign-in and sign-out happen in Settings while
     // this page remains mounted in a hidden pane.
@@ -318,9 +268,9 @@ export function NexusBrowsePage({
                 situation in the user's terms. A request in flight when the session ends
                 rejects after the expiry event has been handled, so its raw message would
                 otherwise land on top of that prompt. */}
-            {error && signedIn !== false && (
+            {visibleError && signedIn !== false && (
                 <div className="mx-6 mt-4 px-4 py-3 bg-danger/30 border border-danger-hover rounded text-sm text-danger-text">
-                    {error}
+                    {visibleError}
                 </div>
             )}
 
@@ -360,20 +310,32 @@ export function NexusBrowsePage({
                         <div className="grid grid-cols-2 gap-4 xl:grid-cols-3 2xl:grid-cols-4">
                             {result.data.map((mod) => {
                                 const ins = installedByNexusId.get(mod.id)
+                                const operation = getModInstall(operations, 'nexus', mod.id)
                                 return (
                                     <ModCard
                                         key={mod.id}
                                         mod={mod}
                                         installed={ins}
                                         onOpen={() => onOpenDetail(mod.id, mod)}
-                                        onInstall={() => openOnNexus(mod, domain)}
+                                        onInstall={() => {
+                                            void api
+                                                .requestNexusDownload(
+                                                    activeGame,
+                                                    mod.id,
+                                                    `https://www.nexusmods.com/${domain}/mods/${mod.id}?tab=files`
+                                                )
+                                                .catch((error) => setError(String(error)))
+                                        }}
                                         onUninstall={() => ins && handleUninstall(ins)}
                                         onEnable={() => ins && handleEnable(ins)}
                                         onDisable={() => ins && handleDisable(ins)}
-                                        loading={
-                                            ins ? ins.uid === busyUid : downloadMap.has(mod.id)
+                                        loading={ins?.uid === busyUid || isInstallBusy(operation)}
+                                        progress={installProgress(operation)}
+                                        loadingLabel={
+                                            isInstallBusy(operation)
+                                                ? installLabel(operation)
+                                                : undefined
                                         }
-                                        progress={downloadMap.get(mod.id) ?? null}
                                         gamePath={gamePath}
                                     />
                                 )
