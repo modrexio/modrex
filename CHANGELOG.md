@@ -23,6 +23,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 ### Fixed
 
+- Fixed game error banners remaining visible after a successful refresh.
 - Fixed missing installation progress on mod pages.
 - Fixed PAYDAY 3 Xbox builds not being detected as running.
 - Fixed Linux builds disabling graphics acceleration.

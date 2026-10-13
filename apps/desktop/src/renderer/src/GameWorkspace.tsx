@@ -1,5 +1,13 @@
 import { DisclosureSummary } from './components/ui/DisclosureSummary'
-import { useState, useEffect, useCallback, useSyncExternalStore, memo, type ReactNode } from 'react'
+import {
+    useState,
+    useEffect,
+    useCallback,
+    useSyncExternalStore,
+    useRef,
+    memo,
+    type ReactNode,
+} from 'react'
 import { error as logError } from '@tauri-apps/plugin-log'
 import type { GameId, ModSummary, InstalledMod, ModFolder } from '../../shared/types'
 import { GAMES } from '../../shared/types'
@@ -73,6 +81,8 @@ export function GameWorkspace({
     >([])
     const [restoreError, setRestoreError] = useState<string | null>(null)
     const [loadError, setLoadError] = useState<string | null>(null)
+    const refreshRequest = useRef(0)
+    const workspaceMounted = useRef(true)
     const subscribe = useCallback(
         (listener: () => void) => subscribeGameData(activeGame, listener),
         [activeGame]
@@ -90,25 +100,41 @@ export function GameWorkspace({
         installed.some(
             (mod) => mod.resourceStatus === 'blocked' || mod.resourceStatus === 'diverged'
         )
-    const refreshInstalled = useCallback(() => refreshGameInstalled(activeGame), [activeGame])
+    const refreshInstalled = useCallback(async () => {
+        const request = ++refreshRequest.current
+        try {
+            await refreshGameInstalled(activeGame)
+            if (!workspaceMounted.current || request !== refreshRequest.current) return
+            setLoadError(null)
+            onStartupPhase('ready')
+        } catch (error) {
+            if (workspaceMounted.current && request === refreshRequest.current) {
+                setLoadError(String(error))
+                onStartupPhase('error')
+            }
+            throw error
+        }
+    }, [activeGame, onStartupPhase])
 
     useModIdentificationTracking(installed, activeGame)
     useFileDropTarget({ activeGame, gamePath, installed })
 
     useEffect(() => {
+        workspaceMounted.current = true
         let cancelled = false
         async function refresh() {
+            const request = ++refreshRequest.current
             try {
                 onStartupPhase('game')
                 await refreshGamePath(activeGame)
-                if (cancelled) return
+                if (cancelled || request !== refreshRequest.current) return
                 onStartupPhase('mods')
-                await refreshInstalled()
-                if (cancelled) return
+                await refreshGameInstalled(activeGame)
+                if (cancelled || request !== refreshRequest.current) return
                 setLoadError(null)
                 onStartupPhase('ready')
             } catch (error) {
-                if (cancelled) return
+                if (cancelled || request !== refreshRequest.current) return
                 setLoadError(String(error))
                 void logError('Game refresh failed: ' + String(error))
                 onStartupPhase('error')
@@ -123,10 +149,12 @@ export function GameWorkspace({
         window.addEventListener('focus', onFocus)
         return () => {
             cancelled = true
+            workspaceMounted.current = false
+            refreshRequest.current += 1
             clearTimeout(timer)
             window.removeEventListener('focus', onFocus)
         }
-    }, [activeGame, refreshInstalled, onStartupPhase])
+    }, [activeGame, onStartupPhase])
 
     useEffect(() => {
         if (getSettingsCache(activeGame)) return
