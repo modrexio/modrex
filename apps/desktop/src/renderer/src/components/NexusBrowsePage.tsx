@@ -316,6 +316,7 @@ export function NexusBrowsePage({
                                         key={mod.id}
                                         mod={mod}
                                         installed={ins}
+                                        showMeta
                                         onOpen={() => onOpenDetail(mod.id, mod)}
                                         onInstall={() => {
                                             void api
