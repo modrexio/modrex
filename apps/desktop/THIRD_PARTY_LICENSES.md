@@ -8079,7 +8079,7 @@ DEALINGS IN THE SOFTWARE.
 
 ## MIT License
 
-Used by: hyper-rustls 0.27.9, rustls-native-certs 0.8.3, rustls 0.23.45
+Used by: hyper-rustls 0.27.9, rustls-native-certs 0.8.3, rustls 0.23.46
 
 ```
 Copyright (c) 2016 Joseph Birr-Pixton <jpixton@gmail.com>
