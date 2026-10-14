@@ -2,6 +2,7 @@ import { ScrollArea } from './ScrollArea'
 import { useState, useEffect, useMemo, useRef, type ReactNode } from 'react'
 import { SettingsSection as Section } from './SettingsSection'
 import { BetaBadge } from './BetaBadge'
+import NexusIcon from '../../../../assets/icons/nexusmods.svg?react'
 import { TITLE_ROW_MIN_H } from './pageHeader'
 import { Button } from './ui/Button'
 import {
@@ -477,6 +478,7 @@ export function SettingsPage({
 
                                 <Section
                                     title={t('settings.nexusAccount.title')}
+                                    icon={<NexusIcon className="w-4 h-4 shrink-0" />}
                                     badge={<BetaBadge />}
                                     description={t('settings.nexusAccount.description')}
                                 >
