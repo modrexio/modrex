@@ -1,0 +1,322 @@
+---
+import { docsGames } from '../data/docsGames'
+
+type Mark = 'yes' | 'partly' | 'no'
+type Cell = { mark: Mark; note?: string } | { value: string; best?: true }
+
+interface Row {
+    label: string
+    modrex: Cell
+    vortex: Cell
+    mo2: Cell
+}
+
+const columns = [
+    { key: 'modrex', name: 'Modrex', short: 'Modrex' },
+    { key: 'vortex', name: 'Vortex', short: 'Vortex' },
+    { key: 'mo2', name: 'Mod Organizer 2', short: 'MO2' },
+] as const
+
+const yes: Cell = { mark: 'yes' }
+const no: Cell = { mark: 'no' }
+
+// Rows run from where Modrex is best, through where all three are even, to where
+// it is behind, starting with the game count. Competitor cells describe Vortex and
+// Mod Organizer 2 as checked in October 2026. Re-verify each one against their own
+// documentation before changing it.
+const rows: Row[] = [
+    {
+        label: 'Browse mods in the app',
+        modrex: yes,
+        vortex: { mark: 'partly', note: 'Collections' },
+        mo2: no,
+    },
+    { label: 'Installs mods from ModWorkshop', modrex: yes, vortex: no, mo2: no },
+    {
+        label: 'Installs SuperBLT and UE4SS for you',
+        modrex: yes,
+        vortex: { mark: 'partly', note: 'Some games' },
+        mo2: no,
+    },
+    { label: 'Native Linux app', modrex: yes, vortex: no, mo2: no },
+    {
+        label: 'One-click launch without mods',
+        modrex: yes,
+        vortex: { mark: 'partly', note: 'Via profiles' },
+        mo2: yes,
+    },
+    { label: 'Installs mods from Nexus Mods', modrex: yes, vortex: yes, mo2: yes },
+    {
+        label: 'Supported games',
+        modrex: { value: String(docsGames.length) },
+        vortex: { value: '500+', best: true },
+        mo2: { value: '45+' },
+    },
+    { label: 'Several mod setups per game', modrex: no, vortex: yes, mo2: yes },
+    {
+        label: 'Shareable mod lists',
+        modrex: no,
+        vortex: yes,
+        mo2: { mark: 'partly', note: 'Wabbajack' },
+    },
+    {
+        label: 'Leaves the game folder untouched',
+        modrex: no,
+        vortex: { mark: 'partly', note: 'Hardlinks' },
+        mo2: yes,
+    },
+]
+
+const MARK_RANK: Record<Mark, number> = { yes: 2, partly: 1, no: 0 }
+
+// The best answer in a row is highlighted. A row where every manager answers the
+// same has no best answer and nothing is highlighted.
+function bestKeys(row: Row): Set<string> {
+    const cells = columns.map((col) => [col.key, row[col.key]] as const)
+    const valued = cells.filter(([, cell]) => 'value' in cell && cell.best)
+    if (valued.length > 0) return new Set(valued.map(([key]) => key))
+    const ranks = cells.map(
+        ([key, cell]) => [key, 'mark' in cell ? MARK_RANK[cell.mark] : 0] as const
+    )
+    const top = Math.max(...ranks.map(([, rank]) => rank))
+    const winners = ranks.filter(([, rank]) => rank === top)
+    if (winners.length === ranks.length) return new Set()
+    return new Set(winners.map(([key]) => key))
+}
+
+const MARK_LABEL: Record<Mark, string> = { yes: 'Yes', partly: 'Partly', no: 'No' }
+const MARK_PATH: Record<Mark, string> = {
+    yes: 'M20 6 9 17l-5-5',
+    partly: 'M5 12h14',
+    no: 'M18 6 6 18M6 6l12 12',
+}
+---
+
+<section id="compare">
+    <div class="wrap">
+        <div class="sec-head">
+            <h2 class="sec-title">Why Modrex</h2>
+        </div>
+
+        <table class="compare">
+            <colgroup>
+                <col class="label-col" />
+                <col span="3" />
+            </colgroup>
+            <thead>
+                <tr>
+                    <td></td>
+                    {columns.map((col) => (
+                        <th scope="col">
+                            <span class="full">{col.name}</span>
+                            <span class="short">{col.short}</span>
+                        </th>
+                    ))}
+                </tr>
+            </thead>
+            <tbody>
+                {rows.map((row) => {
+                    const best = bestKeys(row)
+                    return (
+                        <tr>
+                            <th scope="row">{row.label}</th>
+                            {columns.map((col) => {
+                                const cell = row[col.key]
+                                return (
+                                    <td class:list={{ best: best.has(col.key) }}>
+                                        {'value' in cell ? (
+                                            <span class="value">{cell.value}</span>
+                                        ) : (
+                                            <span class="answer">
+                                                <svg
+                                                    class:list={['mark', cell.mark]}
+                                                    viewBox="0 0 24 24"
+                                                    aria-hidden="true"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    stroke-width="2.5"
+                                                    stroke-linecap="round"
+                                                    stroke-linejoin="round"
+                                                >
+                                                    <path d={MARK_PATH[cell.mark]} />
+                                                </svg>
+                                                <span class="sr-only">
+                                                    {MARK_LABEL[cell.mark]}
+                                                    {cell.note && ', '}
+                                                </span>
+                                                {cell.note && <span class="note">{cell.note}</span>}
+                                            </span>
+                                        )}
+                                    </td>
+                                )
+                            })}
+                        </tr>
+                    )
+                })}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<style>
+    /* The section is exactly one screen below the sticky nav (scroll-padding-top in
+       base.css), with the content centered, so following the Compare link shows the
+       heading and the table and nothing from the neighboring sections. */
+    #compare {
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        min-height: calc(100svh - 60px);
+        padding: 32px 0;
+    }
+
+    #compare > .wrap {
+        width: 100%;
+    }
+
+    /* Rows are separated the way the download rows are, by a border line above each
+       row and one under the last, with no row backgrounds. */
+    .compare {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        table-layout: fixed;
+    }
+
+    .label-col {
+        width: 34%;
+    }
+
+    .compare th,
+    .compare td {
+        padding: 0 16px;
+        height: 56px;
+        text-align: left;
+        vertical-align: middle;
+    }
+
+    .compare tbody th,
+    .compare tbody td {
+        border-top: 1px solid var(--color-border);
+    }
+
+    .compare tbody tr:last-child > * {
+        border-bottom: 1px solid var(--color-border);
+    }
+
+    .compare thead th {
+        height: auto;
+        padding-bottom: 14px;
+        font-size: 17px;
+        font-weight: 600;
+        color: var(--color-text);
+    }
+
+    .compare tbody th {
+        padding-left: 0;
+        font-size: 15px;
+        font-weight: 500;
+        color: var(--color-text);
+    }
+
+    .compare tbody td.best {
+        background: var(--color-surface-raised);
+    }
+
+    .short {
+        display: none;
+    }
+
+    .value {
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--text-secondary);
+    }
+
+    .best .value {
+        color: var(--color-text);
+    }
+
+    .answer {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .note {
+        font-size: 14px;
+        color: var(--text-tertiary);
+    }
+
+    .mark {
+        display: block;
+        flex: none;
+        width: 20px;
+        height: 20px;
+    }
+
+    .mark.yes {
+        color: var(--color-success-text);
+    }
+
+    .mark.partly {
+        color: var(--color-text-muted);
+    }
+
+    .mark.no {
+        color: var(--color-text-subtle);
+    }
+
+    @media (max-width: 640px) {
+        .label-col {
+            width: 43%;
+        }
+
+        .compare th,
+        .compare td {
+            padding: 10px 8px;
+            height: 52px;
+        }
+
+        .compare thead th {
+            padding-top: 0;
+            padding-bottom: 12px;
+            font-size: 15px;
+        }
+
+        .compare tbody th {
+            padding-left: 0;
+            font-size: 14px;
+            line-height: 1.3;
+        }
+
+        .full {
+            display: none;
+        }
+
+        .short {
+            display: inline;
+        }
+
+        .mark {
+            width: 18px;
+            height: 18px;
+        }
+
+        .value {
+            font-size: 14px;
+        }
+
+        .answer {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 2px;
+        }
+
+        .note {
+            font-size: 13px;
+            line-height: 1.25;
+        }
+    }
+</style>

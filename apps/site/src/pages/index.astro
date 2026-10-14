@@ -4,6 +4,7 @@ import { getOgImage } from '../lib/og-image'
 import Nav from '../components/Nav.astro'
 import Hero from '../components/Hero.astro'
 import Features from '../components/Features.astro'
+import Compare from '../components/Compare.astro'
 import DownloadSection from '../components/DownloadSection.astro'
 import Changelog from '../components/Changelog.astro'
 import SiteFooter from '../components/SiteFooter.astro'
@@ -78,6 +79,7 @@ const jsonLd = {
     <Nav release={release} />
     <Hero release={release} />
     <Features indexStats={indexStats} nexusModCounts={nexusModCounts} />
+    <Compare />
     <DownloadSection release={release} />
     <Changelog releases={recentReleases} />
     <SiteFooter />
