@@ -51,18 +51,29 @@ export function TagFilter({ tags, include, exclude, onChange }: Props) {
             <Popover.Trigger
                 className={`group text-sm px-3 py-1.5 rounded bg-surface-hover border flex items-center gap-2 hover:bg-surface-active transition-colors whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 ${active ? 'border-accent text-accent' : 'border-border text-text'}`}
             >
-                <TagIcon className="w-3.5 h-3.5 text-text-subtle" />
-                <span>
-                    {active ? t('browse.tagsCount', { count: selectedCount }) : t('browse.tags')}
+                <span className="flex items-center gap-1.5">
+                    <TagIcon className="w-3.5 h-3.5 text-text-subtle" />
+                    {/* The label sits over an invisible copy of its widest form, so picking
+                        tags never resizes the button and shifts the filter row. */}
+                    <span className="grid">
+                        <span className="col-start-1 row-start-1">
+                            {active
+                                ? t('browse.tagsCount', { count: selectedCount })
+                                : t('browse.tags')}
+                        </span>
+                        <span className="col-start-1 row-start-1 invisible" aria-hidden="true">
+                            {t('browse.tagsCount', { count: MAX_PER_BUCKET * 2 })}
+                        </span>
+                    </span>
                 </span>
                 <ChevronDown className="w-3 h-3 shrink-0 text-text-subtle transition-transform group-data-[state=open]:rotate-180" />
             </Popover.Trigger>
 
             <Popover.Portal>
                 <Popover.Content
-                    align="end"
+                    align="start"
                     sideOffset={4}
-                    className="z-50 w-fit min-w-[11rem] max-w-[24rem] flex flex-col max-h-[360px] bg-surface-raised border border-border rounded shadow-lg text-text"
+                    className="z-50 w-fit min-w-[var(--radix-popover-trigger-width)] max-w-[24rem] flex flex-col max-h-[360px] bg-surface-raised border border-border rounded shadow-lg text-text"
                 >
                     <div className="p-2 border-b border-border flex items-center gap-2">
                         <div className="relative flex-1 min-w-0">
@@ -100,7 +111,7 @@ export function TagFilter({ tags, include, exclude, onChange }: Props) {
                                     <button
                                         key={tag.id}
                                         onClick={() => cycle(tag.id)}
-                                        className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-sm text-left transition-colors ${
+                                        className={`w-full flex items-center gap-2 px-3 py-2 rounded text-sm text-left transition-colors ${
                                             state === 'include'
                                                 ? 'bg-success/15'
                                                 : state === 'exclude'
@@ -118,7 +129,7 @@ export function TagFilter({ tags, include, exclude, onChange }: Props) {
                                             )}
                                         </span>
                                         <span
-                                            className="text-xs px-2 py-0.5 rounded-full border"
+                                            className="text-sm px-2.5 py-0.5 rounded-full border"
                                             style={{
                                                 borderColor: tag.color + '80',
                                                 color: tag.color,
