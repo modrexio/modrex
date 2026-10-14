@@ -130,7 +130,7 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
                             e.stopPropagation()
                             setMenuOpen((o) => !o)
                         }}
-                        className="w-6 h-6 bg-surface-raised/80 hover:border-accent/60"
+                        className="w-6 h-6 bg-surface-raised hover:border-accent/60"
                     >
                         <MoreVertical className="w-3.5 h-3.5" />
                     </Button>
