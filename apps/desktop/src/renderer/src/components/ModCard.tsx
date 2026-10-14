@@ -14,7 +14,7 @@ import NexusIcon from '../../../../assets/icons/nexusmods.svg?react'
 interface Props {
     mod: ModSummary
     installed: InstalledMod | undefined
-    installedCount?: number
+    sourceLabel?: string
     loaderInstalled?: boolean
     onOpen: () => void
     onInstall: () => void
@@ -34,7 +34,7 @@ interface Props {
 export function ModCard({
     mod,
     installed,
-    installedCount,
+    sourceLabel,
     loaderInstalled,
     onOpen,
     onInstall,
@@ -92,17 +92,6 @@ export function ModCard({
                         <span className="sr-only">{t('common.noImage')}</span>
                     </div>
                 )}
-                {installedCount !== undefined && installedCount > 1 && (
-                    <div className="absolute top-2 left-2 px-1.5 py-0.5 rounded bg-surface-raised/80 border border-border text-[10px] text-text-subtle pointer-events-none">
-                        {t('installed.fileCount', { count: installedCount })}
-                    </div>
-                )}
-                {installed?.source === 'nexus' && (
-                    <div className="absolute top-2 left-2 px-1.5 py-0.5 rounded bg-surface-raised/80 border border-border text-[10px] text-text-subtle pointer-events-none flex items-center gap-1">
-                        <NexusIcon className="w-3 h-3" />
-                        {t('installed.nexusBadge')}
-                    </div>
-                )}
                 <div className="px-3 pt-3 pb-1 flex flex-col gap-1 min-h-[76px]">
                     <h3 className="text-sm font-semibold leading-[20px] line-clamp-2 group-hover:text-accent-bright transition-colors">
                         {mod.name}
@@ -129,7 +118,7 @@ export function ModCard({
             <div className="px-3 pb-3 pt-2 flex items-center justify-between mt-auto">
                 <div className="flex items-center">
                     {installed && !showMeta ? (
-                        <span className="text-xs text-text-subtle">{installed.version}</span>
+                        <span className="text-xs text-text-subtle">{sourceLabel}</span>
                     ) : (
                         <div className="flex items-center gap-3 text-xs text-text-subtle">
                             {mod.likes > 0 && (

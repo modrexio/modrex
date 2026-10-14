@@ -10,7 +10,7 @@ import { syntheticMod, detailNavArgs, hasCatalogLink, identityKey } from '../hoo
 import { useInstalledContext } from './InstalledContext'
 import { ManageFilesModal } from './ManageFilesModal'
 import { PakViewerModal } from './PakViewerModal'
-import { hasSource } from '../sources'
+import { SOURCE_LABELS, hasSource, sourcesForGame } from '../sources'
 import { Button } from './ui/Button'
 import { Tooltip } from './Tooltip'
 import {
@@ -81,6 +81,11 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
         missing: mods.some((m) => m.missing) ? true : undefined,
         archiveBroken: mods.some((m) => m.archiveBroken) ? true : undefined,
     }
+    // Named only where the library mixes sources. Local mods have none to name.
+    const sourceLabel =
+        hasCatalogLink(ins) && sourcesForGame(activeGame).length > 1
+            ? SOURCE_LABELS[ins.source ?? 'modworkshop']
+            : undefined
     // A Nexus mod always has a real detail source to fetch from (its own REST call,
     // independent of modData), so it can navigate in-app immediately, unlike a
     // modworkshop mod, which has nothing to show until modData actually resolves.
@@ -268,6 +273,7 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
                 <ModListRow
                     mod={mod}
                     installed={combined}
+                    sourceLabel={sourceLabel}
                     gamePath={gamePath}
                     loading={isBusy}
                     progress={installProgress(operation)}
@@ -316,6 +322,7 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
             <ModCard
                 mod={mod}
                 installed={combined}
+                sourceLabel={sourceLabel}
                 gamePath={gamePath}
                 loading={isBusy}
                 progress={installProgress(operation)}

@@ -14,6 +14,7 @@ import NexusIcon from '../../../../assets/icons/nexusmods.svg?react'
 interface Props {
     mod: ModSummary
     installed: InstalledMod
+    sourceLabel?: string
     gamePath: string | null
     loading: boolean
     loadingLabel?: string
@@ -31,6 +32,7 @@ interface Props {
 export function ModListRow({
     mod,
     installed,
+    sourceLabel,
     gamePath,
     loading,
     loadingLabel,
@@ -90,12 +92,6 @@ export function ModListRow({
                             <span className="sr-only">{t('common.noImage')}</span>
                         </div>
                     )}
-                    {installed.source === 'nexus' && (
-                        <div className="absolute top-1 left-1 px-1.5 py-0.5 rounded bg-surface-raised/80 border border-border text-[10px] text-text-subtle pointer-events-none flex items-center gap-1">
-                            <NexusIcon className="w-3 h-3" />
-                            {t('installed.nexusBadge')}
-                        </div>
-                    )}
                 </div>
 
                 <button onClick={onOpen} className="flex-1 min-w-0 text-left px-5 py-4">
@@ -115,7 +111,7 @@ export function ModListRow({
                         </p>
                     )}
                     <p className="text-xs text-text-subtle mt-1 tabular-nums">
-                        {installed.version}
+                        {sourceLabel ? `${sourceLabel} · ${installed.version}` : installed.version}
                     </p>
                     {loading && loadingLabel && (
                         <p className="text-xs text-accent mt-1" role="status">
