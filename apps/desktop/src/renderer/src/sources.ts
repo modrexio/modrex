@@ -6,6 +6,12 @@ import { api, type SourceInfo } from './api'
 // sidebar decides whether to offer a source while rendering).
 let registry: SourceInfo[] = []
 
+// Brand names, deliberately not in en.json: they are proper nouns.
+export const SOURCE_LABELS: Record<string, string> = {
+    modworkshop: 'ModWorkshop',
+    nexus: 'Nexus Mods',
+}
+
 export async function loadSourceRegistry(): Promise<void> {
     registry = await api.listSources()
 }

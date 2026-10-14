@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api'
-import { sourcesForGame } from '../sources'
+import { SOURCE_LABELS, sourcesForGame } from '../sources'
 import { waitForForegroundClear } from '../requestPriority'
 import { formatCount } from './modDetail/format'
 import { SkeletonBar } from './Skeleton'
@@ -8,13 +8,6 @@ import { BetaBadge, isBetaSource } from './BetaBadge'
 import { TITLE_ROW_H } from './pageHeader'
 import { t } from '../i18n'
 import { GAMES, type GameId } from '../../../shared/types'
-
-// Brand names, deliberately not in en.json: they are proper nouns, and installedUtils
-// already labels the source this way.
-const SOURCE_LABELS: Record<string, string> = {
-    modworkshop: 'ModWorkshop',
-    nexus: 'Nexus Mods',
-}
 
 // Library-wide totals per (game, source), for the session. Unlike the footer count these
 // do not move as the user searches, so they are fetched once and reused: re-reading them
