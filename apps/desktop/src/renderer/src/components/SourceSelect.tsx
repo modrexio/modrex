@@ -112,7 +112,7 @@ function cachedCounts(gameId: GameId): Record<string, number | null> {
 /**
  * Picks which source Browse is showing. Both stay on screen rather than collapsing into a
  * dropdown, so a user who never opens a menu still learns the second one exists. Renders
- * nothing when the game has only one source, as with RAID, which has no Nexus presence.
+ * a plain caption when the game has only one source, as with RAID, which has no Nexus presence.
  *
  * Results are deliberately NOT merged across sources. The two have separate search engines,
  * so their sort options differ, their relevance scores are not comparable, and their page
@@ -136,15 +136,21 @@ export function SourceSelect({
     useEffect(() => {
         const sync = () => setCounts(cachedCounts(activeGame))
         const unsubscribe = subscribe(sync)
-        // Only worth asking when the switcher is actually shown.
-        if (sourcesForGame(activeGame).length > 1) {
-            for (const s of sourcesForGame(activeGame)) ensureCount(activeGame, s.id)
-        }
+        for (const s of sourcesForGame(activeGame)) ensureCount(activeGame, s.id)
         sync()
         return unsubscribe
     }, [activeGame])
 
-    if (sources.length < 2) return null
+    // One source is nothing to choose, so it reads as a caption to the title, not a tab.
+    if (sources.length === 1) {
+        const s = sources[0]
+        return (
+            <div className={`flex flex-col justify-center px-4 shrink-0 ${TITLE_ROW_H}`}>
+                <SourceName id={s.id} className="text-text-muted" />
+                <SourceCount total={counts[s.id]} />
+            </div>
+        )
+    }
 
     return (
         <div className={`flex items-stretch gap-1 shrink-0 ${TITLE_ROW_H}`}>
@@ -161,24 +167,37 @@ export function SourceSelect({
                                 : 'border-transparent text-text-subtle hover:text-text-muted hover:before:bg-surface-hover'
                         }`}
                     >
-                        <span className="relative flex items-center gap-1.5 text-sm font-medium leading-tight">
-                            {SOURCE_LABELS[s.id] ?? s.id}
-                            {isBetaSource(s.id) && <BetaBadge />}
-                        </span>
-                        {/* Three states that must not look alike: loading shows a
-                            skeleton, no answer (signed out of Nexus) shows nothing, and a
-                            real count renders. The fixed height is what keeps all three
-                            the same size, so the header cannot jump as counts arrive. */}
-                        <span className="relative flex h-3.5 items-center text-[11px] leading-none text-text-subtle">
-                            {total === undefined ? (
-                                <SkeletonBar className="h-2.5 w-14 animate-pulse" />
-                            ) : total === null ? null : (
-                                t('browse.modCount', { total: formatCount(total) })
-                            )}
-                        </span>
+                        <SourceName id={s.id} />
+                        <SourceCount total={total} />
                     </button>
                 )
             })}
         </div>
+    )
+}
+
+function SourceName({ id, className = '' }: { id: string; className?: string }) {
+    return (
+        <span
+            className={`relative flex items-center gap-1.5 text-sm font-medium leading-tight ${className}`}
+        >
+            {SOURCE_LABELS[id] ?? id}
+            {isBetaSource(id) && <BetaBadge />}
+        </span>
+    )
+}
+
+// Three states that must not look alike: loading shows a skeleton, no answer (signed out
+// of Nexus) shows nothing, and a real count renders. The fixed height is what keeps all
+// three the same size, so the header cannot jump as counts arrive.
+function SourceCount({ total }: { total: number | null | undefined }) {
+    return (
+        <span className="relative flex h-3.5 items-center text-[11px] leading-none text-text-subtle">
+            {total === undefined ? (
+                <SkeletonBar className="h-2.5 w-14 animate-pulse" />
+            ) : total === null ? null : (
+                t('browse.modCount', { total: formatCount(total) })
+            )}
+        </span>
     )
 }
