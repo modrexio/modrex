@@ -8291,6 +8291,8 @@ fn shared_folder_reconciliation_compacts_secondary_only_folders_and_preserves_em
     fs::create_dir_all(lua.join("009_Pack/LuaMod/Scripts")).unwrap();
     fs::write(lua.join("009_Pack/LuaMod/Scripts/main.lua"), b"lua").unwrap();
     fs::create_dir_all(lua.join("010_Empty")).unwrap();
+    let primary = mods_dir(game, cfg.primary());
+    fs::create_dir_all(primary.join("010_Empty")).unwrap();
     let mut pack = folder("pack", "009_Pack", None);
     pack.priority = 9;
     let mut empty = folder("empty", "010_Empty", None);
@@ -8314,11 +8316,12 @@ fn shared_folder_reconciliation_compacts_secondary_only_folders_and_preserves_em
     let state = read_state(&sp).unwrap();
     assert_eq!(state.folders.len(), 2);
     let empty = state.folders.iter().find(|f| f.id == "empty").unwrap();
-    assert_eq!(empty.disk_name, "010_Empty");
+    assert_eq!(empty.disk_name, "002_Empty");
     assert_eq!(empty.priority, 2);
     assert_eq!(state.mods[0].missing, None);
     assert!(!mods_dir(game, cfg.primary()).join("001_Pack").exists());
-    assert!(!mods_dir(game, cfg.primary()).join("002_Empty").exists());
+    assert!(primary.join("002_Empty").is_dir());
+    assert!(!primary.join("010_Empty").exists());
 }
 
 #[test]

@@ -209,3 +209,137 @@ fn a_state_that_cannot_be_saved_puts_the_files_back() {
         assert!(!dir.join(format!("002_Mod_P.{ext}")).exists());
     }
 }
+
+fn empty_app_folder_operation(game_id: &str, operation: &str) {
+    use crate::commands::mods::folders::{
+        create_folder_op, delete_folder_op, move_folder_op, rename_folder_op,
+    };
+    use crate::commands::mods::paths::get_state_path;
+    use crate::commands::mods::reorder::reorder_children_op;
+    use crate::commands::mods::state::{get_folder_path, read_state, reconcile_state};
+    use crate::commands::mods::types::TopLevelItem;
+
+    let cfg = engine_for_game(game_id).unwrap();
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let sp = get_state_path(game, cfg);
+    let parent = create_folder_op(game, &sp, "Parent", None, cfg).unwrap();
+    let parent_id = (operation == "delete").then(|| parent.id.clone());
+    let empty = create_folder_op(game, &sp, "Empty", parent_id, cfg).unwrap();
+    let before = read_state(&sp).unwrap();
+    let old_rel = get_folder_path(&before.folders, Some(&empty.id)).unwrap();
+    let active = mods_base(game, cfg.primary());
+    let old_dir = active.join(&old_rel);
+    assert!(old_dir.is_dir());
+    let unrelated: Vec<_> = cfg
+        .targets
+        .iter()
+        .skip(1)
+        .flat_map(|target| [mods_base(game, target), disabled_base(game, target)])
+        .map(|base| base.join(&old_rel))
+        .collect();
+    for dir in &unrelated {
+        fs::create_dir_all(dir.join("empty/library")).unwrap();
+        fs::write(dir.join("keep.lua"), b"loader library").unwrap();
+    }
+
+    match operation {
+        "rename" => rename_folder_op(game, &sp, &empty.id, "Renamed", cfg).unwrap(),
+        "move" => move_folder_op(game, &sp, &empty.id, Some(parent.id.clone()), cfg).unwrap(),
+        "reorder" => reorder_children_op(
+            game,
+            &sp,
+            None,
+            &[
+                TopLevelItem::Folder {
+                    id: parent.id.clone(),
+                },
+                TopLevelItem::Folder {
+                    id: empty.id.clone(),
+                },
+            ],
+            cfg,
+        )
+        .unwrap(),
+        "delete" => delete_folder_op(game, &sp, &parent.id, cfg).unwrap(),
+        _ => unreachable!(),
+    }
+
+    let saved = read_state(&sp).unwrap();
+    let new_rel = get_folder_path(&saved.folders, Some(&empty.id)).unwrap();
+    let new_dir = active.join(&new_rel);
+    assert!(
+        new_dir.is_dir(),
+        "{game_id} {operation}: directory missing at {new_rel}"
+    );
+    if old_dir != new_dir {
+        assert!(
+            !old_dir.exists(),
+            "{game_id} {operation}: source directory remains"
+        );
+    }
+    for dir in &unrelated {
+        assert_eq!(fs::read(dir.join("keep.lua")).unwrap(), b"loader library");
+        assert!(dir.join("empty/library").is_dir());
+    }
+    let reloaded = reconcile_state(game, &sp, cfg).unwrap();
+    let folder = reloaded
+        .folders
+        .iter()
+        .find(|folder| folder.id == empty.id)
+        .expect("the empty app folder must survive a reload");
+    let reloaded_rel = get_folder_path(&reloaded.folders, Some(&empty.id)).unwrap();
+    assert!(active.join(reloaded_rel).is_dir());
+    match operation {
+        "rename" => assert_eq!(folder.display_name, "Renamed"),
+        "move" => assert_eq!(folder.parent_id.as_deref(), Some(parent.id.as_str())),
+        "reorder" => assert!(
+            folder.priority
+                < reloaded
+                    .folders
+                    .iter()
+                    .find(|folder| folder.id == parent.id)
+                    .unwrap()
+                    .priority
+        ),
+        "delete" => {
+            assert_eq!(folder.parent_id, None);
+            assert!(!reloaded.folders.iter().any(|folder| folder.id == parent.id));
+            assert!(!active.join(&parent.disk_name).exists());
+        }
+        _ => unreachable!(),
+    }
+}
+
+#[test]
+fn empty_app_folder_pd3_rename() {
+    empty_app_folder_operation("pd3", "rename");
+}
+#[test]
+fn empty_app_folder_raid_rename() {
+    empty_app_folder_operation("raid", "rename");
+}
+#[test]
+fn empty_app_folder_pd3_move() {
+    empty_app_folder_operation("pd3", "move");
+}
+#[test]
+fn empty_app_folder_raid_move() {
+    empty_app_folder_operation("raid", "move");
+}
+#[test]
+fn empty_app_folder_pd3_reorder() {
+    empty_app_folder_operation("pd3", "reorder");
+}
+#[test]
+fn empty_app_folder_raid_reorder() {
+    empty_app_folder_operation("raid", "reorder");
+}
+#[test]
+fn empty_app_folder_pd3_delete() {
+    empty_app_folder_operation("pd3", "delete");
+}
+#[test]
+fn empty_app_folder_raid_delete() {
+    empty_app_folder_operation("raid", "delete");
+}

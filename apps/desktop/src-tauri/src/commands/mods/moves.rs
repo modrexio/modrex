@@ -61,7 +61,6 @@ impl Moves {
         });
     }
 
-    // Only targets with tracked descendants own a copy of an app folder.
     pub(super) fn folder(
         &mut self,
         game_path: &str,
@@ -205,6 +204,9 @@ impl Applied {
     }
 }
 
+// App folders are created in the primary tree, so the primary always takes part. Another
+// target joins only when it tracks a mod inside the folder, so a same-named directory that
+// belongs to something else is never moved.
 pub(super) fn folder_targets<'a>(
     cfg: &'a ModEngineConfig,
     folders: &[ModFolder],
@@ -214,6 +216,9 @@ pub(super) fn folder_targets<'a>(
     cfg.targets
         .iter()
         .filter(|target| {
+            if target.tag == cfg.primary().tag {
+                return true;
+            }
             mods.iter().any(|m| {
                 if cfg.mod_target(m).tag != target.tag {
                     return false;
