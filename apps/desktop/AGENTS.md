@@ -192,4 +192,5 @@ as `chore(release): X.Y.Z`, and creates an annotated `vX.Y.Z` tag. It also stamp
 workflow waits for CI to pass on that exact commit, builds the signed updater artifacts,
 and creates a draft GitHub Release named `vX.Y.Z`. Publishing that draft makes its
 `latest.json` available to installed clients and triggers
-`.github/workflows/site-deploy-hook.yml` to rebuild modrex.net.
+`.github/workflows/distribute-release.yml`, which waits out the `release` environment's
+timer and then rebuilds modrex.net, posts to Discord and submits to WinGet.
