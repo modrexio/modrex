@@ -662,6 +662,7 @@ export function InstalledPage({
                         </span>
                         <button
                             onClick={() => setLocationsError(null)}
+                            aria-label={t('common.dismiss')}
                             className="shrink-0 hover:opacity-70 transition-opacity"
                         >
                             <X className="w-3.5 h-3.5" />
@@ -673,6 +674,7 @@ export function InstalledPage({
                         <span className="truncate">{modActionError}</span>
                         <button
                             onClick={clearModActionError}
+                            aria-label={t('common.dismiss')}
                             className="shrink-0 hover:opacity-70 transition-opacity"
                         >
                             <X className="w-3.5 h-3.5" />
@@ -684,6 +686,7 @@ export function InstalledPage({
                         <span className="truncate">{dropError}</span>
                         <button
                             onClick={clearDropError}
+                            aria-label={t('common.dismiss')}
                             className="shrink-0 hover:opacity-70 transition-opacity"
                         >
                             <X className="w-3.5 h-3.5" />
@@ -695,6 +698,7 @@ export function InstalledPage({
                         <span className="truncate">{folderActions.folderActionError}</span>
                         <button
                             onClick={folderActions.clearFolderActionError}
+                            aria-label={t('common.dismiss')}
                             className="shrink-0 hover:opacity-70 transition-opacity"
                         >
                             <X className="w-3.5 h-3.5" />
@@ -708,6 +712,7 @@ export function InstalledPage({
                         </span>
                         <button
                             onClick={clearReinstallError}
+                            aria-label={t('common.dismiss')}
                             className="shrink-0 hover:opacity-70 transition-opacity"
                         >
                             <X className="w-3.5 h-3.5" />
@@ -725,6 +730,7 @@ export function InstalledPage({
                         <span className="truncate">{identifyNexusResult.message}</span>
                         <button
                             onClick={dismissIdentifyNexusResult}
+                            aria-label={t('common.dismiss')}
                             className="shrink-0 hover:opacity-70 transition-opacity"
                         >
                             <X className="w-3.5 h-3.5" />

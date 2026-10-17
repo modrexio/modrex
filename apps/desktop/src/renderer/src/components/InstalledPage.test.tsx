@@ -4,6 +4,49 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import type { ReactNode } from 'react'
 import type { GameId, InstalledMod } from '../../../shared/types'
 
+const banner = vi.hoisted(() => ({ kind: '', dismiss: vi.fn() }))
+
+vi.mock('../hooks/useModActions', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('../hooks/useModActions')>()
+    return {
+        ...actual,
+        useModActions: (...args: Parameters<typeof actual.useModActions>) => ({
+            ...actual.useModActions(...args),
+            modActionError: banner.kind === 'mod action' ? 'Mod action failed' : null,
+            clearModActionError: banner.dismiss,
+            reinstallError: banner.kind === 'reinstall' ? 'Reinstall failed' : null,
+            clearReinstallError: banner.dismiss,
+            identifyNexusResult:
+                banner.kind === 'identify'
+                    ? { kind: 'error' as const, message: 'Identification failed' }
+                    : null,
+            dismissIdentifyNexusResult: banner.dismiss,
+        }),
+    }
+})
+vi.mock('../hooks/useFolderActions', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('../hooks/useFolderActions')>()
+    return {
+        ...actual,
+        useFolderActions: (...args: Parameters<typeof actual.useFolderActions>) => ({
+            ...actual.useFolderActions(...args),
+            folderActionError: banner.kind === 'folder action' ? 'Folder action failed' : null,
+            clearFolderActionError: banner.dismiss,
+        }),
+    }
+})
+vi.mock('../hooks/useDragDrop', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('../hooks/useDragDrop')>()
+    return {
+        ...actual,
+        useDragDrop: (...args: Parameters<typeof actual.useDragDrop>) => ({
+            ...actual.useDragDrop(...args),
+            dropError: banner.kind === 'drop' ? 'Drop failed' : null,
+            clearDropError: banner.dismiss,
+        }),
+    }
+})
+
 vi.mock('../api')
 vi.mock('../hooks/useModData', () => ({
     useModData: () => ({
@@ -27,6 +70,7 @@ import { InstalledPage } from './InstalledPage'
 import { t } from '../i18n'
 
 beforeEach(() => {
+    banner.kind = ''
     localStorage.clear()
     vi.spyOn(HTMLElement.prototype, 'scrollIntoView').mockImplementation(() => {})
     vi.mocked(api.listLoaders).mockResolvedValue([])
@@ -117,4 +161,27 @@ describe('InstalledPage header', () => {
         fireEvent.click(tabs[0])
         expect(screen.getByRole('button', { name: t('installed.newFolder') }).textContent).toBe('')
     })
+})
+
+describe('InstalledPage banner dismissal', () => {
+    it('names and dismisses the location loading error button', async () => {
+        vi.mocked(api.listModFolders).mockRejectedValue(new Error('Locations unavailable'))
+        renderPage()
+        const message = t('installed.tabs.loadFailed', { error: 'Error: Locations unavailable' })
+        await screen.findByText(message)
+        const dismiss = screen.getByRole('button', { name: t('common.dismiss') })
+        fireEvent.click(dismiss)
+        expect(screen.queryByText(message)).toBeNull()
+    })
+
+    it.each(['mod action', 'drop', 'folder action', 'reinstall', 'identify'])(
+        'names the %s banner dismiss button and calls its handler',
+        async (kind) => {
+            banner.kind = kind
+            renderPage()
+            await waitFor(() => expect(api.listModFolders).toHaveBeenCalledWith('raid'))
+            fireEvent.click(screen.getByRole('button', { name: t('common.dismiss') }))
+            expect(banner.dismiss).toHaveBeenCalledOnce()
+        }
+    )
 })
