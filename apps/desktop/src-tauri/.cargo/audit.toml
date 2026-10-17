@@ -4,4 +4,12 @@ ignore = [
     "RUSTSEC-2026-0195",
     # sevenz-rust path traversal, all call sites write through safe_dest instead
     "RUSTSEC-2026-0245",
+    # zip extract applies permissions and links outside the target. Modrex never calls
+    # extract and writes every entry through safe_dest, which clippy.toml enforces. The
+    # updater's copy unpacks a zip only after the minisign check, and createUpdaterArtifacts
+    # ships the signed NSIS installer itself, so no update Modrex installs is a zip. Remove
+    # once Modrex and tauri-plugin-updater both depend on zip 9 or later.
+    "RUSTSEC-2026-0367",
+    "RUSTSEC-2026-0368",
+    "RUSTSEC-2026-0369",
 ]
