@@ -15,6 +15,8 @@ interface Props {
     mod: ModSummary
     installed: InstalledMod | undefined
     sourceLabel?: string
+    // Names the other locations an installed mod also has files in.
+    locationNote?: string
     loaderInstalled?: boolean
     onOpen: () => void
     onInstall: () => void
@@ -35,6 +37,7 @@ export function ModCard({
     mod,
     installed,
     sourceLabel,
+    locationNote,
     loaderInstalled,
     onOpen,
     onInstall,
@@ -97,6 +100,11 @@ export function ModCard({
                         {mod.name}
                     </h3>
                     <p className="text-xs leading-4 text-text-muted">{mod.user.name}</p>
+                    {locationNote && (
+                        <p className="text-xs leading-4 text-text-subtle truncate">
+                            {locationNote}
+                        </p>
+                    )}
                     {installed?.deployment && (
                         <p className="text-xs text-accent mt-1">
                             {t(`resources.${installed.deployment}`)}

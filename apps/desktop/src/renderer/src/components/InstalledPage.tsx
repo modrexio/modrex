@@ -1,6 +1,6 @@
 import { ScrollArea } from './ScrollArea'
-import { useState, useMemo, useEffect, useRef } from 'react'
-import { TITLE_ROW_MIN_H } from './pageHeader'
+import { useState, useMemo, useEffect, useRef, useId } from 'react'
+import { TITLE_ROW_H } from './pageHeader'
 import { Button } from './ui/Button'
 import { SearchClearButton } from './ui/SearchClearButton'
 import {
@@ -13,7 +13,7 @@ import {
     RefreshCw,
     Activity,
 } from 'lucide-react'
-import { t } from '../i18n'
+import { getLocale, t } from '../i18n'
 import { Tooltip } from './Tooltip'
 import { useInstallChoiceOpen } from '../installChoices'
 import { Ue4ssRemoveModal } from './Ue4ssRemoveModal'
@@ -25,6 +25,13 @@ import { FolderSection, NewFolderInput } from './FolderSection'
 import { InstalledModItem } from './InstalledModItem'
 import { ResourceRecoveryDialog } from './ResourceRecoveryDialog'
 import { InstalledContext } from './InstalledContext'
+import {
+    InstalledTabBar,
+    installedTabId,
+    installedTabPanelId,
+    type InstalledTab,
+} from './InstalledTabBar'
+import { folderLabel } from './folderLabel'
 import type { InstalledMod, ModFolder, GameId } from '../../../shared/types'
 import { GAME_STORAGE_KEY, GAMES } from '../../../shared/types'
 import { useModData } from '../hooks/useModData'
@@ -39,14 +46,29 @@ import {
     normalizeModScopes,
     foldersEmptiedByNormalize,
     filterInstalled,
+    getAllModsInFolder,
     modworkshopRemoteIds,
     identityKey,
     withDeclaredMetadata,
 } from '../hooks/installedUtils'
 import { checkMissingDependencies, type HealthItem } from '../hooks/healthCheck'
-import { api } from '../api'
+import {
+    GAME_FILES_TAB,
+    activeTabKey,
+    filesOnOtherTabs,
+    foldersHoldingMods,
+    installedTabKey,
+    needsAttention,
+    orderedTabKeys,
+} from '../hooks/installedTabs'
+import { loadLoaderRegistry, loadersForGame } from '../loaders'
+import { api, type LoaderInfo, type ModFolderInfo } from '../api'
 
 type ViewMode = 'grid' | 'list'
+
+function uniqueModCount(mods: InstalledMod[]): number {
+    return new Set(mods.map(identityKey)).size
+}
 
 function getSavedViewMode(): ViewMode {
     const saved = localStorage.getItem(`modrex:${GAME_STORAGE_KEY}:installed-view`)
@@ -155,6 +177,66 @@ export function InstalledPage({
         setHealthMissingDeps(deps)
     }
 
+    // Loaders route their mods to a tab, so the targets are only taken once the loader
+    // registry has landed, and the page stays a single list until both have.
+    const [locations, setLocations] = useState<{
+        targets: ModFolderInfo[]
+        loaders: LoaderInfo[]
+    } | null>(null)
+    const [locationsError, setLocationsError] = useState<string | null>(null)
+    useEffect(() => {
+        let cancelled = false
+        Promise.all([api.listModFolders(activeGame), loadLoaderRegistry()]).then(
+            ([targets]) => {
+                if (!cancelled) setLocations({ targets, loaders: loadersForGame(activeGame) })
+            },
+            (error: unknown) => {
+                if (!cancelled) setLocationsError(String(error))
+            }
+        )
+        return () => {
+            cancelled = true
+        }
+    }, [activeGame])
+    const targets = locations?.targets
+    const primaryTag = targets?.[0]?.tag
+
+    const tabOf = useMemo(() => {
+        const byUid = new Map<string, string>()
+        if (!locations || !primaryTag) return byUid
+        for (const m of installed) {
+            byUid.set(m.uid, installedTabKey(m, installed, primaryTag, locations.loaders))
+        }
+        return byUid
+    }, [installed, primaryTag, locations])
+    const tabKeys = useMemo(
+        () =>
+            orderedTabKeys(
+                (targets ?? []).map((target) => target.tag),
+                tabOf.values()
+            ),
+        [targets, tabOf]
+    )
+
+    const tabStorageKey = `modrex:${GAMES[activeGame].storageKey}:installed-tab`
+    const [savedTab, setSavedTab] = useState(() => localStorage.getItem(tabStorageKey))
+    // Null while the page has one location, which renders the whole library as one list.
+    const activeTab = activeTabKey(tabKeys, savedTab)
+    // App folders live in the primary target's tree, so only its tab creates, renames, moves
+    // or deletes them. Another tab shows the folders holding its own mods, read-only.
+    const foldersEditable = activeTab === null || activeTab === primaryTag
+    const tabMods = useMemo(
+        () =>
+            activeTab === null
+                ? installed
+                : installed.filter((m) => tabOf.get(m.uid) === activeTab),
+        [installed, tabOf, activeTab]
+    )
+    const tabFolders = useMemo(
+        () => (foldersEditable ? folders : foldersHoldingMods(tabMods, folders)),
+        [foldersEditable, folders, tabMods]
+    )
+
     const [filterQuery, setFilterQuery] = useState('')
     // Which group's ManageFilesModal is open. Lives here (not in InstalledModItem)
     // because items remount when their uid-derived keys shift after a deletion.
@@ -199,18 +281,103 @@ export function InstalledPage({
         dropTarget,
         dropError,
         clearDropError,
+        cancelDrag,
         scrollContainerRef,
         onModPointerDown,
         onFolderPointerDown,
-    } = useDragDrop({ installed, folders, gamePath, modData, onRefreshInstalled, activeGame })
+    } = useDragDrop({
+        tabMods,
+        folders,
+        gamePath,
+        modData,
+        onRefreshInstalled,
+        activeGame,
+    })
 
-    const isFiltering = filterQuery.trim().length > 0
-    const { mods: displayMods, visibleFolderIds } = isFiltering
-        ? filterInstalled(installed, folders, filterQuery.trim())
-        : { mods: installed, visibleFolderIds: undefined }
+    const query = filterQuery.trim()
+    const isFiltering = query.length > 0
+    const filtered = useMemo(
+        () => (query.length > 0 ? filterInstalled(installed, folders, query) : null),
+        [installed, folders, query]
+    )
+    const matchedMods = filtered?.mods ?? installed
+    const displayMods = useMemo(
+        () =>
+            activeTab === null
+                ? matchedMods
+                : matchedMods.filter((m) => tabOf.get(m.uid) === activeTab),
+        [matchedMods, tabOf, activeTab]
+    )
+    // The folders holding this tab's matches, so a folder whose matches are all on another
+    // tab does not show here as an empty drop zone.
+    const visibleFolderIds = useMemo(
+        () =>
+            isFiltering
+                ? new Set(foldersHoldingMods(displayMods, folders).map((folder) => folder.id))
+                : undefined,
+        [isFiltering, displayMods, folders]
+    )
 
-    const totalUniqueMods = new Set(installed.map(identityKey)).size
-    const filteredUniqueMods = new Set(displayMods.map(identityKey)).size
+    const totalUniqueMods = uniqueModCount(tabMods)
+    const filteredUniqueMods = uniqueModCount(displayMods)
+
+    const tabs = useMemo((): InstalledTab[] => {
+        if (activeTab === null) return []
+        return tabKeys.map((key) => {
+            const mods = installed.filter((m) => tabOf.get(m.uid) === key)
+            const matches = matchedMods.filter((m) => tabOf.get(m.uid) === key)
+            return {
+                key,
+                label:
+                    key === GAME_FILES_TAB
+                        ? t('installed.tabs.gameFiles')
+                        : folderLabel(targets!.find((target) => target.tag === key)!),
+                count: uniqueModCount(matches),
+                hasProblem: mods.some(needsAttention),
+            }
+        })
+    }, [activeTab, tabKeys, installed, matchedMods, tabOf, targets])
+    const otherTabMatch = isFiltering
+        ? tabs.find((tab) => tab.key !== activeTab && tab.count > 0)
+        : undefined
+    const activeTabLabel = tabs.find((tab) => tab.key === activeTab)?.label
+
+    // Labels of the given tab keys in tab order, as one localized list.
+    function listTabs(keys: Set<string>): string {
+        const labels = tabs.filter((tab) => keys.has(tab.key)).map((tab) => tab.label)
+        return new Intl.ListFormat(getLocale(), { type: 'conjunction' }).format(labels)
+    }
+
+    // Each card acts on its mod's whole file set, so it carries the files on other tabs and
+    // names those tabs.
+    const elsewhereById = new Map<number, { files: InstalledMod[]; tabs: string }>()
+    if (activeTab !== null) {
+        for (const [id, entry] of filesOnOtherTabs(installed, tabOf, activeTab)) {
+            elsewhereById.set(id, { files: entry.files, tabs: listTabs(new Set(entry.tabKeys)) })
+        }
+    }
+
+    // Deleting a folder moves its contents to the parent in every target, so the confirmation
+    // names the other tabs whose mods move with it.
+    function deletingFolderOtherTabs(folderId: string): string | null {
+        if (activeTab === null) return null
+        const affected = new Set(
+            getAllModsInFolder(installed, folders, folderId)
+                .map((m) => tabOf.get(m.uid)!)
+                .filter((tab) => tab !== activeTab)
+        )
+        return affected.size > 0 ? listTabs(affected) : null
+    }
+
+    const tabBaseId = useId()
+
+    function selectTab(key: string) {
+        // The drag's drop targets belong to the tab it started on.
+        cancelDrag()
+        setSavedTab(key)
+        localStorage.setItem(tabStorageKey, key)
+        scrollContainerRef.current?.scrollTo({ top: 0 })
+    }
 
     function setView(mode: ViewMode) {
         setViewMode(mode)
@@ -220,13 +387,13 @@ export function InstalledPage({
     const renderMods = useMemo(() => normalizeModScopes(displayMods), [displayMods])
 
     const hiddenFolderIds = useMemo(
-        () => foldersEmptiedByNormalize(displayMods, renderMods, folders),
-        [displayMods, renderMods, folders]
+        () => foldersEmptiedByNormalize(displayMods, renderMods, tabFolders),
+        [displayMods, renderMods, tabFolders]
     )
 
     const rootChildren = useMemo(
-        () => computeChildren(renderMods, folders, null, visibleFolderIds, hiddenFolderIds),
-        [renderMods, folders, visibleFolderIds, hiddenFolderIds]
+        () => computeChildren(renderMods, tabFolders, null, visibleFolderIds, hiddenFolderIds),
+        [renderMods, tabFolders, visibleFolderIds, hiddenFolderIds]
     )
 
     function renderRootMod(mods: InstalledMod[], isFolderDropZone = false) {
@@ -273,6 +440,9 @@ export function InstalledPage({
         hiddenFolderIds,
         renderMods,
         folders,
+        tabFolders,
+        foldersEditable,
+        elsewhereById,
         installed,
         onRefreshInstalled,
         onOpenDetail,
@@ -327,70 +497,88 @@ export function InstalledPage({
                     />
                 )}
                 <div className="px-6 py-4 border-b border-border shrink-0 flex flex-col gap-3">
-                    <div className={`flex items-center justify-between ${TITLE_ROW_MIN_H}`}>
-                        <div className="flex items-center gap-2">
-                            <h1 className="text-lg font-semibold">{t('installed.title')}</h1>
-                            {gamePath && (
-                                <Tooltip content={t('installed.openFolder')}>
-                                    <button
-                                        onClick={() => api.openModsFolder(activeGame)}
-                                        className="p-1 rounded bg-surface-hover hover:bg-surface-active text-text-subtle hover:text-text transition-colors"
+                    <div className={`flex items-center justify-between gap-2 ${TITLE_ROW_H}`}>
+                        <div className="flex items-center gap-2 min-w-0">
+                            <div className="flex items-center gap-2 shrink-0">
+                                <h1 className="text-lg font-semibold">{t('installed.title')}</h1>
+                                <Tooltip content={t('installed.refresh')}>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        aria-label={t('installed.refresh')}
+                                        onClick={handleRefresh}
+                                        disabled={refreshing}
+                                        className="p-1 rounded bg-surface-hover hover:bg-surface-active disabled:opacity-40 disabled:cursor-not-allowed text-text-subtle hover:text-text transition-colors"
                                     >
-                                        <FolderOpen className="w-3.5 h-3.5" />
-                                    </button>
+                                        <RefreshCw
+                                            className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`}
+                                        />
+                                    </Button>
                                 </Tooltip>
-                            )}
-                            <Tooltip content={t('installed.refresh')}>
-                                <button
-                                    onClick={handleRefresh}
-                                    disabled={refreshing}
-                                    className="p-1 rounded bg-surface-hover hover:bg-surface-active disabled:opacity-40 disabled:cursor-not-allowed text-text-subtle hover:text-text transition-colors"
-                                >
-                                    <RefreshCw
-                                        className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`}
-                                    />
-                                </button>
-                            </Tooltip>
-                            <Tooltip
-                                content={
-                                    checkingHealth
-                                        ? t('installed.health.cancel')
-                                        : t('installed.health.title')
-                                }
-                            >
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    aria-label={
+                                <Tooltip
+                                    content={
                                         checkingHealth
                                             ? t('installed.health.cancel')
                                             : t('installed.health.title')
                                     }
-                                    onClick={
-                                        checkingHealth
-                                            ? cancelHealthCheck
-                                            : () => void runHealthCheck()
-                                    }
-                                    className="group flex items-center gap-1.5 p-1 rounded transition-colors bg-surface-hover hover:bg-surface-active text-text-subtle hover:text-text cursor-pointer"
                                 >
-                                    {checkingHealth ? (
-                                        <>
-                                            <RefreshCw className="group-hover:hidden w-3.5 h-3.5 animate-spin" />
-                                            <X className="hidden group-hover:block w-3.5 h-3.5" />
-                                            {healthProgress && (
-                                                <span className="pr-1 text-[10px] font-medium leading-none tabular-nums">
-                                                    {healthProgress.checked}/{healthProgress.total}
-                                                </span>
-                                            )}
-                                        </>
-                                    ) : (
-                                        <Activity className="w-3.5 h-3.5" />
-                                    )}
-                                </Button>
-                            </Tooltip>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        aria-label={
+                                            checkingHealth
+                                                ? t('installed.health.cancel')
+                                                : t('installed.health.title')
+                                        }
+                                        onClick={
+                                            checkingHealth
+                                                ? cancelHealthCheck
+                                                : () => void runHealthCheck()
+                                        }
+                                        className="group flex items-center gap-1.5 p-1 rounded transition-colors bg-surface-hover hover:bg-surface-active text-text-subtle hover:text-text cursor-pointer"
+                                    >
+                                        {checkingHealth ? (
+                                            <>
+                                                <RefreshCw className="group-hover:hidden w-3.5 h-3.5 animate-spin" />
+                                                <X className="hidden group-hover:block w-3.5 h-3.5" />
+                                                {healthProgress && (
+                                                    <span className="pr-1 text-[10px] font-medium leading-none tabular-nums">
+                                                        {healthProgress.checked}/
+                                                        {healthProgress.total}
+                                                    </span>
+                                                )}
+                                            </>
+                                        ) : (
+                                            <Activity className="w-3.5 h-3.5" />
+                                        )}
+                                    </Button>
+                                </Tooltip>
+                                {gamePath && activeTab === null && (
+                                    <Tooltip content={t('installed.openFolder')}>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            aria-label={t('installed.openFolder')}
+                                            onClick={() => api.openModsFolder(activeGame)}
+                                            className="p-1 rounded bg-surface-hover hover:bg-surface-active text-text-subtle hover:text-text transition-colors"
+                                        >
+                                            <FolderOpen className="w-3.5 h-3.5" />
+                                        </Button>
+                                    </Tooltip>
+                                )}
+                            </div>
+                            {activeTab !== null && (
+                                <InstalledTabBar
+                                    baseId={tabBaseId}
+                                    tabs={tabs}
+                                    activeKey={activeTab}
+                                    onSelect={selectTab}
+                                    onOpenFolder={(tag) => api.openModFolder(activeGame, tag)}
+                                />
+                            )}
                         </div>
-                        <div className="flex items-center gap-3">
-                            {installed.length > 0 && (
+                        <div className="flex items-center gap-3 shrink-0">
+                            {activeTab === null && installed.length > 0 && (
                                 <span className="text-xs text-text-subtle">
                                     {isFiltering
                                         ? t('installed.modCountFiltered', {
@@ -405,31 +593,41 @@ export function InstalledPage({
                                           )}
                                 </span>
                             )}
-                            {gamePath && (
-                                <button
-                                    onClick={() => folderActions.startCreateFolder(null)}
-                                    className="flex items-center gap-1.5 text-xs px-2 py-1 rounded bg-surface-hover hover:bg-surface-active text-text-subtle hover:text-text transition-colors"
-                                >
-                                    <FolderPlus className="w-3.5 h-3.5" />
-                                    {t('installed.newFolder')}
-                                </button>
+                            {gamePath && foldersEditable && (
+                                <Tooltip content={t('installed.newFolder')}>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        aria-label={t('installed.newFolder')}
+                                        onClick={() => folderActions.startCreateFolder(null)}
+                                        className="p-1 rounded bg-surface-hover hover:bg-surface-active text-text-subtle hover:text-text transition-colors"
+                                    >
+                                        <FolderPlus className="w-3.5 h-3.5" />
+                                    </Button>
+                                </Tooltip>
                             )}
                             <div className="flex items-center gap-1 bg-surface-hover rounded p-0.5">
                                 <Tooltip content={t('installed.gridView')}>
-                                    <button
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        aria-label={t('installed.gridView')}
                                         onClick={() => setView('grid')}
                                         className={`p-1 rounded transition-colors ${viewMode === 'grid' ? 'bg-surface-active text-text' : 'text-text-subtle hover:text-text hover:bg-surface-active/50'}`}
                                     >
                                         <LayoutGrid className="w-3.5 h-3.5" />
-                                    </button>
+                                    </Button>
                                 </Tooltip>
                                 <Tooltip content={t('installed.listView')}>
-                                    <button
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        aria-label={t('installed.listView')}
                                         onClick={() => setView('list')}
                                         className={`p-1 rounded transition-colors ${viewMode === 'list' ? 'bg-surface-active text-text' : 'text-text-subtle hover:text-text hover:bg-surface-active/50'}`}
                                     >
                                         <List className="w-3.5 h-3.5" />
-                                    </button>
+                                    </Button>
                                 </Tooltip>
                             </div>
                         </div>
@@ -450,6 +648,19 @@ export function InstalledPage({
                     )}
                 </div>
 
+                {locationsError && (
+                    <div className="px-6 py-2 shrink-0 flex items-center justify-between gap-3 bg-danger/10 border-b border-danger/30 text-danger text-xs">
+                        <span className="truncate">
+                            {t('installed.tabs.loadFailed', { error: locationsError })}
+                        </span>
+                        <button
+                            onClick={() => setLocationsError(null)}
+                            className="shrink-0 hover:opacity-70 transition-opacity"
+                        >
+                            <X className="w-3.5 h-3.5" />
+                        </button>
+                    </div>
+                )}
                 {modActionError && (
                     <div className="px-6 py-2 shrink-0 flex items-center justify-between gap-3 bg-danger/10 border-b border-danger/30 text-danger text-xs">
                         <span className="truncate">{modActionError}</span>
@@ -517,6 +728,11 @@ export function InstalledPage({
                     hostClassName="flex-1"
                     ref={scrollContainerRef}
                     className="overflow-y-auto px-6 py-4 flex flex-col gap-3"
+                    role={activeTab === null ? undefined : 'tabpanel'}
+                    id={activeTab === null ? undefined : installedTabPanelId(tabBaseId)}
+                    aria-labelledby={
+                        activeTab === null ? undefined : installedTabId(tabBaseId, activeTab)
+                    }
                 >
                     {!installedReady ? (
                         <div className="flex items-center justify-center h-full text-text-subtle text-sm">
@@ -528,9 +744,25 @@ export function InstalledPage({
                         <div className="flex items-center justify-center h-full text-text-subtle text-sm">
                             {t('installed.empty')}
                         </div>
+                    ) : isFiltering && displayMods.length === 0 && otherTabMatch ? (
+                        <div className="flex flex-col items-center justify-center gap-3 h-full text-text-subtle text-sm">
+                            {t(
+                                otherTabMatch.count === 1
+                                    ? 'installed.tabs.matchesElsewhereSingle'
+                                    : 'installed.tabs.matchesElsewhere',
+                                { query, count: otherTabMatch.count, tab: otherTabMatch.label }
+                            )}
+                            <Button
+                                variant="secondary"
+                                size="sm"
+                                onClick={() => selectTab(otherTabMatch.key)}
+                            >
+                                {t('installed.tabs.showTab', { tab: otherTabMatch.label })}
+                            </Button>
+                        </div>
                     ) : isFiltering && displayMods.length === 0 ? (
                         <div className="flex items-center justify-center h-full text-text-subtle text-sm">
-                            {t('installed.filterEmpty', { query: filterQuery.trim() })}
+                            {t('installed.filterEmpty', { query })}
                         </div>
                     ) : (
                         <>
@@ -554,7 +786,18 @@ export function InstalledPage({
                                 </div>
                             )}
 
-                            {folderActions.creatingFolderParentId === null && <NewFolderInput />}
+                            {foldersEditable && folderActions.creatingFolderParentId === null && (
+                                <NewFolderInput />
+                            )}
+
+                            {activeTab !== null &&
+                                !isFiltering &&
+                                rootChildren.length === 0 &&
+                                folderActions.creatingFolderParentId !== null && (
+                                    <div className="flex-1 flex items-center justify-center text-text-subtle text-sm">
+                                        {t('installed.tabs.empty', { tab: activeTabLabel! })}
+                                    </div>
+                                )}
 
                             {viewMode === 'list' ? (
                                 <div className="flex flex-col gap-1.5">
@@ -665,6 +908,7 @@ export function InstalledPage({
 
                 {folderActions.deletingFolderId !== null && (
                     <DeleteFolderModal
+                        otherTabs={deletingFolderOtherTabs(folderActions.deletingFolderId)}
                         onConfirm={folderActions.confirmDeleteFolder}
                         onCancel={folderActions.cancelDelete}
                     />

@@ -54,7 +54,8 @@ export function FolderSection({ folder }: Props) {
         visibleFolderIds,
         hiddenFolderIds,
         renderMods,
-        folders,
+        tabFolders,
+        foldersEditable,
         dragItem,
         dropTarget,
         folderActions,
@@ -85,16 +86,17 @@ export function FolderSection({ folder }: Props) {
 
     const children = computeChildren(
         renderMods,
-        folders,
+        tabFolders,
         folder.id,
         visibleFolderIds,
         hiddenFolderIds
     )
     const isEmpty = children.length === 0
-    const folderMods = getAllModsInFolder(renderMods, folders, folder.id)
+    const folderMods = getAllModsInFolder(renderMods, tabFolders, folder.id)
     const normalizedCount = new Set(folderMods.map(identityKey)).size
     const anyEnabled = folderMods.some((m) => m.enabled)
     const isFolderLoading = loadingFolderId === folder.id
+    const canDrag = foldersEditable && !isRenaming
 
     return (
         <div
@@ -102,13 +104,13 @@ export function FolderSection({ folder }: Props) {
         >
             {isDropBeforeThis && <div className="h-0.5 rounded-full bg-accent mx-2 mb-1" />}
             <div
-                data-drop-folder-header={folder.id}
-                data-parent-id={folder.parentId ?? ''}
+                data-drop-folder-header={foldersEditable ? folder.id : undefined}
+                data-parent-id={foldersEditable ? (folder.parentId ?? '') : undefined}
                 onPointerDown={(e) => {
-                    if (!isRenaming) onFolderPointerDown(e, folder.id)
+                    if (canDrag) onFolderPointerDown(e, folder.id)
                 }}
                 className={`group flex items-center gap-1.5 px-2 py-2 rounded-lg border transition-colors ${
-                    !isRenaming ? 'cursor-grab active:cursor-grabbing' : ''
+                    canDrag ? 'cursor-grab active:cursor-grabbing' : ''
                 } ${isDropInto ? 'border-accent bg-accent/10' : 'border-border bg-surface-raised'}`}
             >
                 <Button
@@ -150,24 +152,26 @@ export function FolderSection({ folder }: Props) {
                     <div className="flex items-center gap-1 flex-1 min-w-0">
                         <span
                             className="text-sm font-medium truncate cursor-default"
-                            onDoubleClick={() => startRename(folder)}
+                            onDoubleClick={foldersEditable ? () => startRename(folder) : undefined}
                         >
                             {folder.displayName}
                         </span>
-                        <Tooltip content={t('installed.folder.rename')}>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={(e) => {
-                                    e.stopPropagation()
-                                    startRename(folder)
-                                }}
-                                onMouseDown={(e) => e.stopPropagation()}
-                                className="p-0.5 shrink-0 opacity-0 group-hover:opacity-100"
-                            >
-                                <Pencil className="w-3 h-3" />
-                            </Button>
-                        </Tooltip>
+                        {foldersEditable && (
+                            <Tooltip content={t('installed.folder.rename')}>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={(e) => {
+                                        e.stopPropagation()
+                                        startRename(folder)
+                                    }}
+                                    onMouseDown={(e) => e.stopPropagation()}
+                                    className="p-0.5 shrink-0 opacity-0 group-hover:opacity-100"
+                                >
+                                    <Pencil className="w-3 h-3" />
+                                </Button>
+                            </Tooltip>
+                        )}
                     </div>
                 )}
 
@@ -196,7 +200,7 @@ export function FolderSection({ folder }: Props) {
                     </div>
                 )}
 
-                {!isRenaming && gamePath && (
+                {!isRenaming && gamePath && foldersEditable && (
                     <Tooltip content={t('installed.folder.newSubfolder')}>
                         <button
                             onClick={(e) => {
@@ -211,7 +215,7 @@ export function FolderSection({ folder }: Props) {
                     </Tooltip>
                 )}
 
-                {!isRenaming && (
+                {!isRenaming && foldersEditable && (
                     <Tooltip content={t('installed.folder.delete')}>
                         <Button
                             variant="danger"
@@ -235,7 +239,7 @@ export function FolderSection({ folder }: Props) {
                 >
                     {creatingFolderParentId === folder.id && <NewFolderInput />}
 
-                    {isEmpty && creatingFolderParentId !== folder.id ? (
+                    {isEmpty && foldersEditable && creatingFolderParentId !== folder.id ? (
                         <div
                             data-drop-empty-folder={folder.id}
                             className={`h-10 rounded-lg border border-dashed transition-colors flex items-center justify-center text-xs text-text-subtle ${

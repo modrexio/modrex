@@ -15,6 +15,11 @@ export interface InstalledContextValue {
     hiddenFolderIds: Set<string>
     renderMods: InstalledMod[]
     folders: ModFolder[]
+    // The folders the tab on screen shows, and whether this tab may change them.
+    tabFolders: ModFolder[]
+    foldersEditable: boolean
+    // A mod's files on other tabs and the names of those tabs, keyed by installed id.
+    elsewhereById: Map<number, { files: InstalledMod[]; tabs: string }>
     installed: InstalledMod[]
     onRefreshInstalled: () => Promise<void>
     onOpenDetail: (modId: number, source?: 'nexus') => void

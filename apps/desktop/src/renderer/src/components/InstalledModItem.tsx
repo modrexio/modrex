@@ -8,6 +8,7 @@ import { SkeletonCard } from './SkeletonCard'
 import { SkeletonListRow } from './SkeletonListRow'
 import { syntheticMod, detailNavArgs, hasCatalogLink, identityKey } from '../hooks/installedUtils'
 import { useInstalledContext } from './InstalledContext'
+import { joinsFileSet } from '../hooks/installedTabs'
 import { ManageFilesModal } from './ManageFilesModal'
 import { PakViewerModal } from './PakViewerModal'
 import { SOURCE_LABELS, hasSource, sourcesForGame } from '../sources'
@@ -42,6 +43,7 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
         manageFilesKey,
         setManageFilesKey,
         reviewResource,
+        elsewhereById,
     } = useInstalledContext()
 
     const [menuOpen, setMenuOpen] = useState(false)
@@ -67,13 +69,18 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
     const showManageFiles = manageFilesKey === groupKey
     const showPakViewer = pakViewerKey === groupKey
     const apiMod = modData.get(id)
+    // The card shows this tab's files, while every action reaches the mod's files on other
+    // tabs too, so disabling or removing it never leaves another location's half behind.
+    const elsewhere = joinsFileSet(ins) ? elsewhereById.get(id) : undefined
+    const fileSet = elsewhere ? [...mods, ...elsewhere.files] : mods
+    const locationNote = elsewhere && t('installed.tabs.alsoIn', { tabs: elsewhere.tabs })
     const operations = useInstallOperations(activeGame)
     const operation = getModInstall(
         operations,
         ins.source === 'nexus' ? 'nexus' : 'modworkshop',
         Number(ins.remoteId)
     )
-    const isBusy = mods.some((m) => loadingMod === m.uid) || isInstallBusy(operation)
+    const isBusy = fileSet.some((m) => loadingMod === m.uid) || isInstallBusy(operation)
     const isDragging = dragItem?.kind === 'mod' && dragItem.uid === repUid
     const combined: InstalledMod = {
         ...ins,
@@ -257,7 +264,7 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
                 )}
                 {showManageFiles && (
                     <ManageFilesModal
-                        mods={mods}
+                        mods={fileSet}
                         modName={mod.name}
                         onClose={() => setManageFilesKey(null)}
                     />
@@ -274,16 +281,17 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
                     mod={mod}
                     installed={combined}
                     sourceLabel={sourceLabel}
+                    locationNote={locationNote}
                     gamePath={gamePath}
                     loading={isBusy}
                     progress={installProgress(operation)}
                     loadingLabel={isInstallBusy(operation) ? installLabel(operation) : undefined}
                     isDragging={isDragging}
                     onOpen={handleOpen}
-                    onUninstall={() => handleUninstall(mods)}
-                    onEnable={() => handleEnable(mods)}
-                    onDisable={() => handleDisable(mods)}
-                    onReinstall={() => handleReinstall(mods)}
+                    onUninstall={() => handleUninstall(fileSet)}
+                    onEnable={() => handleEnable(fileSet)}
+                    onDisable={() => handleDisable(fileSet)}
+                    onReinstall={() => handleReinstall(fileSet)}
                     onReviewResource={() => reviewResource(ins)}
                     optionsButton={renderMenuButton('left')}
                 />
@@ -306,7 +314,7 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
             <div className="absolute top-2 right-2 z-20">{renderMenuButton('right')}</div>
             {showManageFiles && (
                 <ManageFilesModal
-                    mods={mods}
+                    mods={fileSet}
                     modName={mod.name}
                     onClose={() => setManageFilesKey(null)}
                 />
@@ -323,16 +331,17 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
                 mod={mod}
                 installed={combined}
                 sourceLabel={sourceLabel}
+                locationNote={locationNote}
                 gamePath={gamePath}
                 loading={isBusy}
                 progress={installProgress(operation)}
                 loadingLabel={isInstallBusy(operation) ? installLabel(operation) : undefined}
                 onOpen={handleOpen}
                 onInstall={() => {}}
-                onUninstall={() => handleUninstall(mods)}
-                onEnable={() => handleEnable(mods)}
-                onDisable={() => handleDisable(mods)}
-                onReinstall={() => handleReinstall(mods)}
+                onUninstall={() => handleUninstall(fileSet)}
+                onEnable={() => handleEnable(fileSet)}
+                onDisable={() => handleDisable(fileSet)}
+                onReinstall={() => handleReinstall(fileSet)}
                 onReviewResource={() => reviewResource(ins)}
             />
         </div>

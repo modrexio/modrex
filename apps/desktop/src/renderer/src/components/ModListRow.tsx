@@ -15,6 +15,8 @@ interface Props {
     mod: ModSummary
     installed: InstalledMod
     sourceLabel?: string
+    // Names the other locations this mod also has files in.
+    locationNote?: string
     gamePath: string | null
     loading: boolean
     loadingLabel?: string
@@ -33,6 +35,7 @@ export function ModListRow({
     mod,
     installed,
     sourceLabel,
+    locationNote,
     gamePath,
     loading,
     loadingLabel,
@@ -112,6 +115,7 @@ export function ModListRow({
                     )}
                     <p className="text-xs text-text-subtle mt-1 tabular-nums">
                         {sourceLabel ? `${sourceLabel} · ${installed.version}` : installed.version}
+                        {locationNote && ` · ${locationNote}`}
                     </p>
                     {loading && loadingLabel && (
                         <p className="text-xs text-accent mt-1" role="status">

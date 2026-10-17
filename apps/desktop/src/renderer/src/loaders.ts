@@ -5,9 +5,21 @@ import { api, type LoaderInfo } from './api'
 // Loaded once at startup so the lookups below can stay synchronous: they run inside
 // render paths (ModDetailPage computes its dep warning while rendering).
 let registry: LoaderInfo[] = []
+let loading: Promise<void> | null = null
 
-export async function loadLoaderRegistry(): Promise<void> {
-    registry = await api.listLoaders()
+// Shared by every caller, so a consumer that must not read the registry before it lands can
+// await the same request startup made. A failed load is forgotten so the next caller retries.
+export function loadLoaderRegistry(): Promise<void> {
+    loading ??= api.listLoaders().then(
+        (loaded) => {
+            registry = loaded
+        },
+        (error: unknown) => {
+            loading = null
+            throw error
+        }
+    )
+    return loading
 }
 
 export function loadersForGame(gameId: string): LoaderInfo[] {

@@ -3,11 +3,13 @@ import { t } from '../i18n'
 import { Button } from './ui/Button'
 
 interface Props {
+    // The other Installed tabs whose mods sit in this folder and move with it.
+    otherTabs: string | null
     onConfirm: () => void
     onCancel: () => void
 }
 
-export function DeleteFolderModal({ onConfirm, onCancel }: Props) {
+export function DeleteFolderModal({ otherTabs, onConfirm, onCancel }: Props) {
     return (
         <Dialog
             open={true}
@@ -21,6 +23,11 @@ export function DeleteFolderModal({ onConfirm, onCancel }: Props) {
                 onClose={onCancel}
                 wrapSubtitle
             />
+            {otherTabs && (
+                <p className="px-5 pt-4 text-xs text-warning">
+                    {t('installed.folder.deleteMovesOtherTabs', { tabs: otherTabs })}
+                </p>
+            )}
             <div className="flex items-center justify-end gap-2 px-5 py-4 shrink-0">
                 <Button variant="secondary" size="sm" onClick={onCancel}>
                     {t('common.cancel')}

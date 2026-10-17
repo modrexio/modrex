@@ -285,6 +285,15 @@
         "listView": "List view",
         "newFolder": "New Folder",
         "tabs": {
+            "label": "Mod locations",
+            "gameFiles": "Game files",
+            "openFolder": "Open {name} folder",
+            "hasProblems": "Needs attention",
+            "matchesElsewhere": "No mods here match \"{query}\", but {count} in {tab} do",
+            "matchesElsewhereSingle": "No mods here match \"{query}\", but {count} in {tab} does",
+            "showTab": "Show {tab}",
+            "empty": "Nothing installed in {tab} yet",
+            "alsoIn": "Also in {tabs}",
             "loadFailed": "Could not read this game's mod locations: {error}"
         },
         "folder": {
@@ -297,6 +306,7 @@
             "newSubfolder": "New Subfolder",
             "delete": "Delete folder",
             "deleteConfirm": "Delete folder and move its contents to the parent?",
+            "deleteMovesOtherTabs": "Its mods in {tabs} move to the parent too.",
             "dropHere": "Drop mods here"
         },
         "fileCount": "{count} files",
