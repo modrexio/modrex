@@ -4,7 +4,8 @@ use tempfile::TempDir;
 
 const SHARED_TARGET: ScanTarget = ScanTarget {
     tag: "paks",
-    label_key: "mods",
+    label_key: "pakMods",
+    label_name: None,
     native_steam_app: Some(78),
     unit: ModUnit::File {
         extension: "pak",

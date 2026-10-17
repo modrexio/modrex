@@ -41,6 +41,7 @@ pub struct StoreLayout {
 pub struct ScanTarget {
     pub tag: &'static str,
     pub label_key: &'static str,
+    pub label_name: Option<&'static str>,
     /// Some when this Unreal target shares a directory with native Steam depot files.
     pub native_steam_app: Option<u32>,
     pub unit: ModUnit,

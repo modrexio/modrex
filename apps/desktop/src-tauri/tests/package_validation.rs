@@ -26,7 +26,7 @@ stores = [
 
 [[targets]]
 tag = "mods"
-label = "mods"
+label = "pak_mods"
 primary = true
 path = ["mods"]
 backup = ["mods.bak"]
@@ -100,7 +100,7 @@ fn an_unknown_value_lists_the_ones_that_exist() {
         "expected one of `archive`, `scan`, `index_gated`",
     );
     assert_rejected(
-        &BASE.replace(r#"label = "mods""#, r#"label = "Mods""#),
+        &BASE.replace(r#"label = "pak_mods""#, r#"label = "Mods""#),
         "unknown variant `Mods`",
     );
 }
@@ -176,6 +176,117 @@ fn a_loader_declared_twice_is_rejected() {
     assert_rejected(
         &format!("{BASE}\n[[loaders]]\nkind = \"dahm\"\n\n[[loaders]]\nkind = \"dahm\"\n"),
         "'dahm' loader twice",
+    );
+}
+
+#[test]
+fn target_labels_have_exact_manifest_values_and_interface_keys() {
+    for (value, key) in [
+        ("mods", "mods"),
+        ("pak_mods", "pakMods"),
+        ("loader_mods", "loaderMods"),
+        ("overrides", "overrides"),
+        ("modkit_mods", "modkitMods"),
+        ("legacy_paks", "legacyPaks"),
+    ] {
+        let text = with_root_declaration("loaders = [{ kind = \"dahm\" }]").replace(
+            "label = \"pak_mods\"",
+            &format!("label = \"{value}\"\nloader = \"dahm\""),
+        );
+        let package: GamePackage = toml::from_str(&text).unwrap();
+        validate::check("fixture", &package).unwrap();
+        assert_eq!(package.targets[0].label.key(), key);
+        assert_eq!(
+            serde_json::to_value(package.targets[0].label).unwrap(),
+            value
+        );
+        assert_eq!(package.targets[0].loader.as_deref(), Some("dahm"));
+    }
+    assert_rejected(
+        &BASE.replace("label = \"pak_mods\"", "label = \"ue4ss_mods\""),
+        "unknown variant `ue4ss_mods`",
+    );
+}
+
+#[test]
+fn a_declared_loader_can_have_no_target_and_a_target_can_have_no_loader() {
+    let text = with_root_declaration("loaders = [{ kind = \"dahm\" }]");
+    let package: GamePackage = toml::from_str(&text).unwrap();
+    validate::check("fixture", &package).unwrap();
+    assert!(package.targets[0].loader.is_none());
+}
+
+#[test]
+fn a_target_loader_must_be_declared_by_the_package() {
+    for loader in ["dahm", "unknown", ""] {
+        assert_rejected(
+            &BASE.replace(
+                "label = \"pak_mods\"",
+                &format!("label = \"pak_mods\"\nloader = \"{loader}\""),
+            ),
+            "which the package does not declare",
+        );
+    }
+}
+
+#[test]
+fn loader_mods_requires_an_explicit_loader() {
+    let text = with_root_declaration("loaders = [{ kind = \"dahm\" }]")
+        .replace("label = \"pak_mods\"", "label = \"loader_mods\"");
+    assert_rejected(&text, "label loader_mods requires a loader");
+}
+
+#[test]
+fn a_loader_cannot_serve_two_targets_even_with_different_labels() {
+    let base = with_root_declaration("loaders = [{ kind = \"dahm\" }]").replace(
+        "label = \"pak_mods\"",
+        "label = \"loader_mods\"\nloader = \"dahm\"",
+    );
+    let extra = second_target("extra", false).replace(
+        "label = \"overrides\"",
+        "label = \"overrides\"\nloader = \"dahm\"",
+    );
+    assert_rejected(
+        &format!("{base}\n{extra}"),
+        "loader 'dahm' to more than one target",
+    );
+}
+
+#[test]
+fn non_loader_labels_are_unique_regardless_of_loader() {
+    for label in ["pak_mods", "overrides", "modkit_mods", "legacy_paks"] {
+        for loaders in [false, true] {
+            let mut base =
+                with_root_declaration("loaders = [{ kind = \"dahm\" }, { kind = \"superblt\" }]")
+                    .replace("label = \"pak_mods\"", &format!("label = \"{label}\""));
+            let mut extra = second_target("extra", false)
+                .replace("label = \"overrides\"", &format!("label = \"{label}\""));
+            if loaders {
+                base = base.replace("primary = true", "loader = \"dahm\"\nprimary = true");
+                extra = extra.replace("primary = false", "loader = \"superblt\"\nprimary = false");
+            }
+            assert_rejected(&format!("{base}\n{extra}"), "repeats resolved label");
+        }
+    }
+}
+
+#[test]
+fn loader_mods_labels_are_distinct_only_for_different_loaders() {
+    let base = with_root_declaration("loaders = [{ kind = \"dahm\" }, { kind = \"superblt\" }]")
+        .replace(
+            "label = \"pak_mods\"",
+            "label = \"loader_mods\"\nloader = \"dahm\"",
+        );
+    let extra = second_target("extra", false).replace(
+        "label = \"overrides\"",
+        "label = \"loader_mods\"\nloader = \"superblt\"",
+    );
+    let text = format!("{base}\n{extra}");
+    let package: GamePackage = toml::from_str(&text).unwrap();
+    validate::check("fixture", &package).unwrap();
+    assert_rejected(
+        &text.replace("loader = \"superblt\"", "loader = \"dahm\""),
+        "loader 'dahm' to more than one target",
     );
 }
 
@@ -296,6 +407,21 @@ fn a_malformed_primary_extension_is_rejected() {
     assert_rejected(&text, "write it bare");
 }
 
+#[test]
+fn the_generic_mods_label_is_only_valid_on_a_sole_target() {
+    let base = BASE.replacen("label = \"pak_mods\"", "label = \"mods\"", 1);
+    let package: GamePackage = toml::from_str(&base).unwrap();
+    validate::check("fixture", &package).unwrap();
+    assert_rejected(
+        &format!(
+            "{base}
+{}",
+            second_target("extra", false)
+        ),
+        "only a game's sole target",
+    );
+}
+
 fn second_target(tag: &str, primary: bool) -> String {
     format!(
         "[[targets]]\ntag = \"{tag}\"\nlabel = \"overrides\"\nprimary = {primary}\npath = [\"other\"]\nbackup = [\"other.bak\"]\nactivation = \"filesystem\"\nload_order = \"none\"\n\n[targets.unit]\nkind = \"directory\"\n\n[targets.unit.discovery]\npolicy = \"all_directories\"\n"
@@ -375,7 +501,7 @@ install = {
 targets = [
     {
         tag = "paks",
-        label = "mods",
+        label = "pak_mods",
         primary = true,
         path = ["Paks"],
         backup = ["Paks.bak"],

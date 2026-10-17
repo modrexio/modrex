@@ -12,6 +12,7 @@ import type {
     DetectedInstall,
     LeftoverFiles,
     LoaderInfo,
+    ModFolderInfo,
     SourceInfo,
     NexusArchiveIdentity,
     NexusContentIdentifyOutcome,
@@ -25,6 +26,7 @@ export type {
     DetectedInstall,
     LeftoverFiles,
     LoaderInfo,
+    ModFolderInfo,
     SourceInfo,
     NexusArchiveIdentity,
     NexusHashMatch,
@@ -598,7 +600,7 @@ export const api = {
     async openModsFolder(gameId: string): Promise<void> {
         await commands.openModsFolder(gameId)
     },
-    listModFolders(gameId: string): Promise<{ tag: string; labelKey: string }[]> {
+    listModFolders(gameId: string): Promise<ModFolderInfo[]> {
         return commands.listModFolders(gameId)
     },
     async openModFolder(gameId: string, tag: string): Promise<void> {

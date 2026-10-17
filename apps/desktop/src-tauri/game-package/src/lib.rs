@@ -516,16 +516,18 @@ pub enum LoadOrder {
     None,
 }
 
-/// The interface name for a target's folder. Closed because every value needs a matching
-/// settings.folders entry in en.json.
+/// The kind of mods a target holds, from a closed interface vocabulary.
+/// LoaderMods substitutes the loader's display name into settings.folders.loaderMods.
+/// Mods names nothing in particular, so validation allows it only on a game's sole target.
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum TargetLabel {
     Mods,
+    PakMods,
+    LoaderMods,
+    Overrides,
     ModkitMods,
     LegacyPaks,
-    Overrides,
-    Ue4ssMods,
 }
 
 impl TargetLabel {
@@ -533,10 +535,11 @@ impl TargetLabel {
     pub fn key(self) -> &'static str {
         match self {
             TargetLabel::Mods => "mods",
+            TargetLabel::PakMods => "pakMods",
+            TargetLabel::LoaderMods => "loaderMods",
             TargetLabel::ModkitMods => "modkitMods",
             TargetLabel::LegacyPaks => "legacyPaks",
             TargetLabel::Overrides => "overrides",
-            TargetLabel::Ue4ssMods => "ue4ssMods",
         }
     }
 }
@@ -548,6 +551,9 @@ pub struct Target {
     /// Stable id, persisted in each installed mod's record. Renaming one is a data migration.
     pub tag: String,
     pub label: TargetLabel,
+    /// The declared loader that reads this folder, including folders labelled Overrides.
+    #[serde(default)]
+    pub loader: Option<String>,
     #[serde(default)]
     pub primary: bool,
     #[serde(default)]

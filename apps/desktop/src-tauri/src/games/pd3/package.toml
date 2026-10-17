@@ -90,7 +90,7 @@ config_presets = {
 targets = [
     {
         tag = "paks",
-        label = "mods",
+        label = "pak_mods",
         primary = true,
         path = ["PAYDAY3", "Content", "Paks", "~mods"],
         backup = ["PAYDAY3", "Content", "~mods.bak"],
@@ -110,7 +110,8 @@ targets = [
     },
     {
         tag = "ue4ss_mods",
-        label = "ue4ss_mods",
+        label = "loader_mods",
+        loader = "ue4ss",
         path = ["PAYDAY3", "Binaries", "Win64", "UE4SS", "Mods"],
         backup = ["PAYDAY3", "Binaries", "Win64", "UE4SS", "Mods.bak"],
         store_paths = [

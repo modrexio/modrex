@@ -1,10 +1,12 @@
 [
     {
         "tag": "paks",
-        "labelKey": "mods"
+        "labelKey": "pakMods",
+        "labelName": null
     },
     {
         "tag": "ue4ss_mods",
-        "labelKey": "ue4ssMods"
+        "labelKey": "loaderMods",
+        "labelName": "UE4SS"
     }
 ]

@@ -40,6 +40,7 @@ pub enum InstallStrategy {
 
 pub struct LoaderSpec {
     pub id: &'static str,
+    pub name: &'static str,
     pub detect: DetectStrategy,
     pub install: InstallStrategy,
 }
@@ -50,6 +51,7 @@ pub struct LoaderSpec {
 #[serde(rename_all = "camelCase")]
 pub struct LoaderInfo {
     pub id: String,
+    pub target: Option<String>,
     pub modworkshop_ids: Vec<i64>,
     /// The one game this entry is scoped to. Its ids mean nothing for any other game, so a
     /// consumer must select by game before reading the ids.
@@ -62,6 +64,7 @@ pub struct LoaderInfo {
 pub static LOADER_REGISTRY: &[LoaderSpec] = &[
     LoaderSpec {
         id: "superblt",
+        name: "SuperBLT",
         // WSOCK32.dll (current), IPHLPAPI.dll (legacy), libsuperblt_loader.so (Linux
         // native). The loader never appears under mods/, so game-root presence is the
         // only reliable signal.
@@ -80,6 +83,7 @@ pub static LOADER_REGISTRY: &[LoaderSpec] = &[
     },
     LoaderSpec {
         id: "pdth_overrides",
+        name: "PDTHModOverrides",
         // DINPUT8.dll is the proxy loader and PDTHModOverrides.dll the payload. Only the
         // proxy's presence is the install signal, but both are extracted below.
         detect: DetectStrategy::RootFiles(&["DINPUT8.dll"]),
@@ -90,6 +94,7 @@ pub static LOADER_REGISTRY: &[LoaderSpec] = &[
     },
     LoaderSpec {
         id: "dahm",
+        name: "DAHM",
         detect: DetectStrategy::RootFiles(&["lightfx.dll"]),
         // Stable redirect maintained by DAHM's author, which 302s to a versioned ZIP that
         // extracts flat to the game root (it ships ~40 framework modules alongside).
@@ -99,6 +104,7 @@ pub static LOADER_REGISTRY: &[LoaderSpec] = &[
     },
     LoaderSpec {
         id: "raid_superblt",
+        name: "SuperBLT",
         // IPHLPAPI.dll is also what the discontinued RaidBLT shipped, so its presence
         // means a BLT hook is installed, not necessarily the SuperBLT one. No Linux
         // variant, because RAID has no native Linux build.
@@ -112,6 +118,7 @@ pub static LOADER_REGISTRY: &[LoaderSpec] = &[
     },
     LoaderSpec {
         id: "ue4ss",
+        name: "UE4SS",
         detect: DetectStrategy::Ue4ssProxy,
         install: InstallStrategy::ViaModFlow,
     },
@@ -148,11 +155,22 @@ pub fn scoped_bindings() -> Vec<(&'static str, &'static LoaderSpec, Vec<i64>)> {
 pub fn list_loaders() -> Vec<LoaderInfo> {
     scoped_bindings()
         .into_iter()
-        .map(|(game_id, spec, modworkshop_ids)| LoaderInfo {
-            id: spec.id.to_string(),
-            modworkshop_ids,
-            games: vec![game_id.to_string()],
-            via_mod_flow: matches!(spec.install, InstallStrategy::ViaModFlow),
+        .map(|(game_id, spec, modworkshop_ids)| {
+            let (_, package) = crate::games::discovered()
+                .iter()
+                .find(|(id, _)| *id == game_id)
+                .expect("scoped_bindings only lists discovered packages");
+            LoaderInfo {
+                id: spec.id.to_string(),
+                target: package
+                    .targets
+                    .iter()
+                    .find(|target| target.loader.as_deref() == Some(spec.id))
+                    .map(|target| target.tag.clone()),
+                modworkshop_ids,
+                games: vec![game_id.to_string()],
+                via_mod_flow: matches!(spec.install, InstallStrategy::ViaModFlow),
+            }
         })
         .collect()
 }
@@ -441,6 +459,25 @@ mod tests {
             vec![("pdth_overrides", vec![53474]), ("dahm", vec![14267])]
         );
         assert_eq!(loaders_for("cb"), vec![("ue4ss", vec![47749])]);
+    }
+
+    #[test]
+    fn loader_locations_come_from_each_games_target_assignments() {
+        let loaders = list_loaders();
+        for (game, loader, target) in [
+            ("pd2", "superblt", "mods"),
+            ("pdth", "dahm", "mods"),
+            ("pdth", "pdth_overrides", "mod_overrides"),
+            ("raid", "raid_superblt", "mods"),
+            ("pd3", "ue4ss", "ue4ss_mods"),
+            ("cb", "ue4ss", "ue4ss_mods"),
+        ] {
+            let info = loaders
+                .iter()
+                .find(|info| info.id == loader && info.games == [game])
+                .unwrap();
+            assert_eq!(info.target.as_deref(), Some(target), "{game}/{loader}");
+        }
     }
 
     /// A game owns its loaders in its package, so dropping a binding drops the relationship

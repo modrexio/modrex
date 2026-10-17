@@ -16,6 +16,39 @@ fn discovered_ids() -> Vec<String> {
 }
 
 #[test]
+fn mod_folder_labels_describe_the_mod_kind_and_its_loader() {
+    for (game, tag, key, name) in [
+        ("pd3", "paks", "pakMods", None),
+        ("pd3", "ue4ss_mods", "loaderMods", Some("UE4SS")),
+        ("cb", "mods", "modkitMods", None),
+        ("cb", "paks", "legacyPaks", None),
+        ("cb", "ue4ss_mods", "loaderMods", Some("UE4SS")),
+        ("pd2", "mods", "loaderMods", Some("SuperBLT")),
+        ("pd2", "mod_overrides", "overrides", None),
+        ("pdth", "mods", "loaderMods", Some("DAHM")),
+        ("pdth", "mod_overrides", "overrides", None),
+        ("raid", "mods", "loaderMods", Some("SuperBLT")),
+        ("ron", "paks", "pakMods", None),
+    ] {
+        let target = game_spec(game).unwrap().engine.target_for(Some(tag));
+        assert_eq!(
+            (target.label_key, target.label_name),
+            (key, name),
+            "{game}/{tag}"
+        );
+        let folders = crate::commands::mods::list_mod_folders(game.into()).unwrap();
+        let folder = folders.iter().find(|folder| folder.tag == tag).unwrap();
+        assert_eq!(
+            (folder.label_key.as_str(), folder.label_name.as_deref()),
+            (key, name),
+            "{game}/{tag}"
+        );
+        let wire = serde_json::to_value(folder).unwrap();
+        assert_eq!(wire["labelName"], serde_json::to_value(name).unwrap());
+    }
+}
+
+#[test]
 fn spec_ids_match_their_engine_game_ids() {
     for spec in GAME_REGISTRY.iter() {
         assert_eq!(spec.id, spec.engine.game_id);

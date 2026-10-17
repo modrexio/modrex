@@ -702,6 +702,7 @@ export type ListModsParams = {
  */
 export type LoaderInfo = {
 	id: string,
+	target: string | null,
 	modworkshopIds: number[],
 	/**
 	 *  The one game this entry is scoped to. Its ids mean nothing for any other game, so a
@@ -881,6 +882,7 @@ export type ModFolder = {
 export type ModFolderInfo = {
 	tag: string,
 	labelKey: string,
+	labelName: string | null,
 };
 
 /**

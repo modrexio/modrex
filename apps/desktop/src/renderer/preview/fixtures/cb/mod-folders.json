@@ -1,14 +1,17 @@
 [
     {
         "tag": "mods",
-        "labelKey": "modkitMods"
+        "labelKey": "modkitMods",
+        "labelName": null
     },
     {
         "tag": "paks",
-        "labelKey": "legacyPaks"
+        "labelKey": "legacyPaks",
+        "labelName": null
     },
     {
         "tag": "ue4ss_mods",
-        "labelKey": "ue4ssMods"
+        "labelKey": "loaderMods",
+        "labelName": "UE4SS"
     }
 ]

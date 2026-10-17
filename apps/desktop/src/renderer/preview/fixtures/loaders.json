@@ -1,6 +1,7 @@
 [
     {
         "id": "superblt",
+        "target": null,
         "modworkshopIds": [],
         "games": [
             "pd2"
@@ -9,6 +10,7 @@
     },
     {
         "id": "pdth_overrides",
+        "target": null,
         "modworkshopIds": [
             53474
         ],
@@ -19,6 +21,7 @@
     },
     {
         "id": "dahm",
+        "target": null,
         "modworkshopIds": [
             14267
         ],
@@ -29,6 +32,7 @@
     },
     {
         "id": "raid_superblt",
+        "target": null,
         "modworkshopIds": [
             49744
         ],
@@ -39,6 +43,7 @@
     },
     {
         "id": "ue4ss",
+        "target": "ue4ss_mods",
         "modworkshopIds": [
             47749
         ],
@@ -49,6 +54,7 @@
     },
     {
         "id": "ue4ss",
+        "target": "ue4ss_mods",
         "modworkshopIds": [
             47771,
             44048

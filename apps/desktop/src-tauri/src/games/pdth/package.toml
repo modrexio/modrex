@@ -66,7 +66,8 @@ loaders = [
 targets = [
     {
         tag = "mods",
-        label = "mods",
+        label = "loader_mods",
+        loader = "dahm",
         primary = true,
         path = ["mods"],
         backup = ["mods.bak"],
@@ -95,6 +96,7 @@ targets = [
     {
         tag = "mod_overrides",
         label = "overrides",
+        loader = "pdth_overrides",
         path = ["assets", "mod_overrides"],
         backup = ["assets", "mod_overrides.bak"],
         activation = "filesystem",

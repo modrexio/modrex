@@ -102,23 +102,30 @@ fn preset_rows() -> String {
 fn label_rows() -> String {
     [
         TargetLabel::Mods,
+        TargetLabel::PakMods,
+        TargetLabel::LoaderMods,
+        TargetLabel::Overrides,
         TargetLabel::ModkitMods,
         TargetLabel::LegacyPaks,
-        TargetLabel::Overrides,
-        TargetLabel::Ue4ssMods,
     ]
     .iter()
     .map(|label| {
         format!(
-            "| `{}` | `settings.folders.{}` |\n",
+            "| `{}` | `settings.folders.{}`{} |\n",
             match label {
                 TargetLabel::Mods => "mods",
+                TargetLabel::PakMods => "pak_mods",
+                TargetLabel::LoaderMods => "loader_mods",
                 TargetLabel::ModkitMods => "modkit_mods",
                 TargetLabel::LegacyPaks => "legacy_paks",
                 TargetLabel::Overrides => "overrides",
-                TargetLabel::Ue4ssMods => "ue4ss_mods",
             },
-            label.key()
+            label.key(),
+            match label {
+                TargetLabel::LoaderMods => " with the loader display name substituted",
+                TargetLabel::Mods => ", only on a game's sole target",
+                _ => "",
+            }
         )
     })
     .collect()
@@ -337,6 +344,7 @@ pub fn markdown(examples: &[(&str, &str)]) -> String {
          | Key | Required | Meaning |\n| --- | --- | --- |\n\
          | `tag` | yes | stable id, stored in every installed mod's record. Renaming one is a data migration |\n\
          | `label` | yes | which folder name the interface shows |\n\
+         | `loader` | no | id of a loader declared by this package that reads this folder. Required for `loader_mods`. A loader may serve at most one target |\n\
          | `primary` | no | defaults to `false`; exactly one target must set it |\n\
          | `scope` | no | `mods` by default. `unreal_paks` shares native game files and requires a complete installed Steam depot catalog before mod changes. It supports archive-named Pak file units without filename ordering and never moves the whole target |\n\
          | `path` | yes | components below the game path |\n\
@@ -357,6 +365,11 @@ pub fn markdown(examples: &[(&str, &str)]) -> String {
          ### `label`\n\n| Value | Interface string |\n| --- | --- |\n",
     );
     out.push_str(&label_rows());
+    out.push_str(
+        "\nNo two targets may resolve to the same label. For `loader_mods`, the loader id is\n\
+         part of the label, so different loaders may each have a mod folder. For every other\n\
+         label, uniqueness applies regardless of `loader`.\n",
+    );
 
     out.push_str("\n### `activation`\n\n| Value | Meaning |\n| --- | --- |\n");
     out.push_str(&activation_rows());

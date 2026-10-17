@@ -1,6 +1,7 @@
 [
     {
         "tag": "mods",
-        "labelKey": "mods"
+        "labelKey": "loaderMods",
+        "labelName": "SuperBLT"
     }
 ]

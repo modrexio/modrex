@@ -84,6 +84,19 @@ fn scan_target(pkg: &'static GamePackage, target: &'static package::Target) -> S
     ScanTarget {
         tag: &target.tag,
         label_key: target.label.key(),
+        label_name: match target.label {
+            package::TargetLabel::LoaderMods => Some(
+                crate::commands::loaders::loader_spec(
+                    target
+                        .loader
+                        .as_deref()
+                        .expect("validate::check requires a loader for loader_mods"),
+                )
+                .expect("package loaders have registered loader specs")
+                .name,
+            ),
+            _ => None,
+        },
         native_steam_app: (target.scope == package::TargetScope::UnrealPaks).then(|| {
             match pkg.install.store(package::Storefront::Steam) {
                 Some(package::StoreBinding::Steam { app_id, .. }) => *app_id,

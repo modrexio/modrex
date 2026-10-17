@@ -87,10 +87,11 @@ fn load_order(value: LoadOrder) -> String {
 fn target_label(value: TargetLabel) -> String {
     let variant = match value {
         TargetLabel::Mods => "Mods",
+        TargetLabel::PakMods => "PakMods",
+        TargetLabel::LoaderMods => "LoaderMods",
         TargetLabel::ModkitMods => "ModkitMods",
         TargetLabel::LegacyPaks => "LegacyPaks",
         TargetLabel::Overrides => "Overrides",
-        TargetLabel::Ue4ssMods => "Ue4ssMods",
     };
     format!("{PATH}::TargetLabel::{variant}")
 }
@@ -172,6 +173,7 @@ fn target(value: &Target) -> String {
     let Target {
         tag,
         label,
+        loader,
         primary,
         scope,
         path,
@@ -182,9 +184,10 @@ fn target(value: &Target) -> String {
         unit: shape,
     } = value;
     format!(
-        "{PATH}::Target {{ tag: {}, label: {}, primary: {primary}, scope: {PATH}::TargetScope::{scope:?}, path: {}, backup: {}, store_paths: {}, activation: {}, load_order: {}, unit: {} }}",
+        "{PATH}::Target {{ tag: {}, label: {}, loader: {}, primary: {primary}, scope: {PATH}::TargetScope::{scope:?}, path: {}, backup: {}, store_paths: {}, activation: {}, load_order: {}, unit: {} }}",
         text(tag),
         target_label(*label),
+        optional(loader.as_deref().map(text)),
         texts(path),
         texts(backup),
         list(store_paths.iter().map(store_path).collect()),

@@ -189,6 +189,7 @@ elsewhere.
 | --- | --- | --- |
 | `tag` | yes | stable id, stored in every installed mod's record. Renaming one is a data migration |
 | `label` | yes | which folder name the interface shows |
+| `loader` | no | id of a loader declared by this package that reads this folder. Required for `loader_mods`. A loader may serve at most one target |
 | `primary` | no | defaults to `false`; exactly one target must set it |
 | `scope` | no | `mods` by default. `unreal_paks` shares native game files and requires a complete installed Steam depot catalog before mod changes. It supports archive-named Pak file units without filename ordering and never moves the whole target |
 | `path` | yes | components below the game path |
@@ -213,11 +214,16 @@ state file lives there and must be found at the same place in every store's copy
 
 | Value | Interface string |
 | --- | --- |
-| `mods` | `settings.folders.mods` |
+| `mods` | `settings.folders.mods`, only on a game's sole target |
+| `pak_mods` | `settings.folders.pakMods` |
+| `loader_mods` | `settings.folders.loaderMods` with the loader display name substituted |
+| `overrides` | `settings.folders.overrides` |
 | `modkit_mods` | `settings.folders.modkitMods` |
 | `legacy_paks` | `settings.folders.legacyPaks` |
-| `overrides` | `settings.folders.overrides` |
-| `ue4ss_mods` | `settings.folders.ue4ssMods` |
+
+No two targets may resolve to the same label. For `loader_mods`, the loader id is
+part of the label, so different loaders may each have a mod folder. For every other
+label, uniqueness applies regardless of `loader`.
 
 ### `activation`
 
@@ -373,7 +379,8 @@ loaders = [
 targets = [
     {
         tag = "mods",
-        label = "mods",
+        label = "loader_mods",
+        loader = "raid_superblt",
         primary = true,
         path = ["mods"],
         backup = ["mods.bak"],
@@ -463,7 +470,8 @@ loaders = [
 targets = [
     {
         tag = "mods",
-        label = "mods",
+        label = "loader_mods",
+        loader = "dahm",
         primary = true,
         path = ["mods"],
         backup = ["mods.bak"],
@@ -492,6 +500,7 @@ targets = [
     {
         tag = "mod_overrides",
         label = "overrides",
+        loader = "pdth_overrides",
         path = ["assets", "mod_overrides"],
         backup = ["assets", "mod_overrides.bak"],
         activation = "filesystem",

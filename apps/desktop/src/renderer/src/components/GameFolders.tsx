@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { FolderOpen } from 'lucide-react'
 import { Button } from './ui/Button'
-import { api } from '../api'
+import { api, type ModFolderInfo } from '../api'
 import { t } from '../i18n'
+import { folderLabel } from './folderLabel'
 import type { GameId } from '../../../shared/types'
 
 export function GameFolders({
@@ -12,21 +13,13 @@ export function GameFolders({
     activeGame: GameId
     gamePath: string | null
 }) {
-    const [modFolders, setModFolders] = useState<{ tag: string; labelKey: string }[]>([])
-
-    const folderLabels: Record<string, string> = useMemo(
-        () => ({
-            mods: t('settings.folders.mods'),
-            modkitMods: t('settings.folders.modkitMods'),
-            legacyPaks: t('settings.folders.legacyPaks'),
-            overrides: t('settings.folders.overrides'),
-            ue4ssMods: t('settings.folders.ue4ssMods'),
-        }),
-        []
-    )
+    const [modFolders, setModFolders] = useState<ModFolderInfo[]>([])
+    const [loadError, setLoadError] = useState<string | null>(null)
 
     useEffect(() => {
-        api.listModFolders(activeGame).then(setModFolders)
+        api.listModFolders(activeGame).then(setModFolders, (error: unknown) =>
+            setLoadError(String(error))
+        )
     }, [activeGame])
 
     if (!gamePath) return null
@@ -44,11 +37,14 @@ export function GameFolders({
                     onClick={() => api.openModFolder(activeGame, f.tag)}
                 >
                     <FolderOpen className="w-3.5 h-3.5" />
-                    {t('settings.folders.open', {
-                        name: folderLabels[f.labelKey] ?? f.labelKey,
-                    })}
+                    {t('settings.folders.open', { name: folderLabel(f) })}
                 </Button>
             ))}
+            {loadError && (
+                <p role="alert" className="text-xs text-danger-text">
+                    {t('installed.tabs.loadFailed', { error: loadError })}
+                </p>
+            )}
         </>
     )
 }

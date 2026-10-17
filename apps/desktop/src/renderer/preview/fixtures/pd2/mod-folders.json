@@ -1,10 +1,12 @@
 [
     {
         "tag": "mods",
-        "labelKey": "mods"
+        "labelKey": "loaderMods",
+        "labelName": "SuperBLT"
     },
     {
         "tag": "mod_overrides",
-        "labelKey": "overrides"
+        "labelKey": "overrides",
+        "labelName": null
     }
 ]

@@ -106,7 +106,8 @@ targets = [
     },
     {
         tag = "ue4ss_mods",
-        label = "ue4ss_mods",
+        label = "loader_mods",
+        loader = "ue4ss",
         path = ["CrimeBoss", "Binaries", "Win64", "Mods"],
         backup = ["CrimeBoss", "Binaries", "Win64", "Mods.bak"],
         activation = "ue4ss_mods_txt",

@@ -3381,7 +3381,8 @@ fn uninstall_removes_iostore_sidecars() {
 const fn companion_target(companions: &'static [&'static str]) -> ScanTarget {
     ScanTarget {
         tag: "paks",
-        label_key: "mods",
+        label_key: "pakMods",
+        label_name: None,
         native_steam_app: None,
         unit: ModUnit::File {
             keeps_archive_filename: false,
@@ -3421,7 +3422,8 @@ static SIG_COMPANION: ModEngineConfig = companion_engine(&SIG_COMPANION_TARGETS)
 
 const VPK_TARGETS: [ScanTarget; 1] = [ScanTarget {
     tag: "paks",
-    label_key: "mods",
+    label_key: "pakMods",
+    label_name: None,
     native_steam_app: None,
     unit: ModUnit::File {
         keeps_archive_filename: false,
@@ -4199,6 +4201,7 @@ const fn overrides_target() -> ScanTarget {
     ScanTarget {
         tag: "mod_overrides",
         label_key: "overrides",
+        label_name: None,
         native_steam_app: None,
         unit: ModUnit::Directory {
             entry_markers: &[],
@@ -4330,7 +4333,8 @@ fn directory_unit_targets_select_filesystem_activation() {
 const fn crossed_target(tag: &'static str, enabled_state: Activation) -> ScanTarget {
     ScanTarget {
         tag,
-        label_key: "ue4ssMods",
+        label_key: "loaderMods",
+        label_name: Some("UE4SS"),
         native_steam_app: None,
         unit: ModUnit::Directory {
             entry_markers: &["Scripts/main.lua"],

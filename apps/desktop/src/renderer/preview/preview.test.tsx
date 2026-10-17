@@ -94,7 +94,9 @@ test.each(['demo', 'large'])(
         expect(await found('No mods installed yet')).toBeTruthy()
         const { commands } = await import('./commands')
         expect((await commands.getInstalled('ron')).mods).toEqual([])
-        expect(await commands.listModFolders('ron')).toEqual([{ tag: 'paks', labelKey: 'mods' }])
+        expect(await commands.listModFolders('ron')).toEqual([
+            { tag: 'paks', labelKey: 'pakMods', labelName: null },
+        ])
         expect((await commands.listLoaders()).some((loader) => loader.games.includes('ron'))).toBe(
             false
         )

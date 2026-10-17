@@ -7,7 +7,7 @@
 use crate::{
     Activation, ConfigLocation, ConfigPresets, Discovery, FileFamily, GamePackage, LoaderBinding,
     MarkerMode, MovieReplacement, NewsBinding, PackageReaderBinding, SourceBinding, StoreBinding,
-    Target, TargetScope, Unit,
+    Target, TargetLabel, TargetScope, Unit,
 };
 
 /// Rejects a manifest that parses but could not work, so a contributor sees the problem at
@@ -135,7 +135,51 @@ pub fn check(id: &str, package: &GamePackage) -> Result<(), String> {
             ));
         }
     }
+    if let Some(duplicate) =
+        first_duplicate(package.targets.iter().filter_map(|t| t.loader.as_deref()))
+    {
+        return Err(format!(
+            "assigns loader '{duplicate}' to more than one target"
+        ));
+    }
+    let mut labels = Vec::new();
     for target in &package.targets {
+        if target.label == TargetLabel::Mods && package.targets.len() > 1 {
+            return Err(format!(
+                "target '{}' uses label mods, which only a game's sole target may use",
+                target.tag
+            ));
+        }
+        if target.label == TargetLabel::LoaderMods && target.loader.is_none() {
+            return Err(format!(
+                "target '{}' with label loader_mods requires a loader",
+                target.tag
+            ));
+        }
+        if let Some(loader) = &target.loader {
+            if !package.loaders.iter().any(|binding| binding.id() == loader) {
+                return Err(format!(
+                    "target '{}' names loader '{loader}', which the package does not declare",
+                    target.tag
+                ));
+            }
+        }
+        let label = (
+            target.label,
+            if target.label == TargetLabel::LoaderMods {
+                target.loader.as_deref()
+            } else {
+                None
+            },
+        );
+        if labels.contains(&label) {
+            return Err(format!(
+                "target '{}' repeats resolved label '{}'",
+                target.tag,
+                target.label.key()
+            ));
+        }
+        labels.push(label);
         if target.scope == TargetScope::UnrealPaks {
             check_resource_path(&target.path, "shared Unreal Paks path")?;
             if !matches!(target.path.as_slice(), [.., content, paks] if content == "Content" && paks == "Paks")

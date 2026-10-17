@@ -284,6 +284,9 @@
         "gridView": "Grid view",
         "listView": "List view",
         "newFolder": "New Folder",
+        "tabs": {
+            "loadFailed": "Could not read this game's mod locations: {error}"
+        },
         "folder": {
             "modCount": "{count} mods",
             "modCountSingle": "{count} mod",
@@ -640,6 +643,8 @@
             "appFolder": "Open app folder",
             "open": "Open {name}",
             "mods": "Mods",
+            "pakMods": "Pak mods",
+            "loaderMods": "{name} mods",
             "modkitMods": "ModKit mods",
             "legacyPaks": "Legacy paks",
             "overrides": "Asset overrides",

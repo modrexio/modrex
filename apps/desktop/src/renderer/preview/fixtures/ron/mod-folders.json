@@ -1,6 +1,7 @@
 [
     {
         "tag": "paks",
-        "labelKey": "mods"
+        "labelKey": "pakMods",
+        "labelName": null
     }
 ]

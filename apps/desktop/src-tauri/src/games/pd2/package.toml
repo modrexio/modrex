@@ -58,7 +58,8 @@ loaders = [
 targets = [
     {
         tag = "mods",
-        label = "mods",
+        label = "loader_mods",
+        loader = "superblt",
         primary = true,
         path = ["mods"],
         backup = ["mods.bak"],

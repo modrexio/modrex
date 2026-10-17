@@ -5,12 +5,30 @@ import type { LoaderInfo } from '../../shared/bindings'
 // list_loaders returns so the lookups can be tested without the backend. One entry per
 // game-to-loader relationship, carrying only the ids that game publishes the loader under.
 const REGISTRY: LoaderInfo[] = [
-    { id: 'superblt', modworkshopIds: [], games: ['pd2'], viaModFlow: false },
-    { id: 'pdth_overrides', modworkshopIds: [53474], games: ['pdth'], viaModFlow: false },
-    { id: 'dahm', modworkshopIds: [14267], games: ['pdth'], viaModFlow: false },
-    { id: 'raid_superblt', modworkshopIds: [49744], games: ['raid'], viaModFlow: false },
-    { id: 'ue4ss', modworkshopIds: [47749], games: ['cb'], viaModFlow: true },
-    { id: 'ue4ss', modworkshopIds: [47771, 44048], games: ['pd3'], viaModFlow: true },
+    { id: 'superblt', target: null, modworkshopIds: [], games: ['pd2'], viaModFlow: false },
+    {
+        id: 'pdth_overrides',
+        target: null,
+        modworkshopIds: [53474],
+        games: ['pdth'],
+        viaModFlow: false,
+    },
+    { id: 'dahm', target: null, modworkshopIds: [14267], games: ['pdth'], viaModFlow: false },
+    {
+        id: 'raid_superblt',
+        target: null,
+        modworkshopIds: [49744],
+        games: ['raid'],
+        viaModFlow: false,
+    },
+    { id: 'ue4ss', target: 'ue4ss_mods', modworkshopIds: [47749], games: ['cb'], viaModFlow: true },
+    {
+        id: 'ue4ss',
+        target: 'ue4ss_mods',
+        modworkshopIds: [47771, 44048],
+        games: ['pd3'],
+        viaModFlow: true,
+    },
 ]
 
 let mod: typeof import('./loaders')

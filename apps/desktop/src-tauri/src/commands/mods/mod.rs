@@ -3071,6 +3071,7 @@ pub fn open_mods_folder(app: AppHandle, game_id: String) -> Result<(), String> {
 pub struct ModFolderInfo {
     pub tag: String,
     pub label_key: String,
+    pub label_name: Option<String>,
 }
 
 #[tauri::command]
@@ -3083,6 +3084,7 @@ pub fn list_mod_folders(game_id: String) -> Result<Vec<ModFolderInfo>, String> {
         .map(|t| ModFolderInfo {
             tag: t.tag.to_string(),
             label_key: t.label_key.to_string(),
+            label_name: t.label_name.map(str::to_string),
         })
         .collect())
 }

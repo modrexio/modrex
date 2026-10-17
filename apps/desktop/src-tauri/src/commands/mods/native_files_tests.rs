@@ -14,7 +14,8 @@ static SHARED_PAK_ENGINE: ModEngineConfig = ModEngineConfig {
     mod_metadata: ModMetadata::None,
     targets: &[ScanTarget {
         tag: "paks",
-        label_key: "mods",
+        label_key: "pakMods",
+        label_name: None,
         native_steam_app: Some(78),
         unit: ModUnit::File {
             extension: "pak",

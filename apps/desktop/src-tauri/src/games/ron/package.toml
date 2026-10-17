@@ -55,7 +55,7 @@ install = {
 targets = [
     {
         tag = "paks",
-        label = "mods",
+        label = "pak_mods",
         primary = true,
         scope = "unreal_paks",
         path = ["ReadyOrNot", "Content", "Paks"],
