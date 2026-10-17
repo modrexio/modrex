@@ -3,6 +3,7 @@ export const LIBRARY_PROFILES = {
     demo: 'Six mods covering folders, disabled, missing and outdated states',
     resources: 'Movie mods and INI presets, including files changed outside Modrex',
     large: '120 generated entries for layout and interaction stress testing',
+    locations: 'Demo mods plus mods in every other folder, the loader and game files',
 } as const
 
 export const NETWORK_MODES = {

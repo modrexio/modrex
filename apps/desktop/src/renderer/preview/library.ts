@@ -18,6 +18,12 @@ const DOWNLOAD_STEP_MS = 120
 const DEFAULT_SIZE = 2_500_000
 export const LARGE_LIBRARY_SIZE = 120
 
+const LOCATION_MOD_NAMES: Record<string, string[]> = {
+    ue4ss_mods: ['Better Scoreboard', 'Quick Interact'],
+    mod_overrides: ['HD Weapon Textures', 'Classic Menu Music'],
+    paks: ['Legacy Outfits', 'Retro HUD Colors'],
+}
+
 export class Library {
     mods: Mod[] = []
     folders: ModFolder[] = []
@@ -135,6 +141,7 @@ export class Library {
 
         switch (profile) {
             case 'demo':
+            case 'locations':
                 this.seedDemo(templates)
                 break
             case 'large':
@@ -159,6 +166,43 @@ export class Library {
             }
             this.install(mod)
         })
+    }
+
+    // Two mods in each secondary scan target, one of them missing, plus every loader the game
+    // supports, so the Installed page has more than one location to show.
+    seedLocations(secondaryTags: string[], loaderIds: string[]) {
+        for (const tag of secondaryTags) {
+            const names = LOCATION_MOD_NAMES[tag] ?? [`${tag} mod A`, `${tag} mod B`]
+            names.forEach((name, index) => {
+                this.install({
+                    uid: `preview-${tag}-${index + 1}`,
+                    id: -(7000 + this.mods.length),
+                    source: 'local',
+                    name,
+                    author: 'Preview',
+                    version: '1.0',
+                    filename: name.replaceAll(' ', ''),
+                    enabled: true,
+                    missing: index === 1,
+                    location: tag,
+                    installedAt: '2026-10-06T12:00:00Z',
+                })
+            })
+        }
+        for (const id of loaderIds) {
+            this.mods.push({
+                uid: `loader:${id}`,
+                source: 'local',
+                author: 'Preview',
+                id: -(8000 + this.mods.length),
+                name: id.toUpperCase(),
+                version: '3.0.1',
+                filename: id,
+                enabled: true,
+                location: `loader:${id}`,
+                installedAt: '2026-10-06T12:00:00Z',
+            })
+        }
     }
 
     private seedLarge(templates: InstallTemplate[]) {

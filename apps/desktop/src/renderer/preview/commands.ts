@@ -300,6 +300,12 @@ const handlers = {
             if (previewState.library === 'resources') resourceFixtures.seedResourceLibrary(id)
             else if (GAMES[id].workshopId !== undefined)
                 lib.seed((await load(id)).modRecords, previewState.library)
+            if (previewState.library === 'locations') {
+                const tags = (await load(id)).modFolders.slice(1).map((f) => f.tag)
+                const loaderIds = loaders.filter((l) => l.games.includes(id)).map((l) => l.id)
+                lib.seedLocations(tags, loaderIds)
+                resourceFixtures.seedResourceLibrary(id)
+            }
         }
         return lib.response()
     },

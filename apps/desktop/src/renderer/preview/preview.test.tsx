@@ -137,6 +137,49 @@ test('Ready or Not resource preview uses MP4 slots and keeps its Nexus-only cata
     ).toBe(false)
 })
 
+test('Installed location tabs share the title row and keep folder controls on the primary tab', async () => {
+    window.history.replaceState({}, '', '/?library=locations')
+    store.set('modrex:active-game', 'cb')
+    store.set('modrex:active-view', 'installed')
+    await mount()
+    const tablist = await screen.findByRole('tablist', { name: 'Mod locations' }, { timeout: 5000 })
+    const titleRow = screen.getByRole('heading', { name: 'Installed Mods' }).parentElement!
+        .parentElement!.parentElement!
+    expect(titleRow.contains(tablist)).toBe(true)
+    expect(titleRow.classList.contains('h-10')).toBe(true)
+    expect(titleRow.parentElement!.children).toHaveLength(2)
+    expect(screen.getAllByRole('tab')).toHaveLength(4)
+    const newFolder = screen.getByRole('button', { name: 'New Folder' })
+    expect(titleRow.contains(newFolder)).toBe(true)
+    expect(newFolder.parentElement!.contains(screen.getByText('6 mods'))).toBe(false)
+    const panel = screen.getByRole('tabpanel')
+    expect(panel.getAttribute('aria-labelledby')).toBe(
+        screen.getByRole('tab', { selected: true }).id
+    )
+
+    fireEvent.click(screen.getByRole('tab', { name: /Legacy paks/ }))
+    expect(screen.queryByRole('button', { name: 'New Folder' })).toBeNull()
+    expect(panel.getAttribute('aria-labelledby')).toBe(
+        screen.getByRole('tab', { selected: true }).id
+    )
+    fireEvent.click(screen.getByRole('tab', { name: /ModKit mods/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'New Folder' }))
+    expect(screen.getByPlaceholderText('Folder name')).toBeTruthy()
+})
+
+test('a single Installed location keeps its header count and folder controls without tabs', async () => {
+    window.history.replaceState({}, '', '/?library=demo')
+    store.set('modrex:active-game', 'raid')
+    store.set('modrex:active-view', 'installed')
+    await mount()
+    expect(await found('6 mods')).toBeTruthy()
+    expect(screen.queryByRole('tablist')).toBeNull()
+    const titleRow = screen.getByRole('heading', { name: 'Installed Mods' }).parentElement!
+        .parentElement!.parentElement!
+    expect(titleRow.contains(screen.getByRole('button', { name: 'New Folder' }))).toBe(true)
+    expect(titleRow.contains(screen.getByText('6 mods'))).toBe(true)
+})
+
 test('browse fixtures honor filters, sorting, and the captured page boundary', async () => {
     vi.resetModules()
     const { commands } = await import('./commands')
