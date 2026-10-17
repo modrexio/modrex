@@ -1,7 +1,7 @@
 [
     {
         "id": "superblt",
-        "target": null,
+        "target": "mods",
         "modworkshopIds": [],
         "games": [
             "pd2"
@@ -10,7 +10,7 @@
     },
     {
         "id": "pdth_overrides",
-        "target": null,
+        "target": "mod_overrides",
         "modworkshopIds": [
             53474
         ],
@@ -21,7 +21,7 @@
     },
     {
         "id": "dahm",
-        "target": null,
+        "target": "mods",
         "modworkshopIds": [
             14267
         ],
@@ -32,7 +32,7 @@
     },
     {
         "id": "raid_superblt",
-        "target": null,
+        "target": "mods",
         "modworkshopIds": [
             49744
         ],
