@@ -6,6 +6,7 @@ import { formatCount } from './modDetail/format'
 import { SkeletonBar } from './Skeleton'
 import { BetaBadge, isBetaSource } from './BetaBadge'
 import { TITLE_ROW_H } from './pageHeader'
+import { HeaderTab } from './HeaderTab'
 import { t } from '../i18n'
 import { GAMES, type GameId } from '../../../shared/types'
 
@@ -146,8 +147,12 @@ export function SourceSelect({
         const s = sources[0]
         return (
             <div className={`flex flex-col justify-center px-4 shrink-0 ${TITLE_ROW_H}`}>
-                <SourceName id={s.id} className="text-text-muted" />
-                <SourceCount total={counts[s.id]} />
+                <span className="relative flex items-center gap-1.5 text-sm font-medium leading-tight text-text-muted">
+                    <SourceName id={s.id} />
+                </span>
+                <span className="relative flex h-3.5 items-center text-[11px] leading-none text-text-subtle">
+                    <SourceCount total={counts[s.id]} />
+                </span>
             </div>
         )
     }
@@ -158,32 +163,25 @@ export function SourceSelect({
                 const active = value === s.id
                 const total = counts[s.id]
                 return (
-                    <button
+                    <HeaderTab
                         key={s.id}
+                        active={active}
                         onClick={() => onChange(s.id)}
-                        className={`relative flex flex-col justify-center px-4 border-b-2 transition-colors text-left before:content-[''] before:absolute before:inset-x-1 before:inset-y-0.5 before:rounded before:transition-colors focus:outline-none ${
-                            active
-                                ? 'border-accent text-accent'
-                                : 'border-transparent text-text-subtle hover:text-text-muted hover:before:bg-surface-hover'
-                        }`}
-                    >
-                        <SourceName id={s.id} />
-                        <SourceCount total={total} />
-                    </button>
+                        label={<SourceName id={s.id} />}
+                        count={<SourceCount total={total} />}
+                    />
                 )
             })}
         </div>
     )
 }
 
-function SourceName({ id, className = '' }: { id: string; className?: string }) {
+function SourceName({ id }: { id: string }) {
     return (
-        <span
-            className={`relative flex items-center gap-1.5 text-sm font-medium leading-tight ${className}`}
-        >
+        <>
             {SOURCE_LABELS[id] ?? id}
             {isBetaSource(id) && <BetaBadge />}
-        </span>
+        </>
     )
 }
 
@@ -191,13 +189,7 @@ function SourceName({ id, className = '' }: { id: string; className?: string }) 
 // of Nexus) shows nothing, and a real count renders. The fixed height is what keeps all
 // three the same size, so the header cannot jump as counts arrive.
 function SourceCount({ total }: { total: number | null | undefined }) {
-    return (
-        <span className="relative flex h-3.5 items-center text-[11px] leading-none text-text-subtle">
-            {total === undefined ? (
-                <SkeletonBar className="h-2.5 w-14 animate-pulse" />
-            ) : total === null ? null : (
-                t('browse.modCount', { total: formatCount(total) })
-            )}
-        </span>
-    )
+    if (total === undefined) return <SkeletonBar className="h-2.5 w-14 animate-pulse" />
+    if (total === null) return null
+    return t('browse.modCount', { total: formatCount(total) })
 }
