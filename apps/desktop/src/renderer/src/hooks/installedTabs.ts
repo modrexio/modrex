@@ -1,6 +1,6 @@
 import type { InstalledMod, ModFolder } from '../../../shared/types'
 import type { LoaderInfo } from '../api'
-import { isLoader } from './installedUtils'
+import { hasCatalogLink, identityKey, isLoader } from './installedUtils'
 
 export const GAME_FILES_TAB = 'game_files'
 
@@ -78,11 +78,11 @@ export function foldersHoldingMods(mods: InstalledMod[], folders: ModFolder[]): 
 }
 
 /**
- * Game resources are reviewed on their own and a loader is detected rather than tracked, so
- * neither shares a file set with records on other tabs.
+ * Only catalog projects share files across tabs. Local names can collide, game resources
+ * are reviewed separately, and loaders are detected rather than tracked.
  */
 export function joinsFileSet(mod: InstalledMod): boolean {
-    return !mod.deployment && !isLoader(mod)
+    return hasCatalogLink(mod) && !mod.deployment && !isLoader(mod)
 }
 
 export interface OtherTabFiles {
@@ -91,7 +91,7 @@ export interface OtherTabFiles {
 }
 
 /**
- * The files each mod has on tabs other than the active one, keyed by installed id. One mod
+ * The files each mod has on tabs other than the active one, keyed by project identity. One mod
  * can span locations, a pak with its Lua half or a BLT mod with its asset overrides, so an
  * action on one tab's card has to reach these too or the other half keeps loading.
  */
@@ -99,15 +99,16 @@ export function filesOnOtherTabs(
     installed: InstalledMod[],
     tabOf: Map<string, string>,
     activeTab: string
-): Map<number, OtherTabFiles> {
-    const byId = new Map<number, OtherTabFiles>()
+): Map<string, OtherTabFiles> {
+    const byIdentity = new Map<string, OtherTabFiles>()
     for (const mod of installed) {
         const tab = tabOf.get(mod.uid)!
         if (tab === activeTab || !joinsFileSet(mod)) continue
-        const entry = byId.get(mod.id) ?? { files: [], tabKeys: [] }
+        const key = identityKey(mod)
+        const entry = byIdentity.get(key) ?? { files: [], tabKeys: [] }
         entry.files.push(mod)
         if (!entry.tabKeys.includes(tab)) entry.tabKeys.push(tab)
-        byId.set(mod.id, entry)
+        byIdentity.set(key, entry)
     }
-    return byId
+    return byIdentity
 }

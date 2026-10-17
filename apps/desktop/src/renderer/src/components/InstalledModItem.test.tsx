@@ -51,11 +51,11 @@ function makeMod(overrides: Partial<InstalledMod>): InstalledMod {
     }
 }
 
-const pak = makeMod({ uid: 'pak', filename: 'split.pak' })
-const lua = makeMod({ uid: 'lua', filename: 'SplitLua', location: 'ue4ss_mods' })
+const pak = makeMod({ uid: 'pak', remoteId: '7', filename: 'split.pak' })
+const lua = makeMod({ uid: 'lua', remoteId: '7', filename: 'SplitLua', location: 'ue4ss_mods' })
 
 function renderItem(
-    elsewhereById: InstalledContextValue['elsewhereById'],
+    elsewhereByIdentity: InstalledContextValue['elsewhereByIdentity'],
     manageFilesKey: string | null = null
 ) {
     const handlers = {
@@ -66,7 +66,7 @@ function renderItem(
     }
     const ctx = {
         modData: new Map(),
-        failedIds: new Set<number>(),
+        failedIds: new Set([-7]),
         viewMode: 'grid',
         activeGame: 'pd3',
         gamePath: 'C:/game',
@@ -77,7 +77,7 @@ function renderItem(
         folders: [],
         tabFolders: [],
         foldersEditable: true,
-        elsewhereById,
+        elsewhereByIdentity,
         installed: [pak, lua],
         onRefreshInstalled: vi.fn(),
         onOpenDetail: vi.fn(),
@@ -106,7 +106,9 @@ function renderItem(
 
 describe('InstalledModItem across location tabs', () => {
     it('acts on the files the mod has on other tabs and names those tabs', () => {
-        const handlers = renderItem(new Map([[-7, { files: [lua], tabs: 'UE4SS mods' }]]))
+        const handlers = renderItem(
+            new Map([[identityKey(pak), { files: [lua], tabs: 'UE4SS mods' }]])
+        )
         expect(screen.getByTestId('note').textContent).toBe('Also in UE4SS mods')
         for (const action of ['uninstall', 'enable', 'disable', 'reinstall']) {
             fireEvent.click(screen.getByText(action))
@@ -117,7 +119,10 @@ describe('InstalledModItem across location tabs', () => {
     })
 
     it('manages the files on every tab', () => {
-        renderItem(new Map([[-7, { files: [lua], tabs: 'UE4SS mods' }]]), identityKey(pak))
+        renderItem(
+            new Map([[identityKey(pak), { files: [lua], tabs: 'UE4SS mods' }]]),
+            identityKey(pak)
+        )
         expect(screen.getByTestId('manage-files').textContent).toBe('pak,lua')
     })
 

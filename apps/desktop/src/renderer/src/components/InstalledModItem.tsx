@@ -43,7 +43,7 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
         manageFilesKey,
         setManageFilesKey,
         reviewResource,
-        elsewhereById,
+        elsewhereByIdentity,
     } = useInstalledContext()
 
     const [menuOpen, setMenuOpen] = useState(false)
@@ -71,7 +71,7 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
     const apiMod = modData.get(id)
     // The card shows this tab's files, while every action reaches the mod's files on other
     // tabs too, so disabling or removing it never leaves another location's half behind.
-    const elsewhere = joinsFileSet(ins) ? elsewhereById.get(id) : undefined
+    const elsewhere = joinsFileSet(ins) ? elsewhereByIdentity.get(groupKey) : undefined
     const fileSet = elsewhere ? [...mods, ...elsewhere.files] : mods
     const locationNote = elsewhere && t('installed.tabs.alsoIn', { tabs: elsewhere.tabs })
     const operations = useInstallOperations(activeGame)

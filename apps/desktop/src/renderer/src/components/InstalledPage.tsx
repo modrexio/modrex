@@ -354,10 +354,13 @@ export function InstalledPage({
 
     // Each card acts on its mod's whole file set, so it carries the files on other tabs and
     // names those tabs.
-    const elsewhereById = new Map<number, { files: InstalledMod[]; tabs: string }>()
+    const elsewhereByIdentity = new Map<string, { files: InstalledMod[]; tabs: string }>()
     if (activeTab !== null) {
-        for (const [id, entry] of filesOnOtherTabs(installed, tabOf, activeTab)) {
-            elsewhereById.set(id, { files: entry.files, tabs: listTabs(new Set(entry.tabKeys)) })
+        for (const [key, entry] of filesOnOtherTabs(installed, tabOf, activeTab)) {
+            elsewhereByIdentity.set(key, {
+                files: entry.files,
+                tabs: listTabs(new Set(entry.tabKeys)),
+            })
         }
     }
 
@@ -446,7 +449,7 @@ export function InstalledPage({
         folders,
         tabFolders,
         foldersEditable,
-        elsewhereById,
+        elsewhereByIdentity,
         installed,
         onRefreshInstalled,
         onOpenDetail,

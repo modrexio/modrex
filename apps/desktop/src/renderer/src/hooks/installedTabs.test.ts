@@ -227,11 +227,11 @@ describe('foldersHoldingMods', () => {
 })
 
 describe('filesOnOtherTabs', () => {
-    const pak = makeMod({ uid: 'pak', id: 7 })
-    const lua = makeMod({ uid: 'lua', id: 7, location: 'ue4ss_mods' })
-    const movie = makeMod({ uid: 'movie', id: 7, deployment: 'movie' })
-    const loader = makeMod({ uid: 'loader', id: 7, location: 'loader:ue4ss' })
-    const other = makeMod({ uid: 'other', id: 8, location: 'ue4ss_mods' })
+    const pak = makeMod({ uid: 'pak', remoteId: '7', id: 7 })
+    const lua = makeMod({ uid: 'lua', remoteId: '7', id: 7, location: 'ue4ss_mods' })
+    const movie = makeMod({ uid: 'movie', remoteId: '7', id: 7, deployment: 'movie' })
+    const loader = makeMod({ uid: 'loader', remoteId: '7', id: 7, location: 'loader:ue4ss' })
+    const other = makeMod({ uid: 'other', remoteId: '8', id: 8, location: 'ue4ss_mods' })
     const installed = [pak, lua, movie, loader, other]
     const tabOf = new Map([
         ['pak', 'paks'],
@@ -243,12 +243,76 @@ describe('filesOnOtherTabs', () => {
 
     it('collects the same mod on other tabs, without resources or loaders', () => {
         const byId = filesOnOtherTabs(installed, tabOf, 'paks')
-        expect(byId.get(7)).toEqual({ files: [lua], tabKeys: ['ue4ss_mods'] })
+        expect(byId.get('id:7')).toEqual({ files: [lua], tabKeys: ['ue4ss_mods'] })
     })
 
     it('leaves out the files on the active tab', () => {
         const byId = filesOnOtherTabs(installed, tabOf, 'ue4ss_mods')
-        expect(byId.get(7)).toEqual({ files: [pak], tabKeys: ['paks'] })
-        expect(byId.has(8)).toBe(false)
+        expect(byId.get('id:7')).toEqual({ files: [pak], tabKeys: ['paks'] })
+        expect(byId.has('id:8')).toBe(false)
+    })
+})
+
+describe('catalog file set boundaries', () => {
+    it('does not join unrelated uncatalogued HUD folders with the same installed ID', () => {
+        const mods = [
+            makeMod({ uid: 'mods/HUD', id: -42, filename: 'HUD' }),
+            makeMod({ uid: 'overrides/HUD', id: -42, filename: 'HUD', location: 'mod_overrides' }),
+        ]
+        const tabOf = new Map([
+            [mods[0].uid, 'mods'],
+            [mods[1].uid, 'mod_overrides'],
+        ])
+        expect(filesOnOtherTabs(mods, tabOf, 'mods').size).toBe(0)
+        expect(filesOnOtherTabs(mods, tabOf, 'mod_overrides').size).toBe(0)
+    })
+
+    it('joins catalog project files across locations even with different installed IDs', () => {
+        const identity = {
+            namespace: 'modworkshop',
+            key: '123',
+            confidence: 'exact' as const,
+            evidence: 'installProvenance' as const,
+        }
+        const script = makeMod({ uid: 'script', id: -1, remoteId: '123', identity })
+        const assets = makeMod({
+            uid: 'assets',
+            id: -2,
+            remoteId: '123',
+            identity,
+            location: 'mod_overrides',
+        })
+        const tabOf = new Map([
+            ['script', 'mods'],
+            ['assets', 'mod_overrides'],
+        ])
+        expect(
+            filesOnOtherTabs([script, assets], tabOf, 'mods').get('identity:modworkshop:123')
+        ).toEqual({
+            files: [assets],
+            tabKeys: ['mod_overrides'],
+        })
+    })
+
+    it('does not join different catalog identities with the same installed ID', () => {
+        const mods = ['123', '456'].map((key, index) =>
+            makeMod({
+                uid: key,
+                id: -42,
+                remoteId: key,
+                identity: {
+                    namespace: 'modworkshop',
+                    key,
+                    confidence: 'exact',
+                    evidence: 'installProvenance',
+                },
+                location: index === 0 ? undefined : 'mod_overrides',
+            })
+        )
+        const tabOf = new Map([
+            ['123', 'mods'],
+            ['456', 'mod_overrides'],
+        ])
+        expect(filesOnOtherTabs(mods, tabOf, 'mods').has('identity:modworkshop:123')).toBe(false)
     })
 })
