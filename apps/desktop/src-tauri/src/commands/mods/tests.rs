@@ -8747,6 +8747,272 @@ fn root_folder_create_and_rename_reject_disabled_in_any_case() {
     }
 }
 
+fn tracked_directory_collision(game_id: &str, operation: &str, nested: bool) {
+    let cfg = engine_for_game(game_id).unwrap();
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let sp = get_state_path(game, cfg);
+    let parent_id = nested.then_some("scope");
+    let mut app = folder("app", "X", parent_id);
+    app.priority = 9;
+    let mut folders = vec![app, folder("destination", "Destination", None)];
+    if nested {
+        folders.push(folder("scope", "Scope", None));
+    }
+    let rel = get_folder_path(&folders, Some("app")).unwrap();
+    let root_mod = InstalledMod {
+        id: -1,
+        folder_id: parent_id.map(String::from),
+        ..pak_record("root", "X", true, 5)
+    };
+    let root_before = serde_json::to_value(&root_mod).unwrap();
+    let primary = mods_dir(game, cfg.primary());
+    let disabled = disabled_dir(game, cfg.primary());
+    for base in [&primary, &disabled] {
+        fs::create_dir_all(base.join(&rel).join("empty/library")).unwrap();
+        fs::write(base.join(&rel).join("mod.txt"), b"tracked root").unwrap();
+    }
+    let target = cfg.target_for(Some(if game_id == "cb" {
+        "paks"
+    } else {
+        "mod_overrides"
+    }));
+    let filename = if target.is_directory_unit() {
+        "Override"
+    } else {
+        "Legacy.pak"
+    };
+    let child_path = mods_dir(game, target).join(&rel).join(filename);
+    if target.is_directory_unit() {
+        fs::create_dir_all(&child_path).unwrap();
+        fs::write(child_path.join("asset.texture"), b"legacy").unwrap();
+    } else {
+        fs::create_dir_all(child_path.parent().unwrap()).unwrap();
+        fs::write(&child_path, b"legacy").unwrap();
+    }
+    save_state(
+        &sp,
+        &ModsState {
+            folders,
+            mods: vec![
+                root_mod,
+                InstalledMod {
+                    id: -2,
+                    folder_id: Some("app".into()),
+                    location: Some(target.tag.into()),
+                    ..pak_record("child", filename, true, 1)
+                },
+            ],
+        },
+    )
+    .unwrap();
+    match operation {
+        "rename" => rename_folder_op(game, &sp, "app", "Renamed", cfg).unwrap(),
+        "move" => move_folder_op(game, &sp, "app", Some("destination".into()), cfg).unwrap(),
+        "delete" => delete_folder_op(game, &sp, "app", cfg).unwrap(),
+        "reorder" => reorder_children_op(
+            game,
+            &sp,
+            parent_id,
+            &[TopLevelItem::Folder { id: "app".into() }],
+            cfg,
+        )
+        .unwrap(),
+        "compact" => {
+            super::state::reconcile_state(game, &sp, cfg).unwrap();
+        }
+        _ => unreachable!(),
+    }
+    for base in [&primary, &disabled] {
+        assert!(
+            base.join(&rel).join("mod.txt").exists(),
+            "{game_id} {operation}: tracked mod moved"
+        );
+        assert!(
+            base.join(&rel).join("empty/library").is_dir(),
+            "{game_id} {operation}: tracked mod directory removed"
+        );
+    }
+    let saved = read_state(&sp).unwrap();
+    let root = saved.mods.iter().find(|m| m.uid == "root").unwrap();
+    assert_eq!(serde_json::to_value(root).unwrap(), root_before);
+    let child = saved.mods.iter().find(|m| m.uid == "child").unwrap();
+    let child_rel = get_folder_path(&saved.folders, child.folder_id.as_deref());
+    let moved = active_mod_path(game, &child.filename, child_rel.as_deref(), target);
+    let content = if target.is_directory_unit() {
+        moved.join("asset.texture")
+    } else {
+        moved
+    };
+    assert_eq!(fs::read(content).unwrap(), b"legacy");
+    if matches!(operation, "rename" | "move" | "delete") {
+        assert!(!child_path.exists());
+    }
+    if operation == "compact" {
+        assert_eq!(
+            saved
+                .folders
+                .iter()
+                .find(|f| f.id == "app")
+                .unwrap()
+                .priority,
+            1
+        );
+    }
+}
+
+#[test]
+fn tracked_directory_collision_cb_rename() {
+    for nested in [false, true] {
+        tracked_directory_collision("cb", "rename", nested);
+    }
+}
+
+#[test]
+fn tracked_directory_collision_cb_move() {
+    for nested in [false, true] {
+        tracked_directory_collision("cb", "move", nested);
+    }
+}
+
+#[test]
+fn tracked_directory_collision_cb_delete() {
+    for nested in [false, true] {
+        tracked_directory_collision("cb", "delete", nested);
+    }
+}
+
+#[test]
+fn tracked_directory_collision_cb_compact_and_reorder() {
+    for operation in ["compact", "reorder"] {
+        tracked_directory_collision("cb", operation, false);
+    }
+}
+
+#[test]
+fn tracked_directory_collision_diesel_primary() {
+    for game_id in ["pd2", "pdth"] {
+        for operation in ["rename", "move", "delete", "compact", "reorder"] {
+            for nested in [false, true] {
+                tracked_directory_collision(game_id, operation, nested);
+            }
+        }
+    }
+}
+
+#[test]
+fn tracked_directory_collision_cb_delete_children() {
+    let cfg = engine_for_game("cb").unwrap();
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let sp = get_state_path(game, cfg);
+    let primary = mods_dir(game, cfg.primary());
+    let paks = mods_dir(game, cfg.target_for(Some("paks")));
+    for base in [primary.clone(), disabled_dir(game, cfg.primary())] {
+        fs::create_dir_all(base.join("X/Child/empty/library")).unwrap();
+        fs::write(base.join("X/Child/author.txt"), b"author content").unwrap();
+    }
+    fs::create_dir_all(paks.join("X/Child")).unwrap();
+    fs::write(paks.join("X/Child/Legacy.pak"), b"legacy").unwrap();
+    let root = InstalledMod {
+        id: -1,
+        ..pak_record("root", "X", true, 1)
+    };
+    let root_before = serde_json::to_value(&root).unwrap();
+    let mut state = ModsState {
+        folders: vec![],
+        mods: vec![root],
+    };
+    let folder_ids = super::identify::ensure_untracked_folders(
+        &mut state,
+        &[("X/Child/Legacy.pak".into(), true, Some("paks".into()))],
+    );
+    state.mods.push(InstalledMod {
+        id: -2,
+        folder_id: Some(folder_ids["X/Child"].clone()),
+        location: Some("paks".into()),
+        ..pak_record("legacy", "Legacy.pak", true, 1)
+    });
+    save_state(&sp, &state).unwrap();
+    delete_folder_op(game, &sp, &folder_ids["X"], cfg).unwrap();
+    for base in [primary, disabled_dir(game, cfg.primary())] {
+        assert!(
+            base.join("X/Child/author.txt").exists(),
+            "delete moved a child directory inside the tracked mod"
+        );
+        assert!(base.join("X/Child/empty/library").is_dir());
+        assert!(!base.join("Child").exists());
+    }
+    assert_eq!(fs::read(paks.join("Child/Legacy.pak")).unwrap(), b"legacy");
+    assert!(!paks.join("X").exists());
+    let saved = read_state(&sp).unwrap();
+    assert_eq!(serde_json::to_value(&saved.mods[0]).unwrap(), root_before);
+    assert_eq!(saved.folders.len(), 1);
+    assert_eq!(saved.folders[0].parent_id, None);
+}
+
+#[test]
+fn tracked_directory_collision_delete_parent_moves_mod_once() {
+    for game_id in ["cb", "pd2", "pdth"] {
+        let cfg = engine_for_game(game_id).unwrap();
+        let tmp = TempDir::new().unwrap();
+        let game = tmp.path().to_str().unwrap();
+        let sp = get_state_path(game, cfg);
+        let primary = mods_dir(game, cfg.primary());
+        let target = cfg.target_for(Some(if game_id == "cb" {
+            "paks"
+        } else {
+            "mod_overrides"
+        }));
+        let secondary = mods_dir(game, target);
+        fs::create_dir_all(primary.join("Parent/X/empty/library")).unwrap();
+        fs::write(primary.join("Parent/X/mod.txt"), b"root mod").unwrap();
+        let filename = if target.is_directory_unit() {
+            "Override"
+        } else {
+            "Legacy.pak"
+        };
+        let legacy = secondary.join("Parent/X").join(filename);
+        if target.is_directory_unit() {
+            fs::create_dir_all(&legacy).unwrap();
+        } else {
+            fs::create_dir_all(legacy.parent().unwrap()).unwrap();
+            fs::write(&legacy, b"legacy").unwrap();
+        }
+        save_state(
+            &sp,
+            &ModsState {
+                folders: vec![
+                    folder("parent", "Parent", None),
+                    folder("app", "X", Some("parent")),
+                ],
+                mods: vec![
+                    InstalledMod {
+                        id: -1,
+                        folder_id: Some("parent".into()),
+                        ..pak_record("root", "X", true, 1)
+                    },
+                    InstalledMod {
+                        id: -2,
+                        folder_id: Some("app".into()),
+                        location: Some(target.tag.into()),
+                        ..pak_record("legacy", filename, true, 1)
+                    },
+                ],
+            },
+        )
+        .unwrap();
+        delete_folder_op(game, &sp, "parent", cfg).unwrap();
+        assert_eq!(fs::read(primary.join("X/mod.txt")).unwrap(), b"root mod");
+        assert!(primary.join("X/empty/library").is_dir());
+        assert!(secondary.join("X").join(filename).exists());
+        let saved = read_state(&sp).unwrap();
+        assert_eq!(saved.mods[0].filename, "X");
+        assert_eq!(saved.mods[0].folder_id, None);
+        assert_eq!(saved.folders[0].parent_id, None);
+    }
+}
+
 #[test]
 fn folder_move_collision_leaves_no_destination_parents() {
     let cfg = engine_for_game("pd3").unwrap();

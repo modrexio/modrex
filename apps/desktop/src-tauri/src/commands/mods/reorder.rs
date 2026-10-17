@@ -211,7 +211,7 @@ pub fn reorder_children_op(
                     || disk_name.clone(),
                     |parent| format!("{parent}/{disk_name}"),
                 );
-                let targets = super::moves::folder_targets(cfg, &folders_before, &state.mods, id);
+                let targets = super::moves::folder_targets(cfg, &folders_before, &state.mods, id)?;
                 moves.folder(game_path, &targets, &from_rel, &to_rel)?;
                 f.disk_name = disk_name;
                 f.priority = priority;

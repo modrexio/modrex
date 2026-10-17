@@ -325,7 +325,17 @@ fn compact_folder_priorities(
             if f.priority == new_priority {
                 continue;
             }
-            let targets = folder_targets(cfg, &compacted, mods, &f.id);
+            let targets = match folder_targets(cfg, &compacted, mods, &f.id) {
+                Ok(targets) => targets,
+                Err(error) => {
+                    log::warn!(
+                        "compact_folder_priorities: {} folder {}: {error}",
+                        cfg.game_id,
+                        f.id
+                    );
+                    continue;
+                }
+            };
             if !cfg.primary().priority_prefix_enabled() || targets.is_empty() {
                 compacted[idx].priority = new_priority;
                 any_changed = true;

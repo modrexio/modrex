@@ -7,6 +7,44 @@ fn pd3_paks() -> &'static ScanTarget {
     engine_for_game("pd3").unwrap().primary()
 }
 
+#[test]
+fn tracked_directory_collision_excludes_a_target_even_with_tracked_descendants() {
+    let cfg = engine_for_game("pd3").unwrap();
+    let folders = vec![ModFolder {
+        id: "app".into(),
+        disk_name: "009_X".into(),
+        display_name: "X".into(),
+        priority: 9,
+        parent_id: None,
+    }];
+    for enabled in [true, false] {
+        let mut mods = vec![
+            InstalledMod {
+                filename: "009_X".into(),
+                location: Some("ue4ss_mods".into()),
+                enabled,
+                ..InstalledMod::default()
+            },
+            InstalledMod {
+                filename: "Child".into(),
+                folder_id: Some("app".into()),
+                location: Some("ue4ss_mods".into()),
+                ..InstalledMod::default()
+            },
+        ];
+        let targets = folder_targets(cfg, &folders, &mods, "app").unwrap();
+        assert_eq!(
+            targets.iter().map(|t| t.tag).collect::<Vec<_>>(),
+            vec!["paks"]
+        );
+        mods[0].folder_id = Some("app".into());
+        assert_eq!(
+            folder_targets(cfg, &folders, &mods, "app").unwrap().len(),
+            2
+        );
+    }
+}
+
 fn write_unit(dir: &Path, stem: &str, suffix: &str, tag: &str) {
     for ext in ["pak", "ucas", "utoc"] {
         fs::write(

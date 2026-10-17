@@ -1,6 +1,6 @@
 use super::engine::{ModEngineConfig, ModUnit, ScanTarget};
 use super::naming::{log_name, sidecar_path};
-use super::native_files::{resolve_existing_ancestor, NativeGuard};
+use super::native_files::{paths_equal, resolve_existing_ancestor, NativeGuard};
 use super::paths::{disabled_base, mods_base};
 use super::state::{save_error, save_state};
 use super::types::{InstalledMod, ModFolder, ModsState};
@@ -214,22 +214,33 @@ impl Applied {
     }
 }
 
-// App folders are created in the primary tree, so the primary always takes part. Another
-// target joins only when it tracks a mod inside the folder, so a same-named directory that
-// belongs to something else is never moved.
+// Folder target ownership is covered by tracked_directory_collision tests.
 pub(super) fn folder_targets<'a>(
     cfg: &'a ModEngineConfig,
     folders: &[ModFolder],
     mods: &[InstalledMod],
     folder_id: &str,
-) -> Vec<&'a ScanTarget> {
-    cfg.targets
+) -> Result<Vec<&'a ScanTarget>, String> {
+    let folder = folders
         .iter()
-        .filter(|target| {
-            if target.tag == cfg.primary().tag {
-                return true;
+        .find(|folder| folder.id == folder_id)
+        .expect("the operation found the folder before selecting its targets");
+    let mut targets = Vec::new();
+    'targets: for target in cfg.targets {
+        for m in mods.iter().filter(|m| {
+            cfg.mod_target(m).tag == target.tag
+                && m.folder_id == folder.parent_id
+                && !m
+                    .location
+                    .as_deref()
+                    .is_some_and(|tag| tag.starts_with("host:"))
+        }) {
+            if paths_equal(Path::new(&m.filename), Path::new(&folder.disk_name))? {
+                continue 'targets;
             }
-            mods.iter().any(|m| {
+        }
+        if target.tag == cfg.primary().tag
+            || mods.iter().any(|m| {
                 if cfg.mod_target(m).tag != target.tag {
                     return false;
                 }
@@ -245,8 +256,11 @@ pub(super) fn folder_targets<'a>(
                 }
                 false
             })
-        })
-        .collect()
+        {
+            targets.push(target);
+        }
+    }
+    Ok(targets)
 }
 
 fn check_move_destinations(moves: &[(PathBuf, PathBuf)]) -> Result<(), String> {

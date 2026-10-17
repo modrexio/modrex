@@ -118,6 +118,7 @@ pub fn move_folder_op(
     }
 
     let old_rel = get_folder_path(&state.folders, Some(folder_id)).unwrap_or_default();
+    let targets = folder_targets(cfg, &state.folders, &state.mods, folder_id)?;
 
     let max_f = state
         .folders
@@ -151,7 +152,6 @@ pub fn move_folder_op(
     let new_rel = get_folder_path(&state.folders, Some(folder_id)).unwrap_or_default();
 
     let mut moves = Moves::for_game(game_path, cfg)?;
-    let targets = folder_targets(cfg, &state.folders, &state.mods, folder_id);
     moves.folder(game_path, &targets, &old_rel, &new_rel)?;
     moves.run()?.save(state_path, &state)
 }
@@ -189,6 +189,7 @@ pub fn rename_folder_op(
 
     let old_rel =
         get_folder_path(&state.folders, Some(folder_id)).expect("the folder was found above");
+    let targets = folder_targets(cfg, &state.folders, &state.mods, folder_id)?;
     let entry = state
         .folders
         .iter_mut()
@@ -199,7 +200,6 @@ pub fn rename_folder_op(
     let new_rel =
         get_folder_path(&state.folders, Some(folder_id)).expect("the folder was found above");
     let mut moves = Moves::for_game(game_path, cfg)?;
-    let targets = folder_targets(cfg, &state.folders, &state.mods, folder_id);
     moves.folder(game_path, &targets, &old_rel, &new_rel)?;
     moves.run()?.save(state_path, &state)
 }
@@ -237,7 +237,17 @@ pub fn delete_folder_op(
         *priority = (*priority).max(m.priority.unwrap_or(0));
     }
 
-    let targets = folder_targets(cfg, &state.folders, &state.mods, folder_id);
+    let targets = folder_targets(cfg, &state.folders, &state.mods, folder_id)?;
+    let children: Vec<_> = state
+        .folders
+        .iter()
+        .filter(|f| f.parent_id.as_deref() == Some(folder_id))
+        .map(|f| {
+            let mut child_targets = folder_targets(cfg, &state.folders, &state.mods, &f.id)?;
+            child_targets.retain(|target| targets.iter().any(|parent| parent.tag == target.tag));
+            Ok((f.id.clone(), child_targets))
+        })
+        .collect::<Result<_, String>>()?;
     let mut moves = Moves::for_game(game_path, cfg)?;
 
     for m in state.mods.iter_mut() {
@@ -282,14 +292,7 @@ pub fn delete_folder_op(
         m.folder_id = target_parent_id.clone();
     }
 
-    let child_ids: Vec<String> = state
-        .folders
-        .iter()
-        .filter(|f| f.parent_id.as_deref() == Some(folder_id))
-        .map(|f| f.id.clone())
-        .collect();
-
-    for cf_id in &child_ids {
+    for (cf_id, child_targets) in &children {
         let cf = state
             .folders
             .iter()
@@ -311,8 +314,7 @@ pub fn delete_folder_op(
         let new_rel = target_parent_rel
             .as_ref()
             .map_or_else(|| new_disk.clone(), |parent| format!("{parent}/{new_disk}"));
-        let child_targets = folder_targets(cfg, &state.folders, &state.mods, cf_id);
-        moves.folder(game_path, &child_targets, &old_rel, &new_rel)?;
+        moves.folder(game_path, child_targets, &old_rel, &new_rel)?;
 
         for f in state.folders.iter_mut() {
             if &f.id == cf_id {
