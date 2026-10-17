@@ -1,0 +1,37 @@
+name: Distribute Release
+
+on:
+    release:
+        types: [published]
+
+jobs:
+    # The release environment's wait timer is the last chance to stop a bad
+    # release. Cancelling this run during the wait stops every target below.
+    hold:
+        runs-on: ubuntu-latest
+        environment:
+            name: release
+            url: ${{ github.event.release.html_url }}
+        steps:
+            - run: echo "Distributing $TAG"
+              env:
+                  TAG: ${{ github.event.release.tag_name }}
+
+    site:
+        needs: hold
+        uses: ./.github/workflows/site-deploy-hook.yml
+        secrets: inherit
+
+    winget:
+        needs: hold
+        uses: ./.github/workflows/winget-release.yml
+        with:
+            tag_name: ${{ github.event.release.tag_name }}
+        secrets: inherit
+
+    discord:
+        needs: hold
+        uses: ./.github/workflows/discord-release.yml
+        with:
+            tag_name: ${{ github.event.release.tag_name }}
+        secrets: inherit

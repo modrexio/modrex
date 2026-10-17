@@ -1,13 +1,11 @@
 name: Trigger modrex-site rebuild
 
 on:
-    release:
-        types: [published]
+    workflow_call:
 
 jobs:
     trigger:
         runs-on: ubuntu-latest
-        environment: release-delay
         steps:
             - name: Call Cloudflare Pages deploy hook
               run: curl -fsS -X POST "${{ secrets.CLOUDFLARE_SITE_DEPLOY_HOOK_URL }}"

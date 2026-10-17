@@ -1,7 +1,10 @@
 name: Discord Release Notification
 on:
-    release:
-        types: [published]
+    workflow_call:
+        inputs:
+            tag_name:
+                required: true
+                type: string
     workflow_dispatch:
         inputs:
             tag_name:
@@ -9,24 +12,7 @@ on:
                 required: true
 
 jobs:
-    # The release path waits behind the release-delay environment's timer; the
-    # manual path is the resend escape hatch and deliberately posts immediately.
     notify:
-        if: github.event_name == 'release'
-        runs-on: ubuntu-latest
-        environment: release-delay
-        steps:
-            - uses: actions/checkout@v7
-            - name: Post to Discord
-              env:
-                  DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
-                  GH_TOKEN: ${{ github.token }}
-                  REPOSITORY: ${{ github.repository }}
-                  TAG: ${{ github.event.release.tag_name }}
-              run: bash .github/scripts/post-discord-release.sh "$TAG"
-
-    notify-manual:
-        if: github.event_name == 'workflow_dispatch'
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v7
