@@ -24,6 +24,8 @@ function makeMod(overrides: Partial<InstalledMod> = {}): InstalledMod {
     }
 }
 
+const targetTags = ['mods', 'mod_overrides', 'ue4ss_mods', 'paks']
+
 const loaders: LoaderInfo[] = [
     { id: 'superblt', target: null, modworkshopIds: [], games: ['pd2'], viaModFlow: false },
     {
@@ -36,40 +38,61 @@ const loaders: LoaderInfo[] = [
 ]
 
 describe('installedTabKey', () => {
+    it('routes unknown locations to the primary tab when both known targets hold mods', () => {
+        const mods = [
+            makeMod({ uid: 'primary' }),
+            makeMod({ uid: 'secondary', location: 'mod_overrides' }),
+            makeMod({ uid: 'unknown', location: 'retired_target' }),
+        ]
+        const keys = mods.map((mod) => installedTabKey(mod, mods, 'mods', loaders, targetTags))
+        expect(keys).toEqual(['mods', 'mod_overrides', 'mods'])
+        expect(orderedTabKeys(['mods', 'mod_overrides'], keys)).toEqual(['mods', 'mod_overrides'])
+    })
+
+    it('routes a host pack with an unknown host location to the primary tab', () => {
+        const host = makeMod({ uid: 'host', remoteId: '17160', location: 'retired_target' })
+        const pack = makeMod({ uid: 'pack', location: 'host:17160:Assets' })
+        expect(installedTabKey(pack, [host, pack], 'mods', loaders, targetTags)).toBe('mods')
+    })
+
     it('uses the supplied primary tag when location is absent', () => {
-        expect(installedTabKey(makeMod(), [], 'mods', loaders)).toBe('mods')
-        expect(installedTabKey(makeMod(), [], 'paks', loaders)).toBe('paks')
+        expect(installedTabKey(makeMod(), [], 'mods', loaders, targetTags)).toBe('mods')
+        expect(installedTabKey(makeMod(), [], 'paks', loaders, targetTags)).toBe('paks')
     })
 
     it.each(['mods', 'mod_overrides', 'ue4ss_mods', 'paks'])(
         'keeps the explicit target tag %s',
         (location) => {
-            expect(installedTabKey(makeMod({ location }), [], 'mods', loaders)).toBe(location)
+            expect(installedTabKey(makeMod({ location }), [], 'mods', loaders, targetTags)).toBe(
+                location
+            )
         }
     )
 
     it('puts a primary-target loader in the primary tab', () => {
         const mod = makeMod({ location: 'loader:superblt' })
-        expect(installedTabKey(mod, [], 'mods', loaders)).toBe('mods')
+        expect(installedTabKey(mod, [], 'mods', loaders, targetTags)).toBe('mods')
     })
 
     it('reads the secondary loader target from the registry', () => {
         const mod = makeMod({ location: 'loader:ue4ss' })
-        expect(installedTabKey(mod, [], 'paks', loaders)).toBe('ue4ss_mods')
+        expect(installedTabKey(mod, [], 'paks', loaders, targetTags)).toBe('ue4ss_mods')
         const registry = [{ ...loaders[1], target: 'custom_target' }]
-        expect(installedTabKey(mod, [], 'paks', registry)).toBe('custom_target')
+        expect(installedTabKey(mod, [], 'paks', registry, targetTags)).toBe('custom_target')
     })
 
     it('uses the primary target for an unavailable loader entry', () => {
         const mod = makeMod({ location: 'loader:unknown' })
-        expect(installedTabKey(mod, [], 'mods', loaders)).toBe('mods')
+        expect(installedTabKey(mod, [], 'mods', loaders, targetTags)).toBe('mods')
     })
 
     it('matches the host by its remote ID rather than the local record ID', () => {
         const pack = makeMod({ location: 'host:17160:Assets/Themes' })
         const wrongHost = makeMod({ id: 17160, remoteId: '999', location: 'paks' })
         const host = makeMod({ id: -54321, source: 'modworkshop', remoteId: '17160' })
-        expect(installedTabKey(pack, [wrongHost, host, pack], 'mods', loaders)).toBe('mods')
+        expect(installedTabKey(pack, [wrongHost, host, pack], 'mods', loaders, targetTags)).toBe(
+            'mods'
+        )
     })
 
     it.each([undefined, 'modworkshop'])(
@@ -77,25 +100,27 @@ describe('installedTabKey', () => {
         (source) => {
             const pack = makeMod({ location: 'host:17160:Assets' })
             const host = makeMod({ source, remoteId: '17160', location: 'mod_overrides' })
-            expect(installedTabKey(pack, [host, pack], 'mods', loaders)).toBe('mod_overrides')
+            expect(installedTabKey(pack, [host, pack], 'mods', loaders, targetTags)).toBe(
+                'mod_overrides'
+            )
         }
     )
 
     it('resolves a host loader through the loader registry', () => {
         const pack = makeMod({ location: 'host:17160:Assets' })
         const host = makeMod({ remoteId: '17160', location: 'loader:ue4ss' })
-        expect(installedTabKey(pack, [host, pack], 'paks', loaders)).toBe('ue4ss_mods')
+        expect(installedTabKey(pack, [host, pack], 'paks', loaders, targetTags)).toBe('ue4ss_mods')
     })
 
     it('uses the primary tab when the host is absent', () => {
         const pack = makeMod({ location: 'host:17160:Assets' })
-        expect(installedTabKey(pack, [pack], 'mods', loaders)).toBe('mods')
+        expect(installedTabKey(pack, [pack], 'mods', loaders, targetTags)).toBe('mods')
     })
 
     it('does not match another source or a host pack with the same remote ID', () => {
         const pack = makeMod({ remoteId: '17160', location: 'host:17160:Assets' })
         const nexus = makeMod({ source: 'nexus', remoteId: '17160', location: 'paks' })
-        expect(installedTabKey(pack, [nexus, pack], 'mods', loaders)).toBe('mods')
+        expect(installedTabKey(pack, [nexus, pack], 'mods', loaders, targetTags)).toBe('mods')
     })
 
     it.each(['movie', 'ini'] as const)(
@@ -103,7 +128,7 @@ describe('installedTabKey', () => {
         (deployment) => {
             for (const location of [undefined, 'paks', 'loader:ue4ss', 'host:17160:Assets']) {
                 const mod = makeMod({ deployment, location })
-                expect(installedTabKey(mod, [], 'mods', loaders)).toBe(GAME_FILES_TAB)
+                expect(installedTabKey(mod, [], 'mods', loaders, targetTags)).toBe(GAME_FILES_TAB)
             }
         }
     )

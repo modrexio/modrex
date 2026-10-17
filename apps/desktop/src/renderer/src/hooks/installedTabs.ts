@@ -8,7 +8,8 @@ export function installedTabKey(
     mod: InstalledMod,
     installed: InstalledMod[],
     primaryTag: string,
-    loaders: LoaderInfo[]
+    loaders: LoaderInfo[],
+    targetTags: string[]
 ): string {
     if (mod.deployment) return GAME_FILES_TAB
     if (!mod.location) return primaryTag
@@ -25,9 +26,9 @@ export function installedTabKey(
                 entry.remoteId === hostId &&
                 !entry.location?.startsWith('host:')
         )
-        return host ? installedTabKey(host, installed, primaryTag, loaders) : primaryTag
+        return host ? installedTabKey(host, installed, primaryTag, loaders, targetTags) : primaryTag
     }
-    return mod.location
+    return targetTags.includes(mod.location) ? mod.location : primaryTag
 }
 
 /**

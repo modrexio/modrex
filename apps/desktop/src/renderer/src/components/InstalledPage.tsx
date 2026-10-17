@@ -204,8 +204,12 @@ export function InstalledPage({
     const tabOf = useMemo(() => {
         const byUid = new Map<string, string>()
         if (!locations || !primaryTag) return byUid
+        const targetTags = locations.targets.map((target) => target.tag)
         for (const m of installed) {
-            byUid.set(m.uid, installedTabKey(m, installed, primaryTag, locations.loaders))
+            byUid.set(
+                m.uid,
+                installedTabKey(m, installed, primaryTag, locations.loaders, targetTags)
+            )
         }
         return byUid
     }, [installed, primaryTag, locations])
