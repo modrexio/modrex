@@ -64,6 +64,10 @@ impl NativeGuard {
         Ok(Self { game_root, targets })
     }
 
+    pub fn shares_native_files(&self) -> bool {
+        !self.targets.is_empty()
+    }
+
     pub fn verify_unchanged(&self) -> Result<(), String> {
         for target in &self.targets {
             target.snapshot.verify_unchanged()?;

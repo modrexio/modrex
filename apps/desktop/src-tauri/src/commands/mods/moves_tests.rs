@@ -343,3 +343,105 @@ fn empty_app_folder_pd3_delete() {
 fn empty_app_folder_raid_delete() {
     empty_app_folder_operation("raid", "delete");
 }
+
+#[test]
+fn duplicate_sources_are_refused_before_any_files_move() {
+    let tmp = TempDir::new().unwrap();
+    let dir = tmp.path();
+    fs::write(dir.join("source.pak"), b"source").unwrap();
+    let mut moves = Moves::default();
+    moves.path(dir.join("source.pak"), dir.join("first.pak"));
+    moves.path(dir.join("source.pak"), dir.join("second.pak"));
+    assert!(moves.run().err().unwrap().contains("same mod file"));
+    assert_eq!(fs::read(dir.join("source.pak")).unwrap(), b"source");
+    assert!(!dir.join("first.pak").exists());
+}
+
+#[test]
+fn existing_aliases_of_moved_files_are_allowed() {
+    let tmp = TempDir::new().unwrap();
+    let dir = tmp.path();
+    fs::create_dir(dir.join("alias")).unwrap();
+    fs::write(dir.join("a.pak"), b"a").unwrap();
+    fs::write(dir.join("b.pak"), b"b").unwrap();
+
+    let mut moves = Moves::default();
+    moves.path(dir.join("a.pak"), dir.join("alias/../b.pak"));
+    moves.path(dir.join("b.pak"), dir.join("alias/../a.pak"));
+    moves.run().unwrap();
+
+    assert_eq!(fs::read(dir.join("a.pak")).unwrap(), b"b");
+    assert_eq!(fs::read(dir.join("b.pak")).unwrap(), b"a");
+}
+
+#[test]
+fn a_foreign_file_alias_is_refused_after_a_source_alias() {
+    let tmp = TempDir::new().unwrap();
+    let dir = tmp.path();
+    fs::create_dir(dir.join("alias")).unwrap();
+    fs::write(dir.join("a.pak"), b"a").unwrap();
+    fs::write(dir.join("b.pak"), b"b").unwrap();
+    fs::write(dir.join("foreign.pak"), b"foreign").unwrap();
+
+    let mut moves = Moves::default();
+    moves.path(dir.join("a.pak"), dir.join("alias/../a.pak"));
+    moves.path(dir.join("b.pak"), dir.join("alias/../foreign.pak"));
+    assert!(moves.run().err().unwrap().contains("in the way"));
+
+    assert_eq!(fs::read(dir.join("a.pak")).unwrap(), b"a");
+    assert_eq!(fs::read(dir.join("b.pak")).unwrap(), b"b");
+    assert_eq!(fs::read(dir.join("foreign.pak")).unwrap(), b"foreign");
+}
+
+#[cfg(windows)]
+#[test]
+fn windows_case_only_self_rename_is_allowed() {
+    let tmp = TempDir::new().unwrap();
+    let dir = tmp.path();
+    fs::write(dir.join("Skin.pak"), b"source").unwrap();
+    let mut moves = Moves::default();
+    moves.path(dir.join("Skin.pak"), dir.join("skin.PAK"));
+    moves.run().unwrap();
+    assert_eq!(fs::read(dir.join("skin.PAK")).unwrap(), b"source");
+    let name = fs::read_dir(dir)
+        .unwrap()
+        .next()
+        .unwrap()
+        .unwrap()
+        .file_name();
+    assert_eq!(name, "skin.PAK");
+}
+
+#[cfg(windows)]
+#[test]
+fn windows_destination_names_ignore_case() {
+    for (first, second) in [("Skin.pak", "skin.PAK"), ("\u{00c4}.pak", "\u{00e4}.PAK")] {
+        let tmp = TempDir::new().unwrap();
+        let dir = tmp.path();
+        fs::write(dir.join("a.pak"), b"a").unwrap();
+        fs::write(dir.join("b.pak"), b"b").unwrap();
+        let mut moves = Moves::default();
+        moves.path(dir.join("a.pak"), dir.join(first));
+        moves.path(dir.join("b.pak"), dir.join(second));
+        assert!(
+            moves.run().err().unwrap().contains("same destination"),
+            "{first} {second}"
+        );
+        assert_eq!(fs::read(dir.join("a.pak")).unwrap(), b"a");
+        assert_eq!(fs::read(dir.join("b.pak")).unwrap(), b"b");
+    }
+}
+
+#[cfg(windows)]
+#[test]
+fn windows_existing_ancestor_aliases_are_refused() {
+    let tmp = TempDir::new().unwrap();
+    let dir = tmp.path();
+    let from = dir.join("source.pak");
+    fs::write(&from, b"source").unwrap();
+    let mut moves = Moves::default();
+    moves.path(from.clone(), dir.join("first.pak"));
+    moves.path(dir.join("SOURCE.PAK"), dir.join("second.pak"));
+    assert!(moves.run().err().unwrap().contains("same mod file"));
+    assert_eq!(fs::read(from).unwrap(), b"source");
+}

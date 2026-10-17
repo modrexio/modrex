@@ -1,9 +1,10 @@
 use super::engine::{ModEngineConfig, ModUnit, ScanTarget};
 use super::naming::{log_name, sidecar_path};
-use super::native_files::NativeGuard;
+use super::native_files::{resolve_existing_ancestor, NativeGuard};
 use super::paths::{disabled_base, mods_base};
 use super::state::{save_error, save_state};
 use super::types::{InstalledMod, ModFolder, ModsState};
+use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -121,7 +122,16 @@ impl Moves {
                 }
             }
         }
-        NativeGuard::check_move_destinations(&units.iter().flatten().cloned().collect::<Vec<_>>())?;
+        let paths: Vec<_> = units.iter().flatten().cloned().collect();
+        if self
+            .native
+            .as_ref()
+            .is_some_and(NativeGuard::shares_native_files)
+        {
+            NativeGuard::check_move_destinations(&paths)?;
+        } else {
+            check_move_destinations(&paths)?;
+        }
 
         for (index, files) in units.iter().enumerate() {
             for (from, _) in files {
@@ -237,6 +247,68 @@ pub(super) fn folder_targets<'a>(
             })
         })
         .collect()
+}
+
+fn check_move_destinations(moves: &[(PathBuf, PathBuf)]) -> Result<(), String> {
+    // Windows ordinal Unicode equality is preserved by the identity checker.
+    #[cfg(windows)]
+    if moves.iter().any(|(from, to)| {
+        !from.as_os_str().as_encoded_bytes().is_ascii()
+            || !to.as_os_str().as_encoded_bytes().is_ascii()
+    }) {
+        return NativeGuard::check_move_destinations(moves);
+    }
+    let key = |path: &Path| {
+        #[cfg(windows)]
+        {
+            PathBuf::from(path.as_os_str().to_ascii_lowercase())
+        }
+        #[cfg(not(windows))]
+        {
+            path.to_path_buf()
+        }
+    };
+    let mut sources = HashSet::new();
+    let mut destinations = HashSet::new();
+    for (from, to) in moves {
+        if !sources.insert(key(from)) {
+            return Err("The move contains two references to the same mod file".into());
+        }
+        if !destinations.insert(key(to)) {
+            return Err("Two mod files would have the same destination name".into());
+        }
+    }
+    let mut source_identities = None;
+    for (_, to) in moves {
+        if sources.contains(&key(to)) || !exists(to)? {
+            continue;
+        }
+        let identity = resolve_existing_ancestor(to)?;
+        let identities = match &source_identities {
+            Some(identities) => identities,
+            None => source_identities.insert(
+                moves
+                    .iter()
+                    .map(|(from, _)| resolve_existing_ancestor(from).map(|path| key(&path)))
+                    .collect::<Result<HashSet<_>, String>>()?,
+            ),
+        };
+        #[cfg(windows)]
+        if !identity.as_os_str().as_encoded_bytes().is_ascii()
+            || identities
+                .iter()
+                .any(|path| !path.as_os_str().as_encoded_bytes().is_ascii())
+        {
+            return NativeGuard::check_move_destinations(moves);
+        }
+        if !identities.contains(&key(&identity)) {
+            return Err(format!(
+                "{} is in the way. Move or delete it, then try again.",
+                log_name(to)
+            ));
+        }
+    }
+    Ok(())
 }
 
 fn staging_path(path: &Path, n: usize) -> PathBuf {
