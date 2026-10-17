@@ -4691,6 +4691,282 @@ fn pak_record(uid: &str, filename: &str, enabled: bool, priority: i64) -> Instal
 }
 
 #[test]
+fn target_scoped_move_of_crime_boss_modkit_mod_leaves_legacy_paks_untouched() {
+    let cfg = engine_for_game("cb").unwrap();
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let sp = get_state_path(game, cfg);
+    let active = mods_dir(game, cfg.primary());
+    let legacy = cfg.target_for(Some("paks"));
+    let legacy_active = mods_dir(game, legacy);
+    let legacy_disabled = disabled_dir(game, legacy);
+    fs::create_dir_all(active.join("Skins/Moving")).unwrap();
+    fs::create_dir_all(active.join("High")).unwrap();
+    fs::create_dir_all(active.join("Low")).unwrap();
+    write_triplet(&legacy_active, "077_Legacy", "");
+    write_triplet(&legacy_disabled, "088_Disabled", ".disabled");
+    save_state(
+        &sp,
+        &ModsState {
+            folders: vec![folder("f", "Skins", None)],
+            mods: vec![
+                InstalledMod {
+                    folder_id: Some("f".into()),
+                    ..pak_record("moving", "Moving", true, 4)
+                },
+                pak_record("low", "Low", true, 3),
+                InstalledMod {
+                    location: Some("mods".into()),
+                    ..pak_record("high", "High", true, 9)
+                },
+                InstalledMod {
+                    location: Some("paks".into()),
+                    ..pak_record("legacy", "077_Legacy.pak", true, 77)
+                },
+                InstalledMod {
+                    location: Some("paks".into()),
+                    ..pak_record("disabled", "088_Disabled.pak", false, 88)
+                },
+            ],
+        },
+    )
+    .unwrap();
+    let before = read_state(&sp).unwrap();
+
+    move_mod_to_folder_op(game, &sp, "moving", None, 1, cfg).unwrap();
+
+    let state = read_state(&sp).unwrap();
+    assert!(active.join("Moving").is_dir());
+    assert!(!active.join("Skins/Moving").exists());
+    assert_eq!(state.mods[0].folder_id, None);
+    assert_eq!(state.mods[0].priority, Some(2));
+    assert_eq!(state.mods[1].priority, Some(1));
+    assert_eq!(state.mods[2].priority, Some(3));
+    assert_eq!(state.mods[0].filename, "Moving");
+    for index in [3, 4] {
+        assert_eq!(
+            serde_json::to_value(&state.mods[index]).unwrap(),
+            serde_json::to_value(&before.mods[index]).unwrap()
+        );
+    }
+    assert_triplet(&legacy_active, "077_Legacy", "", "077_Legacy");
+    assert_triplet(
+        &legacy_disabled,
+        "088_Disabled",
+        ".disabled",
+        "088_Disabled",
+    );
+    assert_eq!(fs::read_dir(&legacy_active).unwrap().count(), 4);
+    assert_eq!(fs::read_dir(&legacy_disabled).unwrap().count(), 3);
+    assert_eq!(state.folders[0].priority, before.folders[0].priority);
+
+    move_mod_to_folder_op(game, &sp, "high", None, 2, cfg).unwrap();
+
+    let state = read_state(&sp).unwrap();
+    assert_eq!(state.mods[0].priority, Some(3));
+    assert_eq!(state.mods[1].priority, Some(2));
+    assert_eq!(state.mods[2].priority, Some(1));
+    assert_triplet(&legacy_active, "077_Legacy", "", "077_Legacy");
+}
+
+#[test]
+fn target_scoped_pd3_move_ignores_root_ue4ss_mod_and_clamps_position() {
+    let cfg = engine_for_game("pd3").unwrap();
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let sp = get_state_path(game, cfg);
+    let active = mods_dir(game, cfg.primary());
+    let lua = mods_dir(game, cfg.target_for(Some("ue4ss_mods")));
+    write_triplet(&active.join("001_Skins"), "009_Moving", "");
+    write_triplet(&active, "005_Root", "");
+    fs::create_dir_all(lua.join("LuaMod/Scripts")).unwrap();
+    fs::write(lua.join("LuaMod/Scripts/main.lua"), b"script").unwrap();
+    save_state(
+        &sp,
+        &ModsState {
+            folders: vec![folder("f", "001_Skins", None)],
+            mods: vec![
+                InstalledMod {
+                    folder_id: Some("f".into()),
+                    ..pak_record("moving", "009_Moving.pak", true, 9)
+                },
+                pak_record("root", "005_Root.pak", true, 5),
+                InstalledMod {
+                    location: Some("ue4ss_mods".into()),
+                    ..pak_record("lua", "LuaMod", true, 99)
+                },
+            ],
+        },
+    )
+    .unwrap();
+
+    move_mod_to_folder_op(game, &sp, "moving", None, usize::MAX, cfg).unwrap();
+
+    let state = read_state(&sp).unwrap();
+    assert_eq!(state.mods[0].priority, Some(1));
+    assert_eq!(state.mods[1].priority, Some(2));
+    assert_eq!(state.mods[2].priority, Some(99));
+    assert_eq!(state.mods[2].filename, "LuaMod");
+    assert_eq!(state.mods[2].folder_id, None);
+    assert_triplet(&active, "001_Moving", "", "009_Moving");
+    assert_triplet(&active, "002_Root", "", "005_Root");
+    assert_eq!(
+        fs::read(lua.join("LuaMod/Scripts/main.lua")).unwrap(),
+        b"script"
+    );
+}
+
+#[test]
+fn target_scoped_reorder_in_folder_numbers_each_location_independently() {
+    let cfg = engine_for_game("cb").unwrap();
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let sp = get_state_path(game, cfg);
+    let legacy = mods_dir(game, cfg.target_for(Some("paks")));
+    write_triplet(&legacy, "008_Legacy", "");
+    save_state(
+        &sp,
+        &ModsState {
+            folders: vec![],
+            mods: vec![
+                pak_record("a", "A", true, 5),
+                InstalledMod {
+                    location: Some("mods".into()),
+                    ..pak_record("b", "B", true, 6)
+                },
+                InstalledMod {
+                    location: Some("paks".into()),
+                    ..pak_record("legacy", "008_Legacy.pak", true, 8)
+                },
+                InstalledMod {
+                    location: Some("ue4ss_mods".into()),
+                    ..pak_record("lua", "LuaMod", true, 55)
+                },
+            ],
+        },
+    )
+    .unwrap();
+
+    reorder_mods_in_folder_op(
+        game,
+        &sp,
+        None,
+        &["a".into(), "legacy".into(), "b".into()],
+        cfg,
+    )
+    .unwrap();
+
+    let state = read_state(&sp).unwrap();
+    assert_eq!(state.mods[0].priority, Some(2));
+    assert_eq!(state.mods[1].priority, Some(1));
+    assert_eq!(state.mods[2].priority, Some(1));
+    assert_eq!(state.mods[3].priority, Some(55));
+    assert_eq!(state.mods[3].filename, "LuaMod");
+    assert_triplet(&legacy, "001_Legacy", "", "008_Legacy");
+}
+
+#[test]
+fn target_scoped_reorder_children_preserves_folder_priority_handling() {
+    let cfg = engine_for_game("pd3").unwrap();
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let sp = get_state_path(game, cfg);
+    let active = mods_dir(game, cfg.primary());
+    write_triplet(&active, "008_Root", "");
+    write_triplet(&active.join("002_Skins"), "009_Child", "");
+    save_state(
+        &sp,
+        &ModsState {
+            folders: vec![folder("f", "002_Skins", None)],
+            mods: vec![
+                pak_record("root", "008_Root.pak", true, 8),
+                InstalledMod {
+                    folder_id: Some("f".into()),
+                    ..pak_record("child", "009_Child.pak", true, 9)
+                },
+                InstalledMod {
+                    location: Some("ue4ss_mods".into()),
+                    ..pak_record("lua", "LuaMod", true, 99)
+                },
+                InstalledMod {
+                    location: Some("ue4ss_mods".into()),
+                    ..pak_record("other", "OtherLuaMod", true, 77)
+                },
+            ],
+        },
+    )
+    .unwrap();
+
+    reorder_children_op(
+        game,
+        &sp,
+        None,
+        &[
+            TopLevelItem::Mod { id: "root".into() },
+            TopLevelItem::Mod { id: "lua".into() },
+            TopLevelItem::Folder { id: "f".into() },
+            TopLevelItem::Mod { id: "child".into() },
+        ],
+        cfg,
+    )
+    .unwrap();
+
+    let state = read_state(&sp).unwrap();
+    assert_eq!(state.folders[0].priority, 1);
+    assert_eq!(state.folders[0].disk_name, "001_Skins");
+    assert_eq!(state.mods[0].priority, Some(2));
+    assert!(state.mods[0].priority.unwrap() > state.folders[0].priority);
+    assert_eq!(state.mods[1].priority, Some(9));
+    assert_eq!(state.mods[2].priority, Some(1));
+    assert_eq!(state.mods[2].filename, "LuaMod");
+    assert_eq!(state.mods[3].priority, Some(77));
+    assert_eq!(state.mods[3].filename, "OtherLuaMod");
+    assert_triplet(&active, "002_Root", "", "008_Root");
+    assert_triplet(&active.join("001_Skins"), "009_Child", "", "009_Child");
+}
+
+#[test]
+fn target_scoped_folder_delete_ignores_other_locations_when_promoting_mods() {
+    let cfg = engine_for_game("pd3").unwrap();
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let sp = get_state_path(game, cfg);
+    let active = mods_dir(game, cfg.primary());
+    write_triplet(&active.join("001_Skins"), "009_Child", "");
+    write_triplet(&active, "004_Root", "");
+    save_state(
+        &sp,
+        &ModsState {
+            folders: vec![folder("f", "001_Skins", None)],
+            mods: vec![
+                InstalledMod {
+                    folder_id: Some("f".into()),
+                    ..pak_record("child", "009_Child.pak", true, 9)
+                },
+                pak_record("root", "004_Root.pak", true, 4),
+                InstalledMod {
+                    location: Some("ue4ss_mods".into()),
+                    ..pak_record("lua", "LuaMod", true, 99)
+                },
+            ],
+        },
+    )
+    .unwrap();
+
+    delete_folder_op(game, &sp, "f", cfg).unwrap();
+
+    let state = read_state(&sp).unwrap();
+    assert!(state.folders.is_empty());
+    assert_eq!(state.mods[0].priority, Some(5));
+    assert_eq!(state.mods[0].folder_id, None);
+    assert_eq!(state.mods[1].priority, Some(4));
+    assert_eq!(state.mods[2].priority, Some(99));
+    assert_eq!(state.mods[2].filename, "LuaMod");
+    assert_triplet(&active, "005_Child", "", "009_Child");
+    assert_triplet(&active, "004_Root", "", "004_Root");
+}
+
+#[test]
 fn reorder_in_folder_renames_companions_of_enabled_and_disabled_mods() {
     let cfg = engine_for_game("pd3").unwrap();
     let tmp = TempDir::new().unwrap();
@@ -7642,5 +7918,970 @@ async fn a_loader_row_is_never_written_into_the_saved_mod_list() {
     assert!(
         saved.mods.iter().all(|m| !m.uid.starts_with("loader:")),
         "the loader must not reach state.json"
+    );
+}
+
+#[tokio::test]
+async fn shared_folder_scan_assigns_one_folder_to_each_targets_nested_mods() {
+    for game_id in ["cb", "pd3"] {
+        let cfg = engine_for_game(game_id).unwrap();
+        let tmp = TempDir::new().unwrap();
+        let game = tmp.path().to_str().unwrap();
+        let pak_target = cfg.target_for(Some("paks"));
+        write_triplet(&mods_dir(game, pak_target).join("Pack"), "Legacy", "");
+        let lua = mods_dir(game, cfg.target_for(Some("ue4ss_mods")));
+        fs::create_dir_all(lua.join("Pack/LuaMod/Scripts")).unwrap();
+        fs::write(lua.join("Pack/LuaMod/Scripts/main.lua"), b"lua mod").unwrap();
+        let mut state = ModsState::default();
+        state.mods = own_scan(game, cfg, &mut state).await;
+        assert_eq!(state.folders.len(), 1);
+        assert_eq!(state.mods.len(), 2);
+        for m in &state.mods {
+            assert_eq!(m.folder_id.as_deref(), Some(state.folders[0].id.as_str()));
+        }
+    }
+}
+
+#[test]
+fn shared_folder_crime_boss_rename_and_delete_move_modkit_and_legacy_files() {
+    let cfg = engine_for_game("cb").unwrap();
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let sp = get_state_path(game, cfg);
+    let modkit = mods_dir(game, cfg.primary());
+    let modkit_disabled = disabled_dir(game, cfg.primary());
+    let legacy = cfg.target_for(Some("paks"));
+    let paks = mods_dir(game, legacy);
+    let disabled_paks = disabled_dir(game, legacy);
+    write_skeleton_pak(
+        &modkit.join("Pack/Kit"),
+        "KitCrimeBoss-WindowsNoEditor.pak",
+        b"kit",
+    );
+    write_skeleton_pak(
+        &modkit_disabled.join("Pack/OffKit"),
+        "OffCrimeBoss-WindowsNoEditor.pak",
+        b"off kit",
+    );
+    write_triplet(&paks.join("Pack"), "009_Legacy", "");
+    write_triplet(&disabled_paks.join("Pack"), "010_OffLegacy", ".disabled");
+    write_triplet(&paks, "004_Root", "");
+    write_triplet(&paks.join("Pack/Child"), "011_Nested", "");
+    save_state(
+        &sp,
+        &ModsState {
+            folders: vec![
+                folder("pack", "Pack", None),
+                folder("child", "Child", Some("pack")),
+            ],
+            mods: vec![
+                InstalledMod {
+                    folder_id: Some("pack".into()),
+                    ..pak_record("kit", "Kit", true, 99)
+                },
+                InstalledMod {
+                    folder_id: Some("pack".into()),
+                    ..pak_record("offkit", "OffKit", false, 100)
+                },
+                InstalledMod {
+                    folder_id: Some("pack".into()),
+                    location: Some("paks".into()),
+                    ..pak_record("pak", "009_Legacy.pak", true, 9)
+                },
+                InstalledMod {
+                    folder_id: Some("pack".into()),
+                    location: Some("paks".into()),
+                    ..pak_record("offpak", "010_OffLegacy.pak", false, 10)
+                },
+                InstalledMod {
+                    location: Some("paks".into()),
+                    ..pak_record("root", "004_Root.pak", true, 4)
+                },
+                InstalledMod {
+                    folder_id: Some("child".into()),
+                    location: Some("paks".into()),
+                    ..pak_record("nested", "011_Nested.pak", true, 11)
+                },
+            ],
+        },
+    )
+    .unwrap();
+    let lua = mods_dir(game, cfg.target_for(Some("ue4ss_mods")));
+    assert!(!lua.exists());
+    rename_folder_op(game, &sp, "pack", "Renamed", cfg).unwrap();
+    assert_eq!(
+        fs::read(
+            modkit
+                .join("Renamed/Kit/Content/Paks/WindowsNoEditor/KitCrimeBoss-WindowsNoEditor.pak")
+        )
+        .unwrap(),
+        b"kit"
+    );
+    assert_triplet(&paks.join("Renamed"), "009_Legacy", "", "009_Legacy");
+    assert_triplet(
+        &disabled_paks.join("Renamed"),
+        "010_OffLegacy",
+        ".disabled",
+        "010_OffLegacy",
+    );
+    delete_folder_op(game, &sp, "pack", cfg).unwrap();
+    assert_eq!(
+        fs::read(modkit.join("Kit/Content/Paks/WindowsNoEditor/KitCrimeBoss-WindowsNoEditor.pak"))
+            .unwrap(),
+        b"kit"
+    );
+    assert_eq!(
+        fs::read(
+            modkit_disabled
+                .join("OffKit/Content/Paks/WindowsNoEditor/OffCrimeBoss-WindowsNoEditor.pak")
+        )
+        .unwrap(),
+        b"off kit"
+    );
+    assert_triplet(&paks, "005_Legacy", "", "009_Legacy");
+    assert_triplet(
+        &disabled_paks,
+        "006_OffLegacy",
+        ".disabled",
+        "010_OffLegacy",
+    );
+    assert_triplet(&paks.join("Child"), "011_Nested", "", "011_Nested");
+    assert_triplet(&paks, "004_Root", "", "004_Root");
+    let state = read_state(&sp).unwrap();
+    assert_eq!(state.folders.len(), 1);
+    assert_eq!(state.folders[0].parent_id, None);
+    for base in [&modkit, &modkit_disabled, &paks, &disabled_paks] {
+        assert!(!base.join("Pack").exists());
+        assert!(!base.join("Renamed").exists());
+    }
+    assert!(!lua.exists());
+}
+
+fn shared_folder_pd3_fixture() -> (TempDir, PathBuf, &'static ModEngineConfig) {
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let cfg = engine_for_game("pd3").unwrap();
+    let sp = get_state_path(game, cfg);
+    let paks = mods_dir(game, cfg.primary());
+    write_triplet(&paks.join("001_Pack"), "009_Pak", "");
+    write_triplet(
+        &disabled_dir(game, cfg.primary()).join("001_Pack"),
+        "010_OffPak",
+        ".disabled",
+    );
+    let lua = mods_dir(game, cfg.target_for(Some("ue4ss_mods")));
+    for name in ["Direct", "001_Child/Nested"] {
+        let dir = lua.join("001_Pack").join(name);
+        fs::create_dir_all(dir.join("Scripts")).unwrap();
+        fs::write(dir.join("Scripts/main.lua"), name.as_bytes()).unwrap();
+        fs::write(dir.join("enabled.txt.disabled"), b"marker").unwrap();
+    }
+    fs::write(
+        lua.join("mods.txt"),
+        b"Direct : 0\nNested : 0\nUntouched : 1\n",
+    )
+    .unwrap();
+    let mut parent = folder("parent", "002_Parent", None);
+    parent.priority = 2;
+    save_state(
+        &sp,
+        &ModsState {
+            folders: vec![
+                folder("pack", "001_Pack", None),
+                folder("child", "001_Child", Some("pack")),
+                parent,
+            ],
+            mods: vec![
+                InstalledMod {
+                    folder_id: Some("pack".into()),
+                    ..pak_record("pak", "009_Pak.pak", true, 9)
+                },
+                InstalledMod {
+                    folder_id: Some("pack".into()),
+                    ..pak_record("offpak", "010_OffPak.pak", false, 10)
+                },
+                InstalledMod {
+                    folder_id: Some("pack".into()),
+                    location: Some("ue4ss_mods".into()),
+                    ..pak_record("direct", "Direct", false, 1)
+                },
+                InstalledMod {
+                    folder_id: Some("child".into()),
+                    location: Some("ue4ss_mods".into()),
+                    ..pak_record("nested", "Nested", false, 99)
+                },
+            ],
+        },
+    )
+    .unwrap();
+    (tmp, sp, cfg)
+}
+
+#[test]
+fn shared_folder_pd3_rename_delete_and_toggle_preserve_nested_disabled_ue4ss_mods() {
+    let (tmp, sp, cfg) = shared_folder_pd3_fixture();
+    let game = tmp.path().to_str().unwrap();
+    let lua_target = cfg.target_for(Some("ue4ss_mods"));
+    let lua = mods_dir(game, lua_target);
+    let mods_txt = fs::read(lua.join("mods.txt")).unwrap();
+    rename_folder_op(game, &sp, "pack", "Renamed", cfg).unwrap();
+    assert!(lua
+        .join("001_Renamed/001_Child/Nested/Scripts/main.lua")
+        .exists());
+    enable_mod_op(game, &sp, "nested", cfg, None).unwrap();
+    assert!(lua
+        .join("001_Renamed/001_Child/Nested/enabled.txt")
+        .exists());
+    disable_mod_op(game, &sp, "nested", cfg, None).unwrap();
+    assert_eq!(fs::read(lua.join("mods.txt")).unwrap(), mods_txt);
+    delete_folder_op(game, &sp, "pack", cfg).unwrap();
+    let state = read_state(&sp).unwrap();
+    let child_rel = get_folder_path(&state.folders, Some("child")).unwrap();
+    assert!(!child_rel.contains('/'));
+    assert_eq!(
+        fs::read(lua.join(&child_rel).join("Nested/Scripts/main.lua")).unwrap(),
+        b"001_Child/Nested"
+    );
+    assert!(lua
+        .join(&child_rel)
+        .join("Nested/enabled.txt.disabled")
+        .exists());
+    assert!(lua.join("Direct/enabled.txt.disabled").exists());
+    assert_triplet(&mods_dir(game, cfg.primary()), "003_Pak", "", "009_Pak");
+    assert_triplet(
+        &disabled_dir(game, cfg.primary()),
+        "004_OffPak",
+        ".disabled",
+        "010_OffPak",
+    );
+    assert_eq!(fs::read(lua.join("mods.txt")).unwrap(), mods_txt);
+    assert!(!disabled_dir(game, lua_target).exists());
+    enable_mod_op(game, &sp, "nested", cfg, None).unwrap();
+    enable_mod_op(game, &sp, "direct", cfg, None).unwrap();
+    assert!(lua.join(&child_rel).join("Nested/enabled.txt").exists());
+    assert!(lua.join("Direct/enabled.txt").exists());
+    assert!(!lua.join("001_Renamed").exists());
+}
+
+#[test]
+fn shared_folder_nest_and_unnest_move_each_existing_target_tree() {
+    let (tmp, sp, cfg) = shared_folder_pd3_fixture();
+    let game = tmp.path().to_str().unwrap();
+    let lua = mods_dir(game, cfg.target_for(Some("ue4ss_mods")));
+    move_folder_op(game, &sp, "pack", Some("parent".into()), cfg).unwrap();
+    assert!(lua
+        .join("002_Parent/001_Pack/001_Child/Nested/Scripts/main.lua")
+        .exists());
+    assert_triplet(
+        &mods_dir(game, cfg.primary()).join("002_Parent/001_Pack"),
+        "009_Pak",
+        "",
+        "009_Pak",
+    );
+    assert_triplet(
+        &disabled_dir(game, cfg.primary()).join("002_Parent/001_Pack"),
+        "010_OffPak",
+        ".disabled",
+        "010_OffPak",
+    );
+    move_folder_op(game, &sp, "pack", None, cfg).unwrap();
+    let state = read_state(&sp).unwrap();
+    let rel = get_folder_path(&state.folders, Some("pack")).unwrap();
+    assert_eq!(rel, "003_Pack");
+    assert!(lua
+        .join(&rel)
+        .join("001_Child/Nested/Scripts/main.lua")
+        .exists());
+    assert_triplet(
+        &mods_dir(game, cfg.primary()).join(&rel),
+        "009_Pak",
+        "",
+        "009_Pak",
+    );
+    assert!(!disabled_dir(game, cfg.target_for(Some("ue4ss_mods"))).exists());
+}
+
+#[test]
+fn shared_folder_reorder_changes_each_targets_folder_without_renumbering_its_mods() {
+    let (tmp, sp, cfg) = shared_folder_pd3_fixture();
+    let game = tmp.path().to_str().unwrap();
+    reorder_children_op(
+        game,
+        &sp,
+        None,
+        &[
+            TopLevelItem::Folder { id: "pack".into() },
+            TopLevelItem::Folder {
+                id: "parent".into(),
+            },
+        ],
+        cfg,
+    )
+    .unwrap();
+    let paks = mods_dir(game, cfg.primary());
+    let lua = mods_dir(game, cfg.target_for(Some("ue4ss_mods")));
+    assert_triplet(&paks.join("002_Pack"), "009_Pak", "", "009_Pak");
+    assert!(lua
+        .join("002_Pack/001_Child/Nested/Scripts/main.lua")
+        .exists());
+    assert!(!lua.join("001_Pack").exists());
+    assert_eq!(read_state(&sp).unwrap().mods[3].priority, Some(99));
+}
+
+#[test]
+fn shared_folder_secondary_collision_refuses_rename_nest_and_delete_without_moving_files() {
+    let (tmp, sp, cfg) = shared_folder_pd3_fixture();
+    let game = tmp.path().to_str().unwrap();
+    let lua = mods_dir(game, cfg.target_for(Some("ue4ss_mods")));
+    let before = fs::read(&sp).unwrap();
+    fs::create_dir_all(lua.join("001_Renamed")).unwrap();
+    assert!(rename_folder_op(game, &sp, "pack", "Renamed", cfg).is_err());
+    fs::create_dir_all(lua.join("002_Parent/001_Pack")).unwrap();
+    assert!(move_folder_op(game, &sp, "pack", Some("parent".into()), cfg).is_err());
+    fs::create_dir_all(lua.join("Direct")).unwrap();
+    fs::write(lua.join("Direct/untracked.txt"), b"keep").unwrap();
+    assert!(delete_folder_op(game, &sp, "pack", cfg).is_err());
+    assert_eq!(fs::read(&sp).unwrap(), before);
+    assert!(lua.join("001_Pack/Direct/Scripts/main.lua").exists());
+    assert!(lua
+        .join("001_Pack/001_Child/Nested/Scripts/main.lua")
+        .exists());
+    assert_eq!(fs::read(lua.join("Direct/untracked.txt")).unwrap(), b"keep");
+    assert_triplet(
+        &mods_dir(game, cfg.primary()).join("001_Pack"),
+        "009_Pak",
+        "",
+        "009_Pak",
+    );
+}
+
+#[test]
+fn shared_folder_save_failure_restores_all_target_trees() {
+    let (tmp, sp, cfg) = shared_folder_pd3_fixture();
+    let game = tmp.path().to_str().unwrap();
+    let before = fs::read(&sp).unwrap();
+    let state_tmp = sp.with_file_name(format!("{}.tmp", STATE_FILENAME));
+    fs::create_dir(&state_tmp).unwrap();
+    assert!(rename_folder_op(game, &sp, "pack", "Renamed", cfg).is_err());
+    assert_eq!(fs::read(&sp).unwrap(), before);
+    let lua = mods_dir(game, cfg.target_for(Some("ue4ss_mods")));
+    assert!(lua.join("001_Pack/Direct/Scripts/main.lua").exists());
+    assert!(!lua.join("001_Renamed").exists());
+    assert_triplet(
+        &mods_dir(game, cfg.primary()).join("001_Pack"),
+        "009_Pak",
+        "",
+        "009_Pak",
+    );
+    assert_triplet(
+        &disabled_dir(game, cfg.primary()).join("001_Pack"),
+        "010_OffPak",
+        ".disabled",
+        "010_OffPak",
+    );
+}
+
+#[test]
+fn shared_folder_reconciliation_compacts_secondary_only_folders_and_preserves_empty_ones() {
+    let cfg = engine_for_game("pd3").unwrap();
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let sp = get_state_path(game, cfg);
+    let lua = mods_dir(game, cfg.target_for(Some("ue4ss_mods")));
+    fs::create_dir_all(lua.join("009_Pack/LuaMod/Scripts")).unwrap();
+    fs::write(lua.join("009_Pack/LuaMod/Scripts/main.lua"), b"lua").unwrap();
+    fs::create_dir_all(lua.join("010_Empty")).unwrap();
+    let mut pack = folder("pack", "009_Pack", None);
+    pack.priority = 9;
+    let mut empty = folder("empty", "010_Empty", None);
+    empty.priority = 10;
+    save_state(
+        &sp,
+        &ModsState {
+            folders: vec![pack, empty],
+            mods: vec![InstalledMod {
+                folder_id: Some("pack".into()),
+                location: Some("ue4ss_mods".into()),
+                ..pak_record("lua", "LuaMod", false, 1)
+            }],
+        },
+    )
+    .unwrap();
+    super::state::reconcile_state(game, &sp, cfg).unwrap();
+    assert!(lua.join("001_Pack/LuaMod/Scripts/main.lua").exists());
+    assert!(lua.join("010_Empty").is_dir());
+    assert!(!lua.join("002_Empty").exists());
+    let state = read_state(&sp).unwrap();
+    assert_eq!(state.folders.len(), 2);
+    let empty = state.folders.iter().find(|f| f.id == "empty").unwrap();
+    assert_eq!(empty.disk_name, "010_Empty");
+    assert_eq!(empty.priority, 2);
+    assert_eq!(state.mods[0].missing, None);
+    assert!(!mods_dir(game, cfg.primary()).join("001_Pack").exists());
+    assert!(!mods_dir(game, cfg.primary()).join("002_Empty").exists());
+}
+
+#[test]
+fn shared_folder_primary_folder_order_ignores_other_targets_root_priorities() {
+    let (tmp, sp, cfg) = shared_folder_pd3_fixture();
+    let game = tmp.path().to_str().unwrap();
+    let mut state = read_state(&sp).unwrap();
+    state.mods.push(InstalledMod {
+        location: Some("ue4ss_mods".into()),
+        ..pak_record("other", "Other", true, 99)
+    });
+    save_state(&sp, &state).unwrap();
+    move_folder_op(game, &sp, "pack", Some("parent".into()), cfg).unwrap();
+    move_folder_op(game, &sp, "pack", None, cfg).unwrap();
+    let state = read_state(&sp).unwrap();
+    assert_eq!(
+        get_folder_path(&state.folders, Some("pack")).as_deref(),
+        Some("003_Pack")
+    );
+    delete_folder_op(game, &sp, "pack", cfg).unwrap();
+    let state = read_state(&sp).unwrap();
+    assert_eq!(state.mods.last().unwrap().priority, Some(99));
+    assert_triplet(&mods_dir(game, cfg.primary()), "003_Pak", "", "009_Pak");
+    assert_eq!(
+        state
+            .folders
+            .iter()
+            .find(|f| f.id == "child")
+            .unwrap()
+            .disk_name,
+        "005_Child"
+    );
+}
+
+#[test]
+fn shared_folder_compaction_failure_keeps_files_and_saved_names_together() {
+    let (tmp, sp, cfg) = shared_folder_pd3_fixture();
+    let game = tmp.path().to_str().unwrap();
+    let mut state = read_state(&sp).unwrap();
+    state.folders[0].priority = 9;
+    state.folders[0].disk_name = "009_Pack".into();
+    for target in cfg.targets {
+        for base in [mods_dir(game, target), disabled_dir(game, target)] {
+            let old = base.join("001_Pack");
+            if old.exists() {
+                fs::rename(old, base.join("009_Pack")).unwrap();
+            }
+        }
+    }
+    let mut later = folder("later", "010_Later", None);
+    later.priority = 10;
+    state.folders.push(later);
+    state.mods.push(InstalledMod {
+        folder_id: Some("later".into()),
+        ..pak_record("later", "001_LaterMod.pak", true, 1)
+    });
+    write_triplet(
+        &mods_dir(game, cfg.primary()).join("010_Later"),
+        "001_LaterMod",
+        "",
+    );
+    save_state(&sp, &state).unwrap();
+    let lua = mods_dir(game, cfg.target_for(Some("ue4ss_mods")));
+    fs::create_dir_all(lua.join("001_Pack")).unwrap();
+    let reconciled = super::state::reconcile_state(game, &sp, cfg).unwrap();
+    let pack = reconciled.folders.iter().find(|f| f.id == "pack").unwrap();
+    assert_eq!(pack.disk_name, "009_Pack");
+    assert_eq!(pack.priority, 9);
+    assert!(reconciled.mods.iter().all(|m| m.missing != Some(true)));
+    let saved = read_state(&sp).unwrap();
+    assert_eq!(
+        saved
+            .folders
+            .iter()
+            .find(|f| f.id == "pack")
+            .unwrap()
+            .disk_name,
+        "009_Pack"
+    );
+    assert_eq!(
+        saved
+            .folders
+            .iter()
+            .find(|f| f.id == "pack")
+            .unwrap()
+            .priority,
+        9
+    );
+    let later = saved.folders.iter().find(|f| f.id == "later").unwrap();
+    assert_eq!(later.disk_name, "002_Later");
+    assert_eq!(later.priority, 2);
+    assert_triplet(
+        &mods_dir(game, cfg.primary()).join("002_Later"),
+        "001_LaterMod",
+        "",
+        "001_LaterMod",
+    );
+    assert!(lua.join("009_Pack/Direct/Scripts/main.lua").exists());
+    assert_triplet(
+        &mods_dir(game, cfg.primary()).join("009_Pack"),
+        "009_Pak",
+        "",
+        "009_Pak",
+    );
+}
+
+#[test]
+fn pd2_folder_rename_leaves_same_named_override_mod_alone() {
+    let cfg = engine_for_game("pd2").unwrap();
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let sp = get_state_path(game, cfg);
+    let mods = mods_dir(game, cfg.primary());
+    fs::create_dir_all(mods.join("HUD/BltMod")).unwrap();
+    fs::write(mods.join("HUD/BltMod/mod.txt"), b"{}").unwrap();
+    let overrides = mods_dir(game, cfg.target_for(Some("mod_overrides")));
+    fs::create_dir_all(overrides.join("HUD/guis")).unwrap();
+    fs::write(overrides.join("HUD/guis/a.texture"), b"x").unwrap();
+    save_state(
+        &sp,
+        &ModsState {
+            folders: vec![folder("hud", "HUD", None)],
+            mods: vec![
+                InstalledMod {
+                    folder_id: Some("hud".into()),
+                    ..pak_record("blt", "BltMod", true, 1)
+                },
+                InstalledMod {
+                    location: Some("mod_overrides".into()),
+                    ..pak_record("ovr", "HUD", true, 1)
+                },
+            ],
+        },
+    )
+    .unwrap();
+    rename_folder_op(game, &sp, "hud", "Interface", cfg).unwrap();
+    assert!(mods.join("Interface/BltMod/mod.txt").exists());
+    assert!(
+        overrides.join("HUD/guis/a.texture").exists(),
+        "override mod HUD was renamed to {:?}",
+        fs::read_dir(&overrides)
+            .unwrap()
+            .map(|e| e.unwrap().file_name())
+            .collect::<Vec<_>>()
+    );
+}
+
+#[test]
+fn raid_case_only_folder_rename() {
+    let cfg = engine_for_game("raid").unwrap();
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let sp = get_state_path(game, cfg);
+    let mods = mods_dir(game, cfg.primary());
+    fs::create_dir_all(mods.join("Weapons/ModA")).unwrap();
+    fs::write(mods.join("Weapons/ModA/mod.txt"), b"{}").unwrap();
+    save_state(
+        &sp,
+        &ModsState {
+            folders: vec![folder("w", "Weapons", None)],
+            mods: vec![InstalledMod {
+                folder_id: Some("w".into()),
+                ..pak_record("a", "ModA", true, 1)
+            }],
+        },
+    )
+    .unwrap();
+    rename_folder_op(game, &sp, "w", "weapons", cfg).unwrap();
+    assert_eq!(read_state(&sp).unwrap().folders[0].disk_name, "weapons");
+    assert!(mods.join("weapons/ModA/mod.txt").is_file());
+    let names = fs::read_dir(&mods)
+        .unwrap()
+        .map(|entry| entry.unwrap().file_name())
+        .collect::<Vec<_>>();
+    assert!(names.contains(&std::ffi::OsString::from("weapons")));
+    assert!(!names
+        .iter()
+        .any(|name| name.to_string_lossy().starts_with("__modrex_move_")));
+}
+
+#[test]
+fn pd3_reorder_children_keeps_root_pak_above_folder() {
+    let cfg = engine_for_game("pd3").unwrap();
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let sp = get_state_path(game, cfg);
+    let active = mods_dir(game, cfg.primary());
+    write_triplet(&active, "001_Root", "");
+    write_triplet(&active.join("002_Skins"), "001_Child", "");
+    let mut f = folder("f", "002_Skins", None);
+    f.priority = 2;
+    save_state(
+        &sp,
+        &ModsState {
+            folders: vec![f],
+            mods: vec![
+                pak_record("root", "001_Root.pak", true, 1),
+                InstalledMod {
+                    folder_id: Some("f".into()),
+                    ..pak_record("child", "001_Child.pak", true, 1)
+                },
+                InstalledMod {
+                    location: Some("ue4ss_mods".into()),
+                    ..pak_record("l1", "L1", true, 2)
+                },
+                InstalledMod {
+                    location: Some("ue4ss_mods".into()),
+                    ..pak_record("l2", "L2", true, 1)
+                },
+            ],
+        },
+    )
+    .unwrap();
+    reorder_children_op(
+        game,
+        &sp,
+        None,
+        &[
+            TopLevelItem::Mod { id: "root".into() },
+            TopLevelItem::Folder { id: "f".into() },
+            TopLevelItem::Mod { id: "l1".into() },
+            TopLevelItem::Mod { id: "l2".into() },
+        ],
+        cfg,
+    )
+    .unwrap();
+    let state = read_state(&sp).unwrap();
+    let root = state.mods[0].priority.unwrap();
+    let folder_p = state.folders[0].priority;
+    assert!(
+        root > folder_p,
+        "root {} ({}) not above folder {} ({})",
+        root,
+        state.mods[0].filename,
+        folder_p,
+        state.folders[0].disk_name
+    );
+}
+
+#[test]
+fn crime_boss_folder_ops_preserve_ue4ss_infrastructure() {
+    for name in ["shared", "Keybinds"] {
+        for operation in ["rename", "move", "delete"] {
+            let cfg = engine_for_game("cb").unwrap();
+            let tmp = TempDir::new().unwrap();
+            let game = tmp.path().to_str().unwrap();
+            let sp = get_state_path(game, cfg);
+            let active = mods_dir(game, cfg.primary());
+            fs::create_dir_all(active.join(name).join("Nested/Kit")).unwrap();
+            fs::write(active.join(name).join("Nested/Kit/content.pak"), b"kit").unwrap();
+            let lua = mods_dir(game, cfg.target_for(Some("ue4ss_mods")));
+            let infrastructure = lua.join(name);
+            fs::create_dir_all(infrastructure.join("empty/library")).unwrap();
+            fs::write(infrastructure.join("UEHelpers.lua"), b"loader library").unwrap();
+            save_state(
+                &sp,
+                &ModsState {
+                    folders: vec![
+                        folder("app", name, None),
+                        folder("nested", "Nested", Some("app")),
+                        folder("parent", "Parent", None),
+                    ],
+                    mods: vec![InstalledMod {
+                        folder_id: Some("nested".into()),
+                        ..pak_record("kit", "Kit", true, 1)
+                    }],
+                },
+            )
+            .unwrap();
+            match operation {
+                "rename" => rename_folder_op(game, &sp, "app", "Interface", cfg).unwrap(),
+                "move" => move_folder_op(game, &sp, "app", Some("parent".into()), cfg).unwrap(),
+                "delete" => delete_folder_op(game, &sp, "app", cfg).unwrap(),
+                _ => unreachable!(),
+            }
+            assert_eq!(
+                fs::read(infrastructure.join("UEHelpers.lua")).unwrap(),
+                b"loader library"
+            );
+            assert!(
+                infrastructure.join("empty/library").is_dir(),
+                "{name} {operation}"
+            );
+            let kit_path = match operation {
+                "rename" => active.join("Interface/Nested/Kit/content.pak"),
+                "move" => active
+                    .join("Parent")
+                    .join(name)
+                    .join("Nested/Kit/content.pak"),
+                "delete" => active.join("Nested/Kit/content.pak"),
+                _ => unreachable!(),
+            };
+            assert_eq!(fs::read(kit_path).unwrap(), b"kit");
+        }
+    }
+}
+
+#[test]
+fn diesel_folder_ops_preserve_same_named_override_mods() {
+    for game_id in ["pd2", "pdth"] {
+        for operation in ["rename", "move", "delete"] {
+            let cfg = engine_for_game(game_id).unwrap();
+            let tmp = TempDir::new().unwrap();
+            let game = tmp.path().to_str().unwrap();
+            let sp = get_state_path(game, cfg);
+            let active = mods_dir(game, cfg.primary());
+            fs::create_dir_all(active.join("HUD/BltMod")).unwrap();
+            fs::write(active.join("HUD/BltMod/mod.txt"), b"{}").unwrap();
+            let overrides = mods_dir(game, cfg.target_for(Some("mod_overrides")));
+            fs::create_dir_all(overrides.join("HUD/guis")).unwrap();
+            fs::create_dir_all(overrides.join("HUD/empty/subdir")).unwrap();
+            fs::write(overrides.join("HUD/guis/a.texture"), b"texture").unwrap();
+            let off_overrides = disabled_dir(game, cfg.target_for(Some("mod_overrides")));
+            fs::create_dir_all(off_overrides.join("HUD/empty/subdir")).unwrap();
+            save_state(
+                &sp,
+                &ModsState {
+                    folders: vec![folder("hud", "HUD", None), folder("parent", "Parent", None)],
+                    mods: vec![
+                        InstalledMod {
+                            folder_id: Some("hud".into()),
+                            ..pak_record("blt", "BltMod", true, 1)
+                        },
+                        InstalledMod {
+                            location: Some("mod_overrides".into()),
+                            ..pak_record("override", "HUD", true, 1)
+                        },
+                    ],
+                },
+            )
+            .unwrap();
+            match operation {
+                "rename" => rename_folder_op(game, &sp, "hud", "Interface", cfg).unwrap(),
+                "move" => move_folder_op(game, &sp, "hud", Some("parent".into()), cfg).unwrap(),
+                "delete" => delete_folder_op(game, &sp, "hud", cfg).unwrap(),
+                _ => unreachable!(),
+            }
+            assert_eq!(
+                fs::read(overrides.join("HUD/guis/a.texture")).unwrap(),
+                b"texture"
+            );
+            assert!(
+                overrides.join("HUD/empty/subdir").is_dir(),
+                "{game_id} {operation}"
+            );
+            assert!(
+                off_overrides.join("HUD/empty/subdir").is_dir(),
+                "{game_id} {operation}"
+            );
+            let blt_path = match operation {
+                "rename" => active.join("Interface/BltMod/mod.txt"),
+                "move" => active.join("Parent/HUD/BltMod/mod.txt"),
+                "delete" => active.join("BltMod/mod.txt"),
+                _ => unreachable!(),
+            };
+            assert_eq!(fs::read(blt_path).unwrap(), b"{}");
+        }
+    }
+}
+
+#[test]
+fn folder_compaction_preserves_other_targets_root_mod() {
+    let cfg = engine_for_game("pd3").unwrap();
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let sp = get_state_path(game, cfg);
+    let active = mods_dir(game, cfg.primary());
+    write_triplet(&active.join("009_Pack"), "001_Child", "");
+    let lua = mods_dir(game, cfg.target_for(Some("ue4ss_mods")));
+    fs::create_dir_all(lua.join("009_Pack/Scripts")).unwrap();
+    fs::write(lua.join("009_Pack/Scripts/main.lua"), b"root lua mod").unwrap();
+    let mut app = folder("app", "009_Pack", None);
+    app.priority = 9;
+    save_state(
+        &sp,
+        &ModsState {
+            folders: vec![app],
+            mods: vec![
+                InstalledMod {
+                    folder_id: Some("app".into()),
+                    ..pak_record("child", "001_Child.pak", true, 1)
+                },
+                InstalledMod {
+                    location: Some("ue4ss_mods".into()),
+                    ..pak_record("lua", "009_Pack", true, 1)
+                },
+            ],
+        },
+    )
+    .unwrap();
+    let state = super::state::reconcile_state(game, &sp, cfg).unwrap();
+    assert_eq!(state.folders[0].disk_name, "001_Pack");
+    assert_triplet(&active.join("001_Pack"), "001_Child", "", "001_Child");
+    assert_eq!(
+        fs::read(lua.join("009_Pack/Scripts/main.lua")).unwrap(),
+        b"root lua mod"
+    );
+    assert!(!lua.join("001_Pack").exists());
+}
+
+#[test]
+fn root_folder_create_and_rename_reject_disabled_in_any_case() {
+    for game_id in ["pd2", "pd3", "pdth", "raid", "cb"] {
+        for name in ["disabled", "Disabled", "DISABLED", " DisAbLeD "] {
+            let cfg = engine_for_game(game_id).unwrap();
+            let tmp = TempDir::new().unwrap();
+            let game = tmp.path().to_str().unwrap();
+            let sp = get_state_path(game, cfg);
+            save_state(&sp, &ModsState::default()).unwrap();
+            let before = fs::read(&sp).unwrap();
+            assert!(create_folder_op(game, &sp, name, None, cfg)
+                .unwrap_err()
+                .contains("reserved"));
+            assert_eq!(fs::read(&sp).unwrap(), before);
+            let app = create_folder_op(game, &sp, "Safe", None, cfg).unwrap();
+            let before = fs::read(&sp).unwrap();
+            assert!(rename_folder_op(game, &sp, &app.id, name, cfg)
+                .unwrap_err()
+                .contains("reserved"));
+            assert_eq!(fs::read(&sp).unwrap(), before);
+            assert!(mods_dir(game, cfg.primary()).join(&app.disk_name).is_dir());
+        }
+    }
+}
+
+#[test]
+fn folder_move_collision_leaves_no_destination_parents() {
+    let cfg = engine_for_game("pd3").unwrap();
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let active = mods_dir(game, cfg.primary());
+    let lua = mods_dir(game, cfg.target_for(Some("ue4ss_mods")));
+    fs::create_dir_all(active.join("Pack/Child")).unwrap();
+    fs::create_dir_all(lua.join("Pack/LuaMod")).unwrap();
+    fs::create_dir_all(lua.join("Parent/Pack")).unwrap();
+    let mut moves = super::moves::Moves::for_game(game, cfg).unwrap();
+    let targets = cfg.targets.iter().collect::<Vec<_>>();
+    moves.folder(game, &targets, "Pack", "Parent/Pack").unwrap();
+    assert!(!active.join("Parent").exists());
+    assert!(moves.run().err().unwrap().contains("in the way"));
+    assert!(!active.join("Parent").exists());
+    assert!(active.join("Pack/Child").is_dir());
+    assert!(lua.join("Pack/LuaMod").is_dir());
+}
+
+#[test]
+fn case_only_folder_rename_rolls_back_when_state_save_fails() {
+    let cfg = engine_for_game("raid").unwrap();
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let sp = get_state_path(game, cfg);
+    let active = mods_dir(game, cfg.primary());
+    fs::create_dir_all(active.join("Weapons/ModA")).unwrap();
+    fs::write(active.join("Weapons/ModA/mod.txt"), b"{}").unwrap();
+    save_state(
+        &sp,
+        &ModsState {
+            folders: vec![folder("w", "Weapons", None)],
+            mods: vec![InstalledMod {
+                folder_id: Some("w".into()),
+                ..pak_record("a", "ModA", true, 1)
+            }],
+        },
+    )
+    .unwrap();
+    let before = fs::read(&sp).unwrap();
+    fs::create_dir(super::state::temporary_state_path(&sp)).unwrap();
+    assert!(rename_folder_op(game, &sp, "w", "weapons", cfg).is_err());
+    assert_eq!(fs::read(&sp).unwrap(), before);
+    assert_eq!(
+        fs::read(active.join("Weapons/ModA/mod.txt")).unwrap(),
+        b"{}"
+    );
+    let names = fs::read_dir(&active)
+        .unwrap()
+        .map(|entry| entry.unwrap().file_name())
+        .collect::<Vec<_>>();
+    assert!(names.contains(&std::ffi::OsString::from("Weapons")));
+    assert!(!names
+        .iter()
+        .any(|name| name.to_string_lossy().starts_with("__modrex_move_")));
+}
+
+#[test]
+fn unknown_locations_share_primary_priority_and_folder_routing() {
+    let cfg = engine_for_game("pd3").unwrap();
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let sp = get_state_path(game, cfg);
+    let active = mods_dir(game, cfg.primary());
+    write_triplet(&active, "008_Root", "");
+    write_triplet(&active.join("001_Pack"), "009_Child", "");
+    save_state(
+        &sp,
+        &ModsState {
+            folders: vec![folder("pack", "001_Pack", None)],
+            mods: vec![
+                InstalledMod {
+                    location: Some("unknown".into()),
+                    ..pak_record("root", "008_Root.pak", true, 8)
+                },
+                InstalledMod {
+                    folder_id: Some("pack".into()),
+                    ..pak_record("child", "009_Child.pak", true, 9)
+                },
+            ],
+        },
+    )
+    .unwrap();
+    move_mod_to_folder_op(game, &sp, "root", Some("pack".into()), 0, cfg).unwrap();
+    reorder_mods_in_folder_op(
+        game,
+        &sp,
+        Some("pack"),
+        &["child".into(), "root".into()],
+        cfg,
+    )
+    .unwrap();
+    let state = read_state(&sp).unwrap();
+    assert_eq!(state.mods[0].priority, Some(1));
+    assert_eq!(state.mods[1].priority, Some(2));
+    assert_triplet(&active.join("001_Pack"), "001_Root", "", "008_Root");
+    assert_triplet(&active.join("001_Pack"), "002_Child", "", "009_Child");
+    delete_folder_op(game, &sp, "pack", cfg).unwrap();
+    assert_triplet(&active, "001_Root", "", "008_Root");
+    assert_triplet(&active, "002_Child", "", "009_Child");
+}
+
+#[test]
+fn primary_folder_relocation_leaves_host_packs_outside_scan_targets() {
+    let cfg = engine_for_game("pd2").unwrap();
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let sp = get_state_path(game, cfg);
+    let active = mods_dir(game, cfg.primary());
+    fs::create_dir_all(active.join("BltMod")).unwrap();
+    fs::create_dir_all(active.join("Host/Assets/Set")).unwrap();
+    fs::write(active.join("BltMod/mod.txt"), b"{}").unwrap();
+    fs::write(active.join("Host/Assets/Set/movie.mp4"), b"video").unwrap();
+    save_state(
+        &sp,
+        &ModsState {
+            folders: vec![folder("app", "App", None)],
+            mods: vec![
+                pak_record("blt", "BltMod", true, 1),
+                InstalledMod {
+                    location: Some("host:17160:Assets".into()),
+                    ..pak_record("pack", "Set", true, 99)
+                },
+            ],
+        },
+    )
+    .unwrap();
+    let before = fs::read(&sp).unwrap();
+    move_mod_to_folder_op(game, &sp, "pack", Some("app".into()), 0, cfg).unwrap();
+    assert_eq!(fs::read(&sp).unwrap(), before);
+    move_mod_to_folder_op(game, &sp, "blt", None, 0, cfg).unwrap();
+    let state = read_state(&sp).unwrap();
+    assert_eq!(state.mods[0].priority, Some(1));
+    assert_eq!(state.mods[1].priority, Some(99));
+    assert_eq!(state.mods[1].folder_id, None);
+    assert_eq!(
+        fs::read(active.join("Host/Assets/Set/movie.mp4")).unwrap(),
+        b"video"
     );
 }

@@ -1,10 +1,11 @@
 use super::engine::ModEngineConfig;
-use super::moves::{exists, Moves};
+use super::moves::{exists, folder_targets, Moves};
 use super::naming::log_name;
 use super::naming::{apply_priority_prefix, strip_priority_prefix};
-use super::paths::{disabled_base, installed_mod_path, mods_base};
+use super::paths::{active_mod_path, disabled_base, disabled_mod_path, mods_base};
 use super::state::{get_folder_path, read_state_for_game, save_error, save_state};
 use super::types::ModFolder;
+use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 use uuid::Uuid;
@@ -18,14 +19,6 @@ pub fn create_folder_op(
 ) -> Result<ModFolder, String> {
     let mut state = read_state_for_game(game_path, state_path, cfg).map_err(|e| e.to_string())?;
 
-    if let Some(existing) = state
-        .folders
-        .iter()
-        .find(|f| f.parent_id == parent_id && f.display_name == display_name)
-    {
-        return Ok(existing.clone());
-    }
-
     let slug: String = display_name
         .trim()
         .chars()
@@ -36,6 +29,18 @@ pub fn create_folder_op(
     } else {
         slug
     };
+
+    if parent_id.is_none() && slug.eq_ignore_ascii_case("disabled") {
+        return Err("disabled is reserved for disabled mods".into());
+    }
+
+    if let Some(existing) = state
+        .folders
+        .iter()
+        .find(|f| f.parent_id == parent_id && f.display_name == display_name)
+    {
+        return Ok(existing.clone());
+    }
 
     let max_folders = state
         .folders
@@ -112,8 +117,6 @@ pub fn move_folder_op(
             .and_then(|f| f.parent_id.clone());
     }
 
-    let mods_b = mods_base(game_path, cfg.primary());
-    let dis_b = disabled_base(game_path, cfg.primary());
     let old_rel = get_folder_path(&state.folders, Some(folder_id)).unwrap_or_default();
 
     let max_f = state
@@ -127,6 +130,7 @@ pub fn move_folder_op(
         .mods
         .iter()
         .filter(|m| m.folder_id == target_parent_id)
+        .filter(|m| cfg.mod_target(m).tag == cfg.primary().tag)
         .filter_map(|m| m.priority)
         .max()
         .unwrap_or(0);
@@ -146,61 +150,10 @@ pub fn move_folder_op(
     }
     let new_rel = get_folder_path(&state.folders, Some(folder_id)).unwrap_or_default();
 
-    let tgt_parent_rel = get_folder_path(&state.folders, target_parent_id.as_deref());
-    let active_tgt_parent = match &tgt_parent_rel {
-        Some(r) => mods_b.join(r),
-        None => mods_b.clone(),
-    };
-    let dis_tgt_parent = match &tgt_parent_rel {
-        Some(r) => dis_b.join(r),
-        None => dis_b.clone(),
-    };
-
-    let old_a = mods_b.join(&old_rel);
-    let old_d = dis_b.join(&old_rel);
-    if cfg.primary().native_steam_app.is_some() {
-        let native = super::native_files::NativeGuard::load(game_path, cfg)?;
-        native.check_path(&active_tgt_parent)?;
-        native.check_path(&dis_tgt_parent)?;
-        native.check_tree(&old_a)?;
-        native.check_tree(&old_d)?;
-        native.check_tree(&mods_b.join(&new_rel))?;
-        native.check_tree(&dis_b.join(&new_rel))?;
-        native.check_state_path(state_path)?;
-        let mut moves = Moves::with_native_guard(native);
-        for (from, to) in [
-            (old_a.clone(), mods_b.join(&new_rel)),
-            (old_d.clone(), dis_b.join(&new_rel)),
-        ] {
-            if exists(&from)? {
-                moves.path(from, to);
-            }
-        }
-        fs::create_dir_all(&active_tgt_parent)
-            .map_err(|error| format!("Could not prepare the destination: {error}"))?;
-        fs::create_dir_all(&dis_tgt_parent)
-            .map_err(|error| format!("Could not prepare the destination: {error}"))?;
-        return moves.run()?.save(state_path, &state);
-    }
-    if old_a.exists() {
-        if let Err(e) = fs::create_dir_all(&active_tgt_parent) {
-            log::warn!("move_folder: create_dir_all active: {e}");
-        }
-        if let Err(e) = fs::rename(&old_a, mods_b.join(&new_rel)) {
-            log::warn!("move_folder: rename active {}: {e}", log_name(&old_a));
-        }
-    }
-    if old_d.exists() {
-        if let Err(e) = fs::create_dir_all(&dis_tgt_parent) {
-            log::warn!("move_folder: create_dir_all disabled: {e}");
-        }
-        if let Err(e) = fs::rename(&old_d, dis_b.join(&new_rel)) {
-            log::warn!("move_folder: rename disabled {}: {e}", log_name(&old_d));
-        }
-    }
-
-    save_state(state_path, &state).map_err(save_error)?;
-    Ok(())
+    let mut moves = Moves::for_game(game_path, cfg)?;
+    let targets = folder_targets(cfg, &state.folders, &state.mods, folder_id);
+    moves.folder(game_path, &targets, &old_rel, &new_rel)?;
+    moves.run()?.save(state_path, &state)
 }
 
 pub fn rename_folder_op(
@@ -225,77 +178,30 @@ pub fn rename_folder_op(
     } else {
         slug
     };
+    if folder.parent_id.is_none() && slug.eq_ignore_ascii_case("disabled") {
+        return Err("disabled is reserved for disabled mods".into());
+    }
     let new_disk_name = if cfg.primary().priority_prefix_enabled() {
         apply_priority_prefix(&slug, folder.priority)
     } else {
         slug
     };
 
-    if cfg.primary().native_steam_app.is_some() {
-        let parent = get_folder_path(&state.folders, folder.parent_id.as_deref());
-        let mut moves = Moves::for_game(game_path, cfg)?;
-        for base in [
-            mods_base(game_path, cfg.primary()),
-            disabled_base(game_path, cfg.primary()),
-        ] {
-            let parent_dir = parent
-                .as_ref()
-                .map_or(base.clone(), |relative| base.join(relative));
-            let from = parent_dir.join(&folder.disk_name);
-            if exists(&from)? {
-                moves.path(from, parent_dir.join(&new_disk_name));
-            }
-        }
-        let entry = state
-            .folders
-            .iter_mut()
-            .find(|entry| entry.id == folder_id)
-            .expect("the folder was found above");
-        entry.display_name = display_name.to_string();
-        entry.disk_name = new_disk_name;
-        return moves.run()?.save(state_path, &state);
-    }
-
-    if new_disk_name != folder.disk_name {
-        let parent_rel = get_folder_path(&state.folders, folder.parent_id.as_deref());
-        let mods_b = mods_base(game_path, cfg.primary());
-        let dis_b = disabled_base(game_path, cfg.primary());
-
-        let (old_a, new_a) = match &parent_rel {
-            Some(r) => (
-                mods_b.join(r).join(&folder.disk_name),
-                mods_b.join(r).join(&new_disk_name),
-            ),
-            None => (mods_b.join(&folder.disk_name), mods_b.join(&new_disk_name)),
-        };
-        if old_a.exists() {
-            if let Err(e) = fs::rename(&old_a, &new_a) {
-                log::warn!("rename_folder: rename active {}: {e}", log_name(&old_a));
-            }
-        }
-
-        let (old_d, new_d) = match &parent_rel {
-            Some(r) => (
-                dis_b.join(r).join(&folder.disk_name),
-                dis_b.join(r).join(&new_disk_name),
-            ),
-            None => (dis_b.join(&folder.disk_name), dis_b.join(&new_disk_name)),
-        };
-        if old_d.exists() {
-            if let Err(e) = fs::rename(&old_d, &new_d) {
-                log::warn!("rename_folder: rename disabled {}: {e}", log_name(&old_d));
-            }
-        }
-    }
-
-    for f in state.folders.iter_mut() {
-        if f.id == folder_id {
-            f.display_name = display_name.to_string();
-            f.disk_name = new_disk_name.clone();
-        }
-    }
-    save_state(state_path, &state).map_err(save_error)?;
-    Ok(())
+    let old_rel =
+        get_folder_path(&state.folders, Some(folder_id)).expect("the folder was found above");
+    let entry = state
+        .folders
+        .iter_mut()
+        .find(|entry| entry.id == folder_id)
+        .expect("the folder was found above");
+    entry.display_name = display_name.to_string();
+    entry.disk_name = new_disk_name;
+    let new_rel =
+        get_folder_path(&state.folders, Some(folder_id)).expect("the folder was found above");
+    let mut moves = Moves::for_game(game_path, cfg)?;
+    let targets = folder_targets(cfg, &state.folders, &state.mods, folder_id);
+    moves.folder(game_path, &targets, &old_rel, &new_rel)?;
+    moves.run()?.save(state_path, &state)
 }
 
 pub fn delete_folder_op(
@@ -313,61 +219,66 @@ pub fn delete_folder_op(
     let folder_rel = get_folder_path(&state.folders, Some(folder_id)).unwrap_or_default();
     let target_parent_rel = get_folder_path(&state.folders, target_parent_id.as_deref());
 
-    let mods_b = mods_base(game_path, cfg.primary());
-    let dis_b = disabled_base(game_path, cfg.primary());
-    let into_parent = |base: &Path| match &target_parent_rel {
-        Some(r) => base.join(r),
-        None => base.to_path_buf(),
-    };
+    let max_folder_priority = state
+        .folders
+        .iter()
+        .filter(|f| f.parent_id == target_parent_id && f.id != folder_id)
+        .map(|f| f.priority)
+        .max()
+        .unwrap_or(0);
+    let mut target_priorities = HashMap::new();
+    target_priorities.insert(cfg.primary().tag, max_folder_priority);
+    for m in state
+        .mods
+        .iter()
+        .filter(|m| m.folder_id == target_parent_id)
+    {
+        let priority = target_priorities.entry(cfg.mod_target(m).tag).or_insert(0);
+        *priority = (*priority).max(m.priority.unwrap_or(0));
+    }
 
-    let mut max_p = {
-        let f = state
-            .folders
-            .iter()
-            .filter(|f| f.parent_id == target_parent_id && f.id != folder_id)
-            .map(|f| f.priority)
-            .max()
-            .unwrap_or(0);
-        let m = state
-            .mods
-            .iter()
-            .filter(|m| m.folder_id == target_parent_id)
-            .filter_map(|m| m.priority)
-            .max()
-            .unwrap_or(0);
-        f.max(m)
-    };
-
+    let targets = folder_targets(cfg, &state.folders, &state.mods, folder_id);
     let mut moves = Moves::for_game(game_path, cfg)?;
-    let mut into_active = false;
-    let mut into_disabled = false;
 
     for m in state.mods.iter_mut() {
         if m.folder_id.as_deref() != Some(folder_id) {
             continue;
         }
-        max_p += 1;
-        let target = cfg.target_for(m.location.as_deref());
+        let target = cfg.mod_target(m);
+        let priority = target_priorities.entry(target.tag).or_insert(0);
+        *priority += 1;
         let new_filename = if target.priority_prefix_enabled() {
-            apply_priority_prefix(&m.filename, max_p)
+            apply_priority_prefix(&m.filename, *priority)
         } else {
             m.filename.clone()
         };
-        let old = installed_mod_path(game_path, &m.filename, Some(&folder_rel), target, m.enabled);
-        if exists(&old)? {
-            let new = installed_mod_path(
-                game_path,
-                &new_filename,
-                target_parent_rel.as_deref(),
-                target,
-                m.enabled,
-            );
+        for (old, new) in [
+            (
+                active_mod_path(game_path, &m.filename, Some(&folder_rel), target),
+                active_mod_path(
+                    game_path,
+                    &new_filename,
+                    target_parent_rel.as_deref(),
+                    target,
+                ),
+            ),
+            (
+                disabled_mod_path(game_path, &m.filename, Some(&folder_rel), target),
+                disabled_mod_path(
+                    game_path,
+                    &new_filename,
+                    target_parent_rel.as_deref(),
+                    target,
+                ),
+            ),
+        ] {
+            if !exists(&old)? {
+                continue;
+            }
             moves.unit(target, old, new);
-            into_active |= m.enabled;
-            into_disabled |= !m.enabled;
         }
         m.filename = new_filename;
-        m.priority = Some(max_p);
+        m.priority = Some(*priority);
         m.folder_id = target_parent_id.clone();
     }
 
@@ -385,47 +296,35 @@ pub fn delete_folder_op(
             .find(|f| &f.id == cf_id)
             .cloned()
             .unwrap();
-        max_p += 1;
+        let priority = target_priorities
+            .get_mut(cfg.primary().tag)
+            .expect("the primary target priority is initialized above");
+        *priority += 1;
+        let new_priority = *priority;
         let new_disk = if cfg.primary().priority_prefix_enabled() {
-            apply_priority_prefix(strip_priority_prefix(&cf.disk_name), max_p)
+            apply_priority_prefix(strip_priority_prefix(&cf.disk_name), new_priority)
         } else {
             cf.disk_name.clone()
         };
         let old_rel = get_folder_path(&state.folders, Some(cf_id)).unwrap_or_default();
 
-        let old_a = mods_b.join(&old_rel);
-        if exists(&old_a)? {
-            moves.path(old_a, into_parent(&mods_b).join(&new_disk));
-            into_active = true;
-        }
-        let old_d = dis_b.join(&old_rel);
-        if exists(&old_d)? {
-            moves.path(old_d, into_parent(&dis_b).join(&new_disk));
-            into_disabled = true;
-        }
+        let new_rel = target_parent_rel
+            .as_ref()
+            .map_or_else(|| new_disk.clone(), |parent| format!("{parent}/{new_disk}"));
+        let child_targets = folder_targets(cfg, &state.folders, &state.mods, cf_id);
+        moves.folder(game_path, &child_targets, &old_rel, &new_rel)?;
 
         for f in state.folders.iter_mut() {
             if &f.id == cf_id {
                 f.parent_id = target_parent_id.clone();
                 f.disk_name = new_disk.clone();
-                f.priority = max_p;
+                f.priority = new_priority;
             }
         }
     }
 
     let native = super::native_files::NativeGuard::load(game_path, cfg)?;
     native.check_state_path(state_path)?;
-    for (base, needed) in [(&mods_b, into_active), (&dis_b, into_disabled)] {
-        if needed {
-            native.check_path(&into_parent(base))?;
-        }
-    }
-    for (base, needed) in [(&mods_b, into_active), (&dis_b, into_disabled)] {
-        if needed {
-            fs::create_dir_all(into_parent(base))
-                .map_err(|e| format!("could not prepare the parent folder: {e}"))?;
-        }
-    }
     let applied = moves.run()?;
     state.folders.retain(|f| f.id != folder_id);
     applied.save(state_path, &state)?;
@@ -434,7 +333,12 @@ pub fn delete_folder_op(
         log::warn!("delete_folder: kept the empty folders: {error}");
         return Ok(());
     }
-    for base in [&mods_b, &dis_b] {
+    for base in targets.iter().flat_map(|target| {
+        [
+            mods_base(game_path, target),
+            disabled_base(game_path, target),
+        ]
+    }) {
         let dir = base.join(&folder_rel);
         if let Err(error) = native.check_tree(&dir) {
             log::warn!("delete_folder: kept {}: {error}", log_name(&dir));

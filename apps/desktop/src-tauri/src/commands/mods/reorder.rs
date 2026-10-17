@@ -16,19 +16,31 @@ pub fn reorder_mods_in_folder_op(
 ) -> Result<(), String> {
     let mut state = read_state_for_game(game_path, state_path, cfg).map_err(|e| e.to_string())?;
     let folder_rel = get_folder_path(&state.folders, folder_id);
-    let total = ordered_uids.len() as i64;
+    let ordered_mods: Vec<_> = ordered_uids
+        .iter()
+        .filter_map(|uid| {
+            state
+                .mods
+                .iter()
+                .find(|m| &m.uid == uid && m.folder_id.as_deref() == folder_id)
+        })
+        .map(|m| (m.uid.clone(), cfg.mod_target(m).tag.to_string()))
+        .collect();
     let mut moves = Moves::for_game(game_path, cfg)?;
 
     for m in state.mods.iter_mut() {
         if m.folder_id.as_deref() != folder_id {
             continue;
         }
-        let Some(pos) = ordered_uids.iter().position(|u| u == &m.uid) else {
+        let location = cfg.mod_target(m).tag;
+        let mut target_order = ordered_mods.iter().filter(|(_, tag)| tag == location);
+        let total = target_order.clone().count() as i64;
+        let Some(pos) = target_order.position(|(uid, _)| uid == &m.uid) else {
             continue;
         };
         let priority = total - pos as i64;
         m.priority = Some(priority);
-        let target = cfg.target_for(m.location.as_deref());
+        let target = cfg.mod_target(m);
         if !target.priority_prefix_enabled() {
             continue;
         }
@@ -68,7 +80,12 @@ pub fn move_mod_to_folder_op(
     let Some(moving) = state.mods.iter().find(|m| m.uid == uid).cloned() else {
         return Ok(());
     };
-    if moving.location.is_some() {
+    if moving
+        .location
+        .as_deref()
+        .is_some_and(|tag| tag.starts_with("host:"))
+        || cfg.mod_target(&moving).tag != cfg.primary().tag
+    {
         return Ok(());
     }
 
@@ -78,7 +95,15 @@ pub fn move_mod_to_folder_op(
     let mut target_mods: Vec<InstalledMod> = state
         .mods
         .iter()
-        .filter(|m| m.folder_id == target_folder_id && m.uid != uid)
+        .filter(|m| {
+            m.folder_id == target_folder_id
+                && m.uid != uid
+                && !m
+                    .location
+                    .as_deref()
+                    .is_some_and(|tag| tag.starts_with("host:"))
+                && cfg.mod_target(m).tag == cfg.mod_target(&moving).tag
+        })
         .cloned()
         .collect();
     target_mods.sort_by_key(|m| std::cmp::Reverse(m.priority.unwrap_or(0)));
@@ -113,7 +138,7 @@ pub fn move_mod_to_folder_op(
             continue;
         };
         let priority = total - p as i64;
-        let target = cfg.target_for(m.location.as_deref());
+        let target = cfg.mod_target(m);
         let filename = if target.priority_prefix_enabled() {
             apply_priority_prefix(&m.filename, priority)
         } else {
@@ -146,26 +171,32 @@ pub fn reorder_children_op(
     cfg: &ModEngineConfig,
 ) -> Result<(), String> {
     let mut state = read_state_for_game(game_path, state_path, cfg).map_err(|e| e.to_string())?;
-    let parent_rel = get_folder_path(&state.folders, parent_id);
-    let (mods_dir, dis_dir) = match &parent_rel {
-        Some(r) => (
-            mods_base(game_path, cfg.primary()).join(r),
-            disabled_base(game_path, cfg.primary()).join(r),
-        ),
-        None => (
-            mods_base(game_path, cfg.primary()),
-            disabled_base(game_path, cfg.primary()),
-        ),
-    };
-    let total = items.len() as i64;
+    let locations: Vec<_> = items
+        .iter()
+        .map(|item| match item {
+            TopLevelItem::Folder { .. } => Some(cfg.primary().tag.to_string()),
+            TopLevelItem::Mod { id } => state
+                .mods
+                .iter()
+                .find(|m| &m.uid == id && m.folder_id.as_deref() == parent_id)
+                .map(|m| cfg.mod_target(m).tag.to_string()),
+        })
+        .collect();
     let folders_before = state.folders.clone();
     let mut moves = Moves::for_game(game_path, cfg)?;
 
     for (pos, item) in items.iter().enumerate() {
-        let priority = total - pos as i64;
+        let priority = locations[pos..]
+            .iter()
+            .filter(|tag| tag.as_deref() == Some(cfg.primary().tag))
+            .count() as i64;
         match item {
             TopLevelItem::Folder { id } => {
-                let Some(f) = state.folders.iter_mut().find(|f| &f.id == id) else {
+                let Some(f) = state
+                    .folders
+                    .iter_mut()
+                    .find(|f| &f.id == id && f.parent_id.as_deref() == parent_id)
+                else {
                     continue;
                 };
                 let disk_name = if cfg.primary().priority_prefix_enabled() {
@@ -173,21 +204,33 @@ pub fn reorder_children_op(
                 } else {
                     f.disk_name.clone()
                 };
-                for base in [&mods_dir, &dis_dir] {
-                    let from = base.join(&f.disk_name);
-                    if exists(&from)? {
-                        moves.path(from, base.join(&disk_name));
-                    }
-                }
+                let from_rel =
+                    get_folder_path(&folders_before, Some(id)).expect("the folder was found above");
+                let parent_rel = get_folder_path(&folders_before, parent_id);
+                let to_rel = parent_rel.map_or_else(
+                    || disk_name.clone(),
+                    |parent| format!("{parent}/{disk_name}"),
+                );
+                let targets = super::moves::folder_targets(cfg, &folders_before, &state.mods, id);
+                moves.folder(game_path, &targets, &from_rel, &to_rel)?;
                 f.disk_name = disk_name;
                 f.priority = priority;
             }
             TopLevelItem::Mod { id } => {
-                let Some(m) = state.mods.iter_mut().find(|m| &m.uid == id) else {
+                let Some(m) = state
+                    .mods
+                    .iter_mut()
+                    .find(|m| &m.uid == id && m.folder_id.as_deref() == parent_id)
+                else {
                     continue;
                 };
+                let location = cfg.mod_target(m).tag;
+                let priority = locations[pos..]
+                    .iter()
+                    .filter(|tag| tag.as_deref() == Some(location))
+                    .count() as i64;
                 m.priority = Some(priority);
-                let target = cfg.target_for(m.location.as_deref());
+                let target = cfg.mod_target(m);
                 if !target.priority_prefix_enabled() {
                     continue;
                 }

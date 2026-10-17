@@ -1,9 +1,9 @@
-use super::engine::{ModUnit, ScanTarget};
+use super::engine::{ModEngineConfig, ModUnit, ScanTarget};
 use super::naming::{log_name, sidecar_path};
 use super::native_files::NativeGuard;
+use super::paths::{disabled_base, mods_base};
 use super::state::{save_error, save_state};
-use super::types::ModsState;
-use std::collections::HashSet;
+use super::types::{InstalledMod, ModFolder, ModsState};
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -15,6 +15,7 @@ use std::path::{Path, PathBuf};
 #[derive(Default)]
 pub struct Moves {
     units: Vec<Unit>,
+    parents: Vec<PathBuf>,
     native: Option<NativeGuard>,
 }
 
@@ -29,6 +30,7 @@ impl Moves {
     pub(super) fn with_native_guard(native: NativeGuard) -> Self {
         Self {
             units: Vec::new(),
+            parents: Vec::new(),
             native: Some(native),
         }
     }
@@ -59,6 +61,40 @@ impl Moves {
         });
     }
 
+    // Only targets with tracked descendants own a copy of an app folder.
+    pub(super) fn folder(
+        &mut self,
+        game_path: &str,
+        targets: &[&ScanTarget],
+        from_rel: &str,
+        to_rel: &str,
+    ) -> Result<(), String> {
+        if from_rel == to_rel {
+            return Ok(());
+        }
+        for base in targets.iter().flat_map(|target| {
+            [
+                mods_base(game_path, target),
+                disabled_base(game_path, target),
+            ]
+        }) {
+            let from = base.join(from_rel);
+            if !exists(&from)? {
+                continue;
+            }
+            let to = base.join(to_rel);
+            let parent = to.parent().expect("an app folder has a parent directory");
+            if let Some(native) = &self.native {
+                native.check_tree(&from)?;
+                native.check_tree(&to)?;
+                native.check_path(parent)?;
+            }
+            self.parents.push(parent.to_path_buf());
+            self.path(from, to);
+        }
+        Ok(())
+    }
+
     /// Checks every destination before touching anything, then renames through a staging
     /// name so a plan may swap two names. The staging name prefixes the whole filename, so
     /// a pak and its companions still share a stem if Modrex dies between the two passes.
@@ -86,27 +122,24 @@ impl Moves {
                 }
             }
         }
-        if let Some(native) = self
-            .native
-            .as_ref()
-            .filter(|native| native.shares_native_files())
-        {
-            native.check_move_destinations(&units.iter().flatten().cloned().collect::<Vec<_>>())?;
-        } else {
-            let sources: HashSet<&Path> =
-                units.iter().flatten().map(|(a, _)| a.as_path()).collect();
-            let mut destinations = HashSet::new();
-            for (_, to) in units.iter().flatten() {
-                if !destinations.insert(to.as_path()) {
-                    return Err(format!("two files would both be named {}", log_name(to)));
-                }
-                if !sources.contains(to.as_path()) && exists(to)? {
-                    return Err(format!(
-                        "{} is in the way. Move or delete it, then try again.",
-                        log_name(to)
-                    ));
+        NativeGuard::check_move_destinations(&units.iter().flatten().cloned().collect::<Vec<_>>())?;
+
+        for (index, files) in units.iter().enumerate() {
+            for (from, _) in files {
+                let staged = staging_path(from, index);
+                if exists(&staged)? {
+                    return Err(format!("{} is in the way", log_name(&staged)));
                 }
             }
+        }
+        for parent in &self.parents {
+            if let Some(native) = &self.native {
+                native.check_path(parent)?;
+            }
+        }
+        for parent in &self.parents {
+            fs::create_dir_all(parent)
+                .map_err(|error| format!("Could not prepare the destination: {error}"))?;
         }
 
         let mut done = Vec::new();
@@ -160,6 +193,7 @@ impl Applied {
                     companions: Vec::new(),
                 })
                 .collect(),
+            parents: Vec::new(),
             native: None,
         };
         match inverse.run() {
@@ -169,6 +203,35 @@ impl Applied {
             )),
         }
     }
+}
+
+pub(super) fn folder_targets<'a>(
+    cfg: &'a ModEngineConfig,
+    folders: &[ModFolder],
+    mods: &[InstalledMod],
+    folder_id: &str,
+) -> Vec<&'a ScanTarget> {
+    cfg.targets
+        .iter()
+        .filter(|target| {
+            mods.iter().any(|m| {
+                if cfg.mod_target(m).tag != target.tag {
+                    return false;
+                }
+                let mut current = m.folder_id.as_deref();
+                while let Some(id) = current {
+                    if id == folder_id {
+                        return true;
+                    }
+                    current = folders
+                        .iter()
+                        .find(|folder| folder.id == id)
+                        .and_then(|folder| folder.parent_id.as_deref());
+                }
+                false
+            })
+        })
+        .collect()
 }
 
 fn staging_path(path: &Path, n: usize) -> PathBuf {

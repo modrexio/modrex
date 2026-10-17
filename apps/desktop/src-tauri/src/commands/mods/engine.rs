@@ -134,6 +134,10 @@ impl ModEngineConfig {
         &self.targets[0]
     }
 
+    pub fn mod_target(&self, m: &super::types::InstalledMod) -> &ScanTarget {
+        self.target_for(m.location.as_deref())
+    }
+
     pub fn target_for(&self, tag: Option<&str>) -> &ScanTarget {
         let Some(t) = tag else { return self.primary() };
         self.targets

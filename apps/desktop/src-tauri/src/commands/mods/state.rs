@@ -1,4 +1,5 @@
 use super::engine::{backup_dir, join_subpath, ModEngineConfig, ModUnit, ScanTarget};
+use super::moves::{folder_targets, Moves};
 use super::naming::log_name;
 use super::naming::{apply_priority_prefix, make_uid, strip_priority_prefix};
 use super::paths::{
@@ -292,9 +293,10 @@ pub(super) fn temporary_state_path(state_path: &Path) -> PathBuf {
 
 fn compact_folder_priorities(
     folders: &[ModFolder],
-    mods_base: &Path,
-    dis_base: &Path,
-    priority_prefix_enabled: bool,
+    game_path: &str,
+    cfg: &ModEngineConfig,
+    state_path: &Path,
+    mods: &[InstalledMod],
 ) -> (Vec<ModFolder>, bool) {
     let mut compacted = folders.to_vec();
     let mut any_changed = false;
@@ -323,56 +325,45 @@ fn compact_folder_priorities(
             if f.priority == new_priority {
                 continue;
             }
-            if !priority_prefix_enabled {
+            let targets = folder_targets(cfg, &compacted, mods, &f.id);
+            if !cfg.primary().priority_prefix_enabled() || targets.is_empty() {
                 compacted[idx].priority = new_priority;
                 any_changed = true;
                 continue;
             }
 
+            let old_folder = f.clone();
             let old_disk_name = f.disk_name.clone();
             let new_disk_name =
                 apply_priority_prefix(strip_priority_prefix(&old_disk_name), new_priority);
-            let parent_rel = get_folder_path(&compacted, parent_id.as_deref());
-
-            let (old_active, new_active) = match &parent_rel {
-                Some(r) => (
-                    mods_base.join(r).join(&old_disk_name),
-                    mods_base.join(r).join(&new_disk_name),
-                ),
-                None => (
-                    mods_base.join(&old_disk_name),
-                    mods_base.join(&new_disk_name),
-                ),
-            };
-
-            if old_active.exists() {
-                if let Err(e) = fs::rename(&old_active, &new_active) {
-                    log::warn!(
-                        "compact_folder_priorities: rename {}: {e}",
-                        log_name(&old_active)
-                    );
-                    continue;
-                }
-            }
-
-            let (old_dis, new_dis) = match &parent_rel {
-                Some(r) => (
-                    dis_base.join(r).join(&old_disk_name),
-                    dis_base.join(r).join(&new_disk_name),
-                ),
-                None => (dis_base.join(&old_disk_name), dis_base.join(&new_disk_name)),
-            };
-            if old_dis.exists() {
-                if let Err(e) = fs::rename(&old_dis, &new_dis) {
-                    log::warn!(
-                        "compact_folder_priorities: rename disabled {}: {e}",
-                        log_name(&old_dis)
-                    );
-                }
-            }
-
+            let old_rel = get_folder_path(&compacted, Some(&compacted[idx].id))
+                .expect("the folder graph was validated when reading state");
             compacted[idx].priority = new_priority;
             compacted[idx].disk_name = new_disk_name;
+            let new_rel = get_folder_path(&compacted, Some(&compacted[idx].id))
+                .expect("the folder graph was validated when reading state");
+            let result = (|| {
+                let mut moves = Moves::for_game(game_path, cfg)?;
+                moves.folder(game_path, &targets, &old_rel, &new_rel)?;
+                moves.run()?.save(
+                    state_path,
+                    &ModsState {
+                        folders: compacted.clone(),
+                        mods: mods.to_vec(),
+                    },
+                )
+            })();
+            if let Err(error) = result {
+                log::warn!(
+                    "compact_folder_priorities: {} folder {} from {} to {}: {error}",
+                    cfg.game_id,
+                    old_folder.id,
+                    old_rel,
+                    new_rel
+                );
+                compacted[idx] = old_folder;
+                continue;
+            }
             any_changed = true;
         }
     }
@@ -384,8 +375,8 @@ fn compact_folder_priorities(
 #[test]
 fn compacting_metadata_preserves_author_folder_names_without_filename_ordering() {
     let temp = tempfile::TempDir::new().unwrap();
-    let active = temp.path().join("Paks");
-    let disabled = active.join("disabled");
+    let cfg = super::engine::engine_for_game("cb").unwrap();
+    let active = mods_base(temp.path().to_str().unwrap(), cfg.primary());
     let manual = active.join("001_Manual");
     fs::create_dir_all(&manual).unwrap();
     fs::write(manual.join("Mod.pak"), b"manual mod").unwrap();
@@ -397,7 +388,13 @@ fn compacting_metadata_preserves_author_folder_names_without_filename_ordering()
         priority: 9,
         parent_id: None,
     };
-    let (folders, changed) = compact_folder_priorities(&[folder], &active, &disabled, false);
+    let (folders, changed) = compact_folder_priorities(
+        &[folder],
+        temp.path().to_str().unwrap(),
+        cfg,
+        &temp.path().join(STATE_FILENAME),
+        &[],
+    );
     assert!(changed);
     assert_eq!(folders[0].priority, 1);
     assert_eq!(folders[0].disk_name, "001_Manual");
@@ -934,7 +931,6 @@ pub fn reconcile_state(
         .zip(state.mods.iter())
         .any(|(r, o)| r.missing != o.missing);
 
-    let mods_base_path = mods_base(game_path, cfg.primary());
     // Phantom: no mods, no child folders, and active directory absent.
     // Ignores the disabled directory so an empty leftover disabled/ subdir doesn't prevent cleanup.
     let phantom_ids: HashSet<String> = state
@@ -953,7 +949,11 @@ pub fn reconcile_state(
                 return false;
             }
             get_folder_path(&state.folders, Some(f.id.as_str()))
-                .map(|rel| !mods_base_path.join(&rel).exists())
+                .map(|rel| {
+                    cfg.targets
+                        .iter()
+                        .all(|target| !mods_base(game_path, target).join(&rel).exists())
+                })
                 .unwrap_or(true)
         })
         .map(|f| f.id.clone())
@@ -964,8 +964,10 @@ pub fn reconcile_state(
     } else {
         for f in state.folders.iter().filter(|f| phantom_ids.contains(&f.id)) {
             if let Some(rel) = get_folder_path(&state.folders, Some(f.id.as_str())) {
-                // remove_dir succeeds only on an empty directory, so this is safe unconditionally.
-                let _ = fs::remove_dir(dis_dir.join(&rel));
+                for target in cfg.targets {
+                    // remove_dir succeeds only on an empty directory.
+                    let _ = fs::remove_dir(disabled_base(game_path, target).join(&rel));
+                }
             }
         }
         state
@@ -977,12 +979,8 @@ pub fn reconcile_state(
     };
 
     // Compact folder priorities to sequential (1, 2, 3, ...), repairing any gaps.
-    let (final_folders, any_compacted) = compact_folder_priorities(
-        &cleaned_folders,
-        &mods_base_path,
-        &dis_dir,
-        cfg.primary().priority_prefix_enabled(),
-    );
+    let (final_folders, any_compacted) =
+        compact_folder_priorities(&cleaned_folders, game_path, cfg, state_path, &reconciled);
 
     if state_changed
         || !protected.is_empty()
@@ -996,10 +994,8 @@ pub fn reconcile_state(
         native_guard
             .check_state_path(state_path)
             .map_err(StateLoadError::Invalid)?;
-        // Class C: everything written here is re-derived on the next load, and the folder
-        // renames compact_folder_priorities already performed converge to the same names on
-        // that load. Failing the whole read over a repeatable write would take the installed
-        // list down for a loss that costs nothing.
+        // Folder path changes are persisted with rollback by compact_folder_priorities.
+        // The remaining metadata is derived again on the next load.
         if let Err(e) = save_state(
             state_path,
             &ModsState {

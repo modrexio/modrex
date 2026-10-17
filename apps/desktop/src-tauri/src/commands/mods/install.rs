@@ -261,7 +261,7 @@ pub(super) fn install_shared_pak(
     let old = existing
         .map(|entry| {
             let folder = get_folder_path(&state.folders, entry.folder_id.as_deref());
-            let target = cfg.target_for(entry.location.as_deref());
+            let target = cfg.mod_target(entry);
             let active = active_mod_path(game_path, &entry.filename, folder.as_deref(), target);
             native.check_file(&active)?;
             let disabled = disabled_mod_path(game_path, &entry.filename, folder.as_deref(), target);
@@ -288,7 +288,7 @@ pub(super) fn install_shared_pak(
             game_path,
             &entry.filename,
             folder.as_deref(),
-            cfg.target_for(entry.location.as_deref()),
+            cfg.mod_target(entry),
         );
         if path
             .to_string_lossy()
@@ -358,7 +358,7 @@ pub fn move_crimeboss_mod_target_op(
         .cloned()
         .ok_or_else(|| "mod not found".to_string())?;
 
-    let old_target = cfg.target_for(m.location.as_deref());
+    let old_target = cfg.mod_target(&m);
     let new_target = if std::ptr::eq(old_target, cfg.primary()) {
         cfg.targets
             .iter()
@@ -500,7 +500,7 @@ pub fn uninstall_mod_op(
         save_state(state_path, &state).map_err(save_error)?;
         return Ok(());
     }
-    let target = cfg.target_for(m.location.as_deref());
+    let target = cfg.mod_target(&m);
     let rel = get_folder_path(&state.folders, m.folder_id.as_deref());
     let path = if m.enabled {
         active_mod_path(game_path, &m.filename, rel.as_deref(), target)
@@ -640,7 +640,7 @@ fn set_activation(
         return move_host_pack(game_path, state_path, &mut state, &m, uid, cfg, enable);
     }
 
-    let target = cfg.target_for(m.location.as_deref());
+    let target = cfg.mod_target(&m);
     if target.enabled_state == Activation::Ue4ssModsTxt {
         return set_activation_in_mods_txt(
             game_path, state_path, &mut state, &m, uid, target, enable,
@@ -825,7 +825,8 @@ fn set_activation_in_mods_txt(
 ) -> Result<(), String> {
     let base = mods_base(game_path, target);
     let mods_txt = base.join("mods.txt");
-    let mod_dir = base.join(&m.filename);
+    let rel = get_folder_path(&state.folders, m.folder_id.as_deref());
+    let mod_dir = active_mod_path(game_path, &m.filename, rel.as_deref(), target);
     ue4ss_modstxt::set_enabled(&mods_txt, &m.filename, enable)?;
     if let Err(e) = ue4ss_modstxt::set_enabled_marker(&mod_dir, enable) {
         return Err(with_undo_failures(
