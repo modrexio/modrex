@@ -52,6 +52,129 @@ fn manual_mod(folder_id: Option<&str>) -> InstalledMod {
     }
 }
 
+fn compaction_write_fixture(game_id: &str) -> (TempDir, PathBuf, &'static ModEngineConfig) {
+    let cfg = super::super::engine::engine_for_game(game_id).unwrap();
+    let temp = TempDir::new().unwrap();
+    let game = temp.path().to_str().unwrap();
+    let path = super::super::paths::get_state_path(game, cfg);
+    let mut folders = vec![folder("A", None), folder("B", None)];
+    for (index, folder) in folders.iter_mut().enumerate() {
+        folder.priority = (index + 9) as i64;
+        folder.disk_name = format!("{:03}_{}", folder.priority, folder.id);
+        fs::create_dir_all(mods_base(game, cfg.primary()).join(&folder.disk_name)).unwrap();
+    }
+    save_state(
+        &path,
+        &ModsState {
+            folders,
+            mods: vec![],
+        },
+    )
+    .unwrap();
+    STATE_WRITES.with(|writes| writes.set(0));
+    (temp, path, cfg)
+}
+
+#[test]
+fn compaction_writes_only_its_folder_checkpoints_and_nothing_on_a_second_load() {
+    let (temp, path, cfg) = compaction_write_fixture("pd3");
+    let game = temp.path().to_str().unwrap();
+    let state = reconcile_state(game, &path, cfg).unwrap();
+    assert_eq!(state.folders[0].disk_name, "001_A");
+    assert_eq!(state.folders[1].disk_name, "002_B");
+    assert_eq!(
+        STATE_WRITES.with(|writes| writes.get()),
+        2,
+        "two folder checkpoints need exactly two state writes"
+    );
+    STATE_WRITES.with(|writes| writes.set(0));
+    reconcile_state(game, &path, cfg).unwrap();
+    assert_eq!(
+        STATE_WRITES.with(|writes| writes.get()),
+        0,
+        "a load without gaps must not write from compaction"
+    );
+}
+
+#[test]
+fn compaction_failed_rename_after_a_checkpoint_needs_no_extra_write() {
+    let (temp, path, cfg) = compaction_write_fixture("pd3");
+    let game = temp.path().to_str().unwrap();
+    fs::create_dir_all(mods_base(game, cfg.primary()).join("002_B")).unwrap();
+    let state = reconcile_state(game, &path, cfg).unwrap();
+    assert_eq!(state.folders[0].disk_name, "001_A");
+    assert_eq!(state.folders[1].disk_name, "010_B");
+    assert_eq!(
+        STATE_WRITES.with(|writes| writes.get()),
+        1,
+        "a rolled back rename leaves the checkpoint current"
+    );
+    assert!(mods_base(game, cfg.primary()).join("010_B").is_dir());
+    assert_eq!(read_state(&path).unwrap().folders[1].disk_name, "010_B");
+}
+
+#[test]
+fn compaction_without_filename_ordering_still_saves_metadata_once() {
+    let (temp, path, cfg) = compaction_write_fixture("cb");
+    let game = temp.path().to_str().unwrap();
+    let state = reconcile_state(game, &path, cfg).unwrap();
+    assert_eq!(state.folders[0].disk_name, "009_A");
+    assert_eq!(state.folders[0].priority, 1);
+    assert_eq!(read_state(&path).unwrap().folders[0].priority, 1);
+    assert_eq!(STATE_WRITES.with(|writes| writes.get()), 1);
+    STATE_WRITES.with(|writes| writes.set(0));
+    reconcile_state(game, &path, cfg).unwrap();
+    assert_eq!(STATE_WRITES.with(|writes| writes.get()), 0);
+}
+
+#[test]
+fn compaction_metadata_after_a_checkpoint_still_needs_a_final_save() {
+    static TARGETS: [ScanTarget; 1] = [ScanTarget {
+        native_steam_app: None,
+        unit: ModUnit::Directory {
+            entry_markers: &[],
+            scan_markers: &[],
+            index_gated_markers: &[],
+            excluded_names: &[],
+            priority_prefix: true,
+        },
+        ..SHARED_TARGET
+    }];
+    let cfg = config(&TARGETS);
+    let temp = TempDir::new().unwrap();
+    let game = temp.path().to_str().unwrap();
+    let path = temp.path().join(STATE_FILENAME);
+    let mut folders = vec![folder("A", None), folder("B", None)];
+    for (index, folder) in folders.iter_mut().enumerate() {
+        folder.priority = (index + 9) as i64;
+        folder.disk_name = format!("{:03}_{}", folder.priority, folder.id);
+        fs::create_dir_all(mods_base(game, cfg.primary()).join(&folder.disk_name)).unwrap();
+    }
+    let tracked = InstalledMod {
+        id: -1,
+        uid: "owned".into(),
+        filename: "010_B".into(),
+        enabled: true,
+        priority: Some(1),
+        ..InstalledMod::default()
+    };
+    save_state(
+        &path,
+        &ModsState {
+            folders,
+            mods: vec![tracked],
+        },
+    )
+    .unwrap();
+    STATE_WRITES.with(|writes| writes.set(0));
+    let state = reconcile_state(game, &path, &cfg).unwrap();
+    assert_eq!(STATE_WRITES.with(|writes| writes.get()), 2);
+    assert_eq!(state.folders[0].disk_name, "001_A");
+    assert_eq!(state.folders[1].disk_name, "010_B");
+    assert_eq!(read_state(&path).unwrap().folders[1].priority, 2);
+    assert!(mods_base(game, cfg.primary()).join("010_B").is_dir());
+}
+
 #[test]
 fn shared_state_rejects_duplicate_missing_and_cyclic_folder_references() {
     static TARGETS: [ScanTarget; 1] = [SHARED_TARGET];

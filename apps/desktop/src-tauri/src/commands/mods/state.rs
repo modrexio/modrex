@@ -253,6 +253,11 @@ pub fn save_error(e: std::io::Error) -> String {
     format!("the installed-mod list could not be saved: {e}")
 }
 
+#[cfg(test)]
+thread_local! {
+    static STATE_WRITES: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
 pub fn save_state(state_path: &Path, state: &ModsState) -> std::io::Result<()> {
     let parent = state_path.parent().ok_or_else(|| {
         std::io::Error::new(
@@ -279,6 +284,8 @@ pub fn save_state(state_path: &Path, state: &ModsState) -> std::io::Result<()> {
         let _ = fs::remove_file(&tmp);
         return Err(e);
     }
+    #[cfg(test)]
+    STATE_WRITES.with(|writes| writes.set(writes.get() + 1));
     Ok(())
 }
 
@@ -297,9 +304,10 @@ fn compact_folder_priorities(
     cfg: &ModEngineConfig,
     state_path: &Path,
     mods: &[InstalledMod],
-) -> (Vec<ModFolder>, bool) {
+) -> (Vec<ModFolder>, bool, bool) {
     let mut compacted = folders.to_vec();
     let mut any_changed = false;
+    let mut checkpoint_current = false;
 
     let parent_ids: std::collections::BTreeSet<Option<String>> = {
         let mut ids = std::collections::BTreeSet::new();
@@ -339,6 +347,7 @@ fn compact_folder_priorities(
             if !cfg.primary().priority_prefix_enabled() || targets.is_empty() {
                 compacted[idx].priority = new_priority;
                 any_changed = true;
+                checkpoint_current = false;
                 continue;
             }
 
@@ -375,10 +384,11 @@ fn compact_folder_priorities(
                 continue;
             }
             any_changed = true;
+            checkpoint_current = true;
         }
     }
 
-    (compacted, any_changed)
+    (compacted, any_changed, checkpoint_current)
 }
 
 #[cfg(test)]
@@ -398,7 +408,7 @@ fn compacting_metadata_preserves_author_folder_names_without_filename_ordering()
         priority: 9,
         parent_id: None,
     };
-    let (folders, changed) = compact_folder_priorities(
+    let (folders, changed, checkpoint_current) = compact_folder_priorities(
         &[folder],
         temp.path().to_str().unwrap(),
         cfg,
@@ -406,6 +416,7 @@ fn compacting_metadata_preserves_author_folder_names_without_filename_ordering()
         &[],
     );
     assert!(changed);
+    assert!(!checkpoint_current);
     assert_eq!(folders[0].priority, 1);
     assert_eq!(folders[0].disk_name, "001_Manual");
     assert_eq!(fs::read(manual.join("Mod.pak")).unwrap(), b"manual mod");
@@ -989,17 +1000,19 @@ pub fn reconcile_state(
     };
 
     // Compact folder priorities to sequential (1, 2, 3, ...), repairing any gaps.
-    let (final_folders, any_compacted) =
+    let (final_folders, any_compacted, checkpoint_current) =
         compact_folder_priorities(&cleaned_folders, game_path, cfg, state_path, &reconciled);
 
-    if state_changed
-        || !protected.is_empty()
-        || !phantom_ids.is_empty()
-        || any_compacted
-        || cleanup_changed
-        || identity_migrated
-        || identity_id_repaired
-        || !superseded.is_empty()
+    // A checkpoint includes the reconciled mods and all metadata changes before it.
+    if !checkpoint_current
+        && (state_changed
+            || !protected.is_empty()
+            || !phantom_ids.is_empty()
+            || any_compacted
+            || cleanup_changed
+            || identity_migrated
+            || identity_id_repaired
+            || !superseded.is_empty())
     {
         native_guard
             .check_state_path(state_path)
