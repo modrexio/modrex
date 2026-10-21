@@ -7,7 +7,7 @@
 disallowed-methods = [
     { path = "reqwest::Client::new", reason = "use http_client() from commands::api" },
     { path = "reqwest::get", reason = "use http_client() from commands::api" },
-    # .cargo/audit.toml ignores the zip extract advisories because nothing here calls these.
+    # zip extract follows links and permissions outside the target (RUSTSEC-2026-0367 to 0369).
     { path = "zip::read::ZipArchive::extract", reason = "extract entry by entry through safe_dest" },
     { path = "zip::read::ZipArchive::extract_unwrapped_root_dir", reason = "extract entry by entry through safe_dest" },
 ]

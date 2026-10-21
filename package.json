@@ -59,7 +59,6 @@
         "index:build": "bun run --cwd apps/index build-index",
         "index:test": "bun run --cwd apps/index test:export-determinism && bun run --cwd apps/index test:snapshot-delta && bun run --cwd apps/index test:game-schedule && bun run --cwd apps/index test:marker-contract && bun run --cwd apps/index test:marker-archive && bun run --cwd apps/index test:process-failure && bun run --cwd apps/index test:postgres-architecture && bun run --cwd apps/index test:postgres-queries && bun run --cwd apps/index test:staged-rebuild && bun run --cwd apps/index test:unreal-resources",
         "index:typecheck": "bun run --cwd apps/index tsc --noEmit",
-        "audit:deps": "bun audit --ignore=GHSA-vwc7-r8mq-g2x9",
         "prepare": "husky",
         "i18n:typecheck": "bun run --cwd apps/desktop typecheck:i18n"
     },
