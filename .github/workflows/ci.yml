@@ -5,6 +5,8 @@ on:
         branches: [main]
     pull_request:
         branches: [main]
+    schedule:
+        - cron: '17 5 * * 1'
     workflow_dispatch:
 
 permissions:
@@ -22,25 +24,32 @@ jobs:
             pull-requests: read
         outputs:
             rust: ${{ steps.full.outputs.full == 'true' || steps.filter.outputs.rust == 'true' }}
-            renderer: ${{ steps.full.outputs.full == 'true' || steps.filter.outputs.renderer == 'true' }}
-            tooling: ${{ steps.full.outputs.full == 'true' || steps.filter.outputs.tooling == 'true' }}
-            site: ${{ steps.full.outputs.full == 'true' || steps.filter.outputs.site == 'true' }}
-            index: ${{ steps.full.outputs.full == 'true' || steps.filter.outputs.index == 'true' }}
-            licenses: ${{ steps.full.outputs.full == 'true' || steps.filter.outputs.licenses == 'true' }}
+            renderer: ${{ steps.full.outputs.full == 'true' || steps.filter.outputs.renderer == 'true' || steps.filter.outputs.js == 'true' }}
+            tooling: ${{ steps.full.outputs.full == 'true' || steps.filter.outputs.tooling == 'true' || steps.filter.outputs.js == 'true' }}
+            site: ${{ steps.full.outputs.full == 'true' || steps.filter.outputs.site == 'true' || steps.filter.outputs.js == 'true' }}
+            index: ${{ steps.full.outputs.full == 'true' || steps.filter.outputs.index == 'true' || steps.filter.outputs.js == 'true' }}
+            licenses: ${{ steps.full.outputs.full == 'true' || steps.filter.outputs.licenses == 'true' || steps.filter.outputs.js == 'true' }}
         steps:
+            - uses: actions/checkout@v7
+              if: github.event_name == 'push'
+
             - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d
-              if: github.event_name == 'pull_request'
+              if: github.event_name == 'push' || github.event_name == 'pull_request'
+              continue-on-error: true
               id: filter
               with:
+                  base: ${{ github.event_name == 'push' && github.event.before || '' }}
+                  ref: ${{ github.event_name == 'push' && github.sha || '' }}
                   predicate-quantifier: some-with-excludes
                   filters: |
-                      common:
+                      global:
                           - '**'
                           - '!apps/desktop/**'
                           - '!apps/site/**'
                           - '!apps/index/**'
                           - '!packages/games/**'
                           - '!packages/scrollbars/**'
+                          - '!functions/**'
                           - '!docs/**'
                           - '!assets/i18n/**'
                           - '!README.md'
@@ -48,15 +57,21 @@ jobs:
                           - '!CHANGELOG.md'
                           - '!AGENTS.md'
                           - '!CLAUDE.md'
+                          - '!CONTRIBUTING.md'
+                          - '!SECURITY.md'
                           - '!.agents/**'
                           - '!.claude/**'
                           - '!.codex/**'
-                      dependencies:
-                          - '**/package.json'
+                          - '!.github/workflows/**'
+                          - '!.github/dependabot.yml'
+                          - '!bun.lock'
+                          - '!bunfig.toml'
+                          - '!install.config.json'
+                      workflow:
+                          - '.github/workflows/ci.yml'
+                      js:
                           - 'bun.lock'
                           - 'bunfig.toml'
-                          - '**/Cargo.toml'
-                          - '**/Cargo.lock'
                       rust:
                           - 'apps/desktop/src-tauri/**'
                           - 'apps/desktop/src/shared/bindings.ts'
@@ -67,21 +82,44 @@ jobs:
                           - 'LICENSE'
                       renderer:
                           - 'apps/desktop/**'
-                          - 'packages/**'
+                          - '!apps/desktop/src-tauri/**'
+                          - '!apps/desktop/scripts/**'
+                          - '!apps/desktop/THIRD_PARTY_LICENSES.md'
+                          - '!apps/desktop/AGENTS.md'
+                          - '!apps/desktop/CLAUDE.md'
+                          - '!apps/desktop/translation-contributors.generated.json'
+                          - 'packages/games/**'
+                          - 'packages/scrollbars/**'
+                          - 'functions/**'
                       tooling:
-                          - 'apps/desktop/**'
-                          - 'packages/**'
+                          - 'apps/desktop/scripts/**'
+                          - 'apps/desktop/src/shared/**'
+                          - 'apps/desktop/src/renderer/src/i18n/**'
+                          - 'apps/desktop/translation-contributors.generated.json'
+                          - 'apps/desktop/package.json'
+                          - 'apps/desktop/tsconfig*.json'
                           - 'assets/i18n/**'
                           - '.husky/**'
+                          - '.github/workflows/translation-status.yml'
                           - 'README.md'
                       site:
                           - 'apps/site/**'
-                          - 'packages/**'
+                          - 'packages/games/**'
+                          - 'packages/scrollbars/**'
                           - 'install.config.json'
                       index:
                           - 'apps/index/**'
                           - 'packages/games/**'
+                          - '.github/workflows/*postgres*.yml'
                       licenses:
+                          - '**/Cargo.toml'
+                          - '**/Cargo.lock'
+                          - 'apps/desktop/package.json'
+                          - 'packages/games/package.json'
+                          - 'packages/scrollbars/package.json'
+                          - 'packages/games/[Ll][Ii][Cc][Ee][Nn][SsCc][Ee]*'
+                          - 'packages/scrollbars/[Ll][Ii][Cc][Ee][Nn][SsCc][Ee]*'
+                          - 'apps/desktop/[Ll][Ii][Cc][Ee][Nn][SsCc][Ee]*'
                           - 'apps/desktop/scripts/generate-licenses.mjs'
                           - 'apps/desktop/THIRD_PARTY_LICENSES.md'
                           - 'apps/desktop/src-tauri/about.toml'
@@ -90,7 +128,14 @@ jobs:
                           - 'LICENSE'
 
             - id: full
-              run: echo "full=${{ github.event_name != 'pull_request' || steps.filter.outputs.common == 'true' || steps.filter.outputs.dependencies == 'true' }}" >> "$GITHUB_OUTPUT"
+              env:
+                  FULL: ${{ (github.event_name != 'push' && github.event_name != 'pull_request') || (github.event_name == 'pull_request' && github.event.pull_request.changed_files >= 3000) || steps.filter.outcome == 'failure' || steps.filter.outputs.global == 'true' || steps.filter.outputs.workflow == 'true' }}
+                  FILTER_OUTCOME: ${{ steps.filter.outcome }}
+              run: |
+                  if [ "$FILTER_OUTCOME" = 'failure' ]; then
+                    echo '::warning::Path selection failed. Running every CI domain.'
+                  fi
+                  echo "full=$FULL" >> "$GITHUB_OUTPUT"
 
     checks:
         runs-on: ubuntu-24.04
@@ -141,7 +186,7 @@ jobs:
 
             - run: cargo clippy --locked --workspace --all-targets -- -D warnings
               working-directory: apps/desktop/src-tauri
-            - run: cargo check --locked --release --workspace --all-targets
+            - run: cargo check --locked --release --workspace --lib --bins
               working-directory: apps/desktop/src-tauri
             - run: cargo test --locked --workspace
               working-directory: apps/desktop/src-tauri
@@ -158,22 +203,39 @@ jobs:
         needs: changes
         if: needs.changes.outputs.rust == 'true'
         runs-on: windows-2025
+        strategy:
+            fail-fast: false
+            matrix:
+                lane: [lint, test]
         steps:
             - uses: actions/checkout@v7
 
+            - name: Put Cargo home on D
+              shell: pwsh
+              run: |
+                  $cargoHome = 'D:\cargo-home'
+                  New-Item -ItemType Directory -Force $cargoHome | Out-Null
+                  Copy-Item (Join-Path $env:USERPROFILE '.cargo\*') $cargoHome -Recurse -Force
+                  "CARGO_HOME=$cargoHome" >> $env:GITHUB_ENV
+                  "$cargoHome\bin" >> $env:GITHUB_PATH
+
             - run: rustup install --no-self-update
+
             - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
               with:
                   workspaces: apps/desktop/src-tauri
-                  shared-key: ci-windows-2025-v1
+                  shared-key: ci-windows-2025-${{ matrix.lane }}-v2
                   cache-bin: false
                   save-if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
 
-            - run: cargo clippy --locked --workspace --all-targets -- -D warnings
+            - if: matrix.lane == 'lint'
+              run: cargo clippy --locked --workspace --all-targets -- -D warnings
               working-directory: apps/desktop/src-tauri
-            - run: cargo check --locked --release --workspace --all-targets
+            - if: matrix.lane == 'lint'
+              run: cargo check --locked --release --workspace --lib --bins
               working-directory: apps/desktop/src-tauri
-            - run: cargo test --locked --workspace
+            - if: matrix.lane == 'test'
+              run: cargo test --locked --workspace
               working-directory: apps/desktop/src-tauri
 
     renderer:

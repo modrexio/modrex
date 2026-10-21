@@ -11,6 +11,7 @@ members = ["game-package"]
 [lib]
 name = "modrex_lib"
 crate-type = ["rlib"]
+doctest = false
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }

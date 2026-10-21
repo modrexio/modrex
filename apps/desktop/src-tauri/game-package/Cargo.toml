@@ -5,6 +5,9 @@ edition = "2021"
 license = "MIT"
 publish = false
 
+[lib]
+doctest = false
+
 [features]
 # Rendering a package as Rust is only ever done by a build script, so the application does
 # not carry the generator.
