@@ -15,6 +15,11 @@ on:
             - 'LICENSE'
     schedule:
         - cron: '30 4 * * 1'
+    workflow_dispatch:
+
+concurrency:
+    group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.run_id }}
+    cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
     analyze:
@@ -26,9 +31,7 @@ jobs:
         strategy:
             fail-fast: false
             matrix:
-                include:
-                    - language: javascript-typescript
-                    - language: rust
+                language: ${{ fromJSON((github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && '["javascript-typescript", "rust"]' || '["javascript-typescript"]') }}
         steps:
             - uses: actions/checkout@v7
 
@@ -40,3 +43,4 @@ jobs:
             - uses: github/codeql-action/analyze@v4.38.2
               with:
                   category: '/language:${{ matrix.language }}'
+                  upload-database: ${{ github.event_name == 'schedule' }}
