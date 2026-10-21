@@ -37,6 +37,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - Fixed deleting a folder also deleting its mods' .ucas and .utoc files.
 - Fixed broken formatting, images and videos in mod descriptions.
 - Fixed popups closing when resizing the window.
+- Fixed PAYDAY: The Heist showing the wrong DAHM install status.
 
 ### Security
 

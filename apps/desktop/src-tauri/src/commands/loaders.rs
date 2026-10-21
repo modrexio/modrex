@@ -94,7 +94,8 @@ pub static LOADER_REGISTRY: &[LoaderSpec] = &[
     LoaderSpec {
         id: "dahm",
         name: "DAHM",
-        detect: DetectStrategy::RootFiles(&["lightfx.dll"]),
+        // Other loaders ship a dinput8.dll proxy too, so only the payload identifies DAHM.
+        detect: DetectStrategy::RootFiles(&["pdthhook.dll"]),
         // Stable redirect maintained by DAHM's author, which 302s to a versioned ZIP that
         // extracts flat to the game root (it ships ~40 framework modules alongside).
         install: InstallStrategy::ExtractAllFlat {
@@ -543,9 +544,11 @@ mod tests {
     }
 
     #[test]
-    fn dahm_detects_its_hook() {
-        assert!(detects("dahm", &["lightfx.dll"]));
-        assert!(!detects("dahm", &["WSOCK32.dll"]));
+    fn dahm_detects_only_its_current_hook() {
+        assert!(detects("dahm", &["pdthhook.dll"]));
+        assert!(detects("dahm", &["dinput8.dll", "pdthhook.dll"]));
+        assert!(!detects("dahm", &["lightfx.dll"]));
+        assert!(!detects("dahm", &["dinput8.dll"]));
     }
 
     #[test]

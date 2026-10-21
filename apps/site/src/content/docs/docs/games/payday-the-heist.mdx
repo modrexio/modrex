@@ -15,6 +15,8 @@ PAYDAY: The Heist support covers BLT mods, DAHM sub-mods, and asset replacement 
 
 The game reads `assets/mod_overrides/` on its own, so a mod that asks for PDTHModOverrides needs nothing extra, and Modrex does not install it. Installing it would replace the file DAHM loads through.
 
+Modrex installs and detects the current DAHM release. An older DAHM install does not count as installed, because its hook does not work with the current version of the game.
+
 ## .pdmod files
 
 PAYDAY: The Heist has a native mod format with the `.pdmod` extension. Modrex installs `.pdmod` files directly — download one from ModWorkshop or install it from a local file the same way as any other mod. Modrex extracts its assets into `assets/mod_overrides/` automatically.
