@@ -29,10 +29,9 @@ export function isOffsiteDep(d: ModDependency): boolean {
 /**
  * SuperBLT is declared on modworkshop as an offsite dependency (it has no mod page).
  * It lives in the game root as a loader DLL, so its install state comes from
- * api.checkSuperblt, not the installed-mods list. PD2 only: that check looks for
- * WSOCK32/IPHLPAPI/libsuperblt_loader.so, and PDTH's loaders are PDTHModOverrides
- * (DINPUT8.dll) and DAHM (lightfx.dll) instead, so every PDTH caller leaves the loader
- * state null rather than running a check that can only ever answer false there.
+ * api.checkSuperblt, not the installed-mods list. PD2 only: that check looks for PD2's
+ * SuperBLT files, so every other caller leaves the loader state null rather than running
+ * a check that cannot answer for its game.
  */
 export function isLoaderDep(d: ModDependency): boolean {
     return isOffsiteDep(d) && `${d.name ?? ''} ${d.url ?? ''}`.toLowerCase().includes('blt')
@@ -43,9 +42,8 @@ export function isLoaderDep(d: ModDependency): boolean {
  * where null means unknown: loader deps are only reported missing on a definitive negative,
  * so detection gaps never nag users who already have the loader. Non-loader offsite deps
  * cannot be verified and are always surfaced, with the per-mod dismissal handling false
- * positives. loaderModIds covers loaders hosted on modworkshop but installed as game-root
- * DLLs (e.g. PDTHModOverrides 53474, DAHM 14267), checked against their per-id installed
- * state rather than the installed-mods list.
+ * positives. loaderModIds covers loaders hosted on modworkshop, checked against their
+ * per-id presence rather than the installed-mods list.
  */
 export function missingRequiredDeps(
     allDeps: ModDependency[],

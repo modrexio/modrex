@@ -22,10 +22,9 @@ export interface HealthItem {
  *
  * bltOk is separate because SuperBLT has no modworkshop page and is matched by the
  * offsite name heuristic instead of a dependency id. It applies to PD2 only: the check
- * looks for WSOCK32/IPHLPAPI/libsuperblt_loader.so, which a PDTH install never has (its
- * loaders are PDTHModOverrides' DINPUT8.dll and DAHM's lightfx.dll), so running it there
- * would return a definitive false for every user and flag every blt-named offsite dep as
- * missing. Left null for other games, which leaves those deps unreported.
+ * looks for PD2's SuperBLT files, so elsewhere it would return a definitive false and flag
+ * every blt-named offsite dep as missing. Left null for other games, which leaves those
+ * deps unreported.
  */
 async function checkLoaders(
     gamePath: string,

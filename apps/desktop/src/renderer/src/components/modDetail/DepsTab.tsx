@@ -38,8 +38,8 @@ export function DepsTab({
     gamePath: string | null
     activeGame: GameId
     loaderInstalled: boolean | null
-    // Hosted loaders (PDTHModOverrides, DAHM, UE4SS, RAID-SuperBLT) are on-site deps but aren't
-    // tracked in the installed list, so their per-id presence state lives here instead.
+    // Hosted loaders are on-site deps but aren't tracked in the installed list, so their
+    // per-id presence state lives here instead.
     loaderModIds: Record<number, boolean | null>
     onInstallLoader?: (modId: number | null) => Promise<void>
     onRefreshInstalled: () => Promise<void>
@@ -252,10 +252,9 @@ function DepRow({
             </div>
         )
     }
-    // Hosted loaders (RAID-SuperBLT, PDTHModOverrides, DAHM, UE4SS) are on-site deps but live in
-    // the game root as DLLs, not the installed-mods list, so presence comes from loaderModIds
-    // (null = not yet checked). Falling through to the installed-list check would always read
-    // "Missing" for an installed loader.
+    // Hosted loaders are on-site deps but are not in the installed-mods list, so presence
+    // comes from loaderModIds (null = not yet checked). Falling through to the installed-list
+    // check would always read "Missing" for an installed loader.
     const isHostedLoader = mod.id in loaderModIds
     const depIdStr = String(mod.id)
     const isInstalled = isHostedLoader

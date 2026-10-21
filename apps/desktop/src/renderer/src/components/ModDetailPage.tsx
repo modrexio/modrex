@@ -576,8 +576,7 @@ export function ModDetailPage({
 
     const allDeps: ModDependency[] = collectDeps(detail)
 
-    // Hosted loader mods (PDTHModOverrides, DAHM, UE4SS) install as game-root/Binaries
-    // files and are checked by presence, not the installed-mods list.
+    // Hosted loader mods are checked by presence, not the installed-mods list.
     // SuperBLT is offsite (no mod page), so it is matched by name, and only for PD2;
     // see isLoaderDep. Every other loader is matched by its dependency id.
     const needsBltCheck = activeGame === 'pd2' && allDeps.some(isLoaderDep)
