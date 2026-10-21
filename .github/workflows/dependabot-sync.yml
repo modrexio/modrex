@@ -44,11 +44,11 @@ jobs:
               uses: actions/cache@v6
               with:
                   path: ~/.cargo/bin/cargo-about
-                  key: cargo-about-${{ runner.os }}-v0.9.0
+                  key: cargo-about-${{ runner.os }}-${{ runner.arch }}-0.9.0-v2
 
             - name: Install cargo-about
               if: steps.cache-cargo-about.outputs.cache-hit != 'true'
-              run: cargo install cargo-about --features=cli
+              run: cargo install cargo-about --version 0.9.0 --locked --features=cli
 
             - run: bun run generate-licenses
 
