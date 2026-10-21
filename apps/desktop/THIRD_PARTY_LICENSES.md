@@ -227,7 +227,7 @@ Apache License
 
 ---
 
-### @tauri-apps/api 2.12.0
+### @tauri-apps/api 2.12.4
 
 **License:** Apache-2.0 OR MIT
 
@@ -292,7 +292,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ---
 
-### simple-icons 16.33.0
+### simple-icons 16.35.0
 
 **License:** CC0-1.0
 
@@ -355,7 +355,7 @@ PERFORMANCE OF THIS SOFTWARE.
 
 ---
 
-### lucide-react 1.48.0
+### lucide-react 1.59.0
 
 **License:** ISC
 
@@ -575,7 +575,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/primitive 1.1.7
+### @radix-ui/primitive 1.2.0
 
 **License:** MIT
 
@@ -605,7 +605,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-arrow 1.1.15
+### @radix-ui/react-arrow 1.1.17
 
 **License:** MIT
 
@@ -635,7 +635,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-collection 1.1.15
+### @radix-ui/react-collection 1.2.0
 
 **License:** MIT
 
@@ -695,7 +695,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-context 1.2.2
+### @radix-ui/react-context 1.3.0
 
 **License:** MIT
 
@@ -725,7 +725,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-dialog 1.1.23
+### @radix-ui/react-dialog 1.3.1
 
 **License:** MIT
 
@@ -755,7 +755,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-direction 1.1.4
+### @radix-ui/react-direction 1.2.0
 
 **License:** MIT
 
@@ -785,7 +785,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-dismissable-layer 1.1.19
+### @radix-ui/react-dismissable-layer 1.2.1
 
 **License:** MIT
 
@@ -815,7 +815,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-focus-guards 1.1.6
+### @radix-ui/react-focus-guards 1.2.0
 
 **License:** MIT
 
@@ -845,7 +845,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-focus-scope 1.1.16
+### @radix-ui/react-focus-scope 1.3.1
 
 **License:** MIT
 
@@ -905,7 +905,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-popover 1.1.23
+### @radix-ui/react-popover 1.3.1
 
 **License:** MIT
 
@@ -935,7 +935,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-popper 1.3.7
+### @radix-ui/react-popper 1.4.0
 
 **License:** MIT
 
@@ -965,7 +965,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-portal 1.1.17
+### @radix-ui/react-portal 1.2.0
 
 **License:** MIT
 
@@ -995,7 +995,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-presence 1.1.10
+### @radix-ui/react-presence 1.1.11
 
 **License:** MIT
 
@@ -1025,7 +1025,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-primitive 2.1.10
+### @radix-ui/react-primitive 2.2.0
 
 **License:** MIT
 
@@ -1055,7 +1055,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-roving-focus 1.1.19
+### @radix-ui/react-roving-focus 1.2.1
 
 **License:** MIT
 
@@ -1085,7 +1085,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-select 2.3.7
+### @radix-ui/react-select 2.4.1
 
 **License:** MIT
 
@@ -1115,7 +1115,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-slot 1.3.3
+### @radix-ui/react-slot 1.5.0
 
 **License:** MIT
 
@@ -1145,7 +1145,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-tabs 1.1.21
+### @radix-ui/react-tabs 1.2.1
 
 **License:** MIT
 
@@ -1175,7 +1175,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-tooltip 1.2.16
+### @radix-ui/react-tooltip 1.4.1
 
 **License:** MIT
 
@@ -1205,7 +1205,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-use-callback-ref 1.1.4
+### @radix-ui/react-use-callback-ref 1.1.5
 
 **License:** MIT
 
@@ -1235,7 +1235,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-use-controllable-state 1.2.6
+### @radix-ui/react-use-controllable-state 1.3.0
 
 **License:** MIT
 
@@ -1355,36 +1355,6 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-use-previous 1.1.4
-
-**License:** MIT
-
-```
-MIT License
-
-Copyright (c) 2022 WorkOS
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
-
----
-
 ### @radix-ui/react-use-rect 1.1.4
 
 **License:** MIT
@@ -1415,7 +1385,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-use-size 1.1.4
+### @radix-ui/react-use-size 1.1.5
 
 **License:** MIT
 
@@ -1445,7 +1415,7 @@ SOFTWARE.
 
 ---
 
-### @radix-ui/react-visually-hidden 1.2.11
+### @radix-ui/react-visually-hidden 1.2.13
 
 **License:** MIT
 
@@ -4021,7 +3991,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ---
 
-### react 19.3.0
+### react 19.3.1
 
 **License:** MIT
 
@@ -4051,7 +4021,7 @@ SOFTWARE.
 
 ---
 
-### react-dom 19.3.0
+### react-dom 19.3.1
 
 **License:** MIT
 
@@ -4913,7 +4883,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ---
 
-### @tauri-apps/plugin-log 2.10.0
+### @tauri-apps/plugin-log 2.10.1
 
 **License:** MIT OR Apache-2.0
 
