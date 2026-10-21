@@ -35,7 +35,6 @@ jobs:
 
             - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d
               if: github.event_name == 'push' || github.event_name == 'pull_request'
-              continue-on-error: true
               id: filter
               with:
                   base: ${{ github.event_name == 'push' && github.event.before || '' }}
@@ -129,13 +128,8 @@ jobs:
 
             - id: full
               env:
-                  FULL: ${{ (github.event_name != 'push' && github.event_name != 'pull_request') || (github.event_name == 'pull_request' && github.event.pull_request.changed_files >= 3000) || steps.filter.outcome == 'failure' || steps.filter.outputs.global == 'true' || steps.filter.outputs.workflow == 'true' }}
-                  FILTER_OUTCOME: ${{ steps.filter.outcome }}
-              run: |
-                  if [ "$FILTER_OUTCOME" = 'failure' ]; then
-                    echo '::warning::Path selection failed. Running every CI domain.'
-                  fi
-                  echo "full=$FULL" >> "$GITHUB_OUTPUT"
+                  FULL: ${{ (github.event_name != 'push' && github.event_name != 'pull_request') || (github.event_name == 'pull_request' && github.event.pull_request.changed_files >= 3000) || steps.filter.outputs.global == 'true' || steps.filter.outputs.workflow == 'true' }}
+              run: echo "full=$FULL" >> "$GITHUB_OUTPUT"
 
     checks:
         runs-on: ubuntu-24.04
