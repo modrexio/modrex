@@ -2872,7 +2872,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ---
 
-### markdown-it 15.0.2
+### markdown-it 15.0.3
 
 **License:** MIT
 
@@ -4920,7 +4920,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ---
 
-### argparse 3.0.2
+### argparse 3.0.3
 
 **License:** PSF-2.0
 
