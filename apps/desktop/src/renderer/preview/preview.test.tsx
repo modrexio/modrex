@@ -6,7 +6,7 @@ import pd3ModRecords from './fixtures/pd3/mod-records.json'
 import pd3News from './fixtures/pd3/news.json'
 import pd2Mods from './fixtures/pd2/mods.json'
 import pd2ModRecords from './fixtures/pd2/mod-records.json'
-import type { ListModsParams, ModSummary } from '../../shared/bindings'
+import type { ListModsParams, ModDetail, ModSummary } from '../../shared/bindings'
 
 const store = new Map<string, string>()
 
@@ -22,7 +22,12 @@ beforeEach(() => {
     })
 })
 
-afterEach(cleanup)
+afterEach(() => {
+    cleanup()
+    vi.doUnmock('./fixtures/pd3/mods.json')
+    vi.doUnmock('./fixtures/pd3/mod-records.json')
+    vi.doUnmock('./fixtures/pd2/mod-records.json')
+})
 
 // Every preview state is a fresh page load, so each test gets fresh module state on both
 // sides: the renderer's session caches and the preview's in-memory library.
@@ -250,9 +255,47 @@ test('browse fixtures honor filters, sorting, and the captured page boundary', a
 })
 
 test('installing from a card lands the mod in the library', async () => {
+    // The live first card can need dependencies, a file picker or a loader action, so the test
+    // owns one directly installable mod. Its id matches no loader.
+    const source = pd3Mods.data[0]
+    const records = pd3ModRecords as unknown as Record<string, { detail: ModDetail }>
+    const mod = {
+        ...source,
+        id: 9000001,
+        has_download: true,
+        disable_mod_managers: false,
+        legacy_markup: false,
+        download_type: 'file',
+    } satisfies ModSummary
+    const detail: ModDetail = {
+        ...structuredClone(records[String(source.id)].detail),
+        id: mod.id,
+        has_download: true,
+        disable_mod_managers: false,
+        download_type: 'file',
+        dependencies: [],
+        instructs_template: null,
+        download: {
+            id: 1,
+            version: 'preview-test',
+            size: 1024,
+            type: 'pak',
+            download_url: 'https://example.invalid/preview-test.pak',
+            url: null,
+        },
+    }
+    vi.doMock('./fixtures/pd3/mods.json', () => ({
+        default: {
+            ...pd3Mods,
+            data: [mod],
+            meta: { current_page: 1, last_page: 1, per_page: 1, total: 1 },
+        },
+    }))
+    vi.doMock('./fixtures/pd3/mod-records.json', () => ({
+        default: { [String(mod.id)]: { ...records[String(source.id)], detail } },
+    }))
     await mount()
-    const first = pd3Mods.data[0]
-    await found(first.name)
+    await found(mod.name)
     fireEvent.click((await screen.findAllByText('Install'))[0])
     expect(await screen.findByText(/^\d+%$/)).toBeTruthy()
     const toggle = await screen.findByRole('switch', {}, { timeout: 5000 })
@@ -344,13 +387,36 @@ test('the first-run onboarding state asks for telemetry consent', async () => {
 })
 
 test('thumbnails fall back to the original when the catalog has no small variant', async () => {
+    // Live snapshots can lack an image without a small variant, so the test owns both cases.
+    const records = structuredClone(pd2ModRecords) as unknown as Record<
+        string,
+        { detail: ModDetail }
+    >
+    const record = Object.values(records)[0]
+    const image = {
+        id: 1,
+        file: 'preview-with-small.webp',
+        type: 'webp',
+        size: 1024,
+        display_order: 0,
+        visible: true,
+        has_thumb: true,
+    }
+    record.detail.images = [
+        image,
+        { ...image, id: 2, file: 'preview-without-small.webp', has_thumb: false },
+    ]
+    vi.doMock('./fixtures/pd2/mod-records.json', () => ({ default: records }))
     vi.resetModules()
     const { commands } = await import('./commands')
     await commands.listMods(1, null)
-    const images = Object.values(pd2ModRecords).flatMap((record) => record.detail.images)
-    const withSmall = images.find((image) => image.has_thumb)!
-    const withoutSmall = images.find((image) => !image.has_thumb)!
-    expect(await commands.getThumbnail(withSmall.file, false)).toBe(`thumbnail_${withSmall.file}`)
-    expect(await commands.getThumbnail(withoutSmall.file, false)).toBe(withoutSmall.file)
-    expect(await commands.getThumbnail(withoutSmall.file, true)).toBe(withoutSmall.file)
+    expect(await commands.getThumbnail('preview-with-small.webp', false)).toBe(
+        'thumbnail_preview-with-small.webp'
+    )
+    expect(await commands.getThumbnail('preview-without-small.webp', false)).toBe(
+        'preview-without-small.webp'
+    )
+    expect(await commands.getThumbnail('preview-without-small.webp', true)).toBe(
+        'preview-without-small.webp'
+    )
 })
