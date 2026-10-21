@@ -22,6 +22,8 @@ on:
                 default: '10'
                 type: string
 
+cache-mode: none
+
 permissions:
     contents: read
 

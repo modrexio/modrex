@@ -3,6 +3,8 @@ name: Sync Postgres index listings
 on:
     workflow_dispatch:
 
+cache-mode: none
+
 permissions:
     contents: read
 
