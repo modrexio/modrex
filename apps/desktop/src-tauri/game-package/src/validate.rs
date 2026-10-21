@@ -58,6 +58,10 @@ pub fn check(id: &str, package: &GamePackage) -> Result<(), String> {
         return Err(format!("declares the '{duplicate}' loader twice"));
     }
     for loader in &package.loaders {
+        if matches!(loader, LoaderBinding::BuiltIn { modworkshop_ids } if modworkshop_ids.is_empty())
+        {
+            return Err("the built_in loader needs at least one modworkshop id".to_string());
+        }
         let LoaderBinding::Ue4ss {
             storefronts,
             proxy_dlls,

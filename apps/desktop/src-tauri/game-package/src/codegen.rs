@@ -308,7 +308,7 @@ fn loader(value: &LoaderBinding) -> String {
         ),
         LoaderBinding::Superblt { modworkshop_ids } => plain("Superblt", modworkshop_ids),
         LoaderBinding::RaidSuperblt { modworkshop_ids } => plain("RaidSuperblt", modworkshop_ids),
-        LoaderBinding::PdthOverrides { modworkshop_ids } => plain("PdthOverrides", modworkshop_ids),
+        LoaderBinding::BuiltIn { modworkshop_ids } => plain("BuiltIn", modworkshop_ids),
         LoaderBinding::Dahm { modworkshop_ids } => plain("Dahm", modworkshop_ids),
     }
 }

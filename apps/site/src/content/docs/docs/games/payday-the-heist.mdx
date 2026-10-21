@@ -13,7 +13,7 @@ PAYDAY: The Heist support covers BLT mods, DAHM sub-mods, and asset replacement 
 
 ## Loaders
 
-Modrex has dedicated handling for the PDTHModOverrides and DAHM loader mods. Loader dependency warnings use those game-specific checks instead of treating every dependency as a normal folder install.
+The game reads `assets/mod_overrides/` on its own, so a mod that asks for PDTHModOverrides needs nothing extra, and Modrex does not install it. Installing it would replace the file DAHM loads through.
 
 ## .pdmod files
 

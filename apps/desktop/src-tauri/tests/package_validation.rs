@@ -180,6 +180,14 @@ fn a_loader_declared_twice_is_rejected() {
 }
 
 #[test]
+fn a_built_in_loader_without_mod_pages_is_rejected() {
+    assert_rejected(
+        &format!("{BASE}\n[[loaders]]\nkind = \"built_in\"\n"),
+        "built_in loader needs at least one modworkshop id",
+    );
+}
+
+#[test]
 fn target_labels_have_exact_manifest_values_and_interface_keys() {
     for (value, key) in [
         ("mods", "mods"),

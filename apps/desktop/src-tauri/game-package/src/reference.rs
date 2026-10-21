@@ -230,7 +230,8 @@ pub fn markdown(examples: &[(&str, &str)]) -> String {
          `kind` names a loader the host implements; a kind that does not exist is a build error,\n\
          and so is a field belonging to a different kind. `modworkshop_ids` lists the\n\
          modworkshop mod ids the loader is published under, so a mod depending on one of them\n\
-         installs the loader.\n\n\
+         installs the loader. `built_in` lists mod pages whose loader the game provides\n\
+         itself, so a dependency on one of them is always met and nothing is installed.\n\n\
          | Kind | Extra fields |\n| --- | --- |\n",
     );
     out.push_str(&row(
@@ -239,7 +240,7 @@ pub fn markdown(examples: &[(&str, &str)]) -> String {
     ));
     out.push_str(&row("superblt", "none"));
     out.push_str(&row("raid_superblt", "none"));
-    out.push_str(&row("pdth_overrides", "none"));
+    out.push_str(&row("built_in", "none"));
     out.push_str(&row("dahm", "none"));
     out.push_str("\n`storefronts` accepts: ");
     out.push_str(

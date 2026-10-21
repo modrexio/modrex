@@ -7,7 +7,7 @@ import type { LoaderInfo } from '../../shared/bindings'
 const REGISTRY: LoaderInfo[] = [
     { id: 'superblt', target: null, modworkshopIds: [], games: ['pd2'], viaModFlow: false },
     {
-        id: 'pdth_overrides',
+        id: 'built_in',
         target: null,
         modworkshopIds: [53474],
         games: ['pdth'],
@@ -49,7 +49,7 @@ beforeEach(async () => {
 
 describe('loadersForGame', () => {
     it('returns only the loaders a game uses', () => {
-        expect(mod.loadersForGame('pdth').map((l) => l.id)).toEqual(['pdth_overrides', 'dahm'])
+        expect(mod.loadersForGame('pdth').map((l) => l.id)).toEqual(['built_in', 'dahm'])
         expect(mod.loadersForGame('pd2').map((l) => l.id)).toEqual(['superblt'])
     })
 
@@ -70,7 +70,7 @@ describe('loaderForModId', () => {
     })
 
     it('resolves PDTH loader pages', () => {
-        expect(mod.loaderForModId('pdth', 53474)?.id).toBe('pdth_overrides')
+        expect(mod.loaderForModId('pdth', 53474)?.id).toBe('built_in')
         expect(mod.loaderForModId('pdth', 14267)?.id).toBe('dahm')
     })
 
@@ -113,7 +113,7 @@ describe('loaderPageInstalled', () => {
     })
 
     it('ignores the UE4SS page for a loader with one page of its own', () => {
-        expect(mod.loaderPageInstalled('pdth', 53474, { pdth_overrides: true }, 47771)).toBe(true)
+        expect(mod.loaderPageInstalled('pdth', 53474, { built_in: true }, 47771)).toBe(true)
     })
 
     it('has no answer for a mod that is not a loader', () => {
@@ -123,7 +123,7 @@ describe('loaderPageInstalled', () => {
 
 describe('buildLoaderModIds', () => {
     it('maps PDTH loader pages to their own states', () => {
-        expect(mod.buildLoaderModIds('pdth', { pdth_overrides: true, dahm: false })).toEqual({
+        expect(mod.buildLoaderModIds('pdth', { built_in: true, dahm: false })).toEqual({
             53474: true,
             14267: false,
         })
@@ -150,16 +150,16 @@ describe('resolveLoaderState', () => {
     it('checks only loaders the mod actually depends on', async () => {
         const state = await mod.resolveLoaderState('pdth', '/game', [53474], {})
         expect(mockCheckLoader).toHaveBeenCalledTimes(1)
-        expect(mockCheckLoader).toHaveBeenCalledWith('pdth_overrides', 'pdth', '/game')
-        expect(state).toEqual({ pdth_overrides: true })
+        expect(mockCheckLoader).toHaveBeenCalledWith('built_in', 'pdth', '/game')
+        expect(state).toEqual({ built_in: true })
     })
 
     it('keeps an already-known state instead of re-checking it', async () => {
         const state = await mod.resolveLoaderState('pdth', '/game', [53474], {
-            pdth_overrides: false,
+            built_in: false,
         })
         expect(mockCheckLoader).not.toHaveBeenCalled()
-        expect(state).toEqual({ pdth_overrides: false })
+        expect(state).toEqual({ built_in: false })
     })
 
     it('checks nothing when no dependency names a loader', async () => {

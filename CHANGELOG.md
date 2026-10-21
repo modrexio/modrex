@@ -23,6 +23,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - Health Check stays open while it reinstalls mods or installs dependencies, reinstalls mods one at a time, and shows which ones failed.
 - Installed mods show their source under the card instead of over the picture.
 - Browse Mods names the mod source in every game.
+- PAYDAY: The Heist no longer asks for PDTHModOverrides, which the game now includes.
 
 ### Fixed
 

@@ -9,8 +9,8 @@
         "viaModFlow": false
     },
     {
-        "id": "pdth_overrides",
-        "target": "mod_overrides",
+        "id": "built_in",
+        "target": null,
         "modworkshopIds": [
             53474
         ],

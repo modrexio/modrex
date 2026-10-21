@@ -90,14 +90,15 @@ lists every storefront the game can be found on. At most one entry per provider.
 `kind` names a loader the host implements; a kind that does not exist is a build error,
 and so is a field belonging to a different kind. `modworkshop_ids` lists the
 modworkshop mod ids the loader is published under, so a mod depending on one of them
-installs the loader.
+installs the loader. `built_in` lists mod pages whose loader the game provides
+itself, so a dependency on one of them is always met and nothing is installed.
 
 | Kind | Extra fields |
 | --- | --- |
 | `ue4ss` | `storefronts`, `proxy_dlls`, `install_into`, optional `store_install_into` |
 | `superblt` | none |
 | `raid_superblt` | none |
-| `pdth_overrides` | none |
+| `built_in` | none |
 | `dahm` | none |
 
 `storefronts` accepts: `steam`, `epic`, `xbox`.
@@ -458,7 +459,7 @@ install = {
 
 loaders = [
     {
-        kind = "pdth_overrides",
+        kind = "built_in",
         modworkshop_ids = [53474],
     },
     {
@@ -500,7 +501,6 @@ targets = [
     {
         tag = "mod_overrides",
         label = "overrides",
-        loader = "pdth_overrides",
         path = ["assets", "mod_overrides"],
         backup = ["assets", "mod_overrides.bak"],
         activation = "filesystem",

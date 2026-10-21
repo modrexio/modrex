@@ -54,7 +54,7 @@ install = {
 
 loaders = [
     {
-        kind = "pdth_overrides",
+        kind = "built_in",
         modworkshop_ids = [53474],
     },
     {
@@ -96,7 +96,6 @@ targets = [
     {
         tag = "mod_overrides",
         label = "overrides",
-        loader = "pdth_overrides",
         path = ["assets", "mod_overrides"],
         backup = ["assets", "mod_overrides.bak"],
         activation = "filesystem",

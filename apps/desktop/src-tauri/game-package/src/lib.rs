@@ -224,7 +224,8 @@ pub enum LoaderBinding {
         #[serde(default)]
         modworkshop_ids: Vec<i64>,
     },
-    PdthOverrides {
+    /// Mod pages whose loader the game provides itself.
+    BuiltIn {
         #[serde(default)]
         modworkshop_ids: Vec<i64>,
     },
@@ -241,7 +242,7 @@ impl LoaderBinding {
             LoaderBinding::Ue4ss { .. } => "ue4ss",
             LoaderBinding::Superblt { .. } => "superblt",
             LoaderBinding::RaidSuperblt { .. } => "raid_superblt",
-            LoaderBinding::PdthOverrides { .. } => "pdth_overrides",
+            LoaderBinding::BuiltIn { .. } => "built_in",
             LoaderBinding::Dahm { .. } => "dahm",
         }
     }
@@ -256,7 +257,7 @@ impl LoaderBinding {
             }
             | LoaderBinding::Superblt { modworkshop_ids }
             | LoaderBinding::RaidSuperblt { modworkshop_ids }
-            | LoaderBinding::PdthOverrides { modworkshop_ids }
+            | LoaderBinding::BuiltIn { modworkshop_ids }
             | LoaderBinding::Dahm { modworkshop_ids } => modworkshop_ids,
         }
     }

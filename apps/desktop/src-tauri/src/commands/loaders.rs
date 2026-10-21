@@ -9,8 +9,8 @@ use tauri::AppHandle;
 use crate::commands::download::download_file;
 use crate::commands::mods::{extract_archive_flat, extract_entry};
 
-/// How a loader's presence is detected. Both variants read the disk only: a loader is
-/// never recorded in state.json, so the files themselves are the sole install signal.
+/// How a loader's presence is detected. A loader is never recorded in state.json, so a
+/// disk variant's files are the sole install signal.
 pub enum DetectStrategy {
     /// Any one of these files sitting in the game root means the loader is installed.
     RootFiles(&'static [&'static str]),
@@ -18,6 +18,8 @@ pub enum DetectStrategy {
     /// nested Binaries dir, so detection delegates to ue4ss's verified descriptor table
     /// rather than flattening into a root-file list.
     Ue4ssProxy,
+    /// The game provides it, so it is always present.
+    BuiltIn,
 }
 
 /// How a loader's package is installed. The URLs are stable redirect endpoints, verified
@@ -36,6 +38,8 @@ pub enum InstallStrategy {
     /// so installing goes through the normal mod-install flow instead (see zip.rs's
     /// UE4SS_LOADER sentinel).
     ViaModFlow,
+    /// The game provides it, so there is nothing to install.
+    BuiltIn,
 }
 
 pub struct LoaderSpec {
@@ -82,15 +86,10 @@ pub static LOADER_REGISTRY: &[LoaderSpec] = &[
         },
     },
     LoaderSpec {
-        id: "pdth_overrides",
-        name: "PDTHModOverrides",
-        // DINPUT8.dll is the proxy loader and PDTHModOverrides.dll the payload. Only the
-        // proxy's presence is the install signal, but both are extracted below.
-        detect: DetectStrategy::RootFiles(&["DINPUT8.dll"]),
-        install: InstallStrategy::ExtractEntries {
-            url: "https://github.com/HW12Dev/PDTHModOverrides/releases/latest/download/PDTHModOverrides.zip",
-            entries: &["DINPUT8.dll", "PDTHModOverrides.dll"],
-        },
+        id: "built_in",
+        name: "Built-in",
+        detect: DetectStrategy::BuiltIn,
+        install: InstallStrategy::BuiltIn,
     },
     LoaderSpec {
         id: "dahm",
@@ -294,11 +293,12 @@ pub fn is_loader_installed(
         DetectStrategy::Ue4ssProxy => {
             crate::commands::ue4ss::is_installed(game_id, game_path, launcher)
         }
+        DetectStrategy::BuiltIn => true,
     }
 }
 
 /// Downloads a loader package and lays it out per its install strategy. ViaModFlow
-/// loaders have no canonical URL and never reach this path.
+/// and BuiltIn loaders never reach this path.
 pub async fn install_loader_package(
     spec: &'static LoaderSpec,
     app: &AppHandle,
@@ -310,6 +310,12 @@ pub async fn install_loader_package(
         InstallStrategy::ViaModFlow => {
             return Err(format!(
                 "loader '{}' installs through the normal mod flow, not a direct download",
+                spec.id
+            ))
+        }
+        InstallStrategy::BuiltIn => {
+            return Err(format!(
+                "loader '{}' is built into the game, so there is nothing to install",
                 spec.id
             ))
         }
@@ -365,13 +371,7 @@ mod tests {
     /// fail here rather than at the user's first click.
     #[test]
     fn every_known_loader_id_resolves() {
-        for id in [
-            "superblt",
-            "pdth_overrides",
-            "dahm",
-            "raid_superblt",
-            "ue4ss",
-        ] {
+        for id in ["superblt", "built_in", "dahm", "raid_superblt", "ue4ss"] {
             assert!(loader_spec(id).is_some(), "{id} is not in LOADER_REGISTRY");
         }
     }
@@ -456,7 +456,7 @@ mod tests {
         assert_eq!(loaders_for("pd2"), vec![("superblt", vec![])]);
         assert_eq!(
             loaders_for("pdth"),
-            vec![("pdth_overrides", vec![53474]), ("dahm", vec![14267])]
+            vec![("built_in", vec![53474]), ("dahm", vec![14267])]
         );
         assert_eq!(loaders_for("cb"), vec![("ue4ss", vec![47749])]);
     }
@@ -467,7 +467,6 @@ mod tests {
         for (game, loader, target) in [
             ("pd2", "superblt", "mods"),
             ("pdth", "dahm", "mods"),
-            ("pdth", "pdth_overrides", "mod_overrides"),
             ("raid", "raid_superblt", "mods"),
             ("pd3", "ue4ss", "ue4ss_mods"),
             ("cb", "ue4ss", "ue4ss_mods"),
@@ -538,12 +537,9 @@ mod tests {
         assert!(!detects("raid_superblt", &["libsuperblt_loader.so"]));
     }
 
-    /// DINPUT8.dll is the proxy and the only install signal.
-    /// The payload DLL alone means the loader is not hooked in.
     #[test]
-    fn pdth_overrides_requires_the_proxy_dll() {
-        assert!(detects("pdth_overrides", &["DINPUT8.dll"]));
-        assert!(!detects("pdth_overrides", &["PDTHModOverrides.dll"]));
+    fn a_built_in_loader_is_present_without_files() {
+        assert!(detects("built_in", &[]));
     }
 
     #[test]
