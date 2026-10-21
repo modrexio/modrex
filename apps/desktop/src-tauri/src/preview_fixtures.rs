@@ -73,11 +73,20 @@ pub fn export_preview_fixtures() {
             let folders = crate::commands::mods::list_mod_folders(game_id.to_string())
                 .unwrap_or_else(|e| panic!("{game_id} mod folders: {e}"));
             write(&format!("{game_id}/mod-folders"), &folders);
+            // The news site blocks datacenter runners, so a failed fetch keeps the committed
+            // snapshot instead of failing the refresh of every other fixture.
             if !package.news.is_empty() {
-                let news = crate::commands::news::fetch_news_page(game_id.to_string(), 1)
-                    .await
-                    .unwrap_or_else(|e| panic!("{game_id} news: {e}"));
-                write(&format!("{game_id}/news"), &news);
+                match crate::commands::news::fetch_news_page(game_id.to_string(), 1).await {
+                    Ok(news) => write(&format!("{game_id}/news"), &news),
+                    Err(e) => {
+                        let kept = format!("{FIXTURES_DIR}/{game_id}/news.json");
+                        assert!(
+                            std::path::Path::new(&kept).exists(),
+                            "{game_id} news: {e}, and no committed snapshot exists to keep"
+                        );
+                        println!("::warning::{game_id} news kept from the last snapshot: {e}");
+                    }
+                }
             }
             let workshop_id = package.sources.iter().find_map(|source| match source {
                 SourceBinding::ModWorkshop { game_id } => Some(game_id),

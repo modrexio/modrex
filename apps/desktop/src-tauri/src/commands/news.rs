@@ -199,7 +199,8 @@ fn cache_age_secs(path: &std::path::Path) -> Option<u64> {
 /// TLS/HTTP2 fingerprint check. A renderer-side fetch fails too, since the site sends no
 /// Access-Control-Allow-Origin header and CORS blocks the response before JS sees it.
 /// curl.exe is the one client that passed live testing, so this shells out to it, matching
-/// steam.rs's reg query and xbox.rs's powershell.
+/// steam.rs's reg query and xbox.rs's powershell. A blocked request still returns a challenge
+/// page, so --fail makes it an error rather than an empty feed.
 fn curl_fetch(url: &str) -> Result<String, String> {
     let mut cmd = Command::new("curl");
     #[cfg(target_os = "windows")]
@@ -208,7 +209,7 @@ fn curl_fetch(url: &str) -> Result<String, String> {
         cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
     }
     let output = crate::commands::launchers::outside_bundle(&mut cmd)
-        .args(["-sL", "--max-time", "15", "-A", BROWSER_UA, url])
+        .args(["-sL", "--fail", "--max-time", "15", "-A", BROWSER_UA, url])
         .output()
         .map_err(|e| format!("curl unavailable: {e}"))?;
     if !output.status.success() {

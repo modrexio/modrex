@@ -62,7 +62,7 @@ jobs:
                     must git reset --hard origin/main
 
                     # Live ModWorkshop data at the app's own rate limit: five games take a few minutes.
-                    must_in apps/desktop/src-tauri cargo test --test export_preview_fixtures -- --ignored
+                    must_in apps/desktop/src-tauri cargo test --test export_preview_fixtures -- --ignored --nocapture
 
                     # Publish only a snapshot that the browser preview can render.
                     must_in apps/desktop bun --bun run test:preview
