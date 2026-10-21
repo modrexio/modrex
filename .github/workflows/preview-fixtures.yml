@@ -21,6 +21,8 @@ jobs:
                   ref: main
                   fetch-depth: 0
 
+            - run: rustup install --no-self-update
+
             - name: Install system dependencies
               run: |
                   sudo apt-get update

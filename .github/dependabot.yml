@@ -48,3 +48,10 @@ updates:
           actions-all:
               patterns:
                   - '*'
+
+    - package-ecosystem: rust-toolchain
+      directory: /
+      schedule:
+          interval: monthly
+      commit-message:
+          prefix: chore(deps)

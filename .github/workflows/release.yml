@@ -81,7 +81,7 @@ jobs:
               with:
                   bun-version-file: package.json
 
-            - uses: dtolnay/rust-toolchain@stable
+            - run: rustup install --no-self-update
             - uses: swatinem/rust-cache@v2
               continue-on-error: true
               with:
@@ -221,7 +221,7 @@ jobs:
               with:
                   bun-version-file: package.json
 
-            - uses: dtolnay/rust-toolchain@stable
+            - run: rustup install --no-self-update
             - uses: swatinem/rust-cache@v2
               with:
                   workspaces: apps/desktop/src-tauri

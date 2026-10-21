@@ -30,6 +30,8 @@ jobs:
                   ref: ${{ github.event.pull_request.head.sha }}
                   persist-credentials: false
 
+            - run: rustup install --no-self-update
+
             - uses: oven-sh/setup-bun@v2
               with:
                   bun-version-file: package.json

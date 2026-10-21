@@ -131,7 +131,7 @@ jobs:
                     librsvg2-dev \
                     patchelf
 
-            - uses: dtolnay/rust-toolchain@stable
+            - run: rustup install --no-self-update
             - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
               with:
                   workspaces: apps/desktop/src-tauri
@@ -161,7 +161,7 @@ jobs:
         steps:
             - uses: actions/checkout@v7
 
-            - uses: dtolnay/rust-toolchain@stable
+            - run: rustup install --no-self-update
             - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
               with:
                   workspaces: apps/desktop/src-tauri
@@ -251,7 +251,7 @@ jobs:
               with:
                   bun-version-file: package.json
             - run: bun install --frozen-lockfile
-            - uses: dtolnay/rust-toolchain@stable
+            - run: rustup install --no-self-update
 
             - name: Cache cargo-about
               id: cache-cargo-about
