@@ -28,7 +28,7 @@ for (const migration of migrations) {
     `) as { checksum: string }[]
 
     if (applied.length === 1) {
-        if (applied[0].checksum !== checksum) {
+        if (applied[0]!.checksum !== checksum) {
             throw new Error(`Migration ${migration.version} does not match its recorded checksum`)
         }
         console.log(`${migration.version} already applied`)

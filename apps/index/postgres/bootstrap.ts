@@ -18,7 +18,7 @@ export async function bootstrapCatalog(
             [game.name, slug]
         )
         if (game.workshopId === undefined) continue
-        const gameId = rows[0].id
+        const gameId = rows[0]!.id
 
         await db.query(
             `

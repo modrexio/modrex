@@ -216,7 +216,7 @@ try {
         () =>
             writeSnapshot(join(workspace, 'duplicate.db'), 'pd2', source, rows, [
                 ...resources,
-                resources[0],
+                resources[0]!,
             ]),
         /UNIQUE constraint failed: resource_entries/,
         'a project holds one row per exact resource identity'

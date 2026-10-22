@@ -147,7 +147,7 @@ export async function registerDownloadable(
         ]
     )
     if (rows.length !== 1) throw new Error(`Failed to register ${input.kind} ${input.remoteId}`)
-    return { ...rows[0], input }
+    return { ...rows[0]!, input }
 }
 
 export function needsProcessing(state: DownloadableState, now: Date): boolean {

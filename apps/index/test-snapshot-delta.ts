@@ -51,7 +51,7 @@ async function verify(previous: SnapshotRow[], label: string) {
     const rows = applySnapshotDelta(previous, changes)
     const expected = (await pg.query<SnapshotRow>(fullQuery, ['pd2'])).rows
     assert.deepEqual(rows, expected, label)
-    const source = (await pg.query<SnapshotSource>(snapshotSourceQuery, ['pd2'])).rows[0]
+    const source = (await pg.query<SnapshotSource>(snapshotSourceQuery, ['pd2'])).rows[0]!
     const resources = await fullResources()
     const incremental = writeSnapshot(
         join(workspace, 'incremental.db'),
@@ -69,7 +69,7 @@ async function verify(previous: SnapshotRow[], label: string) {
 
 async function exportResources(label: string) {
     const rows = (await pg.query<SnapshotRow>(fullQuery, ['pd2'])).rows
-    const source = (await pg.query<SnapshotSource>(snapshotSourceQuery, ['pd2'])).rows[0]
+    const source = (await pg.query<SnapshotSource>(snapshotSourceQuery, ['pd2'])).rows[0]!
     const queried = (await pg.query<ResourceRow>(resourceRowsQuery, ['pd2'])).rows
     const first = writeSnapshot(
         join(workspace, 'resources-first.db'),
@@ -172,7 +172,7 @@ try {
     `)
     let baseline = (await verify([], 'first export without a previous snapshot')).rows
     assert.equal((await verify(baseline, 'unchanged export')).changes.length, 0)
-    const source = (await pg.query<SnapshotSource>(snapshotSourceQuery, ['pd2'])).rows[0]
+    const source = (await pg.query<SnapshotSource>(snapshotSourceQuery, ['pd2'])).rows[0]!
     const original = writeSnapshot(
         join(workspace, 'original.db'),
         'pd2',
@@ -263,7 +263,7 @@ try {
         const result = await verify(baseline, label)
         if (label === 'version') {
             assert.equal(result.changes.length, 1)
-            assert.equal(result.changes[0].file_id, '5')
+            assert.equal(result.changes[0]!.file_id, '5')
         }
         baseline = result.rows
     }

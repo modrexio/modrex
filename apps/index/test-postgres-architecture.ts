@@ -152,27 +152,33 @@ async function catalog(): Promise<{ pg: PGlite; db: Database }> {
     assert.throws(() => verifyModWorkshopSources(rows.slice(1), games), /Expected/)
     assert.throws(
         () =>
-            verifyModWorkshopSources([{ ...rows[0], name: 'Wrong name' }, ...rows.slice(1)], games),
+            verifyModWorkshopSources(
+                [{ ...rows[0]!, name: 'Wrong name' }, ...rows.slice(1)],
+                games
+            ),
         /name does not match/
     )
     assert.throws(
         () =>
             verifyModWorkshopSources(
-                [{ ...rows[0], game_ref: 'undefined' }, ...rows.slice(1)],
+                [{ ...rows[0]!, game_ref: 'undefined' }, ...rows.slice(1)],
                 games
             ),
         /ModWorkshop ID does not match/
     )
     assert.throws(
         () =>
-            verifyModWorkshopSources([{ ...rows[0], slug: 'nexus_only' }, ...rows.slice(1)], games),
+            verifyModWorkshopSources(
+                [{ ...rows[0]!, slug: 'nexus_only' }, ...rows.slice(1)],
+                games
+            ),
         /Missing cb ModWorkshop source/
     )
     assert.throws(
-        () => verifyModWorkshopSources([rows[1], ...rows.slice(1)], games),
+        () => verifyModWorkshopSources([rows[1]!, ...rows.slice(1)], games),
         /Missing cb ModWorkshop source/
     )
-    verifyModWorkshopSources([], { nexus_only: games.nexus_only })
+    verifyModWorkshopSources([], { nexus_only: games.nexus_only! })
 
     await pg.exec(`
         INSERT INTO sources (game_id, name, base_url, game_ref)
@@ -292,7 +298,7 @@ assert.deepEqual(
 
 {
     const { pg, db } = await catalog()
-    const source = (await pg.query<{ id: string }>('SELECT id::TEXT FROM sources')).rows[0].id
+    const source = (await pg.query<{ id: string }>('SELECT id::TEXT FROM sources')).rows[0]!.id
     const at = new Date('2026-09-20T13:00:00.000Z')
     await pg.query(
         `INSERT INTO mod_listings (source_id, remote_id, name, version, has_download,
@@ -325,7 +331,7 @@ assert.deepEqual(
         at
     )
     assert.equal(
-        (await selectContentListings(db, 'pd2', 1, at))[0].remote_id,
+        (await selectContentListings(db, 'pd2', 1, at))[0]!.remote_id,
         '41',
         'a crash after registration leaves pending downloadable work immediately selectable'
     )
@@ -334,7 +340,7 @@ assert.deepEqual(
 
 {
     const { pg, db } = await catalog()
-    const source = (await pg.query<{ id: string }>('SELECT id::TEXT FROM sources')).rows[0].id
+    const source = (await pg.query<{ id: string }>('SELECT id::TEXT FROM sources')).rows[0]!.id
     await pg.query(
         `INSERT INTO mod_listings (source_id, remote_id, name, version, has_download,
             bumped_at, updated_at, download_id, download_type)
@@ -343,17 +349,17 @@ assert.deepEqual(
     )
     const selected = await selectContentListings(db, 'pd2', 1, new Date('2026-09-20T13:00:00.000Z'))
     assert.equal(
-        selected[0].remote_id,
+        selected[0]!.remote_id,
         '40',
         'a listing with no download still receives bounded discovery'
     )
-    await finishDiscovery(db, selected[0], [], true, new Date('2026-09-20T13:00:00.000Z'))
+    await finishDiscovery(db, selected[0]!, [], true, new Date('2026-09-20T13:00:00.000Z'))
     assert.equal(
         (
             await pg.query<{ has_download: boolean }>(
                 'SELECT has_download FROM mod_listings WHERE remote_id=40'
             )
-        ).rows[0].has_download,
+        ).rows[0]!.has_download,
         true,
         'file and link discovery can recover a listing that gained its first download without a bump'
     )
@@ -362,7 +368,7 @@ assert.deepEqual(
 
 {
     const { pg, db } = await catalog()
-    const source = (await pg.query<{ id: string }>('SELECT id::TEXT FROM sources')).rows[0].id
+    const source = (await pg.query<{ id: string }>('SELECT id::TEXT FROM sources')).rows[0]!.id
     await pg.query(
         `INSERT INTO mod_listings (source_id, remote_id, name, version, has_download,
             bumped_at, updated_at, download_id, download_type)
@@ -429,7 +435,7 @@ assert.deepEqual(
             await pg.query<{ next_reconcile_at: string }>(
                 'SELECT next_reconcile_at FROM mod_reconciliations WHERE remote_id=2'
             )
-        ).rows[0].next_reconcile_at,
+        ).rows[0]!.next_reconcile_at,
         '2026-09-27T13:00:00.000Z',
         'content with an omitted authoritative version is deferred instead of mislabeled'
     )
@@ -468,7 +474,7 @@ assert.deepEqual(
     await syncGameListings(db, api, 'pd2', 1, new Date('2026-09-20T12:00:30.000Z'))
     assert.equal(
         (await pg.query<{ attempts: number }>('SELECT attempts FROM listing_version_pending'))
-            .rows[0].attempts,
+            .rows[0]!.attempts,
         1,
         'the listing overlap does not bypass a scheduled version retry'
     )
@@ -574,8 +580,8 @@ assert.deepEqual(
     const before = await pg.query('SELECT * FROM files')
     await assert.rejects(
         pg.transaction(async (tx) => {
-            await tx.exec(migrations[5].statements[0])
-            await tx.exec(migrations[5].statements[1])
+            await tx.exec(migrations[5]!.statements[0]!)
+            await tx.exec(migrations[5]!.statements[1]!)
             throw new Error('simulated migration interruption')
         }),
         /simulated migration interruption/
@@ -590,7 +596,7 @@ assert.deepEqual(
         'an interrupted migration leaves none of its schema behind'
     )
     await db.transaction(
-        migrations[5].statements.map((text) => ({
+        migrations[5]!.statements.map((text) => ({
             text,
             values: [],
         }))
@@ -649,7 +655,7 @@ assert.deepEqual(
             await pg.query<{ value: string }>(
                 "SELECT value FROM metadata WHERE key='listings_last_run_at:pd2'"
             )
-        ).rows[0].value,
+        ).rows[0]!.value,
         '2026-09-18T15:00:17.000Z',
         'an interrupted run leaves the production checkpoint at its last success'
     )
@@ -673,7 +679,7 @@ assert.deepEqual(
             await pg.query<{ value: string }>(
                 "SELECT value FROM metadata WHERE key='listings_last_run_at:pd2'"
             )
-        ).rows[0].value,
+        ).rows[0]!.value,
         recoveredAt.toISOString()
     )
     assert.deepEqual(
@@ -681,7 +687,7 @@ assert.deepEqual(
         before.rows,
         'the additive migration and listing recovery preserve historical hashes'
     )
-    const recovered = (await selectContentListings(db, 'pd2', 1, recoveredAt))[0]
+    const recovered = (await selectContentListings(db, 'pd2', 1, recoveredAt))[0]!
     assert.equal(
         recovered.remote_id,
         '2',
@@ -726,7 +732,7 @@ assert.deepEqual(
             games.slug AS game_slug, sources.id::TEXT AS source_id, sources.name AS source_name,
             sources.base_url AS source_base_url, sources.game_ref AS source_game_ref
           FROM sources JOIN games ON games.id=sources.game_id`)
-    ).rows[0]
+    ).rows[0]!
     const output = mkdtempSync(join(tmpdir(), 'modrex-recovery-'))
     try {
         const snapshot = writeSnapshot(join(output, 'pd2.db'), 'pd2', source, rows, [])
@@ -748,7 +754,7 @@ assert.deepEqual(
 
 {
     const { pg, db } = await catalog()
-    const source = (await pg.query<{ id: string }>('SELECT id::TEXT FROM sources')).rows[0].id
+    const source = (await pg.query<{ id: string }>('SELECT id::TEXT FROM sources')).rows[0]!.id
     const mod: Listing = {
         source_id: source,
         remote_id: '10',
@@ -1042,7 +1048,7 @@ assert.deepEqual(
 
 {
     const { pg, db } = await catalog()
-    const source = (await pg.query<{ id: string }>('SELECT id::TEXT FROM sources')).rows[0].id
+    const source = (await pg.query<{ id: string }>('SELECT id::TEXT FROM sources')).rows[0]!.id
     for (let id = 1; id <= 12; id++) {
         await pg.query(
             `INSERT INTO mod_listings (source_id, remote_id, name, version, has_download,
@@ -1071,7 +1077,7 @@ assert.deepEqual(
     )
     const one = await selectContentListings(db, 'pd2', 1, new Date('2026-09-20T13:00:00.000Z'))
     assert.equal(
-        Number(one[0].remote_id) >= 9,
+        Number(one[0]!.remote_id) >= 9,
         true,
         'small manual runs still reserve one slot for overdue reconciliation'
     )
@@ -1338,7 +1344,7 @@ const blankMovie = { kind: 'movie', byteLength: 64 } as const
             games.slug AS game_slug, sources.id::TEXT AS source_id, sources.name AS source_name,
             sources.base_url AS source_base_url, sources.game_ref AS source_game_ref
           FROM sources JOIN games ON games.id=sources.game_id WHERE games.slug='pd3'`)
-    ).rows[0]
+    ).rows[0]!
     const output = mkdtempSync(join(tmpdir(), 'modrex-resources-'))
     try {
         const snapshot = writeSnapshot(join(output, 'pd3.db'), 'pd3', source, fileRows, resources)
@@ -1433,16 +1439,16 @@ const blankMovie = { kind: 'movie', byteLength: 64 } as const
     const before = await reconcileAt()
     const observationsBefore = (await pg.query('SELECT * FROM downloadable_observations')).rows
 
-    assert.equal(migrations[7].version, '008_reopen_unreal_resources')
+    assert.equal(migrations[7]!.version, '008_reopen_unreal_resources')
     assert.ok(
-        migrations[7].statements[0].includes(`'${UNREAL_EXTRACTION_POLICY}'`),
+        migrations[7]!.statements[0]!.includes(`'${UNREAL_EXTRACTION_POLICY}'`),
         'the reopening migration names the current Unreal policy'
     )
-    for (const statement of migrations[7].statements) await pg.exec(statement)
+    for (const statement of migrations[7]!.statements) await pg.exec(statement)
     const reopened = await reconcileAt()
     const migratedAt = new Date().toISOString()
-    assert.ok(reopened['10'] <= migratedAt, 'a settled PAYDAY 3 listing is due')
-    assert.ok(reopened['20'] <= migratedAt, 'a settled Crime Boss listing is due')
+    assert.ok(reopened['10']! <= migratedAt, 'a settled PAYDAY 3 listing is due')
+    assert.ok(reopened['20']! <= migratedAt, 'a settled Crime Boss listing is due')
     assert.equal(reopened['11'], before['11'], 'an overdue listing keeps its earlier turn')
     assert.equal(reopened['21'], before['21'], 'a retired download does not reopen its listing')
     assert.equal(reopened['30'], before['30'], 'marker games are untouched')
@@ -1457,7 +1463,7 @@ const blankMovie = { kind: 'movie', byteLength: 64 } as const
     const processedAt = new Date('2099-01-01T01:00:00.000Z')
     const upgraded = await registerDownloadable(
         db,
-        listings[0],
+        listings[0]!,
         hostedInput(500, 'Old.zip'),
         processedAt
     )
@@ -1466,9 +1472,9 @@ const blankMovie = { kind: 'movie', byteLength: 64 } as const
         true,
         'a download settled under the old policy is extracted again'
     )
-    await settleDownloadable(db, listings[0], upgraded, 'empty', [], processedAt)
-    await finishDiscovery(db, listings[0], [], true, processedAt)
-    for (const statement of migrations[7].statements) await pg.exec(statement)
+    await settleDownloadable(db, listings[0]!, upgraded, 'empty', [], processedAt)
+    await finishDiscovery(db, listings[0]!, [], true, processedAt)
+    for (const statement of migrations[7]!.statements) await pg.exec(statement)
     assert.equal(
         (await reconcileAt())['10'],
         '2099-01-08T01:00:00.000Z',
@@ -1476,7 +1482,7 @@ const blankMovie = { kind: 'movie', byteLength: 64 } as const
     )
     assert.equal(
         needsProcessing(
-            await registerDownloadable(db, listings[0], hostedInput(500, 'Old.zip'), processedAt),
+            await registerDownloadable(db, listings[0]!, hostedInput(500, 'Old.zip'), processedAt),
             processedAt
         ),
         false,
@@ -1524,8 +1530,8 @@ const blankMovie = { kind: 'movie', byteLength: 64 } as const
     const observationsBefore = await observations()
     assert.equal(entriesBefore.length, 4)
 
-    assert.equal(migrations[8].version, '009_compact_resource_entries')
-    await db.transaction(migrations[8].statements.map((text) => ({ text, values: [] })))
+    assert.equal(migrations[8]!.version, '009_compact_resource_entries')
+    await db.transaction(migrations[8]!.statements.map((text) => ({ text, values: [] })))
     assert.deepEqual(await entries(), entriesBefore, 'compaction keeps every entry and release')
     assert.deepEqual(
         await observations(),

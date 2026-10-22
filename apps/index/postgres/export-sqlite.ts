@@ -51,7 +51,7 @@ const resources = resourceRows.sort(compareResourceRows)
 if (requireFiles && rows.length === 0 && resources.length === 0)
     throw new Error(`no indexed file or resource records exist for ${game}`)
 
-const outputPath = writeSnapshot(output, game, catalog[0], rows, resources)
+const outputPath = writeSnapshot(output, game, catalog[0]!, rows, resources)
 const transferred = changes.filter((change) => change.record !== null).length
 console.log(
     `Exported ${rows.length} file records for ${game} to ${outputPath}; fetched ${transferred} records, removed ${changes.length - transferred} records`

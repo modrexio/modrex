@@ -39,13 +39,13 @@ export function chooseNextGame(candidates: ScheduleCandidate[], maxTurn: number)
     // A game the scheduler has never selected outranks every game that holds a turn.
     // Giving it a fixed wait equal to the ceiling instead ties it with every merely
     // overdue game, and one late in id order then loses that tie on every run.
-    if (unselected.length > 0) return unselected.sort(byPending)[0].game
+    if (unselected.length > 0) return unselected.sort(byPending)[0]!.game
 
     const overdue = scheduled.filter((entry) => entry.wait >= SERVICE_CEILING)
     if (overdue.length > 0) {
         return overdue.sort(
             (left, right) => right.wait - left.wait || byPending(left.candidate, right.candidate)
-        )[0].candidate.game
+        )[0]!.candidate.game
     }
 
     return scheduled.sort(
@@ -53,5 +53,5 @@ export function chooseNextGame(candidates: ScheduleCandidate[], maxTurn: number)
             right.candidate.pending - left.candidate.pending ||
             right.wait - left.wait ||
             byId(left.candidate, right.candidate)
-    )[0].candidate.game
+    )[0]!.candidate.game
 }

@@ -178,12 +178,12 @@ export async function syncGameListings(
         [slug]
     )
     if (sources.length !== 1) throw new Error(`Missing ModWorkshop source for ${slug}`)
-    const sourceId = sources[0].id
+    const sourceId = sources[0]!.id
     const checkpoints = await db.query<{ value: string }>(
         'SELECT value FROM metadata WHERE key = $1',
         [`listings_last_run_at:${slug}`]
     )
-    const checkpoint = checkpoints.length ? new Date(checkpoints[0].value) : null
+    const checkpoint = checkpoints.length ? new Date(checkpoints[0]!.value) : null
     if (checkpoint && !Number.isFinite(checkpoint.getTime()))
         throw new Error(`Invalid listings checkpoint for ${slug}`)
     const threshold = checkpoint ? new Date(checkpoint.getTime() - overlapMs) : null

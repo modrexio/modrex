@@ -137,7 +137,7 @@ export function readPreviousSnapshot(
         const rows = db
             .prepare(snapshotRowsQuery.replaceAll('$1', '?') + ' ORDER BY files.id')
             .all(game) as SnapshotRow[]
-        return { source: sources[0], rows }
+        return { source: sources[0]!, rows }
     } finally {
         db.close()
     }
@@ -155,7 +155,7 @@ export function applySnapshotDelta(
         }
         const values = change.record
         const row = {} as SnapshotRow
-        for (const [i, field] of fields.entries()) row[field] = values[i]
+        for (const [i, field] of fields.entries()) row[field] = values[i]!
         rows.set(change.file_id, row)
     }
     return [...rows.values()].sort((left, right) => {

@@ -277,7 +277,7 @@ for (const shape of ['empty movies', 'empty configs', 'mixed package and resourc
         'a loose movie is named by its hosted filename'
     )
     assert.equal(
-        extractContentEntries(blankMovie, { objectName: 'object.bk2', sourceFilename: null })[0]
+        extractContentEntries(blankMovie, { objectName: 'object.bk2', sourceFilename: null })[0]!
             .entryName,
         'object.bk2',
         'without a hosted filename the storage object names the loose resource'

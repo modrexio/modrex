@@ -104,6 +104,7 @@ function mappedIpv4(value: string): string | null {
     const rest = value.slice('::ffff:'.length)
     if (rest.includes('.')) return rest
     const [high, low] = rest.split(':').map((group) => parseInt(group, 16))
+    if (high === undefined || low === undefined) return null
     if (!Number.isInteger(high) || !Number.isInteger(low)) return null
     return `${high >> 8}.${high & 0xff}.${low >> 8}.${low & 0xff}`
 }
@@ -129,7 +130,7 @@ function isBlockedAddress(host: string): boolean {
     }
     if (isIP(value) !== 4) return false
 
-    const [a, b] = value.split('.').map(Number)
+    const [a, b] = value.split('.').map(Number) as [number, number, number, number]
     return (
         a === 127 ||
         a === 0 ||
@@ -499,7 +500,7 @@ function hash64(value: string): bigint {
         position += 24
     }
     const byte = (offset: number): bigint =>
-        position + offset < input.length ? BigInt(input[position + offset]) : 0n
+        position + offset < input.length ? BigInt(input[position + offset]!) : 0n
     c = (c + BigInt(input.length)) & mask
     a =
         (a +
