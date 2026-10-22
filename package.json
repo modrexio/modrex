@@ -14,7 +14,7 @@
         "dist:win": "bun run --cwd apps/desktop dist:win",
         "dist:linux": "bun run --cwd apps/desktop dist:linux",
         "typecheck": "bun run --cwd apps/desktop typecheck && bun run site:typecheck && bun run site:typecheck:functions && bun run index:typecheck && bun run typecheck:bun",
-        "typecheck:bun": "bun check -p apps/desktop/tsconfig.json && bun check -p apps/desktop/tsconfig.i18n.json && bun check -p apps/index/tsconfig.json && bun check -p apps/site/functions/tsconfig.json",
+        "typecheck:bun": "bun check -p apps/desktop/tsconfig.json && bun check -p apps/desktop/tsconfig.vite.json && bun check -p apps/desktop/tsconfig.i18n.json && bun check -p apps/index/tsconfig.json && bun check -p apps/site/functions/tsconfig.json",
         "check-version": "bun run --cwd apps/desktop check-version",
         "check-overrides": "bun run --cwd apps/desktop check-overrides",
         "check-commands": "bun run --cwd apps/desktop check-commands",

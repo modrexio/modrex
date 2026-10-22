@@ -11,7 +11,7 @@ bun run build        # Local production build, unsigned (tauri.local.conf.json d
 bun build:signed # CI production build with updater artifacts and Authenticode signing — requires TAURI_SIGNING_PRIVATE_KEY and, on Windows, the AZURE_* secrets read by src-tauri/scripts/sign-windows.ps1 (release.yml only; exits 1 without them)
 bun dist:win     # Same as build but with explicit --target x86_64-pc-windows-msvc
 bun dist:linux   # Package Linux AppImage + .deb (unsigned, like build)
-bun typecheck    # Type-check renderer without emitting (same as: bun tsc --noEmit)
+bun typecheck    # Type-check the renderer, the Vite and Vitest configs, and scripts/; the renderer config loads no Node or Bun types, so webview code cannot import them
 bun check-version # Verify package, Tauri, Cargo, and lockfile versions agree
 bun check-commands # Verify api.ts uses every command registered in collect_commands! in lib.rs, that the generated bindings are not stale, and that the invoke API stays api.ts-only (also runs in pre-commit and CI)
 bun check-csp    # Verify csp and devCsp in tauri.conf.json agree on all external origins (also runs in pre-commit and CI)
