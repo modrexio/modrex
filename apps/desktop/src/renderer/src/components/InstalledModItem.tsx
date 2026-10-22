@@ -6,7 +6,13 @@ import { ModCard } from './ModCard'
 import { ModListRow } from './ModListRow'
 import { SkeletonCard } from './SkeletonCard'
 import { SkeletonListRow } from './SkeletonListRow'
-import { syntheticMod, detailNavArgs, hasCatalogLink, identityKey } from '../hooks/installedUtils'
+import {
+    syntheticMod,
+    detailNavArgs,
+    hasCatalogLink,
+    identityKey,
+    type ModGroup,
+} from '../hooks/installedUtils'
 import { useInstalledContext } from './InstalledContext'
 import { joinsFileSet } from '../hooks/installedTabs'
 import { ManageFilesModal } from './ManageFilesModal'
@@ -22,7 +28,7 @@ import {
     installLabel,
 } from '../installState'
 
-export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
+export function InstalledModItem({ mods }: { mods: ModGroup }) {
     const {
         viewMode,
         activeGame,
@@ -72,7 +78,7 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
     // The card shows this tab's files, while every action reaches the mod's files on other
     // tabs too, so disabling or removing it never leaves another location's half behind.
     const elsewhere = joinsFileSet(ins) ? elsewhereByIdentity.get(groupKey) : undefined
-    const fileSet = elsewhere ? [...mods, ...elsewhere.files] : mods
+    const fileSet: ModGroup = elsewhere ? [...mods, ...elsewhere.files] : mods
     const locationNote = elsewhere && t('installed.tabs.alsoIn', { tabs: elsewhere.tabs })
     const operations = useInstallOperations(activeGame)
     const operation = getModInstall(

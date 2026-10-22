@@ -11,7 +11,7 @@ import {
     hasCatalogLink,
     syntheticMod,
 } from '../hooks/installedUtils'
-import type { InstalledGroup } from '../hooks/installedUtils'
+import type { InstalledGroup, ModGroup } from '../hooks/installedUtils'
 import type { HealthItem, MissingDepRef } from '../hooks/healthCheck'
 import { GAMES, type GameId, type InstalledMod, type ModSummary } from '../../../shared/types'
 import { useThumbnail } from '../hooks/useThumbnail'
@@ -37,7 +37,7 @@ interface LocalHealthItem {
     id: number
     uid: string
     name: string
-    mods: InstalledMod[]
+    mods: ModGroup
 }
 
 interface Props {
@@ -54,7 +54,7 @@ interface Props {
     loadingMod: string | null
     visible: boolean
     onOpenDetail: (modId: number, source?: 'nexus') => void
-    onReinstall: (mods: InstalledMod[]) => Promise<string | null>
+    onReinstall: (mods: ModGroup) => Promise<string | null>
     onDepInstalled: () => Promise<void>
     onReviewUpdates: () => void
     onReviewResource?: (mod: InstalledMod) => void

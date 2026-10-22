@@ -1,12 +1,19 @@
 import type { ModSummary, InstalledMod, ModFolder, ModFile } from '../../../shared/types'
 
-export type ChildEntry =
-    | { type: 'folder'; folder: ModFolder }
-    | { type: 'mod'; mods: InstalledMod[] }
+export type NonEmpty<T> = [T, ...T[]]
+
+export function isNonEmpty<T>(items: T[]): items is NonEmpty<T> {
+    return items.length > 0
+}
+
+// Groups are only ever built around an installed record, so every group has a first entry.
+export type ModGroup = NonEmpty<InstalledMod>
+
+export type ChildEntry = { type: 'folder'; folder: ModFolder } | { type: 'mod'; mods: ModGroup }
 
 export type ChildGroup =
     | { type: 'folder'; folder: ModFolder }
-    | { type: 'root-group'; groups: InstalledMod[][] }
+    | { type: 'root-group'; groups: NonEmpty<ModGroup> }
 
 // Filenames on disk carry a NNN_ priority prefix; archive entry names don't.
 // Strip it when comparing the two.
@@ -200,7 +207,7 @@ export function foldersEmptiedByNormalize(
 export interface InstalledGroup {
     key: string
     id: number
-    mods: InstalledMod[]
+    mods: ModGroup
 }
 
 export function groupInstalledByIdentity(mods: InstalledMod[]): InstalledGroup[] {
@@ -310,11 +317,12 @@ export function computeChildren(
     hiddenFolderIds?: Set<string>
 ): ChildEntry[] {
     const scopedMods = mods.filter((m) => (m.folderId ?? null) === parentId)
-    const groupMap = new Map<string, InstalledMod[]>()
+    const groupMap = new Map<string, ModGroup>()
     for (const m of scopedMods) {
         const key = m.deployment ? identityKey(m) : String(m.id)
-        if (!groupMap.has(key)) groupMap.set(key, [])
-        groupMap.get(key)!.push(m)
+        const group = groupMap.get(key)
+        if (group) group.push(m)
+        else groupMap.set(key, [m])
     }
     const items: ChildEntry[] = []
     for (const groupMods of groupMap.values()) {
@@ -340,19 +348,20 @@ export function computeChildren(
 
 export function groupChildren(entries: ChildEntry[]): ChildGroup[] {
     const groups: ChildGroup[] = []
-    let run: InstalledMod[][] = []
+    let run: NonEmpty<ModGroup> | null = null
     for (const entry of entries) {
         if (entry.type !== 'folder') {
-            run.push(entry.mods)
+            if (run) run.push(entry.mods)
+            else run = [entry.mods]
             continue
         }
-        if (run.length > 0) {
+        if (run) {
             groups.push({ type: 'root-group', groups: run })
-            run = []
+            run = null
         }
         groups.push({ type: 'folder', folder: entry.folder })
     }
-    if (run.length > 0) groups.push({ type: 'root-group', groups: run })
+    if (run) groups.push({ type: 'root-group', groups: run })
     return groups
 }
 

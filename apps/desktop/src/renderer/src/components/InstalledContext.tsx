@@ -3,6 +3,7 @@ import type { PointerEvent as ReactPointerEvent } from 'react'
 import type { GameId, InstalledMod, ModFolder, ModSummary } from '../../../shared/types'
 import type { FolderActions } from '../hooks/useFolderActions'
 import type { DragItem, DropTarget } from '../hooks/useDragDrop'
+import type { ModGroup } from '../hooks/installedUtils'
 
 export interface InstalledContextValue {
     modData: Map<number, ModSummary>
@@ -28,10 +29,10 @@ export interface InstalledContextValue {
     loadingMod: string | null
     reinstallError: string | null
     clearReinstallError: () => void
-    handleUninstall: (mods: InstalledMod[]) => Promise<void>
-    handleEnable: (mods: InstalledMod[]) => Promise<void>
-    handleDisable: (mods: InstalledMod[]) => Promise<void>
-    handleReinstall: (mods: InstalledMod[]) => Promise<string | null>
+    handleUninstall: (mods: ModGroup) => Promise<void>
+    handleEnable: (mods: ModGroup) => Promise<void>
+    handleDisable: (mods: ModGroup) => Promise<void>
+    handleReinstall: (mods: ModGroup) => Promise<string | null>
     handleIdentifyViaNexus: (mod: InstalledMod) => Promise<void>
     requestMoveCrimeBossTarget: (mod: InstalledMod) => void
     reviewResource: (mod: InstalledMod) => void

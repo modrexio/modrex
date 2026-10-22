@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { GameId, InstalledMod, Mod, ModFile } from '../../../shared/types'
 import type { ZipMultiPakPayload } from '../components/ZipPickerModal'
 import { installZipPickerEntries } from '../components/ZipPickerModal'
-import { isLoader } from './installedUtils'
+import { isLoader, type ModGroup } from './installedUtils'
 import { requestInstallChoice } from '../installChoices'
 import { archiveHandleForOutcome } from '../installState'
 import { entryFilename, stripPriorityPrefix } from './installedUtils'
@@ -20,7 +20,7 @@ export interface ModActions {
     clearModActionError: () => void
     reinstallError: string | null
     clearReinstallError: () => void
-    reinstallChoice: { mods: InstalledMod[]; mod: Mod; files: ModFile[] } | null
+    reinstallChoice: { mods: ModGroup; mod: Mod; files: ModFile[] } | null
     chooseReinstallFile: (fileId: number) => Promise<void>
     clearReinstallChoice: () => void
     refreshing: boolean
@@ -32,10 +32,10 @@ export interface ModActions {
     identifyNexusResult: IdentifyNexusResult | null
     dismissIdentifyNexusResult: () => void
     handleRefresh: () => Promise<void>
-    handleUninstall: (mods: InstalledMod[]) => Promise<void>
-    handleEnable: (mods: InstalledMod[]) => Promise<void>
-    handleDisable: (mods: InstalledMod[]) => Promise<void>
-    handleReinstall: (mods: InstalledMod[]) => Promise<string | null>
+    handleUninstall: (mods: ModGroup) => Promise<void>
+    handleEnable: (mods: ModGroup) => Promise<void>
+    handleDisable: (mods: ModGroup) => Promise<void>
+    handleReinstall: (mods: ModGroup) => Promise<string | null>
     handleIdentifyViaNexus: (mod: InstalledMod) => Promise<void>
     requestMoveCrimeBossTarget: (mod: InstalledMod) => void
     confirmMoveCrimeBossTarget: () => Promise<void>
@@ -90,7 +90,7 @@ export function useModActions(
 
     // Every one of these attempts all of its mods, then refreshes once whether or not any
     // failed, so the list shows what is actually on disk rather than what was asked for.
-    async function runOnEach(mods: InstalledMod[], run: (m: InstalledMod) => Promise<void>) {
+    async function runOnEach(mods: ModGroup, run: (m: InstalledMod) => Promise<void>) {
         if (!gamePath) return
         setLoadingMod(mods[0].uid)
         setModActionError(null)
@@ -101,7 +101,7 @@ export function useModActions(
         }
     }
 
-    async function handleUninstall(mods: InstalledMod[]) {
+    async function handleUninstall(mods: ModGroup) {
         // A loader is detected rather than tracked, so no mod record names its files and
         // uninstall_mod has nothing to act on. Removing it is its own operation, and it
         // shows what it would delete first.
@@ -112,11 +112,11 @@ export function useModActions(
         await runOnEach(mods, (m) => api.uninstallMod(m.uid, gamePath!, activeGame))
     }
 
-    async function handleEnable(mods: InstalledMod[]) {
+    async function handleEnable(mods: ModGroup) {
         await runOnEach(mods, (m) => api.enableMod(m.uid, gamePath!, activeGame))
     }
 
-    async function handleDisable(mods: InstalledMod[]) {
+    async function handleDisable(mods: ModGroup) {
         await runOnEach(mods, (m) => api.disableMod(m.uid, gamePath!, activeGame))
     }
 
@@ -165,7 +165,7 @@ export function useModActions(
     }
 
     // Resolves to the failure, or null when it installed or is waiting on a choice.
-    async function handleReinstall(mods: InstalledMod[]): Promise<string | null> {
+    async function handleReinstall(mods: ModGroup): Promise<string | null> {
         // Reinstall goes through the modworkshop-only api.installMod, which needs a
         // real modworkshop id. InstalledMod.id is an opaque local key, never that.
         const isModworkshop = !mods[0].source || mods[0].source === 'modworkshop'
@@ -200,7 +200,7 @@ export function useModActions(
     }
 
     async function reinstall(
-        mods: InstalledMod[],
+        mods: ModGroup,
         remoteId: number,
         fileId?: number
     ): Promise<string | null> {

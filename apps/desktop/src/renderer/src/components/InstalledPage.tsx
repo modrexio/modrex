@@ -50,6 +50,7 @@ import {
     modworkshopRemoteIds,
     identityKey,
     withDeclaredMetadata,
+    type ModGroup,
 } from '../hooks/installedUtils'
 import { checkMissingDependencies, type HealthItem } from '../hooks/healthCheck'
 import {
@@ -403,7 +404,7 @@ export function InstalledPage({
         [renderMods, tabFolders, visibleFolderIds, hiddenFolderIds]
     )
 
-    function renderRootMod(mods: InstalledMod[], isFolderDropZone = false) {
+    function renderRootMod(mods: ModGroup, isFolderDropZone = false) {
         const repUid = mods[0].uid
         const isDropBefore =
             isFolderDropZone &&
