@@ -1,15 +1,14 @@
 {
-    "extends": "../../tsconfig.base.json",
+    "extends": "./tsconfig.base.json",
     "compilerOptions": {
         "target": "ES2022",
         "lib": ["ES2022"],
         "module": "ESNext",
         "moduleResolution": "bundler",
-        "skipLibCheck": true,
         "types": ["bun"],
-        "resolveJsonModule": true,
         "noEmit": true,
+        "skipLibCheck": true,
         "allowImportingTsExtensions": true
     },
-    "include": ["vite.config.ts", "vitest.config.ts", "vitest.preview.config.ts"]
+    "include": ["commitlint.config.ts", ".github/scripts/*.mts"]
 }

@@ -14,5 +14,5 @@
         "allowImportingTsExtensions": true
     },
     "include": ["src/**/*"],
-    "exclude": ["node_modules", "out", "commitlint.config.ts", "src/main", "src/preload"]
+    "exclude": ["node_modules", "out", "src/main", "src/preload"]
 }

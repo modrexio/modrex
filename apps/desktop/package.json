@@ -13,7 +13,7 @@
         "dist": "tauri build --config src-tauri/tauri.local.conf.json",
         "dist:win": "tauri build --target x86_64-pc-windows-msvc --config src-tauri/tauri.local.conf.json",
         "dist:linux": "tauri build --target x86_64-unknown-linux-gnu --config src-tauri/tauri.local.conf.json",
-        "typecheck": "bun run typecheck:renderer && bun run typecheck:vite && bun run typecheck:i18n",
+        "typecheck": "bun run typecheck:renderer && bun run typecheck:config && bun run typecheck:i18n",
         "check-version": "bun scripts/check-version.mts",
         "check-overrides": "bun scripts/check-overrides.mts",
         "check-commands": "bun scripts/check-commands.mts",
@@ -48,7 +48,7 @@
         "lint:fix": "oxlint src/renderer/src src/renderer/preview src/shared/i18n-values.mts scripts/*.mts --fix",
         "generate-licenses": "bun scripts/generate-licenses.mts",
         "typecheck:renderer": "tsc --noEmit",
-        "typecheck:vite": "tsc -p tsconfig.vite.json",
+        "typecheck:config": "tsc -p tsconfig.config.json",
         "typecheck:i18n": "tsc -p tsconfig.i18n.json"
     },
     "repository": {
