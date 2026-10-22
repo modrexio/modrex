@@ -20,15 +20,28 @@ const REQUIRED_TARGETS = [
     'linux-x86_64-appimage',
 ]
 
-const problems = []
+type TauriConf = {
+    plugins?: { updater?: { endpoints?: unknown; pubkey?: unknown } }
+    bundle?: {
+        createUpdaterArtifacts?: unknown
+        linux?: {
+            deb?: { conflicts?: string[]; replaces?: string[] }
+            rpm?: { obsoletes?: string[] }
+        }
+    }
+}
 
-const conf = JSON.parse(readFileSync('src-tauri/tauri.conf.json', 'utf8'))
+const problems: string[] = []
+
+const conf = JSON.parse(readFileSync('src-tauri/tauri.conf.json', 'utf8')) as TauriConf
 const updater = conf.plugins?.updater ?? {}
-const endpoints = Array.isArray(updater.endpoints) ? updater.endpoints : []
+const endpoints: unknown[] = Array.isArray(updater.endpoints) ? updater.endpoints : []
 if (endpoints.length === 0) {
     problems.push('tauri.conf.json plugins.updater.endpoints is missing or empty')
 }
-const manifestEndpoint = endpoints.find((e) => typeof e === 'string' && e.endsWith('latest.json'))
+const manifestEndpoint = endpoints.find(
+    (e): e is string => typeof e === 'string' && e.endsWith('latest.json')
+)
 if (endpoints.length > 0 && !manifestEndpoint) {
     problems.push('no plugins.updater.endpoints entry points at a latest.json manifest')
 }
@@ -66,7 +79,7 @@ if (!jqFilter) {
         }
     }
     const platformKeys = [...jqFilter.matchAll(/"((?:windows|linux|darwin)-[a-z0-9_-]+)"/g)].map(
-        (m) => m[1]
+        (m) => m[1]!
     )
     for (const key of platformKeys) {
         if (!VALID_TARGETS.has(key)) {

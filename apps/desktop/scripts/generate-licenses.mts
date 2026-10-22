@@ -2,12 +2,13 @@ import { readFileSync, writeFileSync, readdirSync, statSync, unlinkSync } from '
 import { execSync } from 'child_process'
 import { join, resolve } from 'path'
 import { fileURLToPath } from 'url'
+import { errorMessage } from './i18n-io.mts'
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
 const rootDir = resolve(__dirname, '..')
 
-function findLicenseText(pkgPath) {
-    let files
+function findLicenseText(pkgPath: string) {
+    let files: string[]
     try {
         files = readdirSync(pkgPath)
     } catch {
@@ -23,10 +24,12 @@ function findLicenseText(pkgPath) {
 const raw = execSync('bun pm licenses --filter modrex --prod --json', {
     cwd: rootDir,
 }).toString()
-const npmData = JSON.parse(raw)
+// The shape bun pm licenses --json prints: packages grouped by license.
+type LicensedPackage = { name: string; versions?: string[]; license: string; paths?: string[] }
+const npmData = JSON.parse(raw) as Record<string, LicensedPackage[]>
 
-let npmLines = []
-const seen = new Set()
+const npmLines: string[] = []
+const seen = new Set<string>()
 
 for (const packages of Object.values(npmData)) {
     for (const pkg of packages) {
@@ -52,7 +55,7 @@ for (const packages of Object.values(npmData)) {
 // The pre-commit hook stages whatever this writes, so a missing tool must stop the
 // commit rather than produce a file with the Rust section gone.
 const rustTmp = join(rootDir, 'src-tauri', '_rust-licenses.tmp.md')
-let rustLines = []
+let rustLines: string[] = []
 try {
     execSync(`cargo about generate about.hbs -o "${rustTmp}"`, {
         cwd: join(rootDir, 'src-tauri'),
@@ -61,7 +64,7 @@ try {
     rustLines = readFileSync(rustTmp, 'utf-8').split('\n')
     unlinkSync(rustTmp)
 } catch (e) {
-    console.error('cargo-about failed, THIRD_PARTY_LICENSES.md left unchanged:', e.message)
+    console.error('cargo-about failed, THIRD_PARTY_LICENSES.md left unchanged:', errorMessage(e))
     console.error('Install it with: cargo install cargo-about --features=cli')
     process.exit(1)
 }

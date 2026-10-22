@@ -1,8 +1,9 @@
 import { execFileSync } from 'node:child_process'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
+import { errorMessage } from './i18n-io.mts'
 
-function fail(message) {
+function fail(message: string): never {
     console.error(message)
     process.exit(1)
 }
@@ -15,13 +16,13 @@ const tauriConfigPath = fileURLToPath(new URL('../src-tauri/tauri.conf.json', im
 const cargoManifestPath = fileURLToPath(new URL('../src-tauri/Cargo.toml', import.meta.url))
 const changelogPath = fileURLToPath(new URL('../../../CHANGELOG.md', import.meta.url))
 
-const increments = ['patch', 'minor', 'major']
-const increment = process.argv[2]
-if (process.argv.length !== 3 || !increments.includes(increment)) {
+const increment = (['patch', 'minor', 'major'] as const).find((name) => name === process.argv[2])
+if (process.argv.length !== 3 || !increment) {
     fail('Usage: bun release patch|minor|major')
 }
 
-const git = (...args) => execFileSync('git', args, { cwd: repoRoot, encoding: 'utf8' }).trim()
+const git = (...args: string[]) =>
+    execFileSync('git', args, { cwd: repoRoot, encoding: 'utf8' }).trim()
 
 const rootPackage = readFileSync(rootPackagePath, 'utf8')
 const desktopPackage = readFileSync(desktopPackagePath, 'utf8')
@@ -31,10 +32,12 @@ const cargo = readFileSync(cargoManifestPath, 'utf8')
 // which Git still reports as clean.
 const changelog = readFileSync(changelogPath, 'utf8').replaceAll('\r\n', '\n')
 
-const oldVersion = JSON.parse(rootPackage).version
+type Versioned = { version: string }
+
+const oldVersion = (JSON.parse(rootPackage) as Versioned).version
 const versions = {
-    desktop: JSON.parse(desktopPackage).version,
-    tauri: JSON.parse(conf).version,
+    desktop: (JSON.parse(desktopPackage) as Versioned).version,
+    tauri: (JSON.parse(conf) as Versioned).version,
     cargo: cargo.match(/^version = "([^"]+)"$/m)?.[1],
 }
 for (const [name, version] of Object.entries(versions)) {
@@ -43,12 +46,9 @@ for (const [name, version] of Object.entries(versions)) {
     }
 }
 
-const parts = oldVersion
-    .match(/^(\d+)\.(\d+)\.(\d+)$/)
-    ?.slice(1)
-    .map(Number)
+const parts = oldVersion.match(/^(\d+)\.(\d+)\.(\d+)$/)
 if (!parts) fail(`Root version ${oldVersion} is not a plain major.minor.patch version`)
-const [major, minor, patch] = parts
+const [major, minor, patch] = parts.slice(1).map(Number) as [number, number, number]
 const version = {
     patch: `${major}.${minor}.${patch + 1}`,
     minor: `${major}.${minor + 1}.0`,
@@ -62,7 +62,7 @@ const status = git('status', '--porcelain=v1', '--untracked-files=no')
 if (status) fail(`Tracked files must be clean before creating a desktop release:\n${status}`)
 
 if (!changelog.includes('## Unreleased\n')) fail('CHANGELOG.md has no Unreleased section')
-const unreleasedBody = changelog.match(/## Unreleased\n([\s\S]*?)\n## /)?.[1].trim()
+const unreleasedBody = changelog.match(/## Unreleased\n([\s\S]*?)\n## /)?.[1]!.trim()
 if (!unreleasedBody) {
     console.warn(
         `Warning: CHANGELOG.md Unreleased section is empty — ${tag} will ship with no release notes.`
@@ -80,7 +80,7 @@ const releasePaths = [
 // release.yml rejects lightweight tags, so the tag is annotated and carries the release commit's
 // message.
 const message = `chore(release): ${version}`
-const bump = (text) => text.replace(`"version": "${oldVersion}"`, `"version": "${version}"`)
+const bump = (text: string) => text.replace(`"version": "${oldVersion}"`, `"version": "${version}"`)
 
 try {
     writeFileSync(rootPackagePath, bump(rootPackage))
@@ -97,7 +97,7 @@ try {
     execFileSync('cargo', ['update', '--manifest-path', cargoManifestPath, '-p', 'modrex'], {
         stdio: 'inherit',
     })
-    execFileSync(process.execPath, ['scripts/check-version.mjs'], {
+    execFileSync(process.execPath, ['scripts/check-version.mts'], {
         cwd: desktopRoot,
         stdio: 'inherit',
     })
@@ -119,7 +119,7 @@ try {
         { cwd: repoRoot, stdio: 'inherit' }
     )
     fail(
-        `Release ${version} stopped before its commit (${error.message}).\nThe version bump was undone, so fix the cause and run the release again.`
+        `Release ${version} stopped before its commit (${errorMessage(error)}).\nThe version bump was undone, so fix the cause and run the release again.`
     )
 }
 
@@ -127,7 +127,7 @@ try {
     execFileSync('git', ['tag', '-a', tag, '-m', message], { cwd: repoRoot, stdio: 'inherit' })
 } catch (error) {
     fail(
-        `The release commit exists but ${tag} was not created (${error.message}).\nCreate it with: git tag -a ${tag} -m "${message}"`
+        `The release commit exists but ${tag} was not created (${errorMessage(error)}).\nCreate it with: git tag -a ${tag} -m "${message}"`
     )
 }
 

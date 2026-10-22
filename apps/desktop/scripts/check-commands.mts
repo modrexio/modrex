@@ -8,7 +8,7 @@ import { join } from 'path'
 // enforces that api.ts stays the only renderer file that talks to the invoke API
 // (directly or through the generated bindings).
 
-const camelToSnake = (name) => name.replace(/([A-Z])/g, '_$1').toLowerCase()
+const camelToSnake = (name: string) => name.replace(/([A-Z])/g, '_$1').toLowerCase()
 
 const librs = readFileSync('src-tauri/src/lib.rs', 'utf8')
 const handlerBlock = librs.match(/collect_commands!\[([\s\S]*?)\]/)?.[1]
@@ -16,21 +16,21 @@ if (!handlerBlock) {
     console.error('check-commands: collect_commands![...] not found in src-tauri/src/lib.rs')
     process.exit(1)
 }
-const registered = new Set([...handlerBlock.matchAll(/(?:\w+::)+(\w+)/g)].map((m) => m[1]))
+const registered = new Set([...handlerBlock.matchAll(/(?:\w+::)+(\w+)/g)].map((m) => m[1]!))
 
 const bindings = readFileSync('src/shared/bindings.ts', 'utf8')
 const bound = new Set(
-    [...bindings.matchAll(/__TAURI_INVOKE(?:<[^>]*>)?\(\s*"([^"]+)"/g)].map((m) => m[1])
+    [...bindings.matchAll(/__TAURI_INVOKE(?:<[^>]*>)?\(\s*"([^"]+)"/g)].map((m) => m[1]!)
 )
 
 const apiTs = readFileSync('src/renderer/src/api.ts', 'utf8')
-const invoked = new Set([...apiTs.matchAll(/\bcommands\.(\w+)\(/g)].map((m) => camelToSnake(m[1])))
+const invoked = new Set([...apiTs.matchAll(/\bcommands\.(\w+)\(/g)].map((m) => camelToSnake(m[1]!)))
 
 const missing = [...invoked].filter((name) => !registered.has(name))
 const unused = [...registered].filter((name) => !invoked.has(name))
 const stale = [...registered].filter((name) => !bound.has(name))
 
-function* walk(dir) {
+function* walk(dir: string): Generator<string> {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
         const path = join(dir, entry.name)
         if (entry.isDirectory()) yield* walk(path)
@@ -38,7 +38,7 @@ function* walk(dir) {
     }
 }
 
-const strayImports = []
+const strayImports: string[] = []
 for (const path of walk('src/renderer/src')) {
     if (path.replace(/\\/g, '/') === 'src/renderer/src/api.ts') continue
     if (/\.test\.tsx?$/.test(path)) continue

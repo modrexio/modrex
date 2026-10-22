@@ -3,6 +3,7 @@ import { strict as assert } from 'node:assert'
 import { spawn } from 'node:child_process'
 import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises'
 import { createServer } from 'node:http'
+import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
@@ -19,8 +20,10 @@ let listingRequests = 0
 
 const server = createServer(async (request, response) => {
     listingRequests++
-    const match = new URL(request.url, 'http://localhost').pathname.match(/^\/games\/(\d+)\/mods$/)
-    const game = match ? gameIds.get(match[1]) : null
+    const workshopId = new URL(request.url!, 'http://localhost').pathname.match(
+        /^\/games\/(\d+)\/mods$/
+    )?.[1]
+    const game = workshopId ? gameIds.get(workshopId) : null
     if (!game) {
         response.writeHead(404).end()
         return
@@ -40,7 +43,7 @@ const server = createServer(async (request, response) => {
         JSON.stringify({
             data: [
                 {
-                    id: Number(match[1]) * 10,
+                    id: Number(workshopId) * 10,
                     name: `${game} test mod`,
                     version: '1.0',
                     has_download: false,
@@ -55,16 +58,16 @@ const server = createServer(async (request, response) => {
     )
 })
 
-await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
-const address = server.address()
+await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+const address = server.address() as AddressInfo
 const env = {
     ...process.env,
     MODWORKSHOP_API_BASE: `http://127.0.0.1:${address.port}`,
     MODREX_INDEX_OUTPUT_DIR: outputDir,
 }
 
-function run(args, expectedCode = 0) {
-    return new Promise((resolve, reject) => {
+function run(args: string[], expectedCode = 0) {
+    return new Promise<string>((resolve, reject) => {
         const child = spawn(process.execPath, ['build-index.ts', ...args], {
             cwd: repoDir,
             env,
@@ -113,9 +116,11 @@ try {
     assert.deepEqual(
         JSON.parse(
             db
-                .prepare("SELECT value FROM metadata WHERE key = 'staged_rebuild_completed_games'")
+                .prepare<[], string>(
+                    "SELECT value FROM metadata WHERE key = 'staged_rebuild_completed_games'"
+                )
                 .pluck()
-                .get()
+                .get()!
         ),
         ['pd3']
     )
@@ -162,7 +167,9 @@ try {
         finalDb.close()
     }
 
-    const stats = JSON.parse(await readFile(join(outputDir, 'index-stats.json'), 'utf8'))
+    const stats = JSON.parse(await readFile(join(outputDir, 'index-stats.json'), 'utf8')) as {
+        lastRunAt: string
+    }
     assert.equal(stats.lastRunAt, startedAt)
 
     await run(['--game=pd3'], 1)

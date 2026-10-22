@@ -1,19 +1,23 @@
 import { readFileSync } from 'fs'
 
-function fail(message) {
+function fail(message: string): never {
     console.error(`Version check failed: ${message}`)
     process.exit(1)
 }
 
-function capture(contents, pattern, source) {
+function capture(contents: string, pattern: RegExp, source: string) {
     const match = contents.match(pattern)
     if (!match) fail(`could not read the version from ${source}`)
-    return match[1]
+    return match[1]!
 }
 
-const packageVersion = JSON.parse(readFileSync('package.json', 'utf8')).version
-const rootPackageVersion = JSON.parse(readFileSync('../../package.json', 'utf8')).version
-const tauriVersion = JSON.parse(readFileSync('src-tauri/tauri.conf.json', 'utf8')).version
+type Versioned = { version: string }
+
+const readVersion = (path: string) => (JSON.parse(readFileSync(path, 'utf8')) as Versioned).version
+
+const packageVersion = readVersion('package.json')
+const rootPackageVersion = readVersion('../../package.json')
+const tauriVersion = readVersion('src-tauri/tauri.conf.json')
 const cargoToml = readFileSync('src-tauri/Cargo.toml', 'utf8')
 const cargoLock = readFileSync('src-tauri/Cargo.lock', 'utf8')
 

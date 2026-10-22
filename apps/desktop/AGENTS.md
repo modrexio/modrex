@@ -183,7 +183,7 @@ README block or to a status SVG are overwritten on the next run.
 ## Releasing
 
 With a clean tracked tree, run `bun release patch|minor|major` from the repository root
-(`scripts/release.mjs`). `bun pm version` is blocked in both packages because it bumps one
+(`scripts/release.mts`). `bun pm version` is blocked in both packages because it bumps one
 `package.json` only. The command bumps the root and desktop packages, Tauri and Cargo, commits
 as `chore(release): X.Y.Z`, and creates an annotated `vX.Y.Z` tag. It also stamps the root
 `CHANGELOG.md` file's `## Unreleased` section into `## X.Y.Z` in the release commit.

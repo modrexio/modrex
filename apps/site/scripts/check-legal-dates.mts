@@ -18,7 +18,7 @@ const repoRoot = resolve(siteDir, '../..')
 const PAGES = ['src/pages/privacy.astro', 'src/pages/terms.astro']
 const DATE_PATTERN = /^const LAST_UPDATED = '(\d{4}-\d{2}-\d{2})'$/m
 
-function git(...args) {
+function git(...args: string[]) {
     return execFileSync('git', args, { cwd: repoRoot, encoding: 'utf8' }).trim()
 }
 
@@ -27,17 +27,17 @@ function today() {
 }
 
 /** True when the file differs from HEAD, staged or not: the change is happening right now. */
-function hasPendingChanges(repoPath) {
+function hasPendingChanges(repoPath: string) {
     return git('status', '--porcelain', '--', repoPath) !== ''
 }
 
 /** Commit date (YYYY-MM-DD) of the newest commit touching the file, or null if unknown. */
-function lastCommitDate(repoPath) {
+function lastCommitDate(repoPath: string) {
     return git('log', '-1', '--format=%cs', '--', repoPath) || null
 }
 
-const failures = []
-const lines = []
+const failures: string[] = []
+const lines: string[] = []
 
 // A shallow clone (actions/checkout defaults to depth 1) can answer "is this file dirty" but
 // not "when was it last committed". Detect it once so a missing history reads as a setup

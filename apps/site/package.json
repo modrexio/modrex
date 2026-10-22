@@ -8,7 +8,7 @@
         "preview": "astro preview",
         "typecheck": "astro check",
         "typecheck:functions": "tsc -p functions/tsconfig.json",
-        "check-legal-dates": "bun scripts/check-legal-dates.mjs",
+        "check-legal-dates": "bun scripts/check-legal-dates.mts",
         "test": "vitest",
         "test:run": "vitest run",
         "lint": "eslint src/",

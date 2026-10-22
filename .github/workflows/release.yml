@@ -70,7 +70,7 @@ jobs:
             - uses: oven-sh/setup-bun@v2
               with:
                   bun-version-file: package.json
-            - run: bun scripts/check-version.mjs "$GITHUB_REF_NAME"
+            - run: bun scripts/check-version.mts "$GITHUB_REF_NAME"
               working-directory: apps/desktop
 
     build-windows:
@@ -344,7 +344,7 @@ jobs:
 
             - name: Extract changelog section
               working-directory: apps/desktop
-              run: bun scripts/changelog-section.mjs "${{ steps.ver.outputs.version }}" > ../../RELEASE_BODY.md
+              run: bun scripts/changelog-section.mts "${{ steps.ver.outputs.version }}" > ../../RELEASE_BODY.md
 
             - name: Rename updater artifacts to stable arch-suffixed names
               run: |

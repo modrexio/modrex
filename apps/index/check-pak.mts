@@ -5,7 +5,7 @@ import { readFileSync } from 'fs'
 const APP_DB = 'C:/Users/oleh/AppData/Roaming/Modrex/mod-index.db'
 const pakPath = process.argv[2]
 if (!pakPath) {
-    console.log('Usage: node check-pak.mjs <path-to-pak-file>')
+    console.log('Usage: bun check-pak.mts <path-to-pak-file>')
     process.exit(1)
 }
 
@@ -21,7 +21,7 @@ else console.log('  -> Looks like a real pak (not a ZIP)')
 
 const db = new Database(APP_DB, { readonly: true })
 const row = db
-    .prepare(
+    .prepare<[string], { name: string; remote_id: number; file_id: number; version: string }>(
         `
     SELECT m.name, m.remote_id, f.remote_id as file_id, f.version
     FROM files f JOIN mods m ON m.id = f.mod_id

@@ -2,7 +2,7 @@ import { readFileSync } from 'fs'
 
 const version = process.argv[2]
 if (!version) {
-    console.error('Usage: bun scripts/changelog-section.mjs <version>')
+    console.error('Usage: bun scripts/changelog-section.mts <version>')
     process.exit(1)
 }
 
@@ -15,4 +15,4 @@ if (!match) {
     process.exit(0)
 }
 
-process.stdout.write(match[1].trim() + '\n')
+process.stdout.write(match[1]!.trim() + '\n')

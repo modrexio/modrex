@@ -19,12 +19,12 @@ bun install
 bun index:build                         # Build index.db for all games
 bun index:build --concurrency=10    # Higher concurrency (careful: rate limits)
 bun index:test                          # Checkpoint/recovery test with a local mock API
-bun check-pak.mjs <path>               # Inspect a single .pak file (reads local app DB, not index.db)
-bun check-index.mjs                    # Stats + duplicate summary (reads local app DB, not index.db)
-bun lookup-mod.mjs <name-or-id>        # Look up a mod by name or remote_id (reads local app DB)
+bun check-pak.mts <path>               # Inspect a single .pak file (reads local app DB, not index.db)
+bun check-index.mts                    # Stats + duplicate summary (reads local app DB, not index.db)
+bun lookup-mod.mts <name-or-id>        # Look up a mod by name or remote_id (reads local app DB)
 ```
 
-> The three `*.mjs` dev utils hardcode a path to the installed app's cached DB (`C:/Users/oleh/AppData/…`). To query a freshly built `index.db` instead, edit the `APP_DB` constant at the top of each file.
+> The three `*.mts` dev utils hardcode a path to the installed app's cached DB (`C:/Users/oleh/AppData/…`). To query a freshly built `index.db` instead, edit the `APP_DB` constant at the top of each file.
 
 `7z` must be on `PATH` — used for 7z and RAR extraction and `.pdmod` decryption. Windows: install from 7-zip.org. Ubuntu CI: `apps/index/scripts/install-7zip.sh`, run by both Postgres workflows before any archive work. Ubuntu's packaged 7-Zip 23.01 (what `p7zip-full`/`p7zip-rar` resolve to on Noble) segfaults decompressing valid RAR4 archives; RAR5/ZIP/7z are unaffected. The script pins upstream 7-Zip 26.02 instead, verifying its checksum and its resolved `--help` banner before adding it ahead of the distro binary on `PATH`. A RAR4 download that still fails extraction is a checked listing with no files; `markerFromFullArchive` logs each archive it could not open. `apps/index/test-archive-canaries.ts` (`bun test:archive-canaries`) proves the fix against two real ModWorkshop RAR4 archives that crash the distro binary; it needs network and the pinned extractor, so it runs on demand rather than as part of `index:test`.
 

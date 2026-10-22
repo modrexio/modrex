@@ -46,7 +46,7 @@
         "lint:fix": "bun run --cwd apps/desktop lint:fix && bun run --cwd apps/site lint:fix",
         "generate-licenses": "bun run --cwd apps/desktop generate-licenses",
         "preversion": "bun -e \"console.error('Run bun release patch, minor, or major from the repository root.'); process.exit(1)\"",
-        "release": "bun apps/desktop/scripts/release.mjs",
+        "release": "bun apps/desktop/scripts/release.mts",
         "site:dev": "bun run --cwd apps/site dev",
         "site:build": "bun run --cwd apps/site build",
         "site:typecheck": "bun run --cwd apps/site typecheck",

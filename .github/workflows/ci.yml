@@ -119,7 +119,7 @@ jobs:
                           - 'packages/games/[Ll][Ii][Cc][Ee][Nn][SsCc][Ee]*'
                           - 'packages/scrollbars/[Ll][Ii][Cc][Ee][Nn][SsCc][Ee]*'
                           - 'apps/desktop/[Ll][Ii][Cc][Ee][Nn][SsCc][Ee]*'
-                          - 'apps/desktop/scripts/generate-licenses.mjs'
+                          - 'apps/desktop/scripts/generate-licenses.mts'
                           - 'apps/desktop/THIRD_PARTY_LICENSES.md'
                           - 'apps/desktop/src-tauri/about.toml'
                           - 'apps/desktop/src-tauri/about.hbs'

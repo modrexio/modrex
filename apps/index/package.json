@@ -20,7 +20,7 @@
         "test:postgres-architecture": "bun test-postgres-architecture.ts",
         "test:postgres-queries": "bun test-postgres-queries.ts",
         "test:snapshot-delta": "bun test-snapshot-delta.ts",
-        "test:staged-rebuild": "bun test-staged-rebuild.mjs",
+        "test:staged-rebuild": "bun test-staged-rebuild.mts",
         "test:unreal-resources": "bun test-unreal-resources.ts && bun test-resource-routing.ts"
     },
     "dependencies": {

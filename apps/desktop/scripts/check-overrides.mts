@@ -1,6 +1,15 @@
 import { readFileSync } from 'fs'
 
-const root = JSON.parse(readFileSync('../../package.json', 'utf8'))
+type Manifest = {
+    overrides?: Record<string, string>
+    dependencies?: Record<string, string>
+    devDependencies?: Record<string, string>
+    optionalDependencies?: Record<string, string>
+}
+
+const root = JSON.parse(readFileSync('../../package.json', 'utf8')) as Manifest & {
+    workspaces: string[]
+}
 const exact = /^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/
 
 const manifests = ['../../package.json']
@@ -10,10 +19,10 @@ for (const pattern of root.workspaces) {
     }
 }
 
-const problems = []
+const problems: string[] = []
 for (const manifest of manifests) {
-    const pkg = JSON.parse(readFileSync(manifest, 'utf8'))
-    const declared = {
+    const pkg = JSON.parse(readFileSync(manifest, 'utf8')) as Manifest
+    const declared: Record<string, string> = {
         ...pkg.dependencies,
         ...pkg.devDependencies,
         ...pkg.optionalDependencies,
