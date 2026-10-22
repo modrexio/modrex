@@ -121,12 +121,13 @@ export function WelcomeScreen({ onSelectGame }: Props) {
                         {games.map((g) => {
                             const fallback = FALLBACK_STYLES[g] ?? DEFAULT_STYLE
                             const showFallback = failed[g] || !CDN_URLS[g]
+                            // WebKitGTK needs the card composited at rest to paint its image before hover.
                             return (
                                 <button
                                     key={g}
                                     onClick={() => onSelectGame(g)}
                                     aria-label={GAMES[g].name}
-                                    className="group relative aspect-[2/3] overflow-hidden rounded-lg border border-border bg-surface-raised transition-all duration-200 hover:scale-[1.03] hover:border-accent/60 focus-visible:outline-none focus-visible:border-accent/60"
+                                    className="group relative transform-gpu aspect-[2/3] overflow-hidden rounded-lg border border-border bg-surface-raised transition-all duration-200 hover:scale-[1.03] hover:border-accent/60 focus-visible:outline-none focus-visible:border-accent/60"
                                 >
                                     {showFallback ? (
                                         <div
