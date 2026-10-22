@@ -10,7 +10,7 @@
         "erasableSyntaxOnly": true,
         "verbatimModuleSyntax": true,
         "allowImportingTsExtensions": true,
-        "types": ["node"],
+        "types": ["bun"],
         "typeRoots": ["../../node_modules/@types"]
     },
     "include": ["scripts/*.mts", "src/shared/i18n-values.mts"]

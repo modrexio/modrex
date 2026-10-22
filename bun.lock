@@ -7,7 +7,7 @@
       "devDependencies": {
         "@commitlint/cli": "21.2.4",
         "@commitlint/config-conventional": "21.2.4",
-        "@types/node": "^26.6.5",
+        "@types/bun": "^1.4.3",
         "husky": "^9.1.7",
         "oxfmt": "0.73.0",
         "typescript": "6.0.3",
@@ -48,7 +48,7 @@
         "@tailwindcss/vite": "^4.3.3",
         "@tauri-apps/cli": "^2",
         "@testing-library/react": "^16.3.3",
-        "@types/node": "^26.6.5",
+        "@types/bun": "^1.4.3",
         "@types/react": "^19.3.0",
         "@types/react-dom": "^19.3.0",
         "@vitejs/plugin-react": "^6.1.2",
@@ -74,8 +74,8 @@
         "@electric-sql/pglite": "^0.5.10",
         "@types/adm-zip": "^0.6.0",
         "@types/better-sqlite3": "^9.6.0",
+        "@types/bun": "^1.4.3",
         "@types/emscripten": "^1.41.6",
-        "@types/node": "^26.6.5",
         "adm-zip": "^0.6.1",
         "better-sqlite3": "^13.0.3",
         "typescript": "^6.0.3",
@@ -738,6 +738,8 @@
 
     "@types/better-sqlite3": ["@types/better-sqlite3@9.6.0", "", { "dependencies": { "@types/node": "26.6.3" } }, "sha512-ZEEwBSgMu7GYJOynoagg5X9JbxfL6dTJDsgViJIqh67jV44kyOr9RXfmFjLK5rzC4MWssP06t9hu/JwGDnUbCg=="],
 
+    "@types/bun": ["@types/bun@1.4.3", "", { "dependencies": { "bun-types": "1.4.3" } }, "sha512-N67Pqy8JXbAY/j0tNraS3V5mubGvc6rrrNDmDCtZLlFzccbUJPDb0tvgUBC5q4m8ybkP93Jcn1QB+RYQ6PvBhw=="],
+
     "@types/chai": ["@types/chai@5.2.3", "", { "dependencies": { "@types/deep-eql": "4.0.2", "assertion-error": "2.0.1" } }, "sha512-Mw558oeA9fFbv65/y4mHtXDs9bPnFMZAL/jxdPFUpOHHIXX91mcgEHbS5Lahr+pwZFR8A7GQleRWeI6cGFC2UA=="],
 
     "@types/debug": ["@types/debug@4.1.13", "", { "dependencies": { "@types/ms": "2.1.0" } }, "sha512-KSVgmQmzMwPlmtljOomayoR89W4FynCAi3E8PPs7vmDVPe84hT+vGPKkJfThkmXs0x0jAaa9U8uW8bbfyS2fWw=="],
@@ -883,6 +885,8 @@
     "browserslist": ["browserslist@4.28.7", "", { "dependencies": { "baseline-browser-mapping": "2.11.20", "caniuse-lite": "1.0.30001810", "electron-to-chromium": "1.5.420", "node-releases": "2.0.54", "update-browserslist-db": "1.2.3" }, "bin": { "browserslist": "cli.js" } }, "sha512-JxV13hNrFxqjOc8alRbq9dK1MM79NEXYpma2B2J4wAtpWS5zIEIKqWPGCl7N4o7Uc7B7itylh7SuDujATRyyTw=="],
 
     "buffer-image-size": ["buffer-image-size@0.6.4", "", { "dependencies": { "@types/node": "*" } }, "sha512-nEh+kZOPY1w+gcCMobZ6ETUp9WfibndnosbpwB1iJk/8Gt5ZF2bhS6+B6bPYz424KtwsR6Rflc3tCz1/ghX2dQ=="],
+
+    "bun-types": ["bun-types@1.4.3", "", { "dependencies": { "@types/node": "*", "undici-types": "*" } }, "sha512-tinRJNGOmUN+tEAsn2y2e942n9JHRHR42iUYzDH75NmhJqVBokGSQkkfSFdNWwsANIdrK6ACH9t01M452YyTwg=="],
 
     "cacheable": ["cacheable@2.5.0", "", { "dependencies": { "@cacheable/memory": "2.2.0", "@cacheable/utils": "2.5.0", "hookified": "1.15.1", "keyv": "5.6.0", "qified": "0.10.1" } }, "sha512-60cyAOytib/OzBw1JNSoSV/boK1AtHryDIjvVBk7XbN4ugfkM3+Sry7fEjNgPMGgOjuaZPAp8ruZ0Cxafwyq9g=="],
 

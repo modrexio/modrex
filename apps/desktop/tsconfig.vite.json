@@ -6,7 +6,7 @@
         "moduleResolution": "bundler",
         "strict": true,
         "skipLibCheck": true,
-        "types": ["node"],
+        "types": ["bun"],
         "resolveJsonModule": true,
         "noEmit": true,
         "allowImportingTsExtensions": true

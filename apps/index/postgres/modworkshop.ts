@@ -153,12 +153,14 @@ export function parsePage<T>(value: unknown, parse: (row: unknown) => T, page: n
     return { data: row.data.map(parse), meta: { current_page: page, last_page: meta.last_page } }
 }
 
+export type Fetcher = (url: URL, init: RequestInit) => Promise<Response>
+
 export class ModWorkshop {
     private nextSlot = 0
     readonly counts = { requests: 0, retries: 0, versionBatches: 0 }
     constructor(
         private readonly base = process.env.MODWORKSHOP_API_BASE ?? 'https://api.modworkshop.net',
-        private readonly fetcher: typeof fetch = fetch,
+        private readonly fetcher: Fetcher = fetch,
         private readonly sleep: (ms: number) => Promise<void> = (ms) =>
             new Promise((resolve) => setTimeout(resolve, ms)),
         private readonly now = Date.now

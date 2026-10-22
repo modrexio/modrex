@@ -14,7 +14,7 @@ import {
 } from './postgres/catalog.js'
 import type { Database, Statement } from './postgres/database.js'
 import { syncGameListings } from './postgres/listing-sync.js'
-import { ModWorkshop, parseFile, parseVersions } from './postgres/modworkshop.js'
+import { ModWorkshop, parseFile, parseVersions, type Fetcher } from './postgres/modworkshop.js'
 import { migrations } from './postgres/schema.js'
 import {
     MARKER_EXTRACTION_POLICY,
@@ -261,7 +261,7 @@ assert.deepEqual(
 
 {
     const { pg, db } = await catalog()
-    const fetcher: typeof fetch = async (request) => {
+    const fetcher: Fetcher = async (request) => {
         const url = new URL(String(request))
         if (url.pathname === '/games/1/mods')
             return response({
@@ -446,7 +446,7 @@ assert.deepEqual(
 {
     const { pg, db } = await catalog()
     let versions = 0
-    const fetcher: typeof fetch = async (request) => {
+    const fetcher: Fetcher = async (request) => {
         const url = new URL(String(request))
         if (url.pathname.includes('/games/'))
             return response({
@@ -599,7 +599,7 @@ assert.deepEqual(
         await db.transaction(migration.statements.map((text) => ({ text, values: [] })))
 
     let failAfterFirstPage = true
-    const fetcher: typeof fetch = async (request) => {
+    const fetcher: Fetcher = async (request) => {
         const url = new URL(String(request))
         if (url.pathname === '/games/1/mods') {
             const page = Number(url.searchParams.get('page'))
