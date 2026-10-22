@@ -1,3 +1,6 @@
 {
-    "extends": ["astro/tsconfigs/strict", "../../tsconfig.base.json"]
+    "extends": ["astro/tsconfigs/strict", "../../tsconfig.base.json"],
+    "compilerOptions": {
+        "noUncheckedIndexedAccess": true
+    }
 }

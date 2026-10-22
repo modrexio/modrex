@@ -91,7 +91,7 @@ describe('resolveEngineTag', () => {
     it('authenticates the tags request when a token is given', async () => {
         const fetchMock = stubTags(['v1.0.0'])
         await resolveEngineTag('v1', 'secret')
-        const init = fetchMock.mock.calls[0][1] as RequestInit
+        const init = fetchMock.mock.calls[0]![1] as RequestInit
         expect(init.headers).toMatchObject({
             Authorization: 'Bearer secret',
             'User-Agent': 'modrex-install-worker',
@@ -101,7 +101,7 @@ describe('resolveEngineTag', () => {
     it('sends no Authorization header without a token', async () => {
         const fetchMock = stubTags(['v1.0.0'])
         await resolveEngineTag('v1')
-        const init = fetchMock.mock.calls[0][1] as RequestInit
+        const init = fetchMock.mock.calls[0]![1] as RequestInit
         expect(init.headers).not.toHaveProperty('Authorization')
     })
 

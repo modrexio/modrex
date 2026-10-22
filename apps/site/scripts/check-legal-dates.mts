@@ -53,7 +53,7 @@ for (const page of PAGES) {
         failures.push(`${page}: no \`const LAST_UPDATED = 'YYYY-MM-DD'\` declaration found.`)
         continue
     }
-    const stated = match[1]
+    const stated = match[1]!
 
     if (hasPendingChanges(repoPath)) {
         // Being edited in this commit, so the date has to be today's or the published page

@@ -31,7 +31,7 @@ const breadcrumbItems: Array<{ name: string; item?: string }> = [
 if (segments.length === 2 && entryTitle) {
     breadcrumbItems.push({ name: entryTitle })
 } else if (segments.length >= 3) {
-    const section = segments[1]
+    const section = segments[1]!
     const sectionLabel = SECTION_LABELS[section]
     if (sectionLabel) {
         breadcrumbItems.push({

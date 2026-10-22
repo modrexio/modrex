@@ -19,7 +19,7 @@ export default function devSearch(): AstroIntegration {
                 server.middlewares.use('/pagefind', async (req, res, next) => {
                     index ??= buildIndex(`http://${req.headers.host}`)
                     try {
-                        const file = (await index).get(req.url!.split('?')[0].slice(1))
+                        const file = (await index).get(req.url!.split('?')[0]!.slice(1))
                         if (!file) return next()
                         res.setHeader('Content-Type', contentType(req.url!))
                         res.end(file)
@@ -50,7 +50,8 @@ async function buildIndex(origin: string) {
 
         // Docs links appear both with and without a trailing slash. Counting them
         // once keeps a page from being indexed, and listed in results, twice.
-        for (const [, href] of html.matchAll(/href="(\/docs\/[^"#?]*)"/g)) {
+        for (const match of html.matchAll(/href="(\/docs\/[^"#?]*)"/g)) {
+            const href = match[1]!
             const page = href.endsWith('/') ? href : `${href}/`
             if (seen.has(page)) continue
             seen.add(page)

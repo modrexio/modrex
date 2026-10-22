@@ -102,7 +102,7 @@ describe('onRequestPost forwarding', () => {
             query: `?measurement_id=${VALID_ID}`,
             body: '{}',
         })
-        const { url, init } = captured[0]
+        const { url, init } = captured[0]!
         expect(url.origin + url.pathname).toBe('https://www.google-analytics.com/mp/collect')
         expect(url.searchParams.get('measurement_id')).toBe(VALID_ID)
         expect(url.searchParams.get('api_secret')).toBe(SECRET)
@@ -115,7 +115,7 @@ describe('onRequestPost forwarding', () => {
             body: '{}',
         })
         expect(res.status).toBe(204)
-        expect(captured[0].url.searchParams.get('api_secret')).toBe(SECRET)
+        expect(captured[0]!.url.searchParams.get('api_secret')).toBe(SECRET)
     })
 
     it('injects the real client IP as ip_override into a JSON body', async () => {
@@ -124,7 +124,7 @@ describe('onRequestPost forwarding', () => {
             body: JSON.stringify({ client_id: '123', events: [] }),
             connectingIp: '203.0.113.7',
         })
-        const forwarded = JSON.parse(String(captured[0].init.body))
+        const forwarded = JSON.parse(String(captured[0]!.init.body))
         expect(forwarded.ip_override).toBe('203.0.113.7')
         expect(forwarded.client_id).toBe('123')
     })
@@ -134,7 +134,7 @@ describe('onRequestPost forwarding', () => {
             query: `?measurement_id=${VALID_ID}`,
             body: JSON.stringify({ client_id: '123' }),
         })
-        expect(JSON.parse(String(captured[0].init.body))).not.toHaveProperty('ip_override')
+        expect(JSON.parse(String(captured[0]!.init.body))).not.toHaveProperty('ip_override')
     })
 
     it('rejects malformed JSON before forwarding', async () => {
@@ -173,7 +173,7 @@ describe('onRequestPost forwarding', () => {
             body: JSON.stringify(payload),
             connectingIp: '203.0.113.7',
         })
-        expect(JSON.parse(String(captured[0].init.body))).toEqual({
+        expect(JSON.parse(String(captured[0]!.init.body))).toEqual({
             ...payload,
             ip_override: '203.0.113.7',
         })
