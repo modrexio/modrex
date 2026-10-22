@@ -42,6 +42,9 @@ function previewBackend(): Plugin {
             const shim = previewShims[source]
             if (shim) return normalizePath(resolve(previewDir, shim))
             if (importer && normalizePath(importer).startsWith(previewDir)) return null
+            // Vitest's module cache refetches modules by resolved URL with index.html as the
+            // importer. Swapping that URL would hand the preview commands their own module.
+            if (source.startsWith('/')) return null
             const resolved = await this.resolve(source, importer, { ...options, skipSelf: true })
             if (resolved && normalizePath(resolved.id) === bindingsPath) {
                 return normalizePath(resolve(previewDir, 'bindings.ts'))
