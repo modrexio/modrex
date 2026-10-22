@@ -11,8 +11,7 @@
         "types": ["vite-plugin-svgr/client"],
         "resolveJsonModule": true,
         "noEmit": true,
-        "allowImportingTsExtensions": true,
-        "noUncheckedIndexedAccess": true
+        "allowImportingTsExtensions": true
     },
     "include": ["src/**/*"],
     "exclude": ["node_modules", "out", "commitlint.config.ts", "src/main", "src/preload"]

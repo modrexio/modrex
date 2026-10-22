@@ -3,7 +3,6 @@
     "compilerOptions": {
         "target": "ESNext",
         "module": "Node16",
-        "types": ["bun", "emscripten"],
-        "noUncheckedIndexedAccess": true
+        "types": ["bun", "emscripten"]
     }
 }
