@@ -3,6 +3,11 @@ name = "Ready or Not"
 short_name = "RoN"
 mod_metadata = "none"
 
+package_reader = {
+    format = "unreal",
+    aes_key = "E608A99C1512B955A2D65238A711D54CA988AFB2169D8B98BF5989079F616777",
+}
+
 movie_replacement = {
     format = "mp4",
     directory = ["ReadyOrNot", "Content", "Movies"],

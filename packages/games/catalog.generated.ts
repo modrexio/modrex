@@ -91,7 +91,7 @@ export const GAME_SPECS = {
         nexusDomain: 'readyornot',
         storageKey: 'ron',
         hasNews: false,
-        supportsPackageViewer: false,
+        supportsPackageViewer: true,
         movieReplacement: { extension: 'mp4', storefronts: ['steam'] },
         configPresets: { filename: 'Engine.ini' },
         graphicsConfig: { filename: 'GameUserSettings.ini' },
