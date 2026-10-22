@@ -217,7 +217,7 @@ describe('update target revalidation', () => {
             },
         })
         mount()
-        fireEvent.click(screen.getAllByText('Update')[0])
+        fireEvent.click(screen.getAllByText('Update')[0]!)
         expect(await screen.findAllByText('Install from archive')).not.toHaveLength(0)
         expect(screen.queryByText('Available updates (2)')).toBeNull()
         fireEvent.click(screen.getByText('Cancel'))

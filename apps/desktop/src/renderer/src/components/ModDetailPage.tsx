@@ -474,13 +474,13 @@ export function ModDetailPage({
             setShowFileSelect(true)
             return
         }
-        const checkType = download?.type ?? (files.length === 1 ? files[0].type : undefined)
+        const checkType = download?.type ?? (files.length === 1 ? files[0]!.type : undefined)
         const checkUrl =
-            download?.download_url ?? (files.length === 1 ? files[0].download_url : undefined)
+            download?.download_url ?? (files.length === 1 ? files[0]!.download_url : undefined)
         const checkFilename = download
             ? files.find((file) => file.id === download.id)?.name
             : files.length === 1
-              ? files[0].name
+              ? files[0]!.name
               : undefined
         if (isUnsupportedFormat(GAMES[activeGame], checkType, checkUrl, checkFilename)) {
             setShowHeaderFormatWarning(true)
@@ -1171,7 +1171,7 @@ export function ModDetailPage({
                         <ChevronLeft className="w-6 h-6" />
                     </button>
 
-                    <LightboxImage file={images[lightboxIndex].file} />
+                    <LightboxImage file={images[lightboxIndex]!.file} />
 
                     <button
                         onClick={(e) => {

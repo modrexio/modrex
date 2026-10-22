@@ -46,7 +46,7 @@ test('browse page renders the fixture listing without a backend', async () => {
 
 test('opening a card renders the mod detail page', async () => {
     await mount()
-    const first = pd3Mods.data[0]
+    const first = pd3Mods.data[0]!
     fireEvent.click(await found(first.name))
     const record = pd3ModRecords[String(first.id) as keyof typeof pd3ModRecords]
     expect(await found('Description')).toBeTruthy()
@@ -57,7 +57,7 @@ test('opening a card renders the mod detail page', async () => {
 test('news page renders the snapshot feed', async () => {
     store.set('modrex:active-view', 'news')
     await mount()
-    expect(await found(pd3News.items[0].title)).toBeTruthy()
+    expect(await found(pd3News.items[0]!.title)).toBeTruthy()
 })
 
 test('settings page renders the game path', async () => {
@@ -69,7 +69,7 @@ test('settings page renders the game path', async () => {
 test('another game loads its own fixtures', async () => {
     store.set('modrex:active-game', 'pd2')
     await mount()
-    expect(await found(pd2Mods.data[0].name)).toBeTruthy()
+    expect(await found(pd2Mods.data[0]!.name)).toBeTruthy()
 })
 
 test('Ready or Not opens signed-out Nexus browsing with a stale ModWorkshop preference', async () => {
@@ -77,7 +77,7 @@ test('Ready or Not opens signed-out Nexus browsing with a stale ModWorkshop pref
     store.set('modrex:ron:browse-source', 'modworkshop')
     await mount()
     expect(await found('Sign in with Nexus Mods to browse mods from Nexus.')).toBeTruthy()
-    expect(screen.queryByText(pd3Mods.data[0].name)).toBeNull()
+    expect(screen.queryByText(pd3Mods.data[0]!.name)).toBeNull()
 })
 
 test('Ready or Not settings use its verified Steam folder', async () => {
@@ -210,14 +210,14 @@ test('browse fixtures honor filters, sorting, and the captured page boundary', a
         total: initial.data.length,
     })
 
-    const categoryId = initial.data[0].category_id
+    const categoryId = initial.data[0]!.category_id
     const category = await commands.listMods(workshopId, { ...base, category_id: categoryId })
     expect(category.data.length).toBeGreaterThan(0)
     expect(category.data.every((mod) => mod.category_id === categoryId)).toBe(true)
 
     const tagIds = [
         ...new Set(
-            initial.data.flatMap((mod) => records[String(mod.id)].detail.tags.map((t) => t.id))
+            initial.data.flatMap((mod) => records[String(mod.id)]!.detail.tags.map((t) => t.id))
         ),
     ].slice(0, 2)
     expect(tagIds).toHaveLength(2)
@@ -225,13 +225,13 @@ test('browse fixtures honor filters, sorting, and the captured page boundary', a
     expect(included.data.length).toBeGreaterThan(0)
     expect(
         included.data.every((mod) =>
-            records[String(mod.id)].detail.tags.some((tag) => tagIds.includes(tag.id))
+            records[String(mod.id)]!.detail.tags.some((tag) => tagIds.includes(tag.id))
         )
     ).toBe(true)
     const blocked = await commands.listMods(workshopId, { ...base, block_tags: tagIds })
     expect(
         blocked.data.every((mod) =>
-            records[String(mod.id)].detail.tags.every((tag) => !tagIds.includes(tag.id))
+            records[String(mod.id)]!.detail.tags.every((tag) => !tagIds.includes(tag.id))
         )
     ).toBe(true)
 
@@ -257,7 +257,7 @@ test('browse fixtures honor filters, sorting, and the captured page boundary', a
 test('installing from a card lands the mod in the library', async () => {
     // The live first card can need dependencies, a file picker or a loader action, so the test
     // owns one directly installable mod. Its id matches no loader.
-    const source = pd3Mods.data[0]
+    const source = pd3Mods.data[0]!
     const records = pd3ModRecords as unknown as Record<string, { detail: ModDetail }>
     const mod = {
         ...source,
@@ -268,7 +268,7 @@ test('installing from a card lands the mod in the library', async () => {
         download_type: 'file',
     } satisfies ModSummary
     const detail: ModDetail = {
-        ...structuredClone(records[String(source.id)].detail),
+        ...structuredClone(records[String(source.id)]!.detail),
         id: mod.id,
         has_download: true,
         disable_mod_managers: false,
@@ -296,7 +296,7 @@ test('installing from a card lands the mod in the library', async () => {
     }))
     await mount()
     await found(mod.name)
-    fireEvent.click((await screen.findAllByText('Install'))[0])
+    fireEvent.click((await screen.findAllByText('Install'))[0]!)
     expect(await screen.findByText(/^\d+%$/)).toBeTruthy()
     const toggle = await screen.findByRole('switch', {}, { timeout: 5000 })
     expect(toggle.getAttribute('aria-checked')).toBe('true')
@@ -392,7 +392,7 @@ test('thumbnails fall back to the original when the catalog has no small variant
         string,
         { detail: ModDetail }
     >
-    const record = Object.values(records)[0]
+    const record = Object.values(records)[0]!
     const image = {
         id: 1,
         file: 'preview-with-small.webp',

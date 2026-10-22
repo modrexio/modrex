@@ -70,7 +70,7 @@ export function matchingMovieSlot(
     const sources = review.entries.filter(
         (candidate) => candidate.kind === 'movie' && candidate.name.split(/[\\/]/).at(-1) === name
     )
-    return slots.length === 1 && sources.length === 1 ? slots[0] : null
+    return slots.length === 1 && sources.length === 1 ? slots[0]! : null
 }
 
 function sameIniName(left: string, right: string): boolean {

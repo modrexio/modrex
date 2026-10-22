@@ -77,7 +77,7 @@ describe('installedTabKey', () => {
     it('reads the secondary loader target from the registry', () => {
         const mod = makeMod({ location: 'loader:ue4ss' })
         expect(installedTabKey(mod, [], 'paks', loaders, targetTags)).toBe('ue4ss_mods')
-        const registry = [{ ...loaders[1], target: 'custom_target' }]
+        const registry = [{ ...loaders[1]!, target: 'custom_target' }]
         expect(installedTabKey(mod, [], 'paks', registry, targetTags)).toBe('custom_target')
     })
 
@@ -260,8 +260,8 @@ describe('catalog file set boundaries', () => {
             makeMod({ uid: 'overrides/HUD', id: -42, filename: 'HUD', location: 'mod_overrides' }),
         ]
         const tabOf = new Map([
-            [mods[0].uid, 'mods'],
-            [mods[1].uid, 'mod_overrides'],
+            [mods[0]!.uid, 'mods'],
+            [mods[1]!.uid, 'mod_overrides'],
         ])
         expect(filesOnOtherTabs(mods, tabOf, 'mods').size).toBe(0)
         expect(filesOnOtherTabs(mods, tabOf, 'mod_overrides').size).toBe(0)

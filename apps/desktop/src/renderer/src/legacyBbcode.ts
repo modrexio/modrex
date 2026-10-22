@@ -66,7 +66,7 @@ function attr(value: string) {
 function tokenize(text: string): Tag[] {
     const tags: Tag[] = []
     for (const m of text.matchAll(TAG)) {
-        const name = m[2].toLowerCase()
+        const name = m[2]!.toLowerCase()
         if (!KNOWN.has(name)) continue
         const closing = m[1] === '/'
         const newline = closing && m[4] ? m[4].length : 0
@@ -90,7 +90,7 @@ function tokenize(text: string): Tag[] {
         const start = stack.pop()
         if (start === undefined) return
         tag.pair = start
-        tags[start].pair = i
+        tags[start]!.pair = i
     })
     return tags
 }
@@ -168,7 +168,7 @@ function renderRange(
     let out = ''
     let cursor = start
     for (let i = from; i < to; i++) {
-        const tag = tags[i]
+        const tag = tags[i]!
         out += textPart(text.slice(cursor, tag.start), inTag)
         cursor = tag.end
         if (!tag.closing && UNPAIRED.has(tag.name)) {
@@ -183,14 +183,14 @@ function renderRange(
         if (tag.closing) continue
 
         const crosses = tag.pair >= to
-        const innerEnd = crosses ? end : tags[tag.pair].start
+        const innerEnd = crosses ? end : tags[tag.pair]!.start
         const raw = text.slice(tag.end, innerEnd)
         const inner = VERBATIM.has(tag.name)
             ? raw
             : renderRange(text, tags, i + 1, crosses ? to : tag.pair, tag.end, innerEnd, true)
         out += renderTag(tag, inner, raw)
         if (crosses) return out
-        cursor = tags[tag.pair].end
+        cursor = tags[tag.pair]!.end
         i = tag.pair
     }
     return out + textPart(text.slice(cursor, end), inTag)

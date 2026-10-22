@@ -79,7 +79,7 @@ describe('computeAutoUpdateSelection', () => {
         expect(mod.computeAutoUpdateSelection(payload, installed)).toEqual([0])
         expect(
             mod.computeAutoUpdateSelection(payload, [
-                { ...installed[0], uid: 'nexus:100:190:Payload_P' },
+                { ...installed[0]!, uid: 'nexus:100:190:Payload_P' },
             ])
         ).toBeNull()
         expect(

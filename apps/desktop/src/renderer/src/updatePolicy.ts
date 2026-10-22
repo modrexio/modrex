@@ -26,7 +26,7 @@ export function updatableMods(
         }
         const comparable = present.filter((mod) => mod.updateStatus !== 'unknown' && mod.version)
         if (comparable.length && comparable.every((mod) => mod.version !== remote.version)) {
-            updates.push(comparable[0])
+            updates.push(comparable[0]!)
         }
     }
     return updates

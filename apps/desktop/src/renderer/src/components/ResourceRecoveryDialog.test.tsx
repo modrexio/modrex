@@ -50,7 +50,7 @@ test('opens the affected mod directly and confirms keeping the current files', a
     expect(screen.queryByRole('combobox')).toBeNull()
     fireEvent.click(screen.getByText('Technical details'))
     expect(screen.getByText(String.raw`G:\game\Movies\Intro.bk2`)).toBeTruthy()
-    expect(screen.queryByText(review.files[0].path)).toBeNull()
+    expect(screen.queryByText(review.files[0]!.path)).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Open recovery folder' }))
     await waitFor(() => expect(api.openResourceRecoveryFolder).toHaveBeenCalledOnce())
     expect(api.keepCurrentResources).not.toHaveBeenCalled()

@@ -62,9 +62,9 @@ test('finished download switches from bytes to installation until the command co
         downloaded: 100,
         total: 100,
     })
-    expect(state.installLabel(state.getInstallOperations('pd3')[0])).toBe('100%')
+    expect(state.installLabel(state.getInstallOperations('pd3')[0]!)).toBe('100%')
     emit('download:finished', { download_id: 'mod:12', game_id: 'pd3' })
-    expect(state.getInstallOperations('pd3')[0].phase).toBe('installing')
+    expect(state.getInstallOperations('pd3')[0]!.phase).toBe('installing')
     expect(state.installProgress(state.getInstallOperations('pd3')[0])).toBeNull()
     finish('installed')
     await installing
@@ -84,13 +84,13 @@ test('Nexus byte progress and failures cannot change another game with matching 
         downloaded: 5,
         total: 0,
     })
-    expect(state.getInstallOperations('ron')[0].phase).toBe('downloading')
-    expect(state.getInstallOperations('pd3')[0].phase).toBe('preparing')
+    expect(state.getInstallOperations('ron')[0]!.phase).toBe('downloading')
+    expect(state.getInstallOperations('pd3')[0]!.phase).toBe('preparing')
     emit('nxm:install-failed', { gameId: 'ron', modId: 12, fileId: 34, message: 'Expired link' })
-    expect(state.getInstallOperations('ron')[0].error).toBe('Expired link')
-    expect(state.getInstallOperations('pd3')[0].phase).toBe('preparing')
+    expect(state.getInstallOperations('ron')[0]!.error).toBe('Expired link')
+    expect(state.getInstallOperations('pd3')[0]!.phase).toBe('preparing')
     emit('nxm:install-failed', { gameId: null, modId: null, fileId: null, message: 'Invalid URL' })
-    expect(state.getInstallOperations('pd3')[0].phase).toBe('preparing')
+    expect(state.getInstallOperations('pd3')[0]!.phase).toBe('preparing')
     expect(mocks.logError).toHaveBeenCalledWith('Nexus handoff failed: Invalid URL')
 })
 
@@ -133,12 +133,12 @@ test('selected files of one ModWorkshop mod keep independent progress and comple
     expect(
         state.getModInstall(state.getInstallOperations('pd3'), 'modworkshop', 12, 35)?.phase
     ).toBe('downloading')
-    finish[0]('installed')
+    finish[0]!('installed')
     await first
     expect(state.getInstallOperations('pd3').map((operation) => operation.target.fileId)).toEqual([
         35,
     ])
-    finish[1]('installed')
+    finish[1]!('installed')
     await second
     expect(state.getInstallOperations('pd3')).toEqual([])
 })
@@ -153,8 +153,8 @@ test('browser waiting expires while an accepted Nexus handoff survives the same 
     emit('nxm:install-started', { gameId: 'ron', modId: 12, fileId: 34 })
     vi.advanceTimersByTime(180_000)
     expect(state.getInstallOperations('ron')).toHaveLength(1)
-    expect(state.getInstallOperations('ron')[0].target.modId).toBe(12)
-    expect(state.getInstallOperations('ron')[0].phase).toBe('preparing')
+    expect(state.getInstallOperations('ron')[0]!.target.modId).toBe(12)
+    expect(state.getInstallOperations('ron')[0]!.phase).toBe('preparing')
 })
 
 test('ordinary prompts stay active across multiple archive entries and end on discard', async () => {
@@ -177,8 +177,8 @@ test('a rejected command retains scoped feedback and blocks no retry', async () 
     const state = await import('./installState')
     mocks.commands.installMod.mockRejectedValueOnce(new Error('Cannot download'))
     await expect(api.installMod(12, 'game', 'pd3')).rejects.toThrow('Cannot download')
-    expect(state.getInstallOperations('pd3')[0].phase).toBe('failed')
-    expect(state.getInstallOperations('pd3')[0].error).toBe('Error: Cannot download')
+    expect(state.getInstallOperations('pd3')[0]!.phase).toBe('failed')
+    expect(state.getInstallOperations('pd3')[0]!.error).toBe('Error: Cannot download')
     mocks.commands.installMod.mockResolvedValueOnce('installed')
     await api.installMod(12, 'game', 'pd3')
     expect(state.getInstallOperations('pd3')).toEqual([])

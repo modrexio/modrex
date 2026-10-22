@@ -35,8 +35,7 @@ export function buildTree(assets: PakAsset[]): TreeNode {
         const parts = asset.path.split('/')
         let node = root
         let prefix = ''
-        for (let i = 0; i < parts.length; i++) {
-            const part = parts[i]
+        for (const [i, part] of parts.entries()) {
             prefix = prefix === '' ? part : `${prefix}/${part}`
             if (i === parts.length - 1) {
                 node.children.push({ name: part, path: prefix, asset, children: [] })

@@ -14,7 +14,7 @@ const modules = import.meta.glob<Record<string, unknown>>('./i18n/*.json', {
 function idFromPath(path: string): LocaleId {
     const match = path.match(/\/i18n\/(.+)\.json$/)
     if (!match) throw new Error(`Unexpected locale file path: ${path}`)
-    return match[1]
+    return match[1]!
 }
 
 export const RAW_BUNDLES: Record<LocaleId, Record<string, unknown>> = Object.fromEntries(
@@ -34,7 +34,7 @@ export function isLocaleId(value: string | null): value is LocaleId {
 export function matchLocale(value: string, available: readonly LocaleId[]): LocaleId | null {
     let candidate: string
     try {
-        candidate = Intl.getCanonicalLocales(value)[0]
+        candidate = Intl.getCanonicalLocales(value)[0]!
     } catch {
         return null
     }

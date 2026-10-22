@@ -17,8 +17,8 @@ describe('attemptAll', () => {
 
         expect(attempted).toEqual(['a', 'b', 'c'])
         expect(failures).toHaveLength(1)
-        expect(failures[0].name).toBe('b')
-        expect(failures[0].error).toContain('locked')
+        expect(failures[0]!.name).toBe('b')
+        expect(failures[0]!.error).toContain('locked')
     })
 
     it('reports nothing when every item succeeds', async () => {

@@ -36,14 +36,14 @@ export function describeFailures(failures: ActionFailure[]): string | null {
     if (failures.length === 0) return null
     if (failures.length === 1) {
         return t('installed.actionFailed', {
-            name: failures[0].name,
-            error: failures[0].error,
+            name: failures[0]!.name,
+            error: failures[0]!.error,
         })
     }
     return t('installed.actionFailedSome', {
         count: failures.length,
         names: failures.map((f) => f.name).join(', '),
-        error: failures[0].error,
+        error: failures[0]!.error,
     })
 }
 

@@ -247,7 +247,7 @@ describe('filterInstalled', () => {
     it('returns mods matching query case-insensitively', () => {
         const { mods: result } = filterInstalled(mods, folders, 'crimson')
         expect(result).toHaveLength(1)
-        expect(result[0].uid).toBe('a')
+        expect(result[0]!.uid).toBe('a')
     })
 
     it('matches substring anywhere in the name', () => {
@@ -406,7 +406,7 @@ describe('groupInstalledByIdentity', () => {
         ]
         const groups = groupInstalledByIdentity(mods)
         expect(groups).toHaveLength(1)
-        expect(groups[0].key).toBe('identity:pd2mods.z77.fr:Keepers')
+        expect(groups[0]!.key).toBe('identity:pd2mods.z77.fr:Keepers')
     })
 
     it('keeps unidentified mods separate rather than lumping them together', () => {
@@ -484,14 +484,14 @@ describe('computeHealthSummary', () => {
         const mods = [makeMod('a', 1, 'A', { missing: true }), makeMod('b', 1, 'A')]
         const summary = computeHealthSummary(mods)
         expect(summary.missing).toHaveLength(1)
-        expect(summary.missing[0].id).toBe(1)
+        expect(summary.missing[0]!.id).toBe(1)
     })
 
     it('flags a mod whose .ucas and .utoc are gone as missing files', () => {
         const mods = [makeMod('a', 1, 'A', { containerMissing: true }), makeMod('b', 2, 'B')]
         const summary = computeHealthSummary(mods)
         expect(summary.missing).toHaveLength(1)
-        expect(summary.missing[0].id).toBe(1)
+        expect(summary.missing[0]!.id).toBe(1)
     })
 
     it('flags a group as archiveBroken when any of its files is broken', () => {
@@ -503,7 +503,7 @@ describe('computeHealthSummary', () => {
         const mods = [makeMod('a', -1, 'A'), makeMod('b', 2, 'B', catalogIdentity('2'))]
         const summary = computeHealthSummary(mods)
         expect(summary.unidentified).toHaveLength(1)
-        expect(summary.unidentified[0].id).toBe(-1)
+        expect(summary.unidentified[0]!.id).toBe(-1)
     })
 
     it('does not flag a locally identified mod that has no catalog entry', () => {
@@ -535,7 +535,7 @@ describe('computeHealthSummary', () => {
         const mods = [makeMod('a', 1, 'A', { updateStatus: 'outdated', remoteId: '1' })]
         const summary = computeHealthSummary(mods)
         expect(summary.outdated).toHaveLength(1)
-        expect(summary.outdated[0].id).toBe(1)
+        expect(summary.outdated[0]!.id).toBe(1)
     })
 
     it('does not flag a mod without a catalog entry as outdated', () => {
@@ -556,7 +556,7 @@ describe('computeHealthSummary', () => {
         ]
         const summary = computeHealthSummary(mods)
         expect(summary.outdated).toHaveLength(1)
-        expect(summary.outdated[0].id).toBe(5)
+        expect(summary.outdated[0]!.id).toBe(5)
     })
 
     it('returns empty categories for a clean pack', () => {
@@ -622,7 +622,7 @@ describe('findSuspectDuplicateGroups', () => {
         ]
         const suspects = findSuspectDuplicateGroups(mods)
         expect(suspects).toHaveLength(1)
-        expect(suspects[0].archiveUids.sort()).toEqual(['81999_a', '81999_b'])
+        expect(suspects[0]!.archiveUids.sort()).toEqual(['81999_a', '81999_b'])
     })
 
     it('ignores a single entry', () => {
@@ -699,7 +699,7 @@ describe('computeChildren', () => {
         ]
         const result = computeChildren(mods, [], null)
         expect(result).toHaveLength(1)
-        expect(result[0].type).toBe('mod')
+        expect(result[0]!.type).toBe('mod')
         expect((result[0] as ModEntry).mods).toHaveLength(3)
     })
 
@@ -710,7 +710,7 @@ describe('computeChildren', () => {
             makeMod('c', 5, 'Mod', { priority: 20 }),
         ]
         const result = computeChildren(mods, [], null)
-        expect(result[0].type).toBe('mod')
+        expect(result[0]!.type).toBe('mod')
         expect((result[0] as ModEntry).mods.map((m) => m.priority)).toEqual([30, 20, 10])
     })
 
@@ -720,8 +720,8 @@ describe('computeChildren', () => {
             makeMod('b', 2, 'B', { priority: 30 }),
         ]
         const result = computeChildren(mods, [], null)
-        expect(result[0].type).toBe('mod')
-        expect(result[1].type).toBe('mod')
+        expect(result[0]!.type).toBe('mod')
+        expect(result[1]!.type).toBe('mod')
         expect((result[0] as ModEntry).mods[0].uid).toBe('b')
         expect((result[1] as ModEntry).mods[0].uid).toBe('a')
     })
@@ -736,15 +736,15 @@ describe('computeChildren', () => {
         const folderEntries = result.filter(
             (e): e is { type: 'folder'; folder: ModFolder } => e.type === 'folder'
         )
-        expect(folderEntries[0].folder.id).toBe('f2')
-        expect(folderEntries[1].folder.id).toBe('f1')
+        expect(folderEntries[0]!.folder.id).toBe('f2')
+        expect(folderEntries[1]!.folder.id).toBe('f1')
     })
 
     it('includes folders that have no mods', () => {
         const folders = [makeFolder('empty')]
         const result = computeChildren([], folders, null)
         expect(result).toHaveLength(1)
-        expect(result[0].type).toBe('folder')
+        expect(result[0]!.type).toBe('folder')
         expect((result[0] as { type: 'folder'; folder: ModFolder }).folder.id).toBe('empty')
     })
 
@@ -761,7 +761,7 @@ describe('computeChildren', () => {
         ]
         const result = computeChildren(mods, [], null)
         expect(result).toHaveLength(1)
-        expect(result[0].type).toBe('mod')
+        expect(result[0]!.type).toBe('mod')
         expect((result[0] as ModEntry).mods[0].uid).toBe('a')
     })
 
@@ -803,7 +803,7 @@ describe('groupChildren', () => {
         ]
         const result = groupChildren(entries)
         expect(result).toHaveLength(1)
-        expect(result[0].type).toBe('root-group')
+        expect(result[0]!.type).toBe('root-group')
         expect((result[0] as RootGroup).groups).toHaveLength(2)
     })
 
@@ -815,9 +815,9 @@ describe('groupChildren', () => {
         ]
         const result = groupChildren(entries)
         expect(result).toHaveLength(3)
-        expect(result[0].type).toBe('root-group')
-        expect(result[1].type).toBe('folder')
-        expect(result[2].type).toBe('root-group')
+        expect(result[0]!.type).toBe('root-group')
+        expect(result[1]!.type).toBe('folder')
+        expect(result[2]!.type).toBe('root-group')
     })
 
     it('emits individual folder entries for a pure folder list', () => {
@@ -838,8 +838,8 @@ describe('groupChildren', () => {
         ]
         const result = groupChildren(entries)
         expect(result).toHaveLength(2)
-        expect(result[0].type).toBe('folder')
-        expect(result[1].type).toBe('root-group')
+        expect(result[0]!.type).toBe('folder')
+        expect(result[1]!.type).toBe('root-group')
         expect((result[1] as RootGroup).groups).toHaveLength(2)
     })
 

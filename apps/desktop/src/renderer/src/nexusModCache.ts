@@ -133,10 +133,9 @@ export async function fetchInstalledNexusModsMeta(
 ): Promise<{ mods: Map<number, Mod>; failedIds: number[] }> {
     const mods = new Map<number, Mod>()
     const failedIds: number[] = []
-    for (let i = 0; i < modIds.length; i++) {
+    for (const [i, modId] of modIds.entries()) {
         if (i > 0) await new Promise((resolve) => setTimeout(resolve, STAGGER_MS))
         await waitForForegroundClear()
-        const modId = modIds[i]
         try {
             const mod = await api.nexusGetModDetail(gameId, modId)
             installedMetaCache.set(key(gameId, modId), { mod, fetchedAt: Date.now() })

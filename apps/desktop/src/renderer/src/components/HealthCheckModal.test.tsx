@@ -58,10 +58,10 @@ describe('HealthCheckModal', () => {
     it('reinstalls one mod at a time, stays open and says which failed', async () => {
         const order: string[] = []
         const onReinstall = vi.fn(async (mods: InstalledMod[]) => {
-            order.push(`start ${mods[0].name}`)
+            order.push(`start ${mods[0]!.name}`)
             await Promise.resolve()
-            order.push(`end ${mods[0].name}`)
-            return mods[0].name === 'Beta' ? 'the download failed' : null
+            order.push(`end ${mods[0]!.name}`)
+            return mods[0]!.name === 'Beta' ? 'the download failed' : null
         })
         const onClose = renderModal({
             installed: [missing('Alpha', '1'), missing('Beta', '2')],

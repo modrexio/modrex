@@ -21,7 +21,7 @@ export const YOUTUBE_EMBED: EmbedDef = {
         ]
         for (const p of patterns) {
             const m = url.match(p)
-            if (m) return m[1]
+            if (m) return m[1]!
         }
         return null
     },
@@ -32,7 +32,7 @@ export const YOUTUBE_EMBED: EmbedDef = {
 const streamable: EmbedDef = {
     detect(url) {
         const m = url.match(/streamable\.com\/(?:[es]\/)?([a-zA-Z0-9]+)(?:[?#].*)?$/)
-        return m ? m[1] : null
+        return m ? m[1]! : null
     },
     thumbnailUrl: (id) => `https://cdn-cf-east.streamable.com/image/${id}.jpg`,
     embedUrl: (id) => `https://streamable.com/e/${id}`,
@@ -41,7 +41,7 @@ const streamable: EmbedDef = {
 const vimeo: EmbedDef = {
     detect(url) {
         const m = url.match(/vimeo\.com\/(?:video\/)?(\d+)/)
-        return m ? m[1] : null
+        return m ? m[1]! : null
     },
     embedUrl: (id) => `https://player.vimeo.com/video/${id}?autoplay=1`,
 }
@@ -49,7 +49,7 @@ const vimeo: EmbedDef = {
 const soundcloud: EmbedDef = {
     detect(url) {
         const m = url.match(/soundcloud\.com\/([\w-]+\/[\w-]+)/)
-        return m ? m[1] : null
+        return m ? m[1]! : null
     },
     embedUrl: (id) =>
         `https://w.soundcloud.com/player/?url=${encodeURIComponent(`https://soundcloud.com/${id}`)}&auto_play=true`,
@@ -62,7 +62,7 @@ const AUDIO_EXTENSIONS = ['aac', 'm4a', 'mp3', 'oga', 'ogg', 'wav']
 const VIDEO_EXTENSIONS = ['mp4', 'm4v', 'ogv', 'webm', 'mpg', 'mpeg', 'avi']
 
 export function mediaKind(url: string): 'audio' | 'video' | null {
-    const ext = /\.([^/.]+)$/.exec(url)?.[1].toLowerCase()
+    const ext = /\.([^/.]+)$/.exec(url)?.[1]!.toLowerCase()
     if (!ext) return null
     if (AUDIO_EXTENSIONS.includes(ext)) return 'audio'
     if (VIDEO_EXTENSIONS.includes(ext)) return 'video'

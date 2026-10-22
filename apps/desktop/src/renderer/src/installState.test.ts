@@ -25,7 +25,7 @@ test('install state survives subscriber removal and returning to the same game',
     state.updateInstall(operation.id, { phase: 'installing' })
     expect(listener).toHaveBeenCalledOnce()
     expect(state.getInstallOperations('ron')).not.toBe(snapshot)
-    expect(state.getInstallOperations('ron')[0].phase).toBe('installing')
+    expect(state.getInstallOperations('ron')[0]!.phase).toBe('installing')
     expect(state.getInstallOperations('ron')).toBe(state.getInstallOperations('ron'))
 })
 

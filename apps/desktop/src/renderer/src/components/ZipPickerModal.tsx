@@ -33,12 +33,13 @@ export interface ZipMultiPakPayload {
 }
 
 function computePrefix(entries: string[]): string {
-    if (entries.length === 0) return ''
+    const [first] = entries
+    if (first === undefined) return ''
     let prefix = ''
     for (;;) {
-        const next = entries[0].indexOf('/', prefix.length)
+        const next = first.indexOf('/', prefix.length)
         if (next === -1) return prefix
-        const candidate = entries[0].slice(0, next + 1)
+        const candidate = first.slice(0, next + 1)
         if (!entries.every((e) => e.startsWith(candidate))) return prefix
         prefix = candidate
     }
@@ -210,7 +211,7 @@ export async function installZipPickerEntries(
     installEntry: ZipEntryInstaller = (pos, entryFolderId, locationTag) =>
         api.installFromZipEntry(
             payload.archiveHandle,
-            payload.entryIds[pos],
+            payload.entryIds[pos]!,
             payload.modId,
             payload.modName,
             payload.fileId,
@@ -231,7 +232,7 @@ export async function installZipPickerEntries(
 
     if (multiTarget || payload.sharedPaks) {
         for (const pos of toInstall) {
-            onProgress?.(payload.entries[pos])
+            onProgress?.(payload.entries[pos]!)
             const targetTag = multiTarget ? (tagByPos.get(pos) ?? undefined) : payload.targetTag
             await installEntry(pos, payload.sharedPaks ? (folderId ?? null) : null, targetTag)
             await onRefreshInstalled()
@@ -253,7 +254,7 @@ export async function installZipPickerEntries(
 
     if (isStructured && !payload.targetTag) {
         const normalizedToInstall = toInstall.map((pos) =>
-            payload.entries[pos].slice(prefix.length)
+            payload.entries[pos]!.slice(prefix.length)
         )
         for (const dir of getRequiredDirs(normalizedToInstall)) {
             const lastSlash = dir.lastIndexOf('/')
@@ -271,10 +272,10 @@ export async function installZipPickerEntries(
     }
 
     for (const pos of toInstall) {
-        const rel = payload.entries[pos].slice(prefix.length)
+        const rel = payload.entries[pos]!.slice(prefix.length)
         const lastSlash = rel.lastIndexOf('/')
         const dir = lastSlash === -1 ? '' : rel.slice(0, lastSlash)
-        onProgress?.(payload.entries[pos])
+        onProgress?.(payload.entries[pos]!)
         await installEntry(pos, folderIdMap.get(dir) ?? null, payload.targetTag)
         await onRefreshInstalled()
     }
@@ -445,7 +446,7 @@ export function ZipPickerModal({
     }
 
     function renderEntry(pos: number, indented = false) {
-        const entry = payload.entries[pos]
+        const entry = payload.entries[pos]!
         const isInstalling = installingEntry === entry
         const isInstalled = installedEntries.has(pos)
         const name = entry.slice(prefix.length).split('/').pop() ?? entry

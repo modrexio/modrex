@@ -5,8 +5,8 @@ export function markdownContainer(md: MarkdownIt, name: string, marker: string) 
     const code = marker.charCodeAt(0)
 
     function rule(state: StateBlock, startLine: number, endLine: number, silent: boolean) {
-        const start = state.bMarks[startLine] + state.tShift[startLine]
-        const max = state.eMarks[startLine]
+        const start = state.bMarks[startLine]! + state.tShift[startLine]!
+        const max = state.eMarks[startLine]!
         if (state.src.charCodeAt(start) !== code) return false
 
         let pos = start
@@ -38,11 +38,12 @@ export function markdownContainer(md: MarkdownIt, name: string, marker: string) 
         let nextLine = startLine
         let closed = false
         while (++nextLine < endLine) {
-            const lineStart = state.bMarks[nextLine] + state.tShift[nextLine]
-            const lineMax = state.eMarks[nextLine]
-            if (lineStart < lineMax && state.sCount[nextLine] < state.blkIndent) break
+            const lineStart = state.bMarks[nextLine]! + state.tShift[nextLine]!
+            const lineMax = state.eMarks[nextLine]!
+            const indent = state.sCount[nextLine]!
+            if (lineStart < lineMax && indent < state.blkIndent) break
             if (state.src.charCodeAt(lineStart) !== code) continue
-            if (state.sCount[nextLine] - state.blkIndent >= 4) continue
+            if (indent - state.blkIndent >= 4) continue
 
             let p = lineStart
             while (p < lineMax && state.src.charCodeAt(p) === code) p++

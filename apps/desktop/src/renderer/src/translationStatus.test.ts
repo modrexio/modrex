@@ -42,8 +42,8 @@ describe('translationCoverage', () => {
 
     it('includes a complete source bundle and discovers every bundled locale', () => {
         expect(Object.keys(TRANSLATION_COVERAGE)).toEqual(LOCALE_IDS)
-        expect(TRANSLATION_COVERAGE.en.translated).toBe(TRANSLATION_COVERAGE.en.total)
-        expect(TRANSLATION_COVERAGE.en.total).toBeGreaterThan(0)
+        expect(TRANSLATION_COVERAGE.en!.translated).toBe(TRANSLATION_COVERAGE.en!.total)
+        expect(TRANSLATION_COVERAGE.en!.total).toBeGreaterThan(0)
     })
 
     it('keeps English complete when source strings resemble target markers', async () => {

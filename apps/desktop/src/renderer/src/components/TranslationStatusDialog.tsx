@@ -71,7 +71,7 @@ export function TranslationStatusDialog({ open, onClose, returnFocus }: Props) {
                     </thead>
                     <tbody>
                         {LOCALE_IDS.map((id) => {
-                            const { translated, total } = TRANSLATION_COVERAGE[id]
+                            const { translated, total } = TRANSLATION_COVERAGE[id]!
                             const ratio = translated / total
                             return (
                                 <tr key={id} className="border-b border-border last:border-0">

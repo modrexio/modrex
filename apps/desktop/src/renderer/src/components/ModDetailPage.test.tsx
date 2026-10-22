@@ -166,7 +166,7 @@ describe('mod detail installation feedback', () => {
     it('keeps the Nexus header and file row synchronized across tab switches and installation', async () => {
         const page = showPage({ source: 'nexus' })
         downloads()
-        fireEvent.click(screen.getAllByRole('button', { name: 'Download via Nexus' })[0])
+        fireEvent.click(screen.getAllByRole('button', { name: 'Download via Nexus' })[0]!)
         await waitFor(() => expect(transport.shellOpenExternal).toHaveBeenCalledTimes(1))
         expect(
             screen.getByRole<HTMLButtonElement>('button', { name: 'Waiting for browser...' })
@@ -263,7 +263,7 @@ describe('mod detail installation feedback', () => {
         transport.installFile.mockReturnValueOnce(install.promise)
         showPage({ activeGame: 'pd3' })
         downloads()
-        fireEvent.click(screen.getAllByRole('button', { name: /^Install ZIP/ })[0])
+        fireEvent.click(screen.getAllByRole('button', { name: /^Install ZIP/ })[0]!)
         await waitFor(() => expect(transport.installFile).toHaveBeenCalledTimes(1))
         expect(
             screen
@@ -281,7 +281,7 @@ describe('mod detail installation feedback', () => {
             total: 100,
         })
         expect(screen.getAllByRole<HTMLButtonElement>('button', { name: '1%' })).toHaveLength(2)
-        fireEvent.click(screen.getAllByRole('button', { name: '1%' })[0])
+        fireEvent.click(screen.getAllByRole('button', { name: '1%' })[0]!)
         expect(transport.installMod).not.toHaveBeenCalled()
         await emit('download:finished', { download_id: 'file:340:13', game_id: 'pd3' })
         expect(
@@ -297,7 +297,7 @@ describe('mod detail installation feedback', () => {
 
         const retry = pending<InstallOutcome>()
         transport.installFile.mockReturnValueOnce(retry.promise)
-        fireEvent.click(screen.getAllByRole('button', { name: /^Install ZIP/ })[0])
+        fireEvent.click(screen.getAllByRole('button', { name: /^Install ZIP/ })[0]!)
         await waitFor(() => expect(transport.installFile).toHaveBeenCalledTimes(2))
         expect(screen.getAllByRole('button', { name: 'Preparing...' })).toHaveLength(2)
         expect(screen.queryByText('Archive install failed')).toBeNull()

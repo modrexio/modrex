@@ -27,7 +27,7 @@ export function parseModworkshopModId(url: string | null | undefined): number | 
         const match = parsed.pathname.match(/^\/mod\/(\d+)(?:\/|$)/i)
         if (!match) return null
 
-        const id = parseInt(match[1], 10)
+        const id = parseInt(match[1]!, 10)
         return Number.isSafeInteger(id) && id > 0 ? id : null
     } catch {
         return null

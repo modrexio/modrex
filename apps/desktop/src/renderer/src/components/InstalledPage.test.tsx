@@ -121,7 +121,7 @@ describe('InstalledPage header', () => {
             t('installed.health.title'),
             t('installed.openFolder'),
         ])
-        fireEvent.click(buttons[2])
+        fireEvent.click(buttons[2]!)
         expect(api.openModsFolder).toHaveBeenCalledWith('raid')
     })
 
@@ -156,9 +156,9 @@ describe('InstalledPage header', () => {
                 .getAllByRole('button')
                 .map((button) => button.getAttribute('aria-label'))
         ).toEqual([t('installed.refresh'), t('installed.health.title')])
-        fireEvent.click(tabs[1])
+        fireEvent.click(tabs[1]!)
         expect(screen.queryByRole('button', { name: t('installed.newFolder') })).toBeNull()
-        fireEvent.click(tabs[0])
+        fireEvent.click(tabs[0]!)
         expect(screen.getByRole('button', { name: t('installed.newFolder') }).textContent).toBe('')
     })
 })

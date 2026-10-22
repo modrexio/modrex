@@ -42,14 +42,13 @@ export function orderedTabKeys(targetTags: string[], present: Iterable<string>):
     if (keys.has(GAME_FILES_TAB)) holding.push(GAME_FILES_TAB)
     if (holding.length < 2) return []
     if (holding[0] === targetTags[0]) return holding
-    return [targetTags[0], ...holding]
+    return [targetTags[0]!, ...holding]
 }
 
 /** The remembered tab when it is still shown, else the first tab, or null without tabs. */
 export function activeTabKey(tabKeys: string[], saved: string | null): string | null {
-    if (tabKeys.length === 0) return null
     if (saved !== null && tabKeys.includes(saved)) return saved
-    return tabKeys[0]
+    return tabKeys[0] ?? null
 }
 
 /** Whether a mod puts the problem dot on its tab, matching what the cards flag for review. */

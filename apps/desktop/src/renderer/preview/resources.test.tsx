@@ -164,7 +164,7 @@ test('a config-only declaration supplies settings tools without movie installati
         fireEvent.mouseDown(dialog.getByRole('tab', { name: 'Game files' }))
         expect(dialog.getByText('No managed game files need attention.')).toBeTruthy()
         expect(dialog.queryByRole('button', { name: 'Check existing movies' })).toBeNull()
-        fireEvent.click(dialog.getAllByRole('button', { name: 'Close' })[0])
+        fireEvent.click(dialog.getAllByRole('button', { name: 'Close' })[0]!)
         fireEvent.click(
             within(screen.getByRole('complementary')).getByRole('button', { name: 'Settings' })
         )

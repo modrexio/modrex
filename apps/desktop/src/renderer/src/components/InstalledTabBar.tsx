@@ -85,8 +85,9 @@ export function InstalledTabBar({ baseId, tabs, activeKey, onSelect, onOpenFolde
         const next = nextTabIndex(e.key, index, tabs.length)
         if (next === null) return
         e.preventDefault()
-        onSelect(tabs[next].key)
-        document.getElementById(installedTabId(baseId, tabs[next].key))?.focus()
+        const tab = tabs[next]!
+        onSelect(tab.key)
+        document.getElementById(installedTabId(baseId, tab.key))?.focus()
     }
 
     return (

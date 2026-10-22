@@ -1,10 +1,10 @@
 function luminance(hex: string) {
     const full = hex.length === 3 ? [...hex].map((c) => c + c).join('') : hex
-    const [r, g, b] = [0, 2, 4].map((i) => {
+    const channel = (i: number) => {
         const v = parseInt(full.slice(i, i + 2), 16) / 255
         return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4
-    })
-    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+    }
+    return 0.2126 * channel(0) + 0.7152 * channel(2) + 0.0722 * channel(4)
 }
 
 export function contrastRatio(a: string, b: string) {

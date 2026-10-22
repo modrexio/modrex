@@ -320,14 +320,15 @@ export function useDragDrop({
             .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0))
 
         if (srcFolderId === targetFolderId) {
+            // Within a folder, cards group mods by installed id, so a target sharing the
+            // source's id is the dragged card itself.
+            if (targetMod.id === srcMod.id) return
             const scopedMods = tabMods
                 .filter((m) => !m.deployment && (m.folderId ?? null) === srcFolderId)
                 .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0))
             const withoutSrc = scopedMods.filter((m) => m.id !== srcMod.id)
             const targetGroupMods = withoutSrc.filter((m) => m.id === targetMod.id)
-            const pivotUid = isBefore
-                ? targetGroupMods[0].uid
-                : targetGroupMods[targetGroupMods.length - 1].uid
+            const pivotUid = isBefore ? targetGroupMods[0]!.uid : targetGroupMods.at(-1)!.uid
             const pivotIdx = withoutSrc.findIndex((m) => m.uid === pivotUid)
             const insertAt = isBefore ? pivotIdx : pivotIdx + 1
             const reordered = [...withoutSrc]

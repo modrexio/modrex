@@ -197,7 +197,7 @@ describe('resource review completion', () => {
         expect(api.installReviewedResources).toHaveBeenCalledWith('matching', [
             { entryId: 0, slot: 'Intro.bk2' },
         ])
-        fireEvent.click(screen.getAllByRole('button', { name: 'Close' })[0])
+        fireEvent.click(screen.getAllByRole('button', { name: 'Close' })[0]!)
         await expect(completed).resolves.toBe(false)
         expect(api.cancelResourceReview).not.toHaveBeenCalled()
         expect(getPendingResourceReview()).toBeNull()
@@ -208,7 +208,7 @@ describe('resource review completion', () => {
             ...reviewFixture,
             configPath: '/config/Engine.ini',
             entries: [
-                { ...reviewFixture.entries[0], name: 'Intro.bk2' },
+                { ...reviewFixture.entries[0]!, name: 'Intro.bk2' },
                 {
                     entryId: 1,
                     name: 'small/Engine.ini',

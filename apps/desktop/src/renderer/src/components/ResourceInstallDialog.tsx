@@ -297,7 +297,7 @@ function Review({ handle }: { handle: string }) {
                         ? async (pos, folderId) => {
                               await api.installNexusReviewPak(
                                   handle,
-                                  picker.entryIds[pos],
+                                  picker.entryIds[pos]!,
                                   folderId
                               )
                               setPakApplied(true)

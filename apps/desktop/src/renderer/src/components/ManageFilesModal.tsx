@@ -50,7 +50,7 @@ export function resolveGhostEntryIndex(entries: string[], ghostEntry: string): n
         entries.forEach((entry, index) => {
             if (matches(entry)) hits.push(index)
         })
-        return hits.length === 1 ? hits[0] : null
+        return hits.length === 1 ? hits[0]! : null
     }
     const exact = onlyMatch((entry) => entry === ghostEntry)
     if (exact !== null) return exact
@@ -247,7 +247,7 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
                 const locationTag = zip.entryTags?.[realIdx] ?? zip.targetTag ?? undefined
                 await api.installFromZipEntry(
                     zip.archiveHandle,
-                    zip.entryIds[realIdx],
+                    zip.entryIds[realIdx]!,
                     zip.modId,
                     zip.modName,
                     zip.fileId,
@@ -369,7 +369,7 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
             const m = mods.find((x) => stripPriorityPrefix(x.filename) === entryFilename(e))
             return m ? (m.priority ?? 0) : null
         })
-        for (let i = 0; i < seq.length; i++) {
+        for (const [i, entry] of seq.entries()) {
             if (prios[i] !== null) continue
             const prev =
                 prios
@@ -385,7 +385,7 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
                       : next !== null
                         ? next - 0.5
                         : Number.MAX_SAFE_INTEGER
-            ghostKeys.set(entryFilename(seq[i]).toLowerCase(), key)
+            ghostKeys.set(entryFilename(entry).toLowerCase(), key)
         }
     }
     type Row = { kind: 'file'; mod: InstalledMod } | { kind: 'ghost'; ghost: GhostFile }

@@ -140,10 +140,13 @@ function preprocess(text: string): string {
 // These four are the exact set the library escapes (its ESCAPE_DICT). Undoing only
 // them, rather than running the general decoder, keeps an entity that survived
 // preprocess as literal text in the source from being decoded a second time here.
-const CONTENT_ESCAPES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"' }
+const CONTENT_ESCAPES = { amp: '&', lt: '<', gt: '>', quot: '"' }
 
 function decodeContentEscape(text: string): string {
-    return text.replace(/&(amp|lt|gt|quot);/g, (_, name: string) => CONTENT_ESCAPES[name])
+    return text.replace(
+        /&(amp|lt|gt|quot);/g,
+        (_, name: keyof typeof CONTENT_ESCAPES) => CONTENT_ESCAPES[name]
+    )
 }
 
 // Vortex's own br tag, not a bbcode-to-react default.
@@ -158,7 +161,7 @@ const FONT_SIZES_PX = [10, 13, 16, 18, 24, 32, 48]
 
 class SizeTag extends Tag {
     toReact() {
-        const size = parseInt(this.params.size, 10)
+        const size = parseInt(this.params.size ?? '', 10)
         if (Number.isNaN(size)) return Children.toArray(this.getComponents())
         const px = FONT_SIZES_PX[Math.min(Math.max(size, 1), 7) - 1]
         return <span style={{ fontSize: `${px}px` }}>{Children.toArray(this.getComponents())}</span>

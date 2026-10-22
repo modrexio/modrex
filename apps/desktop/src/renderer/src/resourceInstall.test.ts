@@ -87,7 +87,7 @@ describe('resource review selection', () => {
     })
 
     it('suggests only exact, unique source and destination filenames', () => {
-        const entry = { ...review.entries[0], name: 'Movies/StartUp_SBZ.bk2' }
+        const entry = { ...review.entries[0]!, name: 'Movies/StartUp_SBZ.bk2' }
         const exact = { ...review, entries: [entry] }
         expect(matchingMovieSlot(exact, entry)).toBe('StartUp_SBZ.bk2')
         expect(matchingMovieSlot(exact, { ...entry, name: 'StartUp_SBZ-copy.bk2' })).toBeNull()

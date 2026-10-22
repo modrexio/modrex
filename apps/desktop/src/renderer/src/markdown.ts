@@ -8,7 +8,7 @@ import { legacyBbcodeToHtml } from './legacyBbcode'
 
 // The sanitizer strips style.
 const alignCell: RendererRule = (tokens, idx, options, _env, self) => {
-    const token = tokens[idx]
+    const token = tokens[idx]!
     const style = token.attrGet('style')
     if (typeof style === 'string') {
         token.attrs = token.attrs!.filter(([name]) => name !== 'style')
@@ -41,19 +41,19 @@ function readableColor(color: string) {
 }
 
 modworkshop.renderer.rules.color_open = (tokens, idx) => {
-    const color = tokens[idx].info
+    const color = tokens[idx]!.info
     if (!readableColor(color)) return '<span>'
     return `<span data-color="${modworkshop.utils.escapeHtml(color)}">`
 }
 
 modworkshop.renderer.rules.container_spoiler_open = (tokens, idx) =>
-    `<details><summary>${modworkshop.utils.escapeHtml(tokens[idx].info.trim())}</summary><div>`
+    `<details><summary>${modworkshop.utils.escapeHtml(tokens[idx]!.info.trim())}</summary><div>`
 modworkshop.renderer.rules.container_spoiler_close = () => '</div></details>'
 modworkshop.renderer.rules.container_center_open = () => '<div class="center">'
 modworkshop.renderer.rules.container_center_close = () => '</div>'
 
 const underline: RendererRule = (tokens, idx, options, _env, self) => {
-    const token = tokens[idx]
+    const token = tokens[idx]!
     if (token.markup === '__') token.tag = 'u'
     return self.renderToken(tokens, idx, options)
 }
@@ -63,10 +63,10 @@ modworkshop.renderer.rules.strong_close = underline
 function mention(state: StateInline, silent: boolean) {
     const start = state.pos
     if (silent || state.src.charCodeAt(start) !== 0x40) return false
-    if (start > 0 && !/[ \t\n]/.test(state.src[start - 1])) return false
+    if (start > 0 && !/[ \t\n]/.test(state.src.charAt(start - 1))) return false
 
     let end = start + 1
-    while (end < state.posMax && /[A-Za-z0-9_-]/.test(state.src[end])) end++
+    while (end < state.posMax && /[A-Za-z0-9_-]/.test(state.src.charAt(end))) end++
     if (end === start + 1) return false
 
     const name = state.src.slice(start + 1, end)
@@ -93,7 +93,7 @@ function legacyCenter(state: StateInline, silent: boolean) {
     if (!match) return false
     if (!silent) {
         state.push('html_inline', '', 0).content =
-            `<span class="center">${legacy.renderInline(match[2])}</span>`
+            `<span class="center">${legacy.renderInline(match[2]!)}</span>`
     }
     state.pos += match[0].length
     return true

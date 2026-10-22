@@ -68,8 +68,7 @@ export function useFileDropInstall(target: FileDropTarget | null) {
         let unrecognized = false
         const failed: string[] = []
         const collected: DropSentinel[] = []
-        for (let i = 0; i < paths.length; i++) {
-            const path = paths[i]
+        for (const [i, path] of paths.entries()) {
             setProgress({ current: i + 1, total: paths.length, name: baseName(path) })
             try {
                 const outcome = await api.installDroppedFile(path, opts.gamePath, opts.activeGame)

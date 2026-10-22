@@ -210,10 +210,10 @@ export class Library {
             this.createFolder(name, null)
         )
         for (let index = 0; index < LARGE_LIBRARY_SIZE; index++) {
-            const { detail, file } = templates[index % templates.length]
+            const { detail, file } = templates[index % templates.length]!
             const variant = Math.floor(index / templates.length) + 1
             const folderId =
-                index % (folders.length + 1) === 0 ? null : folders[index % folders.length].id
+                index % (folders.length + 1) === 0 ? null : folders[index % folders.length]!.id
             const mod = installedFromWorkshop(detail, file, folderId)
             mod.uid = `preview-large-${index + 1}`
             // The volume profile represents separate projects. Unique identities prevent the

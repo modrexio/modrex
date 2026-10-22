@@ -144,7 +144,7 @@ export function SourceSelect({
 
     // One source is nothing to choose, so it reads as a caption to the title, not a tab.
     if (sources.length === 1) {
-        const s = sources[0]
+        const s = sources[0]!
         return (
             <div className={`flex flex-col justify-center px-4 shrink-0 ${TITLE_ROW_H}`}>
                 <span className="relative flex items-center gap-1.5 text-sm font-medium leading-tight text-text-muted">
