@@ -44,7 +44,7 @@ async function fetchTags(token: string | undefined): Promise<GhTag[]> {
         const auth = token ? 'token present' : 'token absent'
         throw new Error(`GitHub API (tags) failed: ${res.status} (${auth}): ${body}`)
     }
-    return res.json()
+    return (await res.json()) as GhTag[]
 }
 
 export async function resolveEngineTag(pin: string, token?: string): Promise<string> {
@@ -119,7 +119,16 @@ export async function onRequestGet({ env }: { env: { GITHUB_TOKEN?: string } }):
             )
         }
         engine = await engineRes.text()
-        config = await configRes.json()
+        const parsed = await configRes.json()
+        // A config that is not an object would throw outside this try or flatten to nothing,
+        // and either way sh would run something other than a failing script.
+        if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+            return new Response('# install.config.json is not a JSON object\nexit 1\n', {
+                status: 502,
+                headers: { 'Content-Type': 'text/x-shellscript' },
+            })
+        }
+        config = parsed as InstallConfig
     } catch (err) {
         return new Response(`# install script fetch failed: ${String(err)}\nexit 1\n`, {
             status: 502,

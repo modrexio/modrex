@@ -82,7 +82,7 @@ export async function onRequestGet({ env }: { env: { GITHUB_TOKEN?: string } }):
                 300
             )
         }
-        const releases: Release[] = await res.json()
+        const releases = (await res.json()) as Release[]
         for (const release of releases) {
             for (const asset of release.assets) {
                 if (isInstaller(asset.name)) total += asset.download_count

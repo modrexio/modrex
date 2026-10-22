@@ -320,7 +320,10 @@ function loadModChecks(stateDb: DB, sourceId: number): Map<number, ModCheck> {
         .prepare('SELECT remote_id, updated_at, file_ids FROM mod_checks WHERE source_id = ?')
         .all(sourceId) as { remote_id: number; updated_at: string; file_ids: string }[]
     return new Map(
-        rows.map((r) => [r.remote_id, { updatedAt: r.updated_at, fileIds: JSON.parse(r.file_ids) }])
+        rows.map((r) => [
+            r.remote_id,
+            { updatedAt: r.updated_at, fileIds: JSON.parse(r.file_ids) as number[] },
+        ])
     )
 }
 

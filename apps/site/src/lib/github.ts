@@ -42,7 +42,7 @@ export async function getLatestRelease(): Promise<Release> {
         headers: githubHeaders(),
     })
     if (!res.ok) throw await apiError(res)
-    return res.json()
+    return (await res.json()) as Release
 }
 
 export async function getRecentReleases(count: number): Promise<Release[]> {
@@ -53,6 +53,6 @@ export async function getRecentReleases(count: number): Promise<Release[]> {
         headers: githubHeaders(),
     })
     if (!res.ok) throw await apiError(res)
-    const releases: Release[] = await res.json()
+    const releases = (await res.json()) as Release[]
     return releases.filter((r) => !r.draft && !r.prerelease).slice(0, count)
 }
