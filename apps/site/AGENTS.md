@@ -2,7 +2,7 @@
 
 ## Architecture
 
-Astro 6 site, static output — everything under `src/` is rendered at build time, no SSR adapter. Docs at `/docs/*` are rendered by the Starlight integration configured in `astro.config.mjs`; every other page uses `BaseLayout`. The one exception to "static" is `functions/`, a Cloudflare Pages Functions directory that sits alongside the static build (not part of Astro/Vite at all — Cloudflare's own build step picks it up).
+Astro 6 site, static output — everything under `src/` is rendered at build time, no SSR adapter. Docs at `/docs/*` are rendered by the Starlight integration configured in `astro.config.mts`; every other page uses `BaseLayout`. The one exception to "static" is `functions/`, a Cloudflare Pages Functions directory that sits alongside the static build (not part of Astro/Vite at all — Cloudflare's own build step picks it up).
 
 ```
 src/pages/               ← routes (index, 404, privacy, terms; docs routes come from Starlight)
@@ -122,7 +122,7 @@ GA4 and the consent banner exist only on `BaseLayout` pages (`index`, `privacy`,
 
 ### SEO
 
-`astro.config.mjs` sets `site: 'https://modrex.net'` — this powers `Astro.site` and `Astro.url` throughout the app. The sitemap integration auto-generates `/sitemap-index.xml` at build time from all static routes, excluding `/privacy` and `/terms` via its `filter`.
+`astro.config.mts` sets `site: 'https://modrex.net'` — this powers `Astro.site` and `Astro.url` throughout the app. The sitemap integration auto-generates `/sitemap-index.xml` at build time from all static routes, excluding `/privacy` and `/terms` via its `filter`.
 
 `BaseLayout.astro` emits: `<meta name="description">`, `<link rel="canonical">`, `<meta name="theme-color">` (`#131313`, matching `--color-surface`), Open Graph tags (`og:title/description/image/image:alt/url/type/site_name/locale`), Twitter card tags (including `twitter:image:alt`), `<link rel="manifest" href="/site.webmanifest">`, and a site-wide `Organization` JSON-LD block (duplicated in the Starlight `Head` override, since docs pages never render `BaseLayout`). The default `og:image` is `/logo.png` resolved to an absolute URL via `new URL('/logo.png', Astro.site)`; `og:image:alt`/`twitter:image:alt` share the `ogImageAlt` prop (default generic, overridden on `index.astro` for the screenshot). `og:image:type` is **derived from the `ogImage` URL's extension**, not passed in — an unrecognized extension emits no type tag rather than a wrong one. No `twitter:site`/`twitter:creator` — Modrex has no X account. `BaseLayout` has a `<slot name="head" />` inside `<head>` for page-specific injections.
 
@@ -132,9 +132,9 @@ The shared `og:image` is generated at build time by `getOgImage()` (`src/lib/og-
 
 Docs pages get their structured data from the Starlight `Head` override (`src/components/starlight/Head.astro`): a `BreadcrumbList` per docs page (section labels for `games`/`concepts`) and a `HowTo` block on `/docs/getting-started`. The starlight config `head` array injects the shared site-wide head tags on docs pages: `google-site-verification`, `apple-touch-icon`, the web manifest link, and `theme-color` (Starlight emits none of these itself, so there is no duplicate).
 
-`public/robots.txt` allows all crawlers and points to the sitemap URL. If the domain changes, update `site` in `astro.config.mjs`, the sitemap URL in `robots.txt`, the `url`/`downloadUrl` in the JSON-LD in `index.astro`, the `Organization` blocks in `BaseLayout.astro` and `starlight/Head.astro`, and the homepage URL match in the sitemap `serialize` — they must all match.
+`public/robots.txt` allows all crawlers and points to the sitemap URL. If the domain changes, update `site` in `astro.config.mts`, the sitemap URL in `robots.txt`, the `url`/`downloadUrl` in the JSON-LD in `index.astro`, the `Organization` blocks in `BaseLayout.astro` and `starlight/Head.astro`, and the homepage URL match in the sitemap `serialize` — they must all match.
 
-Only the homepage carries a sitemap `lastmod`, set in the sitemap `serialize` in `astro.config.mjs`. It renders live release and mod-index data so it genuinely changes every build; stamping the build date onto the static docs pages too is the pattern search engines learn to distrust.
+Only the homepage carries a sitemap `lastmod`, set in the sitemap `serialize` in `astro.config.mts`. It renders live release and mod-index data so it genuinely changes every build; stamping the build date onto the static docs pages too is the pattern search engines learn to distrust.
 
 ### Images
 
@@ -164,12 +164,12 @@ At `≤50rem`, `.nav-links` and `.nav-right` are hidden and a hamburger button a
 
 ### Docs (Starlight)
 
-- `/docs/*` is rendered by `@astrojs/starlight`, configured entirely in `astro.config.mjs` — sidebar structure, code theme, component overrides, and social links all live there, not in a layout file.
-- Sidebar nav is the `sidebar` array in `astro.config.mjs`: the "Games" and "Concepts" groups autogenerate from `src/content/docs/docs/games/` and `.../concepts/`; the other entries are explicit slugs. Update the array when adding/removing pages outside the autogenerated directories.
+- `/docs/*` is rendered by `@astrojs/starlight`, configured entirely in `astro.config.mts` — sidebar structure, code theme, component overrides, and social links all live there, not in a layout file.
+- Sidebar nav is the `sidebar` array in `astro.config.mts`: the "Games" and "Concepts" groups autogenerate from `src/content/docs/docs/games/` and `.../concepts/`; the other entries are explicit slugs. Update the array when adding/removing pages outside the autogenerated directories.
 - `/docs/` is a real page (`src/content/docs/docs/index.mdx`), not a redirect — it's the docs landing page; `/docs/getting-started` is the separate install guide it links to.
 - Starlight renders `h1` from `title` and the lead paragraph from `description` frontmatter — don't repeat these inside the MDX body.
 - Component overrides in `src/components/starlight/`: `Header` renders the site's own `Nav` (`activePage="docs"`); `Sidebar` injects `Search.astro` above Starlight's sidebar internals, a field that opens Starlight's Pagefind search dialog (restyled in `starlight.css`). Pagefind indexes built HTML, which `astro dev` never writes, so `src/integrations/dev-search.ts` builds the same index from the rendered docs pages under `astro dev` and `Search.astro` starts the search box there with Starlight's ranking settings; `DarkThemeProvider` pins docs to dark (clears `starlight-theme` from localStorage and stubs the theme-picker API); `Head` adds the structured data described under SEO, then defers to Starlight's default Head; `TableOfContents` wraps Starlight's own and marks the last heading on screen current at the bottom of a page, which Starlight's observer never reaches.
-- Fenced code blocks go through Expressive Code with the inline `modrexCodeTheme` in `astro.config.mjs` — its hex values are deliberately duplicated from `tokens/colors.css` because Shiki themes can't reference CSS variables; keep them in sync when tokens change.
+- Fenced code blocks go through Expressive Code with the inline `modrexCodeTheme` in `astro.config.mts` — its hex values are deliberately duplicated from `tokens/colors.css` because Shiki themes can't reference CSS variables; keep them in sync when tokens change.
 - `disable404Route: true` — the site's own `src/pages/404.astro` handles 404s for docs URLs too.
 - Custom MDX components live in `src/components/docs/`: `Callout` (default `type="info"`, or `type="warning"`) plus the game-docs family (`GameFacts`, `GameSupportTable`, `LauncherMatrix`, `LauncherSupportTable`, `ModTargetsTable`, `SupportBadge`, `OsIcon`, `LauncherIcon`). Starlight's own `CardGrid`/`LinkCard` are used too. Each must be imported at the top of the MDX file that uses it.
 - Yes/no table cells render `SupportBadge`, which emits an `img.shields.io` badge image (lazy-loaded). This is deliberate; `img.shields.io` is whitelisted in the `public/_headers` CSP `img-src` for it.
