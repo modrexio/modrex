@@ -1,0 +1,7 @@
+{
+    "compilerOptions": {
+        "strict": true,
+        "noFallthroughCasesInSwitch": true,
+        "verbatimModuleSyntax": true
+    }
+}
