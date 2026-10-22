@@ -132,7 +132,9 @@ function commitLocales(
 }
 
 function readLocale(directory: string, id: string) {
-    return JSON.parse(readFileSync(join(directory, LOCALE_DIR, `${id}.json`), 'utf8'))
+    return JSON.parse(
+        readFileSync(join(directory, LOCALE_DIR, `${id}.json`), 'utf8')
+    ) as LocaleBundle
 }
 
 function syncOptions(directory: string, baseline: string, extra = {}) {
@@ -791,7 +793,9 @@ test(
             }
         }
         collect(
-            JSON.parse(readFileSync(join(REPOSITORY_ROOT, I18N_LOCALE_DIR, 'en.json'), 'utf8')),
+            JSON.parse(
+                readFileSync(join(REPOSITORY_ROOT, I18N_LOCALE_DIR, 'en.json'), 'utf8')
+            ) as LocaleBundle,
             ''
         )
         for (const locale of result.plan.locales) {

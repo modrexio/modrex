@@ -57,7 +57,7 @@ function commit(cwd: string, locales: Record<string, LocaleBundle>, message: str
 }
 
 function readLocale(cwd: string, id: string) {
-    return JSON.parse(readFileSync(join(cwd, LOCALE_DIR, `${id}.json`), 'utf8'))
+    return JSON.parse(readFileSync(join(cwd, LOCALE_DIR, `${id}.json`), 'utf8')) as LocaleBundle
 }
 
 // The bot's contribution: run the real synchronizer over the checkout, then commit exactly

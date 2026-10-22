@@ -124,7 +124,7 @@ describe('onRequestPost forwarding', () => {
             body: JSON.stringify({ client_id: '123', events: [] }),
             connectingIp: '203.0.113.7',
         })
-        const forwarded = JSON.parse(String(captured[0]!.init.body))
+        const forwarded = JSON.parse(String(captured[0]!.init.body)) as Record<string, unknown>
         expect(forwarded.ip_override).toBe('203.0.113.7')
         expect(forwarded.client_id).toBe('123')
     })

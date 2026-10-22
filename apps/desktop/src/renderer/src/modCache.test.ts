@@ -291,7 +291,7 @@ describe('scheduleStorage', () => {
         await cache.getCachedMod(1)
         expect(storage.getItem(STORAGE_KEY)).toBeNull()
         vi.advanceTimersByTime(2001)
-        const stored = JSON.parse(storage.getItem(STORAGE_KEY)!)
+        const stored = JSON.parse(storage.getItem(STORAGE_KEY)!) as Record<string, unknown>
         expect(stored['1']).toBeDefined()
     })
 

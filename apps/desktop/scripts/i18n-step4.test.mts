@@ -93,7 +93,8 @@ test('fill and create summaries preserve target text and use a translation actio
             assert.match(stdout.value(), /Target-language text preserved\./u)
             assert.match(stdout.value(), /Next: bun i18n:translate de/u)
             assert.equal(
-                JSON.parse(readFileSync(join(directory, 'de.json'), 'utf8')).first,
+                (JSON.parse(readFileSync(join(directory, 'de.json'), 'utf8')) as LocaleBundle)
+                    .first,
                 'Erste'
             )
         }

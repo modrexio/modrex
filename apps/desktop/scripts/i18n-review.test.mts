@@ -96,7 +96,9 @@ function commitLocales(
 }
 
 function readLocale(directory: string, id: string) {
-    return JSON.parse(readFileSync(join(directory, LOCALE_DIR, `${id}.json`), 'utf8'))
+    return JSON.parse(
+        readFileSync(join(directory, LOCALE_DIR, `${id}.json`), 'utf8')
+    ) as LocaleBundle
 }
 
 function reviewOptions(directory: string, baseline: string, extra = {}) {
