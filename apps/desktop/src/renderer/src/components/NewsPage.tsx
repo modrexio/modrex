@@ -1,9 +1,10 @@
 import { ScrollArea } from './ScrollArea'
 import { memo, useEffect, useState } from 'react'
 import { TITLE_ROW_MIN_H } from './pageHeader'
-import { RefreshCw, ExternalLink, Image as ImageIcon } from 'lucide-react'
+import { RefreshCw, ExternalLink, Image as ImageIcon, CloudOff, Newspaper } from 'lucide-react'
 import { api } from '../api'
 import { t } from '../i18n'
+import { EmptyState } from './ui/EmptyState'
 import { GAMES } from '../../../shared/types'
 import type { GameId, NewsItem } from '../../../shared/types'
 import { SkeletonCard } from './SkeletonCard'
@@ -204,9 +205,9 @@ function NewsPageImpl({ isActive, activeGame }: Props) {
                         ))}
                     </div>
                 ) : error && (!items || items.length === 0) ? (
-                    <p className="text-sm text-text-subtle">{t('news.loadFailed')}</p>
+                    <EmptyState icon={CloudOff}>{t('news.loadFailed')}</EmptyState>
                 ) : !items || items.length === 0 ? (
-                    <p className="text-sm text-text-subtle">{t('news.empty')}</p>
+                    <EmptyState icon={Newspaper}>{t('news.empty')}</EmptyState>
                 ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4">
                         {items.map((item) => (

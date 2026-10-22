@@ -1,13 +1,14 @@
 import { ScrollArea } from './ScrollArea'
 import { useEffect, useState } from 'react'
 import { TITLE_ROW_MIN_H } from './pageHeader'
-import { Search } from 'lucide-react'
+import { Search, SearchX } from 'lucide-react'
 import type { GameId } from '../../../shared/types'
 import { GAMES } from '../../../shared/types'
 import { t } from '../i18n'
 import { api } from '../api'
 import { Toggle } from './Toggle'
 import { SearchClearButton } from './ui/SearchClearButton'
+import { EmptyState } from './ui/EmptyState'
 
 const INSTALLED_ONLY_KEY = 'modrex:show-installed-games-only'
 
@@ -161,9 +162,7 @@ export function WelcomeScreen({ onSelectGame }: Props) {
                         })}
                     </div>
                 ) : (
-                    <div className="flex h-full items-center justify-center text-sm text-text-subtle">
-                        {t('gamePicker.noMatches')}
-                    </div>
+                    <EmptyState icon={SearchX}>{t('gamePicker.noMatches')}</EmptyState>
                 )}
             </ScrollArea>
         </div>

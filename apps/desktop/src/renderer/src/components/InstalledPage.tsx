@@ -3,12 +3,15 @@ import { useState, useMemo, useEffect, useRef, useId } from 'react'
 import { TITLE_ROW_H } from './pageHeader'
 import { Button } from './ui/Button'
 import { SearchClearButton } from './ui/SearchClearButton'
+import { EmptyState } from './ui/EmptyState'
 import {
     X,
     Search,
     LayoutGrid,
     List,
     FolderOpen,
+    PackageOpen,
+    SearchX,
     FolderPlus,
     RefreshCw,
     Activity,
@@ -755,11 +758,9 @@ export function InstalledPage({
                                 : t('common.loading')}
                         </div>
                     ) : installed.length === 0 && folders.length === 0 ? (
-                        <div className="flex items-center justify-center h-full text-text-subtle text-sm">
-                            {t('installed.empty')}
-                        </div>
+                        <EmptyState icon={PackageOpen}>{t('installed.empty')}</EmptyState>
                     ) : isFiltering && displayMods.length === 0 && otherTabMatch ? (
-                        <div className="flex flex-col items-center justify-center gap-3 h-full text-text-subtle text-sm">
+                        <EmptyState icon={SearchX}>
                             {t(
                                 otherTabMatch.count === 1
                                     ? 'installed.tabs.matchesElsewhereSingle'
@@ -773,11 +774,11 @@ export function InstalledPage({
                             >
                                 {t('installed.tabs.showTab', { tab: otherTabMatch.label })}
                             </Button>
-                        </div>
+                        </EmptyState>
                     ) : isFiltering && displayMods.length === 0 ? (
-                        <div className="flex items-center justify-center h-full text-text-subtle text-sm">
+                        <EmptyState icon={SearchX}>
                             {t('installed.filterEmpty', { query })}
-                        </div>
+                        </EmptyState>
                     ) : (
                         <>
                             {updatable.length > 0 && (

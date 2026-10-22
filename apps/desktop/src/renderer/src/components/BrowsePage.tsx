@@ -1,7 +1,7 @@
 import { ScrollArea } from './ScrollArea'
 import { useState, useEffect, useCallback, useRef, useMemo, memo, startTransition } from 'react'
 import { TITLE_ROW_MIN_H } from './pageHeader'
-import { Search, LayoutGrid, ArrowDownUp, X } from 'lucide-react'
+import { Search, LayoutGrid, ArrowDownUp, X, CloudOff, SearchX } from 'lucide-react'
 import type {
     Mod,
     ModFile,
@@ -25,6 +25,7 @@ import {
     setTagsCache,
 } from '../browseCache'
 import { SearchClearButton } from './ui/SearchClearButton'
+import { EmptyState } from './ui/EmptyState'
 import { ModCard } from './ModCard'
 import { SkeletonCard } from './SkeletonCard'
 import { Select } from './Select'
@@ -175,18 +176,10 @@ const ModGrid = memo(function ModGrid({
         // Cold start with nothing cached and the fetch failed. Without this,
         // loadingMods=false + result=null fell through to the skeleton branch
         // above and rendered placeholder cards forever.
-        return (
-            <div className="flex items-center justify-center h-full text-text-subtle text-sm">
-                {t('browse.loadFailed')}
-            </div>
-        )
+        return <EmptyState icon={CloudOff}>{t('browse.loadFailed')}</EmptyState>
     }
     if (result.data.length === 0) {
-        return (
-            <div className="flex items-center justify-center h-full text-text-subtle text-sm">
-                {t('browse.noMods')}
-            </div>
-        )
+        return <EmptyState icon={SearchX}>{t('browse.noMods')}</EmptyState>
     }
     return (
         <div className="grid grid-cols-2 gap-4 xl:grid-cols-3 2xl:grid-cols-4">

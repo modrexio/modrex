@@ -2,10 +2,11 @@ import { ScrollArea } from './ScrollArea'
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { TITLE_ROW_MIN_H } from './pageHeader'
 import { nativeIdFor } from '../sources'
-import { Search, ArrowDownUp } from 'lucide-react'
+import { Search, ArrowDownUp, LogIn, CloudOff, SearchX } from 'lucide-react'
 import type { GameId, InstalledMod, ModSummary, Paginated } from '../../../shared/types'
 import { GAMES } from '../../../shared/types'
 import { SearchClearButton } from './ui/SearchClearButton'
+import { EmptyState } from './ui/EmptyState'
 import { SkeletonCard } from './SkeletonCard'
 import { ModCard } from './ModCard'
 import { Select } from './Select'
@@ -275,16 +276,20 @@ export function NexusBrowsePage({
             )}
 
             {signedIn === false ? (
-                <div className="flex-1 flex flex-col items-center justify-center gap-3 text-sm text-text-subtle">
-                    <span>
-                        {sessionExpired ? t('nexus.sessionExpiredHint') : t('nexus.signInRequired')}
-                    </span>
-                    <button
-                        onClick={onGoToSettings}
-                        className="text-xs text-accent hover:text-accent-bright underline transition-colors"
-                    >
-                        {t('nexus.goToSettings')}
-                    </button>
+                <div className="flex-1 grid">
+                    <EmptyState icon={LogIn}>
+                        <span>
+                            {sessionExpired
+                                ? t('nexus.sessionExpiredHint')
+                                : t('nexus.signInRequired')}
+                        </span>
+                        <button
+                            onClick={onGoToSettings}
+                            className="text-xs text-accent hover:text-accent-bright underline transition-colors"
+                        >
+                            {t('nexus.goToSettings')}
+                        </button>
+                    </EmptyState>
                 </div>
             ) : (
                 <ScrollArea
@@ -299,13 +304,9 @@ export function NexusBrowsePage({
                             ))}
                         </div>
                     ) : !result ? (
-                        <div className="flex items-center justify-center h-full text-text-subtle text-sm">
-                            {t('nexus.loadFailed')}
-                        </div>
+                        <EmptyState icon={CloudOff}>{t('nexus.loadFailed')}</EmptyState>
                     ) : result.data.length === 0 ? (
-                        <div className="flex items-center justify-center h-full text-text-subtle text-sm">
-                            {t('nexus.noMods')}
-                        </div>
+                        <EmptyState icon={SearchX}>{t('nexus.noMods')}</EmptyState>
                     ) : (
                         <div className="grid grid-cols-2 gap-4 xl:grid-cols-3 2xl:grid-cols-4">
                             {result.data.map((mod) => {
