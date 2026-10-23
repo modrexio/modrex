@@ -207,6 +207,9 @@ pub(crate) fn resolve_pak_path(
         let disabled = disabled_mod_path(game_path, &m.filename, folder.as_deref(), target);
         disabled.exists().then_some(disabled)?
     };
+    if target.is_unreal_plugin_unit() {
+        return super::unreal_plugin::container(&installed, extension);
+    }
     content_path_for_mod(&installed, target.is_directory_unit(), extension)
 }
 
@@ -270,7 +273,10 @@ async fn scan_active(
     let mut subdirs = Vec::new();
     while let Ok(Some(entry)) = rd.next_entry().await {
         let name = entry.file_name().to_string_lossy().into_owned();
-        if prefix.is_empty() && (name == "disabled" || (skip_base && name == "base")) {
+        // A plugin target disables outside its folder, so a child named disabled there is a
+        // folder Unreal still loads.
+        let disabled_here = name == "disabled" && !target.is_unreal_plugin_unit();
+        if prefix.is_empty() && (disabled_here || (skip_base && name == "base")) {
             continue;
         }
         // The mod.io SDK owns this subtree and its subscription metadata.
@@ -313,17 +319,22 @@ async fn scan_active(
                 scan_markers,
                 index_gated_markers,
                 excluded_names,
+                unreal_plugin,
                 ..
             } => {
                 if ft.is_dir() {
                     if excluded_names.contains(&name.as_str()) {
                         continue;
                     }
-                    let is_mod = (scan_markers.is_empty() && index_gated_markers.is_empty())
-                        || scan_markers.iter().any(|m| entry.path().join(m).exists())
-                        || index_gated_markers
-                            .iter()
-                            .any(|m| entry.path().join(m).exists());
+                    let is_mod = if *unreal_plugin {
+                        super::unreal_plugin::is_plugin_dir(&entry.path())
+                    } else {
+                        (scan_markers.is_empty() && index_gated_markers.is_empty())
+                            || scan_markers.iter().any(|m| entry.path().join(m).exists())
+                            || index_gated_markers
+                                .iter()
+                                .any(|m| entry.path().join(m).exists())
+                    };
                     if !is_mod {
                         subdirs.push((entry.path(), rel));
                     } else if !known.contains(&rel) {
@@ -397,17 +408,22 @@ async fn scan_disabled(
                 scan_markers,
                 index_gated_markers,
                 excluded_names,
+                unreal_plugin,
                 ..
             } => {
                 if ft.is_dir() {
                     if excluded_names.contains(&name.as_str()) {
                         continue;
                     }
-                    let is_mod = (scan_markers.is_empty() && index_gated_markers.is_empty())
-                        || scan_markers.iter().any(|m| entry.path().join(m).exists())
-                        || index_gated_markers
-                            .iter()
-                            .any(|m| entry.path().join(m).exists());
+                    let is_mod = if *unreal_plugin {
+                        super::unreal_plugin::is_plugin_dir(&entry.path())
+                    } else {
+                        (scan_markers.is_empty() && index_gated_markers.is_empty())
+                            || scan_markers.iter().any(|m| entry.path().join(m).exists())
+                            || index_gated_markers
+                                .iter()
+                                .any(|m| entry.path().join(m).exists())
+                    };
                     if !is_mod {
                         subdirs.push((entry.path(), sub));
                     } else if !known.contains(&sub) {

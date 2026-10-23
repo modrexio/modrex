@@ -5,6 +5,11 @@
         "labelName": null
     },
     {
+        "tag": "plugins",
+        "labelKey": "loaderMods",
+        "labelName": "PDML"
+    },
+    {
         "tag": "ue4ss_mods",
         "labelKey": "loaderMods",
         "labelName": "UE4SS"

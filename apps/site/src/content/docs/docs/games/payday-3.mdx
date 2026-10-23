@@ -1,17 +1,37 @@
 ---
 title: PAYDAY 3
-description: Setup notes for PAYDAY 3 launcher support, the three mod formats, UE4SS, and priority.
+description: Setup notes for PAYDAY 3 launcher support, PDML, the other mod formats, UE4SS, and priority.
 sidebar:
     order: 10
 ---
 
 import GameFacts from '../../../../components/docs/GameFacts.astro'
 
-PAYDAY 3 runs on Unreal Engine 5. Modrex installs all three of the shapes its mods come in.
+PAYDAY 3 runs on Unreal Engine 5. Modrex installs all four of the shapes its mods come in.
 
 <GameFacts game="pd3" />
 
 ## Mod formats
+
+**PDML mods** are folders, each holding a `.uplugin` file and its packaged content. They load
+through PDML, the PAYDAY 3 Mod Loader, which is itself one of these folders. Modrex installs each
+one under `PAYDAY3/Mods`, in a folder named after its `.uplugin`, whether the download puts that
+file at its root or inside a folder of another name. A download that holds only an author's
+uncooked source project is refused, because the game cannot load it.
+
+A PDML mod lists PDML as a dependency, so installing one offers to install PDML too, and PDML
+then appears in your Installed list like any other mod, with its updates. An update keeps files
+you added to a mod's folder, such as your own images for mods that read them from there, while
+files the new release ships replace their old versions.
+
+Installing the PDML release of a mod removes that mod's older loose paks from `~mods`. The game
+mounts those ahead of plugins, so a leftover copy would keep overriding the new one. If an earlier
+Modrex release installed a PDML mod as loose paks, the Installed page offers to repair it, which
+installs it again as a plugin and removes the loose paks.
+
+Extract a PDML mod into a folder of its own, never straight into `PAYDAY3/Mods`. A `.uplugin`
+sitting directly in `Mods` makes the game treat the whole folder as that one plugin and ignore
+every other mod in it, and the Installed page warns when it finds one.
 
 **Container mods** ship three files that belong together: a `.pak`, a `.ucas` and a `.utoc`
 sharing one name, usually ending in `_P`. They replace the game's own art, models and interface.
@@ -30,18 +50,20 @@ silently does nothing.
 
 ## UE4SS
 
-UE4SS is required for any pak mod to load, not just Lua mods: it carries the bypass that lets the
-game accept files it did not ship. Install it from its mod page like any other mod and Modrex
-recognizes it.
+UE4SS is needed only for Lua mods. Since Update 3.9 the game loads pak and PDML mods without it.
+Install it from its mod page like any other mod and Modrex recognizes it.
 
 UE4SS then appears in your Installed list. Installing a different UE4SS release replaces the one
-already there. Removing it deletes only the files it installed, and your mods stop loading until
-you install it again.
+already there. Removing it deletes only the files it installed, and your Lua mods stop loading
+until you install it again.
 
 A launch option is no longer part of this. Unreal Engine 5 ignores the `-fileopenlog` argument
 older guides ask for, and nothing needs to be set in Steam, Epic or the Xbox app.
 
-## Priority
+## Disabling and priority
+
+A disabled PDML mod moves to `PAYDAY3/Mods.disabled`, outside `Mods`, because the game would still
+load it from any folder inside `Mods`. PDML has no load order of its own yet, so Modrex sets none.
 
 For pak mods, Modrex writes numeric filename prefixes so your visual priority order is reflected
 on disk. Directory-based UE4SS mods are not renamed for priority.

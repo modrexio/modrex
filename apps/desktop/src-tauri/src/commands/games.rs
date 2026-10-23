@@ -128,6 +128,7 @@ fn scan_target(pkg: &'static GamePackage, target: &'static package::Target) -> S
                     .map(package::NamePreset::names)
                     .unwrap_or_default(),
                 priority_prefix: prefixes_filenames(target),
+                unreal_plugin: *discovery == package::Discovery::UnrealPlugin,
             },
         },
         companions: match &target.unit {
@@ -145,7 +146,10 @@ fn scan_target(pkg: &'static GamePackage, target: &'static package::Target) -> S
         },
         enabled_state: target.activation,
         mods_subpath: text_slice(&target.path),
-        disabled_subpath: disabled_subpath(&target.path),
+        disabled_subpath: match &target.disabled {
+            Some(declared) => text_slice(declared),
+            None => disabled_subpath(&target.path),
+        },
         backup_subpath: text_slice(&target.backup),
         store_layouts: own_slice(
             target

@@ -481,8 +481,8 @@ export function BrowsePage({
                     await refreshUe4ssPage()
                     await refreshLoader('ue4ss')
                 }
-                // A viaModFlow loader is not tracked in the installed list; its install is
-                // routed server-side via the UE4SS_LOADER sentinel, so re-read presence to
+                // A viaModFlow loader may not reach the installed list at all (UE4SS is
+                // routed server-side via the UE4SS_LOADER sentinel), so re-read presence to
                 // learn whether it actually landed.
                 if (loader) await refreshLoader(loader.id)
             }

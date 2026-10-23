@@ -1,8 +1,10 @@
-//! The one table a mod loader registers in. A loader is a hook installed next to the game
-//! (never tracked in state.json, never uninstallable through Modrex), so all five differ
-//! only in how presence is detected and how the package lands on disk, and this captures
-//! both as data. check_loader and install_loader dispatch over it and list_loaders hands
-//! it to the renderer, so a new game's loader is one entry here and nothing else.
+//! The one table a mod loader registers in. A loader is usually a hook installed next to the
+//! game (never tracked in state.json, never uninstallable through Modrex), so the loaders
+//! differ only in how presence is detected and how the package lands on disk, and this
+//! captures both as data. PDML is a plugin tracked like the mods it loads, so only its
+//! presence is answered here. check_loader and install_loader dispatch over it and
+//! list_loaders hands it to the renderer, so a new game's loader is one entry here and
+//! nothing else.
 
 use tauri::AppHandle;
 
@@ -20,6 +22,8 @@ pub enum DetectStrategy {
     Ue4ssProxy,
     /// The game provides it, so it is always present.
     BuiltIn,
+    /// An Unreal plugin of this name in the folder of the target naming the loader.
+    UnrealPlugin(&'static str),
 }
 
 /// How a loader's package is installed. The URLs are stable redirect endpoints, verified
@@ -120,6 +124,13 @@ pub static LOADER_REGISTRY: &[LoaderSpec] = &[
         id: "ue4ss",
         name: "UE4SS",
         detect: DetectStrategy::Ue4ssProxy,
+        install: InstallStrategy::ViaModFlow,
+    },
+    LoaderSpec {
+        id: "pdml",
+        name: "PDML",
+        // Every PDML mod lists PDML.uplugin as a required plugin.
+        detect: DetectStrategy::UnrealPlugin("PDML"),
         install: InstallStrategy::ViaModFlow,
     },
 ];
@@ -295,7 +306,36 @@ pub fn is_loader_installed(
             crate::commands::ue4ss::is_installed(game_id, game_path, launcher)
         }
         DetectStrategy::BuiltIn => true,
+        DetectStrategy::UnrealPlugin(name) => {
+            loader_target(game_id, spec.id).is_some_and(|target| {
+                crate::commands::mods::unreal_plugin::plugin_installed(
+                    &crate::commands::mods::mods_base(game_path, target),
+                    name,
+                )
+            })
+        }
     }
+}
+
+/// The scan target whose folder this game's package says the loader reads.
+fn loader_target(
+    game_id: &str,
+    loader_id: &str,
+) -> Option<&'static crate::commands::mods::ScanTarget> {
+    let (_, package) = crate::games::discovered()
+        .iter()
+        .find(|(id, _)| *id == game_id)?;
+    let tag = package
+        .targets
+        .iter()
+        .find(|target| target.loader.as_deref() == Some(loader_id))?
+        .tag
+        .as_str();
+    crate::commands::mods::engine_for_game(game_id)
+        .ok()?
+        .targets
+        .iter()
+        .find(|target| target.tag == tag)
 }
 
 /// Downloads a loader package and lays it out per its install strategy. ViaModFlow
@@ -372,7 +412,14 @@ mod tests {
     /// fail here rather than at the user's first click.
     #[test]
     fn every_known_loader_id_resolves() {
-        for id in ["superblt", "built_in", "dahm", "raid_superblt", "ue4ss"] {
+        for id in [
+            "superblt",
+            "built_in",
+            "dahm",
+            "raid_superblt",
+            "ue4ss",
+            "pdml",
+        ] {
             assert!(loader_spec(id).is_some(), "{id} is not in LOADER_REGISTRY");
         }
     }
@@ -453,7 +500,10 @@ mod tests {
     #[test]
     fn every_game_resolves_the_loaders_its_package_declares() {
         assert_eq!(loaders_for("raid"), vec![("raid_superblt", vec![49744])]);
-        assert_eq!(loaders_for("pd3"), vec![("ue4ss", vec![47771, 44048])]);
+        assert_eq!(
+            loaders_for("pd3"),
+            vec![("ue4ss", vec![47771, 44048]), ("pdml", vec![59255])]
+        );
         assert_eq!(loaders_for("pd2"), vec![("superblt", vec![])]);
         assert_eq!(
             loaders_for("pdth"),
@@ -470,6 +520,7 @@ mod tests {
             ("pdth", "dahm", "mods"),
             ("raid", "raid_superblt", "mods"),
             ("pd3", "ue4ss", "ue4ss_mods"),
+            ("pd3", "pdml", "plugins"),
             ("cb", "ue4ss", "ue4ss_mods"),
         ] {
             let info = loaders
@@ -580,6 +631,25 @@ mod tests {
             None
         ));
         assert!(crate::commands::superblt::is_diesel3(path));
+    }
+
+    /// A disabled copy or one bundled inside another plugin is not loaded, so it does not count.
+    #[test]
+    fn pdml_is_installed_only_where_the_game_loads_it() {
+        let tmp = TempDir::new().unwrap();
+        let game = tmp.path().to_str().unwrap();
+        let pdml = loader_spec("pdml").unwrap();
+        let place = |relative: &str| {
+            let path = tmp.path().join(relative);
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(path, b"{}").unwrap();
+        };
+        place("PAYDAY3/Mods.disabled/PDML/PDML.uplugin");
+        place("PAYDAY3/Mods/Other/Other.uplugin");
+        place("PAYDAY3/Mods/Other/PDML/PDML.uplugin");
+        assert!(!is_loader_installed(pdml, "pd3", game, None));
+        place("PAYDAY3/Mods/PDML/PDML.uplugin");
+        assert!(is_loader_installed(pdml, "pd3", game, None));
     }
 
     #[test]

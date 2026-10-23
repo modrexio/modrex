@@ -21,6 +21,14 @@ pub(crate) async fn staged_content_sha256(
 ) -> Result<String, String> {
     match &target.unit {
         engine::ModUnit::File { .. } => compute_sha256(staged).await,
+        engine::ModUnit::Directory {
+            unreal_plugin: true,
+            ..
+        } => {
+            let hash_path = super::unreal_plugin::identifying_container(staged)
+                .ok_or_else(|| "this plugin has no packaged containers".to_string())?;
+            compute_sha256(&hash_path).await
+        }
         engine::ModUnit::Directory { entry_markers, .. } => {
             let hash_path = if entry_markers.is_empty() {
                 hashable_file_for_mod_dir(staged, target.contained_extension)
@@ -203,8 +211,9 @@ fn supermod_root_version(xml: &str) -> Option<String> {
 /// main.xml (AssetUpdates element, id + version attributes), RAID-SuperBLT's supermod.xml
 /// (update element with an identifier attribute, version declared on the root mod element),
 /// and legacy RaidBLT's mod.xml (auto_updates element, id + version attributes). The
-/// provider defaults to modworkshop when omitted; any other provider is ignored. This
-/// identity survives version drift, so it works even for very old installs.
+/// provider defaults to modworkshop when omitted. Any other provider is ignored. An Unreal
+/// plugin's descriptor names its page in ModPageURL. This identity survives version drift, so
+/// it works even for very old installs.
 pub(crate) fn embedded_modworkshop_id(dir: &std::path::Path) -> Option<(i64, Option<String>)> {
     if let Ok(xml) = std::fs::read_to_string(dir.join("main.xml")) {
         if let Some(hit) = embedded_id_from_tag(&xml, "assetupdates", "id") {
@@ -221,7 +230,25 @@ pub(crate) fn embedded_modworkshop_id(dir: &std::path::Path) -> Option<(i64, Opt
             return Some(hit);
         }
     }
-    None
+    let descriptor = super::unreal_plugin::descriptor_in(dir)?;
+    let json: serde_json::Value = serde_json::from_slice(&std::fs::read(descriptor).ok()?).ok()?;
+    // VersionName is free text that rarely matches the page's version, so none is taken.
+    modworkshop_page_id(json.get("ModPageURL")?.as_str()?).map(|id| (id, None))
+}
+
+/// N in https://modworkshop.net/mod/N, with or without the scheme or the www host.
+fn modworkshop_page_id(url: &str) -> Option<i64> {
+    let rest = url.trim();
+    let rest = rest
+        .strip_prefix("https://")
+        .or_else(|| rest.strip_prefix("http://"))
+        .unwrap_or(rest);
+    let rest = rest.strip_prefix("www.").unwrap_or(rest);
+    let path = rest.strip_prefix("modworkshop.net/mod/")?;
+    let digits: String = path.chars().take_while(char::is_ascii_digit).collect();
+    let id: i64 = digits.parse().ok()?;
+    let after = &path[digits.len()..];
+    (id > 0 && (after.is_empty() || after.starts_with(['/', '?', '#']))).then_some(id)
 }
 
 // ── get_installed identification pipeline ──────────────────────────────────────
@@ -584,12 +611,20 @@ pub(crate) async fn hash_untracked(
                             ))
                         }
                     }
-                    engine::ModUnit::Directory { entry_markers, .. } => {
+                    engine::ModUnit::Directory {
+                        entry_markers,
+                        unreal_plugin,
+                        ..
+                    } => {
                         let mod_dir = if enabled {
                             mods_base(&game_path, entry_target).join(&rel_path)
                         } else {
                             disabled_base(&game_path, entry_target).join(&rel_path)
                         };
+                        if *unreal_plugin {
+                            let p = super::unreal_plugin::identifying_container(&mod_dir)?;
+                            return compute_sha256(&p).await.ok();
+                        }
                         if entry_markers.is_empty() {
                             let p = hashable_file_for_mod_dir(
                                 &mod_dir,

@@ -137,6 +137,7 @@ fn compaction_metadata_after_a_checkpoint_still_needs_a_final_save() {
             index_gated_markers: &[],
             excluded_names: &[],
             priority_prefix: true,
+            unreal_plugin: false,
         },
         ..SHARED_TARGET
     }];

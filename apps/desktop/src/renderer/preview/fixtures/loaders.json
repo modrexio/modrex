@@ -63,5 +63,16 @@
             "pd3"
         ],
         "viaModFlow": true
+    },
+    {
+        "id": "pdml",
+        "target": "plugins",
+        "modworkshopIds": [
+            59255
+        ],
+        "games": [
+            "pd3"
+        ],
+        "viaModFlow": true
     }
 ]

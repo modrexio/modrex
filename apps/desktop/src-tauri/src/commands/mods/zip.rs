@@ -701,10 +701,16 @@ pub(crate) fn classify_archive_dirs(
 
     // 2. Marker-less (override) target(s).
     for (idx, target) in cfg.targets.iter().enumerate() {
-        let ModUnit::Directory { entry_markers, .. } = &target.unit else {
+        let ModUnit::Directory {
+            entry_markers,
+            unreal_plugin,
+            ..
+        } = &target.unit
+        else {
             continue;
         };
-        if !entry_markers.is_empty() {
+        // resolve_plugin_archive claims plugins by descriptor, so no catch-all here.
+        if !entry_markers.is_empty() || *unreal_plugin {
             continue;
         }
         let tag = tag_for(idx);
@@ -1869,6 +1875,10 @@ pub fn resolve_archive_download(
             }
         };
     }
+    // Before resources, because a plugin's own movies belong inside its folder.
+    if let Some(resolved) = resolve_plugin_archive(&downloaded, cfg, registry) {
+        return resolved;
+    }
     if let Some(resources) = detect_resources(&downloaded, cfg, registry)? {
         return Err(ResolveError::Resources(Box::new(resources)));
     }
@@ -2100,6 +2110,123 @@ pub fn resolve_archive_download(
             Err(prompt_err(InstallPrompt::ZipMultiPak(payload)))
         }
     }
+}
+
+/// Entry names with directories ending in a slash.
+fn archive_names(path: &Path) -> Option<Vec<String>> {
+    detect_archive(path)?;
+    let names = list_entries(path)
+        .ok()?
+        .into_iter()
+        .map(|e| {
+            if e.is_dir && !e.name.ends_with('/') {
+                format!("{}/", e.name)
+            } else {
+                e.name
+            }
+        })
+        .collect();
+    Some(names)
+}
+
+/// Stages a download's Unreal plugins for the game's plugin target. A plugin installs as a
+/// folder named after its descriptor, whichever folder the archive wraps it in, or none, which
+/// is how CrimeFactory zips its own output.
+fn resolve_plugin_archive(
+    downloaded: &Path,
+    cfg: &ModEngineConfig,
+    registry: &StagingRegistry,
+) -> Option<ResolvedArchive> {
+    let (index, target) = cfg
+        .targets
+        .iter()
+        .enumerate()
+        .find(|(_, t)| t.is_unreal_plugin_unit())?;
+    let names = archive_names(downloaded)?;
+    let target_tag = (index != 0).then(|| target.tag.to_string());
+    // Loose containers outside every plugin are an independent payload for the pak folder.
+    let loose: Vec<(u32, String)> = match &cfg.primary().unit {
+        ModUnit::File { extension, .. } => list_unit_entries_indexed(downloaded, extension).ok()?,
+        ModUnit::Directory { .. } => Vec::new(),
+    };
+    let plugins = match super::unreal_plugin::plugins_in_archive(&names) {
+        super::unreal_plugin::ArchivePlugins::None => return None,
+        // A source project beside a usable loose pak leaves that pak to the ordinary routing.
+        super::unreal_plugin::ArchivePlugins::SourceOnly if !loose.is_empty() => return None,
+        super::unreal_plugin::ArchivePlugins::SourceOnly => {
+            cleanup::run_sync(&CleanupPlan::RemoveOwnedFile(downloaded.to_path_buf()));
+            return Some(Err(ResolveError::Failure(
+                "This download is the mod's source project, which the game cannot load. Install the packaged file from the mod's page instead."
+                    .to_string(),
+            )));
+        }
+        super::unreal_plugin::ArchivePlugins::Packaged(plugins) => plugins,
+    };
+    let loose: Vec<(u32, String)> = loose
+        .into_iter()
+        .filter(|(_, name)| !super::unreal_plugin::inside_any(&plugins, name))
+        .collect();
+    if let ([plugin], true) = (plugins.as_slice(), loose.is_empty()) {
+        let tmp_parent = std::env::temp_dir().join(format!("modrex-mod-{}", Uuid::new_v4()));
+        let tmp = tmp_parent.join(&plugin.name);
+        let cleanup = CleanupPlan::RemoveOwnedDirectory(tmp_parent);
+        let extracted = if plugin.root.is_empty() {
+            extract_archive_flat(downloaded, &tmp)
+        } else {
+            extract_dir_entry(downloaded, &plugin.root, &tmp)
+        };
+        if let Err(e) = extracted {
+            cleanup::run_sync(&cleanup);
+            cleanup::run_sync(&CleanupPlan::RemoveOwnedFile(downloaded.to_path_buf()));
+            return Some(Err(ResolveError::Failure(e)));
+        }
+        return Some(Ok(Staged {
+            root: tmp,
+            cleanup,
+            name_source: NameSource::FromArchive,
+            target_tag,
+            original_archive: Some(downloaded.to_path_buf()),
+        }));
+    }
+    // The picker names the installed folder after the display name's last segment.
+    let mut staged: Vec<StagedEntry> = plugins
+        .iter()
+        .map(|plugin| StagedEntry {
+            source: StagedEntrySource::Directory {
+                prefix: plugin.root.clone(),
+            },
+            display_name: match plugin.root.rsplit('/').next() {
+                Some(last) if last == plugin.name => plugin.root.clone(),
+                _ => format!("{}/{}", plugin.root, plugin.name),
+            },
+        })
+        .collect();
+    if loose.is_empty() {
+        let payload = multi_pak_payload(
+            registry,
+            downloaded.to_string_lossy().to_string(),
+            staged,
+            target_tag,
+            None,
+            Some("dir".to_string()),
+        );
+        return Some(payload.and_then(|p| Err(prompt_err(InstallPrompt::ZipMultiPak(p)))));
+    }
+    let mut entry_tags = vec![target_tag; staged.len()];
+    entry_tags.extend(loose.iter().map(|_| None));
+    staged.extend(loose.into_iter().map(|(index, name)| StagedEntry {
+        source: StagedEntrySource::File { index },
+        display_name: name,
+    }));
+    let payload = multi_pak_payload(
+        registry,
+        downloaded.to_string_lossy().to_string(),
+        staged,
+        None,
+        Some(entry_tags),
+        None,
+    );
+    Some(payload.and_then(|p| Err(prompt_err(InstallPrompt::ZipMultiPak(p)))))
 }
 
 /// Crime Boss's two real archive shapes, a loose .pak/.ucas/.utoc triplet at any depth and

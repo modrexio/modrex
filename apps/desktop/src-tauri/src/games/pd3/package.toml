@@ -57,6 +57,10 @@ loaders = [
             },
         ],
     },
+    {
+        kind = "pdml",
+        modworkshop_ids = [59255],
+    },
 ]
 
 package_reader = {
@@ -105,6 +109,24 @@ targets = [
             family = {
                 extension = "pak",
                 companions = ["ucas", "utoc"],
+            },
+        },
+    },
+    {
+        tag = "plugins",
+        label = "loader_mods",
+        loader = "pdml",
+        path = ["PAYDAY3", "Mods"],
+        disabled = ["PAYDAY3", "Mods.disabled"],
+        backup = ["PAYDAY3", "Mods.bak"],
+        activation = "filesystem",
+        load_order = "none",
+
+        unit = {
+            kind = "directory",
+
+            discovery = {
+                policy = "unreal_plugin",
             },
         },
     },

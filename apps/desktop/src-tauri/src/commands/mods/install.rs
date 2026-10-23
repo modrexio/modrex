@@ -7,7 +7,7 @@ use super::naming::{apply_priority_prefix, mod_folder_name, sidecar_path, strip_
 use super::native_files::NativeGuard;
 use super::paths::{
     active_mod_path, disabled_base, disabled_mod_path, host_pack_dir, host_pack_disabled_dir,
-    mods_base, resolve_host_mod_dir,
+    installed_mod_path, mods_base, resolve_host_mod_dir,
 };
 use super::state::{get_folder_path, read_state, read_state_for_game, save_error, save_state};
 use super::types::{InstalledMod, ModsState};
@@ -122,7 +122,20 @@ pub fn install_mod_from_path(
     let state = read_state_for_game(game_path, state_path, cfg).map_err(|e| e.to_string())?;
     let folder_rel = get_folder_path(&state.folders, folder_id.as_deref());
 
-    let existing = state.mods.iter().find(|m| m.uid == mod_data.uid).cloned();
+    // Unreal loads one plugin per folder name, so a plugin in the same folder is the release
+    // being replaced whatever its uid.
+    let existing = state
+        .mods
+        .iter()
+        .find(|m| m.uid == mod_data.uid)
+        .or_else(|| {
+            state.mods.iter().find(|m| {
+                target.is_unreal_plugin_unit()
+                    && m.filename == mod_data.filename
+                    && cfg.mod_target(m).tag == target.tag
+            })
+        })
+        .cloned();
 
     let max_mod = state
         .mods
@@ -171,6 +184,24 @@ pub fn install_mod_from_path(
     match &target.unit {
         ModUnit::File { extension, .. } => {
             copy_file_with_sidecars(source, &dest, extension, target.companions)?;
+        }
+        ModUnit::Directory { .. } if target.is_unreal_plugin_unit() => {
+            let previous = existing.as_ref().map(|ex| {
+                let ex_rel = get_folder_path(&state.folders, ex.folder_id.as_deref());
+                installed_mod_path(
+                    game_path,
+                    &ex.filename,
+                    ex_rel.as_deref(),
+                    target,
+                    ex.enabled,
+                )
+            });
+            replace_plugin_dir(
+                source,
+                &dest,
+                previous.as_deref().filter(|p| *p != dest && p.exists()),
+                &disabled_base(game_path, target),
+            )?;
         }
         ModUnit::Directory { .. } => {
             let replaces_in_place = existing.as_ref().is_some_and(|ex| {
@@ -321,6 +352,62 @@ pub(super) fn install_shared_pak(
         state_path,
         &state,
     )
+}
+
+/// Copies a plugin over dest. A folder already there moves aside into aside_dir, outside what
+/// Unreal searches, and comes back if anything fails: a container an earlier release named
+/// differently would otherwise keep mounting, and a half-copied plugin loads as broken. Files
+/// the user added to the previous release (dest itself, or previous when it sits elsewhere)
+/// carry over when the new release does not ship them, since several mods read loose images
+/// or videos from their own folder.
+fn replace_plugin_dir(
+    source: &Path,
+    dest: &Path,
+    previous: Option<&Path>,
+    aside_dir: &Path,
+) -> Result<(), String> {
+    let aside = dest
+        .exists()
+        .then(|| aside_dir.join(format!("{}.replaced-{}", log_name(dest), Uuid::new_v4())));
+    if let Some(aside) = &aside {
+        fs::create_dir_all(aside_dir).map_err(|e| e.to_string())?;
+        fs::rename(dest, aside)
+            .map_err(|e| format!("could not move {} aside: {e}", log_name(dest)))?;
+    }
+    let carried_from = aside.as_deref().or(previous);
+    let installed = copy_dir_all(source, dest).and_then(|()| {
+        carried_from.map_or(Ok(()), |from| {
+            super::unreal_plugin::carry_user_files(from, dest)
+                .map_err(|e| format!("could not keep the files you added to it: {e}"))
+        })
+    });
+    if let Err(failure) = installed {
+        let partial = match fs::remove_dir_all(dest) {
+            Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(e.to_string()),
+            _ => Ok(()),
+        };
+        let undo = partial.and_then(|()| {
+            aside.as_ref().map_or(Ok(()), |aside| {
+                fs::rename(aside, dest).map_err(|e| e.to_string())
+            })
+        });
+        return Err(match undo {
+            Ok(()) => format!("could not install {}: {failure}", log_name(dest)),
+            Err(e) => format!(
+                "could not install {}: {failure}, and the previous copy could not be put back: {e}",
+                log_name(dest)
+            ),
+        });
+    }
+    if let Some(aside) = aside {
+        if let Err(e) = fs::remove_dir_all(&aside) {
+            log::warn!(
+                "install: could not remove replaced {}: {e}",
+                log_name(&aside)
+            );
+        }
+    }
+    Ok(())
 }
 
 // SuperBLT deletes a mod's folder on update, so nothing in it has to survive one.

@@ -159,9 +159,12 @@ fn a_discovered_spec_resolves_its_package() {
             assert_eq!(owned(target.mods_subpath), declared.path);
             assert_eq!(owned(target.backup_subpath), declared.backup);
 
-            // The disabled folder is always the target plus one component, never declared.
-            let mut expected_disabled = declared.path.clone();
-            expected_disabled.push("disabled".to_string());
+            // The disabled folder is the declared one, else the target plus one component.
+            let expected_disabled = declared.disabled.clone().unwrap_or_else(|| {
+                let mut derived = declared.path.clone();
+                derived.push("disabled".to_string());
+                derived
+            });
             assert_eq!(owned(target.disabled_subpath), expected_disabled);
 
             assert_eq!(target.store_layouts.len(), declared.store_paths.len());
@@ -206,6 +209,7 @@ fn a_discovered_spec_resolves_its_package() {
                         scan_markers,
                         index_gated_markers,
                         excluded_names,
+                        unreal_plugin,
                         ..
                     },
                     package::Unit::Directory {
@@ -214,6 +218,10 @@ fn a_discovered_spec_resolves_its_package() {
                         contains,
                     },
                 ) => {
+                    assert_eq!(
+                        *unreal_plugin,
+                        *discovery == package::Discovery::UnrealPlugin
+                    );
                     // Each rule lands in the flat list of every mode it names, and an
                     // all_directories policy contributes none, which is what makes the scan
                     // accept every folder.
@@ -589,9 +597,9 @@ fn pdth_recognises_an_install_by_its_executable() {
 }
 
 #[test]
-fn pd3_resolves_both_of_its_mod_targets() {
+fn pd3_resolves_each_of_its_mod_targets() {
     let cfg = crate::commands::mods::engine_for_game("pd3").unwrap();
-    assert_eq!(cfg.targets.len(), 2);
+    assert_eq!(cfg.targets.len(), 3);
 
     let paks = cfg.primary();
     assert_eq!(paks.tag, "paks");
@@ -610,8 +618,21 @@ fn pd3_resolves_both_of_its_mod_targets() {
     assert_eq!(ue4ss.enabled_state, Activation::Ue4ssModsTxt);
     assert_eq!(ue4ss.excluded_names(), UE4SS_BUNDLED_SUBMODS);
 
+    let plugins = cfg.target_for(Some("plugins"));
+    assert_eq!(plugins.tag, "plugins");
+    assert!(plugins.is_unreal_plugin_unit());
+    assert!(!plugins.priority_prefix_enabled());
+    assert_eq!(plugins.enabled_state, Activation::Filesystem);
+    assert_eq!(plugins.content_extension(), Some("pak"));
+
     let game = "C:/Games/PAYDAY 3";
     let root = PathBuf::from(game);
+    assert_eq!(mods_dir(game, plugins), root.join("PAYDAY3/Mods"));
+    assert_eq!(
+        disabled_dir(game, plugins),
+        root.join("PAYDAY3/Mods.disabled")
+    );
+    assert_eq!(backup_dir(game, plugins), root.join("PAYDAY3/Mods.bak"));
     assert_eq!(
         mods_dir(game, paks),
         root.join("PAYDAY3/Content/Paks/~mods")

@@ -27,6 +27,8 @@ pub enum ModUnit {
         /// own framework sub-mods under Mods/, which are .lua scripts rather than .pak files.
         excluded_names: &'static [&'static str],
         priority_prefix: bool,
+        /// Mods are Unreal plugins, recognised by descriptor (unreal_plugin.rs).
+        unreal_plugin: bool,
     },
 }
 
@@ -81,6 +83,16 @@ impl ScanTarget {
         }
     }
 
+    pub fn is_unreal_plugin_unit(&self) -> bool {
+        matches!(
+            self.unit,
+            ModUnit::Directory {
+                unreal_plugin: true,
+                ..
+            }
+        )
+    }
+
     pub fn excluded_names(&self) -> &'static [&'static str] {
         match &self.unit {
             ModUnit::Directory { excluded_names, .. } => excluded_names,
@@ -93,6 +105,10 @@ impl ScanTarget {
     pub fn content_extension(&self) -> Option<&'static str> {
         match &self.unit {
             ModUnit::File { extension, .. } => Some(extension),
+            ModUnit::Directory {
+                unreal_plugin: true,
+                ..
+            } => Some(super::unreal_plugin::CONTAINER_EXTENSION),
             ModUnit::Directory { .. } => self.contained_extension,
         }
     }

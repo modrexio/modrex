@@ -127,6 +127,7 @@ fn disabled_suffix_matches_the_unit_kind() {
     }
 }
 
+/// Except a plugin target, whose disabled folder Unreal would still load from inside it.
 #[test]
 fn disabled_dir_lives_under_its_own_mods_dir() {
     let game_path = "C:/game";
@@ -134,6 +135,16 @@ fn disabled_dir_lives_under_its_own_mods_dir() {
         for target in spec.engine.targets {
             let mods = mods_dir(game_path, target);
             let disabled = disabled_dir(game_path, target);
+            if target.is_unreal_plugin_unit() {
+                assert!(
+                    !disabled.starts_with(&mods),
+                    "{}:{} disables plugins inside {:?}, where Unreal still loads them",
+                    spec.id,
+                    target.tag,
+                    mods
+                );
+                continue;
+            }
             assert!(
                 disabled.starts_with(&mods) && disabled != mods,
                 "{}:{} disabled dir {:?} is not a subdirectory of {:?}",

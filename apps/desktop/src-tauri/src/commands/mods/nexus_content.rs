@@ -143,6 +143,7 @@ mod tests {
             index_gated_markers: &[],
             excluded_names: &[],
             priority_prefix: false,
+            unreal_plugin: false,
         }
     }
 
