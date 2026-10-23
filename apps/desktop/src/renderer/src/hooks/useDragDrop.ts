@@ -554,6 +554,7 @@ export function useDragDrop({
 
     function startPending(e: ReactPointerEvent, item: DragItem) {
         if (e.button !== 0 || !gamePath) return
+        if (!e.currentTarget.contains(e.target as Node)) return
         if ((e.target as HTMLElement).closest('button, a, input, textarea, select, [data-no-drag]'))
             return
         pendingRef.current = { item, startX: e.clientX, startY: e.clientY, pointerId: e.pointerId }
