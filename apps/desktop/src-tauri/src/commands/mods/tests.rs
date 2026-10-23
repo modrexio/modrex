@@ -324,6 +324,16 @@ fn loader_signature_detects_top_level_settings_ini() {
 }
 
 #[test]
+fn loader_signature_detects_an_older_lowercase_dll() {
+    let zip = make_zip(&[
+        ("ue4ss.dll", b"dll"),
+        ("UE4SS-settings.ini", b"[General]"),
+        ("Mods/BPModLoaderMod/Scripts/main.lua", b"-- bundled"),
+    ]);
+    assert!(has_ue4ss_loader_signature(zip.path()));
+}
+
+#[test]
 fn loader_signature_absent_for_a_standalone_lua_submod() {
     // A single Lua sub-mod a user downloads separately: no top-level DLL/ini, just the
     // mod's own folder, so it must not be misclassified as the full loader package.

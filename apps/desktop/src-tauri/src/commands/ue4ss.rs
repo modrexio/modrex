@@ -269,7 +269,9 @@ fn claimed_proxies(dir: &Path, proxy_dlls: &[String], roots: &[PathBuf]) -> Vec<
     if !identified.is_empty() {
         return identified.iter().map(|name| dir.join(**name)).collect();
     }
-    let engine_here = roots.iter().any(|root| root.join("UE4SS.dll").is_file());
+    let engine_here = roots
+        .iter()
+        .any(|root| on_disk(root, "UE4SS.dll").is_some());
     match present.as_slice() {
         [only] if engine_here => vec![dir.join(only)],
         _ => Vec::new(),
@@ -396,11 +398,10 @@ impl Staging {
         extract_loader_package(zip_path, &staged.root)
             .map_err(|e| format!("this UE4SS download could not be read: {e}"))?;
         files_under(&staged.root, Path::new(""), &mut staged.files);
-        if !staged
-            .files
-            .iter()
-            .any(|f| f.file_name().and_then(|n| n.to_str()) == Some("UE4SS.dll"))
-        {
+        if !staged.files.iter().any(|f| {
+            f.file_name()
+                .is_some_and(|n| n.eq_ignore_ascii_case("UE4SS.dll"))
+        }) {
             return Err("this download does not contain UE4SS.".to_string());
         }
         Ok(staged)

@@ -970,6 +970,7 @@ fn extract_dir_tar<R: Read>(
 /// sits varies by release: the UE4 packages put both at the zip root, and the UE5 rebuild nests
 /// them under a wrapper folder and the settings file again under UE4SS/. Requiring the DLL is
 /// what keeps a sub-mod that happens to bundle a settings file of its own from matching.
+/// Older releases spell it ue4ss.dll, so names match ignoring case.
 pub(crate) fn has_ue4ss_loader_signature(path: &Path) -> bool {
     let Ok(entries) = list_entries(path) else {
         return false;
@@ -977,7 +978,7 @@ pub(crate) fn has_ue4ss_loader_signature(path: &Path) -> bool {
     let has = |wanted: &str| {
         entries
             .iter()
-            .any(|e| !e.is_dir && entry_file_name(&e.name) == wanted)
+            .any(|e| !e.is_dir && entry_file_name(&e.name).eq_ignore_ascii_case(wanted))
     };
     has("UE4SS-settings.ini") && has("UE4SS.dll")
 }
