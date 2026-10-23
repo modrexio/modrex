@@ -6,6 +6,7 @@ import { t } from '../i18n'
 import { Tooltip } from './Tooltip'
 import { useThumbnail } from '../hooks/useThumbnail'
 import { Button } from './ui/Button'
+import { ProgressLine } from './ui/ProgressLine'
 import { isLoader } from '../hooks/installedUtils'
 import { formatCount, formatRelativeTime } from './modDetail/format'
 import { hasCatalogLink } from '../hooks/installedUtils'
@@ -257,18 +258,7 @@ export function ModCard({
                 )}
             </div>
 
-            {loading && progress !== null && (
-                <div className="h-0.5 bg-surface-active">
-                    {progress.total > 0 ? (
-                        <div
-                            className="h-full bg-accent transition-[width] duration-100"
-                            style={{ width: `${progressPct}%` }}
-                        />
-                    ) : (
-                        <div className="h-full bg-accent animate-pulse w-full" />
-                    )}
-                </div>
-            )}
+            {loading && progress !== null && <ProgressLine progress={progress} />}
         </div>
     )
 }

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { Button } from './ui/Button'
+import { ProgressLine } from './ui/ProgressLine'
 import { isLoader } from '../hooks/installedUtils'
 import { Trash2, RotateCcw, Image as ImageIcon } from 'lucide-react'
 import { Toggle } from './Toggle'
@@ -56,11 +57,6 @@ export function ModListRow({
     const needsResourceReview =
         installed.resourceStatus === 'diverged' || installed.resourceStatus === 'blocked'
     const canAct = !!gamePath && !loading && !needsResourceReview
-
-    const progressPct =
-        loading && progress && progress.total > 0
-            ? Math.round((progress.downloaded / progress.total) * 100)
-            : null
 
     return (
         <div className="group relative rounded-lg border bg-surface-raised border-border hover:border-accent/25 transition-colors overflow-hidden">
@@ -194,16 +190,7 @@ export function ModListRow({
                 </div>
             </div>
             {loading && progress !== null && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-surface-active">
-                    {progressPct !== null ? (
-                        <div
-                            className="h-full bg-accent transition-[width] duration-100"
-                            style={{ width: `${progressPct}%` }}
-                        />
-                    ) : (
-                        <div className="h-full bg-accent animate-pulse w-full" />
-                    )}
-                </div>
+                <ProgressLine progress={progress} className="absolute bottom-0 left-0 right-0" />
             )}
         </div>
     )

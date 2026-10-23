@@ -1,6 +1,7 @@
 import { ScrollArea } from './ScrollArea'
 import { useState, useEffect, useCallback, type ReactNode } from 'react'
 import { Button } from './ui/Button'
+import { ProgressLine } from './ui/ProgressLine'
 import * as Tabs from '@radix-ui/react-tabs'
 import {
     ArrowLeft,
@@ -836,20 +837,7 @@ export function ModDetailPage({
                     )}
                 </div>
             </div>
-            {progress && (
-                <div className="h-0.5 bg-surface-active shrink-0">
-                    {progress.total > 0 ? (
-                        <div
-                            className="h-full bg-accent transition-[width] duration-100"
-                            style={{
-                                width: `${Math.round((progress.downloaded / progress.total) * 100)}%`,
-                            }}
-                        />
-                    ) : (
-                        <div className="h-full bg-accent animate-pulse w-full" />
-                    )}
-                </div>
-            )}
+            {progress && <ProgressLine progress={progress} className="shrink-0" />}
 
             {visibleInstallError && (
                 <div className="px-6 py-2 bg-danger/20 border-b border-danger/30 text-xs text-danger-text flex items-center justify-between shrink-0">
