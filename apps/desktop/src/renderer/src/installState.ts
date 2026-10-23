@@ -233,6 +233,11 @@ export function acceptNexusInstall(target: InstallTarget): InstallOperation {
     return operation
 }
 
+/** The id Rust gives a ModWorkshop download, in the shape getDownloadInstall reads. */
+export function modworkshopDownloadId(modId: number, fileId?: number): string {
+    return fileId === undefined ? `mod:${modId}` : `file:${modId}:${fileId}`
+}
+
 export function getDownloadInstall(
     gameId: string,
     downloadId: string

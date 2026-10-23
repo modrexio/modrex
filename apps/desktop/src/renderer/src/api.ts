@@ -893,6 +893,9 @@ export const api = {
     getGameLaunchStatus(gameId: string): Promise<GameLaunchStatus> {
         return commands.getGameLaunchStatus(gameId)
     },
+    cancelDownload(downloadId: string): Promise<void> {
+        return commands.cancelDownload(downloadId)
+    },
     async cancelPendingGameLaunch(gameId: string): Promise<void> {
         await commands.cancelPendingGameLaunch(gameId)
     },

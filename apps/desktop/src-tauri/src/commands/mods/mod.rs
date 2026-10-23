@@ -113,7 +113,7 @@ pub(crate) use self::zip::{
 };
 
 use crate::commands::api::{api_get, http_client, user_agent};
-use crate::commands::download::download_file;
+use crate::commands::download::{cancellable, download_file};
 use crate::commands::mod_index;
 use crate::commands::settings::{self, game_settings, read_settings};
 use crate::commands::sources;
@@ -176,6 +176,7 @@ pub enum InstallOutcome {
     NeedsLoaderConfirm(Ue4ssReplacePayload),
     NeedsResourceReview(resources::ResourceReviewPayload),
     Unrecognized,
+    Cancelled,
 }
 
 /// The mod page a loader package came from. Absent for a dropped file, which has no page
@@ -658,8 +659,10 @@ pub async fn install_mod(
             downloaded,
             source_name,
         ))
-    }
-    .await;
+    };
+    let Some(prep) = cancellable(&download_id, prep).await else {
+        return Ok(InstallOutcome::Cancelled);
+    };
 
     let (mod_name, mod_version, remote_id, file_id, file_type, downloaded, source_name) = match prep
     {
@@ -893,15 +896,17 @@ pub async fn install_file(
     let source_name =
         hosted_resource_name(&download_url).unwrap_or_else(|| format!("{mod_name}.{file_type}"));
     let download_id = format!("file:{mod_id}:{file_id}");
-    let downloaded = match download_file(
+    let fetch = download_file(
         &app,
         &download_url,
         &file_type,
         &download_id,
         Some(&game_id),
-    )
-    .await
-    {
+    );
+    let Some(fetched) = cancellable(&download_id, fetch).await else {
+        return Ok(InstallOutcome::Cancelled);
+    };
+    let downloaded = match fetched {
         Ok(v) => v,
         Err(e) => {
             log::warn!("install_file {mod_id}/{file_id}: {e}");

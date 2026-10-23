@@ -1,10 +1,16 @@
-import { useEffect, useState } from 'react'
-import { FolderOpen, Wrench, X } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { FolderOpen, Square, Wrench, X } from 'lucide-react'
 import { t } from '../i18n'
 import { Button } from './ui/Button'
 import { ProgressLine } from './ui/ProgressLine'
 import { requestInstallChoice } from '../installChoices'
-import { getModInstall, installLabel, installProgress, useInstallOperations } from '../installState'
+import {
+    getModInstall,
+    installLabel,
+    installProgress,
+    modworkshopDownloadId,
+    useInstallOperations,
+} from '../installState'
 import { loaderForModId } from '../loaders'
 import { api, type MisplacedPlugin, type PluginInstallReport } from '../api'
 import type { GameId, InstalledMod } from '../../../shared/types'
@@ -34,6 +40,8 @@ export function MisplacedPluginsBanner({
     } | null>(null)
     const [failures, setFailures] = useState<string[]>([])
     const [checkError, setCheckError] = useState<string | null>(null)
+    const [stopping, setStopping] = useState(false)
+    const stopRequested = useRef(false)
     const operations = useInstallOperations(activeGame)
 
     // A change to the installed list is what changes the answer.
@@ -68,7 +76,9 @@ export function MisplacedPluginsBanner({
                 Number(loaderForModId(activeGame, a.modId) !== undefined)
         )
         const failed: string[] = []
+        stopRequested.current = false
         for (const [index, plugin] of ordered.entries()) {
+            if (stopRequested.current) break
             setRepairing({ plugin, done: index, total: ordered.length })
             try {
                 // A plugin install removes the mod's loose paks, so it is the whole repair.
@@ -98,6 +108,7 @@ export function MisplacedPluginsBanner({
             failed.push(String(e))
         }
         setRepairing(null)
+        setStopping(false)
         setFailures(failed)
     }
 
@@ -129,15 +140,37 @@ export function MisplacedPluginsBanner({
                             <span className="shrink-0 tabular-nums">{installLabel(operation)}</span>
                         )}
                     </div>
-                    <Button
-                        variant="warning"
-                        className="shrink-0"
-                        disabled={repairing !== null}
-                        onClick={() => void repairAll()}
-                    >
-                        <Wrench className="w-3.5 h-3.5" />
-                        {t('installed.misplacedPlugins.repair')}
-                    </Button>
+                    {repairing ? (
+                        <Button
+                            variant="warning"
+                            className="shrink-0"
+                            disabled={stopping}
+                            onClick={() => {
+                                stopRequested.current = true
+                                setStopping(true)
+                                // Past its download a mod finishes, since its install either
+                                // completes or rolls back.
+                                void api.cancelDownload(
+                                    modworkshopDownloadId(
+                                        repairing.plugin.modId,
+                                        repairing.plugin.fileId
+                                    )
+                                )
+                            }}
+                        >
+                            <Square className="w-3.5 h-3.5" fill="currentColor" />
+                            {t('installed.misplacedPlugins.stop')}
+                        </Button>
+                    ) : (
+                        <Button
+                            variant="warning"
+                            className="shrink-0"
+                            onClick={() => void repairAll()}
+                        >
+                            <Wrench className="w-3.5 h-3.5" />
+                            {t('installed.misplacedPlugins.repair')}
+                        </Button>
+                    )}
                 </div>
             )}
             {progress && (

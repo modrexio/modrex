@@ -69,6 +69,7 @@ fn ipc_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::mods::install_mod,
             commands::mods::install_file,
             commands::mods::check_plugin_installs,
+            commands::download::cancel_download,
             commands::mods::install_dropped_file,
             commands::mods::identify_mod_via_nexus_content,
             commands::mods::install_confirmed_loader,

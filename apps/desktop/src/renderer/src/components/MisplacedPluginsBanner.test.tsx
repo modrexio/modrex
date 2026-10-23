@@ -47,6 +47,7 @@ function renderBanner(onRefreshInstalled = vi.fn().mockResolvedValue(undefined))
 describe('MisplacedPluginsBanner', () => {
     beforeEach(() => {
         vi.mocked(api.installMod).mockResolvedValue('installed')
+        vi.mocked(api.cancelDownload).mockResolvedValue(undefined)
         vi.mocked(requestInstallChoice).mockResolvedValue(undefined)
     })
     afterEach(() => {
@@ -137,5 +138,25 @@ describe('MisplacedPluginsBanner', () => {
         act(() => finish[1]?.())
         await waitFor(() => expect(refresh).toHaveBeenCalledOnce())
         expect(document.querySelector('.bg-accent')).toBeNull()
+    })
+
+    it('stops the queue and cancels the download in progress', async () => {
+        vi.mocked(api.checkPluginInstalls).mockResolvedValue(report([customPing, loader]))
+        const finish: (() => void)[] = []
+        vi.mocked(api.installMod).mockImplementation(
+            () => new Promise((resolve) => finish.push(() => resolve('installed')))
+        )
+        const refresh = renderBanner()
+        await screen.findByText(t('installed.misplacedPlugins.message', { count: 2 }))
+        fireEvent.click(
+            screen.getByRole('button', { name: t('installed.misplacedPlugins.repair') })
+        )
+        fireEvent.click(
+            await screen.findByRole('button', { name: t('installed.misplacedPlugins.stop') })
+        )
+        expect(api.cancelDownload).toHaveBeenCalledWith('file:59255:104861')
+        act(() => finish[0]?.())
+        await waitFor(() => expect(refresh).toHaveBeenCalledOnce())
+        expect(api.installMod).toHaveBeenCalledOnce()
     })
 })

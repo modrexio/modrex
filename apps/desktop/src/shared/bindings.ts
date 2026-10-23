@@ -84,6 +84,11 @@ export const commands = {
 	 */
 	checkPluginInstalls: (gameId: string) => __TAURI_INVOKE<PluginInstallReport>("check_plugin_installs", { gameId }),
 	/**
+	 *  Cancels an install still fetching its file. Nothing happens when no fetch has this id,
+	 *  since it may have finished a moment before.
+	 */
+	cancelDownload: (downloadId: string) => __TAURI_INVOKE<void>("cancel_download", { downloadId }),
+	/**
 	 *  Installs a mod from a local file the user dropped onto the window (Explorer drag-drop).
 	 *  The file carries no modworkshop identity, so it is installed as an unidentified entry
 	 *  (negative id, "unknown" version) exactly like an ambiently-discovered pak; get_installed's
@@ -546,14 +551,14 @@ export type InstallOutcome = InstallOutcome_Serialize | InstallOutcome_Deseriali
  *  user decision first. Returned in the Ok channel so the renderer handles every case
  *  with an exhaustive switch instead of parsing sentinel strings out of errors.
  */
-export type InstallOutcome_Deserialize = "installed" | ({ needsPicker: ZipMultiPakPayload_Deserialize }) & { needsCbFlatConfirm?: never; needsHostChoice?: never; needsLoaderConfirm?: never; needsResourceReview?: never } | ({ needsHostChoice: HostPackPayload_Deserialize }) & { needsCbFlatConfirm?: never; needsLoaderConfirm?: never; needsPicker?: never; needsResourceReview?: never } | ({ needsCbFlatConfirm: CbFlatPayload_Deserialize }) & { needsHostChoice?: never; needsLoaderConfirm?: never; needsPicker?: never; needsResourceReview?: never } | ({ needsLoaderConfirm: Ue4ssReplacePayload }) & { needsCbFlatConfirm?: never; needsHostChoice?: never; needsPicker?: never; needsResourceReview?: never } | ({ needsResourceReview: ResourceReviewPayload }) & { needsCbFlatConfirm?: never; needsHostChoice?: never; needsLoaderConfirm?: never; needsPicker?: never } | "unrecognized";
+export type InstallOutcome_Deserialize = "installed" | ({ needsPicker: ZipMultiPakPayload_Deserialize }) & { needsCbFlatConfirm?: never; needsHostChoice?: never; needsLoaderConfirm?: never; needsResourceReview?: never } | ({ needsHostChoice: HostPackPayload_Deserialize }) & { needsCbFlatConfirm?: never; needsLoaderConfirm?: never; needsPicker?: never; needsResourceReview?: never } | ({ needsCbFlatConfirm: CbFlatPayload_Deserialize }) & { needsHostChoice?: never; needsLoaderConfirm?: never; needsPicker?: never; needsResourceReview?: never } | ({ needsLoaderConfirm: Ue4ssReplacePayload }) & { needsCbFlatConfirm?: never; needsHostChoice?: never; needsPicker?: never; needsResourceReview?: never } | ({ needsResourceReview: ResourceReviewPayload }) & { needsCbFlatConfirm?: never; needsHostChoice?: never; needsLoaderConfirm?: never; needsPicker?: never } | "unrecognized" | "cancelled";
 
 /**
  *  What an install command produced: a finished install, or an archive that needs a
  *  user decision first. Returned in the Ok channel so the renderer handles every case
  *  with an exhaustive switch instead of parsing sentinel strings out of errors.
  */
-export type InstallOutcome_Serialize = "installed" | ({ needsPicker: ZipMultiPakPayload_Serialize }) & { needsCbFlatConfirm?: never; needsHostChoice?: never; needsLoaderConfirm?: never; needsResourceReview?: never } | ({ needsHostChoice: HostPackPayload_Serialize }) & { needsCbFlatConfirm?: never; needsLoaderConfirm?: never; needsPicker?: never; needsResourceReview?: never } | ({ needsCbFlatConfirm: CbFlatPayload_Serialize }) & { needsHostChoice?: never; needsLoaderConfirm?: never; needsPicker?: never; needsResourceReview?: never } | ({ needsLoaderConfirm: Ue4ssReplacePayload }) & { needsCbFlatConfirm?: never; needsHostChoice?: never; needsPicker?: never; needsResourceReview?: never } | ({ needsResourceReview: ResourceReviewPayload }) & { needsCbFlatConfirm?: never; needsHostChoice?: never; needsLoaderConfirm?: never; needsPicker?: never } | "unrecognized";
+export type InstallOutcome_Serialize = "installed" | ({ needsPicker: ZipMultiPakPayload_Serialize }) & { needsCbFlatConfirm?: never; needsHostChoice?: never; needsLoaderConfirm?: never; needsResourceReview?: never } | ({ needsHostChoice: HostPackPayload_Serialize }) & { needsCbFlatConfirm?: never; needsLoaderConfirm?: never; needsPicker?: never; needsResourceReview?: never } | ({ needsCbFlatConfirm: CbFlatPayload_Serialize }) & { needsHostChoice?: never; needsLoaderConfirm?: never; needsPicker?: never; needsResourceReview?: never } | ({ needsLoaderConfirm: Ue4ssReplacePayload }) & { needsCbFlatConfirm?: never; needsHostChoice?: never; needsPicker?: never; needsResourceReview?: never } | ({ needsResourceReview: ResourceReviewPayload }) & { needsCbFlatConfirm?: never; needsHostChoice?: never; needsLoaderConfirm?: never; needsPicker?: never } | "unrecognized" | "cancelled";
 
 export type InstalledMod = InstalledMod_Serialize | InstalledMod_Deserialize;
 
