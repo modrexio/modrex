@@ -168,7 +168,7 @@ export function MisplacedPluginsBanner({
                             onClick={() => void repairAll()}
                         >
                             <Wrench className="w-3.5 h-3.5" />
-                            {t('installed.misplacedPlugins.repair')}
+                            {t('common.fix')}
                         </Button>
                     )}
                 </div>
@@ -187,7 +187,7 @@ export function MisplacedPluginsBanner({
                         onClick={() => void api.openModFolder(activeGame, target)}
                     >
                         <FolderOpen className="w-3.5 h-3.5" />
-                        {t('installed.misplacedPlugins.openFolder')}
+                        {t('installed.openFolder')}
                     </Button>
                 </div>
             )}

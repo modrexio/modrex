@@ -15,8 +15,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - Added a Leftover files tab to Health Check for removing unused .ucas and .utoc files.
 - Added translation coverage and contributor credits in language settings.
 - Added tabs to Installed Mods for games that keep mods in more than one folder.
-- Added PAYDAY 3 Mod Loader (PDML) support: PDML and its mods install as plugins in PAYDAY3/Mods, PDML installs when a mod needs it, and updates keep files you added to a mod's folder.
-- Added a repair for PDML mods that were installed as loose paks, including PDML itself.
+- Added PAYDAY 3 Mod Loader (PDML) support, including a repair for PDML mods installed as loose paks.
 
 ### Changed
 
@@ -26,7 +25,6 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - Installed mods show their source under the card instead of over the picture.
 - Browse Mods names the mod source in every game.
 - PAYDAY: The Heist no longer asks for PDTHModOverrides, which the game now includes.
-- Installing the PDML release of a PAYDAY 3 mod removes that mod's older loose paks, which would otherwise override it.
 - Empty pages now have icons.
 
 ### Fixed
@@ -41,9 +39,9 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - Fixed deleting a folder also deleting its mods' .ucas and .utoc files.
 - Fixed broken formatting, images and videos in mod descriptions.
 - Fixed popups closing when resizing the window.
-- Fixed updating a mod with several files skipping a file the new release renamed.
-- Fixed installing a mod during a launch without mods leaving mod folders that could not be restored.
-- Fixed older UE4SS releases being installed as Lua mods.
+- Fixed updates of multi-file mods skipping renamed files.
+- Fixed installing a mod during a launch without mods keeping your other mods from being restored.
+- Fixed older UE4SS releases installing as Lua mods.
 - Fixed PAYDAY: The Heist showing the wrong DAHM install status.
 - Fixed News showing an empty feed instead of an error.
 

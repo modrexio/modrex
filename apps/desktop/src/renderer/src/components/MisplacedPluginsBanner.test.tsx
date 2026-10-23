@@ -59,18 +59,14 @@ describe('MisplacedPluginsBanner', () => {
         vi.mocked(api.checkPluginInstalls).mockResolvedValue(report([]))
         renderBanner()
         await waitFor(() => expect(api.checkPluginInstalls).toHaveBeenCalledWith('pd3'))
-        expect(
-            screen.queryByRole('button', { name: t('installed.misplacedPlugins.repair') })
-        ).toBeNull()
+        expect(screen.queryByRole('button', { name: t('common.fix') })).toBeNull()
     })
 
     it('reinstalls the loader first, each from its plugin release', async () => {
         vi.mocked(api.checkPluginInstalls).mockResolvedValue(report([customPing, loader]))
         const refresh = renderBanner()
         await screen.findByText(t('installed.misplacedPlugins.message', { count: 2 }))
-        fireEvent.click(
-            screen.getByRole('button', { name: t('installed.misplacedPlugins.repair') })
-        )
+        fireEvent.click(screen.getByRole('button', { name: t('common.fix') }))
         await waitFor(() => expect(refresh).toHaveBeenCalledOnce())
         expect(vi.mocked(api.installMod).mock.calls).toEqual([
             [59255, 'C:/Games/PAYDAY 3', 'pd3', 104861],
@@ -85,13 +81,9 @@ describe('MisplacedPluginsBanner', () => {
         await screen.findByText(
             t('installed.misplacedPlugins.rootDescriptor', { file: 'PDML.uplugin' })
         )
-        fireEvent.click(
-            screen.getByRole('button', { name: t('installed.misplacedPlugins.openFolder') })
-        )
+        fireEvent.click(screen.getByRole('button', { name: t('installed.openFolder') }))
         expect(api.openModFolder).toHaveBeenCalledWith('pd3', 'plugins')
-        expect(
-            screen.queryByRole('button', { name: t('installed.misplacedPlugins.repair') })
-        ).toBeNull()
+        expect(screen.queryByRole('button', { name: t('common.fix') })).toBeNull()
     })
 
     it('reports a mod that could not be repaired and carries on with the rest', async () => {
@@ -99,9 +91,7 @@ describe('MisplacedPluginsBanner', () => {
         vi.mocked(api.installMod).mockRejectedValueOnce('download failed')
         renderBanner()
         await screen.findByText(t('installed.misplacedPlugins.message', { count: 2 }))
-        fireEvent.click(
-            screen.getByRole('button', { name: t('installed.misplacedPlugins.repair') })
-        )
+        fireEvent.click(screen.getByRole('button', { name: t('common.fix') }))
         await screen.findByText(
             t('installed.misplacedPlugins.failed', {
                 name: 'PAYDAY 3 MOD LOADER',
@@ -119,9 +109,7 @@ describe('MisplacedPluginsBanner', () => {
         )
         const refresh = renderBanner()
         await screen.findByText(t('installed.misplacedPlugins.message', { count: 2 }))
-        fireEvent.click(
-            screen.getByRole('button', { name: t('installed.misplacedPlugins.repair') })
-        )
+        fireEvent.click(screen.getByRole('button', { name: t('common.fix') }))
         await screen.findByText('0/2')
         const operation = beginInstall({
             gameId: 'pd3',
@@ -148,9 +136,7 @@ describe('MisplacedPluginsBanner', () => {
         )
         const refresh = renderBanner()
         await screen.findByText(t('installed.misplacedPlugins.message', { count: 2 }))
-        fireEvent.click(
-            screen.getByRole('button', { name: t('installed.misplacedPlugins.repair') })
-        )
+        fireEvent.click(screen.getByRole('button', { name: t('common.fix') }))
         fireEvent.click(
             await screen.findByRole('button', { name: t('installed.misplacedPlugins.stop') })
         )
