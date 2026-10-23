@@ -128,7 +128,7 @@ back to English in the app.
 | Language | Translation | Contributors |
 | --- | --- | --- |
 | [English (en)](apps/desktop/src/renderer/src/i18n/en.json) | <img src="assets/i18n/status/en.svg" alt="English source: 619 valid strings."> Complete | - |
-| [Deutsch (de)](apps/desktop/src/renderer/src/i18n/de.json) | <img src="assets/i18n/status/de.svg" alt="Deutsch (de): 474 accepted, 0 review, 145 missing; 76.6%."> 76.6% | [TarekLP](https://github.com/TarekLP) |
+| [Deutsch (de)](apps/desktop/src/renderer/src/i18n/de.json) | <img src="assets/i18n/status/de.svg" alt="Deutsch (de): 619 accepted, 0 review, 0 missing; Complete."> Complete | [TarekLP](https://github.com/TarekLP) |
 | [Italiano (it)](apps/desktop/src/renderer/src/i18n/it.json) | <img src="assets/i18n/status/it.svg" alt="Italiano (it): 416 accepted, 0 review, 203 missing; 67.2%."> 67.2% | [Enderbox89](https://github.com/Enderbox89) |
 | [Polski (pl)](apps/desktop/src/renderer/src/i18n/pl.json) | <img src="assets/i18n/status/pl.svg" alt="Polski (pl): 484 accepted, 0 review, 135 missing; 78.2%."> 78.2% | [djpersik](https://github.com/djpersik) |
 | [Русский (ru)](apps/desktop/src/renderer/src/i18n/ru.json) | <img src="assets/i18n/status/ru.svg" alt="Русский (ru): 619 accepted, 0 review, 0 missing; Complete."> Complete | [ShulhaOleh](https://github.com/ShulhaOleh) |
