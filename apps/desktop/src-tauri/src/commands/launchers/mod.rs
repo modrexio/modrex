@@ -725,7 +725,10 @@ pub async fn launch_game(
     let cfg = engine_for_game(game_id)?;
     // Resource recovery is never best effort, unlike the folder restore after it.
     let launch = crate::commands::mods::resource_launch_preflight(&app, game_id).await?;
-    let _ = do_restore(game_path, cfg);
+    {
+        let _state = crate::commands::mods::lock_game_state(&app, game_id).await;
+        let _ = do_restore(game_path, cfg);
+    }
     maybe_suppress_crash_reporter(game_id, gs);
     let sisr_issue = crate::commands::sisr::prepare_for_game_launch(s.auto_launch_sisr).await;
     launch.handoff(|| {
@@ -771,6 +774,8 @@ pub async fn launch_without_mods(
     if safe_options.is_none() {
         launch.bind_hidden_mods(game_path);
     }
+    // Held while folders are set aside, so no install writes into one mid-move.
+    let _state = crate::commands::mods::lock_game_state(&app, game_id).await;
     launch.handoff(|| {
         if let Some(options) = safe_options {
             return launch_with(
@@ -830,6 +835,7 @@ pub async fn restore_mods(app: AppHandle, game_id: String) -> Result<(), String>
     let locks = app.state::<crate::commands::mods::ResourceLocks>();
     let _guard = locks.acquire().await;
     crate::commands::mods::require_resource_game_idle(&app, &game_id).await?;
+    let _state = crate::commands::mods::lock_game_state(&app, &game_id).await;
     if restore_previous_vanilla_launch(&app, &game_id)? {
         return Ok(());
     }
@@ -940,6 +946,7 @@ pub async fn cancel_pending_game_launch(app: AppHandle, game_id: String) -> Resu
     if running {
         return Err("Close the game before resetting its pending launch".into());
     }
+    let _state = crate::commands::mods::lock_game_state(&app, &game_id).await;
     locks.cancel_pending_launch(&game_id, &pending, |pending| {
         if let Some(path) = &pending.hidden_mods_path {
             restore_pending_packages(path, engine_for_game(&game_id)?)?;

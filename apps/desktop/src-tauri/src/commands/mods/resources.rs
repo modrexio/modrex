@@ -309,7 +309,10 @@ pub(crate) async fn launch_preflight(
     }
     let id = game_id.to_string();
     blocking(move || store.preflight(&id)).await?;
-    crate::commands::launchers::restore_previous_vanilla_launch(app, game_id)?;
+    {
+        let _state = super::lock_game_state(app, game_id).await;
+        crate::commands::launchers::restore_previous_vanilla_launch(app, game_id)?;
+    }
     locks(app).reserve_launch(guard, game_id)
 }
 

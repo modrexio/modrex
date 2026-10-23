@@ -153,7 +153,12 @@ impl StateLocks {
     }
 }
 
-async fn lock_game_state(app: &AppHandle, game_id: &str) -> tokio::sync::OwnedMutexGuard<()> {
+/// Also taken by launching and restoring, which move the same folders installs write into.
+/// Take it after the resource lock, never before, so the two always nest the same way.
+pub(crate) async fn lock_game_state(
+    app: &AppHandle,
+    game_id: &str,
+) -> tokio::sync::OwnedMutexGuard<()> {
     use tauri::Manager;
     app.state::<StateLocks>().acquire(game_id).await
 }

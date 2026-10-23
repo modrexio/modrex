@@ -380,6 +380,28 @@ fn a_new_release_in_the_same_plugin_folder_replaces_the_old_record() {
 }
 
 #[test]
+fn nothing_installs_into_a_plugin_folder_set_aside_for_a_vanilla_launch() {
+    let cfg = engine_for_game("pd3").unwrap();
+    let plugins = cfg.target_for(Some("plugins"));
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    fs::create_dir_all(backup_dir(game, plugins)).unwrap();
+    let v1 = staged_plugin(tmp.path(), "Foo", b"v1");
+    let err = install_mod_from_path(
+        game,
+        &get_state_path(game, cfg),
+        plugin_record("1", "Foo"),
+        &v1,
+        None,
+        cfg,
+        plugins,
+    )
+    .unwrap_err();
+    assert!(err.contains("launch without mods"), "{err}");
+    assert!(!mods_base(game, plugins).join("Foo").exists());
+}
+
+#[test]
 fn a_replaced_disabled_plugin_and_later_picks_from_its_file_stay_disabled() {
     let cfg = engine_for_game("pd3").unwrap();
     let plugins = cfg.target_for(Some("plugins"));
