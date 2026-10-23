@@ -139,8 +139,9 @@ function computeInstalledEntries(
 
 // Matches this archive's entries against an existing install's filenames (the new file's id
 // never matches the old install) so an update can silently re-apply the prior selection.
-// Returns null when there is no prior install or nothing matched, and the caller shows the
-// picker in that case. An empty selection means every entry is already installed.
+// Returns null when there is no prior install or any installed file has no counterpart here,
+// and the caller shows the picker in that case: re-applying a partial match would leave the
+// unmatched files on their old version. An empty selection means every entry is installed.
 export function computeAutoUpdateSelection(
     payload: ZipMultiPakPayload,
     installedFiles: InstalledMod[]
@@ -162,30 +163,34 @@ export function computeAutoUpdateSelection(
     if (priorEntriesForMod.length === 0) return null
     if (installedEntries.size === payload.entries.length) return []
     const matched: number[] = []
+    const covered = new Set<string>()
     payload.entries.forEach((entry, pos) => {
-        if (installedEntries.has(pos)) return
         const filename = entryFilename(entry)
         const stem = entryStem(entry)
+        let counterparts: InstalledMod[]
         if (payload.sharedPaks) {
             const uniqueFilename =
                 payload.entries.filter((other) => entryFilename(other) === filename).length === 1
             const matches = priorEntriesForMod.filter((mod) =>
                 matchesSharedMember(mod, entry, uniqueFilename)
             )
-            if (matches.length === 1) matched.push(pos)
-            return
-        }
-        if (
-            priorEntriesForMod.some(
+            counterparts = matches.length === 1 ? matches : []
+        } else {
+            counterparts = priorEntriesForMod.filter(
                 (m) =>
                     stripPriorityPrefix(m.filename) === filename ||
                     // Crime Boss records every entry under the mod's folder name.
                     /^\d+_(.+)$/.exec(m.uid)?.[1] === stem
             )
-        ) {
-            matched.push(pos)
         }
+        for (const mod of counterparts) covered.add(mod.uid)
+        if (counterparts.length > 0 && !installedEntries.has(pos)) matched.push(pos)
     })
+    // A file installed from this same archive already has its counterpart here.
+    const uncovered = priorEntriesForMod.some(
+        (mod) => !covered.has(mod.uid) && mod.fileId !== payload.fileId
+    )
+    if (uncovered) return null
     return matched.length > 0 ? matched : null
 }
 

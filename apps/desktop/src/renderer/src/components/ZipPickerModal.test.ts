@@ -132,6 +132,14 @@ describe('computeAutoUpdateSelection', () => {
         expect(mod.computeAutoUpdateSelection(payload, installed)).toEqual([1, 2])
     })
 
+    it('asks when an installed variant has no counterpart in the new archive', () => {
+        const installed = [
+            makeInstalled({ uid: 'a', filename: '001_VariantA.pak' }),
+            makeInstalled({ uid: 'r', filename: '004_Retired.pak' }),
+        ]
+        expect(mod.computeAutoUpdateSelection(makePayload(), installed)).toBeNull()
+    })
+
     it('returns null for a fresh install with no prior entries for this mod id', () => {
         const installed = [makeInstalled({ id: 999, filename: 'Unrelated.pak' })]
         const payload = makePayload()
