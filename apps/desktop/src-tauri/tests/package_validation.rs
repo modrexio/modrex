@@ -90,7 +90,7 @@ fn an_unknown_value_lists_the_ones_that_exist() {
     );
     assert_rejected(
         &BASE.replace(r#"policy = "markers""#, r#"policy = "every_folder""#),
-        "expected `all_directories` or `markers`",
+        "expected one of `all_directories`, `markers`, `unreal_plugin`",
     );
     assert_rejected(
         &BASE.replace(
@@ -919,5 +919,91 @@ fn a_ue4ss_target_path_that_does_not_end_in_mods_is_rejected() {
 {text}"
         ),
         "must end in Mods",
+    );
+}
+
+fn with_plugin_target(fields: &str) -> String {
+    format!(
+        "{BASE}
+[[targets]]
+tag = \"plugins\"
+label = \"loader_mods\"
+loader = \"pdml\"
+path = [\"Game\", \"Mods\"]
+activation = \"filesystem\"
+load_order = \"none\"
+{fields}
+
+[targets.unit]
+kind = \"directory\"
+
+[targets.unit.discovery]
+policy = \"unreal_plugin\"
+
+[[loaders]]
+kind = \"pdml\"
+modworkshop_ids = [59255]
+"
+    )
+}
+
+#[test]
+fn a_plugin_target_disabling_outside_its_path_is_accepted() {
+    let text = with_plugin_target(
+        "disabled = [\"Game\", \"Mods.disabled\"]\nbackup = [\"Game\", \"Mods.bak\"]",
+    );
+    let parsed: GamePackage = toml::from_str(&text).expect("parses");
+    validate::check("fixture", &parsed).expect("passes the checks");
+}
+
+#[test]
+fn a_plugin_target_must_declare_where_disabled_plugins_go() {
+    assert_rejected(
+        &with_plugin_target("backup = [\"Game\", \"Mods.bak\"]"),
+        "without a disabled path",
+    );
+}
+
+#[test]
+fn a_plugin_target_cannot_disable_inside_the_folder_unreal_searches() {
+    assert_rejected(
+        &with_plugin_target(
+            "disabled = [\"Game\", \"Mods\", \"disabled\"]\nbackup = [\"Game\", \"Mods.bak\"]",
+        ),
+        "disabled path inside path",
+    );
+}
+
+#[test]
+fn a_plugin_target_cannot_back_up_inside_the_folder_unreal_searches() {
+    assert_rejected(
+        &with_plugin_target(
+            "disabled = [\"Game\", \"Mods.disabled\"]\nbackup = [\"Game\", \"mods\", \"bak\"]",
+        )
+        .replace("path = [\"Game\", \"Mods\"]", "path = [\"Game\", \"mods\"]")
+        .replace(
+            "disabled = [\"Game\", \"Mods.disabled\"]",
+            "disabled = [\"Game\", \"mods.disabled\"]",
+        ),
+        "backup inside path",
+    );
+}
+
+#[test]
+fn a_disabled_path_equal_to_the_target_path_is_rejected() {
+    assert_rejected(
+        &BASE.replace(
+            "backup = [\"mods.bak\"]",
+            "disabled = [\"MODS\"]\nbackup = [\"mods.bak\"]",
+        ),
+        "equal to its path",
+    );
+}
+
+#[test]
+fn the_pdml_loader_needs_a_plugin_target_naming_it() {
+    assert_rejected(
+        &format!("{BASE}\n[[loaders]]\nkind = \"pdml\"\nmodworkshop_ids = [59255]\n"),
+        "pdml loader without a target",
     );
 }

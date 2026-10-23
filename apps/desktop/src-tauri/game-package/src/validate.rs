@@ -62,6 +62,23 @@ pub fn check(id: &str, package: &GamePackage) -> Result<(), String> {
         {
             return Err("the built_in loader needs at least one modworkshop id".to_string());
         }
+        if matches!(loader, LoaderBinding::Pdml { .. })
+            && !package.targets.iter().any(|t| {
+                t.loader.as_deref() == Some(loader.id())
+                    && matches!(
+                        &t.unit,
+                        Unit::Directory {
+                            discovery: Discovery::UnrealPlugin,
+                            ..
+                        }
+                    )
+            })
+        {
+            return Err(
+                "declares the pdml loader without a target that names it and uses unreal_plugin discovery"
+                    .to_string(),
+            );
+        }
         let LoaderBinding::Ue4ss {
             storefronts,
             proxy_dlls,
@@ -414,9 +431,76 @@ fn check_target(target: &Target) -> Result<(), String> {
                 check_family(family)?;
             }
             check_discovery(discovery)?;
+            if *discovery == Discovery::UnrealPlugin {
+                check_plugin_target(target, contains.is_some())?;
+            }
+        }
+    }
+    if let Some(disabled) = &target.disabled {
+        check_resource_path(disabled, "disabled path")?;
+        if same_path(disabled, &target.path) {
+            return Err(
+                "declares a disabled path equal to its path, so disabling would move nothing"
+                    .to_string(),
+            );
+        }
+        if !target.store_paths.is_empty() {
+            return Err(
+                "declares both disabled and store_paths; a store path has no disabled folder of its own"
+                    .to_string(),
+            );
         }
     }
     Ok(())
+}
+
+/// Unreal loads a plugin from anywhere below the folder, so disabled mods and the backup must
+/// sit outside it.
+fn check_plugin_target(target: &Target, synthesizes: bool) -> Result<(), String> {
+    if synthesizes {
+        return Err(
+            "uses unreal_plugin discovery with contains; a plugin is the author's folder, copied as-is"
+                .to_string(),
+        );
+    }
+    if target.activation != Activation::Filesystem {
+        return Err("uses unreal_plugin discovery, which needs filesystem activation".to_string());
+    }
+    if !target.store_paths.is_empty() {
+        return Err("uses unreal_plugin discovery, which cannot declare store_paths".to_string());
+    }
+    let Some(disabled) = &target.disabled else {
+        return Err(
+            "uses unreal_plugin discovery without a disabled path; Unreal would still load a plugin in path/disabled"
+                .to_string(),
+        );
+    };
+    if within(disabled, &target.path) {
+        return Err(
+            "uses unreal_plugin discovery with a disabled path inside path, where Unreal still loads it"
+                .to_string(),
+        );
+    }
+    if within(&target.backup, &target.path) {
+        return Err(
+            "uses unreal_plugin discovery with a backup inside path, where Unreal still loads it"
+                .to_string(),
+        );
+    }
+    Ok(())
+}
+
+/// Compared ignoring ASCII case, because the paths name Windows folders.
+fn same_path(a: &[String], b: &[String]) -> bool {
+    a.len() == b.len() && within(a, b)
+}
+
+fn within(inner: &[String], outer: &[String]) -> bool {
+    inner.len() >= outer.len()
+        && outer
+            .iter()
+            .zip(inner)
+            .all(|(o, i)| o.eq_ignore_ascii_case(i))
 }
 
 fn check_discovery(discovery: &Discovery) -> Result<(), String> {

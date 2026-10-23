@@ -219,7 +219,8 @@ fn a_discovered_spec_resolves_its_package() {
                     // accept every folder.
                     let of_mode = |wanted: package::MarkerMode| -> Vec<String> {
                         match discovery {
-                            package::Discovery::AllDirectories => Vec::new(),
+                            package::Discovery::AllDirectories
+                            | package::Discovery::UnrealPlugin => Vec::new(),
                             package::Discovery::Markers { markers } => markers
                                 .iter()
                                 .filter(|rule| rule.modes.contains(&wanted))

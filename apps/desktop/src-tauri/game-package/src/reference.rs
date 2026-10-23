@@ -137,6 +137,7 @@ fn discovery_rows() -> String {
         Discovery::Markers {
             markers: Vec::new(),
         },
+        Discovery::UnrealPlugin,
     ];
     all.iter()
         .map(|policy| match policy {
@@ -147,6 +148,10 @@ fn discovery_rows() -> String {
             Discovery::Markers { .. } => row(
                 "markers",
                 "a folder is a mod when it contains one of the listed marker files. Requires at least one rule",
+            ),
+            Discovery::UnrealPlugin => row(
+                "unreal_plugin",
+                "a folder is a mod when it holds an Unreal plugin descriptor, `Name.uplugin`, which also names the installed folder. In a download the descriptor must sit beside packaged containers under `Content/Paks`, so an author's source project is refused. Requires a declared `disabled` outside `path`",
             ),
         })
         .collect()
@@ -242,6 +247,10 @@ pub fn markdown(examples: &[(&str, &str)]) -> String {
     out.push_str(&row("raid_superblt", "none"));
     out.push_str(&row("built_in", "none"));
     out.push_str(&row("dahm", "none"));
+    out.push_str(&row(
+        "pdml",
+        "none. A target must name it and use `unreal_plugin` discovery, because the loader is itself a plugin installed there",
+    ));
     out.push_str("\n`storefronts` accepts: ");
     out.push_str(
         &[Storefront::Steam, Storefront::Epic, Storefront::Xbox]
@@ -349,12 +358,15 @@ pub fn markdown(examples: &[(&str, &str)]) -> String {
          | `primary` | no | defaults to `false`; exactly one target must set it |\n\
          | `scope` | no | `mods` by default. `unreal_paks` shares native game files and requires a complete installed Steam depot catalog before mod changes. It supports archive-named Pak file units without filename ordering and never moves the whole target |\n\
          | `path` | yes | components below the game path |\n\
+         | `disabled` | no | where disabled mods move; `path` plus `disabled` when omitted |\n\
          | `backup` | yes | where launching without mods moves the contents |\n\
          | `store_paths` | no | `path` and `backup` for a store build laid out differently |\n\
          | `activation` | yes | how a mod is enabled and disabled |\n\
          | `load_order` | yes | whether the game orders mods here |\n\
          | `unit` | yes | what one mod looks like |\n\n\
-         The disabled folder is always `path` plus `disabled`, so it is not declared. `backup`\n\
+         The disabled folder defaults to `path` plus `disabled`. A target declares `disabled`\n\
+         when whatever reads `path` would still find a mod in a subfolder of it: Unreal searches\n\
+         a plugin folder recursively, so a plugin target disables outside `path`. `backup`\n\
          is declared because it does not follow a pattern: pak targets must place it outside\n\
          `Paks/`, which Unreal mounts recursively.\n\n\
          `store_paths` lists a `store`, a `path` and a `backup` for each store whose build keeps\n\

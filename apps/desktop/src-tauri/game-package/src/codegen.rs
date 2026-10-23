@@ -121,6 +121,7 @@ fn discovery(value: &Discovery) -> String {
             "{PATH}::Discovery::Markers {{ markers: {} }}",
             list(markers.iter().map(marker_rule).collect()),
         ),
+        Discovery::UnrealPlugin => format!("{PATH}::Discovery::UnrealPlugin"),
     }
 }
 
@@ -177,6 +178,7 @@ fn target(value: &Target) -> String {
         primary,
         scope,
         path,
+        disabled,
         backup,
         store_paths,
         activation: how,
@@ -184,11 +186,12 @@ fn target(value: &Target) -> String {
         unit: shape,
     } = value;
     format!(
-        "{PATH}::Target {{ tag: {}, label: {}, loader: {}, primary: {primary}, scope: {PATH}::TargetScope::{scope:?}, path: {}, backup: {}, store_paths: {}, activation: {}, load_order: {}, unit: {} }}",
+        "{PATH}::Target {{ tag: {}, label: {}, loader: {}, primary: {primary}, scope: {PATH}::TargetScope::{scope:?}, path: {}, disabled: {}, backup: {}, store_paths: {}, activation: {}, load_order: {}, unit: {} }}",
         text(tag),
         target_label(*label),
         optional(loader.as_deref().map(text)),
         texts(path),
+        optional(disabled.as_deref().map(texts)),
         texts(backup),
         list(store_paths.iter().map(store_path).collect()),
         activation(*how),
@@ -310,6 +313,7 @@ fn loader(value: &LoaderBinding) -> String {
         LoaderBinding::RaidSuperblt { modworkshop_ids } => plain("RaidSuperblt", modworkshop_ids),
         LoaderBinding::BuiltIn { modworkshop_ids } => plain("BuiltIn", modworkshop_ids),
         LoaderBinding::Dahm { modworkshop_ids } => plain("Dahm", modworkshop_ids),
+        LoaderBinding::Pdml { modworkshop_ids } => plain("Pdml", modworkshop_ids),
     }
 }
 

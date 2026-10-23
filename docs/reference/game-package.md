@@ -100,6 +100,7 @@ itself, so a dependency on one of them is always met and nothing is installed.
 | `raid_superblt` | none |
 | `built_in` | none |
 | `dahm` | none |
+| `pdml` | none. A target must name it and use `unreal_plugin` discovery, because the loader is itself a plugin installed there |
 
 `storefronts` accepts: `steam`, `epic`, `xbox`.
 
@@ -194,13 +195,16 @@ elsewhere.
 | `primary` | no | defaults to `false`; exactly one target must set it |
 | `scope` | no | `mods` by default. `unreal_paks` shares native game files and requires a complete installed Steam depot catalog before mod changes. It supports archive-named Pak file units without filename ordering and never moves the whole target |
 | `path` | yes | components below the game path |
+| `disabled` | no | where disabled mods move; `path` plus `disabled` when omitted |
 | `backup` | yes | where launching without mods moves the contents |
 | `store_paths` | no | `path` and `backup` for a store build laid out differently |
 | `activation` | yes | how a mod is enabled and disabled |
 | `load_order` | yes | whether the game orders mods here |
 | `unit` | yes | what one mod looks like |
 
-The disabled folder is always `path` plus `disabled`, so it is not declared. `backup`
+The disabled folder defaults to `path` plus `disabled`. A target declares `disabled`
+when whatever reads `path` would still find a mod in a subfolder of it: Unreal searches
+a plugin folder recursively, so a plugin target disables outside `path`. `backup`
 is declared because it does not follow a pattern: pak targets must place it outside
 `Paks/`, which Unreal mounts recursively.
 
@@ -286,6 +290,7 @@ companion may not repeat the primary extension.
 | --- | --- |
 | `all_directories` | every folder in the target is one mod, minus anything `ignore_preset` excludes |
 | `markers` | a folder is a mod when it contains one of the listed marker files. Requires at least one rule |
+| `unreal_plugin` | a folder is a mod when it holds an Unreal plugin descriptor, `Name.uplugin`, which also names the installed folder. In a download the descriptor must sit beside packaged containers under `Content/Paks`, so an author's source project is refused. Requires a declared `disabled` outside `path` |
 
 Under `markers`, each rule names one file and the modes it participates in, so one
 file's whole role reads together:

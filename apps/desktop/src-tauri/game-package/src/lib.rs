@@ -233,6 +233,11 @@ pub enum LoaderBinding {
         #[serde(default)]
         modworkshop_ids: Vec<i64>,
     },
+    /// PAYDAY 3's loader, a plugin in the folder of the target naming it.
+    Pdml {
+        #[serde(default)]
+        modworkshop_ids: Vec<i64>,
+    },
 }
 
 impl LoaderBinding {
@@ -244,6 +249,7 @@ impl LoaderBinding {
             LoaderBinding::RaidSuperblt { .. } => "raid_superblt",
             LoaderBinding::BuiltIn { .. } => "built_in",
             LoaderBinding::Dahm { .. } => "dahm",
+            LoaderBinding::Pdml { .. } => "pdml",
         }
     }
 
@@ -258,7 +264,8 @@ impl LoaderBinding {
             | LoaderBinding::Superblt { modworkshop_ids }
             | LoaderBinding::RaidSuperblt { modworkshop_ids }
             | LoaderBinding::BuiltIn { modworkshop_ids }
-            | LoaderBinding::Dahm { modworkshop_ids } => modworkshop_ids,
+            | LoaderBinding::Dahm { modworkshop_ids }
+            | LoaderBinding::Pdml { modworkshop_ids } => modworkshop_ids,
         }
     }
 }
@@ -475,6 +482,10 @@ pub enum Discovery {
     Markers {
         markers: Vec<MarkerRule>,
     },
+    /// A directory is a mod when it holds an Unreal plugin descriptor (Name.uplugin). In a
+    /// download it must also hold packaged containers under Content/Paks, which tells a mod
+    /// from its author's source project.
+    UnrealPlugin,
 }
 
 /// What one mod looks like inside a target.
@@ -560,6 +571,10 @@ pub struct Target {
     #[serde(default)]
     pub scope: TargetScope,
     pub path: Vec<String>,
+    /// Defaults to path plus disabled. Declared when the game would still load a mod there,
+    /// as Unreal does for plugins.
+    #[serde(default)]
+    pub disabled: Option<Vec<String>>,
     /// Where launching without mods moves this target's contents. Not derived from path
     /// because PAYDAY 3 and Crime Boss must place it outside Paks/, which Unreal mounts
     /// recursively.
