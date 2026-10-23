@@ -188,18 +188,13 @@ rejected: Merkle trees pay off when a consumer needs to verify a subset without 
 all the data, but the app downloads a game's whole snapshot anyway, so a flat per-pak
 entry manifest gives every benefit with none of the complexity.
 
-Engine fact that shapes everything: BOTH PAYDAY 3 and Crime Boss are Unreal Engine
-4.27.2. This means the parser needs exactly one format generation: the UE 4.27 pak index
-layout and the UE 4.27 IoStore layout. No UE5 variants, no version matrix.
-
-(UPDATE 2026-08-07: the stalker2-support decision eventually adds a UE5 generation for
-STALKER 2's local conflict detection. That variant is tracked in stalker2-support, not
-here - these phases stay scoped to UE 4.27 and must not widen into a version matrix
-preemptively.)
-
-(This entry used to carry a warning that apps/desktop/CLAUDE.md misattributed PD3 to UE5.
-That has since been corrected in the docs - they now say UE 4.27 explicitly - so the
-warning is dropped as of 2026-08-01.)
+Engine fact that shapes everything: the two games need two format generations. Crime
+Boss is Unreal Engine 4.27.2. PAYDAY 3 moved to Unreal Engine 5.5.4 in Update 3.8
+(2026-08-25), so its current paks and IoStore containers are the UE 5.5 layouts, while PD3
+files published before that date hold UE 4.27 containers. Parse exactly these two
+generations (UE 4.27 and UE 5.5), choosing by the container's own version fields rather
+than by publish date. No speculative wider version matrix.
+STALKER 2's UE5 generation stays tracked in stalker2-support.
 
 Why the parser lands alone, before any schema work: binary-format parsing against real
 files is the only risky part of the feature. Everything else is plumbing that already
@@ -222,8 +217,9 @@ is testable without Postgres or the network, the same way content-archive.ts is.
 - parseUtocIndex(buf: Buffer): read the .utoc directory index. For IoStore mods the
   .utoc IS the table of contents (.ucas holds the data). Crime Boss ModKit mods almost
   always ship the .pak/.ucas/.utoc triplet where the .pak is nearly empty and the real
-  content list is in the .utoc; PD3 mods usually ship a bare .pak. Both parsers are
-  needed.
+  content list is in the .utoc. PD3 PDML plugins do the same, a near-empty _P.pak beside
+  the IoStore pair under Content/Paks/Windows, while older loose PD3 paks are often a bare
+  .pak. Both parsers are needed.
 - Explicit status instead of guessing (this is a hard rule): the parse result is one of
   ok / encrypted (pak index is encrypted - possible, mods normally are not) /
   no-directory-index (.utoc with a stripped directory index has chunk ids but no
@@ -238,7 +234,8 @@ is testable without Postgres or the network, the same way content-archive.ts is.
 
 Test against real installed mods on this machine, not spec assumptions: Crime Boss
 skeletons under {gamePath}/CrimeBoss/Mods/<name>/Content/Paks/WindowsNoEditor/ (pak +
-ucas/utoc triplets) and PD3 paks under {gamePath}/PAYDAY3/Content/Paks/~mods/.
+ucas/utoc triplets), PD3 loose paks under {gamePath}/PAYDAY3/Content/Paks/~mods/ and PD3
+PDML plugins under {gamePath}/PAYDAY3/Mods/<name>/Content/Paks/Windows/.
 
 To cross-check identities, read the app's own downloaded snapshots at
 C:/Users/oleh/AppData/Roaming/Modrex/indexes/<game_id>.db. Note the dev utils
@@ -329,7 +326,9 @@ preference:
 Phase 4, the only apps/desktop change of the pak manifest feature. Blocked until the
 three TODOs above (pak-analyzer, pak-entries-schema, manifest-backfill-and-size) are done
 and the published per-game snapshots actually carry pak_entries. Applies to PD3 and Crime
-Boss only; both are UE 4.27.2, so one format generation.
+Boss only, with the two format generations described in pak-analyzer. For PD3 a conflict
+spans both mod locations: a loose pak in ~mods mounts ahead of a PDML plugin's containers,
+so it overrides the plugin rather than merely sharing paths with it.
 
 ### src-tauri/src/commands/mod_index.rs
 - Query: entries (paths) for a given content sha256
