@@ -6,10 +6,13 @@ use std::future::Future;
 use std::path::PathBuf;
 use std::pin::pin;
 use std::sync::{Arc, Mutex, OnceLock};
+use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter};
 use tokio::io::AsyncWriteExt;
 use tokio::sync::Notify;
 use uuid::Uuid;
+
+const PROGRESS_INTERVAL: Duration = Duration::from_millis(100);
 
 #[derive(Clone, Serialize)]
 pub struct DownloadProgress {
@@ -147,10 +150,17 @@ pub async fn download_file(
         .await
         .map_err(|e| e.to_string())?;
 
+    let mut last_progress: Option<Instant> = None;
     while let Some(chunk) = stream.next().await {
         let chunk = chunk.map_err(|e| e.to_string())?;
         downloaded += chunk.len() as u64;
         file.write_all(&chunk).await.map_err(|e| e.to_string())?;
+        // Every event re-renders each page showing installs, so one per chunk keeps the
+        // window too busy to answer clicks until the download ends.
+        if last_progress.is_some_and(|at| at.elapsed() < PROGRESS_INTERVAL) {
+            continue;
+        }
+        last_progress = Some(Instant::now());
         let _ = app.emit(
             "download:progress",
             DownloadProgress {
