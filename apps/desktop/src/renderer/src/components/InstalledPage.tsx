@@ -27,6 +27,7 @@ import { DeleteFolderModal } from './DeleteFolderModal'
 import { FolderSection, NewFolderInput } from './FolderSection'
 import { InstalledModItem } from './InstalledModItem'
 import { ResourceRecoveryDialog } from './ResourceRecoveryDialog'
+import { MisplacedPluginsBanner } from './MisplacedPluginsBanner'
 import { InstalledContext } from './InstalledContext'
 import {
     InstalledTabBar,
@@ -740,6 +741,14 @@ export function InstalledPage({
                             <X className="w-3.5 h-3.5" />
                         </button>
                     </div>
+                )}
+                {gamePath && installedReady && (
+                    <MisplacedPluginsBanner
+                        activeGame={activeGame}
+                        gamePath={gamePath}
+                        installed={installed}
+                        onRefreshInstalled={onRefreshInstalled}
+                    />
                 )}
                 <ScrollArea
                     hostClassName="flex-1"

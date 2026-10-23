@@ -74,6 +74,13 @@ pub(crate) fn plugin_installed(dir: &Path, name: &str) -> bool {
         .any(|entry| plugin_installed(&entry.path(), name))
 }
 
+/// A descriptor sitting directly in the mods folder makes the game treat that whole folder as
+/// one plugin and load nothing below it.
+pub(crate) fn root_descriptor(mods_dir: &Path) -> Option<String> {
+    let descriptor = descriptor_in(mods_dir)?;
+    Some(descriptor.file_name()?.to_string_lossy().into_owned())
+}
+
 /// The file identification hashes: the desktop .utoc, else the .pak. An IoStore plugin's pak
 /// can stay byte-identical across releases, its utoc cannot.
 pub(crate) fn identifying_container(plugin_dir: &Path) -> Option<PathBuf> {
@@ -279,6 +286,19 @@ fn encloses(outer: &str, inner: &str) -> bool {
         return false;
     }
     outer.is_empty() || inner.starts_with(&format!("{outer}/"))
+}
+
+/// Whether a mod index entry name sits in a plugin's Content/Paks/Windows or WinGDK folder.
+pub(crate) fn is_plugin_container_entry(entry_name: &str) -> bool {
+    let parts: Vec<&str> = entry_name.split('/').collect();
+    let [.., content, paks, platform, file] = parts.as_slice() else {
+        return false;
+    };
+    content.eq_ignore_ascii_case("Content")
+        && paks.eq_ignore_ascii_case("Paks")
+        && (platform.eq_ignore_ascii_case(DESKTOP_PLATFORM)
+            || platform.eq_ignore_ascii_case("WinGDK"))
+        && CONTAINER_EXTENSIONS.iter().any(|e| has_extension(file, e))
 }
 
 #[cfg(test)]

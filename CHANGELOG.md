@@ -16,6 +16,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - Added translation coverage and contributor credits in language settings.
 - Added tabs to Installed Mods for games that keep mods in more than one folder.
 - Added PAYDAY 3 Mod Loader (PDML) support: PDML and its mods install as plugins in PAYDAY3/Mods, PDML installs when a mod needs it, and updates keep files you added to a mod's folder.
+- Added a repair for PDML mods that were installed as loose paks, including PDML itself.
 
 ### Changed
 

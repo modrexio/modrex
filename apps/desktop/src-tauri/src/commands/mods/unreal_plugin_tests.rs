@@ -111,6 +111,24 @@ fn only_a_lowercase_descriptor_suffix_is_a_plugin() {
     assert_eq!(ignored, ArchivePlugins::None);
 }
 
+#[test]
+fn plugin_container_entries_are_recognised_by_their_platform_folder() {
+    assert!(is_plugin_container_entry(
+        "Content/Paks/Windows/CustomPing_P.pak"
+    ));
+    assert!(is_plugin_container_entry(
+        "InspectWhileRunning/Content/Paks/WinGDK/InspectWhileRunning_P.utoc"
+    ));
+    assert!(!is_plugin_container_entry("CustomPing_P.pak"));
+    assert!(!is_plugin_container_entry(
+        "PAYDAY3/Content/Paks/~mods/CustomPing_P.pak"
+    ));
+    assert!(!is_plugin_container_entry(
+        "Content/Paks/Windows/readme.txt"
+    ));
+    assert!(!is_plugin_container_entry("Paks/Windows/CustomPing_P.pak"));
+}
+
 fn write(path: &std::path::Path, bytes: &[u8]) {
     fs::create_dir_all(path.parent().unwrap()).unwrap();
     fs::write(path, bytes).unwrap();
@@ -131,6 +149,22 @@ fn a_plugin_nested_inside_another_plugin_is_not_loaded() {
     write(&mods.path().join("Other/Other.uplugin"), b"{}");
     write(&mods.path().join("Other/Bundled/PDML/PDML.uplugin"), b"{}");
     assert!(!plugin_installed(mods.path(), "PDML"));
+}
+
+/// A zip without a wrapper extracted straight into Mods leaves its descriptor at the root,
+/// which the game reads as one plugin spanning the whole folder.
+#[test]
+fn a_descriptor_in_the_mods_folder_hides_every_plugin_below_it() {
+    let mods = TempDir::new().unwrap();
+    write(&mods.path().join("CustomPing/CustomPing.uplugin"), b"{}");
+    assert_eq!(root_descriptor(mods.path()), None);
+    write(&mods.path().join("PDML.uplugin"), b"{}");
+    assert_eq!(
+        root_descriptor(mods.path()).as_deref(),
+        Some("PDML.uplugin")
+    );
+    assert!(plugin_installed(mods.path(), "PDML"));
+    assert!(!plugin_installed(mods.path(), "CustomPing"));
 }
 
 #[test]

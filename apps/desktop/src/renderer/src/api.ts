@@ -12,6 +12,7 @@ import type {
     DetectedInstall,
     LeftoverFiles,
     LoaderInfo,
+    PluginInstallReport,
     ModFolderInfo,
     SourceInfo,
     NexusArchiveIdentity,
@@ -26,6 +27,8 @@ export type {
     DetectedInstall,
     LeftoverFiles,
     LoaderInfo,
+    MisplacedPlugin,
+    PluginInstallReport,
     ModFolderInfo,
     SourceInfo,
     NexusArchiveIdentity,
@@ -845,6 +848,10 @@ export const api = {
 
     async deleteLeftoverFiles(sets: LeftoverFiles[], gameId: string): Promise<void> {
         await commands.deleteLeftoverFiles(gameId, sets)
+    },
+
+    checkPluginInstalls(gameId: string): Promise<PluginInstallReport> {
+        return commands.checkPluginInstalls(gameId)
     },
 
     isPd2Diesel3(gamePath: string): Promise<boolean> {

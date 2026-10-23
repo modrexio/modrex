@@ -538,6 +538,57 @@ pub(crate) fn query_file(
     .ok()
 }
 
+/// A file the index recorded inside a published download, at its path there.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PublishedEntry {
+    pub mod_remote_id: i64,
+    pub mod_name: String,
+    pub file_remote_id: i64,
+    pub entry_name: String,
+}
+
+pub(crate) enum EntryLookup<'a> {
+    Sha256(&'a str),
+    File(i64),
+    Mod(i64),
+}
+
+/// For callers that need where in its archive a file was published, not only its mod.
+pub(crate) fn query_published_entries(
+    conn: &rusqlite::Connection,
+    lookup: EntryLookup,
+    game_name: &str,
+) -> rusqlite::Result<Vec<PublishedEntry>> {
+    let (column, value) = match lookup {
+        EntryLookup::Sha256(sha256) => {
+            ("f.sha256", rusqlite::types::Value::from(sha256.to_string()))
+        }
+        EntryLookup::File(file_remote_id) => {
+            ("f.remote_id", rusqlite::types::Value::from(file_remote_id))
+        }
+        EntryLookup::Mod(mod_remote_id) => {
+            ("m.remote_id", rusqlite::types::Value::from(mod_remote_id))
+        }
+    };
+    let mut stmt = conn.prepare(&format!(
+        "SELECT m.remote_id, m.name, f.remote_id, f.entry_name
+         FROM files f
+         JOIN mods m ON m.id = f.mod_id
+         JOIN sources s ON s.id = m.source_id
+         JOIN games g ON g.id = s.game_id
+         WHERE {column} = ?1 AND g.name = ?2"
+    ))?;
+    let rows = stmt.query_map(rusqlite::params![value, game_name], |row| {
+        Ok(PublishedEntry {
+            mod_remote_id: row.get(0)?,
+            mod_name: row.get(1)?,
+            file_remote_id: row.get(2)?,
+            entry_name: row.get(3)?,
+        })
+    })?;
+    rows.collect()
+}
+
 /// Hashes the index recorded for the companion entries of these files.
 pub(crate) fn companion_hashes_for_files(
     conn: &rusqlite::Connection,

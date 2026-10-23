@@ -47,6 +47,7 @@ pub use self::engine::{
 pub use self::identity::IdentityEvidence;
 pub use self::install::install_mod_from_path;
 pub use self::paths::{find_untracked_host_packs, find_untracked_paks, get_state_path, mods_base};
+pub use self::plugin_repair::PluginInstallReport;
 use self::state::save_error;
 pub use self::state::{get_folder_path, load_for_scan, read_state};
 pub use self::types::{
@@ -1093,6 +1094,54 @@ pub async fn install_file(
         Err(e) => log::warn!("install_file {mod_id} file={file_id}: {e}"),
     }
     result.map(|()| InstallOutcome::Installed)
+}
+
+/// What stops a game's plugin mods from loading: plugin mods installed as loose paks, each with
+/// the release that reinstalls it as a plugin, and a descriptor in the plugin folder itself.
+#[tauri::command]
+#[specta::specta]
+pub async fn check_plugin_installs(
+    app: AppHandle,
+    game_id: String,
+) -> Result<PluginInstallReport, String> {
+    let cfg = engine_for_game(&game_id)?;
+    let Some(target) = cfg.targets.iter().find(|t| t.is_unreal_plugin_unit()) else {
+        return Ok(PluginInstallReport::default());
+    };
+    let settings = read_settings(&app);
+    let Some(game_path) = game_settings(&settings, &game_id).and_then(|gs| gs.game_path.clone())
+    else {
+        return Ok(PluginInstallReport::default());
+    };
+    // A repair installs into folders that launching without mods has moved aside, so it
+    // waits until they are restored.
+    if cfg
+        .targets
+        .iter()
+        .any(|t| backup_dir(&game_path, t).exists())
+    {
+        return Ok(PluginInstallReport::default());
+    }
+    let root_descriptor = unreal_plugin::root_descriptor(&mods_base(&game_path, target));
+    let target = Some(target.tag.to_string());
+    // Without the index there is no evidence a pak came out of a plugin.
+    let Some(conn) = mod_index::open_index(&app, cfg.game_id) else {
+        return Ok(PluginInstallReport {
+            target,
+            misplaced: Vec::new(),
+            root_descriptor,
+        });
+    };
+    let _state_guard = lock_game_state(&app, &game_id).await;
+    let state = state::read_state_for_game(&game_path, &get_state_path(&game_path, cfg), cfg)
+        .map_err(|e| e.to_string())?;
+    let misplaced = plugin_repair::misplaced_plugins(cfg, &state.mods, &conn)
+        .map_err(|e| format!("the mod index could not be read: {e}"))?;
+    Ok(PluginInstallReport {
+        target,
+        misplaced,
+        root_descriptor,
+    })
 }
 
 pub(crate) struct NexusInstallMeta {

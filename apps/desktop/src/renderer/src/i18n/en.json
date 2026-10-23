@@ -275,6 +275,15 @@
         "filterPlaceholder": "Search mods...",
         "filterEmpty": "No mods match \"{query}\"",
         "reinstallFailed": "Reinstall failed: {error}",
+        "misplacedPlugins": {
+            "message": "{count} mods made for PDML were installed into the pak folder, where the game cannot load them.",
+            "messageSingle": "{count} mod made for PDML was installed into the pak folder, where the game cannot load it.",
+            "repair": "Repair",
+            "repairing": "Reinstalling {name} as a PDML mod...",
+            "failed": "{name} could not be repaired: {error}",
+            "rootDescriptor": "{file} sits directly in the PDML mods folder, so the game loads it as the whole folder and ignores every other mod there. Move it, with the Content and Resources folders beside it, into a folder of its own.",
+            "openFolder": "Open folder"
+        },
         "actionFailed": "{name} could not be changed: {error}",
         "actionFailedSome": "{count} mods could not be changed ({names}): {error}",
         "refreshFailed": "The installed mod list could not be refreshed: {error}",

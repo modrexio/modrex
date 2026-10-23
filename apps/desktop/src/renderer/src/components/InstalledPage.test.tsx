@@ -77,6 +77,11 @@ beforeEach(() => {
     vi.mocked(api.listModFolders).mockResolvedValue([
         { tag: 'mods', labelKey: 'mods', labelName: null },
     ])
+    vi.mocked(api.checkPluginInstalls).mockResolvedValue({
+        target: null,
+        misplaced: [],
+        rootDescriptor: null,
+    })
 })
 
 afterEach(() => {

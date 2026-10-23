@@ -478,6 +478,7 @@ const handlers = {
     },
     getStorageUsage: async () => ({ thumbnails: 48_300_000, indexDb: 12_900_000, news: 210_000 }),
     listLeftoverFiles: async () => [],
+    checkPluginInstalls: async () => ({ target: null, misplaced: [], rootDescriptor: null }),
     getThumbnail: async (filename, full) => {
         if (full) return filename
         for (const loaded of await Promise.all(fixtures.values())) {
