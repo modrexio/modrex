@@ -218,11 +218,17 @@ export function InstalledPage({
         const byUid = new Map<string, string>()
         if (!locations || !primaryTag) return byUid
         const targetTags = locations.targets.map((target) => target.tag)
-        for (const m of installed) {
-            byUid.set(
-                m.uid,
-                installedTabKey(m, installed, primaryTag, locations.loaders, targetTags)
+        const hosts = new Map<string, InstalledMod>()
+        for (const mod of installed) {
+            if (
+                (mod.source ?? 'modworkshop') !== 'modworkshop' ||
+                mod.location?.startsWith('host:')
             )
+                continue
+            if (mod.remoteId && !hosts.has(mod.remoteId)) hosts.set(mod.remoteId, mod)
+        }
+        for (const m of installed) {
+            byUid.set(m.uid, installedTabKey(m, hosts, primaryTag, locations.loaders, targetTags))
         }
         return byUid
     }, [installed, primaryTag, locations])
@@ -357,10 +363,12 @@ export function InstalledPage({
         : undefined
     const activeTabLabel = tabs.find((tab) => tab.key === activeTab)?.label
 
+    const listFormatter = new Intl.ListFormat(getLocale(), { type: 'conjunction' })
+
     // Labels of the given tab keys in tab order, as one localized list.
     function listTabs(keys: Set<string>): string {
         const labels = tabs.filter((tab) => keys.has(tab.key)).map((tab) => tab.label)
-        return new Intl.ListFormat(getLocale(), { type: 'conjunction' }).format(labels)
+        return listFormatter.format(labels)
     }
 
     // Each card acts on its mod's whole file set, so it carries the files on other tabs and

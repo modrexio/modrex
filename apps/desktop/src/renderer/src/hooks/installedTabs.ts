@@ -6,7 +6,7 @@ export const GAME_FILES_TAB = 'game_files'
 
 export function installedTabKey(
     mod: InstalledMod,
-    installed: InstalledMod[],
+    hosts: ReadonlyMap<string, InstalledMod>,
     primaryTag: string,
     loaders: LoaderInfo[],
     targetTags: string[]
@@ -20,13 +20,8 @@ export function installedTabKey(
     if (mod.location.startsWith('host:')) {
         const hostId = mod.location.split(':')[1]
         // Host locations carry a ModWorkshop page ID, not an installed record ID.
-        const host = installed.find(
-            (entry) =>
-                (entry.source ?? 'modworkshop') === 'modworkshop' &&
-                entry.remoteId === hostId &&
-                !entry.location?.startsWith('host:')
-        )
-        return host ? installedTabKey(host, installed, primaryTag, loaders, targetTags) : primaryTag
+        const host = hosts.get(hostId!)
+        return host ? installedTabKey(host, hosts, primaryTag, loaders, targetTags) : primaryTag
     }
     return targetTags.includes(mod.location) ? mod.location : primaryTag
 }
