@@ -13,7 +13,7 @@ import type { InstallOutcome } from '../api'
 import { computeAutoUpdateSelection, installZipPickerEntries } from './ZipPickerModal'
 import type { ZipMultiPakPayload } from './ZipPickerModal'
 import { requestInstallChoice, useInstallChoiceOpen } from '../installChoices'
-import { getModInstall, installLabel, isInstallBusy, useInstallOperations } from '../installState'
+import { installLabel, isInstallBusy, useModInstall } from '../installState'
 import { detailNavArgs, syntheticMod } from '../hooks/installedUtils'
 import { nativeIdFor } from '../sources'
 import { getCachedModFiles, refreshModDetail } from '../modCache'
@@ -72,9 +72,8 @@ function UpdateModalRow({
     // unlike a bare THUMBNAIL_BASE_URL concatenation, which would have doubled up
     // into a broken URL for any Nexus mod that actually has a picture.
     const thumbSrc = useThumbnail(mod.thumbnail?.file)
-    const operations = useInstallOperations(gameId)
-    const installation = getModInstall(
-        operations,
+    const installation = useModInstall(
+        gameId,
         ins.source === 'nexus' ? 'nexus' : 'modworkshop',
         Number(ins.remoteId)
     )

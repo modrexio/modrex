@@ -5,11 +5,10 @@ import { Button } from './ui/Button'
 import { ProgressLine } from './ui/ProgressLine'
 import { requestInstallChoice } from '../installChoices'
 import {
-    getModInstall,
     installLabel,
     installProgress,
     modworkshopDownloadId,
-    useInstallOperations,
+    useModInstall,
 } from '../installState'
 import { loaderForModId } from '../loaders'
 import { api, type MisplacedPlugin, type PluginInstallReport } from '../api'
@@ -42,7 +41,13 @@ export function MisplacedPluginsBanner({
     const [checkError, setCheckError] = useState<string | null>(null)
     const [stopping, setStopping] = useState(false)
     const stopRequested = useRef(false)
-    const operations = useInstallOperations(activeGame)
+    // No mod has id 0, so this matches nothing while no repair runs.
+    const operation = useModInstall(
+        activeGame,
+        'modworkshop',
+        repairing?.plugin.modId ?? 0,
+        repairing?.plugin.fileId
+    )
 
     // A change to the installed list is what changes the answer.
     useEffect(() => {
@@ -113,9 +118,6 @@ export function MisplacedPluginsBanner({
     }
 
     const count = misplaced.length
-    const operation = repairing
-        ? getModInstall(operations, 'modworkshop', repairing.plugin.modId, repairing.plugin.fileId)
-        : undefined
     const progress = installProgress(operation)
     return (
         <div className="relative px-6 py-2 shrink-0 flex flex-col gap-1 bg-warning/10 border-b border-warning/30 text-warning text-xs">

@@ -51,13 +51,65 @@ function publish(gameId: string, value: readonly InstallOperation[]) {
     listeners.get(gameId)?.forEach((listener) => listener())
 }
 
-export function useInstallOperations(gameId: string): readonly InstallOperation[] {
+function useInstallSelection<T>(
+    gameId: string,
+    select: (operations: readonly InstallOperation[]) => T
+): T {
     const subscribe = useCallback(
         (listener: () => void) => subscribeInstallOperations(gameId, listener),
         [gameId]
     )
-    const snapshot = useCallback(() => getInstallOperations(gameId), [gameId])
+    const snapshot = useCallback(() => select(getInstallOperations(gameId)), [gameId, select])
     return useSyncExternalStore(subscribe, snapshot)
+}
+
+export function useModInstall(
+    gameId: string,
+    source: string,
+    modId: number,
+    fileId?: number
+): InstallOperation | undefined {
+    const select = useCallback(
+        (values: readonly InstallOperation[]) => getModInstall(values, source, modId, fileId),
+        [source, modId, fileId]
+    )
+    return useInstallSelection(gameId, select)
+}
+
+export function useModInstallBusy(
+    gameId: string,
+    source: string,
+    modId: number,
+    fileId?: number
+): boolean {
+    const select = useCallback(
+        (values: readonly InstallOperation[]) =>
+            isInstallBusy(getModInstall(values, source, modId, fileId)),
+        [source, modId, fileId]
+    )
+    return useInstallSelection(gameId, select)
+}
+
+export function useModInstallError(
+    gameId: string,
+    source: string,
+    modId: number
+): string | undefined {
+    const select = useCallback(
+        (values: readonly InstallOperation[]) => getModInstall(values, source, modId)?.error,
+        [source, modId]
+    )
+    return useInstallSelection(gameId, select)
+}
+
+export function useSourceInstallError(gameId: string, source: string): string | undefined {
+    const select = useCallback(
+        (values: readonly InstallOperation[]) =>
+            values.find((operation) => operation.target.source === source && operation.error)
+                ?.error,
+        [source]
+    )
+    return useInstallSelection(gameId, select)
 }
 
 export function isInstallBusy(

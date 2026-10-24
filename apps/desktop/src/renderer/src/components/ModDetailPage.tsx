@@ -1,7 +1,6 @@
 import { ScrollArea } from './ScrollArea'
 import { useState, useEffect, useCallback, type ReactNode } from 'react'
 import { Button } from './ui/Button'
-import { ProgressLine } from './ui/ProgressLine'
 import * as Tabs from '@radix-ui/react-tabs'
 import {
     ArrowLeft,
@@ -22,6 +21,7 @@ import {
 } from 'lucide-react'
 import { siGit, siGithub, siGitlab, siBitbucket, type SimpleIcon } from 'simple-icons'
 import { t } from '../i18n'
+import { InstallProgressBar, InstallStatusLabel } from './InstallStatus'
 import { Toggle } from './Toggle'
 import { Tooltip } from './Tooltip'
 import type {
@@ -67,11 +67,10 @@ import { useThumbnail } from '../hooks/useThumbnail'
 import { api } from '../api'
 import { requestInstallChoice } from '../installChoices'
 import {
-    useInstallOperations,
+    useModInstallBusy,
+    useModInstallError,
+    getInstallOperations,
     getModInstall,
-    isInstallBusy,
-    installProgress,
-    installLabel,
     clearInstallError,
 } from '../installState'
 import { runBulkAction } from '../bulkAction'
@@ -307,11 +306,10 @@ export function ModDetailPage({
         gamePath,
         onRefreshInstalled
     )
-    const operations = useInstallOperations(activeGame)
-    const operation = getModInstall(operations, isNexus ? 'nexus' : 'modworkshop', modId)
-    const installBusy = isInstallBusy(operation)
-    const progress = installProgress(operation)
-    const visibleInstallError = installError ?? operation?.error
+    const installSource = isNexus ? 'nexus' : 'modworkshop'
+    const installBusy = useModInstallBusy(activeGame, installSource, modId)
+    const operationError = useModInstallError(activeGame, installSource, modId)
+    const visibleInstallError = installError ?? operationError
 
     // InstalledMod.id is an opaque local key regardless of source (see
     // sources::source_native_local_id), whereas modId here is always a real id (Nexus or
@@ -776,7 +774,11 @@ export function ModDetailPage({
                 <div className="ml-auto flex items-center gap-2 shrink-0">
                     {installBusy && installedFiles.length > 0 && (
                         <span className="text-xs text-accent" role="status">
-                            {installLabel(operation)}
+                            <InstallStatusLabel
+                                gameId={activeGame}
+                                source={installSource}
+                                modId={modId}
+                            />
                         </span>
                     )}
                     {mod && installedMod && !isLoaderMod && (
@@ -846,11 +848,17 @@ export function ModDetailPage({
                                             {!installBusy && !actionLoading && (
                                                 <Download className="w-3.5 h-3.5" />
                                             )}
-                                            {installBusy
-                                                ? installLabel(operation)
-                                                : actionLoading
-                                                  ? t('common.installing')
-                                                  : t('common.install')}
+                                            {installBusy ? (
+                                                <InstallStatusLabel
+                                                    gameId={activeGame}
+                                                    source={installSource}
+                                                    modId={modId}
+                                                />
+                                            ) : actionLoading ? (
+                                                t('common.installing')
+                                            ) : (
+                                                t('common.install')
+                                            )}
                                         </Button>
                                     )}
                                     {isUnsupportedFormat(
@@ -870,7 +878,7 @@ export function ModDetailPage({
                     )}
                 </div>
             </div>
-            {progress && <ProgressLine progress={progress} className="shrink-0" />}
+            <InstallProgressBar gameId={activeGame} source={installSource} modId={modId} />
 
             {visibleInstallError && (
                 <div className="px-6 py-2 bg-danger/20 border-b border-danger/30 text-xs text-danger-text flex items-center justify-between shrink-0">
@@ -878,6 +886,11 @@ export function ModDetailPage({
                     <button
                         onClick={() => {
                             setInstallError(null)
+                            const operation = getModInstall(
+                                getInstallOperations(activeGame),
+                                installSource,
+                                modId
+                            )
                             if (operation) clearInstallError(operation.id)
                         }}
                         className="ml-2 shrink-0 p-1 rounded text-danger-text/70 hover:text-danger-text hover:bg-danger/20 transition-colors"

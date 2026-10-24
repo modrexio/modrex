@@ -15,8 +15,8 @@ import { SourceSelect } from './SourceSelect'
 import { t } from '../i18n'
 import { api } from '../api'
 import {
-    useInstallOperations,
-    getModInstall,
+    useModInstall,
+    useSourceInstallError,
     isInstallBusy,
     installProgress,
     installLabel,
@@ -31,6 +31,58 @@ interface Props {
     installed: InstalledMod[]
     onRefreshInstalled: () => Promise<void>
     onOpenDetail: (modId: number, initialMod?: ModSummary) => void
+}
+
+function NexusGridCard({
+    activeGame,
+    mod,
+    installed,
+    busy,
+    gamePath,
+    domain,
+    onOpenDetail,
+    onUninstall,
+    onEnable,
+    onDisable,
+    onError,
+}: {
+    activeGame: GameId
+    mod: ModSummary
+    installed: InstalledMod | undefined
+    busy: boolean
+    gamePath: string | null
+    domain: string
+    onOpenDetail: Props['onOpenDetail']
+    onUninstall: (mod: InstalledMod) => void
+    onEnable: (mod: InstalledMod) => void
+    onDisable: (mod: InstalledMod) => void
+    onError: (error: string) => void
+}) {
+    const operation = useModInstall(activeGame, 'nexus', mod.id)
+    return (
+        <ModCard
+            mod={mod}
+            installed={installed}
+            showMeta
+            onOpen={() => onOpenDetail(mod.id, mod)}
+            onInstall={() => {
+                void api
+                    .requestNexusDownload(
+                        activeGame,
+                        mod.id,
+                        `https://www.nexusmods.com/${domain}/mods/${mod.id}?tab=files`
+                    )
+                    .catch((error) => onError(String(error)))
+            }}
+            onUninstall={() => installed && onUninstall(installed)}
+            onEnable={() => installed && onEnable(installed)}
+            onDisable={() => installed && onDisable(installed)}
+            loading={busy || isInstallBusy(operation)}
+            progress={installProgress(operation)}
+            loadingLabel={isInstallBusy(operation) ? installLabel(operation) : undefined}
+            gamePath={gamePath}
+        />
+    )
 }
 
 // Must match PAGE_SIZE in nexus.rs, which pages by offset rather than page number.
@@ -81,10 +133,7 @@ export function NexusBrowsePage({
     const [signedIn, setSignedIn] = useState<boolean | null>(null)
     const [sessionExpired, setSessionExpired] = useState(false)
     const [busyUid, setBusyUid] = useState<string | null>(null)
-    const operations = useInstallOperations(activeGame)
-    const installError = operations.find(
-        (operation) => operation.target.source === 'nexus' && operation.error
-    )?.error
+    const installError = useSourceInstallError(activeGame, 'nexus')
     const visibleError = error ?? installError
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const fetchIdRef = useRef(0)
@@ -304,33 +353,19 @@ export function NexusBrowsePage({
                         <div className="grid grid-cols-2 gap-4 xl:grid-cols-3 2xl:grid-cols-4">
                             {result.data.map((mod) => {
                                 const ins = installedByNexusId.get(mod.id)
-                                const operation = getModInstall(operations, 'nexus', mod.id)
                                 return (
-                                    <ModCard
+                                    <NexusGridCard
                                         key={mod.id}
+                                        activeGame={activeGame}
                                         mod={mod}
                                         installed={ins}
-                                        showMeta
-                                        onOpen={() => onOpenDetail(mod.id, mod)}
-                                        onInstall={() => {
-                                            void api
-                                                .requestNexusDownload(
-                                                    activeGame,
-                                                    mod.id,
-                                                    `https://www.nexusmods.com/${domain}/mods/${mod.id}?tab=files`
-                                                )
-                                                .catch((error) => setError(String(error)))
-                                        }}
-                                        onUninstall={() => ins && handleUninstall(ins)}
-                                        onEnable={() => ins && handleEnable(ins)}
-                                        onDisable={() => ins && handleDisable(ins)}
-                                        loading={ins?.uid === busyUid || isInstallBusy(operation)}
-                                        progress={installProgress(operation)}
-                                        loadingLabel={
-                                            isInstallBusy(operation)
-                                                ? installLabel(operation)
-                                                : undefined
-                                        }
+                                        domain={domain}
+                                        onOpenDetail={onOpenDetail}
+                                        onUninstall={handleUninstall}
+                                        onEnable={handleEnable}
+                                        onDisable={handleDisable}
+                                        onError={setError}
+                                        busy={ins?.uid === busyUid}
                                         gamePath={gamePath}
                                     />
                                 )

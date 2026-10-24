@@ -12,6 +12,8 @@ mod identify;
 pub mod identity;
 mod ini;
 mod install;
+#[cfg(test)]
+mod install_worker_tests;
 mod moves;
 pub(crate) mod movies;
 mod mp4;
@@ -161,6 +163,60 @@ pub(crate) async fn lock_game_state(
 ) -> tokio::sync::OwnedMutexGuard<()> {
     use tauri::Manager;
     app.state::<StateLocks>().acquire(game_id).await
+}
+
+async fn stage_download(
+    app: &AppHandle,
+    downloaded: PathBuf,
+    cfg: &'static ModEngineConfig,
+) -> Result<staged::Staged, ResolveError> {
+    let app = app.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        resolve_archive_download(downloaded, cfg, staged_archives(&app))
+    })
+    .await
+    .map_err(|error| ResolveError::Failure(format!("Archive staging failed: {error}")))?
+}
+
+async fn commit_install(
+    state_guard: tokio::sync::OwnedMutexGuard<()>,
+    commit: impl FnOnce() -> Result<(), String> + Send + 'static,
+) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        // cancelled_install_caller_keeps_game_locked_until_worker_finishes covers this lifetime.
+        let _state_guard = state_guard;
+        commit()
+    })
+    .await
+    .map_err(|error| format!("Installation worker failed: {error}"))?
+}
+
+async fn stage_archive_choice(
+    app: &AppHandle,
+    archive_handle: String,
+    kind: staging_tokens::StagedArchiveKind,
+    entry_id: staging_tokens::ArchiveEntryId,
+    cfg: &'static ModEngineConfig,
+    target: &'static ScanTarget,
+    cb_dir_entry: bool,
+) -> Result<(staging_tokens::StagedEntry, PathBuf, cleanup::CleanupPlan), String> {
+    let app = app.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let registry = staged_archives(&app);
+        let zip = registry
+            .borrow(&archive_handle, kind)
+            .ok_or("this archive is no longer available to install from")?;
+        let _borrow = staging_tokens::BorrowGuard::new(registry, &archive_handle);
+        let entry = registry
+            .entry(&archive_handle, kind, entry_id)
+            .ok_or("that archive entry is no longer available to install")?;
+        let (_, filename) = entry_names(&entry.display_name);
+        let (staged, cleanup) =
+            stage_archive_entry(cfg, target, &zip, &entry, cb_dir_entry, &filename)?;
+        Ok((entry, staged, cleanup))
+    })
+    .await
+    .map_err(|error| format!("Archive entry staging failed: {error}"))?
 }
 
 /// What an install command produced: a finished install, or an archive that needs a
@@ -680,7 +736,7 @@ pub async fn install_mod(
         name_source,
         target_tag: location_tag,
         original_archive: zip_orig,
-    } = match resolve_archive_download(downloaded, cfg, staged_archives(&app)) {
+    } = match stage_download(&app, downloaded, cfg).await {
         Err(ResolveError::Ue4ssLoader(zip_path)) => {
             return answer_ue4ss_package(
                 &app,
@@ -742,135 +798,145 @@ pub async fn install_mod(
         }
         Ok(v) => v,
     };
-    let _state_guard = lock_game_state(&app, game_id.as_str()).await;
     let target = cfg.target_for(location_tag.as_deref());
 
     let result = async {
         let sha256 = staged_content_sha256(target, &tmp).await?;
-        let uid = file_id.to_string();
-        // The real modworkshop id, kept as a string for remote_id and identity comparisons.
-        // InstalledMod.id is an opaque, source-scoped key (see
-        // sources::source_native_local_id) and is never compared against this directly.
-        let remote_id_str = remote_id.to_string();
-        let sp = get_state_path(&game_path, cfg);
-        let superseded = plugin_repair::set_aside_superseded_paks(
-            &game_path,
-            &sp,
-            cfg,
-            target,
-            Some(&remote_id_str),
-        )?;
-        let paks_disabled = superseded.all_disabled;
-        let saved = state::read_state_for_game(&game_path, &sp, cfg).map_err(|e| {
-            log::warn!("install: {e}");
-            e.to_string()
-        })?;
-        let existing_entry = saved.mods.iter().find(|m| m.uid == uid).or_else(|| {
-            if remote_id <= 0 {
-                return None;
-            }
-            let same: Vec<_> = saved
-                .mods
-                .iter()
-                .filter(|m| m.remote_id.as_deref() == Some(remote_id_str.as_str()))
-                .collect();
-            // Only inherit for single-entry mods; multi-pak entries span different folders.
-            if same.len() == 1 {
-                same.into_iter().next()
-            } else {
-                None
-            }
-        });
-        // Don't inherit folder when same-id already has multiple files; each pak is placed deliberately.
-        let effective_folder_id = folder_id.or_else(|| {
-            if remote_id > 0
-                && saved
+        let state_guard = lock_game_state(&app, cfg.game_id).await;
+        let app = app.clone();
+        let file_type = file_type.clone();
+        commit_install(state_guard, move || {
+            let uid = file_id.to_string();
+            // The real modworkshop id, kept as a string for remote_id and identity comparisons.
+            // InstalledMod.id is an opaque, source-scoped key (see
+            // sources::source_native_local_id) and is never compared against this directly.
+            let remote_id_str = remote_id.to_string();
+            let sp = get_state_path(&game_path, cfg);
+            let superseded = plugin_repair::set_aside_superseded_paks(
+                &game_path,
+                &sp,
+                cfg,
+                target,
+                Some(&remote_id_str),
+            )?;
+            let paks_disabled = superseded.all_disabled;
+            let saved =
+                state::read_state_for_game(&game_path, &sp, cfg).map_err(|e| e.to_string())?;
+            let existing_entry = saved.mods.iter().find(|m| m.uid == uid).or_else(|| {
+                if remote_id <= 0 {
+                    return None;
+                }
+                let same: Vec<_> = saved
                     .mods
                     .iter()
                     .filter(|m| m.remote_id.as_deref() == Some(remote_id_str.as_str()))
-                    .count()
-                    > 1
-            {
-                return None;
-            }
-            existing_entry.and_then(|e| e.folder_id.clone())
-        });
-        // A plugin's folder is named after the descriptor this release ships.
-        let filename = saved
-            .mods
-            .iter()
-            .find(|m| m.uid == uid && !target.is_unreal_plugin_unit())
-            .map(|m| m.filename.clone())
-            .unwrap_or_else(|| {
-                decisions::install_filename_from_mod_name(cfg, target, &mod_name, &tmp, name_source)
+                    .collect();
+                // Only inherit for single-entry mods; multi-pak entries span different folders.
+                if same.len() == 1 {
+                    same.into_iter().next()
+                } else {
+                    None
+                }
             });
-        let was_disabled = match existing_entry {
-            Some(e) => !e.enabled,
-            None => plugin_repair::installs_disabled(
-                cfg,
-                &saved.mods,
-                target,
-                &uid,
-                &filename,
-                file_id,
-                paks_disabled,
-            ),
-        };
-
-        // If the mod had a single previously-installed entry under a different uid
-        // (i.e. an older version with a different file_id), remove it first so
-        // install_mod_from_path doesn't produce two entries for the same mod.
-        if saved.mods.iter().all(|m| m.uid != uid) && remote_id > 0 {
-            let same: Vec<_> = saved
+            // Don't inherit folder when same-id already has multiple files; each pak is placed deliberately.
+            let effective_folder_id = folder_id.or_else(|| {
+                if remote_id > 0
+                    && saved
+                        .mods
+                        .iter()
+                        .filter(|m| m.remote_id.as_deref() == Some(remote_id_str.as_str()))
+                        .count()
+                        > 1
+                {
+                    return None;
+                }
+                existing_entry.and_then(|e| e.folder_id.clone())
+            });
+            // A plugin's folder is named after the descriptor this release ships.
+            let filename = saved
                 .mods
                 .iter()
-                .filter(|m| m.remote_id.as_deref() == Some(remote_id_str.as_str()))
-                .collect();
-            if same.len() == 1 {
-                uninstall_mod_op(&game_path, &sp, &same[0].uid.clone(), cfg)?;
+                .find(|m| m.uid == uid && !target.is_unreal_plugin_unit())
+                .map(|m| m.filename.clone())
+                .unwrap_or_else(|| {
+                    decisions::install_filename_from_mod_name(
+                        cfg,
+                        target,
+                        &mod_name,
+                        &tmp,
+                        name_source,
+                    )
+                });
+            let was_disabled = match existing_entry {
+                Some(e) => !e.enabled,
+                None => plugin_repair::installs_disabled(
+                    cfg,
+                    &saved.mods,
+                    target,
+                    &uid,
+                    &filename,
+                    file_id,
+                    paks_disabled,
+                ),
+            };
+
+            // If the mod had a single previously-installed entry under a different uid
+            // (i.e. an older version with a different file_id), remove it first so
+            // install_mod_from_path doesn't produce two entries for the same mod.
+            if saved.mods.iter().all(|m| m.uid != uid) && remote_id > 0 {
+                let same: Vec<_> = saved
+                    .mods
+                    .iter()
+                    .filter(|m| m.remote_id.as_deref() == Some(remote_id_str.as_str()))
+                    .collect();
+                if same.len() == 1 {
+                    uninstall_mod_op(&game_path, &sp, &same[0].uid.clone(), cfg)?;
+                }
             }
-        }
 
-        install_mod_from_path(
-            &game_path,
-            &sp,
-            InstalledMod {
-                uid: uid.clone(),
-                name: mod_name,
-                version: mod_version,
-                filename,
-                enabled: true,
-                installed_at: Utc::now().to_rfc3339(),
-                file_id: Some(file_id),
-                file_type: Some(file_type.clone()),
-                sha256: Some(sha256),
-                ..InstalledMod::from_catalog(
-                    "modworkshop",
-                    remote_id_str.clone(),
-                    IdentityEvidence::InstallProvenance,
-                )
-            },
-            &tmp,
-            effective_folder_id,
-            cfg,
-            target,
-        )?;
-        superseded.commit();
+            install_mod_from_path(
+                &game_path,
+                &sp,
+                InstalledMod {
+                    uid: uid.clone(),
+                    name: mod_name,
+                    version: mod_version,
+                    filename,
+                    enabled: true,
+                    installed_at: Utc::now().to_rfc3339(),
+                    file_id: Some(file_id),
+                    file_type: Some(file_type),
+                    sha256: Some(sha256),
+                    ..InstalledMod::from_catalog(
+                        "modworkshop",
+                        remote_id_str.clone(),
+                        IdentityEvidence::InstallProvenance,
+                    )
+                },
+                &tmp,
+                effective_folder_id,
+                cfg,
+                target,
+            )?;
+            superseded.commit();
 
-        if was_disabled {
-            let settings = read_settings(&app);
-            let launcher_str =
-                game_settings(&settings, cfg.game_id).and_then(|gs| gs.launcher.clone());
-            disable_mod_op(&game_path, &sp, &uid, cfg, launcher_str.as_deref())?;
-        }
+            if was_disabled {
+                let settings = read_settings(&app);
+                let launcher_str =
+                    game_settings(&settings, cfg.game_id).and_then(|gs| gs.launcher.clone());
+                disable_mod_op(&game_path, &sp, &uid, cfg, launcher_str.as_deref())?;
+            }
 
-        register_download(&app, file_id).await;
-
-        Ok::<(), String>(())
+            Ok::<(), String>(())
+        })
+        .await
     }
     .await;
 
     cleanup::run_staged(&cleanup_plan, zip_orig).await;
+    if result.is_ok() {
+        register_download(&app, file_id).await;
+    }
     match &result {
         Ok(_) => track_mod_installed(&app, game_id.as_str(), mod_id as i64, &file_type),
         Err(e) => log::warn!("install_mod {mod_id}: {e}"),
@@ -919,7 +985,7 @@ pub async fn install_file(
         name_source,
         target_tag: location_tag,
         original_archive: zip_orig,
-    } = match resolve_archive_download(downloaded, cfg, staged_archives(&app)) {
+    } = match stage_download(&app, downloaded, cfg).await {
         Err(ResolveError::Ue4ssLoader(zip_path)) => {
             return answer_ue4ss_package(
                 &app,
@@ -981,124 +1047,128 @@ pub async fn install_file(
         }
         Ok(v) => v,
     };
-    let _state_guard = lock_game_state(&app, game_id.as_str()).await;
     let target = cfg.target_for(location_tag.as_deref());
 
     let result = async {
         let sha256 = staged_content_sha256(target, &tmp).await?;
-        let uid = file_id.to_string();
-        let mod_id_str = mod_id.to_string();
-        let sp = get_state_path(&game_path, cfg);
-        let superseded = plugin_repair::set_aside_superseded_paks(
-            &game_path,
-            &sp,
-            cfg,
-            target,
-            Some(&mod_id_str),
-        )?;
-        let paks_disabled = superseded.all_disabled;
-        let saved = state::read_state_for_game(&game_path, &sp, cfg).map_err(|e| {
-            log::warn!("install: {e}");
-            e.to_string()
-        })?;
-        let existing_entry = saved.mods.iter().find(|m| m.uid == uid).or_else(|| {
-            if mod_id <= 0 {
-                return None;
-            }
-            let same: Vec<_> = saved
-                .mods
-                .iter()
-                .filter(|m| m.remote_id.as_deref() == Some(mod_id_str.as_str()))
-                .collect();
-            if same.len() == 1 {
-                same.into_iter().next()
-            } else {
-                None
-            }
-        });
-        // Never inherit folder when this mod_id already has multiple installed files.
-        let effective_folder_id = if mod_id > 0
-            && saved
-                .mods
-                .iter()
-                .filter(|m| m.remote_id.as_deref() == Some(mod_id_str.as_str()))
-                .count()
-                > 1
-        {
-            None
-        } else {
-            existing_entry.and_then(|e| e.folder_id.clone())
-        };
-        // A plugin's folder is named after the descriptor this release ships.
-        let filename = saved
-            .mods
-            .iter()
-            .find(|m| m.uid == uid && !target.is_unreal_plugin_unit())
-            .map(|m| m.filename.clone())
-            .unwrap_or_else(|| {
-                decisions::install_filename_for_source_file(
-                    cfg,
-                    target,
-                    &mod_name,
-                    file_id,
-                    &file_type,
-                    &tmp,
-                    name_source,
-                )
-            });
-        let was_disabled = match saved.mods.iter().find(|m| m.uid == uid) {
-            Some(m) => !m.enabled,
-            None => plugin_repair::installs_disabled(
+        let state_guard = lock_game_state(&app, cfg.game_id).await;
+        let app = app.clone();
+        let file_type = file_type.clone();
+        commit_install(state_guard, move || {
+            let uid = file_id.to_string();
+            let mod_id_str = mod_id.to_string();
+            let sp = get_state_path(&game_path, cfg);
+            let superseded = plugin_repair::set_aside_superseded_paks(
+                &game_path,
+                &sp,
                 cfg,
-                &saved.mods,
                 target,
-                &uid,
-                &filename,
-                file_id,
-                paks_disabled,
-            ),
-        };
+                Some(&mod_id_str),
+            )?;
+            let paks_disabled = superseded.all_disabled;
+            let saved =
+                state::read_state_for_game(&game_path, &sp, cfg).map_err(|e| e.to_string())?;
+            let existing_entry = saved.mods.iter().find(|m| m.uid == uid).or_else(|| {
+                if mod_id <= 0 {
+                    return None;
+                }
+                let same: Vec<_> = saved
+                    .mods
+                    .iter()
+                    .filter(|m| m.remote_id.as_deref() == Some(mod_id_str.as_str()))
+                    .collect();
+                if same.len() == 1 {
+                    same.into_iter().next()
+                } else {
+                    None
+                }
+            });
+            // Never inherit folder when this mod_id already has multiple installed files.
+            let effective_folder_id = if mod_id > 0
+                && saved
+                    .mods
+                    .iter()
+                    .filter(|m| m.remote_id.as_deref() == Some(mod_id_str.as_str()))
+                    .count()
+                    > 1
+            {
+                None
+            } else {
+                existing_entry.and_then(|e| e.folder_id.clone())
+            };
+            // A plugin's folder is named after the descriptor this release ships.
+            let filename = saved
+                .mods
+                .iter()
+                .find(|m| m.uid == uid && !target.is_unreal_plugin_unit())
+                .map(|m| m.filename.clone())
+                .unwrap_or_else(|| {
+                    decisions::install_filename_for_source_file(
+                        cfg,
+                        target,
+                        &mod_name,
+                        file_id,
+                        &file_type,
+                        &tmp,
+                        name_source,
+                    )
+                });
+            let was_disabled = match saved.mods.iter().find(|m| m.uid == uid) {
+                Some(e) => !e.enabled,
+                None => plugin_repair::installs_disabled(
+                    cfg,
+                    &saved.mods,
+                    target,
+                    &uid,
+                    &filename,
+                    file_id,
+                    paks_disabled,
+                ),
+            };
 
-        install_mod_from_path(
-            &game_path,
-            &sp,
-            InstalledMod {
-                uid: uid.clone(),
-                name: mod_name,
-                version: mod_version,
-                filename,
-                enabled: true,
-                installed_at: Utc::now().to_rfc3339(),
-                file_id: Some(file_id),
-                file_type: Some(file_type.clone()),
-                sha256: Some(sha256),
-                ..InstalledMod::from_catalog(
-                    "modworkshop",
-                    mod_id_str.clone(),
-                    IdentityEvidence::InstallProvenance,
-                )
-            },
-            &tmp,
-            effective_folder_id,
-            cfg,
-            target,
-        )?;
-        superseded.commit();
+            install_mod_from_path(
+                &game_path,
+                &sp,
+                InstalledMod {
+                    uid: uid.clone(),
+                    name: mod_name,
+                    version: mod_version,
+                    filename,
+                    enabled: true,
+                    installed_at: Utc::now().to_rfc3339(),
+                    file_id: Some(file_id),
+                    file_type: Some(file_type),
+                    sha256: Some(sha256),
+                    ..InstalledMod::from_catalog(
+                        "modworkshop",
+                        mod_id_str.clone(),
+                        IdentityEvidence::InstallProvenance,
+                    )
+                },
+                &tmp,
+                effective_folder_id,
+                cfg,
+                target,
+            )?;
+            superseded.commit();
 
-        if was_disabled {
-            let settings = read_settings(&app);
-            let launcher_str =
-                game_settings(&settings, cfg.game_id).and_then(|gs| gs.launcher.clone());
-            disable_mod_op(&game_path, &sp, &uid, cfg, launcher_str.as_deref())?;
-        }
+            if was_disabled {
+                let settings = read_settings(&app);
+                let launcher_str =
+                    game_settings(&settings, cfg.game_id).and_then(|gs| gs.launcher.clone());
+                disable_mod_op(&game_path, &sp, &uid, cfg, launcher_str.as_deref())?;
+            }
 
-        register_download(&app, file_id).await;
-
-        Ok::<(), String>(())
+            Ok::<(), String>(())
+        })
+        .await
     }
     .await;
 
     cleanup::run_staged(&cleanup_plan, zip_orig).await;
+    if result.is_ok() {
+        register_download(&app, file_id).await;
+    }
     match &result {
         Ok(_) => track_mod_installed(&app, game_id.as_str(), mod_id, &file_type),
         Err(e) => log::warn!("install_file {mod_id} file={file_id}: {e}"),
@@ -1227,10 +1297,20 @@ pub(crate) async fn install_nexus_download(
         } else {
             false
         };
-    let resolved = if needs_update_choice {
-        zip::shared_pak_update_choice(downloaded, cfg, staged_archives(app))
-    } else {
-        resolve_archive_download(downloaded, cfg, staged_archives(app))
+    let worker_app = app.clone();
+    let resolved = match tauri::async_runtime::spawn_blocking(move || {
+        let registry = staged_archives(&worker_app);
+        if needs_update_choice {
+            return zip::shared_pak_update_choice(downloaded, cfg, registry);
+        }
+        resolve_archive_download(downloaded, cfg, registry)
+    })
+    .await
+    {
+        Ok(resolved) => resolved,
+        Err(error) => Err(ResolveError::Failure(format!(
+            "Nexus archive staging failed: {error}"
+        ))),
     };
     let resolved = match resolved {
         Err(ResolveError::Prompt(prompt)) => match *prompt {
@@ -1337,67 +1417,74 @@ pub(crate) async fn install_nexus_download(
         }
         Ok(v) => v,
     };
-    let _state_guard = lock_game_state(app, game_id).await;
     let target = cfg.target_for(location_tag.as_deref());
 
     let result = async {
         let sha256 = staged_content_sha256(target, &tmp).await?;
-        let mut uid = format!("nexus:{nexus_mod_id}:{nexus_file_id}");
-        let sp = get_state_path(game_path, cfg);
-        let saved = state::read_state_for_game(game_path, &sp, cfg).map_err(|e| {
-            log::warn!("install: {e}");
-            e.to_string()
-        })?;
-        let author_filename =
-            decisions::install_filename_from_mod_name(cfg, target, &mod_name, &tmp, name_source);
-        let existing = if target.native_steam_app.is_some() {
-            decisions::shared_nexus_update(
-                &saved.mods,
-                nexus_mod_id,
-                i64::from(nexus_file_id),
-                &author_filename,
-                None,
-                location_tag.as_deref(),
-                true,
-            )?
-        } else {
-            saved.mods.iter().find(|m| m.uid == uid)
-        };
-        if let Some(existing) = existing {
-            uid = existing.uid.clone();
-        }
-        let folder_id = existing.and_then(|e| e.folder_id.clone());
-        let filename = existing
-            .map(|m| m.filename.clone())
-            .unwrap_or(author_filename);
+        let state_guard = lock_game_state(app, cfg.game_id).await;
+        let game_path = game_path.to_owned();
+        commit_install(state_guard, move || {
+            let mut uid = format!("nexus:{nexus_mod_id}:{nexus_file_id}");
+            let sp = get_state_path(&game_path, cfg);
+            let saved =
+                state::read_state_for_game(&game_path, &sp, cfg).map_err(|e| e.to_string())?;
+            let author_filename = decisions::install_filename_from_mod_name(
+                cfg,
+                target,
+                &mod_name,
+                &tmp,
+                name_source,
+            );
+            let existing = if target.native_steam_app.is_some() {
+                decisions::shared_nexus_update(
+                    &saved.mods,
+                    nexus_mod_id,
+                    i64::from(nexus_file_id),
+                    &author_filename,
+                    None,
+                    location_tag.as_deref(),
+                    true,
+                )?
+            } else {
+                saved.mods.iter().find(|m| m.uid == uid)
+            };
+            if let Some(existing) = existing {
+                uid = existing.uid.clone();
+            }
+            let folder_id = existing.and_then(|e| e.folder_id.clone());
+            let filename = existing
+                .map(|m| m.filename.clone())
+                .unwrap_or(author_filename);
 
-        install_mod_from_path(
-            game_path,
-            &sp,
-            InstalledMod {
-                uid,
-                name: mod_name.clone(),
-                version: mod_version,
-                filename,
-                enabled: true,
-                installed_at: Utc::now().to_rfc3339(),
-                file_remote_id: Some(nexus_file_id.to_string()),
-                author: mod_author,
-                thumbnail_url,
-                file_id: Some(nexus_file_id as i64),
-                file_type: Some(file_type.clone()),
-                sha256: Some(sha256),
-                ..InstalledMod::from_catalog(
-                    "nexus",
-                    nexus_mod_id.to_string(),
-                    IdentityEvidence::InstallProvenance,
-                )
-            },
-            &tmp,
-            folder_id,
-            cfg,
-            target,
-        )
+            install_mod_from_path(
+                &game_path,
+                &sp,
+                InstalledMod {
+                    uid,
+                    name: mod_name.clone(),
+                    version: mod_version,
+                    filename,
+                    enabled: true,
+                    installed_at: Utc::now().to_rfc3339(),
+                    file_remote_id: Some(nexus_file_id.to_string()),
+                    author: mod_author,
+                    thumbnail_url,
+                    file_id: Some(nexus_file_id as i64),
+                    file_type: Some(file_type),
+                    sha256: Some(sha256),
+                    ..InstalledMod::from_catalog(
+                        "nexus",
+                        nexus_mod_id.to_string(),
+                        IdentityEvidence::InstallProvenance,
+                    )
+                },
+                &tmp,
+                folder_id,
+                cfg,
+                target,
+            )
+        })
+        .await
     }
     .await;
 
@@ -1764,26 +1851,28 @@ pub async fn install_confirmed_loader(
     args: ConfirmLoaderArgs,
 ) -> Result<(), String> {
     let cfg = engine_for_game(args.game_id.as_str())?;
-    // The handle, not the caller, decides which package is opened, and the borrow is held for
-    // the whole replacement so a concurrent discard cannot remove it mid-install.
-    let registry = staged_archives(&app);
-    let zip = registry
-        .borrow(
-            &args.archive_handle,
-            staging_tokens::StagedArchiveKind::Ue4ssLoader,
+    let state_guard = lock_game_state(&app, cfg.game_id).await;
+    let worker_app = app.clone();
+    let archive_handle = args.archive_handle.clone();
+    let result = commit_install(state_guard, move || {
+        let registry = staged_archives(&worker_app);
+        let zip = registry
+            .borrow(
+                &args.archive_handle,
+                staging_tokens::StagedArchiveKind::Ue4ssLoader,
+            )
+            .ok_or("this UE4SS download is no longer available to install from")?;
+        let _borrow = staging_tokens::BorrowGuard::new(registry, &args.archive_handle);
+        replace_ue4ss_loader_op(
+            &worker_app,
+            cfg.game_id,
+            &args.game_path,
+            &zip,
+            args.page.map(LoaderPage::recorded),
         )
-        .ok_or("this UE4SS download is no longer available to install from")?;
-    let borrow = staging_tokens::BorrowGuard::new(registry, &args.archive_handle);
-    let result = replace_ue4ss_loader(
-        &app,
-        cfg,
-        &args.game_path,
-        &zip,
-        args.page.map(LoaderPage::recorded),
-    )
+    })
     .await;
-    drop(borrow);
-    finish_with_archive(registry, &args.archive_handle).await;
+    finish_with_archive(staged_archives(&app), &archive_handle).await;
     result
 }
 
@@ -1812,30 +1901,39 @@ async fn replace_ue4ss_loader(
     zip_path: &std::path::Path,
     provenance: Option<settings::LoaderInstall>,
 ) -> Result<(), String> {
-    // Held for the whole replacement. The install commands take this around their own
-    // read-modify-write of state.json, but the loader is answered before that span, and two
-    // replacements running together would each set the other's files aside as the previous
-    // install.
-    let _guard = lock_game_state(app, cfg.game_id).await;
+    let state_guard = lock_game_state(app, cfg.game_id).await;
+    let app = app.clone();
+    let game_id = cfg.game_id;
+    let game_path = game_path.to_owned();
+    let zip_path = zip_path.to_owned();
+    commit_install(state_guard, move || {
+        replace_ue4ss_loader_op(&app, game_id, &game_path, &zip_path, provenance)
+    })
+    .await
+}
+
+fn replace_ue4ss_loader_op(
+    app: &AppHandle,
+    game_id: &str,
+    game_path: &str,
+    zip_path: &Path,
+    provenance: Option<settings::LoaderInstall>,
+) -> Result<(), String> {
     let settings = read_settings(app);
-    let launcher = game_settings(&settings, cfg.game_id).and_then(|gs| gs.launcher.clone());
-    let result = crate::commands::ue4ss::install_loader(
-        cfg.game_id,
-        game_path,
-        launcher.as_deref(),
-        zip_path,
-    );
+    let launcher = game_settings(&settings, game_id).and_then(|gs| gs.launcher.clone());
+    let result =
+        crate::commands::ue4ss::install_loader(game_id, game_path, launcher.as_deref(), zip_path);
     // Recorded whenever the files actually changed, and always: a replacement whose source is
     // unknown must clear the page the previous one claimed rather than leave it describing
     // files it did not put there. A failure that changed nothing leaves the record alone,
     // because the install it describes is still the one on disk.
     match result {
         Ok(()) => {
-            settings::record_loader_install(app, cfg.game_id, "ue4ss", provenance);
+            settings::record_loader_install(app, game_id, "ue4ss", provenance);
             Ok(())
         }
         Err(crate::commands::ue4ss::LoaderError::Installed(message)) => {
-            settings::record_loader_install(app, cfg.game_id, "ue4ss", provenance);
+            settings::record_loader_install(app, game_id, "ue4ss", provenance);
             Err(message)
         }
         Err(unchanged) => Err(unchanged.message()),
@@ -1845,14 +1943,23 @@ async fn replace_ue4ss_loader(
 /// Reports a completed download to modworkshop. Best effort: a failure here never affects
 /// the install that already succeeded.
 async fn register_download(app: &AppHandle, file_id: i64) {
-    let _ = http_client()
+    let result = http_client()
         .post(format!(
             "https://api.modworkshop.net/files/{}/register-download",
             file_id
         ))
         .header("User-Agent", user_agent(app))
+        .timeout(std::time::Duration::from_secs(15))
         .send()
         .await;
+    match result {
+        Ok(response) if response.status().is_success() => {}
+        Ok(response) => log::warn!(
+            "register_download {file_id}: server returned {}",
+            response.status()
+        ),
+        Err(error) => log::warn!("register_download {file_id}: {error}"),
+    }
 }
 
 /// Recovers a dropped mod's real name, for both display and the on-disk filename. The
@@ -1973,7 +2080,7 @@ pub async fn install_dropped_file(
         name_source,
         target_tag: location_tag,
         original_archive: zip_orig,
-    } = match resolve_archive_download(temp.clone(), cfg, staged_archives(&app)) {
+    } = match stage_download(&app, temp.clone(), cfg).await {
         Err(ResolveError::Ue4ssLoader(zip_path)) => {
             return answer_ue4ss_package(&app, cfg, &game_path, zip_path, None, file_stem.clone())
                 .await;
@@ -2040,7 +2147,6 @@ pub async fn install_dropped_file(
 
         Ok(v) => v,
     };
-    let _state_guard = lock_game_state(&app, game_id.as_str()).await;
     let target = cfg.target_for(location_tag.as_deref());
     let display_stem = recover_dropped_mod_stem(
         name_source,
@@ -2104,47 +2210,52 @@ pub async fn install_dropped_file(
 
     let result = async {
         let sha256 = staged_content_sha256(target, &tmp).await?;
-        // Discovery-matching identity: filename drives the uid/id the untracked-scan would assign,
-        // so a later manual refresh reconciles this entry instead of duplicating it.
-        let filename = if target.keeps_archive_filename() && zip_orig.is_none() {
-            decisions::loose_published_filename(target, dropped_file_name(&path))?
-        } else {
-            decisions::install_filename_for_dropped(cfg, target, &display_stem)
-        };
-        let sp = get_state_path(&game_path, cfg);
+        let state_guard = lock_game_state(&app, cfg.game_id).await;
+        let path = path.clone();
+        let loose_file = zip_orig.is_none();
+        commit_install(state_guard, move || {
+            // Discovery-matching identity: filename drives the uid/id the untracked-scan would assign,
+            // so a later manual refresh reconciles this entry instead of duplicating it.
+            let filename = if target.keeps_archive_filename() && loose_file {
+                decisions::loose_published_filename(target, dropped_file_name(&path))?
+            } else {
+                decisions::install_filename_for_dropped(cfg, target, &display_stem)
+            };
+            let sp = get_state_path(&game_path, cfg);
 
-        let mut mod_entry = InstalledMod {
-            uid: decisions::dropped_uid(target, &filename),
-            id: hash_filename(&filename),
-            name: display_stem.clone(),
-            version: String::new(),
-            update_status: UpdateStatus::Unknown,
-            filename,
-            enabled: true,
-            installed_at: Utc::now().to_rfc3339(),
-            sha256: Some(sha256),
-            ..InstalledMod::default()
-        };
-        if let (Some(m), Some((detail, version))) = (&nexus_match, &nexus_detail) {
-            apply_nexus_archive_identity(&mut mod_entry, m, detail, version);
-        }
+            let mut mod_entry = InstalledMod {
+                uid: decisions::dropped_uid(target, &filename),
+                id: hash_filename(&filename),
+                name: display_stem.clone(),
+                version: String::new(),
+                update_status: UpdateStatus::Unknown,
+                filename,
+                enabled: true,
+                installed_at: Utc::now().to_rfc3339(),
+                sha256: Some(sha256),
+                ..InstalledMod::default()
+            };
+            if let (Some(m), Some((detail, version))) = (&nexus_match, &nexus_detail) {
+                apply_nexus_archive_identity(&mut mod_entry, m, detail, version);
+            }
 
-        let saved = state::read_state_for_game(&game_path, &sp, cfg).map_err(|e| {
-            log::warn!("install: {e}");
-            e.to_string()
-        })?;
-        let effective_folder_id = dropped_install_folder_id(folder_id, &saved.mods, &mod_entry.uid);
+            let saved =
+                state::read_state_for_game(&game_path, &sp, cfg).map_err(|e| e.to_string())?;
+            let effective_folder_id =
+                dropped_install_folder_id(folder_id, &saved.mods, &mod_entry.uid);
 
-        install_mod_from_path(
-            &game_path,
-            &sp,
-            mod_entry,
-            &tmp,
-            effective_folder_id,
-            cfg,
-            target,
-        )?;
-        Ok::<(), String>(())
+            install_mod_from_path(
+                &game_path,
+                &sp,
+                mod_entry,
+                &tmp,
+                effective_folder_id,
+                cfg,
+                target,
+            )?;
+            Ok::<(), String>(())
+        })
+        .await
     }
     .await;
 
@@ -2252,7 +2363,6 @@ pub async fn install_from_zip_entry(
     app: AppHandle,
     args: InstallFromZipEntryArgs,
 ) -> Result<(), String> {
-    let _state_guard = lock_game_state(&app, args.game_id.as_str()).await;
     let InstallFromZipEntryArgs {
         archive_handle,
         entry_id,
@@ -2269,34 +2379,21 @@ pub async fn install_from_zip_entry(
     } = args;
     let cfg = engine_for_game(game_id.as_str())?;
     let target = cfg.target_for(location_tag.as_deref());
-    // The handle, not the caller, decides which archive is opened. The borrow is held for
-    // the whole install so a concurrent discard cannot remove the file mid-extraction.
-    let registry = staged_archives(&app);
-    let zip = registry
-        .borrow(
-            &archive_handle,
-            staging_tokens::StagedArchiveKind::MultiEntry,
-        )
-        .ok_or("this archive is no longer available to install from")?;
-    let _borrow = staging_tokens::BorrowGuard::new(registry, &archive_handle);
-    let entry = registry
-        .entry(
-            &archive_handle,
-            staging_tokens::StagedArchiveKind::MultiEntry,
-            entry_id,
-        )
-        .ok_or("that archive entry is no longer available to install")?;
-    let entry_name = entry.display_name.clone();
-    let install_format = file_type.clone(); // file_type is moved before the success emit below
-
-    // Set only by classify_archive_dirs's ZIP_MULTI_PAK payload (a ue4ss_mods sub-mod folder
-    // or a candidate mod folder).
     let cb_dir_entry = decisions::is_cb_dir_entry(cfg, entry_kind.as_deref());
-
+    let (entry, ext, entry_cleanup) = stage_archive_choice(
+        &app,
+        archive_handle,
+        staging_tokens::StagedArchiveKind::MultiEntry,
+        entry_id,
+        cfg,
+        target,
+        cb_dir_entry,
+    )
+    .await
+    .inspect_err(|e| log::warn!("install_from_zip_entry {mod_id} file={file_id}: {e}"))?;
+    let entry_name = entry.display_name;
     let (entry_stem, entry_filename) = entry_names(&entry_name);
-    let (ext, entry_cleanup) =
-        stage_archive_entry(cfg, target, &zip, &entry, cb_dir_entry, &entry_filename)
-            .inspect_err(|e| log::warn!("install_from_zip_entry {mod_id} file={file_id}: {e}"))?;
+    let install_format = file_type.clone();
 
     let install_filename =
         decisions::install_filename_for_zip_entry(cfg, &mod_name, &entry_filename);
@@ -2312,96 +2409,99 @@ pub async fn install_from_zip_entry(
 
     let result = async {
         let sha256 = staged_content_sha256(target, &ext).await?;
-        let sp = get_state_path(&game_path, cfg);
-        let remote = (mod_id > 0).then(|| mod_id.to_string());
-        let superseded = plugin_repair::set_aside_superseded_paks(
-            &game_path,
-            &sp,
-            cfg,
-            target,
-            remote.as_deref(),
-        )?;
-        let paks_disabled = superseded.all_disabled;
-        let saved = state::read_state_for_game(&game_path, &sp, cfg).map_err(|e| {
-            log::warn!("install: {e}");
-            e.to_string()
-        })?;
+        let state_guard = lock_game_state(&app, cfg.game_id).await;
+        let app = app.clone();
+        commit_install(state_guard, move || {
+            let sp = get_state_path(&game_path, cfg);
+            let remote = (mod_id > 0).then(|| mod_id.to_string());
+            let superseded = plugin_repair::set_aside_superseded_paks(
+                &game_path,
+                &sp,
+                cfg,
+                target,
+                remote.as_deref(),
+            )?;
+            let paks_disabled = superseded.all_disabled;
+            let saved =
+                state::read_state_for_game(&game_path, &sp, cfg).map_err(|e| e.to_string())?;
 
-        // A shared Pak hash can be identical across distinct author choices, so it cannot
-        // replace the local archive member's identity.
-        let sha256_match = (!local_shared_pak)
-            .then(|| {
-                saved
-                    .mods
-                    .iter()
-                    .find(|m| m.sha256.as_deref() == Some(sha256.as_str()))
-            })
-            .flatten();
-        let uid = sha256_match
-            .map(|m| m.uid.clone())
-            .unwrap_or_else(|| identity.uid.clone());
-        let was_disabled = plugin_repair::installs_disabled(
-            cfg,
-            &saved.mods,
-            target,
-            &uid,
-            &install_filename,
-            file_id,
-            paks_disabled,
-        );
+            // A shared Pak hash can be identical across distinct author choices, so it cannot
+            // replace the local archive member's identity.
+            let sha256_match = (!local_shared_pak)
+                .then(|| {
+                    saved
+                        .mods
+                        .iter()
+                        .find(|m| m.sha256.as_deref() == Some(sha256.as_str()))
+                })
+                .flatten();
+            let uid = sha256_match
+                .map(|m| m.uid.clone())
+                .unwrap_or_else(|| identity.uid.clone());
+            let was_disabled = plugin_repair::installs_disabled(
+                cfg,
+                &saved.mods,
+                target,
+                &uid,
+                &install_filename,
+                file_id,
+                paks_disabled,
+            );
 
-        let primary = std::ptr::eq(target, cfg.primary());
-        let stale = stale_entries_for_zip_install(
-            &saved.mods,
-            &uid,
-            mod_id,
-            file_id,
-            &install_filename,
-            (!primary).then_some(target.tag),
-            folder_id.as_deref().filter(|_| primary),
-        );
-        for stale in stale {
-            remove_stale_zip_entry(&game_path, &sp, cfg, &saved.mods, stale)?;
-        }
+            let primary = std::ptr::eq(target, cfg.primary());
+            let stale = stale_entries_for_zip_install(
+                &saved.mods,
+                &uid,
+                mod_id,
+                file_id,
+                &install_filename,
+                (!primary).then_some(target.tag),
+                folder_id.as_deref().filter(|_| primary),
+            );
+            for stale in stale {
+                remove_stale_zip_entry(&game_path, &sp, cfg, &saved.mods, stale)?;
+            }
 
-        // Never inherit folderId from existing entries; callers always supply the target folder.
-        let effective_folder_id = folder_id;
+            // Never inherit folderId from existing entries; callers always supply the target folder.
+            let effective_folder_id = folder_id;
 
-        install_mod_from_path(
-            &game_path,
-            &sp,
-            InstalledMod {
-                uid: uid.clone(),
-                name: mod_name,
-                version: mod_version,
-                filename: install_filename,
-                enabled: true,
-                installed_at: Utc::now().to_rfc3339(),
-                file_type: Some(file_type),
-                sha256: Some(sha256),
-                ..identity
-            },
-            &ext,
-            effective_folder_id,
-            cfg,
-            target,
-        )?;
-        superseded.commit();
+            install_mod_from_path(
+                &game_path,
+                &sp,
+                InstalledMod {
+                    uid: uid.clone(),
+                    name: mod_name,
+                    version: mod_version,
+                    filename: install_filename,
+                    enabled: true,
+                    installed_at: Utc::now().to_rfc3339(),
+                    file_type: Some(file_type),
+                    sha256: Some(sha256),
+                    ..identity
+                },
+                &ext,
+                effective_folder_id,
+                cfg,
+                target,
+            )?;
+            superseded.commit();
 
-        if was_disabled {
-            let settings = read_settings(&app);
-            let launcher = game_settings(&settings, cfg.game_id).and_then(|gs| gs.launcher.clone());
-            disable_mod_op(&game_path, &sp, &uid, cfg, launcher.as_deref())?;
-        }
+            if was_disabled {
+                let settings = read_settings(&app);
+                let launcher =
+                    game_settings(&settings, cfg.game_id).and_then(|gs| gs.launcher.clone());
+                disable_mod_op(&game_path, &sp, &uid, cfg, launcher.as_deref())?;
+            }
 
-        if !local_shared_pak {
-            register_download(&app, file_id).await;
-        }
-
-        Ok::<(), String>(())
+            Ok::<(), String>(())
+        })
+        .await
     }
     .await;
 
+    if result.is_ok() && !local_shared_pak {
+        register_download(&app, file_id).await;
+    }
     // Keep the zip alive for multi-entry installs; only remove the extracted temp here.
     cleanup::run(&entry_cleanup).await;
     match &result {
@@ -2530,91 +2630,90 @@ async fn install_nexus_review_entry(
     };
     let target = cfg.target_for(location_tag.as_deref());
     let cb_dir_entry = decisions::is_cb_dir_entry(cfg, picker.entry_kind.as_deref());
-    let _state_guard = lock_game_state(app, cfg.game_id).await;
-    let registry = staged_archives(app);
-    let zip = registry
-        .borrow(
-            &picker.archive_handle,
-            staging_tokens::StagedArchiveKind::NexusResourcePak,
-        )
-        .ok_or("this archive is no longer available to install from")?;
-    let _borrow = staging_tokens::BorrowGuard::new(registry, &picker.archive_handle);
-    let entry = registry
-        .entry(
-            &picker.archive_handle,
-            staging_tokens::StagedArchiveKind::NexusResourcePak,
-            entry_id,
-        )
-        .ok_or("that archive entry is no longer available to install")?;
+    let (entry, staged, entry_cleanup) = stage_archive_choice(
+        app,
+        picker.archive_handle.clone(),
+        staging_tokens::StagedArchiveKind::NexusResourcePak,
+        entry_id,
+        cfg,
+        target,
+        cb_dir_entry,
+    )
+    .await?;
     let (entry_stem, entry_filename) = entry_names(&entry.display_name);
-    let (staged, entry_cleanup) =
-        stage_archive_entry(cfg, target, &zip, &entry, cb_dir_entry, &entry_filename)?;
 
     let result = async {
         let sha256 = staged_content_sha256(target, &staged).await?;
-        resources::validate_nexus_pak_choice(app, choice)?;
-        let sp = get_state_path(&choice.game_path, cfg);
-        let mut uid = if target.native_steam_app.is_some() {
-            format!(
-                "nexus:{}:{}:entry:{}",
-                choice.mod_id, choice.file_id, entry.display_name
-            )
-        } else {
-            nexus_entry_uid(choice.mod_id, choice.file_id, &entry_stem)
-        };
-        let mut filename =
-            decisions::install_filename_for_zip_entry(cfg, &choice.name, &entry_filename);
-        let mut destination_folder = folder_id;
-        if target.native_steam_app.is_some() {
-            let saved = state::read_state_for_game(&choice.game_path, &sp, cfg)
-                .map_err(|error| error.to_string())?;
-            let filename_is_unique = picker
-                .entries
-                .iter()
-                .filter(|name| entry_names(name).1 == entry_filename)
-                .count()
-                == 1;
-            if let Some(existing) = decisions::shared_nexus_update(
-                &saved.mods,
-                choice.mod_id,
-                choice.file_id,
-                &entry_filename,
-                Some(&entry.display_name),
-                location_tag.as_deref(),
-                filename_is_unique,
-            )? {
-                uid = existing.uid.clone();
-                filename = existing.filename.clone();
-                destination_folder = existing.folder_id.clone();
-            }
-        }
-        install_mod_from_path(
-            &choice.game_path,
-            &sp,
-            InstalledMod {
-                uid,
-                name: choice.name.clone(),
-                version: choice.version.clone(),
-                filename,
-                enabled: true,
-                installed_at: Utc::now().to_rfc3339(),
-                file_remote_id: Some(choice.file_id.to_string()),
-                author: choice.author.clone(),
-                thumbnail_url: choice.thumbnail_url.clone(),
-                file_id: Some(choice.file_id),
-                file_type: Some(choice.file_type.clone()),
-                sha256: Some(sha256),
-                ..InstalledMod::from_catalog(
-                    "nexus",
-                    choice.mod_id.to_string(),
-                    IdentityEvidence::InstallProvenance,
+        let state_guard = lock_game_state(app, cfg.game_id).await;
+        let app = app.clone();
+        let choice = choice.clone();
+        commit_install(state_guard, move || {
+            let picker = &choice.picker;
+            resources::validate_nexus_pak_choice(&app, &choice)?;
+            let sp = get_state_path(&choice.game_path, cfg);
+            let mut uid = if target.native_steam_app.is_some() {
+                format!(
+                    "nexus:{}:{}:entry:{}",
+                    choice.mod_id, choice.file_id, entry.display_name
                 )
-            },
-            &staged,
-            destination_folder,
-            cfg,
-            target,
-        )
+            } else {
+                nexus_entry_uid(choice.mod_id, choice.file_id, &entry_stem)
+            };
+            let mut filename =
+                decisions::install_filename_for_zip_entry(cfg, &choice.name, &entry_filename);
+            let mut destination_folder = folder_id;
+            if target.native_steam_app.is_some() {
+                let saved = state::read_state_for_game(&choice.game_path, &sp, cfg)
+                    .map_err(|error| error.to_string())?;
+                let filename_is_unique = picker
+                    .entries
+                    .iter()
+                    .filter(|name| entry_names(name).1 == entry_filename)
+                    .count()
+                    == 1;
+                if let Some(existing) = decisions::shared_nexus_update(
+                    &saved.mods,
+                    choice.mod_id,
+                    choice.file_id,
+                    &entry_filename,
+                    Some(&entry.display_name),
+                    location_tag.as_deref(),
+                    filename_is_unique,
+                )? {
+                    uid = existing.uid.clone();
+                    filename = existing.filename.clone();
+                    destination_folder = existing.folder_id.clone();
+                }
+            }
+            install_mod_from_path(
+                &choice.game_path,
+                &sp,
+                InstalledMod {
+                    uid,
+                    name: choice.name.clone(),
+                    version: choice.version.clone(),
+                    filename,
+                    enabled: true,
+                    installed_at: Utc::now().to_rfc3339(),
+                    file_remote_id: Some(choice.file_id.to_string()),
+                    author: choice.author.clone(),
+                    thumbnail_url: choice.thumbnail_url.clone(),
+                    file_id: Some(choice.file_id),
+                    file_type: Some(choice.file_type.clone()),
+                    sha256: Some(sha256),
+                    ..InstalledMod::from_catalog(
+                        "nexus",
+                        choice.mod_id.to_string(),
+                        IdentityEvidence::InstallProvenance,
+                    )
+                },
+                &staged,
+                destination_folder,
+                cfg,
+                target,
+            )
+        })
+        .await
     }
     .await;
     cleanup::run(&entry_cleanup).await;
@@ -2647,71 +2746,81 @@ pub async fn install_cb_flat_archive(
     game_path: String,
     folder_id: Option<String>,
 ) -> Result<(), String> {
-    let _state_guard = lock_game_state(&app, "cb").await;
     let cfg = engine_for_game("cb")?;
     let target = cfg.primary();
-    let registry = staged_archives(&app);
-    let zip = registry
-        .borrow(
-            &archive_handle,
-            staging_tokens::StagedArchiveKind::CrimeBossFlat,
-        )
-        .ok_or("this archive is no longer available to install from")?;
-    let _borrow = staging_tokens::BorrowGuard::new(registry, &archive_handle);
     let tmp_dir = std::env::temp_dir().join(format!("modrex-mod-{}", Uuid::new_v4()));
 
     let result = async {
-        extract_archive_flat(&zip, &tmp_dir)?;
+        let worker_app = app.clone();
+        let worker_handle = archive_handle.clone();
+        let extraction_dir = tmp_dir.clone();
+        tauri::async_runtime::spawn_blocking(move || {
+            let registry = staged_archives(&worker_app);
+            let zip = registry
+                .borrow(
+                    &worker_handle,
+                    staging_tokens::StagedArchiveKind::CrimeBossFlat,
+                )
+                .ok_or("this archive is no longer available to install from")?;
+            let _borrow = staging_tokens::BorrowGuard::new(registry, &worker_handle);
+            extract_archive_flat(&zip, &extraction_dir)
+        })
+        .await
+        .map_err(|error| format!("Crime Boss archive staging failed: {error}"))??;
         let hash_path = hashable_file_for_mod_dir(&tmp_dir, cfg.primary().contained_extension)
             .ok_or_else(|| "mod directory is empty".to_string())?;
         let sha256 = compute_sha256(&hash_path).await?;
-        let sp = get_state_path(&game_path, cfg);
-        let saved = state::read_state_for_game(&game_path, &sp, cfg).map_err(|e| {
-            log::warn!("install: {e}");
-            e.to_string()
-        })?;
-        let uid = format!("{}_flat", file_id);
-        let sha256_match = saved
-            .mods
-            .iter()
-            .find(|m| m.sha256.as_deref() == Some(sha256.as_str()));
-        let uid = sha256_match.map(|m| m.uid.clone()).unwrap_or(uid);
-        let filename = naming::mod_folder_name(&mod_name);
+        let state_guard = lock_game_state(&app, cfg.game_id).await;
+        let tmp_dir = tmp_dir.clone();
+        let file_type = file_type.clone();
+        commit_install(state_guard, move || {
+            let sp = get_state_path(&game_path, cfg);
+            let saved =
+                state::read_state_for_game(&game_path, &sp, cfg).map_err(|e| e.to_string())?;
+            let uid = format!("{}_flat", file_id);
+            let sha256_match = saved
+                .mods
+                .iter()
+                .find(|m| m.sha256.as_deref() == Some(sha256.as_str()));
+            let uid = sha256_match.map(|m| m.uid.clone()).unwrap_or(uid);
+            let filename = naming::mod_folder_name(&mod_name);
 
-        install_mod_from_path(
-            &game_path,
-            &sp,
-            InstalledMod {
-                uid,
-                name: mod_name,
-                version: mod_version,
-                filename,
-                enabled: true,
-                installed_at: Utc::now().to_rfc3339(),
-                file_id: Some(file_id),
-                file_type: Some(file_type.clone()),
-                sha256: Some(sha256),
-                ..InstalledMod::from_catalog(
-                    "modworkshop",
-                    mod_id.to_string(),
-                    IdentityEvidence::InstallProvenance,
-                )
-            },
-            &tmp_dir,
-            folder_id,
-            cfg,
-            target,
-        )?;
+            install_mod_from_path(
+                &game_path,
+                &sp,
+                InstalledMod {
+                    uid,
+                    name: mod_name,
+                    version: mod_version,
+                    filename,
+                    enabled: true,
+                    installed_at: Utc::now().to_rfc3339(),
+                    file_id: Some(file_id),
+                    file_type: Some(file_type),
+                    sha256: Some(sha256),
+                    ..InstalledMod::from_catalog(
+                        "modworkshop",
+                        mod_id.to_string(),
+                        IdentityEvidence::InstallProvenance,
+                    )
+                },
+                &tmp_dir,
+                folder_id,
+                cfg,
+                target,
+            )?;
 
-        register_download(&app, file_id).await;
-
-        Ok::<(), String>(())
+            Ok::<(), String>(())
+        })
+        .await
     }
     .await;
 
     cleanup::run(&cleanup::CleanupPlan::RemoveOwnedDirectory(tmp_dir.clone())).await;
-    drop(_borrow);
-    finish_with_archive(registry, &archive_handle).await;
+    finish_with_archive(staged_archives(&app), &archive_handle).await;
+    if result.is_ok() {
+        register_download(&app, file_id).await;
+    }
 
     match &result {
         Ok(_) => track_mod_installed(&app, "cb", mod_id, &file_type),
@@ -2745,7 +2854,6 @@ pub struct InstallHostPackArgs {
 #[tauri::command]
 #[specta::specta]
 pub async fn install_host_pack(app: AppHandle, args: InstallHostPackArgs) -> Result<(), String> {
-    let _state_guard = lock_game_state(&app, args.game_id.as_str()).await;
     let InstallHostPackArgs {
         archive_handle,
         entry_name,
@@ -2760,33 +2868,41 @@ pub async fn install_host_pack(app: AppHandle, args: InstallHostPackArgs) -> Res
         game_id,
     } = args;
     let cfg = engine_for_game(game_id.as_str())?;
-    let registry = staged_archives(&app);
-    let zip = registry
-        .borrow(&archive_handle, staging_tokens::StagedArchiveKind::HostPack)
-        .ok_or("this archive is no longer available to install from")?;
-    let _borrow = staging_tokens::BorrowGuard::new(registry, &archive_handle);
-    if !registry.offers_entry_named(
-        &archive_handle,
-        staging_tokens::StagedArchiveKind::HostPack,
-        &entry_name,
-    ) {
-        return Err("that entry is not part of this archive".to_string());
-    }
-    let sp = get_state_path(&game_path, cfg);
     let install_format = file_type.clone();
-    let mod_data = InstalledMod {
-        name: mod_name,
-        version: mod_version,
-        file_id: Some(file_id),
-        file_type: Some(file_type),
-        location: Some(format!("host:{}:{}", host_mod_id, host_subpath)),
-        ..InstalledMod::from_catalog(
-            "modworkshop",
-            mod_id.to_string(),
-            IdentityEvidence::InstallProvenance,
-        )
-    };
-    install_host_pack_op(&game_path, &sp, &zip, &entry_name, mod_data, cfg)?;
+    let state_guard = lock_game_state(&app, cfg.game_id).await;
+    let worker_app = app.clone();
+    commit_install(state_guard, move || {
+        let app = worker_app;
+        let registry = staged_archives(&app);
+        let zip = registry
+            .borrow(&archive_handle, staging_tokens::StagedArchiveKind::HostPack)
+            .ok_or("this archive is no longer available to install from")?;
+        let _borrow = staging_tokens::BorrowGuard::new(registry, &archive_handle);
+        if !registry.offers_entry_named(
+            &archive_handle,
+            staging_tokens::StagedArchiveKind::HostPack,
+            &entry_name,
+        ) {
+            return Err("that entry is not part of this archive".to_string());
+        }
+        let sp = get_state_path(&game_path, cfg);
+        let mod_data = InstalledMod {
+            name: mod_name,
+            version: mod_version,
+            file_id: Some(file_id),
+            file_type: Some(file_type),
+            location: Some(format!("host:{}:{}", host_mod_id, host_subpath)),
+            ..InstalledMod::from_catalog(
+                "modworkshop",
+                mod_id.to_string(),
+                IdentityEvidence::InstallProvenance,
+            )
+        };
+        install_host_pack_op(&game_path, &sp, &zip, &entry_name, mod_data, cfg)?;
+
+        Ok(())
+    })
+    .await?;
 
     register_download(&app, file_id).await;
 

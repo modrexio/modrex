@@ -8,7 +8,7 @@ use std::pin::pin;
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter};
-use tokio::io::AsyncWriteExt;
+use tokio::io::{AsyncWrite, AsyncWriteExt};
 use tokio::sync::Notify;
 use uuid::Uuid;
 
@@ -116,8 +116,7 @@ impl Drop for TempDownload {
     }
 }
 
-/// Downloads url to a temp file with the given extension, emitting download:progress
-/// events as chunks arrive. Returns the temp file path.
+/// Downloads url to a temp file and emits cumulative progress at a bounded rate.
 pub async fn download_file(
     app: &AppHandle,
     url: &str,
@@ -143,25 +142,12 @@ pub async fn download_file(
         return Err(format!("download failed {}: {}", res.status(), url));
     }
 
-    let total = res.content_length().unwrap_or(0);
-    let mut downloaded: u64 = 0;
-    let mut stream = res.bytes_stream();
     let mut file = tokio::fs::File::create(&dest)
         .await
         .map_err(|e| e.to_string())?;
-
-    let mut last_progress: Option<Instant> = None;
-    while let Some(chunk) = stream.next().await {
-        let chunk = chunk.map_err(|e| e.to_string())?;
-        downloaded += chunk.len() as u64;
-        file.write_all(&chunk).await.map_err(|e| e.to_string())?;
-        // Every event re-renders each page showing installs, so one per chunk keeps the
-        // window too busy to answer clicks until the download ends.
-        if last_progress.is_some_and(|at| at.elapsed() < PROGRESS_INTERVAL) {
-            continue;
-        }
-        last_progress = Some(Instant::now());
-        let _ = app.emit(
+    let mut progress_warning_logged = false;
+    write_download(res, &mut file, |downloaded, total| {
+        if let Err(error) = app.emit(
             "download:progress",
             DownloadProgress {
                 download_id: download_id.to_string(),
@@ -169,10 +155,16 @@ pub async fn download_file(
                 downloaded,
                 total,
             },
-        );
-    }
-
-    file.flush().await.map_err(|e| e.to_string())?;
+        ) {
+            if progress_warning_logged {
+                return;
+            }
+            log::warn!("download {download_id}: progress notification failed: {error}");
+            progress_warning_logged = true;
+        }
+    })
+    .await?;
+    drop(file);
     if let Err(error) = app.emit(
         "download:finished",
         DownloadFinished {
@@ -186,48 +178,39 @@ pub async fn download_file(
     Ok(dest)
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn a_cancel_reaches_the_download_with_that_id() {
-        let download = Cancellable::register("file:1:2");
-        cancel_download("file:1:2".to_string());
-        // The signal waits for the download's next await, so this resolves at once.
-        download.signal.notified().await;
+fn take_progress_update(last_update: &mut Instant, now: Instant) -> bool {
+    if now.duration_since(*last_update) < PROGRESS_INTERVAL {
+        return false;
     }
-
-    #[tokio::test]
-    async fn a_cancel_stops_a_fetch_that_is_still_waiting() {
-        let fetch = cancellable("mod:5", std::future::pending::<()>());
-        let cancel = async {
-            tokio::task::yield_now().await;
-            cancel_download("mod:5".to_string());
-        };
-        let (fetched, ()) = futures::join!(fetch, cancel);
-        assert!(fetched.is_none());
-    }
-
-    #[test]
-    fn an_unfinished_download_deletes_its_file() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("partial.zip");
-        std::fs::write(&path, b"part").unwrap();
-        drop(TempDownload {
-            path: path.clone(),
-            complete: false,
-        });
-        assert!(!path.exists());
-    }
-
-    #[test]
-    fn a_finished_download_leaves_no_entry_but_keeps_a_newer_one() {
-        let first = Cancellable::register("file:3:4");
-        let second = Cancellable::register("file:3:4");
-        drop(first);
-        assert!(cancels().lock().unwrap().contains_key("file:3:4"));
-        drop(second);
-        assert!(!cancels().lock().unwrap().contains_key("file:3:4"));
-    }
+    *last_update = now;
+    true
 }
+
+async fn write_download(
+    response: reqwest::Response,
+    file: &mut (impl AsyncWrite + Unpin),
+    mut report_progress: impl FnMut(u64, u64),
+) -> Result<(), String> {
+    let total = response.content_length().unwrap_or(0);
+    let mut downloaded = 0;
+    let mut stream = response.bytes_stream();
+    report_progress(0, total);
+    let mut last_update = Instant::now();
+
+    while let Some(chunk) = stream.next().await {
+        let chunk = chunk.map_err(|e| e.to_string())?;
+        file.write_all(&chunk).await.map_err(|e| e.to_string())?;
+        downloaded += chunk.len() as u64;
+        if take_progress_update(&mut last_update, Instant::now()) {
+            report_progress(downloaded, total);
+        }
+    }
+
+    file.flush().await.map_err(|e| e.to_string())?;
+    report_progress(downloaded, total);
+    Ok(())
+}
+
+#[cfg(test)]
+#[path = "download_tests.rs"]
+mod tests;
