@@ -89,19 +89,29 @@ fn list_entries_zip(path: &Path) -> Result<Vec<ArchiveEntry>, String> {
 }
 
 fn list_entries_7z(path: &Path) -> Result<Vec<ArchiveEntry>, String> {
-    let file = File::open(path).map_err(|e| e.to_string())?;
-    let mut out = Vec::new();
-    sevenz_rust::decompress_with_extract_fn(file, Path::new("."), |entry, reader, _dest| {
-        out.push(ArchiveEntry {
-            name: entry.name().replace('\\', "/"),
-            is_dir: entry.is_directory(),
-        });
-        // Drain so the stream stays aligned for the next entry in solid archives.
-        let _ = std::io::copy(reader, &mut std::io::sink());
-        Ok(true)
-    })
-    .map_err(|e| e.to_string())?;
-    Ok(out)
+    let archive = sevenz_rust::Archive::open(path).map_err(|e| e.to_string())?;
+    // Entry IDs must follow SevenZReader callback order, including streamless entries.
+    // Header order alone can select a different file during extraction.
+    let streamed = archive.folders.iter().enumerate().flat_map(|(i, folder)| {
+        let start = archive.stream_map.folder_first_file_index[i];
+        start..start + folder.num_unpack_sub_streams
+    });
+    let streamless = archive
+        .stream_map
+        .file_folder_index
+        .iter()
+        .enumerate()
+        .filter_map(|(i, folder)| folder.is_none().then_some(i));
+    Ok(streamed
+        .chain(streamless)
+        .map(|i| {
+            let entry = &archive.files[i];
+            ArchiveEntry {
+                name: entry.name().replace('\\', "/"),
+                is_dir: entry.is_directory(),
+            }
+        })
+        .collect())
 }
 
 fn list_entries_tar<R: Read>(reader: R) -> Result<Vec<ArchiveEntry>, String> {
@@ -299,6 +309,23 @@ fn extract_zip_entry_at(
     copy_capped(&mut entry, &mut dest_file, budget)
 }
 
+fn copy_7z_entry(
+    entry: &sevenz_rust::SevenZArchiveEntry,
+    reader: &mut dyn Read,
+    writer: &mut File,
+    budget: &mut u64,
+) -> Result<(), String> {
+    let available = *budget;
+    copy_capped(reader, writer, budget)?;
+    if available - *budget != entry.size() {
+        return Err(format!(
+            "7z entry '{}' ended before its declared size",
+            entry.name()
+        ));
+    }
+    Ok(())
+}
+
 fn extract_7z_entry_at(
     archive_path: &Path,
     index: usize,
@@ -316,7 +343,7 @@ fn extract_7z_entry_at(
         if position == index && !entry.is_directory() {
             let r = File::create(dest)
                 .map_err(|e| e.to_string())
-                .and_then(|mut f| copy_capped(reader, &mut f, &mut budget.borrow_mut()));
+                .and_then(|mut f| copy_7z_entry(entry, reader, &mut f, &mut budget.borrow_mut()));
             *write_result.borrow_mut() = Some(r);
             return Ok(false);
         }
@@ -475,7 +502,7 @@ fn extract_7z_entry(
         if !entry.is_directory() && entry.name().replace('\\', "/") == normalized {
             let r = File::create(dest)
                 .map_err(|e| e.to_string())
-                .and_then(|mut f| copy_capped(reader, &mut f, &mut budget.borrow_mut()));
+                .and_then(|mut f| copy_7z_entry(entry, reader, &mut f, &mut budget.borrow_mut()));
             *write_result.borrow_mut() = Some(r);
             Ok(false)
         } else {
@@ -906,7 +933,7 @@ fn extract_dir_7z(
         }
         let write = File::create(&dest_path)
             .map_err(|e| e.to_string())
-            .and_then(|mut f| copy_capped(reader, &mut f, &mut budget.borrow_mut()));
+            .and_then(|mut f| copy_7z_entry(entry, reader, &mut f, &mut budget.borrow_mut()));
         if let Err(e) = write {
             *write_err.borrow_mut() = Some(e);
         }
@@ -1117,7 +1144,7 @@ fn extract_flat_7z(
         }
         let write = File::create(&dest_path)
             .map_err(|e| e.to_string())
-            .and_then(|mut f| copy_capped(reader, &mut f, &mut budget.borrow_mut()));
+            .and_then(|mut f| copy_7z_entry(entry, reader, &mut f, &mut budget.borrow_mut()));
         if let Err(e) = write {
             *write_err.borrow_mut() = Some(e);
         }
@@ -2391,3 +2418,7 @@ pub fn mark_archive_files(
 #[cfg(test)]
 #[path = "zip_resource_tests.rs"]
 mod resource_tests;
+
+#[cfg(test)]
+#[path = "zip_sevenz_tests.rs"]
+mod sevenz_tests;
