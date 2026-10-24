@@ -15,6 +15,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - Added a Leftover files tab to Health Check for removing unused .ucas and .utoc files.
 - Added translation coverage and contributor credits in language settings.
 - Added tabs to Installed Mods for games that keep mods in more than one folder.
+- Added Instagram to Settings > About.
 
 ### Changed
 

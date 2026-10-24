@@ -20,7 +20,7 @@ import {
     TriangleAlert,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { siGithub, siDiscord, siX, siBluesky } from 'simple-icons'
+import { siGithub, siDiscord, siX, siBluesky, siInstagram } from 'simple-icons'
 import { t, getLocale, setLocale } from '../i18n'
 import { LOCALE_IDS, localeLabel, type LocaleId } from '../locales'
 import { ACCENT_COLORS, setAccentColor, useAccentColor, type AccentColor } from '../accentColor'
@@ -43,6 +43,7 @@ const SPONSOR_URL = 'https://github.com/sponsors/modrexio'
 const DISCORD_URL = 'https://discord.gg/QM2rDgy43Y'
 const X_URL = 'https://x.com/modrexio'
 const BLUESKY_URL = 'https://bsky.app/profile/modrex.net'
+const INSTAGRAM_URL = 'https://www.instagram.com/modrexio/'
 const WEBSITE_URL = 'https://modrex.net/'
 
 type SettingsTab = 'game' | 'application' | 'advanced' | 'about'
@@ -428,6 +429,20 @@ export function SettingsPage({
                                                 <path d={siBluesky.path} />
                                             </svg>
                                             {t('settings.about.bluesky')}
+                                        </Button>
+                                        <Button
+                                            variant="secondary"
+                                            size="md"
+                                            onClick={() => api.openExternal(INSTAGRAM_URL)}
+                                        >
+                                            <svg
+                                                viewBox="0 0 24 24"
+                                                className={iconClass}
+                                                aria-hidden
+                                            >
+                                                <path d={siInstagram.path} />
+                                            </svg>
+                                            {t('settings.about.instagram')}
                                         </Button>
                                         <Button
                                             variant="secondary"
