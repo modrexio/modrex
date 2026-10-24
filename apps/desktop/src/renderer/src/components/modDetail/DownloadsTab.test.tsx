@@ -65,3 +65,28 @@ it('renders a Nexus file description as BBCode', () => {
     expect(screen.getByText('First line').tagName).toBe('STRONG')
     expect(container.querySelector('.nexus-description')?.querySelectorAll('br')).toHaveLength(1)
 })
+
+it('groups archived Nexus files under old versions', () => {
+    render(
+        <TooltipProvider>
+            <DownloadsTab
+                files={[
+                    { ...file, id: 2, name: 'Old release', label: 'OLD_VERSION' },
+                    { ...file, id: 3, name: 'Archived release', label: 'ARCHIVED' },
+                ]}
+                links={[]}
+                loading={false}
+                modVersion="1"
+                mod={mod}
+                images={[]}
+                gamePath={null}
+                installedFiles={[]}
+                activeGame="pd3"
+                onRefreshInstalled={async () => {}}
+                isNexus
+            />
+        </TooltipProvider>
+    )
+    expect(screen.getAllByText('Old versions')).toHaveLength(1)
+    expect(screen.queryByText('ARCHIVED')).toBeNull()
+})

@@ -62,7 +62,10 @@ function nexusCategoryLabel(key: string): string {
 function groupNexusFiles(files: ModFile[]): { key: string; label: string; files: ModFile[] }[] {
     const byKey = new Map<string, ModFile[]>()
     for (const file of files) {
-        const key = (file.label ?? 'MAIN').toUpperCase()
+        const category = (file.label ?? 'MAIN').toUpperCase()
+        // Nexus files archived by the author are superseded releases, and showing the
+        // raw category name would be the only untranslated heading on the tab.
+        const key = category === 'ARCHIVED' ? 'OLD_VERSION' : category
         const bucket = byKey.get(key)
         if (bucket) bucket.push(file)
         else byKey.set(key, [file])
