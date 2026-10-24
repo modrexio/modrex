@@ -272,7 +272,12 @@ fn apply_nexus_archive_identity_overwrites_the_generic_identity() {
         ..InstalledMod::default()
     };
 
-    apply_nexus_archive_identity(&mut entry, &sample_nexus_match(), &sample_nexus_detail());
+    apply_nexus_archive_identity(
+        &mut entry,
+        &sample_nexus_match(),
+        &sample_nexus_detail(),
+        "1.8",
+    );
 
     assert_eq!(entry.uid, "nexus:52:222");
     assert_eq!(entry.name, "RinoHud");
@@ -290,6 +295,21 @@ fn apply_nexus_archive_identity_overwrites_the_generic_identity() {
     // filename and sha256 are install-path decisions, not identity - untouched.
     assert_eq!(entry.filename, "003_abkarino_RinoHud_P.pak");
     assert_eq!(entry.sha256.as_deref(), Some("deadbeef"));
+}
+
+#[test]
+fn nexus_archive_identity_uses_the_matched_files_upload_version() {
+    let mut entry = InstalledMod::default();
+    let detail = sample_nexus_detail();
+    let file = serde_json::json!({ "mod_version": "1.2", "version": "part-4" });
+    let version = crate::commands::domain::nexus_installed_file_version(&file, &detail.version);
+
+    apply_nexus_archive_identity(&mut entry, &sample_nexus_match(), &detail, &version);
+
+    assert_eq!(entry.version, "1.2");
+    assert_ne!(entry.version, detail.version);
+    assert_eq!(entry.file_remote_id.as_deref(), Some("222"));
+    assert_eq!(entry.update_status, UpdateStatus::Known);
 }
 
 // ── list_pak_entries (zip path) ───────────────────────────────────────────────

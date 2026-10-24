@@ -941,6 +941,15 @@ struct WireNexusFiles {
     files: Vec<WireNexusFile>,
 }
 
+pub(crate) fn nexus_installed_file_version(file: &serde_json::Value, mod_version: &str) -> String {
+    ["mod_version", "version"]
+        .into_iter()
+        .filter_map(|field| file[field].as_str())
+        .find(|version| !version.is_empty())
+        .unwrap_or(mod_version)
+        .to_string()
+}
+
 fn nexus_file_to_mod_file(w: WireNexusFile, domain: &str, mod_id: u32) -> ModFile {
     let kind = std::path::Path::new(&w.file_name)
         .extension()
@@ -1496,3 +1505,7 @@ mod tests {
         assert!(page.data[0].desc.is_none());
     }
 }
+
+#[cfg(test)]
+#[path = "domain_nexus_tests.rs"]
+mod nexus_tests;
