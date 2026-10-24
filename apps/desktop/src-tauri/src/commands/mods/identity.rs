@@ -327,7 +327,13 @@ pub fn ensure_identities(
         let Some(dir) = mod_dir(game_path, cfg, folders, m) else {
             continue;
         };
-        let mut signals = local_signals(cfg, &dir);
+        // A plugin's descriptor only feeds the display. Its FriendlyName rarely matches the
+        // page title, so the name checks in identify.rs would refuse a correct match.
+        let mut signals = if cfg.mod_target(m).is_unreal_plugin_unit() {
+            super::unreal_plugin::local_signals(&dir)
+        } else {
+            local_signals(cfg, &dir)
+        };
         validate_embedded(&mut signals, index, cfg.index_game_name);
 
         let declared = DeclaredMetadata {

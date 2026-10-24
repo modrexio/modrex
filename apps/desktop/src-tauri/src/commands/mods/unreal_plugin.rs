@@ -13,6 +13,8 @@
 
 use std::path::{Path, PathBuf};
 
+use super::identity::LocalSignals;
+
 const DESCRIPTOR_EXTENSION: &str = "uplugin";
 
 /// The container the package viewer opens.
@@ -53,6 +55,57 @@ pub(crate) fn descriptor_in(dir: &Path) -> Option<PathBuf> {
         .collect();
     found.sort();
     found.into_iter().next()
+}
+
+/// The name, author and version a plugin's descriptor declares.
+pub(crate) fn local_signals(dir: &Path) -> LocalSignals {
+    let Some(descriptor) = descriptor_in(dir) else {
+        return LocalSignals::default();
+    };
+    let bytes = match std::fs::read(&descriptor) {
+        Ok(bytes) => bytes,
+        Err(error) => {
+            log::warn!(
+                "Cannot read plugin descriptor {}: {error}",
+                descriptor.display()
+            );
+            return LocalSignals::default();
+        }
+    };
+    let json: serde_json::Value = match serde_json::from_slice(&bytes) {
+        Ok(json) => json,
+        Err(error) => {
+            log::warn!(
+                "Cannot parse plugin descriptor {}: {error}",
+                descriptor.display()
+            );
+            return LocalSignals::default();
+        }
+    };
+    let text = |key: &str| {
+        json.get(key)
+            .and_then(serde_json::Value::as_str)
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(str::to_string)
+    };
+    let author = text("CreatedBy").or_else(|| {
+        let authors = json.get("ModAuthors")?.as_array()?;
+        let joined = authors
+            .iter()
+            .filter_map(serde_json::Value::as_str)
+            .map(str::trim)
+            .filter(|author| !author.is_empty())
+            .collect::<Vec<_>>()
+            .join(", ");
+        (!joined.is_empty()).then_some(joined)
+    });
+    LocalSignals {
+        declared_name: text("FriendlyName"),
+        declared_author: author,
+        declared_version: text("VersionName"),
+        ..LocalSignals::default()
+    }
 }
 
 pub(crate) fn is_plugin_dir(dir: &Path) -> bool {

@@ -135,6 +135,73 @@ fn write(path: &std::path::Path, bytes: &[u8]) {
 }
 
 #[test]
+fn a_descriptor_declares_its_name_author_and_version() {
+    let dir = TempDir::new().unwrap();
+    write(
+        &dir.path().join("PDML.uplugin"),
+        br#"{
+            "FriendlyName": " PDML ", "CreatedBy": " Nadz ",
+            "VersionName": " EA_0.1.2 ", "SemVersion": "0.1.2",
+            "ModAuthors": ["Other"], "ModPageURL": ""
+        }"#,
+    );
+
+    assert_eq!(
+        local_signals(dir.path()),
+        LocalSignals {
+            declared_name: Some("PDML".into()),
+            declared_author: Some("Nadz".into()),
+            declared_version: Some("EA_0.1.2".into()),
+            ..LocalSignals::default()
+        }
+    );
+}
+
+#[test]
+fn blank_or_missing_descriptor_fields_are_absent() {
+    let dir = TempDir::new().unwrap();
+    for body in [
+        r#"{}"#,
+        r#"{"FriendlyName":" ","CreatedBy":"","VersionName":"\t","ModAuthors":["", " "]}"#,
+        r#"{"Version":12,"SemVersion":"0.1.2","ModAuthors":[]}"#,
+    ] {
+        write(&dir.path().join("PDML.uplugin"), body.as_bytes());
+        assert_eq!(local_signals(dir.path()), LocalSignals::default());
+    }
+}
+
+#[test]
+fn mod_authors_fill_in_only_when_created_by_is_absent() {
+    let dir = TempDir::new().unwrap();
+    for body in [
+        r#"{"CreatedBy":" ","ModAuthors":[" Nadz ", "", " Other "]}"#,
+        r#"{"ModAuthors":[" Nadz ", "", " Other "]}"#,
+    ] {
+        write(&dir.path().join("PDML.uplugin"), body.as_bytes());
+        assert_eq!(
+            local_signals(dir.path()).declared_author.as_deref(),
+            Some("Nadz, Other")
+        );
+    }
+}
+
+#[test]
+fn invalid_descriptor_json_produces_no_metadata() {
+    let dir = TempDir::new().unwrap();
+    write(
+        &dir.path().join("PDML.uplugin"),
+        br#"{"FriendlyName":"PDML","CreatedBy":"Nadz","VersionName":"EA_0.1.2""#,
+    );
+    assert_eq!(local_signals(dir.path()), LocalSignals::default());
+}
+
+#[test]
+fn a_directory_without_a_descriptor_produces_no_metadata() {
+    let dir = TempDir::new().unwrap();
+    assert_eq!(local_signals(dir.path()), LocalSignals::default());
+}
+
+#[test]
 fn a_plugin_is_found_where_unreal_finds_it() {
     let mods = TempDir::new().unwrap();
     assert!(!plugin_installed(mods.path(), "PDML"));

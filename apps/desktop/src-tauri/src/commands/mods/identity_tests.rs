@@ -132,6 +132,91 @@ fn tracked(folder: &str) -> InstalledMod {
 }
 
 #[test]
+fn an_unidentified_plugin_gets_declared_metadata_in_either_enabled_state() {
+    let cfg = engine_for_game("pd3").unwrap();
+    let target = cfg.target_for(Some("plugins"));
+    for enabled in [true, false] {
+        let game = TempDir::new().unwrap();
+        let mut mods = vec![InstalledMod {
+            location: Some("plugins".into()),
+            enabled,
+            ..tracked("PDML-main")
+        }];
+        let path = if enabled {
+            active_mod_path(game.path().to_str().unwrap(), "PDML-main", None, target)
+        } else {
+            disabled_mod_path(game.path().to_str().unwrap(), "PDML-main", None, target)
+        };
+        std::fs::create_dir_all(&path).unwrap();
+        std::fs::write(
+            path.join("PDML.uplugin"),
+            r#"{"FriendlyName":"PDML","CreatedBy":"Nadz","VersionName":"EA_0.1.2","ModPageURL":""}"#,
+        )
+        .unwrap();
+
+        assert!(ensure_identities(
+            game.path().to_str().unwrap(),
+            cfg,
+            &[],
+            &mut mods,
+            None
+        ));
+        assert_eq!(
+            mods[0].declared,
+            Some(DeclaredMetadata {
+                name: Some("PDML".into()),
+                author: Some("Nadz".into()),
+                version: Some("EA_0.1.2".into()),
+            })
+        );
+        assert_eq!(mods[0].remote_id, None);
+        assert_eq!(
+            mods[0].identity.as_ref().unwrap().confidence,
+            IdentityConfidence::Candidate
+        );
+        assert!(!ensure_identities(
+            game.path().to_str().unwrap(),
+            cfg,
+            &[],
+            &mut mods,
+            None
+        ));
+    }
+}
+
+#[test]
+fn a_catalog_linked_plugin_is_untouched_by_declared_metadata() {
+    let game = TempDir::new().unwrap();
+    let cfg = engine_for_game("pd3").unwrap();
+    let target = cfg.target_for(Some("plugins"));
+    let path = active_mod_path(game.path().to_str().unwrap(), "PDML", None, target);
+    std::fs::create_dir_all(&path).unwrap();
+    std::fs::write(
+        path.join("PDML.uplugin"),
+        r#"{"FriendlyName":"PDML","CreatedBy":"Nadz","VersionName":"EA_0.1.2"}"#,
+    )
+    .unwrap();
+    let mut record = InstalledMod {
+        name: "Catalog name".into(),
+        version: "Catalog version".into(),
+        location: Some("plugins".into()),
+        ..tracked("PDML")
+    };
+    record.attach_catalog("modworkshop", "59255".into(), IdentityEvidence::CatalogHash);
+    let before = serde_json::to_value(&record).unwrap();
+    let mut mods = vec![record];
+
+    assert!(!ensure_identities(
+        game.path().to_str().unwrap(),
+        cfg,
+        &[],
+        &mut mods,
+        None
+    ));
+    assert_eq!(serde_json::to_value(&mods[0]).unwrap(), before);
+}
+
+#[test]
 fn a_locally_identified_mod_needs_no_catalog_row() {
     let game = TempDir::new().unwrap();
     pd2_mod_dir(
