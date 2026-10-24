@@ -102,13 +102,14 @@ async fn resolve_file(
     app: &AppHandle,
     link: &NxmLink,
     uri: &str,
-) -> Result<(String, String), String> {
+) -> Result<(String, String, serde_json::Value), String> {
     let file_info = nexus_get_file(app, &link.game_id, link.mod_id, link.file_id).await?;
-    file_info["file_name"]
+    let (name, ext) = file_info["file_name"]
         .as_str()
         .and_then(named_file)
         .or_else(|| file_from_uri(uri))
-        .ok_or_else(|| "nxm: could not determine file type from URI or file details".to_string())
+        .ok_or_else(|| "nxm: could not determine file type from URI or file details".to_string())?;
+    Ok((name, ext, file_info))
 }
 
 /// Reports a Nexus download as installed. Sent only once its files are in place, so a page
@@ -209,7 +210,6 @@ async fn handle_nxm_link(app: &AppHandle, link: &NxmLink) -> Result<(), String> 
         .as_str()
         .ok_or("nxm: mod info missing name")?
         .to_string();
-    let mod_version = mod_info["version"].as_str().unwrap_or("").to_string();
     let mod_author = mod_info["author"].as_str().map(|s| s.to_string());
     let thumbnail_url = mod_info["picture_url"].as_str().map(|s| s.to_string());
 
@@ -218,7 +218,11 @@ async fn handle_nxm_link(app: &AppHandle, link: &NxmLink) -> Result<(), String> 
         .and_then(|v| v.get("URI"))
         .and_then(|v| v.as_str())
         .ok_or("nxm: no download URI in resolved link")?;
-    let (source_name, ext) = resolve_file(app, link, uri).await?;
+    let (source_name, ext, file_info) = resolve_file(app, link, uri).await?;
+    let mod_version = crate::commands::domain::nexus_installed_file_version(
+        &file_info,
+        mod_info["version"].as_str().unwrap_or(""),
+    );
 
     // nxm-prefixed so it never collides with the app's other download-id conventions.
     // Carries the game so the renderer can scope progress to it.

@@ -925,6 +925,7 @@ struct WireNexusFile {
     version: String,
     #[serde(deserialize_with = "null_default")]
     mod_version: String,
+    category_id: Option<u32>,
     #[serde(deserialize_with = "null_default")]
     size_kb: i64,
     category_name: Option<String>,
@@ -939,6 +940,124 @@ struct WireNexusFile {
 struct WireNexusFiles {
     #[serde(deserialize_with = "null_default")]
     files: Vec<WireNexusFile>,
+    #[serde(deserialize_with = "null_default")]
+    file_updates: Vec<WireNexusFileUpdate>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct WireNexusFileUpdate {
+    old_file_id: i64,
+    new_file_id: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, specta::Type)]
+#[serde(
+    tag = "status",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+pub enum NexusFileUpdate {
+    Current,
+    Replaced { file_id: i64, version: String },
+    Unknown,
+}
+
+pub(crate) fn nexus_installed_file_version(file: &serde_json::Value, mod_version: &str) -> String {
+    ["mod_version", "version"]
+        .into_iter()
+        .filter_map(|field| file[field].as_str())
+        .find(|version| !version.is_empty())
+        .unwrap_or(mod_version)
+        .to_string()
+}
+
+fn resolve_nexus_file_update(
+    files: &[WireNexusFile],
+    updates: &[WireNexusFileUpdate],
+    installed_id: i64,
+) -> Result<NexusFileUpdate, String> {
+    let mut chain = Vec::new();
+    let mut visited = std::collections::HashSet::from([installed_id]);
+    let mut current = installed_id;
+    while let Some(update) = updates.iter().find(|update| update.old_file_id == current) {
+        if !visited.insert(update.new_file_id) {
+            return Err("nexus: cyclic file update chain".to_string());
+        }
+        current = update.new_file_id;
+        chain.push(current);
+    }
+    let replacement = chain.iter().rev().find_map(|id| {
+        files
+            .iter()
+            .find(|file| file.file_id == *id && !matches!(file.category_id, Some(6 | 7)))
+    });
+    if let Some(file) = replacement {
+        return Ok(nexus_replacement(file));
+    }
+
+    let mut not_old = files
+        .iter()
+        .filter(|file| !matches!(file.category_id, Some(4 | 6 | 7)));
+    if let Some(file) = not_old.next() {
+        if not_old.next().is_none() && file.file_id != installed_id {
+            return Ok(nexus_replacement(file));
+        }
+    }
+    match files.iter().find(|file| file.file_id == installed_id) {
+        Some(file) if !matches!(file.category_id, Some(4 | 6 | 7)) => Ok(NexusFileUpdate::Current),
+        _ => Ok(NexusFileUpdate::Unknown),
+    }
+}
+
+fn nexus_replacement(file: &WireNexusFile) -> NexusFileUpdate {
+    NexusFileUpdate::Replaced {
+        file_id: file.file_id,
+        version: if file.mod_version.is_empty() {
+            file.version.clone()
+        } else {
+            file.mod_version.clone()
+        },
+    }
+}
+
+/// An installed Nexus file and the mod version recorded for it.
+#[derive(Debug, Clone, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct NexusInstalledFile {
+    pub file_id: u32,
+    pub version: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct NexusFileCheck {
+    pub file_id: u32,
+    pub update: NexusFileUpdate,
+}
+
+/// Resolves each installed file against a files.json listing. A file recorded at the
+/// page's current version was uploaded at that version, so it is current without a chain.
+pub(crate) fn parse_nexus_file_checks(
+    value: serde_json::Value,
+    page_version: &str,
+    installed: &[NexusInstalledFile],
+) -> Result<Vec<NexusFileCheck>, String> {
+    let wire: WireNexusFiles = serde_json::from_value(value)
+        .map_err(|error| format!("nexus file listing did not parse: {error}"))?;
+    installed
+        .iter()
+        .map(|file| {
+            let update = if file.version == page_version {
+                NexusFileUpdate::Current
+            } else {
+                resolve_nexus_file_update(&wire.files, &wire.file_updates, file.file_id.into())?
+            };
+            Ok(NexusFileCheck {
+                file_id: file.file_id,
+                update,
+            })
+        })
+        .collect()
 }
 
 fn nexus_file_to_mod_file(w: WireNexusFile, domain: &str, mod_id: u32) -> ModFile {
@@ -1496,3 +1615,7 @@ mod tests {
         assert!(page.data[0].desc.is_none());
     }
 }
+
+#[cfg(test)]
+#[path = "domain_nexus_tests.rs"]
+mod nexus_tests;

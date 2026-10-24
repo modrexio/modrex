@@ -1,6 +1,7 @@
 import { expect, it } from 'vitest'
 import type { InstalledMod, Mod, ModFile, ModSummary } from '../../shared/types'
 import type { VersionState } from './modVersions'
+import type { NexusFileCheck } from './api'
 import { updatableMods, resolveUpdateTarget } from './updatePolicy'
 
 const installed: InstalledMod = {
@@ -16,6 +17,7 @@ const installed: InstalledMod = {
 }
 
 const noSummaries = new Map<number, ModSummary>()
+const noNexus = new Map<number, NexusFileCheck[]>()
 
 it('requires a fresh, explicit remote version and a comparable installed version', () => {
     for (const state of [
@@ -26,29 +28,49 @@ it('requires a fresh, explicit remote version and a comparable installed version
         { status: 'stale', previous: { status: 'known', version: 'different' } },
         { status: 'known', version: 'first' },
     ] as VersionState[]) {
-        expect(updatableMods([installed], new Map([[1, state]]), noSummaries)).toEqual([])
+        expect(updatableMods([installed], new Map([[1, state]]), noSummaries, noNexus)).toEqual([])
     }
     const versions = new Map<number, VersionState>([
         [1, { status: 'known', version: 'anything the author writes' }],
     ])
-    expect(updatableMods([installed], versions, noSummaries)).toEqual([installed])
+    expect(updatableMods([installed], versions, noSummaries, noNexus)).toEqual([installed])
     expect(
         updatableMods(
             [{ ...installed, version: '', updateStatus: 'outdated' }],
             versions,
-            noSummaries
+            noSummaries,
+            noNexus
         )
     ).toHaveLength(1)
     expect(
         updatableMods(
             [{ ...installed, version: 'anything the author writes', updateStatus: 'outdated' }],
             versions,
-            noSummaries
+            noSummaries,
+            noNexus
         )
     ).toHaveLength(1)
     expect(
-        updatableMods([{ ...installed, missing: true }, installed], versions, noSummaries)
+        updatableMods([{ ...installed, missing: true }, installed], versions, noSummaries, noNexus)
     ).toEqual([installed])
+})
+
+it('offers a Nexus update only for an installed file its update chain replaced', () => {
+    const nexus = { ...installed, source: 'nexus', fileRemoteId: '10', fileId: undefined }
+    const versions = new Map<number, VersionState>([[1, { status: 'known', version: 'second' }]])
+    const checks = (update: NexusFileCheck['update']) => new Map([[1, [{ fileId: 10, update }]]])
+    expect(updatableMods([nexus], versions, noSummaries, checks({ status: 'current' }))).toEqual([])
+    expect(updatableMods([nexus], versions, noSummaries, checks({ status: 'unknown' }))).toEqual([
+        nexus,
+    ])
+    expect(
+        updatableMods(
+            [nexus],
+            versions,
+            noSummaries,
+            checks({ status: 'replaced', fileId: 11, version: 'second' })
+        )
+    ).toEqual([nexus])
 })
 
 function file(id: number): ModFile {
@@ -141,7 +163,7 @@ it('does not offer updates for mods Modrex cannot download', () => {
         { download_type: 'file', disable_mod_managers: true },
     ]) {
         const summaries = new Map([[1, summary as ModSummary]])
-        expect(updatableMods([installed], versions, summaries)).toEqual([])
+        expect(updatableMods([installed], versions, summaries, noNexus)).toEqual([])
     }
 })
 

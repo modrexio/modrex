@@ -4,6 +4,7 @@ import { renderHook, waitFor } from '@testing-library/react'
 import type { InstalledMod, Mod, ModSummary } from '../../../shared/types'
 
 const mockNexusGetModDetail = vi.fn()
+const mockFileUpdate = vi.fn()
 const mockGetMod = vi.fn()
 const mockListModFiles = vi.fn()
 const mockListModLinks = vi.fn()
@@ -23,6 +24,14 @@ function emitNexusSignedIn() {
 vi.mock('../api', () => ({
     api: {
         nexusGetModDetail: (...args: unknown[]) => mockNexusGetModDetail(...args),
+        nexusCheckInstalled: async (
+            gameId: string,
+            modId: number,
+            files: { fileId: number; version: string }[]
+        ) => ({
+            detail: await mockNexusGetModDetail(gameId, modId),
+            files: files.map((file) => ({ fileId: file.fileId, update: mockFileUpdate(file) })),
+        }),
         getMod: (...args: unknown[]) => mockGetMod(...args),
         listModFiles: (...args: unknown[]) => mockListModFiles(...args),
         listModLinks: (...args: unknown[]) => mockListModLinks(...args),
@@ -128,6 +137,7 @@ function makeWorkshopSummary(id: number): ModSummary {
 
 beforeEach(() => {
     mockNexusGetModDetail.mockReset()
+    mockFileUpdate.mockReset()
     mockGetMod.mockReset()
     mockListModFiles.mockReset()
     mockListModLinks.mockReset()
@@ -229,5 +239,28 @@ describe('useModData end-to-end with a real installed Nexus mod', () => {
         expect(mockNexusGetModDetail).toHaveBeenCalledWith('pd3', 600)
         expect(result.current.failedIds.has(-600)).toBe(false)
         expect(result.current.updatable).toHaveLength(1)
+    })
+})
+
+describe('Nexus file update chains', () => {
+    it('does not flag a page version bump when the installed file is still current', async () => {
+        const installed = [{ ...makeNexusInstall(-810, '810', '1.0'), fileRemoteId: '81' }]
+        mockNexusGetModDetail.mockResolvedValue(makeNexusDetail(810, '2.0'))
+        mockFileUpdate.mockReturnValue({ status: 'current' })
+        const { result } = renderHook(() => useModData(installed, 853, 'pd3'))
+        await waitFor(() =>
+            expect(mockFileUpdate).toHaveBeenCalledWith({ fileId: 81, version: '1.0' })
+        )
+        await waitFor(() => expect(result.current.modData.has(-810)).toBe(true))
+        expect(result.current.updatable).toEqual([])
+    })
+
+    it('flags a file its update chain replaced, with the mod-level target version', async () => {
+        const installed = [{ ...makeNexusInstall(-811, '811', '1.0'), fileRemoteId: '82' }]
+        mockNexusGetModDetail.mockResolvedValue(makeNexusDetail(811, '2.0'))
+        mockFileUpdate.mockReturnValue({ status: 'replaced', fileId: 83, version: '2.0' })
+        const { result } = renderHook(() => useModData(installed, 853, 'pd3'))
+        await waitFor(() => expect(result.current.updatable).toEqual(installed))
+        expect(result.current.updateVersions.get(-811)).toBe('2.0')
     })
 })

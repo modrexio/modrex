@@ -210,6 +210,40 @@ pub async fn nexus_list_mod_files(
     crate::commands::domain::parse_nexus_files(value, &domain, mod_id)
 }
 
+#[derive(Debug, Clone, serde::Serialize, specta::Type)]
+pub struct NexusInstalledCheck {
+    pub detail: crate::commands::domain::ModDetail,
+    pub files: Vec<crate::commands::domain::NexusFileCheck>,
+}
+
+// The installed-mods update poll. files.json is only requested when an installed file's
+// recorded version differs from the page, so an up-to-date mod costs one request.
+#[tauri::command]
+#[specta::specta]
+pub async fn nexus_check_installed(
+    app: AppHandle,
+    game_id: String,
+    mod_id: u32,
+    files: Vec<crate::commands::domain::NexusInstalledFile>,
+) -> Result<NexusInstalledCheck, String> {
+    let detail = crate::commands::domain::parse_nexus_detail(
+        nexus_get_mod(app.clone(), game_id.clone(), mod_id).await?,
+    )?;
+    let listing = if files.iter().all(|file| file.version == detail.version) {
+        serde_json::json!({ "files": [] })
+    } else {
+        let domain = nexus_domain(&game_id)?;
+        nexus_get(
+            &app,
+            &format!("/games/{domain}/mods/{mod_id}/files.json"),
+            vec![],
+        )
+        .await?
+    };
+    let files = crate::commands::domain::parse_nexus_file_checks(listing, &detail.version, &files)?;
+    Ok(NexusInstalledCheck { detail, files })
+}
+
 // Single-file details; carries file_name, which the nxm flow needs when the
 // download URI's path has no usable filename.
 pub(crate) async fn nexus_get_file(

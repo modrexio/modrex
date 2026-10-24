@@ -8,8 +8,15 @@ import {
 } from '../nexusModCache'
 import { useModVersions } from './useModVersions'
 import type { VersionState } from '../modVersions'
-import { updatableMods } from '../updatePolicy'
+import { nexusFileId, updatableMods } from '../updatePolicy'
+import type { NexusFileCheck, NexusInstalledFile } from '../api'
 import { getLocalImage } from '../thumbnailCache'
+
+interface NexusObservation {
+    state: VersionState
+    checkedAt: number
+    files: NexusFileCheck[]
+}
 
 export function useModData(
     installed: InstalledMod[],
@@ -18,9 +25,7 @@ export function useModData(
 ) {
     const [modData, setModData] = useState(new Map<number, ModSummary>())
     const [failedIds, setFailedIds] = useState(new Set<number>())
-    const [nexusVersions, setNexusVersions] = useState(
-        new Map<number, { state: VersionState; checkedAt: number }>()
-    )
+    const [nexusVersions, setNexusVersions] = useState(new Map<number, NexusObservation>())
     const [clock, setClock] = useState(0)
     const nexusAuthEpoch = useNexusAuthEpoch()
     const workshop = installed.filter(
@@ -41,7 +46,7 @@ export function useModData(
         let running = false
         const attempted = new Map<number, number>()
         const initial = new Map<number, ModSummary>()
-        const initialNexusVersions = new Map<number, { state: VersionState; checkedAt: number }>()
+        const initialNexusVersions = new Map<number, NexusObservation>()
         for (const mod of installed) {
             const nexusEntry =
                 mod.source === 'nexus'
@@ -62,7 +67,11 @@ export function useModData(
                         nexusEntry.mod.version === ''
                             ? { status: 'unversioned' }
                             : { status: 'known', version: nexusEntry.mod.version }
-                    initialNexusVersions.set(mod.id, { state, checkedAt: nexusEntry.fetchedAt })
+                    initialNexusVersions.set(mod.id, {
+                        state,
+                        checkedAt: nexusEntry.fetchedAt,
+                        files: nexusEntry.files,
+                    })
                 }
                 if (entry.mod.thumbnail?.file) void getLocalImage(entry.mod.thumbnail.file, true)
             }
@@ -75,7 +84,8 @@ export function useModData(
             source: 'nexus' | 'modworkshop',
             remoteId: number,
             mod: ModSummary | null,
-            version?: string
+            version?: string,
+            files: NexusFileCheck[] = []
         ) {
             if (cancelled) return
             for (const ins of installed) {
@@ -100,7 +110,7 @@ export function useModData(
                               ? { status: 'unversioned' }
                               : { status: 'known', version }
                     setNexusVersions((previous) =>
-                        new Map(previous).set(ins.id, { state, checkedAt: Date.now() })
+                        new Map(previous).set(ins.id, { state, checkedAt: Date.now(), files })
                     )
                 }
             }
@@ -112,14 +122,18 @@ export function useModData(
             setClock(Date.now())
             try {
                 const workshopIds: number[] = []
-                const nexusIds: number[] = []
+                const nexusFiles = new Map<number, NexusInstalledFile[]>()
                 for (const mod of installed) {
                     const id = Number(mod.remoteId)
                     if (!Number.isInteger(id) || id <= 0) continue
                     if (Date.now() - (attempted.get(mod.id) ?? -Infinity) < INSTALLED_META_TTL_MS)
                         continue
-                    if (mod.source === 'nexus') nexusIds.push(id)
-                    else if ((!mod.source || mod.source === 'modworkshop') && id <= 0xffff_ffff)
+                    if (mod.source === 'nexus') {
+                        const files = nexusFiles.get(id) ?? []
+                        const fileId = nexusFileId(mod)
+                        if (fileId !== undefined) files.push({ fileId, version: mod.version })
+                        nexusFiles.set(id, files)
+                    } else if ((!mod.source || mod.source === 'modworkshop') && id <= 0xffff_ffff)
                         workshopIds.push(id)
                 }
                 await Promise.all([
@@ -131,10 +145,10 @@ export function useModData(
                                   for (const id of failedIds) accept('modworkshop', id, null)
                               }
                           ),
-                    !nexusIds.length
+                    !nexusFiles.size
                         ? Promise.resolve()
-                        : fetchInstalledNexusModsMeta(gameId, nexusIds, (id, mod) =>
-                              accept('nexus', id, mod, mod?.version)
+                        : fetchInstalledNexusModsMeta(gameId, nexusFiles, (id, mod, files) =>
+                              accept('nexus', id, mod, mod?.version, files)
                           ),
                 ])
             } finally {
@@ -167,7 +181,11 @@ export function useModData(
                 : state
         )
     }
-    const updatable = updatableMods(installed, versions, modData)
+    const nexusFiles = new Map<number, NexusFileCheck[]>()
+    for (const [id, entry] of nexusVersions) {
+        if (entry.files.length) nexusFiles.set(id, entry.files)
+    }
+    const updatable = updatableMods(installed, versions, modData, nexusFiles)
     const updateVersions = new Map<number, string>()
     for (const mod of updatable) {
         const state = versions.get(mod.id)

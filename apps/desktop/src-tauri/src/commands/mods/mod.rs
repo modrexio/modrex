@@ -1914,11 +1914,12 @@ fn apply_nexus_archive_identity(
     entry: &mut InstalledMod,
     m: &crate::commands::nexus::NexusHashMatch,
     detail: &crate::commands::domain::ModDetail,
+    file_version: &str,
 ) {
     entry.uid = format!("nexus:{}:{}", m.mod_id, m.file_id);
     entry.attach_catalog("nexus", m.mod_id.to_string(), IdentityEvidence::CatalogHash);
     entry.name = detail.name.clone();
-    entry.version = detail.version.clone();
+    entry.version = file_version.to_string();
     entry.update_status = UpdateStatus::Known;
     entry.file_remote_id = Some(m.file_id.to_string());
     entry.author = Some(detail.user.name.clone());
@@ -2074,23 +2075,26 @@ pub async fn install_dropped_file(
         }
         _ => None,
     };
-    // A hash match without its enrichment detail is not installed as identified -
-    // apply_nexus_archive_identity only runs when both are present - but the failure
-    // is still worth a log line, same as the identification lookup above.
+    // Identification needs the matched file's upload version, not the current mod version.
     let nexus_detail = match &nexus_match {
         Some(m) => {
-            match crate::commands::nexus::nexus_get_mod(app.clone(), game_id.clone(), m.mod_id)
-                .await
-            {
-                Ok(value) => match crate::commands::domain::parse_nexus_detail(value) {
-                    Ok(detail) => Some(detail),
-                    Err(e) => {
-                        log::warn!("install_dropped_file: nexus detail parse failed: {e}");
-                        None
-                    }
-                },
+            let metadata = async {
+                let value =
+                    crate::commands::nexus::nexus_get_mod(app.clone(), game_id.clone(), m.mod_id)
+                        .await?;
+                let detail = crate::commands::domain::parse_nexus_detail(value)?;
+                let file =
+                    crate::commands::nexus::nexus_get_file(&app, &game_id, m.mod_id, m.file_id)
+                        .await?;
+                let version =
+                    crate::commands::domain::nexus_installed_file_version(&file, &detail.version);
+                Ok::<_, String>((detail, version))
+            }
+            .await;
+            match metadata {
+                Ok(metadata) => Some(metadata),
                 Err(e) => {
-                    log::warn!("install_dropped_file: nexus detail fetch failed: {e}");
+                    log::warn!("install_dropped_file: nexus metadata failed: {e}");
                     None
                 }
             }
@@ -2121,8 +2125,8 @@ pub async fn install_dropped_file(
             sha256: Some(sha256),
             ..InstalledMod::default()
         };
-        if let (Some(m), Some(detail)) = (&nexus_match, &nexus_detail) {
-            apply_nexus_archive_identity(&mut mod_entry, m, detail);
+        if let (Some(m), Some((detail, version))) = (&nexus_match, &nexus_detail) {
+            apply_nexus_archive_identity(&mut mod_entry, m, detail, version);
         }
 
         let saved = state::read_state_for_game(&game_path, &sp, cfg).map_err(|e| {

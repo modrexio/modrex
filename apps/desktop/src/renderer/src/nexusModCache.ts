@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react'
 import type { Mod, ModFile } from '../../shared/types'
-import { api } from './api'
+import { api, type NexusFileCheck, type NexusInstalledFile } from './api'
 import { waitForForegroundClear } from './requestPriority'
 
 // Counts the Nexus sign-ins this session. Anything a caller recorded about a mod having
@@ -104,6 +104,7 @@ export async function getCachedNexusModFiles(gameId: string, modId: number): Pro
 // with useModData's staleness check.
 interface NexusInstalledMetaEntry {
     mod: Mod
+    files: NexusFileCheck[]
     fetchedAt: number
 }
 
@@ -128,22 +129,27 @@ const STAGGER_MS = 2000
 // would see nothing update for as long as the whole list takes.
 export async function fetchInstalledNexusModsMeta(
     gameId: string,
-    modIds: number[],
-    onResult?: (modId: number, mod: Mod | null) => void
+    installedFiles: ReadonlyMap<number, NexusInstalledFile[]>,
+    onResult?: (modId: number, mod: Mod | null, files: NexusFileCheck[]) => void
 ): Promise<{ mods: Map<number, Mod>; failedIds: number[] }> {
     const mods = new Map<number, Mod>()
     const failedIds: number[] = []
-    for (const [i, modId] of modIds.entries()) {
+    for (const [i, [modId, files]] of [...installedFiles].entries()) {
         if (i > 0) await new Promise((resolve) => setTimeout(resolve, STAGGER_MS))
         await waitForForegroundClear()
         try {
-            const mod = await api.nexusGetModDetail(gameId, modId)
-            installedMetaCache.set(key(gameId, modId), { mod, fetchedAt: Date.now() })
+            const check = await api.nexusCheckInstalled(gameId, modId, files)
+            const mod = check.detail
+            installedMetaCache.set(key(gameId, modId), {
+                mod,
+                files: check.files,
+                fetchedAt: Date.now(),
+            })
             mods.set(modId, mod)
-            onResult?.(modId, mod)
+            onResult?.(modId, mod, check.files)
         } catch {
             failedIds.push(modId)
-            onResult?.(modId, null)
+            onResult?.(modId, null, [])
         }
     }
     return { mods, failedIds }
