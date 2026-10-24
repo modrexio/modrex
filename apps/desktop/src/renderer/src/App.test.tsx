@@ -172,7 +172,7 @@ test('restored workspace waits for sources and preserves a valid saved Nexus sel
 
     await act(async () => resolveSources([modworkshop, nexus]))
     expectActive('nexus')
-    expect(screen.getByTestId('modworkshop').getAttribute('data-active')).toBe('false')
+    expect(screen.queryByTestId('modworkshop')).toBeNull()
     await vi.waitFor(() => expect(mocks.startup).toHaveBeenCalledWith('ready'))
 })
 

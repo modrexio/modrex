@@ -12,7 +12,7 @@ a workspace. `preview/navigation.test.tsx` covers navigation, restart, and scope
 
 **`GameWorkspace.tsx`** owns game page navigation, the mod detail stack, source selection,
 and focus refreshes. It mounts for one game and unmounts on returning to the picker.
-Game panes stay mounted across tab switches with visibility-based hiding. Locale changes
+Game panes mount on first activation, then stay mounted across tab switches with visibility-based hiding. Locale changes
 remount its rendered pages while preserving workspace navigation and data subscriptions.
 `GameTopBar` supplies game controls to the shared `TopBar`. `Sidebar` takes a typed
 navigation object whose global variant contains no game ID or game navigation callback.

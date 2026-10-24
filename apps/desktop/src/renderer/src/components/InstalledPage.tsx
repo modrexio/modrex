@@ -45,7 +45,6 @@ import { useDragDrop } from '../hooks/useDragDrop'
 import { useFolderActions } from '../hooks/useFolderActions'
 import { useModActions } from '../hooks/useModActions'
 import { UpdateFileModal } from './UpdateFileModal'
-import { useAutoIdentifyNexusMods } from '../hooks/useAutoIdentifyNexusMods'
 import {
     computeChildren,
     groupChildren,
@@ -289,8 +288,6 @@ export function InstalledPage({
     } = useModActions(gamePath, onRefreshInstalled, activeGame)
 
     const choiceOpen = useInstallChoiceOpen()
-
-    useAutoIdentifyNexusMods({ installed, gamePath, activeGame, onRefreshInstalled })
 
     const folderActions = useFolderActions(gamePath, folders, onRefreshInstalled, activeGame)
 

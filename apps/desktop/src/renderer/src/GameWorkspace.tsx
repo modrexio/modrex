@@ -39,6 +39,7 @@ import { GameFolders } from './components/GameFolders'
 import { EngineIniSettings } from './components/EngineIniSettings'
 import { GraphicsConfigSettings } from './components/GraphicsConfigSettings'
 import { ResourceRecoveryDialog } from './components/ResourceRecoveryDialog'
+import { useAutoIdentifyNexusMods } from './hooks/useAutoIdentifyNexusMods'
 import { useFileDropTarget } from './components/FileDropInstall'
 
 const InstalledPageMemo = memo(InstalledPage)
@@ -116,6 +117,12 @@ export function GameWorkspace({
         }
     }, [activeGame, onStartupPhase])
 
+    useAutoIdentifyNexusMods({
+        installed,
+        gamePath,
+        activeGame,
+        onRefreshInstalled: refreshInstalled,
+    })
     useModIdentificationTracking(installed, activeGame)
     useFileDropTarget({ activeGame, gamePath, installed })
 
@@ -247,6 +254,12 @@ export function GameWorkspace({
         [activeGame]
     )
 
+    const activePane = view === 'browse' ? browseSource : view === 'detail' ? null : view
+    const [visitedPanes, setVisitedPanes] = useState(() => new Set<string>())
+    if (activePane !== null && !visitedPanes.has(activePane)) {
+        setVisitedPanes(new Set(visitedPanes).add(activePane))
+    }
+
     const sidebarView = view === 'detail' ? prevView : view
     return (
         <div key={locale} className="contents">
@@ -335,12 +348,13 @@ export function GameWorkspace({
                     }}
                     onShowWelcome={onShowWelcome}
                 />
-                {/* Visibility preserves pane layout and decoded images across tab switches. */}
+                {/* Panes mount on first activation, then visibility preserves their layout and images. */}
                 <main className="relative flex-1 overflow-hidden">
                     <div
                         className={`absolute inset-0 ${view === 'browse' && browseSource === 'modworkshop' ? '' : 'invisible pointer-events-none'}`}
                     >
-                        {GAMES[activeGame].workshopId !== undefined &&
+                        {visitedPanes.has('modworkshop') &&
+                            GAMES[activeGame].workshopId !== undefined &&
                             hasSource(activeGame, 'modworkshop') && (
                                 <BrowsePageMemo
                                     key={activeGame}
@@ -361,7 +375,7 @@ export function GameWorkspace({
                     <div
                         className={`absolute inset-0 ${view === 'browse' && browseSource === 'nexus' ? '' : 'invisible pointer-events-none'}`}
                     >
-                        {hasSource(activeGame, 'nexus') && (
+                        {visitedPanes.has('nexus') && hasSource(activeGame, 'nexus') && (
                             <NexusBrowsePage
                                 key={activeGame}
                                 activeGame={activeGame}
@@ -378,73 +392,79 @@ export function GameWorkspace({
                     <div
                         className={`absolute inset-0 ${view === 'installed' ? '' : 'invisible pointer-events-none'}`}
                     >
-                        <InstalledPageMemo
-                            activeGame={activeGame}
-                            gamePath={gamePath}
-                            installed={installed}
-                            folders={folders}
-                            installedReady={data.installed !== undefined}
-                            isActive={view === 'installed'}
-                            onRefreshInstalled={refreshInstalled}
-                            onOpenDetail={openDetailFromInstalled}
-                        />
+                        {visitedPanes.has('installed') && (
+                            <InstalledPageMemo
+                                activeGame={activeGame}
+                                gamePath={gamePath}
+                                installed={installed}
+                                folders={folders}
+                                installedReady={data.installed !== undefined}
+                                isActive={view === 'installed'}
+                                onRefreshInstalled={refreshInstalled}
+                                onOpenDetail={openDetailFromInstalled}
+                            />
+                        )}
                     </div>
                     <div
                         className={`absolute inset-0 ${view === 'news' ? '' : 'invisible pointer-events-none'}`}
                     >
-                        <NewsPage isActive={view === 'news'} activeGame={activeGame} />
+                        {visitedPanes.has('news') && (
+                            <NewsPage isActive={view === 'news'} activeGame={activeGame} />
+                        )}
                     </div>
                     <div
                         className={`absolute inset-0 ${view === 'settings' ? '' : 'invisible pointer-events-none'}`}
                     >
-                        <SettingsPage
-                            {...settings}
-                            isActive={view === 'settings'}
-                            game={{
-                                name: GAMES[activeGame].name,
-                                content: (
-                                    <GameSettings
-                                        activeGame={activeGame}
-                                        gamePath={gamePath}
-                                        gamePathReady={gamePathReady}
-                                        onGamePathChange={handleGamePathSet}
-                                    />
-                                ),
-                                folders: (
-                                    <GameFolders activeGame={activeGame} gamePath={gamePath} />
-                                ),
-                                advanced:
-                                    GAMES[activeGame].configPresets ||
-                                    GAMES[activeGame].graphicsConfig
-                                        ? (openGameSettings, isActive) => (
-                                              <>
-                                                  {GAMES[activeGame].configPresets && (
-                                                      <EngineIniSettings
-                                                          key={`ini:${configContext}`}
-                                                          activeGame={activeGame}
-                                                          isActive={isActive}
-                                                          gamePath={data.path}
-                                                          onOpenGameSettings={openGameSettings}
-                                                      />
-                                                  )}
-                                                  {GAMES[activeGame].graphicsConfig && (
-                                                      <GraphicsConfigSettings
-                                                          key={`graphics:${configContext}`}
-                                                          activeGame={activeGame}
-                                                          isActive={isActive}
-                                                          gamePath={data.path}
-                                                          onOpenGameSettings={openGameSettings}
-                                                          filename={
-                                                              GAMES[activeGame].graphicsConfig
-                                                                  .filename
-                                                          }
-                                                      />
-                                                  )}
-                                              </>
-                                          )
-                                        : undefined,
-                            }}
-                        />
+                        {visitedPanes.has('settings') && (
+                            <SettingsPage
+                                {...settings}
+                                isActive={view === 'settings'}
+                                game={{
+                                    name: GAMES[activeGame].name,
+                                    content: (
+                                        <GameSettings
+                                            activeGame={activeGame}
+                                            gamePath={gamePath}
+                                            gamePathReady={gamePathReady}
+                                            onGamePathChange={handleGamePathSet}
+                                        />
+                                    ),
+                                    folders: (
+                                        <GameFolders activeGame={activeGame} gamePath={gamePath} />
+                                    ),
+                                    advanced:
+                                        GAMES[activeGame].configPresets ||
+                                        GAMES[activeGame].graphicsConfig
+                                            ? (openGameSettings, isActive) => (
+                                                  <>
+                                                      {GAMES[activeGame].configPresets && (
+                                                          <EngineIniSettings
+                                                              key={`ini:${configContext}`}
+                                                              activeGame={activeGame}
+                                                              isActive={isActive}
+                                                              gamePath={data.path}
+                                                              onOpenGameSettings={openGameSettings}
+                                                          />
+                                                      )}
+                                                      {GAMES[activeGame].graphicsConfig && (
+                                                          <GraphicsConfigSettings
+                                                              key={`graphics:${configContext}`}
+                                                              activeGame={activeGame}
+                                                              isActive={isActive}
+                                                              gamePath={data.path}
+                                                              onOpenGameSettings={openGameSettings}
+                                                              filename={
+                                                                  GAMES[activeGame].graphicsConfig
+                                                                      .filename
+                                                              }
+                                                          />
+                                                      )}
+                                                  </>
+                                              )
+                                            : undefined,
+                                }}
+                            />
+                        )}
                     </div>
                     {detailStack.map(({ modId, initialMod, source }, i) => (
                         <div

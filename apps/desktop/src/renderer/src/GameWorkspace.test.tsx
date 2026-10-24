@@ -22,12 +22,24 @@ vi.mock('./settingsCache', () => ({
 vi.mock('./lib/analytics/useModIdentificationTracking', () => ({
     useModIdentificationTracking: () => {},
 }))
+vi.mock('./hooks/useAutoIdentifyNexusMods', () => ({ useAutoIdentifyNexusMods: vi.fn() }))
 vi.mock('./components/FileDropInstall', () => ({ useFileDropTarget: () => {} }))
 vi.mock('./components/GameTopBar', () => ({ GameTopBar: () => null }))
-vi.mock('./components/Sidebar', () => ({ Sidebar: () => null }))
+vi.mock('./components/Sidebar', () => ({
+    Sidebar: ({
+        navigation,
+    }: {
+        navigation: { onViewChange: (view: 'installed' | 'news') => void }
+    }) => (
+        <>
+            <button onClick={() => navigation.onViewChange('news')}>News</button>
+            <button onClick={() => navigation.onViewChange('installed')}>Installed</button>
+        </>
+    ),
+}))
 vi.mock('./components/BrowsePage', () => ({ BrowsePage: () => null }))
 vi.mock('./components/NexusBrowsePage', () => ({ NexusBrowsePage: () => null }))
-vi.mock('./components/NewsPage', () => ({ NewsPage: () => null }))
+vi.mock('./components/NewsPage', () => ({ NewsPage: () => <input aria-label="News state" /> }))
 vi.mock('./components/ModDetailPage', () => ({ ModDetailPage: () => null }))
 vi.mock('./components/SettingsPage', () => ({ SettingsPage: () => null }))
 vi.mock('./components/GameSettings', () => ({ GameSettings: () => null }))
@@ -277,4 +289,30 @@ it('rejects a refresh invoked after unmount without reporting a closed workspace
     expect(first.phase).not.toHaveBeenCalled()
     expect(second.phase).not.toHaveBeenCalled()
     expect(screen.queryByRole('alert')).toBeNull()
+})
+
+it('mounts panes on first activation and retains their DOM after switching away', async () => {
+    await mountGame()
+    expect(screen.queryByLabelText('News state')).toBeNull()
+    fireEvent.click(screen.getByText('News'))
+    const news = screen.getByLabelText('News state') as HTMLInputElement
+    fireEvent.change(news, { target: { value: 'retained' } })
+    fireEvent.click(screen.getByText('Installed'))
+    expect(screen.getByLabelText('News state')).toBe(news)
+    expect(news.value).toBe('retained')
+    expect(news.parentElement!.className).toContain('invisible')
+    fireEvent.click(screen.getByText('News'))
+    expect(screen.getByLabelText('News state')).toBe(news)
+    expect(news.parentElement!.className).not.toContain('invisible')
+})
+
+it('runs background identification before Installed is opened', async () => {
+    const { saveGameView } = await import('./navigation')
+    saveGameView('pd3', 'news')
+    await mountGame()
+    const { useAutoIdentifyNexusMods } = await import('./hooks/useAutoIdentifyNexusMods')
+    expect(screen.queryByText('Installed list ready')).toBeNull()
+    expect(useAutoIdentifyNexusMods).toHaveBeenCalledWith(
+        expect.objectContaining({ activeGame: 'pd3', installed: [] })
+    )
 })
