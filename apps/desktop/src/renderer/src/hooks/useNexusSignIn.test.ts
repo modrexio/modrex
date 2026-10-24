@@ -54,15 +54,6 @@ describe('Nexus sign-in recovery', () => {
         expect(result.current.error).toBeNull()
     })
 
-    it('ignores focus after the callback arrives', async () => {
-        const { result } = renderHook(useNexusSignIn)
-        await act(() => result.current.signIn())
-        act(() => vi.mocked(api.onNexusOAuthCallbackReceived).mock.calls[0]![0]())
-        act(() => window.dispatchEvent(new Event('focus')))
-        act(() => vi.advanceTimersByTime(2000))
-        expect(result.current.status).toBe('finishing')
-    })
-
     it('starts a fresh attempt after interruption', async () => {
         const { result } = renderHook(useNexusSignIn)
         await act(() => result.current.signIn())

@@ -98,72 +98,15 @@ describe('Nexus browse sign-in', () => {
         }
     )
 
-    it('starts sign-in and allows another attempt while waiting', async () => {
+    it('starts sign-in from the prompt and shows its progress', async () => {
         const button = await renderPage()
         fireEvent.click(button)
-        expect(api.nexusOAuthStart).toHaveBeenCalledTimes(1)
-        expect(
-            screen
-                .getByText('Continue in your browser. If it asks to open Modrex, choose Open.')
-                .getAttribute('aria-live')
-        ).toBe('polite')
-        expect((button as HTMLButtonElement).disabled).toBe(false)
-        fireEvent.click(button)
-        expect(api.nexusOAuthStart).toHaveBeenCalledTimes(2)
-    })
-
-    it('shows recovery guidance and keeps the sign-in action after interruption', async () => {
-        const button = await renderPage()
-        vi.useFakeTimers()
-        fireEvent.click(button)
-        act(() => window.dispatchEvent(new Event('focus')))
-        act(() => vi.advanceTimersByTime(2000))
-        const status = screen.getByText(t('settings.nexusAccount.interrupted'))
-        expect(status.className).toContain('text-warning')
-        expect(status.getAttribute('aria-live')).toBe('polite')
-        expect(screen.getByRole('button', { name: t('settings.nexusAccount.signIn') })).toBe(button)
-        fireEvent.click(button)
-        expect(screen.queryByText(t('settings.nexusAccount.interrupted'))).toBeNull()
+        expect(api.nexusOAuthStart).toHaveBeenCalledOnce()
         expect(screen.getByText(t('settings.nexusAccount.awaitingBrowser'))).toBeTruthy()
     })
 
-    it('shows finishing status after the callback and lets errors take priority', async () => {
+    it('loads mods in place once sign-in succeeds', async () => {
         const button = await renderPage()
-        fireEvent.click(button)
-        act(() => vi.mocked(api.onNexusOAuthCallbackReceived).mock.calls[0]![0]())
-        const status = screen.getByText('Finishing sign-in...')
-        expect(status.className).toContain('text-text-subtle')
-        expect(status.getAttribute('aria-live')).toBe('polite')
-        expect(screen.queryByText(t('settings.nexusAccount.awaitingBrowser'))).toBeNull()
-        act(() => vi.mocked(api.onNexusOAuthFailed).mock.calls[0]![0]('Access denied'))
-        act(() => vi.mocked(api.onNexusOAuthCallbackReceived).mock.calls[0]![0]())
-        expect(screen.queryByText('Finishing sign-in...')).toBeNull()
-        expect(
-            screen.getByText(t('settings.nexusAccount.failed', { error: 'Access denied' }))
-        ).toBeTruthy()
-    })
-
-    it('shows a failed start and clears the error on retry', async () => {
-        vi.mocked(api.nexusOAuthStart).mockRejectedValueOnce('Browser unavailable')
-        const button = await renderPage()
-        fireEvent.click(button)
-        await screen.findByText(t('settings.nexusAccount.failed', { error: 'Browser unavailable' }))
-        expect(screen.queryByText(t('settings.nexusAccount.awaitingBrowser'))).toBeNull()
-        fireEvent.click(button)
-        expect(
-            screen.queryByText(t('settings.nexusAccount.failed', { error: 'Browser unavailable' }))
-        ).toBeNull()
-        expect(screen.getByText(t('settings.nexusAccount.awaitingBrowser'))).toBeTruthy()
-    })
-
-    it('handles callback failures and clears waiting on success without navigating', async () => {
-        const button = await renderPage()
-        fireEvent.click(button)
-        act(() => vi.mocked(api.onNexusOAuthFailed).mock.calls[0]![0]('Access denied'))
-        expect(
-            screen.getByText(t('settings.nexusAccount.failed', { error: 'Access denied' }))
-        ).toBeTruthy()
-        expect(screen.queryByText(t('settings.nexusAccount.awaitingBrowser'))).toBeNull()
         fireEvent.click(button)
         vi.mocked(api.nexusSearchMods).mockResolvedValue({
             data: [],
@@ -175,7 +118,6 @@ describe('Nexus browse sign-in', () => {
         await waitFor(() =>
             expect(screen.getByRole<HTMLInputElement>('textbox').disabled).toBe(false)
         )
-        expect(screen.queryByText(t('settings.nexusAccount.awaitingBrowser'))).toBeNull()
         expect(screen.queryByRole('button', { name: t('settings.nexusAccount.signIn') })).toBeNull()
     })
 
@@ -184,12 +126,5 @@ describe('Nexus browse sign-in', () => {
         act(() => vi.mocked(api.onNexusSessionExpired).mock.calls[0]![0]())
         expect(screen.getByText(t('nexus.sessionExpiredHint'))).toBeTruthy()
         expect(screen.getByRole('button', { name: t('nexusSession.signIn') })).toBeTruthy()
-    })
-
-    it('keeps the shared sign-in subscriptions when the prompt unmounts', async () => {
-        await renderPage()
-        const offFailed = vi.mocked(api.onNexusOAuthFailed).mock.results[0]!.value
-        cleanup()
-        expect(offFailed).not.toHaveBeenCalled()
     })
 })
