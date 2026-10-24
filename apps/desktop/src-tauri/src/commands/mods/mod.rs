@@ -793,7 +793,6 @@ pub async fn install_mod(
         let sha256 = staged_content_sha256(target, &tmp).await?;
         let state_guard = lock_game_state(&app, cfg.game_id).await;
         let app = app.clone();
-        let tmp = tmp.clone();
         let file_type = file_type.clone();
         commit_install(state_guard, move || {
             let uid = file_id.to_string();
@@ -802,10 +801,8 @@ pub async fn install_mod(
             // sources::source_native_local_id) and is never compared against this directly.
             let remote_id_str = remote_id.to_string();
             let sp = get_state_path(&game_path, cfg);
-            let saved = state::read_state_for_game(&game_path, &sp, cfg).map_err(|e| {
-                log::warn!("install: {e}");
-                e.to_string()
-            })?;
+            let saved =
+                state::read_state_for_game(&game_path, &sp, cfg).map_err(|e| e.to_string())?;
             let existing_entry = saved.mods.iter().find(|m| m.uid == uid).or_else(|| {
                 if remote_id <= 0 {
                     return None;
@@ -877,7 +874,7 @@ pub async fn install_mod(
                     enabled: true,
                     installed_at: Utc::now().to_rfc3339(),
                     file_id: Some(file_id),
-                    file_type: Some(file_type.clone()),
+                    file_type: Some(file_type),
                     sha256: Some(sha256),
                     ..InstalledMod::from_catalog(
                         "modworkshop",
@@ -1022,16 +1019,13 @@ pub async fn install_file(
         let sha256 = staged_content_sha256(target, &tmp).await?;
         let state_guard = lock_game_state(&app, cfg.game_id).await;
         let app = app.clone();
-        let tmp = tmp.clone();
         let file_type = file_type.clone();
         commit_install(state_guard, move || {
             let uid = file_id.to_string();
             let mod_id_str = mod_id.to_string();
             let sp = get_state_path(&game_path, cfg);
-            let saved = state::read_state_for_game(&game_path, &sp, cfg).map_err(|e| {
-                log::warn!("install: {e}");
-                e.to_string()
-            })?;
+            let saved =
+                state::read_state_for_game(&game_path, &sp, cfg).map_err(|e| e.to_string())?;
             let existing_entry = saved.mods.iter().find(|m| m.uid == uid).or_else(|| {
                 if mod_id <= 0 {
                     return None;
@@ -1089,7 +1083,7 @@ pub async fn install_file(
                     enabled: true,
                     installed_at: Utc::now().to_rfc3339(),
                     file_id: Some(file_id),
-                    file_type: Some(file_type.clone()),
+                    file_type: Some(file_type),
                     sha256: Some(sha256),
                     ..InstalledMod::from_catalog(
                         "modworkshop",
@@ -1325,16 +1319,12 @@ pub(crate) async fn install_nexus_download(
     let result = async {
         let sha256 = staged_content_sha256(target, &tmp).await?;
         let state_guard = lock_game_state(app, cfg.game_id).await;
-        let tmp = tmp.clone();
-        let file_type = file_type.clone();
         let game_path = game_path.to_owned();
         commit_install(state_guard, move || {
             let mut uid = format!("nexus:{nexus_mod_id}:{nexus_file_id}");
             let sp = get_state_path(&game_path, cfg);
-            let saved = state::read_state_for_game(&game_path, &sp, cfg).map_err(|e| {
-                log::warn!("install: {e}");
-                e.to_string()
-            })?;
+            let saved =
+                state::read_state_for_game(&game_path, &sp, cfg).map_err(|e| e.to_string())?;
             let author_filename = decisions::install_filename_from_mod_name(
                 cfg,
                 target,
@@ -1377,7 +1367,7 @@ pub(crate) async fn install_nexus_download(
                     author: mod_author,
                     thumbnail_url,
                     file_id: Some(nexus_file_id as i64),
-                    file_type: Some(file_type.clone()),
+                    file_type: Some(file_type),
                     sha256: Some(sha256),
                     ..InstalledMod::from_catalog(
                         "nexus",
@@ -2118,7 +2108,6 @@ pub async fn install_dropped_file(
     let result = async {
         let sha256 = staged_content_sha256(target, &tmp).await?;
         let state_guard = lock_game_state(&app, cfg.game_id).await;
-        let tmp = tmp.clone();
         let path = path.clone();
         let loose_file = zip_orig.is_none();
         commit_install(state_guard, move || {
@@ -2147,10 +2136,8 @@ pub async fn install_dropped_file(
                 apply_nexus_archive_identity(&mut mod_entry, m, detail, version);
             }
 
-            let saved = state::read_state_for_game(&game_path, &sp, cfg).map_err(|e| {
-                log::warn!("install: {e}");
-                e.to_string()
-            })?;
+            let saved =
+                state::read_state_for_game(&game_path, &sp, cfg).map_err(|e| e.to_string())?;
             let effective_folder_id =
                 dropped_install_folder_id(folder_id, &saved.mods, &mod_entry.uid);
 
@@ -2320,13 +2307,10 @@ pub async fn install_from_zip_entry(
     let result = async {
         let sha256 = staged_content_sha256(target, &ext).await?;
         let state_guard = lock_game_state(&app, cfg.game_id).await;
-        let ext = ext.clone();
         commit_install(state_guard, move || {
             let sp = get_state_path(&game_path, cfg);
-            let saved = state::read_state_for_game(&game_path, &sp, cfg).map_err(|e| {
-                log::warn!("install: {e}");
-                e.to_string()
-            })?;
+            let saved =
+                state::read_state_for_game(&game_path, &sp, cfg).map_err(|e| e.to_string())?;
 
             // A shared Pak hash can be identical across distinct author choices, so it cannot
             // replace the local archive member's identity.
@@ -2533,7 +2517,6 @@ async fn install_nexus_review_entry(
         let state_guard = lock_game_state(app, cfg.game_id).await;
         let app = app.clone();
         let choice = choice.clone();
-        let staged = staged.clone();
         commit_install(state_guard, move || {
             let picker = &choice.picker;
             resources::validate_nexus_pak_choice(&app, &choice)?;
@@ -2662,10 +2645,8 @@ pub async fn install_cb_flat_archive(
         let file_type = file_type.clone();
         commit_install(state_guard, move || {
             let sp = get_state_path(&game_path, cfg);
-            let saved = state::read_state_for_game(&game_path, &sp, cfg).map_err(|e| {
-                log::warn!("install: {e}");
-                e.to_string()
-            })?;
+            let saved =
+                state::read_state_for_game(&game_path, &sp, cfg).map_err(|e| e.to_string())?;
             let uid = format!("{}_flat", file_id);
             let sha256_match = saved
                 .mods
@@ -2685,7 +2666,7 @@ pub async fn install_cb_flat_archive(
                     enabled: true,
                     installed_at: Utc::now().to_rfc3339(),
                     file_id: Some(file_id),
-                    file_type: Some(file_type.clone()),
+                    file_type: Some(file_type),
                     sha256: Some(sha256),
                     ..InstalledMod::from_catalog(
                         "modworkshop",

@@ -275,29 +275,27 @@ export function DepsWarningModal({
                         ))}
                     {missingRequired
                         .filter((dep) => dep.mod !== null)
-                        .map((dep) => {
-                            return (
-                                <DependencyRow
-                                    key={dep.id}
-                                    mod={dep.mod!}
-                                    gameId={gameId}
-                                    gamePath={gamePath}
-                                    isLoaderMod={!!loaderModIds?.includes(dep.mod!.id)}
-                                    installing={
-                                        loaderModIds?.includes(dep.mod!.id)
-                                            ? installingLoader
-                                            : !!installingDeps[dep.mod!.id]
-                                    }
-                                    installingAll={installingAll}
-                                    onInstall={() => {
-                                        setInstallError(null)
-                                        installOneDep(dep).catch((e) => setInstallError(String(e)))
-                                    }}
-                                    onOpenDetail={onOpenDetail}
-                                    onClose={onClose}
-                                />
-                            )
-                        })}
+                        .map((dep) => (
+                            <DependencyRow
+                                key={dep.id}
+                                mod={dep.mod!}
+                                gameId={gameId}
+                                gamePath={gamePath}
+                                isLoaderMod={!!loaderModIds?.includes(dep.mod!.id)}
+                                installing={
+                                    loaderModIds?.includes(dep.mod!.id)
+                                        ? installingLoader
+                                        : !!installingDeps[dep.mod!.id]
+                                }
+                                installingAll={installingAll}
+                                onInstall={() => {
+                                    setInstallError(null)
+                                    installOneDep(dep).catch((e) => setInstallError(String(e)))
+                                }}
+                                onOpenDetail={onOpenDetail}
+                                onClose={onClose}
+                            />
+                        ))}
                 </div>
                 {installError && (
                     <p className="text-xs text-danger">{t('depsWarning.installFailed')}</p>
