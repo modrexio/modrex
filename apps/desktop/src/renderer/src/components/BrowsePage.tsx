@@ -373,16 +373,16 @@ export function BrowsePage({
     // skeleton grid shows at once instead of old content hanging around for the
     // debounce window. On isActive re-entry with unchanged params we deliberately
     // keep showing the cached result during the background refresh (SWR behaviour).
-    const lastFiltersRef = useRef('')
+    const lastFiltersRef = useRef<string | null>(null)
     useEffect(() => {
         if (result) setLastMeta({ last_page: result.meta.last_page, total: result.meta.total })
     }, [result])
     useEffect(() => {
         if (!isActive) return
         const filters = JSON.stringify([page, query, categoryId, sort, includeTags, excludeTags])
-        const filtersChanged = filters !== lastFiltersRef.current
+        const filtersChanged = lastFiltersRef.current !== null && filters !== lastFiltersRef.current
+        lastFiltersRef.current = filters
         if (filtersChanged) {
-            lastFiltersRef.current = filters
             if (scrollRef.current) scrollRef.current.scrollTop = 0
             setResult(null)
             setLoadingMods(true)

@@ -73,6 +73,11 @@ import { api, type LoaderInfo, type ModFolderInfo } from '../api'
 
 type ViewMode = 'grid' | 'list'
 
+type Locations = { targets: ModFolderInfo[]; loaders: LoaderInfo[] }
+
+// Targets are compiled package data and the loader registry is fixed for the session.
+const locationsCache = new Map<GameId, Locations>()
+
 function uniqueModCount(mods: InstalledMod[]): number {
     return new Set(mods.map(identityKey)).size
 }
@@ -186,16 +191,18 @@ export function InstalledPage({
 
     // Loaders route their mods to a tab, so the targets are only taken once the loader
     // registry has landed, and the page stays a single list until both have.
-    const [locations, setLocations] = useState<{
-        targets: ModFolderInfo[]
-        loaders: LoaderInfo[]
-    } | null>(null)
+    const [locations, setLocations] = useState<Locations | null>(
+        () => locationsCache.get(activeGame) ?? null
+    )
     const [locationsError, setLocationsError] = useState<string | null>(null)
     useEffect(() => {
+        if (locationsCache.has(activeGame)) return
         let cancelled = false
         Promise.all([api.listModFolders(activeGame), loadLoaderRegistry()]).then(
             ([targets]) => {
-                if (!cancelled) setLocations({ targets, loaders: loadersForGame(activeGame) })
+                const resolved = { targets, loaders: loadersForGame(activeGame) }
+                locationsCache.set(activeGame, resolved)
+                if (!cancelled) setLocations(resolved)
             },
             (error: unknown) => {
                 if (!cancelled) setLocationsError(String(error))

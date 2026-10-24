@@ -188,6 +188,31 @@ describe('useModData end-to-end with a real installed Nexus mod', () => {
         expect(mockNexusGetModDetail).not.toHaveBeenCalled()
     })
 
+    it('returns cached Workshop and Nexus metadata and Nexus versions on the first render', async () => {
+        const installed = [makeWorkshopInstall(59001, '1.0'), makeNexusInstall(-701, '701', '1.0')]
+        const workshop = makeWorkshopSummary(59001)
+        const nexus = makeNexusDetail(701, '2.0')
+        mockListMods.mockResolvedValue({ data: [workshop], meta: {} })
+        mockNexusGetModDetail.mockResolvedValue(nexus)
+        const initial = renderHook(() => useModData(installed, 853, 'pd3'))
+        await waitFor(() => expect(initial.result.current.modData.size).toBe(2))
+        initial.unmount()
+        mockListMods.mockClear()
+        mockNexusGetModDetail.mockClear()
+
+        const renders: ReturnType<typeof useModData>[] = []
+        renderHook(() => {
+            const data = useModData(installed, 853, 'pd3')
+            renders.push(data)
+            return data
+        })
+        expect(renders[0]!.modData.get(59001)).toEqual(workshop)
+        expect(renders[0]!.modData.get(-701)).toEqual(nexus)
+        expect(renders[0]!.versions.get(-701)).toEqual({ status: 'known', version: '2.0' })
+        expect(mockListMods).not.toHaveBeenCalled()
+        expect(mockNexusGetModDetail).not.toHaveBeenCalled()
+    })
+
     it('checks a modworkshop mod and a Nexus mod through their own separate paths at once', async () => {
         const installed = [
             makeWorkshopInstall(58065, '2.11'),

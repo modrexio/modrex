@@ -66,10 +66,12 @@ vi.mock('./ScrollArea', () => ({
 vi.mock('./InstalledModItem', () => ({ InstalledModItem: () => null }))
 
 import { api, type ModFolderInfo } from '../api'
-import { InstalledPage } from './InstalledPage'
+let InstalledPage: typeof import('./InstalledPage').InstalledPage
 import { t } from '../i18n'
 
-beforeEach(() => {
+beforeEach(async () => {
+    vi.resetModules()
+    InstalledPage = (await import('./InstalledPage')).InstalledPage
     banner.kind = ''
     localStorage.clear()
     vi.spyOn(HTMLElement.prototype, 'scrollIntoView').mockImplementation(() => {})
@@ -128,6 +130,47 @@ describe('InstalledPage header', () => {
         ])
         fireEvent.click(buttons[2]!)
         expect(api.openModsFolder).toHaveBeenCalledWith('raid')
+    })
+
+    it('restores cached location tabs and the saved selection immediately on remount', async () => {
+        vi.mocked(api.listModFolders).mockResolvedValue([
+            { tag: 'mods', labelKey: 'modkitMods', labelName: null },
+            { tag: 'paks', labelKey: 'legacyPaks', labelName: null },
+        ])
+        const installed: InstalledMod[] = [
+            {
+                uid: 'legacy',
+                id: 1,
+                name: 'Legacy',
+                filename: 'legacy.pak',
+                version: '1',
+                enabled: true,
+                installedAt: '',
+                location: 'paks',
+            },
+            {
+                uid: 'modkit',
+                id: 2,
+                name: 'ModKit',
+                filename: 'modkit.pak',
+                version: '1',
+                enabled: true,
+                installedAt: '',
+            },
+        ]
+        const first = renderPage('cb', installed)
+        const tabs = await screen.findAllByRole('tab')
+        fireEvent.click(tabs[1]!)
+        const selectedLabel = tabs[1]!.textContent
+        first.unmount()
+        vi.mocked(api.listModFolders).mockClear()
+
+        renderPage('cb', installed)
+        const restored = screen.getAllByRole('tab')
+        expect(restored).toHaveLength(2)
+        expect(restored[1]!.getAttribute('aria-selected')).toBe('true')
+        expect(restored[1]!.textContent).toBe(selectedLabel)
+        expect(api.listModFolders).not.toHaveBeenCalled()
     })
 
     it('keeps New Folder icon-only on the primary tab and hides it on other tabs', async () => {

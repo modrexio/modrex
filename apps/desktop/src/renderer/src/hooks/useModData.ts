@@ -18,14 +18,50 @@ interface NexusObservation {
     files: NexusFileCheck[]
 }
 
+function readInstalledMeta(installed: InstalledMod[], gameId: GameId) {
+    const attempted = new Map<number, number>()
+    const initial = new Map<number, ModSummary>()
+    const initialNexusVersions = new Map<number, NexusObservation>()
+    for (const mod of installed) {
+        const nexusEntry =
+            mod.source === 'nexus'
+                ? getNexusInstalledMetaEntry(gameId, Number(mod.remoteId))
+                : undefined
+        const workshopEntry =
+            !mod.source || mod.source === 'modworkshop'
+                ? getInstalledMetaEntry(Number(mod.remoteId))
+                : undefined
+        const entry = nexusEntry ?? workshopEntry
+        if (!entry) continue
+        initial.set(mod.id, entry.mod)
+        if (Date.now() - entry.fetchedAt < INSTALLED_META_TTL_MS) {
+            attempted.set(mod.id, entry.fetchedAt)
+        }
+        if (nexusEntry) {
+            const state: VersionState =
+                nexusEntry.mod.version === ''
+                    ? { status: 'unversioned' }
+                    : { status: 'known', version: nexusEntry.mod.version }
+            initialNexusVersions.set(mod.id, {
+                state,
+                checkedAt: nexusEntry.fetchedAt,
+                files: nexusEntry.files,
+            })
+        }
+    }
+    return { initial, initialNexusVersions, attempted }
+}
+
 export function useModData(
     installed: InstalledMod[],
     workshopId: number | undefined,
     gameId: GameId
 ) {
-    const [modData, setModData] = useState(new Map<number, ModSummary>())
+    const [modData, setModData] = useState(() => readInstalledMeta(installed, gameId).initial)
     const [failedIds, setFailedIds] = useState(new Set<number>())
-    const [nexusVersions, setNexusVersions] = useState(new Map<number, NexusObservation>())
+    const [nexusVersions, setNexusVersions] = useState(
+        () => readInstalledMeta(installed, gameId).initialNexusVersions
+    )
     const [clock, setClock] = useState(0)
     const nexusAuthEpoch = useNexusAuthEpoch()
     const workshop = installed.filter(
@@ -44,37 +80,9 @@ export function useModData(
     useEffect(() => {
         let cancelled = false
         let running = false
-        const attempted = new Map<number, number>()
-        const initial = new Map<number, ModSummary>()
-        const initialNexusVersions = new Map<number, NexusObservation>()
-        for (const mod of installed) {
-            const nexusEntry =
-                mod.source === 'nexus'
-                    ? getNexusInstalledMetaEntry(gameId, Number(mod.remoteId))
-                    : undefined
-            const workshopEntry =
-                !mod.source || mod.source === 'modworkshop'
-                    ? getInstalledMetaEntry(Number(mod.remoteId))
-                    : undefined
-            const entry = nexusEntry ?? workshopEntry
-            if (entry) {
-                initial.set(mod.id, entry.mod)
-                if (Date.now() - entry.fetchedAt < INSTALLED_META_TTL_MS) {
-                    attempted.set(mod.id, entry.fetchedAt)
-                }
-                if (nexusEntry) {
-                    const state: VersionState =
-                        nexusEntry.mod.version === ''
-                            ? { status: 'unversioned' }
-                            : { status: 'known', version: nexusEntry.mod.version }
-                    initialNexusVersions.set(mod.id, {
-                        state,
-                        checkedAt: nexusEntry.fetchedAt,
-                        files: nexusEntry.files,
-                    })
-                }
-                if (entry.mod.thumbnail?.file) void getLocalImage(entry.mod.thumbnail.file, true)
-            }
+        const { initial, initialNexusVersions, attempted } = readInstalledMeta(installed, gameId)
+        for (const mod of initial.values()) {
+            if (mod.thumbnail?.file) void getLocalImage(mod.thumbnail.file, true)
         }
         setModData(initial)
         setFailedIds(new Set())

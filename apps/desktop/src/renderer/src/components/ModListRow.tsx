@@ -51,9 +51,8 @@ export function ModListRow({
     optionsButton,
 }: Props) {
     const thumbSrc = useThumbnail(mod.thumbnail?.file)
-    // Fade the image in on its first real decode; cache hits (el.complete is
-    // already true at mount) skip the fade so warm lists stay instant.
-    const [thumbLoaded, setThumbLoaded] = useState(false)
+    // Sources known at mount stay visible. Sources resolved later fade in on decode.
+    const [thumbLoaded, setThumbLoaded] = useState(() => thumbSrc !== null)
     const needsResourceReview =
         installed.resourceStatus === 'diverged' || installed.resourceStatus === 'blocked'
     const canAct = !!gamePath && !loading && !needsResourceReview
