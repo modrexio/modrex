@@ -6,17 +6,104 @@ import { THUMBNAIL_BASE_URL } from '../../../shared/types'
 import { Dialog, DialogHeader } from './Dialog'
 import { t } from '../i18n'
 import { api } from '../api'
-import {
-    useInstallOperations,
-    getModInstall,
-    isInstallBusy,
-    installProgress,
-    installLabel,
-} from '../installState'
+import { useModInstall, isInstallBusy, installProgress, installLabel } from '../installState'
 import { rejectInstallPrompt } from '../installSentinels'
 import { useInstallChoiceOpen } from '../installChoices'
 import { getCachedMod } from '../modCache'
 import { isLoaderDep, offsiteDepHost } from '../deps'
+
+function DependencyRow({
+    mod,
+    gameId,
+    gamePath,
+    isLoaderMod,
+    installing,
+    installingAll,
+    onInstall,
+    onOpenDetail,
+    onClose,
+}: {
+    mod: NonNullable<ModDependency['mod']>
+    gameId: string
+    gamePath: string | null
+    isLoaderMod: boolean
+    installing: boolean
+    installingAll: boolean
+    onInstall: () => void
+    onOpenDetail?: (modId: number) => void
+    onClose: () => void
+}) {
+    const thumbUrl = mod.thumbnail ? `${THUMBNAIL_BASE_URL}/${mod.thumbnail.file}` : null
+    const operation = useModInstall(gameId, 'modworkshop', mod.id)
+    const isInstalling = isLoaderMod ? installing : installing || isInstallBusy(operation)
+    const progress = installProgress(operation)
+    const progressPct =
+        isInstalling && progress && progress.total > 0
+            ? Math.round((progress.downloaded / progress.total) * 100)
+            : null
+    return (
+        <div className="relative overflow-hidden flex items-center gap-3 px-3 py-2 rounded-lg bg-surface-hover border border-border">
+            {thumbUrl ? (
+                <img
+                    src={thumbUrl}
+                    alt={mod.name}
+                    loading="lazy"
+                    className="w-8 h-8 rounded object-cover shrink-0"
+                />
+            ) : (
+                <div className="w-8 h-8 rounded bg-surface-active shrink-0" />
+            )}
+            {onOpenDetail ? (
+                <button
+                    className="min-w-0 flex-1 text-left hover:opacity-75 transition-opacity"
+                    onClick={() => {
+                        onOpenDetail(mod.id)
+                        onClose()
+                    }}
+                >
+                    <div className="text-xs font-medium truncate">{mod.name}</div>
+                    <div className="text-xs text-text-subtle">
+                        {t('common.by', { name: mod.user.name })}
+                    </div>
+                </button>
+            ) : (
+                <div className="min-w-0 flex-1">
+                    <div className="text-xs font-medium truncate">{mod.name}</div>
+                    <div className="text-xs text-text-subtle">
+                        {t('common.by', { name: mod.user.name })}
+                    </div>
+                </div>
+            )}
+            {mod.has_download && gamePath && (
+                <Button
+                    variant="accent"
+                    size="md"
+                    disabled={isInstalling || installingAll}
+                    onClick={onInstall}
+                    className="shrink-0"
+                >
+                    {isInstalling
+                        ? isInstallBusy(operation)
+                            ? installLabel(operation)
+                            : t('common.installing')
+                        : t('common.install')}
+                </Button>
+            )}
+            {isInstalling && progress !== null && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-surface-active">
+                    {progress.total > 0 ? (
+                        <div
+                            className="h-full bg-accent transition-[width] duration-100"
+                            style={{ width: `${progressPct}%` }}
+                        />
+                    ) : (
+                        <div className="h-full bg-accent animate-pulse w-full" />
+                    )}
+                </div>
+            )}
+        </div>
+    )
+}
 
 interface Props {
     modId: number
@@ -48,7 +135,6 @@ export function DepsWarningModal({
     const [isBltUnsupported, setIsBltUnsupported] = useState(false)
     const [installingAll, setInstallingAll] = useState(false)
     const [installError, setInstallError] = useState<string | null>(null)
-    const operations = useInstallOperations(gameId)
     const choiceOpen = useInstallChoiceOpen()
 
     useEffect(() => {
@@ -190,92 +276,26 @@ export function DepsWarningModal({
                     {missingRequired
                         .filter((dep) => dep.mod !== null)
                         .map((dep) => {
-                            const isLoaderMod = !!loaderModIds?.includes(dep.mod!.id)
-                            const thumbUrl = dep.mod!.thumbnail
-                                ? `${THUMBNAIL_BASE_URL}/${dep.mod!.thumbnail.file}`
-                                : null
-                            const operation = getModInstall(operations, 'modworkshop', dep.mod!.id)
-                            const isInstalling = isLoaderMod
-                                ? installingLoader
-                                : installingDeps[dep.mod!.id] || isInstallBusy(operation)
-                            const progress = installProgress(operation)
-                            const progressPct =
-                                isInstalling && progress && progress.total > 0
-                                    ? Math.round((progress.downloaded / progress.total) * 100)
-                                    : null
                             return (
-                                <div
+                                <DependencyRow
                                     key={dep.id}
-                                    className="relative overflow-hidden flex items-center gap-3 px-3 py-2 rounded-lg bg-surface-hover border border-border"
-                                >
-                                    {thumbUrl ? (
-                                        <img
-                                            src={thumbUrl}
-                                            alt={dep.mod!.name}
-                                            loading="lazy"
-                                            className="w-8 h-8 rounded object-cover shrink-0"
-                                        />
-                                    ) : (
-                                        <div className="w-8 h-8 rounded bg-surface-active shrink-0" />
-                                    )}
-                                    {onOpenDetail ? (
-                                        <button
-                                            className="min-w-0 flex-1 text-left hover:opacity-75 transition-opacity"
-                                            onClick={() => {
-                                                onOpenDetail(dep.mod!.id)
-                                                onClose()
-                                            }}
-                                        >
-                                            <div className="text-xs font-medium truncate">
-                                                {dep.mod!.name}
-                                            </div>
-                                            <div className="text-xs text-text-subtle">
-                                                {t('common.by', { name: dep.mod!.user.name })}
-                                            </div>
-                                        </button>
-                                    ) : (
-                                        <div className="min-w-0 flex-1">
-                                            <div className="text-xs font-medium truncate">
-                                                {dep.mod!.name}
-                                            </div>
-                                            <div className="text-xs text-text-subtle">
-                                                {t('common.by', { name: dep.mod!.user.name })}
-                                            </div>
-                                        </div>
-                                    )}
-                                    {dep.mod!.has_download && gamePath && (
-                                        <Button
-                                            variant="accent"
-                                            size="md"
-                                            disabled={isInstalling || installingAll}
-                                            onClick={() => {
-                                                setInstallError(null)
-                                                installOneDep(dep).catch((e) =>
-                                                    setInstallError(String(e))
-                                                )
-                                            }}
-                                            className="shrink-0"
-                                        >
-                                            {isInstalling
-                                                ? isInstallBusy(operation)
-                                                    ? installLabel(operation)
-                                                    : t('common.installing')
-                                                : t('common.install')}
-                                        </Button>
-                                    )}
-                                    {isInstalling && progress !== null && (
-                                        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-surface-active">
-                                            {progress.total > 0 ? (
-                                                <div
-                                                    className="h-full bg-accent transition-[width] duration-100"
-                                                    style={{ width: `${progressPct}%` }}
-                                                />
-                                            ) : (
-                                                <div className="h-full bg-accent animate-pulse w-full" />
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
+                                    mod={dep.mod!}
+                                    gameId={gameId}
+                                    gamePath={gamePath}
+                                    isLoaderMod={!!loaderModIds?.includes(dep.mod!.id)}
+                                    installing={
+                                        loaderModIds?.includes(dep.mod!.id)
+                                            ? installingLoader
+                                            : !!installingDeps[dep.mod!.id]
+                                    }
+                                    installingAll={installingAll}
+                                    onInstall={() => {
+                                        setInstallError(null)
+                                        installOneDep(dep).catch((e) => setInstallError(String(e)))
+                                    }}
+                                    onOpenDetail={onOpenDetail}
+                                    onClose={onClose}
+                                />
                             )
                         })}
                 </div>

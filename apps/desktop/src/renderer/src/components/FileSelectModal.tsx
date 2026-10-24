@@ -1,5 +1,5 @@
 import { ScrollArea } from './ScrollArea'
-import { useState } from 'react'
+import { useState, type ComponentProps } from 'react'
 import { Button } from './ui/Button'
 import {
     GAMES,
@@ -12,16 +12,31 @@ import { Dialog, DialogHeader } from './Dialog'
 import { t } from '../i18n'
 import { NonPakConfirmModal } from './NonPakConfirmModal'
 import { requestInstallChoice, useInstallChoiceOpen } from '../installChoices'
-import {
-    getModInstall,
-    installLabel,
-    installProgress,
-    isInstallBusy,
-    useInstallOperations,
-} from '../installState'
+import { installLabel, useModInstall, useModInstallBusy } from '../installState'
 import { isUnsupportedFormat } from '../formatCheck'
 import { api } from '../api'
 import { FileRow } from './FileRow'
+import { InstallProgressBar } from './InstallStatus'
+
+function SelectableInstallFile({
+    gameId,
+    modId,
+    file,
+    installing,
+    ...props
+}: Omit<ComponentProps<typeof FileRow>, 'status'> & { modId: number; installing: boolean }) {
+    const operation = useModInstall(gameId, 'modworkshop', modId, file.id)
+    return (
+        <FileRow
+            {...props}
+            gameId={gameId}
+            file={file}
+            status={
+                operation ? installLabel(operation) : installing ? t('common.installing') : null
+            }
+        />
+    )
+}
 
 interface Props {
     mod: Mod
@@ -51,9 +66,7 @@ export function FileSelectModal({
     const [installError, setInstallError] = useState<string | null>(null)
     const [showFormatWarning, setShowFormatWarning] = useState(false)
     const choiceOpen = useInstallChoiceOpen()
-    const operations = useInstallOperations(gameId)
-    const installation = getModInstall(operations, 'modworkshop', mod.id, installingId ?? undefined)
-    const downloadProgress = installProgress(installation)
+    const installBusy = useModInstallBusy(gameId, 'modworkshop', mod.id, installingId ?? undefined)
 
     function toggleFile(fileId: number) {
         setSelectedIds((prev) => {
@@ -119,7 +132,7 @@ export function FileSelectModal({
     const pendingCount = [...selectedIds].filter(
         (id) => !installedFiles.some((m) => m.fileId === id)
     ).length
-    const isBusy = installingId !== null || isInstallBusy(installation)
+    const isBusy = installingId !== null || installBusy
 
     return (
         <>
@@ -136,20 +149,12 @@ export function FileSelectModal({
                     onClose={onClose}
                 />
 
-                {downloadProgress !== null && (
-                    <div className="h-0.5 bg-surface-active shrink-0">
-                        {downloadProgress.total > 0 ? (
-                            <div
-                                className="h-full bg-accent transition-[width] duration-100"
-                                style={{
-                                    width: `${Math.round((downloadProgress.downloaded / downloadProgress.total) * 100)}%`,
-                                }}
-                            />
-                        ) : (
-                            <div className="h-full bg-accent animate-pulse w-full" />
-                        )}
-                    </div>
-                )}
+                <InstallProgressBar
+                    gameId={gameId}
+                    source="modworkshop"
+                    modId={mod.id}
+                    fileId={installingId ?? undefined}
+                />
 
                 <ScrollArea
                     hostClassName="flex-1"
@@ -162,14 +167,10 @@ export function FileSelectModal({
                     )}
                     {files.map((file) => {
                         const isInstalled = installedFiles.some((m) => m.fileId === file.id)
-                        const fileInstall = getModInstall(
-                            operations,
-                            'modworkshop',
-                            mod.id,
-                            file.id
-                        )
                         return (
-                            <FileRow
+                            <SelectableInstallFile
+                                modId={mod.id}
+                                installing={installingId === file.id}
                                 gameId={gameId}
                                 key={file.id}
                                 file={file}
@@ -177,13 +178,6 @@ export function FileSelectModal({
                                 installed={isInstalled}
                                 locked={isInstalled}
                                 disabled={isBusy}
-                                status={
-                                    fileInstall
-                                        ? installLabel(fileInstall)
-                                        : installingId === file.id
-                                          ? t('common.installing')
-                                          : null
-                                }
                                 onToggle={() => toggleFile(file.id)}
                             />
                         )

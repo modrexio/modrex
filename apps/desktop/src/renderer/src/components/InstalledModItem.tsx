@@ -20,13 +20,7 @@ import { PakViewerModal } from './PakViewerModal'
 import { SOURCE_LABELS, hasSource, sourcesForGame } from '../sources'
 import { Button } from './ui/Button'
 import { Tooltip } from './Tooltip'
-import {
-    useInstallOperations,
-    getModInstall,
-    isInstallBusy,
-    installProgress,
-    installLabel,
-} from '../installState'
+import { useModInstall, isInstallBusy, installProgress, installLabel } from '../installState'
 
 export function InstalledModItem({ mods }: { mods: ModGroup }) {
     const {
@@ -80,9 +74,8 @@ export function InstalledModItem({ mods }: { mods: ModGroup }) {
     const elsewhere = joinsFileSet(ins) ? elsewhereByIdentity.get(groupKey) : undefined
     const fileSet: ModGroup = elsewhere ? [...mods, ...elsewhere.files] : mods
     const locationNote = elsewhere && t('installed.tabs.alsoIn', { tabs: elsewhere.tabs })
-    const operations = useInstallOperations(activeGame)
-    const operation = getModInstall(
-        operations,
+    const operation = useModInstall(
+        activeGame,
         ins.source === 'nexus' ? 'nexus' : 'modworkshop',
         Number(ins.remoteId)
     )

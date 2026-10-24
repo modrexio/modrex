@@ -21,8 +21,9 @@ import { THUMBNAIL_BASE_URL, GAMES } from '../../../../shared/types'
 import { api } from '../../api'
 import { requestInstallChoice } from '../../installChoices'
 import {
-    useInstallOperations,
-    getModInstall,
+    useModInstall,
+    useModInstallBusy,
+    useModInstallError,
     isInstallBusy,
     installLabel,
 } from '../../installState'
@@ -103,6 +104,199 @@ function DownloadsSkeleton() {
     )
 }
 
+function DownloadFileRow({
+    file,
+    thumbUrl,
+    isInstalled,
+    isUninstalling,
+    mod,
+    modVersion,
+    activeGame,
+    gamePath,
+    isNexus,
+    modBusy,
+    onOpenDetail,
+    onInstall,
+    onNexusDownload,
+    onUninstall,
+}: {
+    file: ModFile
+    thumbUrl: string | null
+    isInstalled: boolean
+    isUninstalling: boolean
+    mod: ModSummary
+    modVersion: string | undefined
+    activeGame: GameId
+    gamePath: string | null
+    isNexus: boolean
+    modBusy: boolean
+    onOpenDetail?: (modId: number) => void
+    onInstall: (file: ModFile) => Promise<void>
+    onNexusDownload: (file: ModFile) => Promise<void>
+    onUninstall: (file: ModFile) => Promise<void>
+}) {
+    const operation = useModInstall(activeGame, isNexus ? 'nexus' : 'modworkshop', mod.id, file.id)
+    const isInstalling = isInstallBusy(operation)
+    return (
+        <div className="flex items-center gap-3 p-3 rounded-xl bg-surface-hover border border-border">
+            {!isNexus && (
+                <div className="relative shrink-0">
+                    {thumbUrl ? (
+                        <img src={thumbUrl} alt="" className="w-14 h-14 rounded-lg object-cover" />
+                    ) : (
+                        <div className="w-14 h-14 rounded-lg bg-surface-active flex items-center justify-center">
+                            <ImageIcon className="w-5 h-5 text-text-subtle" aria-hidden="true" />
+                        </div>
+                    )}
+                </div>
+            )}
+            <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                    {file.label && !isNexus && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-accent/15 border border-accent/30 text-accent font-medium uppercase tracking-wide shrink-0">
+                            {file.label}
+                        </span>
+                    )}
+                    <span className="text-sm font-semibold truncate">{file.name}</span>
+                </div>
+                {file.desc && (
+                    <div className="text-xs text-text-muted mt-1 [&_a]:text-accent-bright [&_a]:hover:underline">
+                        {isNexus ? (
+                            <NexusDescription text={file.desc} onOpenDetail={onOpenDetail} />
+                        ) : (
+                            <ModworkshopMarkup text={file.desc} onOpenDetail={onOpenDetail} />
+                        )}
+                    </div>
+                )}
+                <div className="flex items-center flex-wrap gap-x-3 gap-y-1 mt-1.5 text-xs text-text-subtle">
+                    {isUnsupportedFormat(
+                        GAMES[activeGame],
+                        file.type,
+                        file.download_url,
+                        file.name
+                    ) && (
+                        <span className="flex items-center gap-1 text-warning">
+                            <AlertTriangle className="w-3 h-3 shrink-0" />
+                            {t('common.nonPakWarning')}
+                        </span>
+                    )}
+                    {file.version && (
+                        <span className="flex items-center gap-1">
+                            <Tag className="w-3 h-3 shrink-0" />
+                            {file.version}
+                        </span>
+                    )}
+                    {file.downloads != null && (
+                        <span className="flex items-center gap-1">
+                            <Download className="w-3 h-3 shrink-0" />
+                            {file.downloads.toLocaleString()}
+                        </span>
+                    )}
+                    {file.created_at && (
+                        <span className="flex items-center gap-1">
+                            <Clock className="w-3 h-3 shrink-0" />
+                            {formatDate(file.created_at)}
+                        </span>
+                    )}
+                </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+                {file.url && !file.download_url ? (
+                    isNexus && isInstalling ? (
+                        <span
+                            className="text-xs px-4 py-2 rounded-lg bg-accent/20 border border-accent/40 text-text"
+                            role="status"
+                        >
+                            {installLabel(operation)}
+                        </span>
+                    ) : isNexus && isInstalled ? (
+                        <>
+                            <span className="text-xs px-4 py-2 rounded-lg bg-success/20 border border-success/40 text-success-text">
+                                {t('common.installed')}
+                            </span>
+                            <Tooltip content={t('common.remove')}>
+                                <Button
+                                    variant="danger"
+                                    size="icon-md"
+                                    disabled={!gamePath || isUninstalling || modBusy}
+                                    onClick={() => onUninstall(file)}
+                                    className="p-2 rounded-lg"
+                                >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                </Button>
+                            </Tooltip>
+                        </>
+                    ) : (
+                        <Button
+                            variant="accent"
+                            size="lg"
+                            disabled={isNexus && modBusy}
+                            onClick={() =>
+                                isNexus ? onNexusDownload(file) : api.openExternal(file.url!)
+                            }
+                            className="py-2 rounded-lg"
+                        >
+                            {isNexus ? (
+                                <Download className="w-3.5 h-3.5" />
+                            ) : (
+                                <ExternalLink className="w-3.5 h-3.5" />
+                            )}
+                            {isNexus ? t('detail.downloads.viaNexus') : t('common.openLink')}
+                        </Button>
+                    )
+                ) : (
+                    <>
+                        <button
+                            disabled={
+                                !gamePath ||
+                                modVersion === undefined ||
+                                modBusy ||
+                                isInstalled ||
+                                !!mod.disable_mod_managers
+                            }
+                            onClick={() => onInstall(file)}
+                            className={`text-xs px-4 py-2 rounded-lg transition-colors disabled:cursor-not-allowed flex items-center gap-1.5 ${
+                                isInstalled
+                                    ? 'bg-success/20 border border-success/40 text-success-text'
+                                    : 'bg-accent-fill hover:bg-accent-fill-hover disabled:opacity-40'
+                            }`}
+                        >
+                            {!isInstalling && !isInstalled && <Download className="w-3.5 h-3.5" />}
+                            {isInstalling
+                                ? installLabel(operation)
+                                : isInstalled
+                                  ? t('common.installed')
+                                  : `${t('common.install')}${file.type ? ` ${file.type.toUpperCase()}` : ''} (${formatBytes(file.size)})`}
+                        </button>
+                        {isInstalled && (
+                            <Tooltip content={t('common.remove')}>
+                                <Button
+                                    variant="danger"
+                                    size="icon-md"
+                                    disabled={!gamePath || isUninstalling || modBusy}
+                                    onClick={() => onUninstall(file)}
+                                    className="p-2 rounded-lg"
+                                >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                </Button>
+                            </Tooltip>
+                        )}
+                        <Tooltip content={t('detail.downloads.external')}>
+                            <button
+                                onClick={() => api.openExternal(file.url ?? file.download_url)}
+                                className="p-2 rounded-lg bg-surface-active hover:bg-surface-light transition-colors"
+                            >
+                                <ExternalLink className="w-3.5 h-3.5" />
+                            </button>
+                        </Tooltip>
+                    </>
+                )}
+            </div>
+        </div>
+    )
+}
+
 export function DownloadsTab({
     modVersion,
     files,
@@ -146,9 +340,9 @@ export function DownloadsTab({
         gamePath,
         onRefreshInstalled
     )
-    const operations = useInstallOperations(activeGame)
-    const modOperation = getModInstall(operations, isNexus ? 'nexus' : 'modworkshop', mod.id)
-    const modBusy = isInstallBusy(modOperation)
+    const source = isNexus ? 'nexus' : 'modworkshop'
+    const modBusy = useModInstallBusy(activeGame, source, mod.id)
+    const operationError = useModInstallError(activeGame, source, mod.id)
 
     async function handleNexusDownloadClick(file: ModFile) {
         setInstallError(null)
@@ -206,186 +400,24 @@ export function DownloadsTab({
     }
 
     function renderFile(file: ModFile, thumbUrl: string | null) {
-        const isInstalled = installedFiles.some((m) => m.fileId === file.id)
-        const operation = getModInstall(
-            operations,
-            isNexus ? 'nexus' : 'modworkshop',
-            mod.id,
-            file.id
-        )
-        const isInstalling = isInstallBusy(operation)
-        const isUninstalling = uninstallingId === file.id
         return (
-            <div
+            <DownloadFileRow
                 key={file.id}
-                className="flex items-center gap-3 p-3 rounded-xl bg-surface-hover border border-border"
-            >
-                {!isNexus && (
-                    <div className="relative shrink-0">
-                        {thumbUrl ? (
-                            <img
-                                src={thumbUrl}
-                                alt=""
-                                className="w-14 h-14 rounded-lg object-cover"
-                            />
-                        ) : (
-                            <div className="w-14 h-14 rounded-lg bg-surface-active flex items-center justify-center">
-                                <ImageIcon
-                                    className="w-5 h-5 text-text-subtle"
-                                    aria-hidden="true"
-                                />
-                            </div>
-                        )}
-                    </div>
-                )}
-                <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                        {file.label && !isNexus && (
-                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-accent/15 border border-accent/30 text-accent font-medium uppercase tracking-wide shrink-0">
-                                {file.label}
-                            </span>
-                        )}
-                        <span className="text-sm font-semibold truncate">{file.name}</span>
-                    </div>
-                    {file.desc && (
-                        <div className="text-xs text-text-muted mt-1 [&_a]:text-accent-bright [&_a]:hover:underline">
-                            {isNexus ? (
-                                <NexusDescription text={file.desc} onOpenDetail={onOpenDetail} />
-                            ) : (
-                                <ModworkshopMarkup text={file.desc} onOpenDetail={onOpenDetail} />
-                            )}
-                        </div>
-                    )}
-                    <div className="flex items-center flex-wrap gap-x-3 gap-y-1 mt-1.5 text-xs text-text-subtle">
-                        {isUnsupportedFormat(
-                            GAMES[activeGame],
-                            file.type,
-                            file.download_url,
-                            file.name
-                        ) && (
-                            <span className="flex items-center gap-1 text-warning">
-                                <AlertTriangle className="w-3 h-3 shrink-0" />
-                                {t('common.nonPakWarning')}
-                            </span>
-                        )}
-                        {file.version && (
-                            <span className="flex items-center gap-1">
-                                <Tag className="w-3 h-3 shrink-0" />
-                                {file.version}
-                            </span>
-                        )}
-                        {file.downloads != null && (
-                            <span className="flex items-center gap-1">
-                                <Download className="w-3 h-3 shrink-0" />
-                                {file.downloads.toLocaleString()}
-                            </span>
-                        )}
-                        {file.created_at && (
-                            <span className="flex items-center gap-1">
-                                <Clock className="w-3 h-3 shrink-0" />
-                                {formatDate(file.created_at)}
-                            </span>
-                        )}
-                    </div>
-                </div>
-
-                <div className="flex items-center gap-2 shrink-0">
-                    {file.url && !file.download_url ? (
-                        isNexus && isInstalling ? (
-                            <span
-                                className="text-xs px-4 py-2 rounded-lg bg-accent/20 border border-accent/40 text-text"
-                                role="status"
-                            >
-                                {installLabel(operation)}
-                            </span>
-                        ) : isNexus && isInstalled ? (
-                            <>
-                                <span className="text-xs px-4 py-2 rounded-lg bg-success/20 border border-success/40 text-success-text">
-                                    {t('common.installed')}
-                                </span>
-                                <Tooltip content={t('common.remove')}>
-                                    <Button
-                                        variant="danger"
-                                        size="icon-md"
-                                        disabled={!gamePath || isUninstalling || modBusy}
-                                        onClick={() => handleUninstallFile(file)}
-                                        className="p-2 rounded-lg"
-                                    >
-                                        <Trash2 className="w-3.5 h-3.5" />
-                                    </Button>
-                                </Tooltip>
-                            </>
-                        ) : (
-                            <Button
-                                variant="accent"
-                                size="lg"
-                                disabled={isNexus && modBusy}
-                                onClick={() =>
-                                    isNexus
-                                        ? handleNexusDownloadClick(file)
-                                        : api.openExternal(file.url!)
-                                }
-                                className="py-2 rounded-lg"
-                            >
-                                {isNexus ? (
-                                    <Download className="w-3.5 h-3.5" />
-                                ) : (
-                                    <ExternalLink className="w-3.5 h-3.5" />
-                                )}
-                                {isNexus ? t('detail.downloads.viaNexus') : t('common.openLink')}
-                            </Button>
-                        )
-                    ) : (
-                        <>
-                            <button
-                                disabled={
-                                    !gamePath ||
-                                    modVersion === undefined ||
-                                    modBusy ||
-                                    isInstalled ||
-                                    !!mod.disable_mod_managers
-                                }
-                                onClick={() => handleInstallFile(file)}
-                                className={`text-xs px-4 py-2 rounded-lg transition-colors disabled:cursor-not-allowed flex items-center gap-1.5 ${
-                                    isInstalled
-                                        ? 'bg-success/20 border border-success/40 text-success-text'
-                                        : 'bg-accent-fill hover:bg-accent-fill-hover disabled:opacity-40'
-                                }`}
-                            >
-                                {!isInstalling && !isInstalled && (
-                                    <Download className="w-3.5 h-3.5" />
-                                )}
-                                {isInstalling
-                                    ? installLabel(operation)
-                                    : isInstalled
-                                      ? t('common.installed')
-                                      : `${t('common.install')}${file.type ? ` ${file.type.toUpperCase()}` : ''} (${formatBytes(file.size)})`}
-                            </button>
-                            {isInstalled && (
-                                <Tooltip content={t('common.remove')}>
-                                    <Button
-                                        variant="danger"
-                                        size="icon-md"
-                                        disabled={!gamePath || isUninstalling || modBusy}
-                                        onClick={() => handleUninstallFile(file)}
-                                        className="p-2 rounded-lg"
-                                    >
-                                        <Trash2 className="w-3.5 h-3.5" />
-                                    </Button>
-                                </Tooltip>
-                            )}
-                            <Tooltip content={t('detail.downloads.external')}>
-                                <button
-                                    onClick={() => api.openExternal(file.url ?? file.download_url)}
-                                    className="p-2 rounded-lg bg-surface-active hover:bg-surface-light transition-colors"
-                                >
-                                    <ExternalLink className="w-3.5 h-3.5" />
-                                </button>
-                            </Tooltip>
-                        </>
-                    )}
-                </div>
-            </div>
+                file={file}
+                thumbUrl={thumbUrl}
+                isInstalled={installedFiles.some((m) => m.fileId === file.id)}
+                isUninstalling={uninstallingId === file.id}
+                mod={mod}
+                modVersion={modVersion}
+                activeGame={activeGame}
+                gamePath={gamePath}
+                isNexus={isNexus}
+                modBusy={modBusy}
+                onOpenDetail={onOpenDetail}
+                onInstall={handleInstallFile}
+                onNexusDownload={handleNexusDownloadClick}
+                onUninstall={handleUninstallFile}
+            />
         )
     }
 
@@ -443,9 +475,9 @@ export function DownloadsTab({
                     onCancel={() => setFormatWarningFile(null)}
                 />
             )}
-            {(installError ?? modOperation?.error) && (
+            {(installError ?? operationError) && (
                 <div className="px-4 py-3 rounded-lg bg-danger/30 border border-danger-hover text-sm text-danger-text">
-                    {installError ?? modOperation?.error}
+                    {installError ?? operationError}
                 </div>
             )}
             {isNexus

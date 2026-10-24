@@ -44,14 +44,7 @@ import { resolveDepCheck } from '../installDepCheck'
 import { t } from '../i18n'
 import { api } from '../api'
 import { requestInstallChoice } from '../installChoices'
-import {
-    useInstallOperations,
-    getModInstall,
-    isInstallBusy,
-    installProgress,
-    installLabel,
-    type InstallOperation,
-} from '../installState'
+import { useModInstall, isInstallBusy, installProgress, installLabel } from '../installState'
 import { runBulkAction } from '../bulkAction'
 import { trackSearch } from '../lib/analytics/events'
 import { markForegroundActivity, waitForForegroundClear } from '../requestPriority'
@@ -97,12 +90,7 @@ function isRateLimitError(error: string): boolean {
 
 const SORT_VALUES: SortOption[] = ['bumped_at', 'downloads', 'likes', 'published_at', 'name']
 
-// Memo boundary for the card grid. The grid is the expensive part of BrowsePage
-// (24 cards, each with tooltips, toggles and images), so it must only re-render when its data
-// actually changes, not on isActive flips, search keystrokes, or modal and error
-// state. All handler props must stay useCallback-stable in BrowsePage or the
-// boundary is defeated. GridCard keeps the per-card closures inside its own memo
-// so a grid re-render (e.g. download progress) only re-renders the affected card.
+// Stable handlers keep page controls from invalidating the memoized card grid.
 interface CardHandlers {
     onOpen: (modId: number, initialMod?: ModSummary) => void
     onPrefetch: (modId: number) => void
@@ -113,25 +101,25 @@ interface CardHandlers {
 }
 
 interface GridCardProps extends CardHandlers {
+    activeGame: GameId
     mod: ModSummary
     installed: InstalledMod | undefined
     gamePath: string | null
     loading: boolean
-    progress: { downloaded: number; total: number } | null
-    loadingLabel?: string
     loaderInstalled?: boolean
 }
 
 const GridCard = memo(function GridCard(p: GridCardProps) {
+    const operation = useModInstall(p.activeGame, 'modworkshop', p.mod.id)
     return (
         <ModCard
             mod={p.mod}
             installed={p.installed}
             loaderInstalled={p.loaderInstalled}
             gamePath={p.gamePath}
-            loading={p.loading}
-            progress={p.progress}
-            loadingLabel={p.loadingLabel}
+            loading={p.loading || isInstallBusy(operation)}
+            progress={installProgress(operation)}
+            loadingLabel={isInstallBusy(operation) ? installLabel(operation) : undefined}
             showMeta
             onOpen={() => p.onOpen(p.mod.id, p.mod)}
             onPrefetch={() => p.onPrefetch(p.mod.id)}
@@ -144,22 +132,22 @@ const GridCard = memo(function GridCard(p: GridCardProps) {
 })
 
 interface ModGridProps extends CardHandlers {
+    activeGame: GameId
     gridLoading: boolean
     result: Paginated<ModSummary> | null
     installedByModId: Map<number, InstalledMod[]>
     gamePath: string | null
     installingMods: ReadonlySet<number>
-    operations: readonly InstallOperation[]
     loaderInstalledIds: Set<number>
 }
 
 const ModGrid = memo(function ModGrid({
+    activeGame,
     gridLoading,
     result,
     installedByModId,
     gamePath,
     installingMods,
-    operations,
     loaderInstalledIds,
     ...handlers
 }: ModGridProps) {
@@ -183,24 +171,18 @@ const ModGrid = memo(function ModGrid({
     }
     return (
         <div className="grid grid-cols-2 gap-4 xl:grid-cols-3 2xl:grid-cols-4">
-            {result.data.map((mod) => {
-                const operation = getModInstall(operations, 'modworkshop', mod.id)
-                return (
-                    <GridCard
-                        key={mod.id}
-                        mod={mod}
-                        installed={installedByModId.get(mod.id)?.[0]}
-                        loaderInstalled={loaderInstalledIds.has(mod.id) ? true : undefined}
-                        gamePath={gamePath}
-                        loading={installingMods.has(mod.id) || isInstallBusy(operation)}
-                        progress={installProgress(operation)}
-                        loadingLabel={
-                            isInstallBusy(operation) ? installLabel(operation) : undefined
-                        }
-                        {...handlers}
-                    />
-                )
-            })}
+            {result.data.map((mod) => (
+                <GridCard
+                    key={mod.id}
+                    activeGame={activeGame}
+                    mod={mod}
+                    installed={installedByModId.get(mod.id)?.[0]}
+                    loaderInstalled={loaderInstalledIds.has(mod.id) ? true : undefined}
+                    gamePath={gamePath}
+                    loading={installingMods.has(mod.id)}
+                    {...handlers}
+                />
+            ))}
         </div>
     )
 })
@@ -238,7 +220,6 @@ export function BrowsePage({
     const [tags, setTags] = useState<ModTag[]>(() => getTagsCache(workshopId) ?? [])
     const [loadingMods, setLoadingMods] = useState(!initialCache)
     const [installingMods, setInstallingMods] = useState<ReadonlySet<number>>(new Set())
-    const operations = useInstallOperations(activeGame)
     const [error, setError] = useState<string | null>(null)
     const [categoryError, setCategoryError] = useState<string | null>(null)
     const [tagError, setTagError] = useState<string | null>(null)
@@ -840,12 +821,12 @@ export function BrowsePage({
                 className="overflow-y-auto px-6 py-4"
             >
                 <ModGrid
+                    activeGame={activeGame}
                     gridLoading={loadingMods}
                     result={result}
                     installedByModId={installedByModId}
                     gamePath={gamePath}
                     installingMods={installingMods}
-                    operations={operations}
                     loaderInstalledIds={
                         new Set(
                             loadersForGame(activeGame)
