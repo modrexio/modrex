@@ -619,8 +619,6 @@ const releasedOn = release
         }
     }
 
-    /* Solid, unlike the rest of the overlay: the page's own nav sits directly behind
-       this bar, and through the translucent overlay its links read as part of it. */
     .viewer-bar {
         display: flex;
         align-items: center;
@@ -628,8 +626,6 @@ const releasedOn = release
         flex: none;
         height: 52px;
         padding: 0 12px 0 20px;
-        background: var(--color-surface);
-        border-bottom: 1px solid var(--color-border);
     }
 
     .viewer-actions {
@@ -736,8 +732,23 @@ const releasedOn = release
             display: none;
         }
 
+        /* The border moves from the frame to the image, so the bar sits loose under it. */
+        .stage-frame {
+            border: 0;
+            border-radius: 0;
+            overflow: visible;
+            background: none;
+        }
+
+        .stage-open {
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+        }
+
         .stage-bar {
             display: flex;
+            border-top: 0;
         }
 
         .seg button {
@@ -751,8 +762,6 @@ const releasedOn = release
             gap: 10px;
             height: 60px;
             padding: 0 8px 0 16px;
-            border-top: 1px solid var(--color-border);
-            border-bottom: 0;
         }
 
         .viewer-actions {
