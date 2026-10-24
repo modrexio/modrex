@@ -46,13 +46,15 @@ api.onNexusOAuthSignedIn(() => {
     for (const g of games) ensureCount(g, 'nexus')
 })
 
-// A lapsed session makes the cached total a claim about a library this app can no longer
-// reach, so it is dropped without re-fetching: fetchCount would only see the signed-out
-// state and cache the same null again.
-api.onNexusSessionExpired(() => {
+// Sign-out and session expiry make the cached total a claim about an unreachable library.
+// Drop it without re-fetching, since fetchCount would only cache the signed-out state.
+function clearNexusCounts() {
     if (dropNexusCounts().length === 0) return
     for (const l of listeners) l()
-})
+}
+
+api.onNexusSessionExpired(clearNexusCounts)
+api.onNexusSignedOut(clearNexusCounts)
 
 function dropNexusCounts(): GameId[] {
     const games: GameId[] = []
@@ -150,9 +152,13 @@ export function SourceSelect({
                 <span className="relative flex items-center gap-1.5 text-sm font-medium leading-tight text-text-muted">
                     <SourceName id={s.id} />
                 </span>
-                <span className="relative flex h-3.5 items-center text-[11px] leading-none text-text-subtle">
-                    <SourceCount total={counts[s.id]} />
-                </span>
+                {/* With no count to show, the empty line would pin the name above the
+                    title's center. The container keeps the row height either way. */}
+                {counts[s.id] !== null && (
+                    <span className="relative flex h-3.5 items-center text-[11px] leading-none text-text-subtle">
+                        <SourceCount total={counts[s.id]} />
+                    </span>
+                )}
             </div>
         )
     }

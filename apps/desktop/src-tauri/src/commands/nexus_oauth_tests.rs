@@ -148,6 +148,20 @@ fn parse_callback_surfaces_oauth_error() {
         "modrex://oauth/callback?error=access_denied&error_description=User+denied",
     )
     .unwrap_err();
-    assert!(err.contains("access_denied"));
-    assert!(err.contains("User denied"));
+    assert_eq!(err, "access was declined on Nexus Mods");
+    assert_eq!(
+        parse_callback_url("modrex://oauth/callback?error=access_denied").unwrap_err(),
+        "access was declined on Nexus Mods"
+    );
+}
+
+#[test]
+fn parse_callback_preserves_other_oauth_errors() {
+    assert_eq!(
+        parse_callback_url(
+            "modrex://oauth/callback?error=server_error&error_description=Try+again"
+        )
+        .unwrap_err(),
+        "nexus oauth: server_error: Try again"
+    );
 }

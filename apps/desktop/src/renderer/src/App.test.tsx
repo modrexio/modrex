@@ -36,6 +36,9 @@ vi.mock('./api', () => ({
         onSupportPromptEligible: vi.fn(() => () => {}),
         onNexusSessionExpired: vi.fn(() => () => {}),
         onNexusOAuthSignedIn: vi.fn(() => () => {}),
+        onNexusSignedOut: vi.fn(() => () => {}),
+        onNexusOAuthCallbackReceived: vi.fn(() => () => {}),
+        onNexusOAuthFailed: vi.fn(() => () => {}),
     },
 }))
 
@@ -136,6 +139,17 @@ async function mount() {
     const { default: App } = await import('./App')
     return render(<App />)
 }
+
+test('deliberate sign-out dismisses the expired Nexus session banner', async () => {
+    await mount()
+    await screen.findByTestId('modworkshop')
+    const { api } = await import('./api')
+    const { t } = await import('./i18n')
+    act(() => vi.mocked(api.onNexusSessionExpired).mock.calls[0]![0]())
+    expect(screen.getByText(t('nexusSession.expired'))).toBeTruthy()
+    act(() => vi.mocked(api.onNexusSignedOut).mock.calls[0]![0]())
+    expect(screen.queryByText(t('nexusSession.expired'))).toBeNull()
+})
 
 function expectActive(source: 'nexus' | 'modworkshop' | 'installed') {
     expect(screen.getByTestId(source).getAttribute('data-active')).toBe('true')

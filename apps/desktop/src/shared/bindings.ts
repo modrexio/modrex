@@ -32,7 +32,7 @@ export const commands = {
 	 *  to the existing unidentified install path either way.
 	 */
 	identifyDroppedArchive: (gameId: string, path: string) => __TAURI_INVOKE<NexusArchiveIdentity>("identify_dropped_archive", { gameId, path }),
-	nexusOauthStart: () => __TAURI_INVOKE<void>("nexus_oauth_start"),
+	nexusOauthStart: () => __TAURI_INVOKE<null>("nexus_oauth_start"),
 	nexusOauthSignedIn: () => __TAURI_INVOKE<boolean>("nexus_oauth_signed_in"),
 	nexusOauthSignOut: () => __TAURI_INVOKE<void>("nexus_oauth_sign_out"),
 	listTags: (gameId: number) => __TAURI_INVOKE<unknown>("list_tags", { gameId }),

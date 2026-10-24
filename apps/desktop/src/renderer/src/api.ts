@@ -519,8 +519,8 @@ export const api = {
     // Nexus
     // OAuth2 PKCE sign-in: opens the browser to users.nexusmods.com; the result
     // comes back asynchronously via the nexus-oauth:signed-in / failed events.
-    nexusOAuthStart(): Promise<void> {
-        return commands.nexusOauthStart()
+    async nexusOAuthStart(): Promise<void> {
+        await commands.nexusOauthStart()
     },
     isNexusSignedIn(): Promise<boolean> {
         return commands.nexusOauthSignedIn()
@@ -934,8 +934,14 @@ export const api = {
     onInstallScan(callback: (info: { phase: string; total: number }) => void): () => void {
         return onEvent<{ phase: string; total: number }>('installed:scan', callback)
     },
+    onNexusOAuthCallbackReceived(callback: () => void): () => void {
+        return onEvent<null>('nexus-oauth:callback-received', () => callback())
+    },
     onNexusOAuthSignedIn(callback: () => void): () => void {
         return onEvent<null>('nexus-oauth:signed-in', () => callback())
+    },
+    onNexusSignedOut(callback: () => void): () => void {
+        return onEvent<null>('nexus-oauth:signed-out', () => callback())
     },
     onNexusOAuthFailed(callback: (error: string) => void): () => void {
         return onEvent<string>('nexus-oauth:failed', callback)

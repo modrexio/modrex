@@ -3,6 +3,8 @@ import { useState, useEffect, useMemo, useRef, type ReactNode } from 'react'
 import { SettingsSection as Section } from './SettingsSection'
 import { BetaBadge } from './BetaBadge'
 import NexusIcon from '../../../../assets/icons/nexusmods.svg?react'
+import { useNexusSignIn } from '../hooks/useNexusSignIn'
+import { NexusSignInStatus } from './NexusSignInStatus'
 import { TITLE_ROW_MIN_H } from './pageHeader'
 import { Button } from './ui/Button'
 import {
@@ -101,7 +103,11 @@ export function SettingsPage({
     // Signed out because the session lapsed rather than because the user asked, which
     // needs saying: the sign-in button alone gives no hint that anything was lost.
     const [nexusSessionExpired, setNexusSessionExpired] = useState(false)
-    const [nexusSignInError, setNexusSignInError] = useState<string | null>(null)
+    const {
+        status: nexusSignInStatus,
+        error: nexusSignInError,
+        signIn: handleNexusSignIn,
+    } = useNexusSignIn()
     const [secretStoreAvailable, setSecretStoreAvailable] = useState<boolean | null>(null)
     const [confirmNexusSignOut, setConfirmNexusSignOut] = useState(false)
     const accentColor = useAccentColor()
@@ -158,21 +164,17 @@ export function SettingsPage({
         })
         const offSignedIn = api.onNexusOAuthSignedIn(() => {
             setNexusSignedIn(true)
-            setNexusSignInError(null)
             setNexusSessionExpired(false)
         })
-        const offFailed = api.onNexusOAuthFailed((error) => setNexusSignInError(error))
         // The backend already cleared the stored sign-in, so this section has to follow it
         // down rather than keep offering a Sign out button for credentials that are gone.
         const offExpired = api.onNexusSessionExpired(() => {
             setNexusSignedIn(false)
-            setNexusSignInError(null)
             setNexusSessionExpired(true)
         })
         return () => {
             cancelled = true
             offSignedIn()
-            offFailed()
             offExpired()
         }
     }, [])
@@ -188,15 +190,11 @@ export function SettingsPage({
         }
     }
 
-    function handleNexusSignIn() {
-        setNexusSignInError(null)
-        api.nexusOAuthStart()
-    }
-
     async function handleNexusSignOut() {
         setConfirmNexusSignOut(false)
         await api.nexusSignOut()
         setNexusSignedIn(false)
+        setNexusSessionExpired(false)
     }
 
     const visibleTabs = game ? navItems : navItems.filter((item) => item.id !== 'game')
@@ -511,6 +509,12 @@ export function SettingsPage({
                                             <TriangleAlert className="w-3.5 h-3.5 shrink-0 mt-0.5" />
                                             <span>{t('settings.nexusAccount.sessionExpired')}</span>
                                         </div>
+                                    )}
+                                    {nexusSignInError === null && (
+                                        <NexusSignInStatus
+                                            status={nexusSignInStatus}
+                                            className="block"
+                                        />
                                     )}
                                     {nexusSignInError !== null && (
                                         <p className="text-xs text-danger-text">
