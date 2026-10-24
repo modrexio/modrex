@@ -210,6 +210,24 @@ pub async fn nexus_list_mod_files(
     crate::commands::domain::parse_nexus_files(value, &domain, mod_id)
 }
 
+#[tauri::command]
+#[specta::specta]
+pub async fn nexus_check_file_update(
+    app: AppHandle,
+    game_id: String,
+    mod_id: u32,
+    file_id: u32,
+) -> Result<crate::commands::domain::NexusFileUpdate, String> {
+    let domain = nexus_domain(&game_id)?;
+    let value = nexus_get(
+        &app,
+        &format!("/games/{domain}/mods/{mod_id}/files.json"),
+        vec![],
+    )
+    .await?;
+    crate::commands::domain::parse_nexus_file_update(value, i64::from(file_id))
+}
+
 // Single-file details; carries file_name, which the nxm flow needs when the
 // download URI's path has no usable filename.
 pub(crate) async fn nexus_get_file(

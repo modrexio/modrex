@@ -1,10 +1,12 @@
 import type { InstalledMod, Mod, ModFile, ModSummary } from '../../shared/types'
+import type { NexusFileCheckState } from './nexusModCache'
 import type { VersionState } from './modVersions'
 
 export function updatableMods(
     installed: InstalledMod[],
     versions: ReadonlyMap<number, VersionState>,
-    summaries: ReadonlyMap<number, ModSummary>
+    summaries: ReadonlyMap<number, ModSummary>,
+    nexusFileUpdates: ReadonlyMap<string, NexusFileCheckState> = new Map()
 ): InstalledMod[] {
     const groups = new Map<number, InstalledMod[]>()
     for (const mod of installed) {
@@ -19,6 +21,15 @@ export function updatableMods(
         const summary = summaries.get(id)
         if (summary?.download_type === 'link' || summary?.disable_mod_managers) continue
         const present = group.filter((mod) => !mod.missing)
+        if (group[0]!.source === 'nexus') {
+            const replaced = present.find((mod) => {
+                if (mod.version === remote.version) return false
+                const check = nexusFileUpdates.get(mod.uid)
+                return check?.status === 'known' && check.result.status !== 'current'
+            })
+            if (replaced) updates.push(replaced)
+            continue
+        }
         const confirmed = present.find((mod) => mod.updateStatus === 'outdated')
         if (confirmed) {
             updates.push(confirmed)

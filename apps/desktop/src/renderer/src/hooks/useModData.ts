@@ -5,6 +5,10 @@ import {
     getNexusInstalledMetaEntry,
     fetchInstalledNexusModsMeta,
     useNexusAuthEpoch,
+    getNexusFileUpdateEntry,
+    nexusFileUpdateKey,
+    getCachedNexusFileUpdate,
+    type NexusFileCheckState,
 } from '../nexusModCache'
 import { useModVersions } from './useModVersions'
 import type { VersionState } from '../modVersions'
@@ -21,6 +25,7 @@ export function useModData(
     const [nexusVersions, setNexusVersions] = useState(
         new Map<number, { state: VersionState; checkedAt: number }>()
     )
+    const [nexusFileChecks, setNexusFileChecks] = useState(new Map<string, NexusFileCheckState>())
     const [clock, setClock] = useState(0)
     const nexusAuthEpoch = useNexusAuthEpoch()
     const workshop = installed.filter(
@@ -154,6 +159,61 @@ export function useModData(
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [key, workshopId, gameId, nexusAuthEpoch])
 
+    const fileKey = installed
+        .map((mod) => [mod.uid, mod.fileRemoteId, mod.fileId, mod.version, mod.missing].join(':'))
+        .sort()
+        .join(',')
+
+    useEffect(() => {
+        let cancelled = false
+        const candidates = installed.filter((mod) => {
+            const observation = nexusVersions.get(mod.id)
+            return (
+                mod.source === 'nexus' &&
+                !mod.missing &&
+                observation?.state.status === 'known' &&
+                Date.now() - observation.checkedAt < INSTALLED_META_TTL_MS &&
+                observation.state.version !== mod.version
+            )
+        })
+        const initial = new Map<string, NexusFileCheckState>()
+        for (const mod of candidates) {
+            const fileId = Number(mod.fileRemoteId ?? mod.fileId)
+            const cached = getNexusFileUpdateEntry(gameId, Number(mod.remoteId), fileId)
+            if (cached)
+                initial.set(nexusFileUpdateKey(gameId, Number(mod.remoteId), fileId), cached)
+        }
+        setNexusFileChecks(initial)
+
+        async function checkFiles() {
+            for (const mod of candidates) {
+                if (cancelled) return
+                const fileId = Number(mod.fileRemoteId ?? mod.fileId)
+                const validFileId = Number.isInteger(fileId) && fileId > 0 && fileId <= 0xffff_ffff
+                const check: NexusFileCheckState = validFileId
+                    ? await getCachedNexusFileUpdate(gameId, Number(mod.remoteId), fileId)
+                    : {
+                          status: 'failed',
+                          error: 'Nexus installed file ID unavailable',
+                          checkedAt: Date.now(),
+                      }
+                if (cancelled) return
+                setNexusFileChecks((previous) =>
+                    new Map(previous).set(
+                        nexusFileUpdateKey(gameId, Number(mod.remoteId), fileId),
+                        check
+                    )
+                )
+            }
+        }
+        void checkFiles()
+        return () => {
+            cancelled = true
+        }
+        // Installed entries are recreated on refresh, so their request keys own this effect.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [key, fileKey, gameId, nexusVersions, clock, nexusAuthEpoch])
+
     const versions = new Map<number, VersionState>()
     for (const mod of workshop)
         versions.set(mod.id, remoteVersions.get(Number(mod.remoteId)) ?? { status: 'pending' })
@@ -167,7 +227,14 @@ export function useModData(
                 : state
         )
     }
-    const updatable = updatableMods(installed, versions, modData)
+    const freshFileChecks = new Map<string, NexusFileCheckState>()
+    for (const mod of installed) {
+        const fileId = Number(mod.fileRemoteId ?? mod.fileId)
+        const check = nexusFileChecks.get(nexusFileUpdateKey(gameId, Number(mod.remoteId), fileId))
+        if (!check || Date.now() - check.checkedAt >= INSTALLED_META_TTL_MS) continue
+        freshFileChecks.set(mod.uid, check)
+    }
+    const updatable = updatableMods(installed, versions, modData, freshFileChecks)
     const updateVersions = new Map<number, string>()
     for (const mod of updatable) {
         const state = versions.get(mod.id)

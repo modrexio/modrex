@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react'
 import type { Mod, ModFile } from '../../shared/types'
-import { api } from './api'
+import { api, type NexusFileUpdate } from './api'
+import { INSTALLED_META_TTL_MS } from './modCache'
 import { waitForForegroundClear } from './requestPriority'
 
 // Counts the Nexus sign-ins this session. Anything a caller recorded about a mod having
@@ -36,6 +37,9 @@ export function useNexusAuthEpoch(): number {
 // same reason.
 api.onNexusOAuthSignedIn(() => {
     authEpoch++
+    for (const [key, entry] of fileUpdateCache) {
+        if (entry.status === 'failed') fileUpdateCache.delete(key)
+    }
     for (const notify of authListeners) notify()
 })
 
@@ -133,11 +137,9 @@ export async function fetchInstalledNexusModsMeta(
 ): Promise<{ mods: Map<number, Mod>; failedIds: number[] }> {
     const mods = new Map<number, Mod>()
     const failedIds: number[] = []
-    for (const [i, modId] of modIds.entries()) {
-        if (i > 0) await new Promise((resolve) => setTimeout(resolve, STAGGER_MS))
-        await waitForForegroundClear()
+    for (const modId of new Set(modIds)) {
         try {
-            const mod = await api.nexusGetModDetail(gameId, modId)
+            const mod = await runNexusBackgroundRequest(() => api.nexusGetModDetail(gameId, modId))
             installedMetaCache.set(key(gameId, modId), { mod, fetchedAt: Date.now() })
             mods.set(modId, mod)
             onResult?.(modId, mod)
@@ -147,4 +149,76 @@ export async function fetchInstalledNexusModsMeta(
         }
     }
     return { mods, failedIds }
+}
+
+let backgroundQueue = Promise.resolve()
+let lastBackgroundRequestAt: number | undefined
+
+async function runNexusBackgroundRequest<T>(request: () => Promise<T>): Promise<T> {
+    const previous = backgroundQueue
+    let release!: () => void
+    backgroundQueue = new Promise<void>((resolve) => {
+        release = resolve
+    })
+    await previous
+    try {
+        if (lastBackgroundRequestAt !== undefined) {
+            const wait = STAGGER_MS - (Date.now() - lastBackgroundRequestAt)
+            if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait))
+        }
+        await waitForForegroundClear()
+        return await request()
+    } finally {
+        lastBackgroundRequestAt = Date.now()
+        release()
+    }
+}
+
+export type NexusFileCheckState =
+    | { status: 'known'; result: NexusFileUpdate; checkedAt: number }
+    | { status: 'failed'; error: string; checkedAt: number }
+
+const fileUpdateCache = new Map<string, NexusFileCheckState>()
+const pendingFileUpdates = new Map<string, Promise<NexusFileCheckState>>()
+
+export function nexusFileUpdateKey(gameId: string, modId: number, fileId: number): string {
+    return `${gameId}:${modId}:${fileId}`
+}
+
+export function getNexusFileUpdateEntry(
+    gameId: string,
+    modId: number,
+    fileId: number
+): NexusFileCheckState | undefined {
+    const entry = fileUpdateCache.get(nexusFileUpdateKey(gameId, modId, fileId))
+    if (entry && Date.now() - entry.checkedAt < INSTALLED_META_TTL_MS) return entry
+    return undefined
+}
+
+export function getCachedNexusFileUpdate(
+    gameId: string,
+    modId: number,
+    fileId: number
+): Promise<NexusFileCheckState> {
+    const cached = getNexusFileUpdateEntry(gameId, modId, fileId)
+    if (cached) return Promise.resolve(cached)
+    const key = nexusFileUpdateKey(gameId, modId, fileId)
+    const pending = pendingFileUpdates.get(key)
+    if (pending) return pending
+    const epoch = authEpoch
+    const request = runNexusBackgroundRequest(async (): Promise<NexusFileCheckState> => {
+        let entry: NexusFileCheckState
+        try {
+            const result = await api.nexusCheckFileUpdate(gameId, modId, fileId)
+            entry = { status: 'known', result, checkedAt: Date.now() }
+        } catch (error) {
+            entry = { status: 'failed', error: String(error), checkedAt: Date.now() }
+        }
+        if (entry.status === 'known' || epoch === authEpoch) fileUpdateCache.set(key, entry)
+        return entry
+    }).finally(() => {
+        pendingFileUpdates.delete(key)
+    })
+    pendingFileUpdates.set(key, request)
+    return request
 }

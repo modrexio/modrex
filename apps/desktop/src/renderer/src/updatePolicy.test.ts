@@ -1,5 +1,6 @@
 import { expect, it } from 'vitest'
 import type { InstalledMod, Mod, ModFile, ModSummary } from '../../shared/types'
+import type { NexusFileCheckState } from './nexusModCache'
 import type { VersionState } from './modVersions'
 import { updatableMods, resolveUpdateTarget } from './updatePolicy'
 
@@ -152,4 +153,29 @@ it('skips mods whose installed version is already current', () => {
     expect(resolveUpdateTarget([installed], { ...detail, version: '' }, [file(10)]).status).toBe(
         'unchanged'
     )
+})
+
+it('uses Nexus file results per installed entry, including mods with multiple parts', () => {
+    const first = {
+        ...installed,
+        source: 'nexus',
+        uid: 'part-1',
+        updateStatus: 'outdated' as const,
+    }
+    const second = { ...first, uid: 'part-2', fileId: 11, version: 'second' }
+    const versions = new Map<number, VersionState>([[1, { status: 'known', version: 'second' }]])
+    const checks = new Map<string, NexusFileCheckState>()
+    expect(updatableMods([first], versions, noSummaries, checks)).toEqual([])
+    checks.set(first.uid, { status: 'failed', error: 'offline', checkedAt: Date.now() })
+    expect(updatableMods([first], versions, noSummaries, checks)).toEqual([])
+    checks.set(first.uid, { status: 'known', result: { status: 'current' }, checkedAt: Date.now() })
+    expect(updatableMods([first], versions, noSummaries, checks)).toEqual([])
+    for (const result of [
+        { status: 'unknown' as const },
+        { status: 'replaced' as const, fileId: 12, version: 'file-version' },
+    ]) {
+        checks.set(first.uid, { status: 'known', result, checkedAt: Date.now() })
+        expect(updatableMods([first, second], versions, noSummaries, checks)).toEqual([first])
+        expect(updatableMods([second], versions, noSummaries, checks)).toEqual([])
+    }
 })
