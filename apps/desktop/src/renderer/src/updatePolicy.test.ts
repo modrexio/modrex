@@ -2,7 +2,7 @@ import { expect, it } from 'vitest'
 import type { InstalledMod, Mod, ModFile, ModSummary } from '../../shared/types'
 import type { VersionState } from './modVersions'
 import type { NexusFileCheck } from './api'
-import { updatableMods, resolveUpdateTarget } from './updatePolicy'
+import { isNoNewerVersion, updatableMods, resolveUpdateTarget } from './updatePolicy'
 
 const installed: InstalledMod = {
     id: 1,
@@ -165,6 +165,48 @@ it('does not offer updates for mods Modrex cannot download', () => {
         const summaries = new Map([[1, summary as ModSummary]])
         expect(updatableMods([installed], versions, summaries, noNexus)).toEqual([])
     }
+})
+
+it('orders only plain dotted versions', () => {
+    expect(isNoNewerVersion('2.0.0', '2.1.0')).toBe(true)
+    expect(isNoNewerVersion('v2.0', '2.0.1')).toBe(true)
+    expect(isNoNewerVersion('1.9', '1.10')).toBe(true)
+    expect(isNoNewerVersion('2.1', '2.1.0')).toBe(true)
+    expect(isNoNewerVersion('V2.1.0', '2.1')).toBe(true)
+    expect(isNoNewerVersion('2.1.0', '2.0.0')).toBe(false)
+    expect(isNoNewerVersion('1.10', '1.9')).toBe(false)
+    for (const [candidate, current] of [
+        ['2.1.0-beta.2', '2.1.0'],
+        ['1.0', 'Version 1.2'],
+        ['r445', 'r446'],
+        ['1.2a', '1.3'],
+        ['2026-10-19', '2026-10-20'],
+        ['1,0', '1,1'],
+        ['', '1.0'],
+    ]) {
+        expect(isNoNewerVersion(candidate!, current!)).toBe(false)
+    }
+})
+
+it('does not offer a page version at or below the installed one', () => {
+    const current = { ...installed, version: '2.1.0' }
+    const older = new Map<number, VersionState>([[1, { status: 'known', version: '2.0.0' }]])
+    expect(updatableMods([current], older, noSummaries, noNexus)).toEqual([])
+    expect(
+        updatableMods([current, { ...current, version: '1.0' }], older, noSummaries, noNexus)
+    ).toEqual([])
+    const padded = new Map<number, VersionState>([[1, { status: 'known', version: '2.1' }]])
+    expect(updatableMods([current], padded, noSummaries, noNexus)).toEqual([])
+    const newer = new Map<number, VersionState>([[1, { status: 'known', version: '2.2.0' }]])
+    expect(updatableMods([current], newer, noSummaries, noNexus)).toEqual([current])
+    const unordered = new Map<number, VersionState>([[1, { status: 'known', version: '2.0b' }]])
+    expect(updatableMods([current], unordered, noSummaries, noNexus)).toEqual([current])
+    expect(
+        updatableMods([{ ...current, updateStatus: 'outdated' }], older, noSummaries, noNexus)
+    ).toHaveLength(1)
+    expect(resolveUpdateTarget([current], { ...detail, version: '2.0.0' }, [file(10)]).status).toBe(
+        'unchanged'
+    )
 })
 
 it('skips mods whose installed version is already current', () => {

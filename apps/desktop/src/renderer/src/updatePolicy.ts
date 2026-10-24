@@ -40,11 +40,37 @@ export function updatableMods(
             continue
         }
         const comparable = present.filter((mod) => mod.updateStatus !== 'unknown' && mod.version)
-        if (comparable.length && comparable.every((mod) => mod.version !== remote.version)) {
+        if (
+            comparable.length &&
+            comparable.every(
+                (mod) =>
+                    mod.version !== remote.version && !isNoNewerVersion(remote.version, mod.version)
+            )
+        ) {
             updates.push(comparable[0]!)
         }
     }
     return updates
+}
+
+// A page version is free text that its author can leave behind the file they uploaded,
+// so a page reading the same as or older than the install is no update. Only plain
+// dotted numbers have an order, and 2.1 equals 2.1.0. Any other pair returns false and
+// keeps the plain inequality check.
+export function isNoNewerVersion(candidate: string, installed: string): boolean {
+    const a = dottedVersion(candidate)
+    const b = dottedVersion(installed)
+    if (!a || !b) return false
+    for (let i = 0; i < Math.max(a.length, b.length); i++) {
+        const diff = (a[i] ?? 0) - (b[i] ?? 0)
+        if (diff) return diff < 0
+    }
+    return true
+}
+
+function dottedVersion(version: string): number[] | undefined {
+    const match = /^v?(\d+(?:\.\d+)*)$/i.exec(version.trim())
+    return match?.[1]!.split('.').map(Number)
 }
 
 export function nexusFileId(mod: InstalledMod): number | undefined {
@@ -67,7 +93,11 @@ export function resolveUpdateTarget(
     const hasOutdatedBytes = present.some((mod) => mod.updateStatus === 'outdated')
     if (
         !detail.version ||
-        (!hasOutdatedBytes && present.some((mod) => mod.version === detail.version))
+        (!hasOutdatedBytes &&
+            present.some(
+                (mod) =>
+                    mod.version === detail.version || isNoNewerVersion(detail.version, mod.version)
+            ))
     )
         return { status: 'unchanged' }
     const download = detail.download

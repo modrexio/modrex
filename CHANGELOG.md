@@ -38,6 +38,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - Fixed PAYDAY 3 Xbox builds not being detected as running.
 - Fixed Linux builds disabling graphics acceleration.
 - Fixed Restart & Install not restarting Modrex on Linux after installing an update.
+- Fixed updates offering older versions.
 - Fixed UE4SS mods installing to a folder PAYDAY 3's UE4SS does not read.
 - Fixed reordering or moving PAYDAY 3 and Crime Boss mods leaving their .ucas and .utoc files behind.
 - Fixed deleting a folder also deleting its mods' .ucas and .utoc files.
