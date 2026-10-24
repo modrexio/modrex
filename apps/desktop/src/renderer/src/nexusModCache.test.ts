@@ -38,9 +38,11 @@ function makeMod(id: number): Mod {
     }
 }
 
-let signedIn!: () => void
-let mockNexusCheckFileUpdate: ReturnType<typeof vi.fn>
 let mockNexusGetModDetail: ReturnType<typeof vi.fn>
+let mockNexusCheckInstalled: ReturnType<typeof vi.fn>
+
+const checked = (id: number) => ({ detail: makeMod(id), files: [] })
+const installedIds = (...ids: number[]) => new Map(ids.map((id) => [id, []]))
 let cache!: typeof NexusModCacheMod
 
 beforeEach(async () => {
@@ -48,17 +50,14 @@ beforeEach(async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date(0))
 
-    mockNexusCheckFileUpdate = vi.fn()
     mockNexusGetModDetail = vi.fn()
+    mockNexusCheckInstalled = vi.fn()
     vi.doMock('./api', () => ({
         api: {
             nexusGetModDetail: mockNexusGetModDetail,
-            nexusCheckFileUpdate: mockNexusCheckFileUpdate,
+            nexusCheckInstalled: mockNexusCheckInstalled,
             // Subscribed to at module load to track Nexus sign-ins.
-            onNexusOAuthSignedIn: (callback: () => void) => {
-                signedIn = callback
-                return () => {}
-            },
+            onNexusOAuthSignedIn: () => () => {},
         },
     }))
 
@@ -93,8 +92,8 @@ describe('getCachedNexusMod', () => {
 
 describe('fetchInstalledNexusModsMeta', () => {
     it('fetches every id one at a time and caches each result', async () => {
-        mockNexusGetModDetail.mockResolvedValueOnce(makeMod(1)).mockResolvedValueOnce(makeMod(2))
-        const promise = cache.fetchInstalledNexusModsMeta('pd3', [1, 2])
+        mockNexusCheckInstalled.mockResolvedValueOnce(checked(1)).mockResolvedValueOnce(checked(2))
+        const promise = cache.fetchInstalledNexusModsMeta('pd3', installedIds(1, 2))
         await vi.runAllTimersAsync()
         const { mods, failedIds } = await promise
         expect(mods.get(1)!.id).toBe(1)
@@ -105,22 +104,22 @@ describe('fetchInstalledNexusModsMeta', () => {
     })
 
     it('staggers requests instead of firing them all at once', async () => {
-        mockNexusGetModDetail.mockResolvedValue(makeMod(1))
-        const promise = cache.fetchInstalledNexusModsMeta('pd3', [1, 2, 3])
+        mockNexusCheckInstalled.mockResolvedValue(checked(1))
+        const promise = cache.fetchInstalledNexusModsMeta('pd3', installedIds(1, 2, 3))
         await vi.advanceTimersByTimeAsync(0)
-        expect(mockNexusGetModDetail).toHaveBeenCalledTimes(1)
+        expect(mockNexusCheckInstalled).toHaveBeenCalledTimes(1)
         await vi.advanceTimersByTimeAsync(2000)
-        expect(mockNexusGetModDetail).toHaveBeenCalledTimes(2)
+        expect(mockNexusCheckInstalled).toHaveBeenCalledTimes(2)
         await vi.advanceTimersByTimeAsync(2000)
-        expect(mockNexusGetModDetail).toHaveBeenCalledTimes(3)
+        expect(mockNexusCheckInstalled).toHaveBeenCalledTimes(3)
         await promise
     })
 
     it('reports a per-id failure without aborting the rest of the trickle', async () => {
-        mockNexusGetModDetail
+        mockNexusCheckInstalled
             .mockRejectedValueOnce(new Error('nexus API 429'))
-            .mockResolvedValueOnce(makeMod(2))
-        const promise = cache.fetchInstalledNexusModsMeta('pd3', [1, 2])
+            .mockResolvedValueOnce(checked(2))
+        const promise = cache.fetchInstalledNexusModsMeta('pd3', installedIds(1, 2))
         await vi.runAllTimersAsync()
         const { mods, failedIds } = await promise
         expect(failedIds).toEqual([1])
@@ -129,11 +128,11 @@ describe('fetchInstalledNexusModsMeta', () => {
     })
 
     it('calls onResult for each mod as it resolves, not only once the trickle finishes', async () => {
-        mockNexusGetModDetail
-            .mockResolvedValueOnce(makeMod(1))
+        mockNexusCheckInstalled
+            .mockResolvedValueOnce(checked(1))
             .mockRejectedValueOnce(new Error('nexus API 429'))
         const seen: [number, boolean][] = []
-        const promise = cache.fetchInstalledNexusModsMeta('pd3', [1, 2], (modId, mod) =>
+        const promise = cache.fetchInstalledNexusModsMeta('pd3', installedIds(1, 2), (modId, mod) =>
             seen.push([modId, mod !== null])
         )
         await vi.runAllTimersAsync()
@@ -143,81 +142,17 @@ describe('fetchInstalledNexusModsMeta', () => {
             [2, false],
         ])
     })
-})
 
-describe('installed Nexus file checks', () => {
-    it('shares in-flight work, caches results for 30 minutes and isolates game, mod and file', async () => {
-        mockNexusCheckFileUpdate.mockResolvedValue({ status: 'current' })
-        const first = cache.getCachedNexusFileUpdate('pd3', 1, 10)
-        const duplicate = cache.getCachedNexusFileUpdate('pd3', 1, 10)
-        expect(duplicate).toBe(first)
+    it('sends the installed files and caches their checks with the mod', async () => {
+        const files = [{ fileId: 7, update: { status: 'current' } }]
+        mockNexusCheckInstalled.mockResolvedValueOnce({ detail: makeMod(1), files })
+        const installed = new Map([[1, [{ fileId: 7, version: '1.0' }]]])
+        const promise = cache.fetchInstalledNexusModsMeta('pd3', installed)
         await vi.runAllTimersAsync()
-        await first
-        await cache.getCachedNexusFileUpdate('pd3', 1, 10)
-        expect(mockNexusCheckFileUpdate).toHaveBeenCalledTimes(1)
-        for (const [game, mod, file] of [
-            ['cb', 1, 10],
-            ['pd3', 2, 10],
-            ['pd3', 1, 11],
-        ] as const) {
-            const request = cache.getCachedNexusFileUpdate(game, mod, file)
-            await vi.runAllTimersAsync()
-            await request
-        }
-        expect(mockNexusCheckFileUpdate).toHaveBeenCalledTimes(4)
-        vi.advanceTimersByTime(30 * 60 * 1000)
-        expect(cache.getNexusFileUpdateEntry('pd3', 1, 10)).toBeUndefined()
-        const refresh = cache.getCachedNexusFileUpdate('pd3', 1, 10)
-        await vi.runAllTimersAsync()
-        await refresh
-        expect(mockNexusCheckFileUpdate).toHaveBeenCalledTimes(5)
+        await promise
+        expect(mockNexusCheckInstalled).toHaveBeenCalledWith('pd3', 1, [
+            { fileId: 7, version: '1.0' },
+        ])
+        expect(cache.getNexusInstalledMetaEntry('pd3', 1)!.files).toEqual(files)
     })
-
-    it('records and caches failures without marking the installed file current', async () => {
-        mockNexusCheckFileUpdate.mockRejectedValue(new Error('nexus API 429'))
-        const request = cache.getCachedNexusFileUpdate('pd3', 1, 10)
-        await vi.runAllTimersAsync()
-        const state = await request
-        expect(state).toMatchObject({ status: 'failed', error: 'Error: nexus API 429' })
-        expect(await cache.getCachedNexusFileUpdate('pd3', 1, 10)).toBe(state)
-        expect(mockNexusCheckFileUpdate).toHaveBeenCalledTimes(1)
-    })
-
-    it('serializes file checks with metadata requests and respects the foreground gate', async () => {
-        const priority = await import('./requestPriority')
-        priority.markForegroundActivity()
-        mockNexusGetModDetail.mockResolvedValue(makeMod(1))
-        mockNexusCheckFileUpdate.mockResolvedValue({ status: 'unknown' })
-        const metadata = cache.fetchInstalledNexusModsMeta('pd3', [1])
-        const file = cache.getCachedNexusFileUpdate('pd3', 1, 10)
-        await vi.advanceTimersByTimeAsync(1400)
-        expect(mockNexusGetModDetail).not.toHaveBeenCalled()
-        expect(mockNexusCheckFileUpdate).not.toHaveBeenCalled()
-        await vi.advanceTimersByTimeAsync(200)
-        expect(mockNexusGetModDetail).toHaveBeenCalledTimes(1)
-        expect(mockNexusCheckFileUpdate).not.toHaveBeenCalled()
-        await vi.advanceTimersByTimeAsync(1999)
-        expect(mockNexusCheckFileUpdate).not.toHaveBeenCalled()
-        await vi.advanceTimersByTimeAsync(1)
-        expect(mockNexusCheckFileUpdate).toHaveBeenCalledTimes(1)
-        await Promise.all([metadata, file])
-    })
-})
-
-it('retries failed file checks after a new sign-in while retaining successful checks', async () => {
-    mockNexusCheckFileUpdate
-        .mockRejectedValueOnce(new Error('expired token'))
-        .mockResolvedValue({ status: 'current' })
-    const failed = cache.getCachedNexusFileUpdate('pd3', 1, 10)
-    const success = cache.getCachedNexusFileUpdate('pd3', 1, 11)
-    await vi.runAllTimersAsync()
-    expect((await failed).status).toBe('failed')
-    const successfulEntry = await success
-    signedIn()
-    expect(cache.getNexusFileUpdateEntry('pd3', 1, 10)).toBeUndefined()
-    expect(cache.getNexusFileUpdateEntry('pd3', 1, 11)).toBe(successfulEntry)
-    const retry = cache.getCachedNexusFileUpdate('pd3', 1, 10)
-    await vi.runAllTimersAsync()
-    expect((await retry).status).toBe('known')
-    expect(mockNexusCheckFileUpdate).toHaveBeenCalledTimes(3)
 })

@@ -1,8 +1,19 @@
 use super::*;
 use serde_json::json;
 
+fn installed(version: &str) -> Vec<NexusInstalledFile> {
+    vec![NexusInstalledFile {
+        file_id: 1,
+        version: version.into(),
+    }]
+}
+
 fn check(files: serde_json::Value, updates: serde_json::Value) -> NexusFileUpdate {
-    parse_nexus_file_update(json!({ "files": files, "file_updates": updates }), 1).unwrap()
+    let listing = json!({ "files": files, "file_updates": updates });
+    parse_nexus_file_checks(listing, "page", &installed("older"))
+        .unwrap()
+        .remove(0)
+        .update
 }
 
 #[test]
@@ -117,7 +128,7 @@ fn unavailable_chain_tail_falls_back_to_installed_file() {
 
 #[test]
 fn cyclic_update_chain_is_a_failure() {
-    assert!(parse_nexus_file_update(
+    assert!(parse_nexus_file_checks(
         json!({
             "files": [],
             "file_updates": [
@@ -125,10 +136,21 @@ fn cyclic_update_chain_is_a_failure() {
                 {"old_file_id": 2, "new_file_id": 1}
             ]
         }),
-        1
+        "page",
+        &installed("older")
     )
     .unwrap_err()
     .contains("cyclic"));
+}
+
+#[test]
+fn file_recorded_at_the_page_version_is_current_without_a_chain() {
+    let listing = json!({
+        "files": [{"file_id": 1, "category_id": 4}, {"file_id": 2, "category_id": 1}],
+        "file_updates": [{"old_file_id": 1, "new_file_id": 2}]
+    });
+    let checks = parse_nexus_file_checks(listing, "page", &installed("page")).unwrap();
+    assert_eq!(checks[0].update, NexusFileUpdate::Current);
 }
 
 #[test]

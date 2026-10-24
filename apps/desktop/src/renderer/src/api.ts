@@ -15,7 +15,8 @@ import type {
     ModFolderInfo,
     SourceInfo,
     NexusArchiveIdentity,
-    NexusFileUpdate,
+    NexusFileCheck,
+    NexusInstalledFile,
     NexusContentIdentifyOutcome,
     PakAsset,
     SisrLaunchIssue,
@@ -30,7 +31,8 @@ export type {
     ModFolderInfo,
     SourceInfo,
     NexusArchiveIdentity,
-    NexusFileUpdate,
+    NexusFileCheck,
+    NexusInstalledFile,
     NexusHashMatch,
     NexusContentIdentifyOutcome,
     PakAsset,
@@ -549,8 +551,12 @@ export const api = {
     nexusGetModDetail(gameId: string, modId: number): Promise<Mod> {
         return commands.nexusGetModDetail(gameId, modId)
     },
-    nexusCheckFileUpdate(gameId: string, modId: number, fileId: number): Promise<NexusFileUpdate> {
-        return commands.nexusCheckFileUpdate(gameId, modId, fileId)
+    nexusCheckInstalled(
+        gameId: string,
+        modId: number,
+        files: NexusInstalledFile[]
+    ): Promise<{ detail: Mod; files: NexusFileCheck[] }> {
+        return commands.nexusCheckInstalled(gameId, modId, files)
     },
     // REST v1 /mods/{id}/files.json. Files carry no direct download_url for a free
     // account, only a per-file link to the Nexus site's Mod Manager Download button.

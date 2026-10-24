@@ -1,7 +1,6 @@
 import { useSyncExternalStore } from 'react'
 import type { Mod, ModFile } from '../../shared/types'
-import { api, type NexusFileUpdate } from './api'
-import { INSTALLED_META_TTL_MS } from './modCache'
+import { api, type NexusFileCheck, type NexusInstalledFile } from './api'
 import { waitForForegroundClear } from './requestPriority'
 
 // Counts the Nexus sign-ins this session. Anything a caller recorded about a mod having
@@ -37,9 +36,6 @@ export function useNexusAuthEpoch(): number {
 // same reason.
 api.onNexusOAuthSignedIn(() => {
     authEpoch++
-    for (const [key, entry] of fileUpdateCache) {
-        if (entry.status === 'failed') fileUpdateCache.delete(key)
-    }
     for (const notify of authListeners) notify()
 })
 
@@ -108,6 +104,7 @@ export async function getCachedNexusModFiles(gameId: string, modId: number): Pro
 // with useModData's staleness check.
 interface NexusInstalledMetaEntry {
     mod: Mod
+    files: NexusFileCheck[]
     fetchedAt: number
 }
 
@@ -132,93 +129,28 @@ const STAGGER_MS = 2000
 // would see nothing update for as long as the whole list takes.
 export async function fetchInstalledNexusModsMeta(
     gameId: string,
-    modIds: number[],
-    onResult?: (modId: number, mod: Mod | null) => void
+    installedFiles: ReadonlyMap<number, NexusInstalledFile[]>,
+    onResult?: (modId: number, mod: Mod | null, files: NexusFileCheck[]) => void
 ): Promise<{ mods: Map<number, Mod>; failedIds: number[] }> {
     const mods = new Map<number, Mod>()
     const failedIds: number[] = []
-    for (const modId of new Set(modIds)) {
+    for (const [i, [modId, files]] of [...installedFiles].entries()) {
+        if (i > 0) await new Promise((resolve) => setTimeout(resolve, STAGGER_MS))
+        await waitForForegroundClear()
         try {
-            const mod = await runNexusBackgroundRequest(() => api.nexusGetModDetail(gameId, modId))
-            installedMetaCache.set(key(gameId, modId), { mod, fetchedAt: Date.now() })
+            const check = await api.nexusCheckInstalled(gameId, modId, files)
+            const mod = check.detail
+            installedMetaCache.set(key(gameId, modId), {
+                mod,
+                files: check.files,
+                fetchedAt: Date.now(),
+            })
             mods.set(modId, mod)
-            onResult?.(modId, mod)
+            onResult?.(modId, mod, check.files)
         } catch {
             failedIds.push(modId)
-            onResult?.(modId, null)
+            onResult?.(modId, null, [])
         }
     }
     return { mods, failedIds }
-}
-
-let backgroundQueue = Promise.resolve()
-let lastBackgroundRequestAt: number | undefined
-
-async function runNexusBackgroundRequest<T>(request: () => Promise<T>): Promise<T> {
-    const previous = backgroundQueue
-    let release!: () => void
-    backgroundQueue = new Promise<void>((resolve) => {
-        release = resolve
-    })
-    await previous
-    try {
-        if (lastBackgroundRequestAt !== undefined) {
-            const wait = STAGGER_MS - (Date.now() - lastBackgroundRequestAt)
-            if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait))
-        }
-        await waitForForegroundClear()
-        return await request()
-    } finally {
-        lastBackgroundRequestAt = Date.now()
-        release()
-    }
-}
-
-export type NexusFileCheckState =
-    | { status: 'known'; result: NexusFileUpdate; checkedAt: number }
-    | { status: 'failed'; error: string; checkedAt: number }
-
-const fileUpdateCache = new Map<string, NexusFileCheckState>()
-const pendingFileUpdates = new Map<string, Promise<NexusFileCheckState>>()
-
-export function nexusFileUpdateKey(gameId: string, modId: number, fileId: number): string {
-    return `${gameId}:${modId}:${fileId}`
-}
-
-export function getNexusFileUpdateEntry(
-    gameId: string,
-    modId: number,
-    fileId: number
-): NexusFileCheckState | undefined {
-    const entry = fileUpdateCache.get(nexusFileUpdateKey(gameId, modId, fileId))
-    if (entry && Date.now() - entry.checkedAt < INSTALLED_META_TTL_MS) return entry
-    return undefined
-}
-
-export function getCachedNexusFileUpdate(
-    gameId: string,
-    modId: number,
-    fileId: number
-): Promise<NexusFileCheckState> {
-    const cached = getNexusFileUpdateEntry(gameId, modId, fileId)
-    if (cached) return Promise.resolve(cached)
-    const key = nexusFileUpdateKey(gameId, modId, fileId)
-    const pending = pendingFileUpdates.get(key)
-    if (pending) return pending
-    const epoch = authEpoch
-    const request = runNexusBackgroundRequest(async (): Promise<NexusFileCheckState> => {
-        let entry: NexusFileCheckState
-        try {
-            const result = await api.nexusCheckFileUpdate(gameId, modId, fileId)
-            entry = { status: 'known', result, checkedAt: Date.now() }
-        } catch (error) {
-            entry = { status: 'failed', error: String(error), checkedAt: Date.now() }
-        }
-        if (entry.status === 'known' || epoch === authEpoch) fileUpdateCache.set(key, entry)
-        return entry
-    }).finally(() => {
-        pendingFileUpdates.delete(key)
-    })
-    pendingFileUpdates.set(key, request)
-    return request
 }

@@ -25,7 +25,7 @@ export const commands = {
 	nexusSearchMods: (gameId: string, query: string, sort: string, offset: number | null) => __TAURI_INVOKE<ModPage>("nexus_search_mods", { gameId, query, sort, offset }),
 	nexusGetModDetail: (gameId: string, modId: number) => __TAURI_INVOKE<ModDetail>("nexus_get_mod_detail", { gameId, modId }),
 	nexusListModFiles: (gameId: string, modId: number) => __TAURI_INVOKE<FilePage>("nexus_list_mod_files", { gameId, modId }),
-	nexusCheckFileUpdate: (gameId: string, modId: number, fileId: number) => __TAURI_INVOKE<NexusFileUpdate>("nexus_check_file_update", { gameId, modId, fileId }),
+	nexusCheckInstalled: (gameId: string, modId: number, files: NexusInstalledFile[]) => __TAURI_INVOKE<NexusInstalledCheck>("nexus_check_installed", { gameId, modId, files }),
 	/**
 	 *  Renderer-facing wrapper for a dropped file the user is about to install manually
 	 *  (e.g. from a picker UI) rather than through install_dropped_file's own automatic
@@ -1036,6 +1036,11 @@ export type NexusContentIdentifyOutcome =
  */
 "skipped" | "notFound" | "ambiguous" | "identified";
 
+export type NexusFileCheck = {
+	fileId: number,
+	update: NexusFileUpdate,
+};
+
 export type NexusFileUpdate = { status: "current" } | { status: "replaced"; fileId: number; version: string } | { status: "unknown" };
 
 export type NexusHashMatch = {
@@ -1045,6 +1050,17 @@ export type NexusHashMatch = {
 	version: string,
 	fileName: string,
 	fileSize: number,
+};
+
+export type NexusInstalledCheck = {
+	detail: ModDetail,
+	files: NexusFileCheck[],
+};
+
+/**  An installed Nexus file and the mod version recorded for it. */
+export type NexusInstalledFile = {
+	fileId: number,
+	version: string,
 };
 
 export type PageMeta = {

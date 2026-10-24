@@ -1020,13 +1020,44 @@ fn nexus_replacement(file: &WireNexusFile) -> NexusFileUpdate {
     }
 }
 
-pub(crate) fn parse_nexus_file_update(
+/// An installed Nexus file and the mod version recorded for it.
+#[derive(Debug, Clone, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct NexusInstalledFile {
+    pub file_id: u32,
+    pub version: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct NexusFileCheck {
+    pub file_id: u32,
+    pub update: NexusFileUpdate,
+}
+
+/// Resolves each installed file against a files.json listing. A file recorded at the
+/// page's current version was uploaded at that version, so it is current without a chain.
+pub(crate) fn parse_nexus_file_checks(
     value: serde_json::Value,
-    installed_id: i64,
-) -> Result<NexusFileUpdate, String> {
+    page_version: &str,
+    installed: &[NexusInstalledFile],
+) -> Result<Vec<NexusFileCheck>, String> {
     let wire: WireNexusFiles = serde_json::from_value(value)
         .map_err(|error| format!("nexus file listing did not parse: {error}"))?;
-    resolve_nexus_file_update(&wire.files, &wire.file_updates, installed_id)
+    installed
+        .iter()
+        .map(|file| {
+            let update = if file.version == page_version {
+                NexusFileUpdate::Current
+            } else {
+                resolve_nexus_file_update(&wire.files, &wire.file_updates, file.file_id.into())?
+            };
+            Ok(NexusFileCheck {
+                file_id: file.file_id,
+                update,
+            })
+        })
+        .collect()
 }
 
 fn nexus_file_to_mod_file(w: WireNexusFile, domain: &str, mod_id: u32) -> ModFile {

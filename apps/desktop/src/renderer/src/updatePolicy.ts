@@ -1,12 +1,12 @@
 import type { InstalledMod, Mod, ModFile, ModSummary } from '../../shared/types'
-import type { NexusFileCheckState } from './nexusModCache'
+import type { NexusFileCheck } from './api'
 import type { VersionState } from './modVersions'
 
 export function updatableMods(
     installed: InstalledMod[],
     versions: ReadonlyMap<number, VersionState>,
     summaries: ReadonlyMap<number, ModSummary>,
-    nexusFileUpdates: ReadonlyMap<string, NexusFileCheckState> = new Map()
+    nexusFiles: ReadonlyMap<number, readonly NexusFileCheck[]>
 ): InstalledMod[] {
     const groups = new Map<number, InstalledMod[]>()
     for (const mod of installed) {
@@ -21,12 +21,16 @@ export function updatableMods(
         const summary = summaries.get(id)
         if (summary?.download_type === 'link' || summary?.disable_mod_managers) continue
         const present = group.filter((mod) => !mod.missing)
-        if (group[0]!.source === 'nexus') {
-            const replaced = present.find((mod) => {
-                if (mod.version === remote.version) return false
-                const check = nexusFileUpdates.get(mod.uid)
-                return check?.status === 'known' && check.result.status !== 'current'
-            })
+        // A page version bump alone does not outdate a file that is still the newest in
+        // its Nexus update chain. Installs with no file id keep the version comparison.
+        const checks = nexusFiles.get(id)
+        if (checks) {
+            const replaced = present.find((mod) =>
+                checks.some(
+                    (check) =>
+                        check.fileId === nexusFileId(mod) && check.update.status !== 'current'
+                )
+            )
             if (replaced) updates.push(replaced)
             continue
         }
@@ -41,6 +45,11 @@ export function updatableMods(
         }
     }
     return updates
+}
+
+export function nexusFileId(mod: InstalledMod): number | undefined {
+    const id = Number(mod.fileRemoteId ?? mod.fileId)
+    return Number.isInteger(id) && id > 0 && id <= 0xffff_ffff ? id : undefined
 }
 
 export type UpdateTarget =
