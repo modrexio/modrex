@@ -152,9 +152,13 @@ export function SourceSelect({
                 <span className="relative flex items-center gap-1.5 text-sm font-medium leading-tight text-text-muted">
                     <SourceName id={s.id} />
                 </span>
-                <span className="relative flex h-3.5 items-center text-[11px] leading-none text-text-subtle">
-                    <SourceCount total={counts[s.id]} />
-                </span>
+                {/* With no count to show, the empty line would pin the name above the
+                    title's center. The container keeps the row height either way. */}
+                {counts[s.id] !== null && (
+                    <span className="relative flex h-3.5 items-center text-[11px] leading-none text-text-subtle">
+                        <SourceCount total={counts[s.id]} />
+                    </span>
+                )}
             </div>
         )
     }
