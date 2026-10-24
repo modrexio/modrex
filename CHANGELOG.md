@@ -28,6 +28,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - PAYDAY: The Heist no longer asks for PDTHModOverrides, which the game now includes.
 - Empty pages now have icons.
 - Sign in to Nexus Mods right from Browse Mods.
+- Installed Mods loads more smoothly.
 
 ### Fixed
 

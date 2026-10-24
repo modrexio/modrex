@@ -26,6 +26,8 @@ import { HealthCheckModal, type Leftovers } from './HealthCheckModal'
 import { DeleteFolderModal } from './DeleteFolderModal'
 import { FolderSection, NewFolderInput } from './FolderSection'
 import { InstalledModItem } from './InstalledModItem'
+import { SkeletonCard } from './SkeletonCard'
+import { SkeletonListRow } from './SkeletonListRow'
 import { ResourceRecoveryDialog } from './ResourceRecoveryDialog'
 import { MisplacedPluginsBanner } from './MisplacedPluginsBanner'
 import { InstalledContext } from './InstalledContext'
@@ -760,11 +762,23 @@ export function InstalledPage({
                         activeTab === null ? undefined : installedTabId(tabBaseId, activeTab)
                     }
                 >
-                    {!installedReady ? (
+                    {!installedReady && scanPhase?.phase === 'hashing' ? (
                         <div className="flex items-center justify-center h-full text-text-subtle text-sm">
-                            {scanPhase?.phase === 'hashing'
-                                ? t('installed.identifyingNew', { count: scanPhase.total })
-                                : t('common.loading')}
+                            {t('installed.identifyingNew', { count: scanPhase.total })}
+                        </div>
+                    ) : !installedReady ? (
+                        <div
+                            role="status"
+                            aria-label={t('common.loading')}
+                            className={
+                                viewMode === 'list'
+                                    ? 'flex flex-col gap-1.5'
+                                    : 'grid grid-cols-2 gap-4 xl:grid-cols-3 2xl:grid-cols-4'
+                            }
+                        >
+                            {viewMode === 'list'
+                                ? Array.from({ length: 24 }, (_, i) => <SkeletonListRow key={i} />)
+                                : Array.from({ length: 24 }, (_, i) => <SkeletonCard key={i} />)}
                         </div>
                     ) : installed.length === 0 && folders.length === 0 ? (
                         <EmptyState icon={PackageOpen}>{t('installed.empty')}</EmptyState>
