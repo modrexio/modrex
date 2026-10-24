@@ -930,6 +930,9 @@ export const api = {
     onNexusOAuthSignedIn(callback: () => void): () => void {
         return onEvent<null>('nexus-oauth:signed-in', () => callback())
     },
+    onNexusSignedOut(callback: () => void): () => void {
+        return onEvent<null>('nexus-oauth:signed-out', () => callback())
+    },
     onNexusOAuthFailed(callback: (error: string) => void): () => void {
         return onEvent<string>('nexus-oauth:failed', callback)
     },

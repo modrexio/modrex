@@ -46,13 +46,15 @@ api.onNexusOAuthSignedIn(() => {
     for (const g of games) ensureCount(g, 'nexus')
 })
 
-// A lapsed session makes the cached total a claim about a library this app can no longer
-// reach, so it is dropped without re-fetching: fetchCount would only see the signed-out
-// state and cache the same null again.
-api.onNexusSessionExpired(() => {
+// Sign-out and session expiry make the cached total a claim about an unreachable library.
+// Drop it without re-fetching, since fetchCount would only cache the signed-out state.
+function clearNexusCounts() {
     if (dropNexusCounts().length === 0) return
     for (const l of listeners) l()
-})
+}
+
+api.onNexusSessionExpired(clearNexusCounts)
+api.onNexusSignedOut(clearNexusCounts)
 
 function dropNexusCounts(): GameId[] {
     const games: GameId[] = []

@@ -317,6 +317,19 @@ describe('mod detail installation feedback', () => {
 })
 
 describe('Nexus detail sign-in', () => {
+    it('shows the signed-out prompt and clears expiry guidance on deliberate sign-out', async () => {
+        showPage({ source: 'nexus' })
+        await screen.findByRole('tab', { name: 'Downloads (2)' })
+        await emit('nexus-oauth:signed-out', null)
+        expect(screen.getByRole('button', { name: t('settings.nexusAccount.signIn') })).toBeTruthy()
+        expect(screen.queryByRole('tab', { name: 'Downloads (2)' })).toBeNull()
+        await emit('nexus-oauth:expired', null)
+        expect(screen.getByText(t('nexus.sessionExpiredHint'))).toBeTruthy()
+        await emit('nexus-oauth:signed-out', null)
+        expect(screen.queryByText(t('nexus.sessionExpiredHint'))).toBeNull()
+        expect(transport.getNexusMod).toHaveBeenCalledTimes(1)
+    })
+
     it('shows the signed-out prompt instead of the raw error and refetches on sign-in', async () => {
         transport.isNexusSignedIn.mockResolvedValue(false)
         transport.getNexusMod.mockRejectedValueOnce('nexus oauth: sign in required')

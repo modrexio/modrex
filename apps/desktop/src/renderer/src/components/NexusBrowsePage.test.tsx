@@ -25,6 +25,7 @@ beforeEach(async () => {
     vi.mocked(api.onNexusOAuthFailed).mockImplementation(() => vi.fn())
     vi.mocked(api.onNexusOAuthSignedIn).mockImplementation(() => vi.fn())
     vi.mocked(api.onNexusSessionExpired).mockImplementation(() => vi.fn())
+    vi.mocked(api.onNexusSignedOut).mockImplementation(() => vi.fn())
     vi.mocked(api.listSources).mockResolvedValue([
         {
             id: 'nexus',
@@ -65,6 +66,27 @@ async function renderPage(activeGame: GameId = 'ron') {
 }
 
 describe('Nexus browse sign-in', () => {
+    it('hides the loaded pagination footer on sign-out and clears expiry guidance', async () => {
+        await renderPage()
+        vi.mocked(api.nexusSearchMods).mockResolvedValue({
+            data: [],
+            meta: { total: 5151, current_page: 1, last_page: 215, per_page: 24 },
+        })
+        act(() => {
+            for (const [onSignedIn] of vi.mocked(api.onNexusOAuthSignedIn).mock.calls) onSignedIn()
+        })
+        await screen.findByText(t('nexus.modCount', { total: 5151 }))
+        expect(screen.getByRole('button', { name: '215' })).toBeTruthy()
+        act(() => vi.mocked(api.onNexusSignedOut).mock.calls[0]![0]())
+        expect(screen.queryByText(t('nexus.modCount', { total: 5151 }))).toBeNull()
+        expect(screen.queryByRole('button', { name: '215' })).toBeNull()
+        expect(screen.getByRole('button', { name: t('settings.nexusAccount.signIn') })).toBeTruthy()
+        act(() => vi.mocked(api.onNexusSessionExpired).mock.calls[0]![0]())
+        expect(screen.getByText(t('nexus.sessionExpiredHint'))).toBeTruthy()
+        act(() => vi.mocked(api.onNexusSignedOut).mock.calls[0]![0]())
+        expect(screen.queryByText(t('nexus.sessionExpiredHint'))).toBeNull()
+    })
+
     it.each(['ron', 'pd3'] as const)(
         'offers direct sign-in for %s and disables filters',
         async (game) => {

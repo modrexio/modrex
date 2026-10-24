@@ -452,6 +452,9 @@ pub fn nexus_oauth_signed_in(app: AppHandle) -> bool {
 #[specta::specta]
 pub async fn nexus_oauth_sign_out(app: AppHandle) {
     clear_stored_tokens(&app).await;
+    if let Err(e) = app.emit("nexus-oauth:signed-out", ()) {
+        log::warn!("nexus oauth: signed-out event not delivered ({e})");
+    }
 }
 
 #[cfg(test)]

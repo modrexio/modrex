@@ -194,6 +194,7 @@ export function SettingsPage({
         setConfirmNexusSignOut(false)
         await api.nexusSignOut()
         setNexusSignedIn(false)
+        setNexusSessionExpired(false)
     }
 
     const visibleTabs = game ? navItems : navItems.filter((item) => item.id !== 'game')

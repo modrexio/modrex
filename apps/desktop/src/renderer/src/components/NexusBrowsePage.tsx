@@ -158,6 +158,11 @@ export function NexusBrowsePage({
             setSessionExpired(true)
             setError(null)
         })
+        const offSignedOut = api.onNexusSignedOut(() => {
+            setSignedIn(false)
+            setSessionExpired(false)
+            setError(null)
+        })
         const offSignedIn = api.onNexusOAuthSignedIn(() => {
             setSignedIn(true)
             setSessionExpired(false)
@@ -168,6 +173,7 @@ export function NexusBrowsePage({
         })
         return () => {
             offExpired()
+            offSignedOut()
             offSignedIn()
         }
     }, [])
@@ -334,7 +340,7 @@ export function NexusBrowsePage({
                 </ScrollArea>
             )}
 
-            {result !== null && lastPage > 1 && (
+            {signedIn === true && result !== null && lastPage > 1 && (
                 <div className="px-6 py-3 border-t border-border flex items-center justify-between shrink-0">
                     <span className="text-xs text-text-subtle">
                         {t('nexus.modCount', { total: result.meta.total })}

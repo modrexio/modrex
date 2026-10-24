@@ -189,9 +189,11 @@ export default function App() {
         // Signing in from anywhere resolves it, including the Settings section, so this
         // listens for the outcome rather than being wired to the banner's own button.
         const offSignedIn = api.onNexusOAuthSignedIn(() => setNexusSessionExpired(false))
+        const offSignedOut = api.onNexusSignedOut(() => setNexusSessionExpired(false))
         return () => {
             offExpired()
             offSignedIn()
+            offSignedOut()
         }
     }, [])
 

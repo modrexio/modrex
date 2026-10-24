@@ -392,10 +392,16 @@ export function ModDetailPage({
             setNexusSignedIn(false)
             setNexusSessionExpired(true)
         })
+        const offSignedOut = api.onNexusSignedOut(() => {
+            cancelled = true
+            setNexusSignedIn(false)
+            setNexusSessionExpired(false)
+        })
         return () => {
             cancelled = true
             offSignedIn()
             offExpired()
+            offSignedOut()
         }
     }, [isNexus, fetchData])
 
