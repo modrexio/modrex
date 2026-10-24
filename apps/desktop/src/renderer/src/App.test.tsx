@@ -36,6 +36,8 @@ vi.mock('./api', () => ({
         onSupportPromptEligible: vi.fn(() => () => {}),
         onNexusSessionExpired: vi.fn(() => () => {}),
         onNexusOAuthSignedIn: vi.fn(() => () => {}),
+        onNexusOAuthCallbackReceived: vi.fn(() => () => {}),
+        onNexusOAuthFailed: vi.fn(() => () => {}),
     },
 }))
 

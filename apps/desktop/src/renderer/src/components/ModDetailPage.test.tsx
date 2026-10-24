@@ -12,6 +12,8 @@ const transport = vi.hoisted(() => ({
     shellOpenExternal: vi.fn(),
     recordSuccessfulInstall: vi.fn(),
     refreshInstalled: vi.fn(),
+    isNexusSignedIn: vi.fn(),
+    getNexusMod: vi.fn(),
 }))
 
 vi.mock('@tauri-apps/api/event', () => ({
@@ -25,6 +27,7 @@ vi.mock('@tauri-apps/api/event', () => ({
 vi.mock('@tauri-apps/plugin-log', () => ({ error: vi.fn() }))
 vi.mock('../../../shared/bindings', () => ({
     commands: {
+        nexusOauthSignedIn: transport.isNexusSignedIn,
         installFile: transport.installFile,
         installMod: transport.installMod,
         shellOpenExternal: transport.shellOpenExternal,
@@ -43,7 +46,7 @@ vi.mock('../modCache', () => ({
 vi.mock('../nexusModCache', () => ({
     getNexusModCacheEntry: () => ({ mod }),
     getNexusFilesCacheEntry: () => ({ files: nexusFiles }),
-    getCachedNexusMod: async () => mod,
+    getCachedNexusMod: transport.getNexusMod,
     getCachedNexusModFiles: async () => nexusFiles,
 }))
 vi.mock('../sources', () => ({ nativeIdFor: () => 'readyornot' }))
@@ -52,6 +55,8 @@ vi.mock('@modrex/scrollbars', () => ({ overlayScrollbar: () => ({ destroy: () =>
 vi.mock('../../../../assets/icons/nexusmods.svg?react', () => ({ default: () => null }))
 
 import { api } from '../api'
+import { t } from '../i18n'
+import { resetNexusSignInForTests } from '../hooks/useNexusSignIn'
 import { finishInstall, getInstallOperations } from '../installState'
 import { ModDetailPage } from './ModDetailPage'
 import { TooltipProvider } from './Tooltip'
@@ -147,6 +152,8 @@ let stopObserving: () => void
 
 beforeEach(() => {
     vi.clearAllMocks()
+    transport.isNexusSignedIn.mockResolvedValue(true)
+    transport.getNexusMod.mockResolvedValue(mod)
     transport.shellOpenExternal.mockResolvedValue(undefined)
     transport.recordSuccessfulInstall.mockResolvedValue(undefined)
     transport.refreshInstalled.mockResolvedValue(undefined)
@@ -155,6 +162,7 @@ beforeEach(() => {
 
 afterEach(() => {
     cleanup()
+    resetNexusSignInForTests()
     stopObserving()
     for (const game of ['ron', 'pd3']) {
         for (const operation of getInstallOperations(game)) finishInstall(operation.id)
@@ -305,5 +313,31 @@ describe('mod detail installation feedback', () => {
         expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Install' }).disabled).toBe(
             false
         )
+    })
+})
+
+describe('Nexus detail sign-in', () => {
+    it('shows the signed-out prompt instead of the raw error and refetches on sign-in', async () => {
+        transport.isNexusSignedIn.mockResolvedValue(false)
+        transport.getNexusMod.mockRejectedValueOnce('nexus oauth: sign in required')
+        showPage({ source: 'nexus' })
+        await screen.findByRole('button', { name: t('settings.nexusAccount.signIn') })
+        expect(screen.queryByText('nexus oauth: sign in required')).toBeNull()
+        expect(transport.getNexusMod).toHaveBeenCalledTimes(1)
+        await emit('nexus-oauth:signed-in', null)
+        await screen.findByRole('tab', { name: 'Downloads (2)' })
+        expect(screen.queryByRole('button', { name: t('settings.nexusAccount.signIn') })).toBeNull()
+        expect(transport.getNexusMod).toHaveBeenCalledTimes(2)
+    })
+
+    it('shows the expired prompt and retains other errors when signed in', async () => {
+        showPage({ source: 'nexus' })
+        await screen.findByRole('tab', { name: 'Downloads (2)' })
+        await emit('nexus-oauth:expired', null)
+        expect(screen.getByText(t('nexus.sessionExpiredHint'))).toBeTruthy()
+        expect(screen.getByRole('button', { name: t('nexusSession.signIn') })).toBeTruthy()
+        transport.getNexusMod.mockRejectedValueOnce('Nexus is unavailable')
+        await emit('nexus-oauth:signed-in', null)
+        await screen.findByText('Nexus is unavailable')
     })
 })

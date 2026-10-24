@@ -389,6 +389,7 @@ const handlers = {
     listModFolders: async (gameId) => (await load(game(gameId))).modFolders,
     secretStoreAvailable: async () => true,
     nexusOauthSignedIn: async () => false,
+    nexusOauthStart: async () => null,
     isGameRunning: async () => false,
     getGameLaunchStatus: async () => ({ running: false, pending: null }),
     cancelPendingGameLaunch: async () => null,

@@ -2,11 +2,12 @@ import { ScrollArea } from './ScrollArea'
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { TITLE_ROW_MIN_H } from './pageHeader'
 import { nativeIdFor } from '../sources'
-import { Search, ArrowDownUp, LogIn, CloudOff, SearchX } from 'lucide-react'
+import { Search, ArrowDownUp, CloudOff, SearchX } from 'lucide-react'
 import type { GameId, InstalledMod, ModSummary, Paginated } from '../../../shared/types'
 import { GAMES } from '../../../shared/types'
 import { SearchClearButton } from './ui/SearchClearButton'
 import { EmptyState } from './ui/EmptyState'
+import { NexusSignInPrompt } from './NexusSignInPrompt'
 import { SkeletonCard } from './SkeletonCard'
 import { ModCard } from './ModCard'
 import { Select } from './Select'
@@ -29,7 +30,6 @@ interface Props {
     gamePath: string | null
     installed: InstalledMod[]
     onRefreshInstalled: () => Promise<void>
-    onGoToSettings: () => void
     onOpenDetail: (modId: number, initialMod?: ModSummary) => void
 }
 
@@ -69,7 +69,6 @@ export function NexusBrowsePage({
     gamePath,
     installed,
     onRefreshInstalled,
-    onGoToSettings,
     onOpenDetail,
 }: Props) {
     const domain = nativeIdFor(activeGame, 'nexus')
@@ -251,6 +250,7 @@ export function NexusBrowsePage({
                             type="text"
                             placeholder={t('nexus.searchPlaceholder')}
                             value={query}
+                            disabled={signedIn !== true}
                             onChange={(e) => handleQueryChange(e.target.value)}
                             className={`w-full text-sm pl-8 py-1.5 rounded bg-surface-hover border border-border text-text placeholder:text-text-subtle focus:outline-none focus:border-accent transition-colors ${query ? 'pr-7' : 'pr-3'}`}
                         />
@@ -258,6 +258,7 @@ export function NexusBrowsePage({
                     </div>
                     <Select
                         value={sort}
+                        disabled={signedIn !== true}
                         onChange={handleSortChange}
                         options={sortOptions}
                         icon={<ArrowDownUp className="w-3.5 h-3.5 text-text-subtle" />}
@@ -276,21 +277,7 @@ export function NexusBrowsePage({
             )}
 
             {signedIn === false ? (
-                <div className="flex-1 grid">
-                    <EmptyState icon={LogIn}>
-                        <span>
-                            {sessionExpired
-                                ? t('nexus.sessionExpiredHint')
-                                : t('nexus.signInRequired')}
-                        </span>
-                        <button
-                            onClick={onGoToSettings}
-                            className="text-xs text-accent hover:text-accent-bright underline transition-colors"
-                        >
-                            {t('nexus.goToSettings')}
-                        </button>
-                    </EmptyState>
-                </div>
+                <NexusSignInPrompt sessionExpired={sessionExpired} />
             ) : (
                 <ScrollArea
                     hostClassName="flex-1"

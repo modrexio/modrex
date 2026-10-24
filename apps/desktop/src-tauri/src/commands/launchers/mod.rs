@@ -977,11 +977,14 @@ fn sanitize_external_url(url: &str) -> Option<&str> {
 #[tauri::command]
 #[specta::specta]
 pub fn shell_open_external(url: String) {
-    if let Some(safe) = sanitize_external_url(&url) {
-        if let Err(error) = open_url(safe) {
-            log::warn!("shell_open_external: {error}");
-        }
+    if let Err(error) = try_shell_open_external(&url) {
+        log::warn!("shell_open_external: {error}");
     }
+}
+
+pub(crate) fn try_shell_open_external(url: &str) -> Result<(), String> {
+    let safe = sanitize_external_url(url).ok_or("Invalid external URL")?;
+    open_url(safe)
 }
 
 /// Opens the configured install folder for one game. Takes a game id rather than a path:

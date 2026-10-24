@@ -50,6 +50,7 @@ import {
 } from '../nexusModCache'
 import { nativeIdFor } from '../sources'
 import { NexusDescription } from './NexusDescription'
+import { NexusSignInPrompt } from './NexusSignInPrompt'
 import { DepsWarningModal } from './DepsWarningModal'
 import { FileSelectModal } from './FileSelectModal'
 import { NonPakConfirmModal } from './NonPakConfirmModal'
@@ -242,6 +243,8 @@ export function ModDetailPage({
     onOpenDetail,
 }: Props) {
     const isNexus = source === 'nexus'
+    const [nexusSignedIn, setNexusSignedIn] = useState<boolean | null>(null)
+    const [nexusSessionExpired, setNexusSessionExpired] = useState(false)
     const nexusDomain = isNexus ? nativeIdFor(activeGame, 'nexus') : null
 
     // Seed order: full cached entry > initialMod from browse list > null (shows spinner).
@@ -371,6 +374,30 @@ export function ModDetailPage({
                 markForegroundActivity()
             })
     }, [modId, isNexus, activeGame])
+
+    useEffect(() => {
+        if (!isNexus) return
+        let cancelled = false
+        api.isNexusSignedIn().then((signedIn) => {
+            if (!cancelled) setNexusSignedIn(signedIn)
+        })
+        const offSignedIn = api.onNexusOAuthSignedIn(() => {
+            cancelled = true
+            setNexusSignedIn(true)
+            setNexusSessionExpired(false)
+            fetchData()
+        })
+        const offExpired = api.onNexusSessionExpired(() => {
+            cancelled = true
+            setNexusSignedIn(false)
+            setNexusSessionExpired(true)
+        })
+        return () => {
+            cancelled = true
+            offSignedIn()
+            offExpired()
+        }
+    }, [isNexus, fetchData])
 
     useEffect(() => {
         fetchData()
@@ -866,15 +893,19 @@ export function ModDetailPage({
                 </div>
             )}
 
-            {loading && <ModDetailSkeleton />}
+            {isNexus && nexusSignedIn === false && (
+                <NexusSignInPrompt sessionExpired={nexusSessionExpired} />
+            )}
 
-            {error && (
+            {loading && (!isNexus || nexusSignedIn !== false) && <ModDetailSkeleton />}
+
+            {error && (!isNexus || nexusSignedIn === true) && (
                 <div className="flex items-center justify-center flex-1">
                     <div className="text-sm text-danger-text">{error}</div>
                 </div>
             )}
 
-            {!loading && !error && mod && (
+            {!loading && !error && mod && (!isNexus || nexusSignedIn !== false) && (
                 <ScrollArea hostClassName="flex-1" className="overflow-y-auto">
                     {/* The banner slot is always rendered, including for mods that ship no
                         image. Dropping it moves the title, tabs and info card up by the

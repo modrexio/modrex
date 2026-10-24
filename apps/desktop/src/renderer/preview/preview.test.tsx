@@ -76,7 +76,7 @@ test('Ready or Not opens signed-out Nexus browsing with a stale ModWorkshop pref
     store.set('modrex:active-game', 'ron')
     store.set('modrex:ron:browse-source', 'modworkshop')
     await mount()
-    expect(await found('Sign in with Nexus Mods to browse mods from Nexus.')).toBeTruthy()
+    expect(await screen.findByRole('button', { name: 'Sign in with Nexus Mods' })).toBeTruthy()
     expect(screen.queryByText(pd3Mods.data[0]!.name)).toBeNull()
 })
 

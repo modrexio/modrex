@@ -1,7 +1,7 @@
-import type { LucideIcon } from 'lucide-react'
+import type { ComponentType, SVGProps } from 'react'
 
 interface Props {
-    icon: LucideIcon
+    icon: ComponentType<SVGProps<SVGSVGElement>>
     children: React.ReactNode
 }
 

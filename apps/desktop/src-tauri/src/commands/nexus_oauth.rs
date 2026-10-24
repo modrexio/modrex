@@ -14,7 +14,7 @@ use std::time::Duration;
 use tauri::{AppHandle, Emitter};
 
 use crate::commands::api::{describe_request_error, http_client, user_agent};
-use crate::commands::launchers::shell_open_external;
+use crate::commands::launchers::try_shell_open_external;
 use crate::commands::secrets;
 use crate::commands::settings::{read_settings, update_settings, NexusOAuthTokens};
 
@@ -181,7 +181,7 @@ static PENDING_LOGIN: Mutex<Option<PendingLogin>> = Mutex::new(None);
 
 #[tauri::command]
 #[specta::specta]
-pub fn nexus_oauth_start() {
+pub fn nexus_oauth_start() -> Result<(), String> {
     let pkce = generate_pkce();
     let state = uuid::Uuid::new_v4().to_string();
     let url = authorize_url(&pkce.challenge, &state);
@@ -189,7 +189,11 @@ pub fn nexus_oauth_start() {
         verifier: pkce.verifier,
         state,
     });
-    shell_open_external(url);
+    if let Err(error) = try_shell_open_external(&url) {
+        *PENDING_LOGIN.lock().unwrap_or_else(|e| e.into_inner()) = None;
+        return Err(format!("could not open your browser ({error})"));
+    }
+    Ok(())
 }
 
 // Callback shape: modrex://oauth/callback?code=...&state=..., or an
@@ -209,6 +213,9 @@ pub(crate) fn parse_callback_url(url: &str) -> Result<(String, String), String> 
 
     let pairs: std::collections::HashMap<_, _> = parsed.query_pairs().into_owned().collect();
     if let Some(error) = pairs.get("error") {
+        if error == "access_denied" {
+            return Err("access was declined on Nexus Mods".to_string());
+        }
         let description = pairs
             .get("error_description")
             .map(|d| format!(": {d}"))
@@ -247,6 +254,11 @@ async fn handle_oauth_callback(app: &AppHandle, url: &str) -> Result<(), String>
         return Err("nexus oauth: state mismatch".to_string());
     }
 
+    // Only a progress hint for the UI. The pending login is already consumed, so failing
+    // the exchange over an undelivered hint would throw away a valid sign-in.
+    if let Err(e) = app.emit("nexus-oauth:callback-received", ()) {
+        log::warn!("nexus oauth: callback-received event not delivered ({e})");
+    }
     let tokens = exchange_code(app, &code, &pending.verifier)
         .await
         .map_err(|e| format!("nexus oauth: token exchange failed ({e})"))?;

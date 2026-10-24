@@ -33,7 +33,7 @@ import { NexusBrowsePage } from './components/NexusBrowsePage'
 import { InstalledPage } from './components/InstalledPage'
 import { NewsPage } from './components/NewsPage'
 import { ModDetailPage } from './components/ModDetailPage'
-import { SettingsPage, saveSettingsTab, type AppSettingsProps } from './components/SettingsPage'
+import { SettingsPage, type AppSettingsProps } from './components/SettingsPage'
 import { GameSettings } from './components/GameSettings'
 import { GameFolders } from './components/GameFolders'
 import { EngineIniSettings } from './components/EngineIniSettings'
@@ -247,11 +247,6 @@ export function GameWorkspace({
         [activeGame]
     )
 
-    const goToNexusSettings = useCallback(() => {
-        saveSettingsTab('advanced')
-        handleSidebarChange('settings')
-    }, [handleSidebarChange])
-
     const sidebarView = view === 'detail' ? prevView : view
     return (
         <div key={locale} className="contents">
@@ -376,7 +371,6 @@ export function GameWorkspace({
                                 gamePath={gamePath}
                                 installed={installed}
                                 onRefreshInstalled={refreshInstalled}
-                                onGoToSettings={goToNexusSettings}
                                 onOpenDetail={openDetailFromNexus}
                             />
                         )}

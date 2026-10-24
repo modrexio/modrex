@@ -25,6 +25,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - Browse Mods names the mod source in every game.
 - PAYDAY: The Heist no longer asks for PDTHModOverrides, which the game now includes.
 - Empty pages now have icons.
+- Sign in to Nexus Mods right from Browse Mods.
 
 ### Fixed
 
@@ -41,6 +42,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - Fixed popups closing when resizing the window.
 - Fixed PAYDAY: The Heist showing the wrong DAHM install status.
 - Fixed News showing an empty feed instead of an error.
+- Fixed Nexus Mods sign-in giving no feedback.
 
 ### Security
 
