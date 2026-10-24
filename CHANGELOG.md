@@ -44,6 +44,8 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - Fixed PAYDAY: The Heist showing the wrong DAHM install status.
 - Fixed News showing an empty feed instead of an error.
 - Fixed Nexus Mods sign-in giving no feedback.
+- Fixed mod pages showing the wrong version.
+- Fixed wrong update notices for Nexus mods.
 
 ### Security
 
