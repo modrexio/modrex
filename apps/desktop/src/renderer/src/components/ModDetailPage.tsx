@@ -1061,7 +1061,7 @@ export function ModDetailPage({
                             <InfoRow
                                 icon={<TagIcon className="w-3.5 h-3.5" />}
                                 label={t('detail.info.version')}
-                                value={installedMod?.version ?? detail?.version}
+                                value={detail?.version}
                             />
                             <InfoRow
                                 icon={<CalendarDays className="w-3.5 h-3.5" />}
