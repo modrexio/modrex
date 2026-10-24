@@ -481,8 +481,8 @@ const handlers = {
     listLeftoverFiles: async () => [],
     checkPluginInstalls: async () => ({ target: null, misplaced: [], rootDescriptor: null }),
     cancelDownload: async () => undefined,
-    getThumbnail: async (filename, full) => {
-        if (full) return filename
+    getThumbnail: async (filename, size) => {
+        if (size === 'full' || size === 'card') return filename
         for (const loaded of await Promise.all(fixtures.values())) {
             if (loaded.withoutSmallVariant.has(filename)) return filename
         }

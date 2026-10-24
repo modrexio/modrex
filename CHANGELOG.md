@@ -32,6 +32,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 ### Fixed
 
+- Fixed the delay when opening a game and the loading flashes when returning to Installed or Browse.
 - Fixed list view drag and drop and mod menu.
 - Fixed slowdowns when downloading large mods.
 - Fixed interacting with popups accidentally dragging mods behind them.

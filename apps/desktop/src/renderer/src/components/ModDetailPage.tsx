@@ -332,7 +332,7 @@ export function ModDetailPage({
 
     // Full-size banner via the disk cache. The CDN sends no cache headers, so a
     // direct URL costs a download or revalidation round-trip on every page visit.
-    const bannerSrc = useThumbnail((detail?.banner ?? mod?.thumbnail)?.file, true)
+    const bannerSrc = useThumbnail((detail?.banner ?? mod?.thumbnail)?.file, 'full')
 
     const fetchData = useCallback(() => {
         setError(null)

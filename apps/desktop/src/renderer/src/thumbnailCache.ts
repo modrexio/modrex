@@ -1,31 +1,43 @@
 import { convertFileSrc } from '@tauri-apps/api/core'
 import { api } from './api'
+import type { ThumbnailSize } from './api'
 
 const resolved = new Map<string, string>()
+const inFlight = new Map<string, Promise<string>>()
 
-const variantKey = (filename: string, full: boolean) => (full ? `full:${filename}` : filename)
+const variantKey = (filename: string, size: ThumbnailSize) => `${size}:${filename}`
 
-export function getCachedThumbnailUrl(filename: string, full = false): string | undefined {
-    return resolved.get(variantKey(filename, full))
+export function getCachedThumbnailUrl(
+    filename: string,
+    size: ThumbnailSize = 'small'
+): string | undefined {
+    return resolved.get(variantKey(filename, size))
 }
 
-// Drops the in-memory URL dedup map after the disk cache is cleared, so the
-// next request re-downloads instead of resolving to a now-deleted file.
+// Disk cache clearing must also invalidate URLs and pending requests for deleted files.
 export function clearResolvedThumbnails(): void {
     resolved.clear()
+    inFlight.clear()
 }
 
-export async function getLocalImage(filename: string, full = false): Promise<string> {
-    const key = variantKey(filename, full)
+export function getLocalImage(filename: string, size: ThumbnailSize = 'small'): Promise<string> {
+    if (filename.startsWith('https://')) return Promise.resolve(filename)
+    const key = variantKey(filename, size)
     const hit = resolved.get(key)
-    if (hit) return hit
+    if (hit) return Promise.resolve(hit)
+    const pending = inFlight.get(key)
+    if (pending) return pending
 
-    // Ensures the file exists in the disk cache, downloading if missing, so the
-    // thumb:// protocol serves it from there with immutable cache headers, so
-    // the webview reuses decoded images across page remounts. The returned
-    // cache name is Rust's to choose (small thumbnail variant or full image).
-    const cacheName = await api.getThumbnail(filename, full)
-    const url = convertFileSrc(cacheName, 'thumb')
-    resolved.set(key, url)
-    return url
+    const request = api
+        .getThumbnail(filename, size)
+        .then((cacheName) => {
+            const url = convertFileSrc(cacheName, 'thumb')
+            if (inFlight.get(key) === request) resolved.set(key, url)
+            return url
+        })
+        .finally(() => {
+            if (inFlight.get(key) === request) inFlight.delete(key)
+        })
+    inFlight.set(key, request)
+    return request
 }

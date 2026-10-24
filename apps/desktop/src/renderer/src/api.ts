@@ -7,6 +7,7 @@ import {
     type LoaderPage,
     type LoaderPresence,
     type ReplacementPlan,
+    type ThumbnailSize,
 } from '../../shared/bindings'
 import type {
     DetectedInstall,
@@ -24,7 +25,7 @@ import type {
     SisrStatus,
     GameLaunchStatus,
 } from '../../shared/bindings'
-export type { LoaderPage, LoaderPresence, ReplacementPlan }
+export type { LoaderPage, LoaderPresence, ReplacementPlan, ThumbnailSize }
 export type {
     DetectedInstall,
     LeftoverFiles,
@@ -1021,8 +1022,8 @@ export const api = {
     },
 
     // ── Thumbnails ─────────────────────────────────────────────────────────────
-    getThumbnail(filename: string, full?: boolean): Promise<string> {
-        return commands.getThumbnail(filename, full ?? null)
+    getThumbnail(filename: string, size: ThumbnailSize = 'small'): Promise<string> {
+        return commands.getThumbnail(filename, size)
     },
 
     // ── Updater ────────────────────────────────────────────────────────────────

@@ -410,13 +410,13 @@ test('thumbnails fall back to the original when the catalog has no small variant
     vi.resetModules()
     const { commands } = await import('./commands')
     await commands.listMods(1, null)
-    expect(await commands.getThumbnail('preview-with-small.webp', false)).toBe(
+    expect(await commands.getThumbnail('preview-with-small.webp', 'small')).toBe(
         'thumbnail_preview-with-small.webp'
     )
-    expect(await commands.getThumbnail('preview-without-small.webp', false)).toBe(
+    expect(await commands.getThumbnail('preview-without-small.webp', 'small')).toBe(
         'preview-without-small.webp'
     )
-    expect(await commands.getThumbnail('preview-without-small.webp', true)).toBe(
+    expect(await commands.getThumbnail('preview-without-small.webp', 'full')).toBe(
         'preview-without-small.webp'
     )
 })

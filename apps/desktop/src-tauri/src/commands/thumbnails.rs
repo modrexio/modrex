@@ -1,3 +1,6 @@
+use image::metadata::Orientation;
+use image::{DynamicImage, ImageDecoder, ImageEncoder, ImageFormat, ImageReader, Limits};
+use std::io::{BufRead, BufReader, Cursor, Seek};
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 use std::time::{Duration, SystemTime};
@@ -50,62 +53,178 @@ async fn fetch_image(app: &AppHandle, file: &str) -> Result<Vec<u8>, String> {
         .map_err(|e| e.to_string())
 }
 
-/// Caches an image and returns the cache filename for the renderer to build its thumb://
-/// URL from. Default is the pre-generated small variant (thumbnail_{file}, 10-20x smaller
-/// than an original that can run to several MB), falling back to the original for old
-/// images without one (has_thumb: false). With full = true it caches the original under
-/// {filename}, which the detail page needs because the CDN sends no cache headers.
+// Two grid columns of about 490 CSS px at 2x scale.
+const CARD_WIDTH: u32 = 960;
+
+#[derive(Clone, Copy, Default, serde::Deserialize, serde::Serialize, specta::Type)]
+#[serde(rename_all = "lowercase")]
+pub enum ThumbnailSize {
+    #[default]
+    Small,
+    Card,
+    Full,
+}
+
+fn card_cache_name(filename: &str, alpha: bool) -> Result<String, String> {
+    let extension = if alpha { "png" } else { "jpg" };
+    let name = format!("card_{filename}.{extension}");
+    if !is_safe_thumb_filename(&name) {
+        return Err(format!("invalid card thumbnail filename: {name}"));
+    }
+    Ok(name)
+}
+
+// The skip decisions read only the header, so originals that need no card are never
+// decoded. Browsers honor EXIF orientation and ICC profiles on the original, so the card
+// applies the orientation and carries the profile or it would render rotated or shifted.
+fn encode_card(source: impl BufRead + Seek) -> Result<Option<(Vec<u8>, bool)>, String> {
+    let mut reader = ImageReader::new(source)
+        .with_guessed_format()
+        .map_err(|e| e.to_string())?;
+    if reader.format() == Some(ImageFormat::Gif) {
+        return Ok(None);
+    }
+    let mut limits = Limits::default();
+    limits.max_image_width = Some(16384);
+    limits.max_image_height = Some(16384);
+    limits.max_alloc = Some(512 * 1024 * 1024);
+    reader.limits(limits);
+    let mut decoder = reader.into_decoder().map_err(|e| e.to_string())?;
+    let orientation = decoder.orientation().map_err(|e| e.to_string())?;
+    let (width, height) = decoder.dimensions();
+    let displayed_width = match orientation {
+        Orientation::Rotate90
+        | Orientation::Rotate270
+        | Orientation::Rotate90FlipH
+        | Orientation::Rotate270FlipH => height,
+        _ => width,
+    };
+    if displayed_width <= CARD_WIDTH {
+        return Ok(None);
+    }
+    let icc_profile = decoder.icc_profile().map_err(|e| e.to_string())?;
+    let mut image = DynamicImage::from_decoder(decoder).map_err(|e| e.to_string())?;
+    image.apply_orientation(orientation);
+    let alpha = image.color().has_alpha();
+    let resized = image.resize(CARD_WIDTH, u32::MAX, image::imageops::FilterType::Triangle);
+    let mut output = Cursor::new(Vec::new());
+    if alpha {
+        let mut encoder = image::codecs::png::PngEncoder::new(&mut output);
+        if let Some(profile) = icc_profile {
+            encoder
+                .set_icc_profile(profile)
+                .map_err(|e| e.to_string())?;
+        }
+        let rgba = resized.to_rgba8();
+        encoder
+            .write_image(
+                &rgba,
+                rgba.width(),
+                rgba.height(),
+                image::ExtendedColorType::Rgba8,
+            )
+            .map_err(|e| e.to_string())?;
+    } else {
+        let mut encoder = image::codecs::jpeg::JpegEncoder::new_with_quality(&mut output, 85);
+        if let Some(profile) = icc_profile {
+            encoder
+                .set_icc_profile(profile)
+                .map_err(|e| e.to_string())?;
+        }
+        let rgb = resized.to_rgb8();
+        encoder
+            .write_image(
+                &rgb,
+                rgb.width(),
+                rgb.height(),
+                image::ExtendedColorType::Rgb8,
+            )
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(Some((output.into_inner(), alpha)))
+}
+
+fn cache_card(original: &Path, filename: &str) -> Result<String, String> {
+    let file = std::fs::File::open(original).map_err(|e| e.to_string())?;
+    let Some((bytes, alpha)) = encode_card(BufReader::new(file))? else {
+        return Ok(filename.to_string());
+    };
+    let name = card_cache_name(filename, alpha)?;
+    let path = original.with_file_name(&name);
+    let tmp = path.with_extension("tmp");
+    std::fs::write(&tmp, bytes).map_err(|e| e.to_string())?;
+    std::fs::rename(tmp, path).map_err(|e| e.to_string())?;
+    Ok(name)
+}
+
+/// Caches a small CDN thumbnail, a card image, or the original for detail views.
 #[tauri::command]
 #[specta::specta]
 pub async fn get_thumbnail(
     app: AppHandle,
     filename: String,
-    full: Option<bool>,
+    size: Option<ThumbnailSize>,
 ) -> Result<String, String> {
     if !is_safe_thumb_filename(&filename) {
         return Err(format!("invalid thumbnail filename: {filename}"));
     }
-    let full = full.unwrap_or(false);
-    let cache_name = if full {
-        filename.clone()
-    } else {
-        format!("thumbnail_{filename}")
+    let size = size.unwrap_or_default();
+    let cache_name = match size {
+        ThumbnailSize::Small => format!("thumbnail_{filename}"),
+        ThumbnailSize::Card | ThumbnailSize::Full => filename.clone(),
     };
+    if !is_safe_thumb_filename(&cache_name) {
+        return Err(format!("invalid thumbnail filename: {cache_name}"));
+    }
     let path = cache_path(&app, &cache_name)?;
-
-    if path.exists() {
+    if !matches!(size, ThumbnailSize::Card) && path.exists() {
         return Ok(cache_name);
     }
-
     let _permit = semaphore().acquire().await.map_err(|e| e.to_string())?;
 
-    // Re-check: a concurrent call may have downloaded it while we waited
-    if path.exists() {
-        return Ok(cache_name);
+    if matches!(size, ThumbnailSize::Card) {
+        for alpha in [false, true] {
+            let name = card_cache_name(&filename, alpha)?;
+            if cache_path(&app, &name)?.exists() {
+                return Ok(name);
+            }
+        }
     }
 
-    tokio::fs::create_dir_all(path.parent().expect("cache path has parent"))
+    if !path.exists() {
+        tokio::fs::create_dir_all(path.parent().expect("cache path has parent"))
+            .await
+            .map_err(|e| e.to_string())?;
+        let bytes = match size {
+            ThumbnailSize::Small => match fetch_image(&app, &cache_name).await {
+                Ok(bytes) => bytes,
+                Err(_) => fetch_image(&app, &filename).await?,
+            },
+            ThumbnailSize::Card | ThumbnailSize::Full => fetch_image(&app, &filename).await?,
+        };
+        let tmp = path.with_extension("tmp");
+        tokio::fs::write(&tmp, &bytes)
+            .await
+            .map_err(|e| e.to_string())?;
+        tokio::fs::rename(&tmp, &path)
+            .await
+            .map_err(|e| e.to_string())?;
+    }
+    if !matches!(size, ThumbnailSize::Card) {
+        return Ok(cache_name);
+    }
+    let original_name = filename.clone();
+    let result = tauri::async_runtime::spawn_blocking(move || cache_card(&path, &filename))
         .await
-        .map_err(|e| e.to_string())?;
-
-    let bytes = if full {
-        fetch_image(&app, &filename).await?
-    } else {
-        match fetch_image(&app, &cache_name).await {
-            Ok(b) => b,
-            Err(_) => fetch_image(&app, &filename).await?,
+        .map_err(|e| e.to_string())
+        .and_then(|result| result);
+    match result {
+        Ok(name) => Ok(name),
+        Err(error) => {
+            log::warn!("Card thumbnail failed for {original_name}: {error}");
+            Ok(original_name)
         }
-    };
-
-    let tmp = path.with_extension("tmp");
-    tokio::fs::write(&tmp, &bytes)
-        .await
-        .map_err(|e| e.to_string())?;
-    tokio::fs::rename(&tmp, &path)
-        .await
-        .map_err(|e| e.to_string())?;
-
-    Ok(cache_name)
+    }
 }
 
 /// True when filename is a single safe path segment. get_thumbnail's filename

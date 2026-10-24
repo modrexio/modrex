@@ -105,3 +105,118 @@ fn content_type_by_extension() {
     assert_eq!(thumb_content_type("a.webp"), "image/webp");
     assert_eq!(thumb_content_type("a.bin"), "application/octet-stream");
 }
+
+fn png_image(width: u32, height: u32, alpha: bool) -> Vec<u8> {
+    let image = if alpha {
+        image::DynamicImage::new_rgba8(width, height)
+    } else {
+        image::DynamicImage::new_rgb8(width, height)
+    };
+    let mut output = std::io::Cursor::new(Vec::new());
+    image
+        .write_to(&mut output, image::ImageFormat::Png)
+        .unwrap();
+    output.into_inner()
+}
+
+#[test]
+fn card_names_preserve_original_identity_and_encoded_extension() {
+    assert_eq!(
+        super::card_cache_name("a.webp", false).unwrap(),
+        "card_a.webp.jpg"
+    );
+    assert_eq!(
+        super::card_cache_name("a.png", true).unwrap(),
+        "card_a.png.png"
+    );
+    assert!(super::card_cache_name("../a.png", true).is_err());
+    assert_eq!(thumb_content_type("card_a.webp.jpg"), "image/jpeg");
+    assert_eq!(thumb_content_type("card_a.webp.png"), "image/png");
+}
+
+#[test]
+fn card_does_not_upscale() {
+    assert!(
+        super::encode_card(std::io::Cursor::new(png_image(120, 60, false)))
+            .unwrap()
+            .is_none()
+    );
+    assert!(super::encode_card(std::io::Cursor::new(png_image(
+        super::CARD_WIDTH,
+        60,
+        false
+    )))
+    .unwrap()
+    .is_none());
+}
+
+#[test]
+fn card_preserves_gif_animation() {
+    let mut bytes = std::io::Cursor::new(Vec::new());
+    image::DynamicImage::new_rgb8(1000, 2)
+        .write_to(&mut bytes, image::ImageFormat::Gif)
+        .unwrap();
+    assert!(super::encode_card(std::io::Cursor::new(bytes.into_inner()))
+        .unwrap()
+        .is_none());
+}
+
+#[test]
+fn card_resizes_opaque_image_as_jpeg() {
+    let (bytes, alpha) = super::encode_card(std::io::Cursor::new(png_image(1200, 600, false)))
+        .unwrap()
+        .unwrap();
+    assert!(!alpha);
+    assert_eq!(
+        image::guess_format(&bytes).unwrap(),
+        image::ImageFormat::Jpeg
+    );
+    let image = image::load_from_memory(&bytes).unwrap();
+    assert_eq!((image.width(), image.height()), (960, 480));
+}
+
+#[test]
+fn card_keeps_alpha_as_png() {
+    let (bytes, alpha) = super::encode_card(std::io::Cursor::new(png_image(1200, 600, true)))
+        .unwrap()
+        .unwrap();
+    assert!(alpha);
+    assert_eq!(
+        image::guess_format(&bytes).unwrap(),
+        image::ImageFormat::Png
+    );
+    let image = image::load_from_memory(&bytes).unwrap();
+    assert_eq!((image.width(), image.height()), (960, 480));
+    assert_eq!(image.to_rgba8().get_pixel(0, 0).0[3], 0);
+}
+
+#[test]
+fn card_rejects_corrupt_input() {
+    assert!(super::encode_card(std::io::Cursor::new(b"not an image")).is_err());
+}
+
+#[test]
+fn card_rejects_excessive_dimensions() {
+    assert!(super::encode_card(std::io::Cursor::new(png_image(16385, 1, false))).is_err());
+}
+
+#[test]
+fn card_applies_exif_orientation_before_sizing() {
+    use image::ImageEncoder;
+    // Little-endian TIFF with one IFD entry: Orientation (0x0112) = 6, rotate 90 clockwise.
+    let exif = vec![
+        b'I', b'I', 42, 0, 8, 0, 0, 0, 1, 0, 0x12, 0x01, 3, 0, 1, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0,
+    ];
+    let stored = image::DynamicImage::new_rgb8(600, 1200).to_rgb8();
+    let mut bytes = std::io::Cursor::new(Vec::new());
+    let mut encoder = image::codecs::jpeg::JpegEncoder::new(&mut bytes);
+    encoder.set_exif_metadata(exif).unwrap();
+    encoder
+        .write_image(&stored, 600, 1200, image::ExtendedColorType::Rgb8)
+        .unwrap();
+    let (card, _) = super::encode_card(std::io::Cursor::new(bytes.into_inner()))
+        .unwrap()
+        .unwrap();
+    let card = image::load_from_memory(&card).unwrap();
+    assert_eq!((card.width(), card.height()), (960, 480));
+}

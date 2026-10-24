@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react'
+import { warn } from '@tauri-apps/plugin-log'
+import type { ThumbnailSize } from '../api'
 import { THUMBNAIL_BASE_URL } from '../../../shared/types'
 import { getCachedThumbnailUrl, getLocalImage } from '../thumbnailCache'
 
@@ -7,15 +9,16 @@ import { getCachedThumbnailUrl, getLocalImage } from '../thumbnailCache'
 // still has to download exceed this.
 const LOCAL_RACE_MS = 50
 
-// full selects the original image instead of the small thumbnail variant,
-// used by the detail page's banner and lightbox.
-export function useThumbnail(file: string | null | undefined, full = false): string | null {
+export function useThumbnail(
+    file: string | null | undefined,
+    size: ThumbnailSize = 'small'
+): string | null {
     const [src, setSrc] = useState<string | null>(() => {
         if (!file) return null
         // Absolute URLs (Nexus-sourced installs) bypass the local cache; the
         // filename-keyed disk cache only knows modworkshop's CDN.
         if (file.startsWith('https://')) return file
-        return getCachedThumbnailUrl(file, full) ?? null
+        return getCachedThumbnailUrl(file, size) ?? null
     })
 
     useEffect(() => {
@@ -27,32 +30,32 @@ export function useThumbnail(file: string | null | undefined, full = false): str
             setSrc(file)
             return
         }
-        const cached = getCachedThumbnailUrl(file, full)
+        const cached = getCachedThumbnailUrl(file, size)
         if (cached) {
             setSrc(cached)
             return
         }
-        // Race the disk cache against a short timeout: when the local image
-        // wins, the CDN is never touched. When the CDN fallback fires first, keep
-        // it for this mount, since swapping src after the CDN image painted makes the
-        // browser re-load the image (visible flicker). getLocalImage still
-        // records the local URL so future mounts resolve synchronously.
+        // Cards must await resizing to avoid decoding originals in the grid. Other
+        // variants keep the first source that resolves to avoid visible reloads.
         let cancelled = false
         const timer = setTimeout(() => {
-            if (!cancelled) setSrc((prev) => prev ?? `${THUMBNAIL_BASE_URL}/${file}`)
+            if (!cancelled && size !== 'card')
+                setSrc((prev) => prev ?? `${THUMBNAIL_BASE_URL}/${file}`)
         }, LOCAL_RACE_MS)
-        getLocalImage(file, full)
+        getLocalImage(file, size)
             .then((url) => {
                 if (cancelled) return
                 clearTimeout(timer)
                 setSrc((prev) => prev ?? url)
             })
-            .catch(() => {})
+            .catch((error) => {
+                void warn(`Thumbnail failed for ${file}: ${String(error)}`)
+            })
         return () => {
             cancelled = true
             clearTimeout(timer)
         }
-    }, [file, full])
+    }, [file, size])
 
     return src
 }

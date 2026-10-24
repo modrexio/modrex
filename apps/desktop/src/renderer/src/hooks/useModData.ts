@@ -1,3 +1,4 @@
+import { warn } from '@tauri-apps/plugin-log'
 import { useState, useEffect } from 'react'
 import type { ModSummary, InstalledMod, GameId } from '../../../shared/types'
 import { getInstalledMetaEntry, fetchInstalledModsMeta, INSTALLED_META_TTL_MS } from '../modCache'
@@ -82,7 +83,10 @@ export function useModData(
         let running = false
         const { initial, initialNexusVersions, attempted } = readInstalledMeta(installed, gameId)
         for (const mod of initial.values()) {
-            if (mod.thumbnail?.file) void getLocalImage(mod.thumbnail.file, true)
+            if (mod.thumbnail?.file)
+                void getLocalImage(mod.thumbnail.file, 'card').catch((error) => {
+                    void warn(`Card thumbnail prefetch failed: ${String(error)}`)
+                })
         }
         setModData(initial)
         setFailedIds(new Set())
@@ -108,7 +112,10 @@ export function useModData(
                 })
                 if (mod) {
                     setModData((previous) => new Map(previous).set(ins.id, mod))
-                    if (mod.thumbnail?.file) void getLocalImage(mod.thumbnail.file, true)
+                    if (mod.thumbnail?.file)
+                        void getLocalImage(mod.thumbnail.file, 'card').catch((error) => {
+                            void warn(`Card thumbnail prefetch failed: ${String(error)}`)
+                        })
                 }
                 if (source === 'nexus') {
                     const state: VersionState =

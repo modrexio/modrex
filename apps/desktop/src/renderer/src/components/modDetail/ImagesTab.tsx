@@ -4,7 +4,7 @@ import { t } from '../../i18n'
 import { SkeletonBar } from '../Skeleton'
 
 export function LightboxImage({ file }: { file: string }) {
-    const src = useThumbnail(file, true)
+    const src = useThumbnail(file, 'full')
     if (!src) return null
     return (
         <img
@@ -18,7 +18,7 @@ export function LightboxImage({ file }: { file: string }) {
 
 // Full-size: gallery tiles render wider than the 256 px small variant.
 function GalleryImage({ file }: { file: string }) {
-    const src = useThumbnail(file, true)
+    const src = useThumbnail(file, 'full')
     return src ? (
         <img src={src} alt="" loading="lazy" className="w-full h-40 object-cover" />
     ) : (

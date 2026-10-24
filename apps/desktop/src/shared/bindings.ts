@@ -233,14 +233,8 @@ export const commands = {
 	checkForUpdate: () => __TAURI_INVOKE<null>("check_for_update"),
 	downloadUpdate: () => __TAURI_INVOKE<null>("download_update"),
 	installUpdate: () => __TAURI_INVOKE<null>("install_update"),
-	/**
-	 *  Caches an image and returns the cache filename for the renderer to build its thumb://
-	 *  URL from. Default is the pre-generated small variant (thumbnail_{file}, 10-20x smaller
-	 *  than an original that can run to several MB), falling back to the original for old
-	 *  images without one (has_thumb: false). With full = true it caches the original under
-	 *  {filename}, which the detail page needs because the CDN sends no cache headers.
-	 */
-	getThumbnail: (filename: string, full: boolean | null) => __TAURI_INVOKE<string>("get_thumbnail", { filename, full }),
+	/**  Caches a small CDN thumbnail, a card image, or the original for detail views. */
+	getThumbnail: (filename: string, size: "small" | "card" | "full" | null) => __TAURI_INVOKE<string>("get_thumbnail", { filename, size }),
 	getIndexModFiles: (modId: number, gameId: string) => __TAURI_INVOKE<IndexModFile[]>("get_index_mod_files", { modId, gameId }),
 	inspectMovieResources: (gameId: string) => __TAURI_INVOKE<MovieRecognitionScan>("inspect_movie_resources", { gameId }),
 	/**
@@ -1262,6 +1256,8 @@ export type StorageUsage = {
 	indexDb: number,
 	news: number,
 };
+
+export type ThumbnailSize = "small" | "card" | "full";
 
 export type TopLevelItem = { type: "folder"; id: string } | { type: "mod"; id: string };
 
