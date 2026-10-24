@@ -59,13 +59,13 @@ export function ModListRow({
     const canAct = !!gamePath && !loading && !needsResourceReview
 
     return (
-        <div className="group relative rounded-lg border bg-surface-raised border-border hover:border-accent/25 transition-colors overflow-hidden">
+        <div className="group relative rounded-lg border bg-surface-raised border-border hover:border-accent/25 transition-colors">
             <div
                 className={`flex items-stretch transition-opacity ${isDragging || loading ? 'opacity-40' : 'opacity-100'}`}
             >
                 <div
                     onClick={onOpen}
-                    className="relative shrink-0 w-28 h-24 bg-surface-hover cursor-pointer"
+                    className="relative shrink-0 w-28 h-24 bg-surface-hover cursor-pointer rounded-l-lg overflow-hidden"
                 >
                     {thumbSrc ? (
                         <img
@@ -93,7 +93,17 @@ export function ModListRow({
                     )}
                 </div>
 
-                <button onClick={onOpen} className="flex-1 min-w-0 text-left px-5 py-4">
+                <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={onOpen}
+                    onKeyDown={(e) => {
+                        if (e.key !== 'Enter' && e.key !== ' ') return
+                        e.preventDefault()
+                        onOpen()
+                    }}
+                    className="flex-1 min-w-0 text-left px-5 py-4 cursor-pointer"
+                >
                     <p className="text-sm font-bold leading-snug truncate group-hover:text-accent-bright transition-colors">
                         {mod.name}
                     </p>
@@ -118,7 +128,7 @@ export function ModListRow({
                             {loadingLabel}
                         </p>
                     )}
-                </button>
+                </div>
 
                 <div className="flex items-center gap-2 px-4 shrink-0">
                     {needsResourceReview && onReviewResource && (
@@ -190,7 +200,10 @@ export function ModListRow({
                 </div>
             </div>
             {loading && progress !== null && (
-                <ProgressLine progress={progress} className="absolute bottom-0 left-0 right-0" />
+                <ProgressLine
+                    progress={progress}
+                    className="absolute bottom-0 left-0 right-0 rounded-b-lg overflow-hidden"
+                />
             )}
         </div>
     )

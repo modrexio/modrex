@@ -292,7 +292,7 @@ export function InstalledModItem({ mods }: { mods: ModGroup }) {
                     onDisable={() => handleDisable(fileSet)}
                     onReinstall={() => handleReinstall(fileSet)}
                     onReviewResource={() => reviewResource(ins)}
-                    optionsButton={renderMenuButton('left')}
+                    optionsButton={renderMenuButton('right')}
                 />
             </div>
         )

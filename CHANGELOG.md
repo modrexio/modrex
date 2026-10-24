@@ -31,6 +31,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 ### Fixed
 
+- Fixed list view drag and drop and mod menu.
 - Fixed slowdowns when downloading large mods.
 - Fixed interacting with popups accidentally dragging mods behind them.
 - Fixed game error banners remaining visible after a successful refresh.
