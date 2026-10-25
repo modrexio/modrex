@@ -16,7 +16,7 @@
         "typecheck": "bun run --cwd apps/desktop typecheck && bun run site:typecheck && bun run site:typecheck:functions && bun run index:typecheck && bun run typecheck:functions && bun run typecheck:tools && bun run typecheck:bun",
         "typecheck:functions": "tsc -p functions/tsconfig.json",
         "typecheck:tools": "tsc -p tsconfig.tools.json",
-        "typecheck:bun": "bun check -p apps/desktop/tsconfig.json && bun check -p apps/desktop/tsconfig.config.json && bun check -p apps/desktop/tsconfig.i18n.json && bun check -p apps/index/tsconfig.json && bun check -p apps/site/functions/tsconfig.json && bun check -p functions/tsconfig.json && bun check -p tsconfig.tools.json",
+        "typecheck:bun": "bun check -b tsconfig.bun.json",
         "check-version": "bun run --cwd apps/desktop check-version",
         "check-overrides": "bun run --cwd apps/desktop check-overrides",
         "check-commands": "bun run --cwd apps/desktop check-commands",
