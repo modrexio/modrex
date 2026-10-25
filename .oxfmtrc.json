@@ -1,5 +1,4 @@
 {
-    "$schema": "./node_modules/oxfmt/configuration_schema.json",
     "semi": false,
     "tabWidth": 4,
     "singleQuote": true,
@@ -9,7 +8,7 @@
     "ignorePatterns": [
         // Game manifests and the starter manifest are TOML 1.1, and no TOML formatter may run over them.
         "**/*.toml",
-        // The site formats with Prettier until oxfmt formats .astro files.
+        // The site uses its own Prettier config and Astro plugin.
         "apps/site/",
         "apps/desktop/src-tauri/",
         "apps/desktop/src/shared/bindings.ts",

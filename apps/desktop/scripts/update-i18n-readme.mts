@@ -157,8 +157,8 @@ export function renderTranslationStatusReadme({
     ]
     // GitHub centers a block-level child of an align="center" div, which text-align alone does
     // not do for a table. The blank lines are what make the table inside parse as Markdown, and
-    // the ignore comment has to sit directly above the table or oxfmt repads its columns and
-    // the generated block does not match this output.
+    // the ignore comment must sit directly above the table, or the formatter repads its columns
+    // and the generated block does not match this output.
     const centered = [
         '<div align="center">',
         '',
