@@ -41,37 +41,16 @@ jobs:
                   ref: ${{ github.event_name == 'push' && github.sha || '' }}
                   predicate-quantifier: some-with-excludes
                   filters: |
-                      global:
-                          - '**'
-                          - '!apps/desktop/**'
-                          - '!apps/site/**'
-                          - '!apps/index/**'
-                          - '!packages/games/**'
-                          - '!packages/scrollbars/**'
-                          - '!functions/**'
-                          - '!docs/**'
-                          - '!assets/i18n/**'
-                          - '!README.md'
-                          - '!LICENSE'
-                          - '!CHANGELOG.md'
-                          - '!AGENTS.md'
-                          - '!CLAUDE.md'
-                          - '!CONTRIBUTING.md'
-                          - '!SECURITY.md'
-                          - '!.agents/**'
-                          - '!.claude/**'
-                          - '!.codex/**'
-                          - '!.github/workflows/**'
-                          - '!.github/dependabot.yml'
-                          - '!bun.lock'
-                          - '!bunfig.toml'
-                          - '!install.config.json'
                       workflow:
                           - '.github/workflows/ci.yml'
                       js:
+                          - 'package.json'
+                          - '.gitattributes'
                           - 'bun.lock'
                           - 'bunfig.toml'
                       rust:
+                          - 'rust-toolchain.toml'
+                          - '.gitattributes'
                           - 'apps/desktop/src-tauri/**'
                           - 'apps/desktop/src/shared/bindings.ts'
                           - 'apps/desktop/THIRD_PARTY_LICENSES.md'
@@ -80,6 +59,8 @@ jobs:
                           - 'docs/reference/**'
                           - 'LICENSE'
                       renderer:
+                          - 'tsconfig.base.json'
+                          - 'types/**'
                           - 'apps/desktop/**'
                           - '!apps/desktop/src-tauri/**'
                           - '!apps/desktop/scripts/**'
@@ -91,6 +72,8 @@ jobs:
                           - 'packages/scrollbars/**'
                           - 'functions/**'
                       tooling:
+                          - 'tsconfig.base.json'
+                          - 'types/**'
                           - 'apps/desktop/scripts/**'
                           - 'apps/desktop/src/shared/**'
                           - 'apps/desktop/src/renderer/src/i18n/**'
@@ -102,15 +85,20 @@ jobs:
                           - '.github/workflows/translation-status.yml'
                           - 'README.md'
                       site:
+                          - 'tsconfig.base.json'
+                          - 'types/**'
                           - 'apps/site/**'
                           - 'packages/games/**'
                           - 'packages/scrollbars/**'
                           - 'install.config.json'
                       index:
+                          - 'tsconfig.base.json'
+                          - 'types/**'
                           - 'apps/index/**'
                           - 'packages/games/**'
                           - '.github/workflows/*postgres*.yml'
                       licenses:
+                          - 'rust-toolchain.toml'
                           - '**/Cargo.toml'
                           - '**/Cargo.lock'
                           - 'apps/desktop/package.json'
@@ -128,7 +116,7 @@ jobs:
 
             - id: full
               env:
-                  FULL: ${{ (github.event_name != 'push' && github.event_name != 'pull_request') || (github.event_name == 'pull_request' && github.event.pull_request.changed_files >= 3000) || steps.filter.outputs.global == 'true' || steps.filter.outputs.workflow == 'true' }}
+                  FULL: ${{ (github.event_name != 'push' && github.event_name != 'pull_request') || (github.event_name == 'pull_request' && github.event.pull_request.changed_files >= 3000) || steps.filter.outputs.workflow == 'true' }}
               run: echo "full=$FULL" >> "$GITHUB_OUTPUT"
 
     checks:
