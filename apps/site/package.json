@@ -22,7 +22,7 @@
         "@eslint/js": "10.0.1",
         "@pagefind/default-ui": "1.5.2",
         "@tailwindcss/vite": "4.3.3",
-        "astro": "7.4.0",
+        "astro": "7.4.2",
         "eslint": "10.13.0",
         "eslint-plugin-astro": "3.2.1",
         "marked": "18.1.1",
