@@ -13,8 +13,8 @@
         "test:run": "vitest run",
         "lint": "eslint src/",
         "lint:fix": "eslint src/ --fix",
-        "format": "prettier --write .",
-        "format:check": "prettier --check ."
+        "format": "bun fmt --no-script .",
+        "format:check": "bun fmt --no-script --check ."
     },
     "devDependencies": {
         "@astrojs/check": "0.9.10",

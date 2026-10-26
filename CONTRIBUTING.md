@@ -21,7 +21,7 @@ Scripts run as `bun <script>`, except `bun run build` and `bun run test`: plain 
 | `bun dev`               | Start with hot reload                           |
 | `bun run build`         | Production build                                |
 | `bun typecheck`         | Type-check the workspace with Bun and Astro     |
-| `bun format`            | Format all files with Bun and Prettier          |
+| `bun format`            | Format all files through Bun                    |
 | `bun lint`              | Lint renderer source                            |
 | `bun run test`          | Run all tests (Rust + renderer)                 |
 | `bun checks`            | Run the full CI gate locally                    |
@@ -32,6 +32,8 @@ Scripts run as `bun <script>`, except `bun run build` and `bun run test`: plain 
 
 Bun checks TypeScript in the desktop, index and repository tooling. The site keeps TypeScript 6
 for Astro checking. Editors use their own TypeScript language service.
+
+Website formatting uses Bun with Prettier delegation for Astro files.
 
 ## Tech stack
 
