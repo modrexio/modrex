@@ -28,7 +28,7 @@
         "@neondatabase/serverless": "^1.2.0"
     },
     "devDependencies": {
-        "@electric-sql/pglite": "^0.5.10",
+        "@electric-sql/pglite": "^0.5.11",
         "@types/adm-zip": "^0.6.0",
         "@types/better-sqlite3": "^9.6.0",
         "@types/bun": "^1.4.4",
