@@ -47,9 +47,9 @@
         "lint": "oxlint src/renderer/src src/renderer/preview src/shared/i18n-values.mts scripts/*.mts",
         "lint:fix": "oxlint src/renderer/src src/renderer/preview src/shared/i18n-values.mts scripts/*.mts --fix",
         "generate-licenses": "bun scripts/generate-licenses.mts",
-        "typecheck:renderer": "tsc --noEmit",
-        "typecheck:config": "tsc -p tsconfig.config.json",
-        "typecheck:i18n": "tsc -p tsconfig.i18n.json"
+        "typecheck:renderer": "bun check",
+        "typecheck:config": "bun check -p tsconfig.config.json",
+        "typecheck:i18n": "bun check -p tsconfig.i18n.json"
     },
     "repository": {
         "type": "git",

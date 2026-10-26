@@ -20,7 +20,7 @@ Scripts run as `bun <script>`, except `bun run build` and `bun run test`: plain 
 | `bun install`           | Install dependencies                            |
 | `bun dev`               | Start with hot reload                           |
 | `bun run build`         | Production build                                |
-| `bun typecheck`         | Type-check with TypeScript and Astro            |
+| `bun typecheck`         | Type-check with Bun and Astro                   |
 | `bun format`            | Format all files through Bun                    |
 | `bun lint`              | Lint renderer source                            |
 | `bun run test`          | Run all tests (Rust + renderer)                 |
@@ -30,8 +30,10 @@ Scripts run as `bun <script>`, except `bun run build` and `bun run test`: plain 
 `bun checks` is the one to run before opening a pull request: it runs everything CI does
 (formatting, lint, typecheck, tests, and the consistency checks below) in one pass.
 
-The desktop, index and repository tooling use Microsoft TypeScript 7. The site keeps TypeScript 6
-for Astro checking and its ESLint plugins. Each workspace resolves its own compiler dependency.
+Bun runs the fast default checks for the desktop, index and repository tooling. Microsoft
+TypeScript 7 is installed alongside it for direct compiler checks and its native language server.
+Installing TypeScript 7 does not change Bun's checker. The site keeps TypeScript 6 for Astro
+checking and its ESLint plugins. Each workspace resolves its own compiler dependency.
 
 TypeScript 7 includes a native language server. In VS Code, use the
 [TypeScript 7 extension](https://marketplace.visualstudio.com/items?itemName=TypeScriptTeam.native-preview)
