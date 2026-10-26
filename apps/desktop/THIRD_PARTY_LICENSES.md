@@ -6723,7 +6723,7 @@ THIS SOFTWARE.
 
 ## ISC License
 
-Used by: scraper 0.27.0
+Used by: scraper 0.29.0
 
 ```
 Copyright © 2016, June McEnroe <june@causal.agency>
@@ -6933,7 +6933,7 @@ DEALINGS IN THE SOFTWARE.
 
 ## MIT License
 
-Used by: string_cache 0.9.0, string_cache_codegen 0.6.1
+Used by: string_cache 0.11.0, string_cache 0.9.0, string_cache_codegen 0.11.2, string_cache_codegen 0.6.1
 
 ```
 Copyright (c) 2012-2013 Mozilla Foundation
@@ -7375,7 +7375,7 @@ DEALINGS IN THE SOFTWARE.
 
 ## MIT License
 
-Used by: html5ever 0.39.0, markup5ever 0.39.0, web_atoms 0.2.4
+Used by: html5ever 0.39.0, html5ever 0.40.1, markup5ever 0.39.0, markup5ever 0.40.0, web_atoms 0.2.4, web_atoms 0.3.0
 
 ```
 Copyright (c) 2014 The html5ever Project Developers
@@ -12426,7 +12426,7 @@ DEALINGS IN THE SOFTWARE.
 
 ## MIT License
 
-Used by: adler2 2.0.1, anyhow 1.0.102, async-channel 2.5.0, async-executor 1.14.0, async-io 2.6.0, async-lock 3.4.2, async-process 2.5.0, async-signal 0.2.14, async-task 4.7.1, async-trait 0.1.89, atomic-waker 1.1.2, blocking 1.6.2, camino 1.2.4, cargo-platform 0.1.9, cargo_metadata 0.19.2, concurrent-queue 2.5.0, displaydoc 0.2.6, dtoa 1.0.11, dyn-clone 1.0.20, endi 1.1.1, erased-serde 0.4.10, event-listener-strategy 0.5.4, event-listener 5.4.1, fastrand 2.4.1, futures-lite 2.6.1, itoa 1.0.18, linux-raw-sys 0.12.1, once_cell 1.21.4, ordered-stream 0.2.0, parking 2.2.1, paste 1.0.15, pin-project-lite 0.2.17, piper 0.2.5, polling 3.11.0, portable-atomic 1.15.0, proc-macro-crate 1.3.1, proc-macro-crate 2.0.2, proc-macro-crate 3.5.0, proc-macro2 1.0.106, quote 1.0.46, rustix 1.1.4, semver 1.0.28, serde-untagged 0.1.9, serde 1.0.229, serde_core 1.0.229, serde_derive 1.0.229, serde_derive_internals 0.29.1, serde_json 1.0.151, serde_repr 0.1.20, servo_arc 0.4.3, syn 1.0.109, syn 2.0.118, syn 3.0.3, system-deps 6.2.2, thiserror-impl 1.0.69, thiserror-impl 2.0.18, thiserror 1.0.69, thiserror 2.0.18, typed-path 0.12.3, typeid 1.0.3, unicode-ident 1.0.24, unrar 0.5.8, utf-8 0.7.6, utf8-zero 0.8.1, x11-dl 2.21.0, x11 2.21.0, zmij 1.0.21, zvariant_utils 3.4.0
+Used by: adler2 2.0.1, anyhow 1.0.102, async-channel 2.5.0, async-executor 1.14.0, async-io 2.6.0, async-lock 3.4.2, async-process 2.5.0, async-signal 0.2.14, async-task 4.7.1, async-trait 0.1.89, atomic-waker 1.1.2, blocking 1.6.2, camino 1.2.4, cargo-platform 0.1.9, cargo_metadata 0.19.2, concurrent-queue 2.5.0, displaydoc 0.2.6, dtoa 1.0.11, dyn-clone 1.0.20, endi 1.1.1, erased-serde 0.4.10, event-listener-strategy 0.5.4, event-listener 5.4.1, fastrand 2.4.1, futures-lite 2.6.1, itoa 1.0.18, linux-raw-sys 0.12.1, once_cell 1.21.4, ordered-stream 0.2.0, parking 2.2.1, paste 1.0.15, pin-project-lite 0.2.17, piper 0.2.5, polling 3.11.0, portable-atomic 1.15.0, proc-macro-crate 1.3.1, proc-macro-crate 2.0.2, proc-macro-crate 3.5.0, proc-macro2 1.0.106, quote 1.0.46, rustix 1.1.4, semver 1.0.28, serde-untagged 0.1.9, serde 1.0.229, serde_core 1.0.229, serde_derive 1.0.229, serde_derive_internals 0.29.1, serde_json 1.0.151, serde_repr 0.1.20, servo_arc 0.4.3, servo_arc 0.5.0, syn 1.0.109, syn 2.0.118, syn 3.0.3, system-deps 6.2.2, thiserror-impl 1.0.69, thiserror-impl 2.0.18, thiserror 1.0.69, thiserror 2.0.18, typed-path 0.12.3, typeid 1.0.3, unicode-ident 1.0.24, unrar 0.5.8, utf-8 0.7.6, utf8-zero 0.8.1, x11-dl 2.21.0, x11 2.21.0, zmij 1.0.21, zvariant_utils 3.4.0
 
 ```
 Permission is hereby granted, free of charge, to any
@@ -12798,7 +12798,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ## MIT License
 
-Used by: phf 0.13.1, phf_codegen 0.13.1, phf_generator 0.13.1, phf_macros 0.13.1, phf_shared 0.13.1
+Used by: phf 0.13.1, phf 0.14.0, phf_codegen 0.13.1, phf_codegen 0.14.0, phf_generator 0.13.1, phf_generator 0.14.0, phf_macros 0.13.1, phf_macros 0.14.0, phf_shared 0.13.1, phf_shared 0.14.0
 
 ```
 The MIT License (MIT)
@@ -14088,7 +14088,7 @@ Exhibit B - "Incompatible With Secondary Licenses" Notice
 
 ## Mozilla Public License 2.0
 
-Used by: cssparser-macros 0.7.0, cssparser 0.37.0, mp4parse 0.17.0
+Used by: cssparser-macros 0.7.0, cssparser 0.37.0, cssparser 0.38.0, mp4parse 0.17.0
 
 ```
 Mozilla Public License Version 2.0
@@ -14471,7 +14471,7 @@ Exhibit B - "Incompatible With Secondary Licenses" Notice
 
 ## Mozilla Public License 2.0
 
-Used by: option-ext 0.2.0, selectors 0.38.0
+Used by: option-ext 0.2.0, selectors 0.38.0, selectors 0.41.0
 
 ```
 Mozilla Public License Version 2.0
