@@ -18,6 +18,7 @@
     },
     "devDependencies": {
         "@astrojs/check": "0.9.10",
+        "@astrojs/compiler-rs": "0.5.1",
         "@astrojs/mdx": "8.1.0",
         "@eslint/js": "10.0.1",
         "@pagefind/default-ui": "1.5.2",
