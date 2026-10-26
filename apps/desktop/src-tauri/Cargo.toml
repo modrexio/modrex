@@ -58,7 +58,7 @@ flate2 = "1"
 xz2 = { version = "0.1", features = ["static"] }
 unrar = "0.5"
 sysinfo = { version = "0.39", default-features = false, features = ["system"] }
-scraper = "0.27"
+scraper = "0.29"
 discord-rich-presence = "1"
 tauri-plugin-deep-link = "2"
 rand = "0.10"
