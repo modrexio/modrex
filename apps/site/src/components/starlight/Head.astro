@@ -1,5 +1,6 @@
 ---
 import Default from '@astrojs/starlight/components/Head.astro'
+import { Font } from 'astro:assets'
 import { getOgImage } from '../../lib/og-image'
 import Scrollbars from '../Scrollbars.astro'
 
@@ -160,6 +161,7 @@ const faqPage = {
 ---
 
 <Default {...Astro.props} />
+<Font cssVariable="--font-bebas-neue" preload />
 <Scrollbars />
 <meta property="og:image" content={ogImageUrl} />
 <meta property="og:image:alt" content={ogImageAlt} />

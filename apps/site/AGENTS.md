@@ -86,7 +86,6 @@ CORS rule on the R2 bucket (Cloudflare dashboard, not this repo) allowing `GET` 
 
 - All colors are CSS custom properties defined in `src/styles/tokens/colors.css` via Tailwind v4's `@theme`. Never use hardcoded Tailwind color classes (`zinc-*`, `red-*`, etc.). Token names: `surface`, `surface-raised`, `surface-hover`, `surface-active`, `surface-light`, `border`, `text`, `text-muted`, `text-subtle`, `accent`, `accent-bright`, `accent-fill-hover`, `danger`, `danger-hover`, `danger-text`, `success`, `success-text`, `warning`. Tint variables (raw CSS props, not Tailwind classes): `--accent-tint-10/20/30`, `--warning-tint-10/30`, `--scrim` (modal backdrop `rgba(0,0,0,0.6)`).
 - Tailwind is loaded via `@tailwindcss/vite` plugin (not `@astrojs/tailwind`).
-- `tokens/fonts.css` must be imported **before** `@import 'tailwindcss'` in `global.css` to avoid PostCSS ordering errors with Google Fonts `@import url()`.
 - Shared layout utilities (`.wrap`, `.btn-lg`, `.sec-head`) live in `global.css`. Component-specific styles use Astro scoped `<style>` blocks. (`.doc-prose` in `global.css` is dead CSS from the pre-Starlight docs layout — nothing references it.)
 - MDX-rendered content cannot receive scoped styles from parent components — use `:global()` or add styles to `global.css` (`starlight.css` for docs pages).
 

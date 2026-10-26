@@ -1,5 +1,6 @@
 ---
 import '../styles/global.css'
+import { Font } from 'astro:assets'
 import CookieBanner from '../components/CookieBanner.astro'
 import Scrollbars from '../components/Scrollbars.astro'
 
@@ -60,8 +61,7 @@ const organizationJsonLd = {
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <meta name="theme-color" content="#131313" />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <Font cssVariable="--font-bebas-neue" preload />
         <meta name="description" content={description} />
         <meta
             name="google-site-verification"
