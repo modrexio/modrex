@@ -4,10 +4,15 @@
 
 ## Type of change
 
-- [ ] Application/code
+<!-- Check the one that describes the purpose of this PR. -->
+
+- [ ] Bug fix
+- [ ] Feature
+- [ ] Improvement
 - [ ] Translation
-- [ ] Documentation
-- [ ] Other
+- [ ] Maintenance (CI, build, tooling, refactors)
+- [ ] Dependencies
+- [ ] Documentation only
 
 ## Translation (if applicable)
 

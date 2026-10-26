@@ -7,6 +7,8 @@ updates:
           interval: monthly
       commit-message:
           prefix: chore(deps)
+      labels:
+          - dependencies
       ignore:
           - dependency-name: typescript
             update-types:
@@ -25,6 +27,8 @@ updates:
           interval: monthly
       commit-message:
           prefix: chore(deps)
+      labels:
+          - dependencies
       # repak's PakBuilder::key takes the aes major it depends on.
       ignore:
           - dependency-name: aes
@@ -44,6 +48,8 @@ updates:
           interval: monthly
       commit-message:
           prefix: chore(deps)
+      labels:
+          - dependencies
       groups:
           actions-all:
               patterns:
@@ -55,3 +61,5 @@ updates:
           interval: monthly
       commit-message:
           prefix: chore(deps)
+      labels:
+          - dependencies
