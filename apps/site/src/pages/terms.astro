@@ -1,4 +1,5 @@
 ---
+import { sitePath } from '../lib/site-path'
 import BaseLayout from '../layouts/BaseLayout.astro'
 import Nav from '../components/Nav.astro'
 import SiteFooter from '../components/SiteFooter.astro'
@@ -63,9 +64,10 @@ const LAST_UPDATED = '2026-10-01'
                     </a>{' '}
                     in addition to these terms. Modrex stores the resulting sign-in tokens on your
                     own device and never transmits them to us; see the{' '}
-                    <a href="/privacy">Privacy Policy</a> for how they are stored and how to remove
-                    them. You are responsible for keeping your account credentials secure and for
-                    respecting any download or rate limits that Nexus Mods applies to your account.
+                    <a href={sitePath('/privacy')}>Privacy Policy</a> for how they are stored and
+                    how to remove them. You are responsible for keeping your account credentials
+                    secure and for respecting any download or rate limits that Nexus Mods applies to
+                    your account.
                 </p>
 
                 <h2>4. Open source</h2>

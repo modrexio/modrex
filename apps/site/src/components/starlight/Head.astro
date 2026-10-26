@@ -1,4 +1,5 @@
 ---
+import { sitePath } from '../../lib/site-path'
 import Default from '@astrojs/starlight/components/Head.astro'
 import { Font } from 'astro:assets'
 import { getOgImage } from '../../lib/og-image'
@@ -15,7 +16,7 @@ const ogImageAlt = 'The Modrex desktop mod manager'
 const entry = Astro.props.entry as { data?: { title?: string } } | undefined
 const entryTitle = entry?.data?.title ?? ''
 
-const pathname = Astro.url.pathname.replace(/\/$/, '')
+const pathname = `/${Astro.url.pathname.slice(import.meta.env.BASE_URL.length)}`.replace(/\/$/, '')
 const segments = pathname.split('/').filter(Boolean)
 
 // --- Breadcrumb ---
@@ -26,7 +27,7 @@ const SECTION_LABELS: Record<string, string> = {
 }
 
 const breadcrumbItems: Array<{ name: string; item?: string }> = [
-    { name: 'Docs', item: new URL('/docs/', Astro.site).href },
+    { name: 'Docs', item: new URL(sitePath('/docs/'), Astro.site).href },
 ]
 
 if (segments.length === 2 && entryTitle) {
@@ -37,7 +38,7 @@ if (segments.length === 2 && entryTitle) {
     if (sectionLabel) {
         breadcrumbItems.push({
             name: sectionLabel,
-            item: new URL(`/docs/${section}/`, Astro.site).href,
+            item: new URL(sitePath(`/docs/${section}/`), Astro.site).href,
         })
     }
     if (entryTitle) {
@@ -92,7 +93,7 @@ const organization = {
     '@type': 'Organization',
     name: 'Modrex',
     url: 'https://modrex.net',
-    logo: new URL('/icon.png', Astro.site).href,
+    logo: new URL(sitePath('/icon.png'), Astro.site).href,
     sameAs: [
         'https://github.com/modrexio/modrex',
         'https://discord.gg/QM2rDgy43Y',

@@ -1,4 +1,5 @@
 ---
+import { sitePath } from '../lib/site-path'
 import { Picture } from 'astro:assets'
 import type { Release } from '../lib/github'
 import gamePicker from '../assets/screenshots/game-picker-window.webp'
@@ -80,17 +81,17 @@ const releasedOn = release
                 or vanilla from the same window.
             </p>
             <div class="cta-row">
-                <a href="/#download" id="hero-dl" class="btn-lg primary">
+                <a href={sitePath('/#download')} id="hero-dl" class="btn-lg primary">
                     <img
                         id="hero-dl-icon"
-                        src="/icons/windows-white.svg"
+                        src={sitePath('/icons/windows-white.svg')}
                         alt=""
                         width="16"
                         height="16"
                     />
                     <span id="hero-dl-label">Download for Windows</span>
                 </a>
-                <a href="/#download" class="other-link">
+                <a href={sitePath('/#download')} class="other-link">
                     Download options
                 </a>
             </div>
@@ -222,6 +223,7 @@ const releasedOn = release
 </header>
 
 <script>
+    import { sitePath } from '../lib/site-path'
     import { createIcons, ChevronLeft, ChevronRight, X } from 'lucide'
     import { detectOs } from '../lib/os-detect'
 
@@ -237,7 +239,7 @@ const releasedOn = release
         if (button) button.style.display = 'none'
     } else if (isLinux) {
         if (label) label.textContent = 'Download for Linux'
-        if (icon) icon.src = '/icons/linux-white.svg'
+        if (icon) icon.src = sitePath('/icons/linux-white.svg')
     }
 
     const tabs = Array.from(document.querySelectorAll<HTMLButtonElement>('.tablist [role="tab"]'))

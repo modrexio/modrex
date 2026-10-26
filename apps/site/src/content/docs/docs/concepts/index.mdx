@@ -6,15 +6,22 @@ sidebar:
     order: 1
 ---
 
+import { sitePath } from '../../../../lib/site-path'
+
 Modrex is built around a few concepts that stay the same as more games are added. Game pages explain the current values for each game; concept pages explain how those values behave in the app.
 
 ## Concepts
 
-- [Games and targets](/docs/concepts/games-and-targets) explains the active game, per-game settings, and target tags such as `mods`, `paks`, `mod_overrides`, and `ue4ss_mods`.
-- [Archives and loaders](/docs/concepts/archives-and-loaders) explains how Modrex classifies downloads, local archives, mixed-target modpacks, and loader dependencies.
-- [Priority and state](/docs/concepts/priority-and-state) explains visual order, filename prefixes, enabled state, missing files, and `.modrex.json`.
-- [Launch modes](/docs/concepts/launch-modes) explains normal launch, launch without mods, temporary backups, restore behavior, and launch options.
+- <a href={sitePath('/docs/concepts/games-and-targets')}>Games and targets</a> explains the active
+  game, per-game settings, and target tags such as `mods`, `paks`, `mod_overrides`, and
+  `ue4ss_mods`.
+- <a href={sitePath('/docs/concepts/archives-and-loaders')}>Archives and loaders</a> explains how
+  Modrex classifies downloads, local archives, mixed-target modpacks, and loader dependencies.
+- <a href={sitePath('/docs/concepts/priority-and-state')}>Priority and state</a> explains visual
+  order, filename prefixes, enabled state, missing files, and `.modrex.json`.
+- <a href={sitePath('/docs/concepts/launch-modes')}>Launch modes</a> explains normal launch, launch
+  without mods, temporary backups, restore behavior, and launch options.
 
 ## How to use this section
 
-Start with [Supported games](/docs/games/) when you need a game-specific folder or launcher matrix. Use concepts when the same behavior appears across multiple games and you need to understand what Modrex is doing.
+Start with <a href={sitePath('/docs/games/')}>Supported games</a> when you need a game-specific folder or launcher matrix. Use concepts when the same behavior appears across multiple games and you need to understand what Modrex is doing.

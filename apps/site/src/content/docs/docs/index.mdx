@@ -3,6 +3,7 @@ title: Documentation
 description: Learn how to install Modrex, set up supported games, install mods, organize your library, and troubleshoot common issues.
 ---
 
+import { sitePath } from '../../../lib/site-path'
 import { CardGrid, LinkCard } from '@astrojs/starlight/components'
 
 Modrex is a free, open-source desktop mod manager for Windows and Linux. Browse, install, and
@@ -22,7 +23,8 @@ then launch the game modded or vanilla straight from the app.
 - **Smart updates** - Modrex detects out-of-date mods and lets you update them selectively or all
   at once.
 - **Launch your way** - start with managed mods enabled or use
-  [Launch without mods](/docs/concepts/launch-modes) for the active game's supported mod targets.
+    <a href={sitePath('/docs/concepts/launch-modes')}>Launch without mods</a> for the active game's
+    supported mod targets.
 - **Auto-detects your install** - finds supported games across their launchers and picks up mods
   you added outside Modrex.
 
@@ -34,32 +36,32 @@ Choose a section below based on what you need.
     <LinkCard
         title="Installation"
         description="Download Modrex and get it running on Windows or Linux."
-        href="/docs/getting-started"
+        href={sitePath('/docs/getting-started')}
     />
     <LinkCard
         title="Games"
         description="Launcher support, install targets, and loaders for each supported game."
-        href="/docs/games/"
+        href={sitePath('/docs/games/')}
     />
     <LinkCard
         title="Concepts"
         description="How games, targets, archives, loaders, and launch modes fit together."
-        href="/docs/concepts/"
+        href={sitePath('/docs/concepts/')}
     />
     <LinkCard
         title="Using Modrex"
         description="Install mods, organize your library, and launch the game."
-        href="/docs/installing-mods"
+        href={sitePath('/docs/installing-mods')}
     />
     <LinkCard
         title="Reference"
         description="Settings and troubleshooting for Modrex."
-        href="/docs/settings"
+        href={sitePath('/docs/settings')}
     />
     <LinkCard
         title="Contributing"
         description="Report a problem, request a feature, translate Modrex, or contribute code."
-        href="/docs/contributing"
+        href={sitePath('/docs/contributing')}
     />
 </CardGrid>
 
@@ -68,4 +70,4 @@ Choose a section below based on what you need.
 - **Discord** - join the [Modrex Discord](https://discord.gg/QM2rDgy43Y) for support, discussions,
   and updates.
 - **Contributing** - report problems, suggest features, translate Modrex, or contribute code using
-  the [contribution guide](/docs/contributing).
+  the <a href={sitePath('/docs/contributing')}>contribution guide</a>.

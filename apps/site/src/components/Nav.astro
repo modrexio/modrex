@@ -1,4 +1,5 @@
 ---
+import { sitePath } from '../lib/site-path'
 import type { Release } from '../lib/github'
 
 interface Props {
@@ -16,16 +17,16 @@ const linUrl =
 
 <nav>
     <div class="wrap nav-inner">
-        <a href="/" class="modrex-wordmark">
+        <a href={sitePath('/')} class="modrex-wordmark">
             MOD<span>REX</span>
         </a>
         <div class="nav-links">
-            <a href="/#screenshots">Screenshots</a>
-            <a href="/#features">Features</a>
-            <a href="/#compare">Compare</a>
-            <a href="/#download">Download</a>
-            <a href="/#changelog">Changelog</a>
-            <a href="/docs/" class:list={[{ active: activePage === 'docs' }]}>
+            <a href={sitePath('/#screenshots')}>Screenshots</a>
+            <a href={sitePath('/#features')}>Features</a>
+            <a href={sitePath('/#compare')}>Compare</a>
+            <a href={sitePath('/#download')}>Download</a>
+            <a href={sitePath('/#changelog')}>Changelog</a>
+            <a href={sitePath('/docs/')} class:list={[{ active: activePage === 'docs' }]}>
                 Docs
             </a>
         </div>
@@ -73,12 +74,12 @@ const linUrl =
     </div>
     <div class="mobile-menu" id="mobile-menu" aria-hidden="true">
         <div class="wrap mobile-links">
-            <a href="/#screenshots">Screenshots</a>
-            <a href="/#features">Features</a>
-            <a href="/#compare">Compare</a>
-            <a href="/#download">Download</a>
-            <a href="/#changelog">Changelog</a>
-            <a href="/docs/" class:list={[{ active: activePage === 'docs' }]}>
+            <a href={sitePath('/#screenshots')}>Screenshots</a>
+            <a href={sitePath('/#features')}>Features</a>
+            <a href={sitePath('/#compare')}>Compare</a>
+            <a href={sitePath('/#download')}>Download</a>
+            <a href={sitePath('/#changelog')}>Changelog</a>
+            <a href={sitePath('/docs/')} class:list={[{ active: activePage === 'docs' }]}>
                 Docs
             </a>
             <div class="mobile-actions">
@@ -117,6 +118,7 @@ const linUrl =
 </nav>
 
 <script>
+    import { sitePath } from '../lib/site-path'
     import { createIcons, Menu, X } from 'lucide'
     import { detectOs } from '../lib/os-detect'
 
@@ -149,7 +151,7 @@ const linUrl =
     // does anything on the homepage, where the section anchors exist.
     const spyLinks = [
         ...document.querySelectorAll<HTMLAnchorElement>(
-            '.nav-links a[href^="/#"], .mobile-links a[href^="/#"]'
+            `.nav-links a[href^="${sitePath('/#')}"], .mobile-links a[href^="${sitePath('/#')}"]`
         ),
     ]
     const sections = [...new Set(spyLinks.map((link) => link.hash.slice(1)))]

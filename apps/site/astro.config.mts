@@ -40,8 +40,15 @@ import starlight from '@astrojs/starlight'
 import tailwindcss from '@tailwindcss/vite'
 import devSearch from './src/integrations/dev-search'
 
+const previewNumber = process.env.SITE_PREVIEW_PR
+if (previewNumber && !/^[1-9]\d*$/.test(previewNumber)) {
+    throw new Error('SITE_PREVIEW_PR must be a positive pull request number')
+}
+const base = previewNumber ? `/pr/${previewNumber}/` : '/'
+
 export default defineConfig({
-    site: 'https://modrex.net',
+    site: previewNumber ? 'https://site-preview.modrex.net' : 'https://modrex.net',
+    base,
     fonts: [
         {
             provider: fontProviders.local(),
@@ -152,11 +159,11 @@ export default defineConfig({
                 },
                 {
                     tag: 'link',
-                    attrs: { rel: 'apple-touch-icon', href: '/icon.png' },
+                    attrs: { rel: 'apple-touch-icon', href: `${base}icon.png` },
                 },
                 {
                     tag: 'link',
-                    attrs: { rel: 'manifest', href: '/site.webmanifest' },
+                    attrs: { rel: 'manifest', href: `${base}site.webmanifest` },
                 },
                 {
                     tag: 'meta',

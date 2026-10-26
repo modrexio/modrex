@@ -3,6 +3,7 @@ title: Launching the game
 description: Start the active game with your mods enabled, or launch without supported mods directly from Modrex.
 ---
 
+import { sitePath } from '../../../lib/site-path'
 import LauncherMatrix from '../../../components/docs/LauncherMatrix.astro'
 
 ## Launch modded
@@ -11,7 +12,8 @@ Click **Launch** in the top bar to start the active game with all enabled mods a
 your configured launch options to the game and hands off to your launcher.
 
 For PAYDAY 3, pak mods load only when UE4SS is installed. See
-[PAYDAY 3](/docs/games/payday-3#ue4ss).
+
+<a href={sitePath('/docs/games/payday-3#ue4ss')}>PAYDAY 3</a>.
 
 ## Launch without mods
 
@@ -26,7 +28,7 @@ session may still be running, a banner across the top reminds you mods are hidde
 **Restore mods** button - use it if Modrex closed before it could restore automatically (for example,
 if the app itself was closed mid-session).
 
-See [Launch modes](/docs/concepts/launch-modes) for how target-scoped backups and restore behavior
+See <a href={sitePath('/docs/concepts/launch-modes')}>Launch modes</a> for how target-scoped backups and restore behavior
 work.
 
 ## Launcher support

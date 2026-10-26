@@ -1,10 +1,11 @@
 ---
+import { sitePath } from '../lib/site-path'
 ---
 
 <footer>
     <div class="wrap footer-inner">
         <div class="footer-brand">
-            <a href="/" class="modrex-wordmark" style="font-size: 22px">
+            <a href={sitePath('/')} class="modrex-wordmark" style="font-size: 22px">
                 MOD<span>REX</span>
             </a>
             <p class="legal">
@@ -66,9 +67,9 @@
         </div>
         <nav class="group" aria-label="Documentation">
             <h2>Docs</h2>
-            <a href="/docs/">Overview</a>
-            <a href="/docs/getting-started">Getting started</a>
-            <a href="/docs/installing-mods">Installing mods</a>
+            <a href={sitePath('/docs/')}>Overview</a>
+            <a href={sitePath('/docs/getting-started')}>Getting started</a>
+            <a href={sitePath('/docs/installing-mods')}>Installing mods</a>
         </nav>
         <nav class="group" aria-label="Mod sites">
             <h2>Mod sites</h2>
@@ -84,8 +85,8 @@
             <a href="https://github.com/modrexio/modrex/issues" target="_blank" rel="noopener">
                 Report a bug
             </a>
-            <a href="/terms">Terms</a>
-            <a href="/privacy">Privacy</a>
+            <a href={sitePath('/terms')}>Terms</a>
+            <a href={sitePath('/privacy')}>Privacy</a>
         </nav>
     </div>
 </footer>

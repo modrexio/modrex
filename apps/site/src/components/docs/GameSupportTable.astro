@@ -1,4 +1,5 @@
 ---
+import { sitePath } from '../../lib/site-path'
 import { GAMES } from '@modrex/games'
 import { docsGames } from '../../data/docsGames'
 ---
@@ -17,7 +18,7 @@ import { docsGames } from '../../data/docsGames'
                 <tr>
                     <td>
                         {game.hasPage ? (
-                            <a href={`/docs/games/${game.slug}`}>{GAMES[game.id].name}</a>
+                            <a href={sitePath(`/docs/games/${game.slug}`)}>{GAMES[game.id].name}</a>
                         ) : (
                             GAMES[game.id].name
                         )}

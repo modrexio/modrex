@@ -3,6 +3,8 @@ title: Settings
 description: Reference for all configurable options in Modrex.
 ---
 
+import { sitePath } from '../../../lib/site-path'
+
 Settings is organized into four tabs: **Game**, **Application**, **Advanced**, and **About**. The Game tab
 holds per-game configuration; the other tabs hold global options and project information.
 
@@ -19,14 +21,15 @@ you save.
 ### Launcher
 
 Override the auto-detected launcher. Launcher support is game-specific; see
-[Supported games](/docs/games/) for the current matrix. Modrex uses this setting to determine how to
-start the active game when you click Launch.
+
+<a href={sitePath('/docs/games/')}>Supported games</a> for the current matrix. Modrex uses this
+setting to determine how to start the active game when you click Launch.
 
 ### New Mod Installs (Crime Boss)
 
 Controls where new Crime Boss mods install by default: **Automatic** (the official ModKit location,
 `CrimeBoss/Mods`) or **Always ask**, which prompts you to choose ModKit or the legacy `~mods` location
-before each install. See [Crime Boss](/docs/games/crime-boss#choosing-an-install-target) for the
+before each install. See <a href={sitePath('/docs/games/crime-boss#choosing-an-install-target')}>Crime Boss</a> for the
 difference between the two targets and how to move an already-installed mod later.
 
 ### Launch Options
@@ -62,7 +65,8 @@ Choose the language used by the Modrex interface. The selector lists every trans
 with your installed version. Missing text in a partial translation falls back to English.
 
 To improve a translation or add a language, start with the
-[contribution guide](/docs/contributing#translate-modrex).
+
+<a href={sitePath('/docs/contributing#translate-modrex')}>contribution guide</a>.
 
 ### Accent color
 
@@ -102,4 +106,4 @@ Modrex stores its state and settings in the following locations:
 
 The mod state file (`.modrex.json`) lives inside the active game's managed mods folder so it travels
 with the game directory on dual-boot setups. Older `.pd3mm.json` state files are migrated
-automatically. See [Priority and state](/docs/concepts/priority-and-state#state-file) for details.
+automatically. See <a href={sitePath('/docs/concepts/priority-and-state#state-file')}>Priority and state</a> for details.

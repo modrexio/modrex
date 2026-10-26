@@ -3,6 +3,7 @@ title: Organizing mods
 description: Use folders, priority ordering, and file management tools to control which mods load and in what order.
 ---
 
+import { sitePath } from '../../../lib/site-path'
 import Callout from '../../../components/docs/Callout.astro'
 
 ## Folders
@@ -27,7 +28,7 @@ them in the intended order.
 Drag mods up and down within the list to reorder them. Priority is scoped to siblings within the same
 folder - mods in different folders don't compete unless they reference the same game assets.
 
-See [Priority and state](/docs/concepts/priority-and-state) for how visual order, filename prefixes,
+See <a href={sitePath('/docs/concepts/priority-and-state')}>Priority and state</a> for how visual order, filename prefixes,
 enabled state, and missing files work across game targets.
 
 <Callout>
@@ -46,7 +47,8 @@ everything.
 
 Open **Manage files** from the `⋮` options menu on any mod card or list row. The same menu also
 lets Crime Boss users move a mod between the ModKit and legacy install targets — see
-[Crime Boss](/docs/games/crime-boss#choosing-an-install-target).
+
+<a href={sitePath('/docs/games/crime-boss#choosing-an-install-target')}>Crime Boss</a>.
 
 ## Bulk enable / disable
 

@@ -3,6 +3,7 @@ title: Installing mods
 description: Install mods from ModWorkshop or Nexus Mods, or drop local archives into Modrex.
 ---
 
+import { sitePath } from '../../../lib/site-path'
 import Callout from '../../../components/docs/Callout.astro'
 
 ## From Browse
@@ -18,7 +19,9 @@ To browse Nexus Mods, sign in from **Settings > Advanced > Nexus Mods Account**.
 multiple sources, select Nexus at the top of Browse. Open the mod’s **Files** tab on Nexus and choose **Mod Manager Download**. Nexus
 hands the download back to Modrex, which shows its progress and installs supported files into the
 active game. Ready or Not Pak downloads need an archive from Nexus to preserve their filenames. See
-[Ready or Not](/docs/games/ready-or-not) for loose Pak files, movie replacements, and configuration presets.
+
+<a href={sitePath('/docs/games/ready-or-not')}>Ready or Not</a> for loose Pak files, movie
+replacements, and configuration presets.
 
 Use search, category, and sort controls to narrow a catalog. ModWorkshop also supports tag filters:
 select a tag once to include it, again to exclude it, and once more to clear that filter.
@@ -27,8 +30,10 @@ Supported local file formats: `.pak`, `.zip`, `.7z`, `.rar`, `.tar.gz`, `.tar.xz
 
 Archives can contain loose `.pak` files, directory mods, `mod_overrides` content, UE4SS Lua mods, or
 game-specific folder layouts. Modrex routes entries based on the active game's install targets. See
-[Archives and loaders](/docs/concepts/archives-and-loaders) for the classification rules and
-[Supported games](/docs/games/) for the exact targets for each game.
+
+<a href={sitePath('/docs/concepts/archives-and-loaders')}>Archives and loaders</a> for the
+classification rules and
+<a href={sitePath('/docs/games/')}>Supported games</a> for the exact targets for each game.
 
 ### Multi-file mods
 
@@ -50,7 +55,7 @@ running, and clicking a dependency's row opens its mod detail page.
 Some PAYDAY 2 content packs belong inside another host mod instead of directly inside the game.
 When Modrex recognizes that pattern, it prompts you to install the required host mod and then places
 the pack inside it. If an archive cannot be placed safely, Modrex shows the author's instructions
-instead of guessing. See [Archives and loaders](/docs/concepts/archives-and-loaders#host-mod-content-packs)
+instead of guessing. See <a href={sitePath('/docs/concepts/archives-and-loaders#host-mod-content-packs')}>Archives and loaders</a>
 for how host-mod content is handled.
 
 ### External links

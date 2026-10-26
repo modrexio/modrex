@@ -3,6 +3,7 @@ title: Troubleshooting
 description: Solutions to the most common problems with Modrex and your mods.
 ---
 
+import { sitePath } from '../../../lib/site-path'
 import Callout from '../../../components/docs/Callout.astro'
 
 ## Mods not loading in-game
@@ -10,7 +11,7 @@ import Callout from '../../../components/docs/Callout.astro'
 Check that:
 
 - The loader the game needs is installed. For example, PAYDAY 3 loads pak mods only through
-  UE4SS. Each game's page under [Supported games](/docs/games/) names its loader.
+  UE4SS. Each game's page under <a href={sitePath('/docs/games/')}>Supported games</a> names its loader.
 - The mod's toggle is on.
 - A higher-priority mod isn't overriding it. Try moving it lower in the list.
 - The mod targets the active game and your installed game version.
@@ -31,7 +32,7 @@ This can take a few seconds on the first detection pass.
 This appears when Modrex's state file references a file or folder that no longer exists on disk.
 This happens after manually deleting files or moving your game folder.
 
-Either **Reinstall** the mod to re-download it, or click **Remove** to clear the stale entry. See [Priority and state](/docs/concepts/priority-and-state#missing-files) for how
+Either **Reinstall** the mod to re-download it, or click **Remove** to clear the stale entry. See <a href={sitePath('/docs/concepts/priority-and-state#missing-files')}>Priority and state</a> for how
 Modrex tracks this state.
 
 ## Archive cannot be installed

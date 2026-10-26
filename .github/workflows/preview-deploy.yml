@@ -119,7 +119,11 @@ jobs:
                     fi
                     if (cd "$dir" && npx -y wrangler@4.135.0 pages deploy "$assets" \
                           --project-name "$project" --branch "pr-$PR" --commit-hash "$SHA" --commit-dirty=true); then
-                      status "$name" success Ready "https://pr-$PR.$project.pages.dev"
+                      local preview_url="https://pr-$PR.$project.pages.dev"
+                      if [ "$name" = site ]; then
+                        preview_url="https://site-preview.modrex.net/pr/$PR/"
+                      fi
+                      status "$name" success Ready "$preview_url"
                     else
                       status "$name" failure "Deploy failed" "$run_url"
                       failed=1

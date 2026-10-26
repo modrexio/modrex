@@ -1,4 +1,5 @@
 ---
+import { sitePath } from '../lib/site-path'
 import type { Release } from '../lib/github'
 
 interface Props {
@@ -71,7 +72,7 @@ const extension = (file: DlFile) => file.name.split('.').pop()
         <div class="dl-table">
             <div class="dl-row">
                 <h3 class="os">
-                    <img src="/icons/windows-white.svg" alt="" width="20" height="20" />
+                    <img src={sitePath('/icons/windows-white.svg')} alt="" width="20" height="20" />
                     Windows
                 </h3>
                 <div class="dl-body">
@@ -102,7 +103,7 @@ const extension = (file: DlFile) => file.name.split('.').pop()
 
             <div class="dl-row">
                 <h3 class="os">
-                    <img src="/icons/linux-white.svg" alt="" width="20" height="20" />
+                    <img src={sitePath('/icons/linux-white.svg')} alt="" width="20" height="20" />
                     Linux
                 </h3>
                 <div class="dl-body">
@@ -139,7 +140,7 @@ const extension = (file: DlFile) => file.name.split('.').pop()
 
         <p class="dl-note">
             Works with Steam, Epic Games and the Xbox app on Windows, and Steam on Linux. See the{' '}
-            <a href="/docs/getting-started">installation guide</a>.
+            <a href={sitePath('/docs/getting-started')}>installation guide</a>.
         </p>
     </div>
 </section>

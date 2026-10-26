@@ -1,4 +1,5 @@
 ---
+import { sitePath } from '../../lib/site-path'
 interface Props {
     os: 'Windows' | 'Linux'
 }
@@ -11,7 +12,7 @@ const icons: Record<Props['os'], string> = {
 }
 ---
 
-<img class="docs-os-icon" src={`/icons/${icons[os]}.svg`} alt="" />
+<img class="docs-os-icon" src={sitePath(`/icons/${icons[os]}.svg`)} alt="" />
 
 <style>
     .docs-os-icon {

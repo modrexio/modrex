@@ -1,4 +1,5 @@
 ---
+import { sitePath } from '../lib/site-path'
 import BaseLayout from '../layouts/BaseLayout.astro'
 import Nav from '../components/Nav.astro'
 import SiteFooter from '../components/SiteFooter.astro'
@@ -12,10 +13,10 @@ import SiteFooter from '../components/SiteFooter.astro'
             <h1>Page not found</h1>
             <p>The page may have moved, or the link may be outdated.</p>
             <div class="actions">
-                <a href="/" class="btn-lg primary">
+                <a href={sitePath('/')} class="btn-lg primary">
                     Home
                 </a>
-                <a href="/docs/" class="btn-lg secondary">
+                <a href={sitePath('/docs/')} class="btn-lg secondary">
                     Docs
                 </a>
             </div>

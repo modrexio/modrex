@@ -18,10 +18,6 @@ const HOSTS: Record<string, typeof APP> = {
     },
 }
 const ROOT_ASSET_URL = /((?:src|href)=["'])\/(?!\/)/g
-const TAG = /<([a-zA-Z][\w-]*)\b[^>]*>/g
-const URL_ATTRIBUTE = /(\s(src|href|srcset)=["'])([^"']*)/g
-const ROOT_PATH = /^\/(?!\/)/
-const ROOT_SRCSET_PATH = /(^|,\s*)\/(?!\/)/g
 // A pull request without a preview status this soon after its last update is still queueing CI.
 const BUILD_GRACE_MS = 10 * 60 * 1000
 
@@ -55,6 +51,13 @@ export async function onRequestGet({ request, params, env }: PagesContext): Prom
     preview.search = url.search
 
     try {
+        // Documents check build status before loading their assets. Repeating those
+        // GitHub requests for every image, font and search bundle exhausts the API limit.
+        const filename = path.at(-1) ?? ''
+        const isAsset = /\.[a-z0-9]+$/i.test(filename) && !/\.html?$/i.test(filename)
+        if (target.site && isAsset) {
+            return await proxySite(preview, base)
+        }
         const pullResponse = await fetch(`${GITHUB_API}/pulls/${number}`, { headers })
         if (pullResponse.status === 404) {
             return page(404, 'Pull request not found', `There is no pull request #${number}.`)
@@ -74,7 +77,8 @@ export async function onRequestGet({ request, params, env }: PagesContext): Prom
 
         switch (status?.state) {
             case 'success':
-                return target.site ? proxySite(preview, base) : proxy(preview)
+                if (target.site) return await proxySite(preview, base)
+                return proxy(preview)
             case 'pending':
                 return page(503, 'Building', 'The preview for the latest commit is being built.', {
                     refresh: 30,
@@ -87,10 +91,12 @@ export async function onRequestGet({ request, params, env }: PagesContext): Prom
                     'Build failed',
                     'The preview for the latest commit could not be built.',
                     {
-                        links: [
-                            ['View build', logs],
-                            ['Open the last successful build', preview.toString()],
-                        ],
+                        links: target.site
+                            ? [['View build', logs]]
+                            : [
+                                  ['View build', logs],
+                                  ['Open the last successful build', preview.toString()],
+                              ],
                     }
                 )
             default:
@@ -130,27 +136,22 @@ async function proxySite(target: URL, base: string): Promise<Response> {
     const location = response.headers.get('Location')
     if (location) return redirect(publicPath(new URL(location, target), target, base))
 
-    const contentType = response.headers.get('Content-Type') ?? 'application/octet-stream'
-    const headers = { 'Cache-Control': 'no-store', 'Content-Type': contentType }
-    if (!contentType.startsWith('text/html')) {
-        return new Response(response.body, { status: response.status, headers })
-    }
-    const html = rewriteSitePage(await response.text(), target.origin, base)
-    return new Response(html, { status: response.status, headers })
-}
-
-export function rewriteSitePage(html: string, origin: string, base: string): string {
-    return html.replace(TAG, (tag, name: string) =>
-        tag.replace(URL_ATTRIBUTE, (_, prefix: string, attribute: string, value: string) => {
-            const root = name.toLowerCase() === 'a' ? base : origin
-            const pattern = attribute === 'srcset' ? ROOT_SRCSET_PATH : ROOT_PATH
-            return prefix + value.replace(pattern, (match) => `${match.slice(0, -1)}${root}/`)
-        })
-    )
+    return new Response(response.body, {
+        status: response.status,
+        headers: {
+            'Cache-Control': 'no-store',
+            'Content-Type': response.headers.get('Content-Type') ?? 'application/octet-stream',
+            'X-Content-Type-Options': 'nosniff',
+            'X-Robots-Tag': 'noindex',
+        },
+    })
 }
 
 function publicPath(location: URL, target: URL, base: string): string {
     if (location.origin !== target.origin) return location.toString()
+    if (location.pathname === base || location.pathname.startsWith(`${base}/`)) {
+        return `${location.pathname}${location.search}${location.hash}`
+    }
     return `${base}${location.pathname}${location.search}${location.hash}`
 }
 

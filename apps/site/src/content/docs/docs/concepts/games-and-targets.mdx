@@ -5,6 +5,8 @@ sidebar:
     order: 10
 ---
 
+import { sitePath } from '../../../../lib/site-path'
+
 Modrex always works on one active game at a time. The active game controls the Browse catalog, game path, launcher, launch options, installed list, folders, and supported install targets.
 
 Switching games from the sidebar does not overwrite another game's setup. Each game keeps its own configuration and installed mod state.
@@ -34,7 +36,7 @@ Common target tags:
 | `mod_overrides` | Asset replacement folders under `assets/mod_overrides`.          |
 | `ue4ss_mods`    | UE4SS Lua mod folders, where the game's UE4SS loader reads them. |
 
-The exact targets vary by game. See [Supported games](/docs/games/) for the current matrix.
+The exact targets vary by game. See <a href={sitePath('/docs/games/')}>Supported games</a> for the current matrix.
 
 ## Primary and secondary targets
 

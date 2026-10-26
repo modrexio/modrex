@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { onRequestGet, rewriteSitePage } from '../../../../../functions/pr/[number]/[[path]]'
+import { onRequestGet } from '../../../../../functions/pr/[number]/[[path]]'
 
 const originalFetch = globalThis.fetch
 
@@ -174,7 +174,7 @@ describe('/pr/:number', () => {
 
     it('serves site pages under the public URL', async () => {
         const fetch = github([{ context: 'preview/site', state: 'success' }]).mockResolvedValueOnce(
-            html('<a href="/docs/">Docs</a><img src="/_astro/a.webp">')
+            html('<a href="/pr/42/docs/">Docs</a><img src="/pr/42/_astro/a.webp">')
         )
         globalThis.fetch = fetch
 
@@ -188,7 +188,7 @@ describe('/pr/:number', () => {
         expect(result.status).toBe(200)
         expect(result.headers.get('Location')).toBeNull()
         await expect(result.text()).resolves.toBe(
-            '<a href="/pr/42/docs/">Docs</a><img src="https://pr-42.modrex-site-pr.pages.dev/_astro/a.webp">'
+            '<a href="/pr/42/docs/">Docs</a><img src="/pr/42/_astro/a.webp">'
         )
     })
 
@@ -208,7 +208,7 @@ describe('/pr/:number', () => {
     it('passes the site 404 page through with its status', async () => {
         globalThis.fetch = github([
             { context: 'preview/site', state: 'success' },
-        ]).mockResolvedValueOnce(html('<a href="/">Home</a>', 404))
+        ]).mockResolvedValueOnce(html('<a href="/pr/42/">Home</a>', 404))
 
         const result = await onRequestGet(context('42', '', SITE, '/missing'))
 
@@ -217,16 +217,95 @@ describe('/pr/:number', () => {
     })
 
     it('passes non HTML site responses through unchanged', async () => {
-        globalThis.fetch = github([
-            { context: 'preview/site', state: 'success' },
-        ]).mockResolvedValueOnce(
-            new Response('#!/bin/sh', { headers: { 'Content-Type': 'text/x-shellscript' } })
-        )
+        globalThis.fetch = vi
+            .fn()
+            .mockResolvedValue(
+                new Response('#!/bin/sh', { headers: { 'Content-Type': 'text/x-shellscript' } })
+            )
 
         const result = await onRequestGet(context('42', '', SITE, '/install.sh'))
 
         expect(result.headers.get('Content-Type')).toBe('text/x-shellscript')
         await expect(result.text()).resolves.toBe('#!/bin/sh')
+    })
+
+    it.each(['/index.html', '/docs/index.html'])(
+        'checks build status before serving %s',
+        async (path) => {
+            const fetch = github([{ context: 'preview/site', state: 'pending' }])
+            globalThis.fetch = fetch
+
+            const result = await onRequestGet(context('42', '', SITE, path))
+
+            expect(result.status).toBe(503)
+            expect(fetch).toHaveBeenCalledTimes(2)
+        }
+    )
+
+    it('serves inline font CSS and preloads without rewriting the page', async () => {
+        const page =
+            '<style>@font-face{src:url("/pr/42/_astro/fonts/font.woff2")}</style><link rel="preload" href="/pr/42/_astro/fonts/font.woff2" as="font" crossorigin>'
+        globalThis.fetch = github([
+            { context: 'preview/site', state: 'success' },
+        ]).mockResolvedValueOnce(html(page))
+
+        const result = await onRequestGet(context('42', '', SITE, '/'))
+
+        await expect(result.text()).resolves.toBe(page)
+        expect(result.headers.get('X-Robots-Tag')).toBe('noindex')
+    })
+
+    it('serves font bytes through the public preview path', async () => {
+        const bytes = new Uint8Array([119, 79, 70, 50, 0, 1, 2, 3])
+        const fetch = vi
+            .fn()
+            .mockResolvedValue(new Response(bytes, { headers: { 'Content-Type': 'font/woff2' } }))
+        globalThis.fetch = fetch
+
+        const result = await onRequestGet(context('42', '', SITE, '/_astro/fonts/font.woff2'))
+
+        expect(fetch).toHaveBeenCalledTimes(1)
+        expect(fetch).toHaveBeenCalledWith(
+            'https://pr-42.modrex-site-pr.pages.dev/_astro/fonts/font.woff2',
+            { redirect: 'manual' }
+        )
+        expect(result.headers.get('Content-Type')).toBe('font/woff2')
+        expect(new Uint8Array(await result.arrayBuffer())).toEqual(bytes)
+    })
+
+    it.each(['/pr/42', '/pr/42/docs/'])(
+        'does not duplicate the preview base in a redirect to %s',
+        async (path) => {
+            globalThis.fetch = github([
+                { context: 'preview/site', state: 'success' },
+            ]).mockResolvedValueOnce(
+                new Response(null, {
+                    status: 308,
+                    headers: { Location: `${path}?q=test#setup` },
+                })
+            )
+
+            const result = await onRequestGet(context('42', '', SITE, '/docs'))
+
+            expect(result.headers.get('Location')).toBe(`${path}?q=test#setup`)
+        }
+    )
+
+    it('keeps failed site previews on the public entry point', async () => {
+        globalThis.fetch = github([
+            {
+                context: 'preview/site',
+                state: 'failure',
+                target_url: 'https://github.com/modrexio/modrex/actions/runs/2',
+            },
+        ])
+
+        const result = await onRequestGet(context('42', '', SITE, '/'))
+        const page = await result.text()
+
+        expect(page).toContain('Build failed')
+        expect(page).toContain('https://github.com/modrexio/modrex/actions/runs/2')
+        expect(page).not.toContain('pages.dev')
     })
 
     it('rejects paths below the app preview', async () => {
@@ -245,37 +324,5 @@ describe('/pr/:number', () => {
         const result = await onRequestGet(context('42'))
 
         expect(result.status).toBe(502)
-    })
-})
-
-describe('rewriteSitePage', () => {
-    const origin = 'https://pr-42.modrex-site-pr.pages.dev'
-
-    it('keeps links on the public URL and loads assets from the alias', () => {
-        expect(
-            rewriteSitePage(
-                '<link rel="stylesheet" href="/_astro/a.css"><script type="module" src="/_astro/b.js"></script><a class="x" href="/docs/">',
-                origin,
-                '/pr/42'
-            )
-        ).toBe(
-            `<link rel="stylesheet" href="${origin}/_astro/a.css"><script type="module" src="${origin}/_astro/b.js"></script><a class="x" href="/pr/42/docs/">`
-        )
-    })
-
-    it('rewrites every candidate in a srcset', () => {
-        expect(
-            rewriteSitePage(
-                '<img srcset="/_astro/a.webp 640w, /_astro/b.webp 1280w">',
-                origin,
-                '/pr/42'
-            )
-        ).toBe(`<img srcset="${origin}/_astro/a.webp 640w, ${origin}/_astro/b.webp 1280w">`)
-    })
-
-    it('leaves absolute, protocol relative and fragment URLs alone', () => {
-        const page =
-            '<a href="https://modrex.net/"><a href="//cdn.example/x"><a href="#top"><img src="data:image/png;base64,AA">'
-        expect(rewriteSitePage(page, origin, '/pr/42')).toBe(page)
     })
 })
