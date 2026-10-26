@@ -34,6 +34,7 @@
         "@types/bun": "^1.4.4",
         "@types/emscripten": "^1.41.6",
         "adm-zip": "^0.6.1",
-        "better-sqlite3": "^13.0.3"
+        "better-sqlite3": "^13.0.3",
+        "typescript": "7.0.2"
     }
 }
