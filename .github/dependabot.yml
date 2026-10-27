@@ -34,6 +34,14 @@ updates:
           - dependency-name: aes
             update-types:
                 - version-update:semver-major
+          # tauri-plugin-deep-link 2.6.2 does not compile against rust-ini 0.21.3, and
+          # single-instance 2.5.4 requires it.
+          - dependency-name: tauri-plugin-deep-link
+            versions:
+                - 2.6.2
+          - dependency-name: tauri-plugin-single-instance
+            versions:
+                - 2.5.4
       groups:
           cargo-all:
               patterns:
