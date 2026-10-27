@@ -355,7 +355,7 @@ PERFORMANCE OF THIS SOFTWARE.
 
 ---
 
-### lucide-react 1.59.0
+### lucide-react 1.61.0
 
 **License:** ISC
 
@@ -3887,7 +3887,7 @@ SOFTWARE.
 
 ---
 
-### overlayscrollbars 2.16.0
+### overlayscrollbars 2.17.0
 
 **License:** MIT
 
