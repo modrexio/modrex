@@ -15,6 +15,7 @@ pub struct GameSpec {
     pub package_reader: Option<&'static package::PackageReaderBinding>,
     pub movie_replacement: Option<&'static package::MovieReplacement>,
     pub config_presets: Option<&'static package::ConfigPresets>,
+    pub unreal_config: Option<&'static package::UnrealConfig>,
     pub graphics_config: Option<&'static package::GraphicsConfig>,
 }
 
@@ -77,6 +78,7 @@ fn spec_from(pkg: &'static GamePackage) -> GameSpec {
         movie_replacement: pkg.movie_replacement.as_ref(),
         config_presets: pkg.config_presets.as_ref(),
         graphics_config: pkg.graphics_config.as_ref(),
+        unreal_config: pkg.unreal_config.as_ref(),
     }
 }
 

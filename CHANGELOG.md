@@ -4,6 +4,10 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 ## Unreleased
 
+### Fixed
+
+- Fixed Engine.ini presets for PAYDAY 3 on Steam not applying in game.
+
 ## 0.16.0
 
 ### Added

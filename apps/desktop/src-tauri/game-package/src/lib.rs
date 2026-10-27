@@ -387,10 +387,7 @@ pub struct MovieSlots {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(tag = "format", rename_all = "snake_case", deny_unknown_fields)]
 pub enum ConfigPresets {
-    UnrealEngineIni {
-        #[serde(default)]
-        locations: Vec<ConfigLocation>,
-    },
+    UnrealEngineIni {},
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
@@ -412,10 +409,20 @@ impl ConfigPresets {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(tag = "root", rename_all = "snake_case", deny_unknown_fields)]
 pub enum ConfigLocation {
+    WindowsUserProfile {
+        store: Storefront,
+        path: Vec<String>,
+    },
     WindowsLocalAppData {
         store: Storefront,
         path: Vec<String>,
     },
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct UnrealConfig {
+    pub roots: Vec<ConfigLocation>,
 }
 
 /// A primary mod file plus the files that travel with it because they share its stem.
@@ -622,6 +629,8 @@ pub struct GamePackage {
     pub config_presets: Option<ConfigPresets>,
     #[serde(default)]
     pub graphics_config: Option<GraphicsConfig>,
+    #[serde(default)]
+    pub unreal_config: Option<UnrealConfig>,
     pub targets: Vec<Target>,
 }
 

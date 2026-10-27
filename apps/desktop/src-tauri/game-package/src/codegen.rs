@@ -352,10 +352,11 @@ impl GamePackage {
             movie_replacement: movies,
             config_presets: configs,
             graphics_config: graphics,
+            unreal_config,
             targets,
         } = self;
         format!(
-            "{PATH}::GamePackage {{ id: {}, name: {}, short_name: {}, mod_metadata: {}, sources: {}, news: {}, install: {}, loaders: {}, decoders: {}, package_reader: {}, movie_replacement: {}, config_presets: {}, graphics_config: {}, targets: {} }}",
+            "{PATH}::GamePackage {{ id: {}, name: {}, short_name: {}, mod_metadata: {}, sources: {}, news: {}, install: {}, loaders: {}, decoders: {}, package_reader: {}, movie_replacement: {}, config_presets: {}, graphics_config: {}, unreal_config: {}, targets: {} }}",
             text(id),
             text(name),
             text(short_name),
@@ -369,6 +370,7 @@ impl GamePackage {
             optional(movies.as_ref().map(movie_replacement)),
             optional(configs.as_ref().map(config_presets)),
             optional(graphics.as_ref().map(graphics_config)),
+            optional(unreal_config.as_ref().map(|value| format!("{PATH}::UnrealConfig {{ roots: {} }}", list(value.roots.iter().map(config_location).collect())))),
             list(targets.iter().map(target).collect()),
         )
     }
@@ -398,10 +400,7 @@ fn movie_slots(value: &MovieSlots) -> String {
 
 fn config_presets(value: &ConfigPresets) -> String {
     match value {
-        ConfigPresets::UnrealEngineIni { locations } => format!(
-            "{PATH}::ConfigPresets::UnrealEngineIni {{ locations: {} }}",
-            list(locations.iter().map(config_location).collect()),
-        ),
+        ConfigPresets::UnrealEngineIni {} => format!("{PATH}::ConfigPresets::UnrealEngineIni {{}}"),
     }
 }
 
@@ -419,6 +418,11 @@ fn graphics_config(value: &GraphicsConfig) -> String {
 
 fn config_location(value: &ConfigLocation) -> String {
     match value {
+        ConfigLocation::WindowsUserProfile { store, path } => format!(
+            "{PATH}::ConfigLocation::WindowsUserProfile {{ store: {}, path: {} }}",
+            storefront(*store),
+            texts(path),
+        ),
         ConfigLocation::WindowsLocalAppData { store, path } => format!(
             "{PATH}::ConfigLocation::WindowsLocalAppData {{ store: {}, path: {} }}",
             storefront(*store),

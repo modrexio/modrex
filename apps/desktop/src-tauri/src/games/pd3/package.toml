@@ -80,15 +80,18 @@ movie_replacement = {
     ],
 }
 
-config_presets = {
-    format = "unreal_engine_ini",
-    locations = [
+unreal_config = {
+    roots = [
         {
             root = "windows_local_app_data",
             store = "steam",
-            path = ["PAYDAY3", "Saved", "Config", "WindowsClient", "Engine.ini"],
+            path = ["PAYDAY3", "Saved", "Config"],
         },
     ],
+}
+
+config_presets = {
+    format = "unreal_engine_ini",
 }
 
 targets = [

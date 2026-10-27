@@ -106,6 +106,7 @@ fn a_discovered_spec_resolves_its_package() {
         assert_eq!(spec.movie_replacement, pkg.movie_replacement.as_ref());
         assert_eq!(spec.config_presets, pkg.config_presets.as_ref());
         assert_eq!(spec.graphics_config, pkg.graphics_config.as_ref());
+        assert_eq!(spec.unreal_config, pkg.unreal_config.as_ref());
 
         for store in &pkg.install.stores {
             match store {

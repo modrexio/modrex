@@ -501,7 +501,7 @@ fn config_presets_can_be_reviewed_without_movie_support() {
     let temp = tempfile::tempdir().unwrap();
     let path = temp.path().join("Engine.ini");
     fs::write(&path, b"[S]\nA=1\n").unwrap();
-    let config = ConfigPresets::UnrealEngineIni { locations: vec![] };
+    let config = ConfigPresets::UnrealEngineIni {};
     let no_movies = Err("Movie replacements are not supported".into());
     let (kind, verdict) = assess("Engine.ini", Some(&path), &no_movies, None, Some(&config));
     assert!(matches!(kind, ResourceEntryKind::Ini));
@@ -939,4 +939,234 @@ fn real_archives_keep_slot_names_validate_movies_and_reject_duplicate_presets() 
             );
         }
     }
+}
+
+fn relocation_fixture() -> (tempfile::TempDir, ResourceStore, PathBuf, PathBuf) {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().canonicalize().unwrap();
+    let old = root.join("WindowsClient/Engine.ini");
+    let new = root.join("Windows/Engine.ini");
+    fs::create_dir_all(old.parent().unwrap()).unwrap();
+    fs::create_dir_all(new.parent().unwrap()).unwrap();
+    fs::write(&old, b"[S]\nA=0\nOther=keep\n").unwrap();
+    fs::write(&new, b"[S]\nA=7\nNew=keep\n").unwrap();
+    let store = ResourceStore::at(root.join("recovery"));
+    let deployment = preset(&store, &old, b"[S]\nA=1\n");
+    apply_preset(
+        &store,
+        "pd3",
+        &store.load_manifest().unwrap(),
+        deployment,
+        None,
+    )
+    .unwrap();
+    (temp, store, old, new)
+}
+
+#[test]
+fn enabled_preset_relocation_restores_old_keys_and_recalculates_new_ownership() {
+    let (_temp, store, old, new) = relocation_fixture();
+    let before = store.load_manifest().unwrap();
+    let deployment = &before.deployments[0];
+    relocate_preset(&store, &before, deployment, &new).unwrap();
+    assert_eq!(fs::read(&old).unwrap(), b"[S]\nA=0\nOther=keep\n");
+    assert_eq!(fs::read(&new).unwrap(), b"[S]\nA=1\nNew=keep\n");
+    let after = store.load_manifest().unwrap();
+    assert_eq!(after.revision, before.revision + 1);
+    assert_eq!(after.deployments.len(), 1);
+    assert_eq!(after.deployments[0].id, deployment.id);
+    assert!(after.deployments[0].enabled);
+    assert_eq!(
+        preset_of(&after.deployments[0]).unwrap().source_sha256,
+        preset_of(deployment).unwrap().source_sha256
+    );
+    assert_eq!(after.ini_revisions.len(), before.ini_revisions.len() + 2);
+    release_preset(&store, "pd3", &after.deployments[0], false).unwrap();
+    assert_eq!(fs::read(&new).unwrap(), b"[S]\nA=7\nNew=keep\n");
+}
+
+#[test]
+fn disabled_preset_relocation_only_moves_the_record() {
+    let (_temp, store, old, new) = relocation_fixture();
+    let deployment = store.load_manifest().unwrap().deployments.remove(0);
+    release_preset(&store, "pd3", &deployment, false).unwrap();
+    let before = store.load_manifest().unwrap();
+    let old_bytes = fs::read(&old).unwrap();
+    let new_bytes = fs::read(&new).unwrap();
+    relocate_preset(&store, &before, &before.deployments[0], &new).unwrap();
+    let after = store.load_manifest().unwrap();
+    assert!(!after.deployments[0].enabled);
+    assert_eq!(
+        preset_of(&after.deployments[0]).unwrap().config_path,
+        new.to_string_lossy()
+    );
+    assert_eq!(after.ini_revisions.len(), before.ini_revisions.len());
+    assert_eq!(fs::read(old).unwrap(), old_bytes);
+    assert_eq!(fs::read(new).unwrap(), new_bytes);
+}
+
+#[test]
+fn relocation_refuses_external_edits_readonly_and_ambiguous_files_without_writes() {
+    for problem in [
+        "external",
+        "old_readonly",
+        "new_readonly",
+        "ambiguous",
+        "missing_source",
+    ] {
+        let (_temp, store, old, new) = relocation_fixture();
+        let before = store.load_manifest().unwrap();
+        let permissions = [&old, &new].map(|path| fs::metadata(path).unwrap().permissions());
+        match problem {
+            "external" => fs::write(&old, b"[S]\nA=99\nOther=keep\n").unwrap(),
+            "old_readonly" | "new_readonly" => {
+                let path = if problem == "old_readonly" {
+                    &old
+                } else {
+                    &new
+                };
+                let mut permissions = fs::metadata(path).unwrap().permissions();
+                permissions.set_readonly(true);
+                fs::set_permissions(path, permissions).unwrap();
+            }
+            "ambiguous" => fs::write(&new, b"[S]\nA=7\nA=8\n").unwrap(),
+            "missing_source" => fs::remove_file(
+                store.object_path(&preset_of(&before.deployments[0]).unwrap().source_sha256),
+            )
+            .unwrap(),
+            _ => unreachable!(),
+        }
+        let old_bytes = fs::read(&old).unwrap();
+        let new_bytes = fs::read(&new).unwrap();
+        assert!(
+            relocate_preset(&store, &before, &before.deployments[0], &new).is_err(),
+            "{problem}"
+        );
+        assert_eq!(
+            serde_json::to_vec(&store.load_manifest().unwrap()).unwrap(),
+            serde_json::to_vec(&before).unwrap(),
+            "{problem}"
+        );
+        assert_eq!(fs::read(&old).unwrap(), old_bytes, "{problem}");
+        assert_eq!(fs::read(&new).unwrap(), new_bytes, "{problem}");
+        for (path, permissions) in [&old, &new].into_iter().zip(permissions) {
+            fs::set_permissions(path, permissions).unwrap();
+        }
+    }
+}
+
+#[test]
+fn cross_path_catalog_update_keeps_ownership_until_both_files_commit() {
+    for blocked in [false, true] {
+        let (_temp, store, old, new) = relocation_fixture();
+        let before = store.load_manifest().unwrap();
+        let mut update = preset(&store, &new, b"[S]\nA=2\n");
+        update.id = "update".into();
+        update.game_path = before.deployments[0].game_path.clone();
+        update.canonical_game_path = before.deployments[0].canonical_game_path.clone();
+        if blocked {
+            fs::write(&old, b"[S]\nA=99\n").unwrap();
+        }
+        let staged = new.parent().unwrap().join("staged.ini");
+        fs::write(&staged, b"[S]\nA=2\n").unwrap();
+        let result = install_preset_from_staging(
+            &store,
+            update,
+            &staged,
+            Some(before.revision),
+            &live_content(&new).unwrap(),
+        );
+        if blocked {
+            assert!(result.is_err());
+            assert_eq!(
+                store.load_manifest().unwrap().deployments[0].id,
+                before.deployments[0].id
+            );
+            assert_eq!(fs::read(&new).unwrap(), b"[S]\nA=7\nNew=keep\n");
+            continue;
+        }
+        result.unwrap();
+        let after = store.load_manifest().unwrap();
+        assert_eq!(after.deployments.len(), 1);
+        assert_eq!(after.deployments[0].id, "update");
+        assert_eq!(fs::read(&old).unwrap(), b"[S]\nA=0\nOther=keep\n");
+        assert_eq!(fs::read(&new).unwrap(), b"[S]\nA=2\nNew=keep\n");
+    }
+}
+
+#[test]
+fn relocation_only_qualifies_sibling_platform_folders_inside_the_declared_root() {
+    let root = Path::new("Config");
+    let new = root.join("Windows/Engine.ini");
+    assert!(stale_platform_path(
+        &root.join("WindowsClient/Engine.ini"),
+        root,
+        &new
+    ));
+    assert!(!stale_platform_path(&new, root, &new));
+    assert!(!stale_platform_path(
+        Path::new("Picked/WindowsClient/Engine.ini"),
+        root,
+        &new
+    ));
+    assert!(!stale_platform_path(
+        &root.join("nested/WindowsClient/Engine.ini"),
+        root,
+        &new
+    ));
+}
+
+#[tokio::test]
+async fn running_game_prevents_the_relocation_transaction() {
+    let (_temp, store, old, new) = relocation_fixture();
+    let before = store.load_manifest().unwrap();
+    let old_bytes = fs::read(&old).unwrap();
+    let new_bytes = fs::read(&new).unwrap();
+    let locks = ResourceLocks::default();
+    let _guard = locks.acquire().await;
+    let result = require_game_idle(&locks, "pd3", None, true)
+        .and_then(|()| relocate_preset(&store, &before, &before.deployments[0], &new));
+    assert!(result.is_err());
+    assert_eq!(store.load_manifest().unwrap().revision, before.revision);
+    assert_eq!(fs::read(&old).unwrap(), old_bytes);
+    assert_eq!(fs::read(&new).unwrap(), new_bytes);
+}
+
+#[test]
+fn same_id_retry_relocates_before_duplicate_install_short_circuit() {
+    let (_temp, store, old, new) = relocation_fixture();
+    let before = store.load_manifest().unwrap();
+    let mut retry = before.deployments[0].clone();
+    if let DeploymentBody::Ini { preset } = &mut retry.body {
+        preset.config_path = new.to_string_lossy().into_owned();
+    }
+    let staged = new.parent().unwrap().join("source.ini");
+    fs::write(&staged, b"[S]\nA=1\n").unwrap();
+    install_preset_from_staging(
+        &store,
+        retry,
+        &staged,
+        Some(before.revision),
+        &live_content(&new).unwrap(),
+    )
+    .unwrap();
+    let after = store.load_manifest().unwrap();
+    assert_eq!(after.deployments.len(), 1);
+    assert_eq!(
+        preset_of(&after.deployments[0]).unwrap().config_path,
+        new.to_string_lossy()
+    );
+    assert_eq!(fs::read(old).unwrap(), b"[S]\nA=0\nOther=keep\n");
+}
+
+#[cfg(unix)]
+#[test]
+fn hardlinked_engine_ini_is_not_a_valid_destination() {
+    let temp = tempfile::tempdir().unwrap();
+    let path = temp.path().join("Engine.ini");
+    fs::write(&path, "").unwrap();
+    fs::hard_link(&path, temp.path().join("alias.ini")).unwrap();
+    assert!(validate_engine_ini(&path)
+        .unwrap_err()
+        .contains("hard-linked"));
 }

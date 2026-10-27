@@ -591,7 +591,8 @@ fn with_root_declaration(declaration: &str) -> String {
 const MOVIES: &str = r#"movie_replacement = { format = "bink", directory = ["Content", "Movies"], storefronts = ["steam"], absent_slots = [{ store = "steam", filenames = ["Intro.bk2"] }] }"#;
 const MP4_MOVIES: &str = r#"movie_replacement = { format = "mp4", directory = ["Content", "Movies"], storefronts = ["steam"], absent_slots = [{ store = "steam", filenames = ["Intro.mp4"] }] }"#;
 const CONFIGS: &str = r#"config_presets = { format = "unreal_engine_ini" }"#;
-const CONFIG_LOCATION: &str = r#"config_presets = { format = "unreal_engine_ini", locations = [{ root = "windows_local_app_data", store = "steam", path = ["Fixture", "Saved", "Engine.ini"] }] }"#;
+const CONFIG_LOCATION: &str = r#"config_presets = { format = "unreal_engine_ini" }
+unreal_config = { roots = [{ root = "windows_local_app_data", store = "steam", path = ["Fixture", "Saved", "Config"] }] }"#;
 const GRAPHICS: &str = r#"graphics_config = { filename = "renderer_settings.xml" }"#;
 const GRAPHICS_LOCATION: &str = r#"graphics_config = { filename = "renderer_settings.xml", locations = [{ root = "windows_local_app_data", store = "steam", path = ["Fixture", "renderer_settings.xml"] }] }"#;
 
@@ -704,10 +705,12 @@ fn movie_declarations_reject_unsafe_destinations_and_unverified_store_slots() {
 fn config_locations_are_verified_relative_paths_for_a_declared_store() {
     for (declaration, expected) in [
         (CONFIG_LOCATION.replace(r#"store = "steam""#, r#"store = "epic""#), "install does not list"),
-        (CONFIG_LOCATION.replace(r#"["Fixture", "Saved", "Engine.ini"]"#, "[]"), "empty path"),
+        (CONFIG_LOCATION.replace(r#"["Fixture", "Saved", "Config"]"#, "[]"), "empty path"),
         (CONFIG_LOCATION.replace("Fixture", ".."), "plain relative"),
-        (CONFIG_LOCATION.replace("Engine.ini", "UserSettings.ini"), "must end in Engine.ini"),
-        (CONFIG_LOCATION.replace(r#"locations = [{"#, r#"locations = [{ root = "windows_local_app_data", store = "steam", path = ["Engine.ini"] }, {"#), "twice"),
+        ("unreal_config = { roots = [] }".into(), "no roots"),
+        (format!("{CONFIG_LOCATION}\n{GRAPHICS_LOCATION}"), "cannot coexist"),
+        (r#"config_presets = { format = "unreal_engine_ini", locations = [] }"#.into(), "unknown field"),
+        (CONFIG_LOCATION.replace(r#"roots = [{"#, r#"roots = [{ root = "windows_user_profile", store = "steam", path = ["Config"] }, {"#), "twice"),
     ] {
         assert_rejected(&with_root_declaration(&declaration), expected);
     }

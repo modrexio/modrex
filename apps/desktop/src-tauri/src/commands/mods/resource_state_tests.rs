@@ -508,3 +508,52 @@ fn transaction_rolls_back_when_manifest_commit_is_invalid() {
     assert_eq!(fs::read(&path).unwrap(), b"old");
     assert!(!store.has_pending("pd3").unwrap());
 }
+
+#[test]
+fn interrupted_two_path_preset_relocation_recovers_both_files_before_commit() {
+    for completed in [1, 2] {
+        let temp = tempfile::tempdir().unwrap();
+        let store = ResourceStore::at(temp.path().join("recovery"));
+        let root = temp.path().canonicalize().unwrap();
+        let old = root.join("WindowsClient/Engine.ini");
+        let new = root.join("Windows/Engine.ini");
+        fs::create_dir_all(old.parent().unwrap()).unwrap();
+        fs::create_dir_all(new.parent().unwrap()).unwrap();
+        fs::write(&old, b"[S]\nA=1\n").unwrap();
+        fs::write(&new, b"[S]\nA=7\n").unwrap();
+        let steps = vec![
+            Step {
+                destination: old.clone(),
+                before: store.capture(&old).unwrap(),
+                after: store.put_bytes(b"[S]\nA=0\n").unwrap(),
+            },
+            Step {
+                destination: new.clone(),
+                before: store.capture(&new).unwrap(),
+                after: store.put_bytes(b"[S]\nA=1\n").unwrap(),
+            },
+        ];
+        let journal = Journal {
+            version: MANIFEST_VERSION,
+            id: "relocation".into(),
+            game_id: "pd3".into(),
+            revision_after: 1,
+            steps: steps.clone(),
+            decision: RecoveryDecision::Rollback,
+        };
+        write_atomic(
+            &store.journal_dir().join("relocation.json"),
+            &serde_json::to_vec(&journal).unwrap(),
+        )
+        .unwrap();
+        for step in &steps[..completed] {
+            store.commit_step(step).unwrap();
+        }
+        let restarted = ResourceStore::at(store.root.clone());
+        restarted.recover("pd3").unwrap();
+        assert_eq!(fs::read(old).unwrap(), b"[S]\nA=1\n");
+        assert_eq!(fs::read(new).unwrap(), b"[S]\nA=7\n");
+        assert!(!restarted.has_pending("pd3").unwrap());
+        assert_eq!(restarted.load_manifest().unwrap().revision, 0);
+    }
+}

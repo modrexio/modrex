@@ -181,7 +181,8 @@ pub fn markdown(examples: &[(&str, &str)]) -> String {
          | `decoders` | no | container formats to unpack before install |\n\
          | `package_reader` | no | how to read the game's own packages so a mod's assets can be listed |\n\
          | `movie_replacement` | no | replacement movie slots in a declared game folder |\n\
-         | `config_presets` | no | config preset syntax and verified automatic locations |\n\
+         | `config_presets` | no | config preset syntax |\n\
+         | `unreal_config` | no | shared Unreal configuration roots for verified stores |\n\
          | `graphics_config` | no | one graphics config file the user can open in an external application |\n\
          | `targets` | yes | the places mods are installed |\n\n\
          Components are values, not table headers. A repeated component is a list of objects,\n\
@@ -318,20 +319,31 @@ pub fn markdown(examples: &[(&str, &str)]) -> String {
     );
     out.push_str(
         "\n## `config_presets`\n\n\
-         Independent of movie replacement. An empty or omitted `locations` list means the user\n\
-         chooses the config file or its folder for the selected installation.\n\n\
-         | Format | Fields |\n| --- | --- |\n",
-    );
-    out.push_str(&row("unreal_engine_ini", "optional `locations`"));
-    out.push_str(
-        "\nThis mechanism merges unambiguous scalar assignments into `Engine.ini`. Repeated\n\
-         assignments and Unreal array operators require manual editing. It does not claim\n\
-         support for other INI dialects or config formats.\n\n\
-         Each location names a `root`, a declared `store` and relative `path` components ending\n\
-         in `Engine.ini`. Only one Windows location may be declared for each store.\n\n\
+         Independent of movie replacement. The `unreal_engine_ini` format has no other fields.\n\
+         It merges unambiguous scalar assignments into `Engine.ini`. Repeated assignments and\n\
+         Unreal array operators require manual editing. Other INI dialects are unsupported.\n\n\
+         ## `unreal_config`\n\n\
+         Shared by config presets and graphics config access. `roots` is a nonempty list of\n\
+         objects with a `root`, a declared `store`, and safe relative `path` components naming\n\
+         the folder above Unreal platform folders. Only one root may be declared per store.\n\
+         A package cannot also declare fixed graphics config locations.\n\n\
          | Root | Meaning |\n| --- | --- |\n",
     );
-    out.push_str(&row("windows_local_app_data", "Windows Local AppData, resolved by the host's Known Folder API. This location applies only on Windows"));
+    out.push_str(&row(
+        "windows_local_app_data",
+        "Windows Local AppData, resolved by the host's Known Folder API",
+    ));
+    out.push_str(&row(
+        "windows_user_profile",
+        "Windows user profile, resolved from USERPROFILE",
+    ));
+    out.push_str(
+        "\nRoots apply only on Windows. The host inspects immediate folders for regular\n\
+         `GameUserSettings.ini` files and uses the newest modification time. An exact tie or\n\
+         no marker requires a manual choice. Discovery never creates platform folders.\n\
+         Stores without a declared root require a manual choice. A choice is remembered per\n\
+         physical install and store only when automatic discovery has no answer.\n",
+    );
 
     out.push_str(
         "\n## `graphics_config`\n\n\
@@ -339,10 +351,10 @@ pub fn markdown(examples: &[(&str, &str)]) -> String {
          preset installation or parse the file's contents.\n\n\
          | Field | Required | Meaning |\n| --- | --- | --- |\n\
          | `filename` | yes | the single permitted filename, without a directory or path prefix |\n\
-         | `locations` | no | verified automatic locations, using the roots documented under `config_presets` |\n\n\
+         | `locations` | no | verified automatic locations, using `windows_local_app_data` roots |\n\n\
          Each location names a declared `store` and relative `path` components ending in\n\
          `filename`. Only one Windows location may be declared for each store. An empty or omitted\n\
-         list requires the user to choose the file. Finding the file does not prove\n\
+         list uses `unreal_config` when declared, otherwise the user chooses the file. Finding the file does not prove\n\
          that it is the game's active configuration.\n",
     );
 
