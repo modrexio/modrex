@@ -72,6 +72,10 @@ config_presets = {
     format = "unreal_engine_ini",
 }
 
+graphics_config = {
+    filename = "GameUserSettings.ini",
+}
+
 targets = [
     {
         tag = "mods",
