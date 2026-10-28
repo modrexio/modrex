@@ -1,100 +1,10 @@
-use super::resources::{picked_directory, InstallContext};
+use super::resources::{declared_config_path, picked_directory, InstallContext};
 use crate::commands::games::game_spec;
-use crate::commands::settings::{
-    game_settings, read_settings_fallible, update_settings_fallible, ConfigDirectory,
-};
-use crate::game_package::ConfigLocation;
+use crate::commands::settings::{game_settings, read_settings, update_settings, ConfigDirectory};
 use std::path::{Path, PathBuf};
 use tauri::AppHandle;
 
-pub(super) fn declared_config_path(
-    locations: &[ConfigLocation],
-    launcher: Option<&str>,
-) -> Result<Option<PathBuf>, String> {
-    #[cfg(windows)]
-    {
-        let Some(location) = locations.iter().find(|location| {
-            let (ConfigLocation::WindowsLocalAppData { store, .. }
-            | ConfigLocation::WindowsUserProfile { store, .. }) = location;
-            launcher == Some(store.provider())
-        }) else {
-            return Ok(None);
-        };
-        let (root, path) = match location {
-            ConfigLocation::WindowsLocalAppData { path, .. } => (local_app_data()?, path),
-            ConfigLocation::WindowsUserProfile { path, .. } => {
-                let root = std::env::var_os("USERPROFILE")
-                    .filter(|value| !value.is_empty())
-                    .ok_or("Windows user profile is unavailable")?;
-                let root = PathBuf::from(root);
-                if !root.is_absolute() {
-                    return Err("Windows user profile is not an absolute path".into());
-                }
-                (root, path)
-            }
-        };
-        Ok(Some(path.iter().fold(root, |directory, component| {
-            directory.join(component)
-        })))
-    }
-    #[cfg(not(windows))]
-    {
-        let _ = (locations, launcher);
-        Ok(None)
-    }
-}
-
-#[cfg(windows)]
-fn local_app_data() -> Result<PathBuf, String> {
-    use std::os::windows::ffi::OsStringExt;
-    #[repr(C)]
-    struct Guid {
-        data1: u32,
-        data2: u16,
-        data3: u16,
-        data4: [u8; 8],
-    }
-    #[link(name = "shell32")]
-    extern "system" {
-        fn SHGetKnownFolderPath(
-            id: *const Guid,
-            flags: u32,
-            token: *mut std::ffi::c_void,
-            path: *mut *mut u16,
-        ) -> i32;
-    }
-    #[link(name = "ole32")]
-    extern "system" {
-        fn CoTaskMemFree(memory: *mut std::ffi::c_void);
-    }
-    let id = Guid {
-        data1: 0xf1b32785,
-        data2: 0x6fba,
-        data3: 0x4fcf,
-        data4: [0x9d, 0x55, 0x7b, 0x8e, 0x7f, 0x15, 0x70, 0x91],
-    };
-    let mut pointer = std::ptr::null_mut();
-    let result = unsafe { SHGetKnownFolderPath(&id, 0, std::ptr::null_mut(), &mut pointer) };
-    if result < 0 {
-        unsafe {
-            CoTaskMemFree(pointer.cast());
-        }
-        return Err(format!(
-            "Windows could not resolve Local AppData: {result:#x}"
-        ));
-    }
-    let mut length = 0;
-    unsafe {
-        while *pointer.add(length) != 0 {
-            length += 1;
-        }
-        let path = std::ffi::OsString::from_wide(std::slice::from_raw_parts(pointer, length));
-        CoTaskMemFree(pointer.cast());
-        Ok(PathBuf::from(path))
-    }
-}
-
-pub(super) fn declared_root(
+pub(super) fn automatic_directory(
     game_id: &str,
     launcher: Option<&str>,
 ) -> Result<Option<PathBuf>, String> {
@@ -102,17 +12,10 @@ pub(super) fn declared_root(
     let Some(config) = spec.unreal_config else {
         return Ok(None);
     };
-    declared_config_path(&config.roots, launcher)
-}
-
-pub(super) fn automatic_directory(
-    game_id: &str,
-    launcher: Option<&str>,
-) -> Result<Option<PathBuf>, String> {
-    declared_root(game_id, launcher)?
-        .map(|root| discover(&root))
-        .transpose()
-        .map(Option::flatten)
+    let Some(root) = declared_config_path(&config.roots, launcher)? else {
+        return Ok(None);
+    };
+    discover(&root)
 }
 
 pub(super) fn directory(
@@ -123,7 +26,7 @@ pub(super) fn directory(
         picked_directory(app, ctx),
         || automatic_directory(&ctx.game_id, ctx.launcher.as_deref()),
         || {
-            let settings = read_settings_fallible(app)?;
+            let settings = read_settings(app);
             Ok(game_settings(&settings, &ctx.game_id).and_then(|settings| {
                 settings
                     .config_directories
@@ -144,7 +47,7 @@ fn select_directory(
     remembered: impl FnOnce() -> Result<Option<PathBuf>, String>,
 ) -> Result<Option<(PathBuf, bool)>, String> {
     if let Some(path) = session {
-        return Ok(Some((validate_directory(&path)?, true)));
+        return Ok(Some((path, true)));
     }
     if let Some(path) = automatic()? {
         return Ok(Some((path, false)));
@@ -159,28 +62,20 @@ pub(super) fn persist_pick(
     ctx: &InstallContext,
     directory: &Path,
 ) -> Result<(), String> {
-    update_settings_fallible(app, |settings| {
+    let Some(pick) = persistent_pick(
+        ctx,
+        directory,
+        automatic_directory(&ctx.game_id, ctx.launcher.as_deref())?,
+    ) else {
+        return Ok(());
+    };
+    update_settings(app, |settings| {
         let game = game_settings(settings, &ctx.game_id)
             .ok_or("The game install is no longer configured")?;
-        let canonical = Path::new(
-            game.game_path
-                .as_ref()
-                .ok_or("The game folder is no longer configured")?,
-        )
-        .canonicalize()
-        .map_err(|error| format!("Could not resolve the game folder: {error}"))?;
-        if canonical != Path::new(&ctx.canonical_game_path)
-            || game.launcher != ctx.launcher
-            || game.game_path.as_deref() != Some(&ctx.game_path)
-        {
+        if game.launcher != ctx.launcher || game.game_path.as_deref() != Some(&ctx.game_path) {
             return Err(
                 "The selected game install or store changed. Choose the configuration again".into(),
             );
-        }
-        // A pick outlives the session only where discovery has no answer, so a saved pick
-        // can never hold an install on a platform folder the engine has since abandoned.
-        if automatic_directory(&ctx.game_id, ctx.launcher.as_deref())?.is_some() {
-            return Ok(());
         }
         let game = settings
             .games
@@ -188,20 +83,27 @@ pub(super) fn persist_pick(
             .expect("configured game map")
             .get_mut(&ctx.game_id)
             .expect("configured game");
-        save_pick(&mut game.config_directories, ctx, directory);
+        game.config_directories.retain(|saved| {
+            saved.canonical_game_path != pick.canonical_game_path || saved.launcher != pick.launcher
+        });
+        game.config_directories.push(pick);
         Ok(())
     })
 }
 
-fn save_pick(picks: &mut Vec<ConfigDirectory>, ctx: &InstallContext, directory: &Path) {
-    picks.retain(|picked| {
-        picked.canonical_game_path != ctx.canonical_game_path || picked.launcher != ctx.launcher
-    });
-    picks.push(ConfigDirectory {
+fn persistent_pick(
+    ctx: &InstallContext,
+    directory: &Path,
+    automatic: Option<PathBuf>,
+) -> Option<ConfigDirectory> {
+    if automatic.is_some() {
+        return None;
+    }
+    Some(ConfigDirectory {
         canonical_game_path: ctx.canonical_game_path.clone(),
         launcher: ctx.launcher.clone(),
         directory: directory.to_string_lossy().into_owned(),
-    });
+    })
 }
 
 fn validate_directory(path: &Path) -> Result<PathBuf, String> {
@@ -214,16 +116,7 @@ fn validate_directory(path: &Path) -> Result<PathBuf, String> {
     if !metadata.is_dir() {
         return Err(format!("{} is not a configuration folder", path.display()));
     }
-    let canonical = path
-        .canonicalize()
-        .map_err(|error| format!("Could not resolve {}: {error}", path.display()))?;
-    if canonical != path {
-        return Err(format!(
-            "{} now resolves somewhere else. Choose it again",
-            path.display()
-        ));
-    }
-    Ok(canonical)
+    Ok(path.to_path_buf())
 }
 
 fn refuse_link(path: &Path, metadata: &std::fs::Metadata) -> Result<(), String> {
@@ -240,7 +133,7 @@ fn refuse_link(path: &Path, metadata: &std::fs::Metadata) -> Result<(), String> 
     Ok(())
 }
 
-// Only the game-written marker identifies a platform folder. Folder names are not stable.
+// Discovery tests enforce game-written markers instead of platform folder names.
 pub(super) fn discover(root: &Path) -> Result<Option<PathBuf>, String> {
     let metadata = match std::fs::symlink_metadata(root) {
         Ok(metadata) => metadata,
@@ -293,7 +186,7 @@ pub(super) fn discover(root: &Path) -> Result<Option<PathBuf>, String> {
             Some(_) => {}
         }
     }
-    selected.map(|path| validate_directory(&path)).transpose()
+    Ok(selected)
 }
 
 #[cfg(test)]

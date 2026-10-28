@@ -1,4 +1,5 @@
 use super::*;
+use crate::game_package::ConfigLocation;
 use filetime::{set_file_mtime, FileTime};
 
 fn marker(root: &Path, name: &str, seconds: i64) -> PathBuf {
@@ -31,6 +32,7 @@ fn newest_marker_wins_and_is_resolved_again_without_platform_names() {
 fn ties_and_missing_markers_have_no_automatic_answer() {
     let temp = tempfile::tempdir().unwrap();
     assert_eq!(discover(temp.path()).unwrap(), None);
+    marker(temp.path(), "Nested/Platform", 500);
     std::fs::create_dir(temp.path().join("Windows")).unwrap();
     std::fs::write(temp.path().join("Windows/Engine.ini"), "").unwrap();
     assert_eq!(discover(temp.path()).unwrap(), None);
@@ -51,10 +53,10 @@ fn malformed_roots_and_markers_surface_errors() {
 }
 
 #[test]
-fn wrong_store_has_no_declared_root() {
-    assert_eq!(declared_root("pd3", Some("epic")).unwrap(), None);
-    assert_eq!(declared_root("pd3", Some("xbox")).unwrap(), None);
-    assert_eq!(declared_root("cb", Some("epic")).unwrap(), None);
+fn wrong_store_has_no_automatic_directory() {
+    assert_eq!(automatic_directory("pd3", Some("epic")).unwrap(), None);
+    assert_eq!(automatic_directory("pd3", Some("xbox")).unwrap(), None);
+    assert_eq!(automatic_directory("cb", Some("epic")).unwrap(), None);
     let root = game_spec("cb").unwrap().unreal_config.unwrap();
     assert!(
         matches!(&root.roots[0], ConfigLocation::WindowsUserProfile { path, .. }
@@ -102,7 +104,7 @@ fn linked_marker_is_refused_even_when_another_marker_is_valid() {
 }
 
 #[test]
-fn persisted_picks_keep_separate_installs_and_stores() {
+fn picks_persist_only_without_an_automatic_answer_and_bind_to_install_and_store() {
     let temp = tempfile::tempdir().unwrap();
     let directory = marker(temp.path(), "Windows", 100);
     let mut context = InstallContext {
@@ -111,19 +113,15 @@ fn persisted_picks_keep_separate_installs_and_stores() {
         canonical_game_path: "first".into(),
         launcher: Some("epic".into()),
     };
-    let mut picks = Vec::new();
-    save_pick(&mut picks, &context, &directory);
+    assert!(persistent_pick(&context, &directory, Some(directory.clone())).is_none());
+    let first = persistent_pick(&context, &directory, None).unwrap();
     context.launcher = Some("xbox".into());
-    save_pick(&mut picks, &context, &directory);
+    let other_store = persistent_pick(&context, &directory, None).unwrap();
     context.canonical_game_path = "second".into();
-    save_pick(&mut picks, &context, &directory);
-    save_pick(&mut picks, &context, &directory);
-    assert_eq!(picks.len(), 3);
-    let encoded = serde_json::to_vec(&picks).unwrap();
-    assert_eq!(
-        serde_json::from_slice::<Vec<ConfigDirectory>>(&encoded).unwrap(),
-        picks
-    );
+    let other_install = persistent_pick(&context, &directory, None).unwrap();
+    assert_ne!(first, other_store);
+    assert_ne!(other_store, other_install);
+    assert_eq!(other_install.directory, directory.to_string_lossy());
 }
 
 #[test]
@@ -159,14 +157,6 @@ fn session_pick_overrides_automatic_and_persisted_pick_only_applies_without_an_a
         || panic!("errors must surface")
     )
     .is_err());
-}
-
-#[test]
-fn crime_boss_redirected_root_discovers_the_game_written_platform_folder() {
-    let temp = tempfile::tempdir().unwrap();
-    let root = temp.path().join("Saved Games/CrimeBoss/Steam/Saved/Config");
-    let platform = marker(&root, "WindowsNoEditor", 100);
-    assert_eq!(discover(&root).unwrap(), Some(platform));
 }
 
 #[test]

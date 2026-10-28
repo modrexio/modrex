@@ -1,7 +1,8 @@
 use super::resources::{
-    blocking, current_context, require_context, ConfigFileLocation, InstallContext,
+    blocking, current_context, declared_config_path, require_context, ConfigFileLocation,
+    InstallContext,
 };
-use super::unreal_config::{self, declared_config_path};
+use super::unreal_config;
 use crate::commands::games::game_spec;
 use crate::commands::path_display::display_path;
 use crate::game_package::GraphicsConfig;

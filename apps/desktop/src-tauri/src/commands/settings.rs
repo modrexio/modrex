@@ -258,51 +258,6 @@ pub fn read_settings(app: &AppHandle) -> Settings {
     migrate_settings(s)
 }
 
-pub(crate) fn read_settings_fallible(app: &AppHandle) -> Result<Settings, String> {
-    read_settings_at(&settings_path(app))
-}
-
-fn read_settings_at(path: &std::path::Path) -> Result<Settings, String> {
-    let content = match std::fs::read_to_string(path) {
-        Ok(content) => content,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-            return Ok(Settings::default())
-        }
-        Err(error) => return Err(format!("Could not read settings: {error}")),
-    };
-    let mut settings = serde_json::from_str(&content)
-        .map_err(|error| format!("Could not parse settings: {error}"))?;
-    recover_legacy_analytics_consent(&mut settings, &content);
-    Ok(migrate_settings(settings))
-}
-
-fn write_settings_at(path: &std::path::Path, settings: &Settings) -> Result<(), String> {
-    let bytes = serde_json::to_vec_pretty(settings)
-        .map_err(|error| format!("Could not serialize settings: {error}"))?;
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)
-            .map_err(|error| format!("Could not create the settings folder: {error}"))?;
-    }
-    let temporary = path.with_extension("json.tmp");
-    std::fs::write(&temporary, bytes)
-        .map_err(|error| format!("Could not save settings: {error}"))?;
-    std::fs::rename(&temporary, path)
-        .map_err(|error| format!("Could not replace settings: {error}"))
-}
-
-pub(crate) fn update_settings_fallible<T>(
-    app: &AppHandle,
-    mutate: impl FnOnce(&mut Settings) -> Result<T, String>,
-) -> Result<T, String> {
-    let _guard = SETTINGS_LOCK
-        .lock()
-        .unwrap_or_else(|error| error.into_inner());
-    let mut settings = read_settings_fallible(app)?;
-    let result = mutate(&mut settings)?;
-    write_settings_at(&settings_path(app), &settings)?;
-    Ok(result)
-}
-
 /// analytics_consent_asked is absent (and so defaults to false) in every settings.json
 /// written before it existed. Without this recovery, a user who already answered the
 /// consent dialog (recorded there as an explicit true or false, not the null that meant

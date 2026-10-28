@@ -309,39 +309,3 @@ fn recover_legacy_analytics_consent_noop_when_key_absent() {
     recover_legacy_analytics_consent(&mut s, json);
     assert!(!s.analytics_consent_asked);
 }
-
-#[test]
-fn config_directory_settings_round_trip_and_preserve_other_preferences() {
-    let temp = tempfile::tempdir().unwrap();
-    let path = temp.path().join("settings.json");
-    let mut settings = read_settings_at(&path).unwrap();
-    settings.analytics_consent_asked = true;
-    let mut game = GameSettings {
-        launcher: Some("epic".into()),
-        ..GameSettings::default()
-    };
-    game.config_directories.push(ConfigDirectory {
-        canonical_game_path: "install".into(),
-        launcher: Some("epic".into()),
-        directory: "config".into(),
-    });
-    settings.games = Some(HashMap::from([("pd3".into(), game)]));
-    write_settings_at(&path, &settings).unwrap();
-    let restored = read_settings_at(&path).unwrap();
-    assert!(restored.analytics_consent_asked);
-    assert_eq!(
-        game_settings(&restored, "pd3").unwrap().config_directories,
-        game_settings(&settings, "pd3").unwrap().config_directories
-    );
-    assert!(
-        serde_json::from_str::<GameSettings>(r#"{"gamePath":null,"launcher":null}"#)
-            .unwrap()
-            .config_directories
-            .is_empty()
-    );
-    std::fs::write(&path, "broken").unwrap();
-    assert!(read_settings_at(&path).is_err());
-    let blocking = temp.path().join("not_a_folder");
-    std::fs::write(&blocking, "").unwrap();
-    assert!(write_settings_at(&blocking.join("settings.json"), &settings).is_err());
-}
