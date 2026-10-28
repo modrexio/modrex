@@ -1,0 +1,8 @@
+p5.js 2.3.4, used by the animations in the homepage side margins.
+
+Distributed unchanged from the p5 npm package, bundled by the site build.
+https://www.npmjs.com/package/p5/v/2.3.4
+Source: https://github.com/processing/p5.js/tree/v2.3.4
+
+Copyright the p5.js contributors and the Processing Foundation.
+Licensed under the GNU Lesser General Public License 2.1, included in LGPL-2.1.txt.

@@ -1,0 +1,36 @@
+<script>
+    import modRoute from '../lib/sketches/mod-route'
+    import archiveUnpack from '../lib/sketches/archive-unpack'
+
+    // Both sketches draw only when each gutter beside the 1376px content is at least 205px,
+    // so narrower screens never download p5.
+    const wide = window.matchMedia('(min-width: 1786px)')
+
+    async function start() {
+        const { default: P5 } = await import('p5')
+        // The beginner error checks validate every drawing call, which costs more than the drawing.
+        // p5 reads this flag from the class, but its types only declare it on instances.
+        Object.assign(P5, { disableFriendlyErrors: true })
+
+        new P5(modRoute)
+        new P5(archiveUnpack)
+    }
+
+    function startWhenWide() {
+        if (!wide.matches) return
+
+        wide.removeEventListener('change', startWhenWide)
+        start().catch((error: unknown) => {
+            console.error('Failed to start the gutter sketches', error)
+        })
+    }
+
+    window.addEventListener(
+        'load',
+        () => {
+            wide.addEventListener('change', startWhenWide)
+            startWhenWide()
+        },
+        { once: true }
+    )
+</script>
