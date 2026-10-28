@@ -16,10 +16,12 @@ jobs:
     refresh:
         runs-on: ubuntu-latest
         steps:
+            # The main ruleset exempts this deploy key, because it cannot exempt the workflow token.
             - uses: actions/checkout@v7
               with:
                   ref: main
                   fetch-depth: 0
+                  ssh-key: ${{ secrets.MAIN_PUSH_KEY }}
 
             - run: rustup install --no-self-update
 
