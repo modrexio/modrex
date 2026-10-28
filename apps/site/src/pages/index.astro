@@ -8,7 +8,6 @@ import Compare from '../components/Compare.astro'
 import DownloadSection from '../components/DownloadSection.astro'
 import Changelog from '../components/Changelog.astro'
 import SiteFooter from '../components/SiteFooter.astro'
-import GutterSketches from '../components/GutterSketches.astro'
 import { getLatestRelease, getRecentReleases } from '../lib/github'
 import type { Release } from '../lib/github'
 import { getModIndexStats } from '../lib/mod-index'
@@ -84,5 +83,4 @@ const jsonLd = {
     <DownloadSection release={release} />
     <Changelog releases={recentReleases} />
     <SiteFooter />
-    <GutterSketches />
 </BaseLayout>

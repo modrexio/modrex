@@ -2,14 +2,7 @@ import type p5 from 'p5'
 
 type Point = { x: number; y: number }
 
-export default function archiveUnpack(p: p5) {
-    const CFG = {
-        contentWidth: 1376,
-        minGutter: 205,
-        side: 'right',
-        anchors: ['#features', '#compare'],
-    }
-
+export default function archiveUnpack(p: p5, card: HTMLElement) {
     const C = {
         bg: '#131313',
         panel: '#201B17',
@@ -34,9 +27,6 @@ export default function archiveUnpack(p: p5) {
         return n * n * (3 - 2 * n)
     }
 
-    // Each canvas covers only its own margin, so the browser repaints a strip, not the window.
-    const gutterWidth = () => Math.max(1, (p.windowWidth - CFG.contentWidth) / 2)
-
     let canvas: p5.Element
     let value = 0,
         target = 0,
@@ -53,17 +43,11 @@ export default function archiveUnpack(p: p5) {
         reduced = preference.matches
 
         p.pixelDensity(Math.min(window.devicePixelRatio || 1, 2))
-        canvas = p.createCanvas(gutterWidth(), p.windowHeight)
+        canvas = p.createCanvas(card.clientWidth, card.clientHeight)
         p.frameRate(30)
         p.strokeJoin(p.ROUND)
         p.strokeCap(p.ROUND)
         canvas.style('display', 'block')
-        canvas.style('position', 'fixed')
-        canvas.style('top', '0')
-        canvas.style(CFG.side, '0')
-        canvas.style('pointer-events', 'none')
-        canvas.style('z-index', '1')
-        canvas.attribute('aria-hidden', 'true')
 
         window.addEventListener(
             'pointermove',
@@ -104,19 +88,13 @@ export default function archiveUnpack(p: p5) {
 
         p.clear()
 
-        if (p.width < CFG.minGutter) {
-            return
-        }
-
         target = scrollProgress()
 
         value = reduced ? target : mix(value, target, 1 - Math.exp(-dt * 12))
 
-        const gutter = p.width
+        const s = Math.min((p.width - 24) / 420, (p.height - 70) / 620, 0.8)
 
-        const s = Math.min((gutter - 24) / 420, (p.height - 70) / 620, 0.8)
-
-        const x = (gutter - 420 * s) / 2
+        const x = (p.width - 420 * s) / 2
 
         const y = (p.height - 620 * s) / 2
 
@@ -151,27 +129,12 @@ export default function archiveUnpack(p: p5) {
         p.pop()
     }
 
+    // The card scrolls with the page, so progress follows its center from 85% to 25% of the screen.
     function scrollProgress() {
-        const elements = CFG.anchors
-            .map((s) => document.querySelector(s))
-            .filter((el): el is Element => el !== null)
+        const r = canvas.elt.getBoundingClientRect()
+        const center = r.top + r.height / 2
 
-        if (elements.length > 1) {
-            const f = p.height * 0.4
-
-            for (let i = 0; i < elements.length - 1; i++) {
-                const a = elements[i]!.getBoundingClientRect().top
-                const b = elements[i + 1]!.getBoundingClientRect().top
-
-                if (b > f) {
-                    return clamp((i + clamp((f - a) / Math.max(1, b - a))) / (elements.length - 1))
-                }
-            }
-
-            return 1
-        }
-
-        return clamp(window.scrollY / Math.max(1, document.documentElement.scrollHeight - p.height))
+        return clamp((window.innerHeight * 0.85 - center) / (window.innerHeight * 0.6))
     }
 
     function plate(
@@ -300,5 +263,5 @@ export default function archiveUnpack(p: p5) {
         p.circle(mix(344, 374, ready), 582, 18)
     }
 
-    p.windowResized = () => p.resizeCanvas(gutterWidth(), p.windowHeight)
+    p.windowResized = () => p.resizeCanvas(card.clientWidth, card.clientHeight)
 }

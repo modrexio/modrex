@@ -151,9 +151,9 @@ with a `sizes` value scaled to match. Re-check the rectangles whenever the scree
 
 `public/icons/` contains SVG icons for platforms (`windows`, `linux`) and launchers (`steam`, `epicgames`, `xbox`) in normal and `-white` variants (e.g. `steam-white.svg`). Use the `-white` variants in the dark-only UI. In MDX files, always use self-closing `<img />` — bare `<img>` causes an MDX parse error.
 
-### Gutter sketches
+### Feature sketches
 
-`src/lib/sketches/` holds p5.js sketches written by the project's designer, drawn on fixed canvases in the homepage side margins and driven by scroll. Keep each file's structure as the designer wrote it (CFG, palette, helpers, setup/draw, artwork) so a new export from the p5 editor can be diffed against it; only typing and site integration differ. `GutterSketches.astro` imports p5 lazily, only on viewports wide enough for the margins.
+`src/lib/sketches/` holds p5.js sketches written by the project's designer. `Sketch.astro` renders each one into a card that is a row in `Features.astro`, and the sketch's progress follows that card through the viewport. Keep each file's structure as the designer wrote it (palette, helpers, setup/draw, artwork) so a new export from the p5 editor can be diffed against it; only typing and site integration differ. p5 is imported lazily when a card nears the viewport.
 
 p5 is LGPL-2.1. It must stay an unmodified npm dependency loaded as its own chunk, never patched in this repo or merged into a site bundle, and `public/licenses/p5/` must name the shipped version.
 

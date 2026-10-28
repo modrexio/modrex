@@ -1,4 +1,4 @@
-p5.js 2.3.4, used by the animations in the homepage side margins.
+p5.js 2.3.4, used by the animations in the homepage Features section.
 
 Distributed unchanged from the p5 npm package, bundled by the site build.
 https://www.npmjs.com/package/p5/v/2.3.4
