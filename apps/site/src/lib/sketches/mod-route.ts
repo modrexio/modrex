@@ -54,6 +54,8 @@ export default function modRoute(p: p5, card: HTMLElement) {
         window.addEventListener(
             'pointermove',
             (e) => {
+                // A finger is not a hover, and a touch would leave the effect stuck where it lifted.
+                if (e.pointerType !== 'mouse') return
                 const r = canvas.elt.getBoundingClientRect()
                 pointer = {
                     x: e.clientX - r.left,

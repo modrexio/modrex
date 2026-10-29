@@ -58,6 +58,11 @@ const { name } = Astro.props
         background: var(--color-surface);
     }
 
+    /* p5 inlines touch-action none on every canvas after setup, which blocks touch scrolling. */
+    .sketch :global(canvas) {
+        touch-action: auto !important;
+    }
+
     @media (max-width: 640px) {
         .sketch {
             aspect-ratio: 4 / 5;
