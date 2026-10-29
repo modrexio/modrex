@@ -1,0 +1,66 @@
+---
+interface Props {
+    name: 'mod-route' | 'archive-unpack'
+}
+
+const { name } = Astro.props
+---
+
+<div class="sketch" data-sketch={name} aria-hidden="true"></div>
+
+<script>
+    import type p5 from 'p5'
+    import modRoute from '../lib/sketches/mod-route'
+    import archiveUnpack from '../lib/sketches/archive-unpack'
+
+    const sketches: Record<string, (p: p5, card: HTMLElement) => void> = {
+        'mod-route': modRoute,
+        'archive-unpack': archiveUnpack,
+    }
+
+    async function start(card: HTMLElement) {
+        const { default: P5 } = await import('p5')
+        // The beginner error checks validate every drawing call, which costs more than the drawing.
+        // p5 reads this flag from the class, but its types only declare it on instances.
+        Object.assign(P5, { disableFriendlyErrors: true })
+
+        const sketch = sketches[card.dataset.sketch!]!
+        new P5((p: p5) => sketch(p, card), card)
+    }
+
+    // p5 downloads only once a card is about to scroll into view.
+    const observer = new IntersectionObserver(
+        (entries) => {
+            for (const entry of entries) {
+                if (!entry.isIntersecting) continue
+
+                observer.unobserve(entry.target)
+                start(entry.target as HTMLElement).catch((error: unknown) => {
+                    console.error('Failed to start the feature sketch', error)
+                })
+            }
+        },
+        { rootMargin: '300px 0px' }
+    )
+
+    document
+        .querySelectorAll<HTMLElement>('[data-sketch]')
+        .forEach((card) => observer.observe(card))
+</script>
+
+<style>
+    .sketch {
+        aspect-ratio: 1;
+        max-height: 560px;
+        overflow: hidden;
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-lg);
+        background: var(--color-surface);
+    }
+
+    @media (max-width: 640px) {
+        .sketch {
+            aspect-ratio: 4 / 5;
+        }
+    }
+</style>

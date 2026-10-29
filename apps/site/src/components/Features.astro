@@ -4,6 +4,7 @@ import type { ModIndexStats } from '../lib/mod-index'
 import type { NexusModCounts } from '../lib/nexus-mod-count'
 import browseMods from '../assets/screenshots/browse-mods-window.webp'
 import installedMods from '../assets/screenshots/installed-mods-window.webp'
+import Sketch from './Sketch.astro'
 
 interface Props {
     indexStats: ModIndexStats | null
@@ -55,6 +56,17 @@ const installedCrop = crop(300, 242, 1120, 600)
         </div>
 
         <div class="rows">
+            <div class="row art">
+                <div class="row-text">
+                    <h3>From mod page to game</h3>
+                    <p>
+                        Find a mod on ModWorkshop or Nexus Mods, install it, switch it on and start
+                        the game, modded or vanilla.
+                    </p>
+                </div>
+                <Sketch name="mod-route" />
+            </div>
+
             <div class="row">
                 <div class="row-text">
                     <h3>Launch modded or vanilla</h3>
@@ -101,6 +113,17 @@ const installedCrop = crop(300, 242, 1120, 600)
                         style={browseCrop.imgStyle}
                     />
                 </div>
+            </div>
+
+            <div class="row art">
+                <div class="row-text">
+                    <h3>One archive, one mod</h3>
+                    <p>
+                        Pak mods often ship as .pak, .utoc and .ucas files inside a .zip or .7z.
+                        Modrex keeps them together as one mod you switch on and off.
+                    </p>
+                </div>
+                <Sketch name="archive-unpack" />
             </div>
 
             <div class="row">
@@ -192,6 +215,10 @@ const installedCrop = crop(300, 242, 1120, 600)
         align-items: center;
     }
 
+    .row.art > :global(.sketch) {
+        order: -1;
+    }
+
     .row-text h3 {
         margin: 0 0 8px;
         font-size: 20px;
@@ -263,6 +290,10 @@ const installedCrop = crop(300, 242, 1120, 600)
         .row {
             grid-template-columns: minmax(0, 1fr);
             gap: 20px;
+        }
+
+        .row.art > :global(.sketch) {
+            order: 0;
         }
 
         .rows {
