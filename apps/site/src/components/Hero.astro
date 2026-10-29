@@ -81,15 +81,23 @@ const releasedOn = release
                 or vanilla from the same window.
             </p>
             <div class="cta-row">
-                <a href={sitePath('/#download')} id="hero-dl" class="btn-lg primary">
-                    <img
-                        id="hero-dl-icon"
-                        src={sitePath('/icons/windows-white.svg')}
-                        alt=""
-                        width="16"
-                        height="16"
-                    />
-                    <span id="hero-dl-label">Download for Windows</span>
+                <a
+                    href={sitePath('/#download')}
+                    class="btn-lg primary hero-dl"
+                    data-platform="windows"
+                    hidden
+                >
+                    <img src={sitePath('/icons/windows-white.svg')} alt="" width="16" height="16" />
+                    Download for Windows
+                </a>
+                <a
+                    href={sitePath('/#download')}
+                    class="btn-lg primary hero-dl"
+                    data-platform="linux"
+                    hidden
+                >
+                    <img src={sitePath('/icons/linux-white.svg')} alt="" width="16" height="16" />
+                    Download for Linux
                 </a>
                 <a href={sitePath('/#download')} class="other-link">
                     Download options
@@ -223,23 +231,16 @@ const releasedOn = release
 </header>
 
 <script>
-    import { sitePath } from '../lib/site-path'
     import { createIcons, ChevronLeft, ChevronRight, X } from 'lucide'
-    import { detectOs } from '../lib/os-detect'
+    import { detectPlatform } from '../lib/os-detect'
 
     createIcons({ icons: { ChevronLeft, ChevronRight, X } })
 
-    const { isMobile, isLinux } = detectOs()
-    const button = document.getElementById('hero-dl')
-    const label = document.getElementById('hero-dl-label')
-    const icon = document.getElementById('hero-dl-icon') as HTMLImageElement | null
-    // Phones and tablets cannot run either installer, so only the link to the
-    // download section stays.
-    if (isMobile) {
-        if (button) button.style.display = 'none'
-    } else if (isLinux) {
-        if (label) label.textContent = 'Download for Linux'
-        if (icon) icon.src = sitePath('/icons/linux-white.svg')
+    // Each platform's button stays hidden until its platform is recognized, so
+    // anywhere else only the link to the download section shows.
+    const platform = detectPlatform()
+    if (platform) {
+        document.querySelector<HTMLElement>(`.hero-dl[data-platform="${platform}"]`)!.hidden = false
     }
 
     const tabs = Array.from(document.querySelectorAll<HTMLButtonElement>('.tablist [role="tab"]'))
@@ -337,6 +338,11 @@ const releasedOn = release
 <style>
     .hero {
         padding: 64px 0 0;
+    }
+
+    /* btn-lg sets a display that would otherwise override the hidden attribute. */
+    .hero-dl[hidden] {
+        display: none;
     }
 
     .hero-grid {
@@ -722,7 +728,7 @@ const releasedOn = release
             font-size: 16px;
         }
 
-        #hero-dl {
+        .hero-dl {
             display: none;
         }
 

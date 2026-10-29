@@ -1,14 +1,11 @@
-export interface OsInfo {
-    isMobile: boolean
-    isLinux: boolean
-}
+export type Platform = 'windows' | 'linux'
 
 // Shared client-side OS detection for the download buttons in Hero, DownloadSection, and Nav.
-// The maxTouchPoints branch catches iPadOS 13+, which reports its user agent as macOS.
-export function detectOs(): OsInfo {
-    const isMobile =
-        /Android|iPhone|iPad|iPod/.test(navigator.userAgent) ||
-        (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.userAgent))
-    const isLinux = /Linux|X11/.test(navigator.userAgent) && !/Android/.test(navigator.userAgent)
-    return { isMobile, isLinux }
+// Returns null wherever no Modrex installer runs (phones, tablets, macOS, ChromeOS).
+// Android and ChromeOS user agents both carry Linux or X11.
+export function detectPlatform(): Platform | null {
+    const ua = navigator.userAgent
+    if (/Windows/.test(ua)) return 'windows'
+    if (/Linux|X11/.test(ua) && !/Android|CrOS/.test(ua)) return 'linux'
+    return null
 }
