@@ -107,7 +107,7 @@ body {
     }
 
     /* Sits 14px left of the site menu button, which follows the page wrap padding. */
-    starlight-menu-button button {
+    .sl-menu-button {
         top: 12px;
         inset-inline-end: 80px;
         display: flex;
@@ -121,11 +121,11 @@ body {
         box-shadow: none;
     }
 
-    starlight-menu-button button svg {
+    .sl-menu-button svg {
         transform: scale(1.7);
     }
 
-    starlight-menu-button[aria-expanded='true'] button {
+    .sl-menu-button:has(~ :popover-open) {
         background: var(--color-surface-active);
     }
 }
@@ -135,7 +135,7 @@ body {
         padding-inline: 16px;
     }
 
-    starlight-menu-button button {
+    .sl-menu-button {
         inset-inline-end: 64px;
     }
 }
