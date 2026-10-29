@@ -51,7 +51,7 @@ rusqlite = { version = "0.40", features = ["bundled"] }
 tauri-plugin-dialog = "2"
 tauri-plugin-log = "2"
 log = "0.4"
-zip = "2"
+zip = "9"
 sevenz-rust = "0.6"
 tar = "0.4"
 flate2 = "1"

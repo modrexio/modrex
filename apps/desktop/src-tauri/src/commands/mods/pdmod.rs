@@ -220,7 +220,8 @@ pub(crate) fn build_pdmod(entries: &[(&str, &str, &[u8])]) -> Vec<u8> {
     let mut zip = ZipWriter::new(cursor);
     let opts = SimpleFileOptions::default()
         .compression_method(zip::CompressionMethod::Deflated)
-        .with_deprecated_encryption(PDMOD_PASSWORD);
+        .with_deprecated_encryption(PDMOD_PASSWORD)
+        .unwrap();
     zip.start_file("pdmod.json", opts).unwrap();
     zip.write_all(manifest.as_bytes()).unwrap();
     for (name, content) in &files {
@@ -321,7 +322,8 @@ mod tests {
         let mut zip = ZipWriter::new(cursor);
         let opts = SimpleFileOptions::default()
             .compression_method(zip::CompressionMethod::Deflated)
-            .with_deprecated_encryption(PDMOD_PASSWORD);
+            .with_deprecated_encryption(PDMOD_PASSWORD)
+            .unwrap();
         zip.start_file("pdmod.json", opts).unwrap();
         zip.write_all(manifest.as_bytes()).unwrap();
         zip.start_file("x.repl", opts).unwrap();
