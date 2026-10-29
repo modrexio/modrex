@@ -2,7 +2,16 @@ export const LAUNCHERS = ['Steam', 'Epic Games', 'Xbox App'] as const
 
 export type LauncherName = (typeof LAUNCHERS)[number]
 export type StorefrontId = 'steam' | 'epic' | 'xbox'
-export type ModTargetId = 'mods' | 'paks' | 'plugins' | 'ue4ss_mods' | 'mod_overrides'
+export type ModTargetId =
+    | 'mods'
+    | 'paks'
+    | 'plugins'
+    | 'ue4ss_mods'
+    | 'mod_overrides'
+    | 'archive_mods'
+    | 'redmod_mods'
+    | 'cet_mods'
+    | 'redscript_mods'
 
 export interface ModTarget {
     id: ModTargetId

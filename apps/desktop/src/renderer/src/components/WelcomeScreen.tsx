@@ -19,6 +19,7 @@ const CDN_URLS: Partial<Record<GameId, string>> = {
     cb: 'https://cdn.akamai.steamstatic.com/steam/apps/2933080/library_600x900.jpg',
     raid: 'https://cdn.akamai.steamstatic.com/steam/apps/414740/library_600x900.jpg',
     ron: 'https://cdn.akamai.steamstatic.com/steam/apps/1144200/library_600x900.jpg',
+    cp2077: 'https://cdn.akamai.steamstatic.com/steam/apps/1091500/library_600x900.jpg',
 }
 
 const FALLBACK_STYLES: Partial<Record<GameId, { background: string; nameColor: string }>> = {
@@ -29,6 +30,10 @@ const FALLBACK_STYLES: Partial<Record<GameId, { background: string; nameColor: s
     raid: {
         background: 'linear-gradient(135deg, #131806 0%, #333d0f 100%)',
         nameColor: '#a9c34f',
+    },
+    cp2077: {
+        background: 'linear-gradient(135deg, #1a1a06 0%, #3d3d0f 100%)',
+        nameColor: '#fcee0a',
     },
 }
 

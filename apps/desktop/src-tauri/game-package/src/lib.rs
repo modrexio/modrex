@@ -540,6 +540,10 @@ pub enum TargetLabel {
     Overrides,
     ModkitMods,
     LegacyPaks,
+    ArchiveMods,
+    RedmodMods,
+    CetMods,
+    RedscriptMods,
 }
 
 impl TargetLabel {
@@ -552,6 +556,10 @@ impl TargetLabel {
             TargetLabel::ModkitMods => "modkitMods",
             TargetLabel::LegacyPaks => "legacyPaks",
             TargetLabel::Overrides => "overrides",
+            TargetLabel::ArchiveMods => "archiveMods",
+            TargetLabel::RedmodMods => "redmodMods",
+            TargetLabel::CetMods => "cetMods",
+            TargetLabel::RedscriptMods => "redscriptMods",
         }
     }
 }
@@ -575,6 +583,10 @@ pub struct Target {
     /// as Unreal does for plugins.
     #[serde(default)]
     pub disabled: Option<Vec<String>>,
+    /// Set when the game reads `path` recursively, so a mod left in a subfolder of it still
+    /// loads. Disabling and the backup must then sit outside `path`, which validation enforces.
+    #[serde(default)]
+    pub recursive_load: bool,
     /// Where launching without mods moves this target's contents. Not derived from path
     /// because PAYDAY 3 and Crime Boss must place it outside Paks/, which Unreal mounts
     /// recursively.

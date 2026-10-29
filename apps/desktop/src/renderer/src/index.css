@@ -22,6 +22,7 @@
     --modrex-success: #053d1c;
     --modrex-success-text: #00df72;
     --modrex-warning: #d4a017;
+    --modrex-radius: 4px;
 
     --color-surface: var(--modrex-surface);
     --color-surface-raised: var(--modrex-surface-raised);
@@ -45,10 +46,10 @@
 }
 
 :root[data-accent='purple'] {
-    --modrex-accent: #9770fa;
-    --modrex-accent-fill: #874cf9;
-    --modrex-accent-fill-hover: #8036f8;
-    --modrex-accent-bright: #a990fb;
+    --modrex-accent: #8d61f5;
+    --modrex-accent-fill: #6d28d9;
+    --modrex-accent-fill-hover: #5b21b6;
+    --modrex-accent-bright: #a78bfa;
 }
 
 :root[data-accent='green'] {
@@ -72,11 +73,37 @@
     --modrex-accent-bright: #fb766a;
 }
 
+:root[data-accent='pink'] {
+    --modrex-accent: #f04d97;
+    --modrex-accent-fill: #db2777;
+    --modrex-accent-fill-hover: #be185d;
+    --modrex-accent-bright: #f472b6;
+}
+
 :root[data-accent='gray'] {
     --modrex-accent: #8f8f8f;
     --modrex-accent-fill: #7b7b7b;
     --modrex-accent-fill-hover: #727272;
     --modrex-accent-bright: #a4a4a4;
+}
+
+/* Corner-radius scale. cornerRadius.ts writes --modrex-radius from the settings slider,
+   and the named Tailwind utilities read --radius-*, so redefining them rescales every
+   rounded-lg/md/xl in the app. These must stay unlayered: Tailwind's own --radius-* live
+   in @layer, and unlayered declarations win over layered ones regardless of source order.
+   The factors are Tailwind's own ratios against the 4px base bare `rounded` ships with, so
+   the default 4px reproduces the stock scale exactly. */
+:root {
+    --radius-md: calc(var(--modrex-radius) * 1.5);
+    --radius-lg: calc(var(--modrex-radius) * 2);
+    --radius-xl: calc(var(--modrex-radius) * 3);
+}
+
+/* Bare `rounded` compiles to the literal 0.25rem rather than var(--radius-*), so it
+   needs this override to follow the slider. rounded-full and rounded-none are left
+   alone on purpose: circles stay circular and deliberately square corners stay square. */
+.rounded {
+    border-radius: var(--modrex-radius);
 }
 
 @theme inline {
@@ -251,8 +278,52 @@ input[type='checkbox'] {
     accent-color: var(--color-accent-fill);
 }
 
+/* The slider is transparent so the runnable track paints the visible bar; the thumb's
+   negative top margin is half the thumb-minus-track difference, centering it on the bar. */
+input[type='range'] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 100%;
+    height: 1.25rem;
+    background: transparent;
+    cursor: pointer;
+}
+
+input[type='range']::-webkit-slider-runnable-track {
+    height: 0.25rem;
+    border-radius: 9999px;
+    background: var(--color-surface-active);
+}
+
+input[type='range']::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 1rem;
+    height: 1rem;
+    margin-top: -0.375rem;
+    border-radius: 9999px;
+    background: var(--color-accent);
+    border: none;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+input[type='range']::-moz-range-track {
+    height: 0.25rem;
+    border-radius: 9999px;
+    background: var(--color-surface-active);
+}
+
+input[type='range']::-moz-range-thumb {
+    width: 1rem;
+    height: 1rem;
+    border-radius: 9999px;
+    background: var(--color-accent);
+    border: none;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
 :focus-visible {
     outline: 2px solid var(--color-accent);
     outline-offset: 2px;
-    border-radius: 3px;
+    border-radius: calc(var(--modrex-radius) * 0.75);
 }

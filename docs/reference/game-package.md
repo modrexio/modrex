@@ -196,6 +196,7 @@ elsewhere.
 | `scope` | no | `mods` by default. `unreal_paks` shares native game files and requires a complete installed Steam depot catalog before mod changes. It supports archive-named Pak file units without filename ordering and never moves the whole target |
 | `path` | yes | components below the game path |
 | `disabled` | no | where disabled mods move; `path` plus `disabled` when omitted |
+| `recursive_load` | no | defaults to `false`; set when the game reads `path` recursively, so disabling and `backup` must sit outside it |
 | `backup` | yes | where launching without mods moves the contents |
 | `store_paths` | no | `path` and `backup` for a store build laid out differently |
 | `activation` | yes | how a mod is enabled and disabled |
@@ -204,7 +205,9 @@ elsewhere.
 
 The disabled folder defaults to `path` plus `disabled`. A target declares `disabled`
 when whatever reads `path` would still find a mod in a subfolder of it: Unreal searches
-a plugin folder recursively, so a plugin target disables outside `path`. `backup`
+a plugin folder recursively, so a plugin target disables outside `path`. A target whose
+game reads the folder by its own recursion sets `recursive_load`, which enforces the
+same outside placement for both `disabled` and `backup`. `backup`
 is declared because it does not follow a pattern: pak targets must place it outside
 `Paks/`, which Unreal mounts recursively.
 
@@ -225,6 +228,10 @@ state file lives there and must be found at the same place in every store's copy
 | `overrides` | `settings.folders.overrides` |
 | `modkit_mods` | `settings.folders.modkitMods` |
 | `legacy_paks` | `settings.folders.legacyPaks` |
+| `archive_mods` | `settings.folders.archiveMods` |
+| `redmod_mods` | `settings.folders.redmodMods` |
+| `cet_mods` | `settings.folders.cetMods` |
+| `redscript_mods` | `settings.folders.redscriptMods` |
 
 No two targets may resolve to the same label. For `loader_mods`, the loader id is
 part of the label, so different loaders may each have a mod folder. For every other

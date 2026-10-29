@@ -583,7 +583,12 @@
             "green": "! Green",
             "blue": "! Blue",
             "red": "! Red",
+            "pink": "! Pink",
             "gray": "! Gray"
+        },
+        "cornerRadius": {
+            "title": "! Corner radius",
+            "description": "! How rounded buttons, cards and panels look. 0 is sharp, 10 is fully rounded."
         },
         "gamePath": {
             "title": "Percorso del gioco",
@@ -669,6 +674,10 @@
             "modkitMods": "ModKit mods",
             "legacyPaks": "Legacy paks",
             "overrides": "Asset overrides",
+            "archiveMods": "! Archive mods",
+            "redmodMods": "! REDmod mods",
+            "cetMods": "! CET mods",
+            "redscriptMods": "! redscript mods",
             "ue4ssMods": "UE4SS mod"
         },
         "storage": {

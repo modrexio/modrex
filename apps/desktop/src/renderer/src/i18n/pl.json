@@ -583,7 +583,12 @@
             "green": "Zielony",
             "blue": "Niebieski",
             "red": "Czerwony",
+            "pink": "! Pink",
             "gray": "Szary"
+        },
+        "cornerRadius": {
+            "title": "! Corner radius",
+            "description": "! How rounded buttons, cards and panels look. 0 is sharp, 10 is fully rounded."
         },
         "gamePath": {
             "title": "Ścieżka gry",
@@ -669,6 +674,10 @@
             "modkitMods": "Mody ModKit",
             "legacyPaks": "Stare pakiety",
             "overrides": "Nadpisania assetów",
+            "archiveMods": "! Archive mods",
+            "redmodMods": "! REDmod mods",
+            "cetMods": "! CET mods",
+            "redscriptMods": "! redscript mods",
             "ue4ssMods": "Mody UE4SS"
         },
         "storage": {

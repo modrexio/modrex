@@ -145,6 +145,7 @@ fn scan_target(pkg: &'static GamePackage, target: &'static package::Target) -> S
             }
         },
         enabled_state: target.activation,
+        recursive_load: target.recursive_load,
         mods_subpath: text_slice(&target.path),
         disabled_subpath: match &target.disabled {
             Some(declared) => text_slice(declared),

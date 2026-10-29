@@ -583,7 +583,12 @@
             "green": "绿色",
             "blue": "蓝色",
             "red": "红色",
+            "pink": "! Pink",
             "gray": "灰色"
+        },
+        "cornerRadius": {
+            "title": "! Corner radius",
+            "description": "! How rounded buttons, cards and panels look. 0 is sharp, 10 is fully rounded."
         },
         "gamePath": {
             "title": "游戏路径",
@@ -669,6 +674,10 @@
             "modkitMods": "ModKit 模组",
             "legacyPaks": "旧版 pak",
             "overrides": "资源覆盖",
+            "archiveMods": "! Archive mods",
+            "redmodMods": "! REDmod mods",
+            "cetMods": "! CET mods",
+            "redscriptMods": "! redscript mods",
             "ue4ssMods": "UE4SS 模组"
         },
         "storage": {

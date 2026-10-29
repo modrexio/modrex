@@ -583,7 +583,12 @@
             "green": "Зелёный",
             "blue": "Синий",
             "red": "Красный",
+            "pink": "! Pink",
             "gray": "Серый"
+        },
+        "cornerRadius": {
+            "title": "! Corner radius",
+            "description": "! How rounded buttons, cards and panels look. 0 is sharp, 10 is fully rounded."
         },
         "gamePath": {
             "title": "Путь к игре",
@@ -669,6 +674,10 @@
             "modkitMods": "Моды ModKit",
             "legacyPaks": "Устаревшие pak-файлы",
             "overrides": "Замена ассетов",
+            "archiveMods": "! Archive mods",
+            "redmodMods": "! REDmod mods",
+            "cetMods": "! CET mods",
+            "redscriptMods": "! redscript mods",
             "ue4ssMods": "Моды UE4SS"
         },
         "storage": {

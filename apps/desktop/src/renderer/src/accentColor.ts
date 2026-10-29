@@ -2,10 +2,11 @@ import { useSyncExternalStore } from 'react'
 
 export const ACCENT_COLORS = {
     orange: { swatch: '#c45500' },
-    purple: { swatch: '#874cf9' },
+    purple: { swatch: '#6d28d9' },
     green: { swatch: '#189346' },
     blue: { swatch: '#1a71f9' },
     red: { swatch: '#e21c23' },
+    pink: { swatch: '#db2777' },
     gray: { swatch: '#7b7b7b' },
 } as const
 

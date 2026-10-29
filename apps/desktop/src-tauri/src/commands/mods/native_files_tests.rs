@@ -26,6 +26,7 @@ static SHARED_PAK_ENGINE: ModEngineConfig = ModEngineConfig {
         companions: &[],
         contained_extension: None,
         enabled_state: Activation::Filesystem,
+        recursive_load: false,
         mods_subpath: &["ReadyOrNot", "Content", "Paks"],
         disabled_subpath: &["ReadyOrNot", "Content", "Paks", "disabled"],
         backup_subpath: &["ReadyOrNot", "Content", "Paks.mods.bak"],

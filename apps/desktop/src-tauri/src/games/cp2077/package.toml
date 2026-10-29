@@ -1,0 +1,113 @@
+id = "cp2077"
+name = "Cyberpunk 2077"
+short_name = "CP2077"
+mod_metadata = "none"
+
+sources = [
+    {
+        provider = "nexus",
+        domain = "cyberpunk2077",
+        numeric_id = 3333,
+    },
+]
+
+install = {
+    executables = ["bin/x64/Cyberpunk2077.exe"],
+    processes = ["Cyberpunk2077"],
+    stores = [
+        {
+            provider = "steam",
+            app_id = 1091500,
+            folder = "Cyberpunk 2077",
+        },
+        {
+            provider = "epic",
+            name = "Cyberpunk 2077",
+        },
+    ],
+}
+
+targets = [
+    {
+        tag = "archive_mods",
+        label = "archive_mods",
+        primary = true,
+        path = ["archive", "pc", "mod"],
+        backup = ["archive", "pc", "mod.bak"],
+        activation = "filesystem",
+        load_order = "none",
+
+        unit = {
+            kind = "file",
+            disabled_suffix = ".disabled",
+            filename = "archive",
+
+            family = {
+                extension = "archive",
+                companions = [],
+            },
+        },
+    },
+    {
+        tag = "redmod_mods",
+        label = "redmod_mods",
+        path = ["mods"],
+        backup = ["mods.bak"],
+        activation = "filesystem",
+        load_order = "none",
+
+        unit = {
+            kind = "directory",
+
+            discovery = {
+                policy = "markers",
+                markers = [
+                    {
+                        file = "info.json",
+                        modes = ["archive", "scan"],
+                    },
+                ],
+            },
+        },
+    },
+    {
+        tag = "cet_mods",
+        label = "cet_mods",
+        path = ["bin", "x64", "plugins", "cyber_engine_tweaks", "mods"],
+        backup = ["bin", "x64", "plugins", "cyber_engine_tweaks", "mods.bak"],
+        activation = "filesystem",
+        load_order = "none",
+
+        unit = {
+            kind = "directory",
+
+            discovery = {
+                policy = "markers",
+                markers = [
+                    {
+                        file = "init.lua",
+                        modes = ["archive", "scan"],
+                    },
+                ],
+            },
+        },
+    },
+    {
+        tag = "redscript_mods",
+        label = "redscript_mods",
+        path = ["r6", "scripts"],
+        disabled = ["r6", "scripts.disabled"],
+        recursive_load = true,
+        backup = ["r6", "scripts.bak"],
+        activation = "filesystem",
+        load_order = "none",
+
+        unit = {
+            kind = "directory",
+
+            discovery = {
+                policy = "all_directories",
+            },
+        },
+    },
+]

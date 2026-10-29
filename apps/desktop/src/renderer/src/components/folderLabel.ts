@@ -10,6 +10,10 @@ const FOLDER_LABEL_KEYS: Record<string, StringKey> = {
     modkitMods: 'settings.folders.modkitMods',
     legacyPaks: 'settings.folders.legacyPaks',
     overrides: 'settings.folders.overrides',
+    archiveMods: 'settings.folders.archiveMods',
+    redmodMods: 'settings.folders.redmodMods',
+    cetMods: 'settings.folders.cetMods',
+    redscriptMods: 'settings.folders.redscriptMods',
 }
 
 export function folderLabel(folder: ModFolderInfo): string {

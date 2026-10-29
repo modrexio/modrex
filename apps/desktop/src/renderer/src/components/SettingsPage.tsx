@@ -24,6 +24,12 @@ import { siGithub, siDiscord, siX, siBluesky, siInstagram } from 'simple-icons'
 import { t, getLocale, setLocale } from '../i18n'
 import { LOCALE_IDS, localeLabel, type LocaleId } from '../locales'
 import { ACCENT_COLORS, setAccentColor, useAccentColor, type AccentColor } from '../accentColor'
+import {
+    CORNER_RADIUS_MAX,
+    CORNER_RADIUS_MIN,
+    setCornerRadius,
+    useCornerRadius,
+} from '../cornerRadius'
 import { Select } from './Select'
 import { Dialog, DialogHeader } from './Dialog'
 import { Toggle } from './Toggle'
@@ -112,6 +118,7 @@ export function SettingsPage({
     const [secretStoreAvailable, setSecretStoreAvailable] = useState<boolean | null>(null)
     const [confirmNexusSignOut, setConfirmNexusSignOut] = useState(false)
     const accentColor = useAccentColor()
+    const cornerRadius = useCornerRadius()
     const accentColorOptions = useMemo(
         () =>
             (Object.keys(ACCENT_COLORS) as AccentColor[]).map((color) => ({
@@ -276,6 +283,33 @@ export function SettingsPage({
                                             }
                                             options={accentColorOptions}
                                         />
+                                    </div>
+                                </Section>
+
+                                <Section
+                                    title={t('settings.cornerRadius.title')}
+                                    description={t('settings.cornerRadius.description')}
+                                >
+                                    <div className="flex items-center gap-3 mt-1">
+                                        <input
+                                            type="range"
+                                            min={CORNER_RADIUS_MIN}
+                                            max={CORNER_RADIUS_MAX}
+                                            step={1}
+                                            value={cornerRadius}
+                                            onChange={(event) =>
+                                                setCornerRadius(Number(event.target.value))
+                                            }
+                                            aria-label={t('settings.cornerRadius.title')}
+                                            className="flex-1"
+                                        />
+                                        <span
+                                            className="shrink-0 w-7 h-7 border border-border bg-surface-raised"
+                                            style={{ borderRadius: `${cornerRadius * 2}px` }}
+                                        />
+                                        <span className="shrink-0 w-4 text-xs text-text-muted text-right tabular-nums">
+                                            {cornerRadius}
+                                        </span>
                                     </div>
                                 </Section>
 

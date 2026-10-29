@@ -98,7 +98,7 @@ export function useDragDrop({
         const el = document.createElement('div')
         el.style.cssText =
             'position:fixed;z-index:9999;pointer-events:none;display:flex;flex-direction:column;' +
-            'background:var(--color-surface-raised);border:1px solid var(--color-border);border-radius:8px;' +
+            'background:var(--color-surface-raised);border:1px solid var(--color-border);border-radius:var(--radius-lg);' +
             'box-shadow:0 4px 16px rgba(0,0,0,0.6);width:160px;overflow:hidden;'
         if (mod.thumbnail) {
             const img = document.createElement('img')
@@ -124,7 +124,7 @@ export function useDragDrop({
         el.textContent = name
         el.style.cssText =
             'position:fixed;z-index:9999;pointer-events:none;background:var(--color-surface-raised);' +
-            'border:1px solid var(--color-border);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.6);' +
+            'border:1px solid var(--color-border);border-radius:var(--radius-lg);box-shadow:0 4px 16px rgba(0,0,0,0.6);' +
             'padding:6px 10px;font-size:12px;font-weight:500;color:var(--color-text);max-width:220px;' +
             'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;'
         return el

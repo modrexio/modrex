@@ -135,10 +135,10 @@ fn disabled_dir_lives_under_its_own_mods_dir() {
         for target in spec.engine.targets {
             let mods = mods_dir(game_path, target);
             let disabled = disabled_dir(game_path, target);
-            if target.is_unreal_plugin_unit() {
+            if target.loads_recursively() {
                 assert!(
                     !disabled.starts_with(&mods),
-                    "{}:{} disables plugins inside {:?}, where Unreal still loads them",
+                    "{}:{} disables inside {:?}, where the game still loads the mod",
                     spec.id,
                     target.tag,
                     mods

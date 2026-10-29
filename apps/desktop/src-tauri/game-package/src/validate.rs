@@ -436,6 +436,26 @@ fn check_target(target: &Target) -> Result<(), String> {
             }
         }
     }
+    if target.recursive_load {
+        if matches!(target.unit, Unit::File { .. }) {
+            return Err(
+                "sets recursive_load on a file unit, which disables by renaming its file; the flag describes a folder the game reads recursively"
+                    .to_string(),
+            );
+        }
+        let Some(disabled) = &target.disabled else {
+            return Err(
+                "sets recursive_load without a disabled path; the game would still load a mod in path/disabled"
+                    .to_string(),
+            );
+        };
+        if within(disabled, &target.path) {
+            return Err(
+                "sets recursive_load with a disabled path inside path, where the game still loads it"
+                    .to_string(),
+            );
+        }
+    }
     if let Some(disabled) = &target.disabled {
         check_resource_path(disabled, "disabled path")?;
         if same_path(disabled, &target.path) {

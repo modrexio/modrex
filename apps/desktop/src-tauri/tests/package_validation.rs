@@ -196,6 +196,10 @@ fn target_labels_have_exact_manifest_values_and_interface_keys() {
         ("overrides", "overrides"),
         ("modkit_mods", "modkitMods"),
         ("legacy_paks", "legacyPaks"),
+        ("archive_mods", "archiveMods"),
+        ("redmod_mods", "redmodMods"),
+        ("cet_mods", "cetMods"),
+        ("redscript_mods", "redscriptMods"),
     ] {
         let text = with_root_declaration("loaders = [{ kind = \"dahm\" }]").replace(
             "label = \"pak_mods\"",
@@ -262,7 +266,16 @@ fn a_loader_cannot_serve_two_targets_even_with_different_labels() {
 
 #[test]
 fn non_loader_labels_are_unique_regardless_of_loader() {
-    for label in ["pak_mods", "overrides", "modkit_mods", "legacy_paks"] {
+    for label in [
+        "pak_mods",
+        "overrides",
+        "modkit_mods",
+        "legacy_paks",
+        "archive_mods",
+        "redmod_mods",
+        "cet_mods",
+        "redscript_mods",
+    ] {
         for loaders in [false, true] {
             let mut base =
                 with_root_declaration("loaders = [{ kind = \"dahm\" }, { kind = \"superblt\" }]")
@@ -997,6 +1010,49 @@ fn a_disabled_path_equal_to_the_target_path_is_rejected() {
             "disabled = [\"MODS\"]\nbackup = [\"mods.bak\"]",
         ),
         "equal to its path",
+    );
+}
+
+#[test]
+fn a_recursive_load_target_disabling_outside_its_path_is_accepted() {
+    let text = BASE.replace(
+        "backup = [\"mods.bak\"]",
+        "recursive_load = true\ndisabled = [\"mods.disabled\"]\nbackup = [\"mods.bak\"]",
+    );
+    let parsed: GamePackage = toml::from_str(&text).expect("parses");
+    validate::check("fixture", &parsed).expect("passes the checks");
+}
+
+#[test]
+fn a_recursive_load_target_must_declare_where_disabled_mods_go() {
+    assert_rejected(
+        &BASE.replace(
+            "backup = [\"mods.bak\"]",
+            "recursive_load = true\nbackup = [\"mods.bak\"]",
+        ),
+        "sets recursive_load without a disabled path",
+    );
+}
+
+#[test]
+fn a_recursive_load_target_cannot_disable_inside_the_folder_the_game_reads() {
+    assert_rejected(
+        &BASE.replace(
+            "backup = [\"mods.bak\"]",
+            "recursive_load = true\ndisabled = [\"mods\", \"disabled\"]\nbackup = [\"mods.bak\"]",
+        ),
+        "disabled path inside path",
+    );
+}
+
+#[test]
+fn recursive_load_cannot_be_set_on_a_file_unit() {
+    assert_rejected(
+        &file_unit("[]").replace(
+            "load_order = \"none\"",
+            "load_order = \"none\"\nrecursive_load = true",
+        ),
+        "recursive_load on a file unit",
     );
 }
 

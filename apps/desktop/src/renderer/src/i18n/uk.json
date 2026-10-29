@@ -583,7 +583,12 @@
             "green": "Зелений",
             "blue": "Синій",
             "red": "Червоний",
+            "pink": "! Pink",
             "gray": "Сірий"
+        },
+        "cornerRadius": {
+            "title": "! Corner radius",
+            "description": "! How rounded buttons, cards and panels look. 0 is sharp, 10 is fully rounded."
         },
         "gamePath": {
             "title": "Шлях до гри",
@@ -669,6 +674,10 @@
             "modkitMods": "Моди ModKit",
             "legacyPaks": "Застарілі pak-файли",
             "overrides": "Перевизначення ресурсів",
+            "archiveMods": "! Archive mods",
+            "redmodMods": "! REDmod mods",
+            "cetMods": "! CET mods",
+            "redscriptMods": "! redscript mods",
             "ue4ssMods": "Моди UE4SS"
         },
         "storage": {

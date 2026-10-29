@@ -583,7 +583,12 @@
             "green": "Grün",
             "blue": "Blau",
             "red": "Rot",
+            "pink": "! Pink",
             "gray": "Grau"
+        },
+        "cornerRadius": {
+            "title": "! Corner radius",
+            "description": "! How rounded buttons, cards and panels look. 0 is sharp, 10 is fully rounded."
         },
         "gamePath": {
             "title": "Spielpfad",
@@ -669,6 +674,10 @@
             "modkitMods": "ModKit-Mods",
             "legacyPaks": "Legacy-Paks",
             "overrides": "Asset-Überschreibungen",
+            "archiveMods": "! Archive mods",
+            "redmodMods": "! REDmod mods",
+            "cetMods": "! CET mods",
+            "redscriptMods": "! redscript mods",
             "ue4ssMods": "UE4SS-Mods"
         },
         "storage": {

@@ -273,9 +273,9 @@ async fn scan_active(
     let mut subdirs = Vec::new();
     while let Ok(Some(entry)) = rd.next_entry().await {
         let name = entry.file_name().to_string_lossy().into_owned();
-        // A plugin target disables outside its folder, so a child named disabled there is a
-        // folder Unreal still loads.
-        let disabled_here = name == "disabled" && !target.is_unreal_plugin_unit();
+        // A target that disables outside its folder, so a child named disabled there is a
+        // folder the game still loads.
+        let disabled_here = name == "disabled" && !target.loads_recursively();
         if prefix.is_empty() && (disabled_here || (skip_base && name == "base")) {
             continue;
         }

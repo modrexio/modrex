@@ -107,6 +107,10 @@ fn label_rows() -> String {
         TargetLabel::Overrides,
         TargetLabel::ModkitMods,
         TargetLabel::LegacyPaks,
+        TargetLabel::ArchiveMods,
+        TargetLabel::RedmodMods,
+        TargetLabel::CetMods,
+        TargetLabel::RedscriptMods,
     ]
     .iter()
     .map(|label| {
@@ -119,6 +123,10 @@ fn label_rows() -> String {
                 TargetLabel::ModkitMods => "modkit_mods",
                 TargetLabel::LegacyPaks => "legacy_paks",
                 TargetLabel::Overrides => "overrides",
+                TargetLabel::ArchiveMods => "archive_mods",
+                TargetLabel::RedmodMods => "redmod_mods",
+                TargetLabel::CetMods => "cet_mods",
+                TargetLabel::RedscriptMods => "redscript_mods",
             },
             label.key(),
             match label {
@@ -359,6 +367,7 @@ pub fn markdown(examples: &[(&str, &str)]) -> String {
          | `scope` | no | `mods` by default. `unreal_paks` shares native game files and requires a complete installed Steam depot catalog before mod changes. It supports archive-named Pak file units without filename ordering and never moves the whole target |\n\
          | `path` | yes | components below the game path |\n\
          | `disabled` | no | where disabled mods move; `path` plus `disabled` when omitted |\n\
+         | `recursive_load` | no | defaults to `false`; set when the game reads `path` recursively, so disabling and `backup` must sit outside it |\n\
          | `backup` | yes | where launching without mods moves the contents |\n\
          | `store_paths` | no | `path` and `backup` for a store build laid out differently |\n\
          | `activation` | yes | how a mod is enabled and disabled |\n\
@@ -366,7 +375,9 @@ pub fn markdown(examples: &[(&str, &str)]) -> String {
          | `unit` | yes | what one mod looks like |\n\n\
          The disabled folder defaults to `path` plus `disabled`. A target declares `disabled`\n\
          when whatever reads `path` would still find a mod in a subfolder of it: Unreal searches\n\
-         a plugin folder recursively, so a plugin target disables outside `path`. `backup`\n\
+         a plugin folder recursively, so a plugin target disables outside `path`. A target whose\n\
+         game reads the folder by its own recursion sets `recursive_load`, which enforces the\n\
+         same outside placement for both `disabled` and `backup`. `backup`\n\
          is declared because it does not follow a pattern: pak targets must place it outside\n\
          `Paks/`, which Unreal mounts recursively.\n\n\
          `store_paths` lists a `store`, a `path` and a `backup` for each store whose build keeps\n\

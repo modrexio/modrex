@@ -16,6 +16,7 @@ const SHARED_TARGET: ScanTarget = ScanTarget {
     companions: &[],
     contained_extension: None,
     enabled_state: Activation::Filesystem,
+    recursive_load: false,
     mods_subpath: &["Synthetic", "Content", "Paks"],
     disabled_subpath: &["Synthetic", "Content", "Paks", "disabled"],
     backup_subpath: &["Synthetic", "Content", "Paks.mods.bak"],

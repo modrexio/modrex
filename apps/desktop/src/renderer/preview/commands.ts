@@ -58,6 +58,7 @@ const steamFolders: Record<GameId, string> = {
     cb: 'Crime Boss Rockay City',
     raid: 'RAID World War II',
     ron: 'Ready Or Not',
+    cp2077: 'Cyberpunk 2077',
 }
 
 const fixtures = new Map<GameId, Promise<GameFixtures>>()

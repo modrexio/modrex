@@ -92,6 +92,10 @@ fn target_label(value: TargetLabel) -> String {
         TargetLabel::ModkitMods => "ModkitMods",
         TargetLabel::LegacyPaks => "LegacyPaks",
         TargetLabel::Overrides => "Overrides",
+        TargetLabel::ArchiveMods => "ArchiveMods",
+        TargetLabel::RedmodMods => "RedmodMods",
+        TargetLabel::CetMods => "CetMods",
+        TargetLabel::RedscriptMods => "RedscriptMods",
     };
     format!("{PATH}::TargetLabel::{variant}")
 }
@@ -179,6 +183,7 @@ fn target(value: &Target) -> String {
         scope,
         path,
         disabled,
+        recursive_load,
         backup,
         store_paths,
         activation: how,
@@ -186,7 +191,7 @@ fn target(value: &Target) -> String {
         unit: shape,
     } = value;
     format!(
-        "{PATH}::Target {{ tag: {}, label: {}, loader: {}, primary: {primary}, scope: {PATH}::TargetScope::{scope:?}, path: {}, disabled: {}, backup: {}, store_paths: {}, activation: {}, load_order: {}, unit: {} }}",
+        "{PATH}::Target {{ tag: {}, label: {}, loader: {}, primary: {primary}, scope: {PATH}::TargetScope::{scope:?}, path: {}, disabled: {}, recursive_load: {recursive_load}, backup: {}, store_paths: {}, activation: {}, load_order: {}, unit: {} }}",
         text(tag),
         target_label(*label),
         optional(loader.as_deref().map(text)),

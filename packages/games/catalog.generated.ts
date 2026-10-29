@@ -21,6 +21,22 @@ export const GAME_SPECS = {
             { id: 'ue4ss_mods', path: 'CrimeBoss/Binaries/Win64/Mods' },
         ],
     },
+    cp2077: {
+        name: 'Cyberpunk 2077',
+        shortName: 'CP2077',
+        modMetadata: 'none',
+        nexusDomain: 'cyberpunk2077',
+        storageKey: 'cp2077',
+        hasNews: false,
+        supportsPackageViewer: false,
+        launchers: ['Steam', 'Epic Games'],
+        modTargets: [
+            { id: 'archive_mods', path: 'archive/pc/mod' },
+            { id: 'redmod_mods', path: 'mods' },
+            { id: 'cet_mods', path: 'bin/x64/plugins/cyber_engine_tweaks/mods' },
+            { id: 'redscript_mods', path: 'r6/scripts' },
+        ],
+    },
     pd2: {
         name: 'PAYDAY 2',
         shortName: 'PD2',
