@@ -81,7 +81,7 @@ fn list_entries_zip(path: &Path) -> Result<Vec<ArchiveEntry>, String> {
     for i in 0..archive.len() {
         let entry = archive.by_index(i).map_err(|e| e.to_string())?;
         out.push(ArchiveEntry {
-            name: entry.name().replace('\\', "/"),
+            name: entry.name().map_err(|e| e.to_string())?.replace('\\', "/"),
             is_dir: entry.is_dir(),
         });
     }
@@ -878,7 +878,7 @@ fn extract_dir_zip(
     std::fs::create_dir_all(dest).map_err(|e| e.to_string())?;
     for i in 0..archive.len() {
         let mut entry = archive.by_index(i).map_err(|e| e.to_string())?;
-        let name = entry.name().replace('\\', "/");
+        let name = entry.name().map_err(|e| e.to_string())?.replace('\\', "/");
         let relative = match name.strip_prefix(&prefix) {
             Some(r) if !r.is_empty() => r.to_string(),
             _ => continue,
@@ -1095,7 +1095,7 @@ fn extract_flat_zip(
     std::fs::create_dir_all(dest).map_err(|e| e.to_string())?;
     for i in 0..archive.len() {
         let mut entry = archive.by_index(i).map_err(|e| e.to_string())?;
-        let name = entry.name().replace('\\', "/");
+        let name = entry.name().map_err(|e| e.to_string())?.replace('\\', "/");
         let Some(name) = without_root(&name, root) else {
             continue;
         };
