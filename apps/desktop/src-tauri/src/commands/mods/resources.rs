@@ -256,9 +256,19 @@ async fn lock_and_recover(
         ensure_not_running(app, game).await?;
     }
     let (s, id) = (store.clone(), game_id.to_string());
-    tauri::async_runtime::spawn_blocking(move || s.recover(&id))
-        .await
-        .map_err(|e| e.to_string())??;
+    let guard = tauri::async_runtime::spawn_blocking(move || {
+        s.recover(&id)?;
+        // A copy that cannot be deleted now is retried by the next operation, so the
+        // requested change still goes ahead.
+        match s.collect_garbage(&guard) {
+            Ok(0) => {}
+            Ok(freed) => log::info!("deleted {freed} bytes of unused movie and INI copies"),
+            Err(error) => log::warn!("unused movie and INI copies were kept: {error}"),
+        }
+        Ok::<_, String>(guard)
+    })
+    .await
+    .map_err(|e| e.to_string())??;
     for game in &affected {
         ensure_not_running(app, game).await?;
     }

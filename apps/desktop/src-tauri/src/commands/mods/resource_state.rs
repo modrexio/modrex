@@ -722,6 +722,68 @@ impl ResourceStore {
         Ok(out)
     }
 
+    /// Deletes saved copies that no deployment, baseline, INI revision or pending journal
+    /// references, plus staging leftovers. Every capture happens under the resource lock, so
+    /// the caller must hold it, or a copy captured for an operation in flight would be lost.
+    pub(crate) fn collect_garbage(&self, _guard: &ResourceGuard) -> Result<u64, String> {
+        let dir = self.root.join("objects");
+        let entries = match fs::read_dir(&dir) {
+            Ok(entries) => entries,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(0),
+            Err(e) => return Err(format!("could not list saved resource copies: {e}")),
+        };
+        let manifest = self.load_manifest()?;
+        let journals = self.pending_journals()?;
+        let mut kept = std::collections::HashSet::new();
+        for deployment in &manifest.deployments {
+            match &deployment.body {
+                DeploymentBody::Movie { slots } => {
+                    kept.extend(slots.iter().map(|slot| slot.payload_sha256.as_str()));
+                }
+                DeploymentBody::Ini { preset } => {
+                    kept.insert(preset.source_sha256.as_str());
+                }
+            }
+        }
+        let recorded = manifest
+            .movie_baselines
+            .iter()
+            .map(|baseline| &baseline.prior)
+            .chain(
+                manifest
+                    .ini_revisions
+                    .iter()
+                    .map(|revision| &revision.prior),
+            )
+            .chain(
+                journals
+                    .iter()
+                    .flat_map(|(_, journal)| &journal.steps)
+                    .flat_map(|step| [&step.before, &step.after]),
+            );
+        for content in recorded {
+            if let Content::Present { sha256, .. } = content {
+                kept.insert(sha256.as_str());
+            }
+        }
+        let mut freed = 0;
+        for entry in entries {
+            let entry = entry.map_err(|e| format!("could not list saved resource copies: {e}"))?;
+            let name = entry.file_name().to_string_lossy().into_owned();
+            if kept.contains(name.as_str()) {
+                continue;
+            }
+            let size = entry
+                .metadata()
+                .map_err(|e| format!("could not inspect the saved copy {name}: {e}"))?
+                .len();
+            fs::remove_file(entry.path())
+                .map_err(|e| format!("could not delete the unused saved copy {name}: {e}"))?;
+            freed += size;
+        }
+        Ok(freed)
+    }
+
     /// Whether any interrupted operation still touches this game.
     pub(crate) fn has_pending(&self, game_id: &str) -> Result<bool, String> {
         Ok(self

@@ -120,7 +120,7 @@
             "openInstalled": "Open Installed Mods",
             "affected": "These mods will be removed from Modrex's managed list:",
             "absent": "File is currently absent.",
-            "keepDescription": "Keep your files as they are and stop managing these mods. Recovery copies remain available. Your previous setup will not be restored.",
+            "keepDescription": "Keep your files as they are and stop managing these mods. Your previous setup will not be restored, and its saved copies are deleted.",
             "keep": "Keep current files",
             "openFolder": "Open recovery folder",
             "folderTitle": "Recovery files",
