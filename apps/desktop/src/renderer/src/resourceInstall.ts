@@ -73,6 +73,20 @@ export function matchingMovieSlot(
     return slots.length === 1 && sources.length === 1 ? slots[0]! : null
 }
 
+// Variants without an exact match stay unselected, since they compete for the same slot.
+// A lone movie starts selected even without a match so its destination choice is in view.
+export function initialResourceSelection(review: ResourceReview): Record<string, string | null> {
+    if (review.moviePackApplied) return {}
+    const movies = review.entries.filter((entry) => entry.kind === 'movie' && entry.supported)
+    if (movies.length === 1) return { [movies[0]!.entryId]: matchingMovieSlot(review, movies[0]!) }
+    const selection: Record<string, string | null> = {}
+    for (const movie of movies) {
+        const slot = matchingMovieSlot(review, movie)
+        if (slot) selection[movie.entryId] = slot
+    }
+    return selection
+}
+
 function sameIniName(left: string, right: string): boolean {
     const lower = (value: string) => value.replace(/[A-Z]/g, (letter) => letter.toLowerCase())
     return lower(left) === lower(right)

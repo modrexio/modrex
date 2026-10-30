@@ -4,6 +4,7 @@ import {
     finishResourceReview,
     getPendingResourceReview,
     requestResourceReview,
+    initialResourceSelection,
     resourceSelectionValid,
     resourceSelectionIssue,
     matchingMovieSlot,
@@ -109,6 +110,33 @@ describe('resource review selection', () => {
                 entry
             )
         ).toBeNull()
+    })
+
+    it('preselects exact movie matches and a lone movie, never variants or INI presets', () => {
+        const [movie, other, ini] = review.entries
+        const sbz = { ...movie!, name: 'Movies/StartUp_SBZ.bk2' }
+        expect(initialResourceSelection(review)).toEqual({})
+        expect(initialResourceSelection({ ...review, entries: [sbz, other!, ini!] })).toEqual({
+            1: 'StartUp_SBZ.bk2',
+        })
+        expect(initialResourceSelection({ ...review, entries: [movie!, ini!] })).toEqual({
+            1: null,
+        })
+        expect(
+            initialResourceSelection({
+                ...review,
+                entries: [sbz, { ...other!, name: 'Alt/StartUp_SBZ.bk2' }],
+            })
+        ).toEqual({})
+        expect(
+            initialResourceSelection({
+                ...review,
+                entries: [{ ...movie!, supported: false }, ini!],
+            })
+        ).toEqual({})
+        expect(
+            initialResourceSelection({ ...review, entries: [sbz], moviePackApplied: true })
+        ).toEqual({})
     })
 
     it('requires a unique verified slot per movie and one INI variant', () => {

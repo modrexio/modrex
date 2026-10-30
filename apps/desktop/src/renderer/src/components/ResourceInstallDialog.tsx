@@ -4,6 +4,7 @@ import { api, type ResourceReview } from '../api'
 import {
     finishResourceReview,
     getPendingResourceReview,
+    initialResourceSelection,
     resourceSelectionIssue,
     matchingMovieSlot,
     resourceConflicts,
@@ -37,7 +38,9 @@ function Review({ handle }: { handle: string }) {
         let cancelled = false
         api.getResourceReview(handle).then(
             (value) => {
-                if (!cancelled) setReview(value)
+                if (cancelled) return
+                setReview(value)
+                setSelection(initialResourceSelection(value))
             },
             (failure) => {
                 if (!cancelled) setError(String(failure))

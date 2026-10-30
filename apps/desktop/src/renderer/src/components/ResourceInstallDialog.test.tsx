@@ -182,7 +182,11 @@ describe('resource review completion', () => {
         })
         const completed = requestResourceReview('matching')
         render(<ResourceInstallDialog />)
-        fireEvent.click(await screen.findByRole('checkbox', { name: 'replacement.bk2' }))
+        expect(
+            ((await screen.findByRole('checkbox', { name: 'replacement.bk2' })) as HTMLInputElement)
+                .checked
+        ).toBe(true)
+        expect((screen.getByRole('combobox') as HTMLSelectElement).value).toBe('')
         expect(
             screen.getByRole('button', { name: 'Install selected' }).hasAttribute('disabled')
         ).toBe(true)
@@ -235,7 +239,10 @@ describe('resource review completion', () => {
         })
         const completed = requestResourceReview('matching')
         render(<ResourceInstallDialog />)
-        fireEvent.click(await screen.findByRole('checkbox', { name: 'Intro.bk2' }))
+        expect(
+            ((await screen.findByRole('checkbox', { name: 'Intro.bk2' })) as HTMLInputElement)
+                .checked
+        ).toBe(true)
         expect((screen.getByRole('combobox') as HTMLSelectElement).value).toBe('Intro.bk2')
         fireEvent.click(screen.getByRole('radio', { name: 'small/Engine.ini' }))
         fireEvent.click(screen.getByRole('radio', { name: 'large/Engine.ini' }))

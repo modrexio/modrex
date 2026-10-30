@@ -11,6 +11,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 ### Changed
 
 - Movie replacements offer only movies found in the game folder.
+- Movie replacements preselect files with a clear destination.
 
 ### Fixed
 
