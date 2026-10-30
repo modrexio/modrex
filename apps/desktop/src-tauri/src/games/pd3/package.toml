@@ -69,15 +69,9 @@ package_reader = {
 }
 
 movie_replacement = {
-    format = "bink",
+    formats = ["bink"],
     directory = ["PAYDAY3", "Content", "Movies"],
-    storefronts = ["steam", "epic"],
-    absent_slots = [
-        {
-            store = "steam",
-            filenames = ["StartUp_Unreal.bk2", "StartUp_DeepSilver.bk2", "StartUp_SBZ.bk2", "BG_LoginVideo_01.bk2"],
-        },
-    ],
+    storefronts = ["steam", "epic", "xbox"],
 }
 
 unreal_config = {

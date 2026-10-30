@@ -116,9 +116,13 @@ export function createResourceReview(gameId: GameId, gamePath: string): string {
                 : []),
         ],
         movieSlots: game.movieReplacement ? [slot] : [],
+        movieDetails: game.movieReplacement
+            ? { [slot]: { seconds: 9.4, width: 1920, height: 1080, sound: true } }
+            : {},
         configPath: game.configPresets ? configPath : null,
         pakPicker: null,
         source: null,
+        remoteId: null,
         moviePackApplied: false,
         movieConflicts: game.movieReplacement
             ? [{ name: 'Skip startup movies', slots: [slot], replacing: false }]

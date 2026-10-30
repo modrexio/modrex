@@ -100,7 +100,7 @@ it('keeps config-only recovery available without a movie scan', () => {
 it('offers a movie scan from the declaration of a game with no hardcoded resource ID', () => {
     GAMES.pd2 = {
         ...original,
-        movieReplacement: { extension: 'bk2', storefronts: ['steam'] },
+        movieReplacement: { extensions: ['bk2'], storefronts: ['steam'] },
     }
     health()
     fireEvent.mouseDown(screen.getByRole('tab', { name: 'Game files' }))
@@ -125,7 +125,7 @@ it('keeps existing deployments recoverable after install support is removed', ()
     expect(screen.queryByTestId('movie-scan')).toBeNull()
 })
 
-it('keeps PAYDAY 3 recovery visible on Xbox without offering its unsupported movie scan', () => {
+it('keeps recovery visible on an unsupported store without offering its movie scan', () => {
     cachedSettings.mockReturnValue({ settings: { gamePath: 'C:/game', launcher: 'xbox' } })
     health(
         [
@@ -142,16 +142,26 @@ it('keeps PAYDAY 3 recovery visible on Xbox without offering its unsupported mov
             },
         ],
         vi.fn(),
-        'pd3'
+        'cb'
     )
     expect(screen.getByRole('button', { name: 'Review files' })).toBeTruthy()
     expect(screen.queryByTestId('movie-scan')).toBeNull()
 })
 
+it('offers the PAYDAY 3 movie scan on Xbox', () => {
+    cachedSettings.mockReturnValue({ settings: { gamePath: 'C:/game', launcher: 'xbox' } })
+    health([], vi.fn(), 'pd3')
+    fireEvent.mouseDown(screen.getByRole('tab', { name: 'Game files' }))
+    expect(screen.getByTestId('movie-scan').getAttribute('data-game')).toBe('pd3')
+})
+
 it.each(['steam', 'manual', 'unknown', null])(
     'allows inventory scanning for launcher %s',
     (launcher) => {
-        GAMES.pd2 = { ...original, movieReplacement: { extension: 'bk2', storefronts: ['steam'] } }
+        GAMES.pd2 = {
+            ...original,
+            movieReplacement: { extensions: ['bk2'], storefronts: ['steam'] },
+        }
         cachedSettings.mockReturnValue({ settings: { gamePath: 'C:/game', launcher } })
         health()
         fireEvent.mouseDown(screen.getByRole('tab', { name: 'Game files' }))
@@ -160,7 +170,7 @@ it.each(['steam', 'manual', 'unknown', null])(
 )
 
 it('ignores a cached launcher that belongs to a different game installation', () => {
-    GAMES.pd2 = { ...original, movieReplacement: { extension: 'bk2', storefronts: ['steam'] } }
+    GAMES.pd2 = { ...original, movieReplacement: { extensions: ['bk2'], storefronts: ['steam'] } }
     cachedSettings.mockReturnValue({ settings: { gamePath: 'C:/another-copy', launcher: 'xbox' } })
     health()
     fireEvent.mouseDown(screen.getByRole('tab', { name: 'Game files' }))
@@ -189,7 +199,7 @@ it.each(['movies', 'config'] as const)(
     (kind) => {
         GAMES.pd2 =
             kind === 'movies'
-                ? { ...original, movieReplacement: { extension: 'bk2', storefronts: ['steam'] } }
+                ? { ...original, movieReplacement: { extensions: ['bk2'], storefronts: ['steam'] } }
                 : { ...original, configPresets: { filename: 'Engine.ini' } }
         render(<GameTopBar activeGame="pd2" gamePath="C:/game" />)
         const button = screen.getByRole('button', { name: 'Launch without package mods' })

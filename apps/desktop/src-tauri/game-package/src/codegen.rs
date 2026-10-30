@@ -7,7 +7,7 @@
 use crate::{
     Activation, ConfigLocation, ConfigPresets, DecoderBinding, Discovery, FileFamily, FileNaming,
     GamePackage, GraphicsConfig, Install, LoadOrder, LoaderBinding, MarkerMode, MarkerRule,
-    ModMetadata, MovieReplacement, MovieSlots, NamePreset, NewsBinding, PackageReaderBinding,
+    ModMetadata, MovieFormat, MovieReplacement, NamePreset, NewsBinding, PackageReaderBinding,
     SourceBinding, StoreBinding, StoreInstallInto, StorePath, Storefront, Target, TargetLabel,
     Unit,
 };
@@ -377,25 +377,25 @@ impl GamePackage {
 }
 
 fn movie_replacement(value: &MovieReplacement) -> String {
-    let variant = match value {
-        MovieReplacement::Bink { .. } => "Bink",
-        MovieReplacement::Mp4 { .. } => "Mp4",
-    };
+    let MovieReplacement {
+        formats,
+        directory,
+        storefronts,
+    } = value;
     format!(
-        "{PATH}::MovieReplacement::{variant} {{ directory: {}, storefronts: {}, absent_slots: {} }}",
-        texts(value.directory()),
-        list(value.storefronts().iter().map(|store| storefront(*store)).collect()),
-        list(value.absent_slots().iter().map(movie_slots).collect()),
+        "{PATH}::MovieReplacement {{ formats: {}, directory: {}, storefronts: {} }}",
+        list(formats.iter().map(|format| movie_format(*format)).collect()),
+        texts(directory),
+        list(storefronts.iter().map(|store| storefront(*store)).collect()),
     )
 }
 
-fn movie_slots(value: &MovieSlots) -> String {
-    let MovieSlots { store, filenames } = value;
-    format!(
-        "{PATH}::MovieSlots {{ store: {}, filenames: {} }}",
-        storefront(*store),
-        texts(filenames)
-    )
+fn movie_format(value: MovieFormat) -> String {
+    let variant = match value {
+        MovieFormat::Bink => "Bink",
+        MovieFormat::Mp4 => "Mp4",
+    };
+    format!("{PATH}::MovieFormat::{variant}")
 }
 
 fn config_presets(value: &ConfigPresets) -> String {

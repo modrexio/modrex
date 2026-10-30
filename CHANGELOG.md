@@ -7,10 +7,22 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 ### Added
 
 - Added graphics config shortcuts for PAYDAY 3 and Crime Boss: Rockay City.
+- Added movie replacements for PAYDAY 3 on the Microsoft Store.
+- Added PAYDAY 3 heist, story and tutorial movies to movie replacements.
+
+### Changed
+
+- Movie replacements offer only movies found in the game folder.
+- Movie replacements preselect files with a clear destination.
+- Movie replacements describe each game movie and show the mod author's instructions.
 
 ### Fixed
 
 - Fixed Engine.ini presets for PAYDAY 3 on Steam not applying in game.
+- Fixed newer .bk2 movie mods being rejected.
+- Fixed unused movie and INI backups piling up on disk.
+- Fixed dropped movie and INI files getting stuck on Installing.
+- Fixed MP4 movie mods made with ffmpeg being rejected.
 
 ## 0.16.0
 

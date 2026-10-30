@@ -1472,13 +1472,18 @@ fn detect_resource_download(
             )));
         }
         if (ext.eq_ignore_ascii_case("bk2") || ext.eq_ignore_ascii_case("mp4"))
-            && !movies.is_some_and(|binding| ext.eq_ignore_ascii_case(binding.extension()))
+            && !movies.is_some_and(|binding| binding.format_for_extension(ext).is_some())
         {
             let error = match movies {
                 Some(binding) => format!(
-                    "{} accepts .{} movie replacements",
+                    "{} accepts {} movie replacements",
                     cfg.game_id,
-                    binding.extension()
+                    binding
+                        .formats
+                        .iter()
+                        .map(|format| format!(".{}", format.extension()))
+                        .collect::<Vec<_>>()
+                        .join(" and ")
                 ),
                 None => format!("Movie replacements are not supported for {}", cfg.game_id),
             };
@@ -1492,8 +1497,7 @@ fn detect_resource_download(
                 ".bak2 is not a supported movie extension".into(),
             ));
         }
-        let is_resource = movies
-            .is_some_and(|binding| ext.eq_ignore_ascii_case(binding.extension()))
+        let is_resource = movies.is_some_and(|binding| binding.format_for_extension(ext).is_some())
             || (config.is_some() && ext.eq_ignore_ascii_case("ini"));
         if !is_resource {
             return Ok(None);
@@ -1548,11 +1552,8 @@ fn detect_resource_download(
     // carries, and must not divert those archives from their own routing.
     let starts_review = |name: &str| {
         let file = entry_file_name(name);
-        movies.is_some_and(|binding| {
-            Path::new(file)
-                .extension()
-                .is_some_and(|extension| extension.eq_ignore_ascii_case(binding.extension()))
-        }) || config.is_some_and(|binding| file.eq_ignore_ascii_case(binding.filename()))
+        movies.is_some_and(|binding| binding.format_of(file).is_some())
+            || config.is_some_and(|binding| file.eq_ignore_ascii_case(binding.filename()))
     };
     if !files.iter().any(|(_, n)| starts_review(n) && !in_submod(n)) {
         return Ok(None);
@@ -1755,7 +1756,7 @@ fn validate_shared_pak_download(downloaded: &Path, cfg: &ModEngineConfig) -> Res
                 value.eq_ignore_ascii_case(extension)
                     || spec
                         .movie_replacement
-                        .is_some_and(|binding| value.eq_ignore_ascii_case(binding.extension()))
+                        .is_some_and(|binding| binding.format_for_extension(value).is_some())
                     || (spec.config_presets.is_some() && value.eq_ignore_ascii_case("ini"))
             })
         {
@@ -1801,7 +1802,7 @@ fn validate_shared_pak_download(downloaded: &Path, cfg: &ModEngineConfig) -> Res
         if member_extension.eq_ignore_ascii_case(extension)
             || spec
                 .movie_replacement
-                .is_some_and(|binding| member_extension.eq_ignore_ascii_case(binding.extension()))
+                .is_some_and(|binding| binding.format_for_extension(member_extension).is_some())
             || spec
                 .config_presets
                 .is_some_and(|binding| filename.eq_ignore_ascii_case(binding.filename()))

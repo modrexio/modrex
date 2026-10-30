@@ -508,3 +508,80 @@ fn transaction_rolls_back_when_manifest_commit_is_invalid() {
     assert_eq!(fs::read(&path).unwrap(), b"old");
     assert!(!store.has_pending("pd3").unwrap());
 }
+
+#[tokio::test]
+async fn garbage_collection_keeps_every_referenced_copy_and_deletes_the_rest() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().canonicalize().unwrap();
+    let store = ResourceStore::at(root.join("recovery"));
+    let digest = |content: &Content| match content {
+        Content::Present { sha256, .. } => sha256.clone(),
+        Content::Absent => unreachable!(),
+    };
+    let payload = store.put_bytes(b"installed payload").unwrap();
+    let original = store.put_bytes(b"original movie").unwrap();
+    let pending = store.put_bytes(b"pending journal copy").unwrap();
+    let released = store.put_bytes(b"released pack payload").unwrap();
+    let destination = root.join("Intro.bk2");
+    let mut manifest = store.load_manifest().unwrap();
+    manifest.deployments.push(Deployment {
+        id: "pack".into(),
+        game_id: "pd3".into(),
+        game_path: root.to_string_lossy().into_owned(),
+        canonical_game_path: root.to_string_lossy().into_owned(),
+        launcher: None,
+        name: "Pack".into(),
+        version: String::new(),
+        source: None,
+        remote_id: None,
+        file_id: None,
+        installed_at: String::new(),
+        enabled: true,
+        body: DeploymentBody::Movie {
+            slots: vec![MovieSlot {
+                slot: "Intro.bk2".into(),
+                destination: destination.to_string_lossy().into_owned(),
+                entry_name: "Intro.bk2".into(),
+                payload_sha256: digest(&payload),
+                payload_size: 17,
+            }],
+        },
+    });
+    manifest.movie_baselines.push(MovieBaseline {
+        destination: destination.to_string_lossy().into_owned(),
+        game_id: "pd3".into(),
+        prior: original.clone(),
+        captured_at: String::new(),
+    });
+    store.save_manifest(&manifest).unwrap();
+    let journal = Journal {
+        version: 1,
+        id: "pending".into(),
+        game_id: "cb".into(),
+        revision_after: 1,
+        steps: vec![Step {
+            destination: root.join("Engine.ini"),
+            before: Content::Absent,
+            after: pending.clone(),
+        }],
+        decision: RecoveryDecision::Rollback,
+    };
+    write_atomic(
+        &store.journal_dir().join("pending.json"),
+        &serde_json::to_vec(&journal).unwrap(),
+    )
+    .unwrap();
+    let leftover = store.root.join("objects").join(".object-crash.tmp");
+    fs::write(&leftover, b"half").unwrap();
+
+    let guard = ResourceLocks::default().acquire().await;
+    let freed = store.collect_garbage(&guard).unwrap();
+
+    assert_eq!(freed, b"released pack payload".len() as u64 + 4);
+    for kept in [&payload, &original, &pending] {
+        assert!(store.object_path(&digest(kept)).exists());
+    }
+    assert!(!store.object_path(&digest(&released)).exists());
+    assert!(!leftover.exists());
+    assert_eq!(store.collect_garbage(&guard).unwrap(), 0);
+}

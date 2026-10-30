@@ -296,26 +296,25 @@ pub fn markdown(examples: &[(&str, &str)]) -> String {
         "\n## `movie_replacement`\n\n\
          Independent of package readers, loaders and config presets. Omit it when this game\n\
          has no verified movie replacement mechanism.\n\n\
-         | Format | Fields |\n| --- | --- |\n",
+         | Field | Meaning |\n| --- | --- |\n",
     );
     out.push_str(&row(
-        "bink",
-        "`directory`, `storefronts`, optional `absent_slots`",
+        "formats",
+        "`bink` for `.bk2` files, `mp4` for `.mp4` files, one or both",
     ));
     out.push_str(&row(
-        "mp4",
-        "`directory`, `storefronts`, optional `absent_slots`",
+        "directory",
+        "relative components below the selected install",
+    ));
+    out.push_str(&row(
+        "storefronts",
+        "supported stores from `install.stores`",
     ));
     out.push_str(
-        "\n`directory` is a list of relative components below the selected install. This mechanism\n\
-         accepts `.bk2` for Bink or `.mp4` for MP4. MP4 payloads require one H.264 video\n\
-         track and at most one AAC LC audio track. `storefronts` lists supported stores\n\
-         from `install.stores`.\n\
-         A manual installation with no recognised store offers only slots found on disk.\n\n\
-         Each `absent_slots` entry names a supported `store` and its verified `filenames`.\n\
-         These slots may be offered even when the files are absent, so declare them only\n\
-         after verifying published replacement instructions for that store. Filenames must\n\
-         be single names with the declared movie extension and unique ignoring ASCII case.\n",
+        "\nMP4 payloads require one H.264 video track and at most one AAC LC audio track. A\n\
+         payload replaces only a movie of its own format.\n\
+         Only movie files present in `directory` or its subfolders can be replaced. A file the\n\
+         game ships but the install lacks comes back through the store's file verification.\n",
     );
     out.push_str(
         "\n## `config_presets`\n\n\

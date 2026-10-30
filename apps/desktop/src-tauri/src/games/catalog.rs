@@ -78,15 +78,20 @@ pub fn catalog_typescript() -> String {
         }
         if let Some(movies) = &pkg.movie_replacement {
             let stores = movies
-                .storefronts()
+                .storefronts
                 .iter()
                 .map(|store| quote(store.provider()))
                 .collect::<Vec<_>>()
                 .join(", ");
+            let extensions = movies
+                .formats
+                .iter()
+                .map(|format| quote(format.extension()))
+                .collect::<Vec<_>>()
+                .join(", ");
             let _ = writeln!(
                 out,
-                "        movieReplacement: {{ extension: {}, storefronts: [{stores}] }},",
-                quote(movies.extension())
+                "        movieReplacement: {{ extensions: [{extensions}], storefronts: [{stores}] }},"
             );
         }
         if let Some(configs) = &pkg.config_presets {

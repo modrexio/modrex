@@ -2,8 +2,11 @@ import { describe, it, expect, vi } from 'vitest'
 import type { ResourceReview } from './api'
 import {
     finishResourceReview,
+    formatMovieLength,
     getPendingResourceReview,
     requestResourceReview,
+    initialResourceSelection,
+    movieSlotsFor,
     resourceSelectionValid,
     resourceSelectionIssue,
     matchingMovieSlot,
@@ -23,6 +26,8 @@ const review: ResourceReview = {
     movieConflicts: [],
     iniConflicts: [],
     movieSlots: ['StartUp_SBZ.bk2', 'StartUp_Unreal.bk2'],
+    movieDetails: {},
+    remoteId: null,
     entries: [
         {
             entryId: 1,
@@ -109,6 +114,51 @@ describe('resource review selection', () => {
                 entry
             )
         ).toBeNull()
+    })
+
+    it('preselects exact movie matches and a lone movie, never variants or INI presets', () => {
+        const [movie, other, ini] = review.entries
+        const sbz = { ...movie!, name: 'Movies/StartUp_SBZ.bk2' }
+        expect(initialResourceSelection(review)).toEqual({})
+        expect(initialResourceSelection({ ...review, entries: [sbz, other!, ini!] })).toEqual({
+            1: 'StartUp_SBZ.bk2',
+        })
+        expect(initialResourceSelection({ ...review, entries: [movie!, ini!] })).toEqual({
+            1: null,
+        })
+        expect(
+            initialResourceSelection({
+                ...review,
+                entries: [sbz, { ...other!, name: 'Alt/StartUp_SBZ.bk2' }],
+            })
+        ).toEqual({})
+        expect(
+            initialResourceSelection({
+                ...review,
+                entries: [{ ...movie!, supported: false }, ini!],
+            })
+        ).toEqual({})
+        expect(
+            initialResourceSelection({ ...review, entries: [sbz], moviePackApplied: true })
+        ).toEqual({})
+    })
+
+    it('formats movie lengths as minutes and seconds', () => {
+        expect(formatMovieLength(9.4)).toBe('0:09')
+        expect(formatMovieLength(59.6)).toBe('1:00')
+        expect(formatMovieLength(605)).toBe('10:05')
+    })
+
+    it('offers only destinations of the movie file format', () => {
+        const mixed = {
+            ...review,
+            movieSlots: ['Heists/HeistBG_BranchBank.bk2', 'PD3_SplashScreen_01_intro.mp4'],
+        }
+        const movie = review.entries[0]!
+        expect(movieSlotsFor(mixed, movie)).toEqual(['Heists/HeistBG_BranchBank.bk2'])
+        expect(movieSlotsFor(mixed, { ...movie, name: 'Intro/Splash.MP4' })).toEqual([
+            'PD3_SplashScreen_01_intro.mp4',
+        ])
     })
 
     it('requires a unique verified slot per movie and one INI variant', () => {
