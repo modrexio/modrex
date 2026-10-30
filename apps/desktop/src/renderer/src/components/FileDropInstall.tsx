@@ -10,6 +10,7 @@ import {
 import { GAMES } from '../../../shared/types'
 import { refreshInstalled } from '../gameData'
 import { useFileDropInstall, type FileDropTarget } from '../hooks/useFileDropInstall'
+import { useInstallChoiceOpen } from '../installChoices'
 import { FileDropOverlay, FileDropStatus } from './FileDropOverlay'
 import { ZipPickerModal } from './ZipPickerModal'
 import { HostPackModal } from './HostPackModal'
@@ -43,12 +44,14 @@ export function FileDropInstall({ children }: { children: ReactNode }) {
         operationTarget,
     } = useFileDropInstall(target)
     const displayTarget = fileInstalling ? operationTarget : target
+    // A dropped movie or INI waits on its review, which would otherwise sit under the overlay.
+    const choiceOpen = useInstallChoiceOpen()
     return (
         <DropTargetContext value={setTarget}>
             {children}
             {displayTarget && (
                 <FileDropOverlay
-                    active={(target !== null && fileDragging) || fileInstalling}
+                    active={((target !== null && fileDragging) || fileInstalling) && !choiceOpen}
                     installing={fileInstalling}
                     progress={dropProgress}
                     gameName={GAMES[displayTarget.activeGame].name}

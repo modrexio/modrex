@@ -20,6 +20,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - Fixed Engine.ini presets for PAYDAY 3 on Steam not applying in game.
 - Fixed newer .bk2 movie mods being rejected.
 - Fixed unused movie and INI backups piling up on disk.
+- Fixed dropped movie and INI files getting stuck on Installing.
 
 ## 0.16.0
 
