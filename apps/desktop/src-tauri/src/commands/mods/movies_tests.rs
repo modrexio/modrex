@@ -131,6 +131,37 @@ fn payday_3_offers_nested_movies_and_its_mp4_intro() {
     );
 }
 
+#[test]
+fn a_pack_keeps_the_slots_it_created_when_their_files_are_gone() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().canonicalize().unwrap();
+    fs::write(root.join("StartUp_SBZ.bk2"), b"intro").unwrap();
+    let own = |slot: &str| MovieSlot {
+        slot: slot.into(),
+        destination: root.join(slot).to_string_lossy().into_owned(),
+        entry_name: "replacement.bk2".into(),
+        payload_sha256: "0".repeat(64),
+        payload_size: 1,
+    };
+    assert_eq!(
+        pack_inventory("pd3", &root, &[own("BG_LoginVideo_01.bk2")]).unwrap(),
+        ["StartUp_SBZ.bk2", "BG_LoginVideo_01.bk2"]
+    );
+    fs::remove_file(root.join("StartUp_SBZ.bk2")).unwrap();
+    assert_eq!(
+        pack_inventory("pd3", &root, &[own("BG_LoginVideo_01.bk2")]).unwrap(),
+        ["BG_LoginVideo_01.bk2"]
+    );
+    for unsafe_slot in [
+        "../Intro.bk2",
+        r"Heists\..\Intro.bk2",
+        "Intro.srt",
+        "/Intro.bk2",
+    ] {
+        assert!(pack_inventory("pd3", &root, &[own(unsafe_slot)]).is_err());
+    }
+}
+
 #[cfg(unix)]
 #[test]
 fn declared_movie_directory_cannot_link_outside_the_installation() {

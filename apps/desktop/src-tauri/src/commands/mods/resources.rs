@@ -2228,7 +2228,7 @@ fn validate_deployment_paths(deployment: &Deployment) -> Result<(), String> {
         &deployment.game_path,
         deployment.launcher.as_deref(),
     )?;
-    let inventory = movies::slot_inventory(&deployment.game_id, &dir)?;
+    let inventory = movies::pack_inventory(&deployment.game_id, &dir, slots)?;
     for slot in slots {
         if movies::slot_destination(&dir, &slot.slot, &inventory)? != Path::new(&slot.destination) {
             return Err(format!(

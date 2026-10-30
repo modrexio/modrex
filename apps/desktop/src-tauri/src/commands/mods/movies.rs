@@ -91,6 +91,31 @@ fn slot_inventory_for(replacement: &MovieReplacement, dir: &Path) -> Result<Vec<
     Ok(slots)
 }
 
+/// The slots an existing pack may use. A pack keeps its own slots even when their files are
+/// gone, because turning it off deletes a movie that did not exist before the pack wrote it.
+pub(crate) fn pack_inventory(
+    game_id: &str,
+    dir: &Path,
+    own: &[MovieSlot],
+) -> Result<Vec<String>, String> {
+    let replacement = replacement(game_id)?;
+    let mut slots = listed_slots(replacement, dir)?;
+    for slot in own {
+        if !is_plain_slot(replacement, &slot.slot) {
+            return Err(format!("{} is not a movie slot of this install", slot.slot));
+        }
+        let listed = slots
+            .iter()
+            .try_fold(false, |found, existing| -> Result<bool, String> {
+                Ok(found || same_slot_name(existing, &slot.slot)?)
+            })?;
+        if !listed {
+            slots.push(slot.slot.clone());
+        }
+    }
+    Ok(slots)
+}
+
 fn listed_slots(replacement: &MovieReplacement, dir: &Path) -> Result<Vec<String>, String> {
     let mut slots = Vec::new();
     collect_slots(replacement, dir, "", &mut slots)?;
@@ -130,6 +155,18 @@ fn collect_slots(
         }
     }
     Ok(())
+}
+
+/// A slot is relative plain names joined by forward slashes and ends in a declared format.
+fn is_plain_slot(replacement: &MovieReplacement, slot: &str) -> bool {
+    replacement.format_of(slot).is_some()
+        && slot.split('/').all(|part| {
+            let mut components = Path::new(part).components();
+            matches!(
+                (components.next(), components.next()),
+                (Some(std::path::Component::Normal(name)), None) if name == part
+            )
+        })
 }
 
 fn same_slot_name(left: &str, right: &str) -> Result<bool, String> {
