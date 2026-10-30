@@ -184,9 +184,12 @@ const BINK_MAX_FRAMES: u32 = 1_000_000;
 /// Header, little-endian u32 fields: 0 signature (BIK or KB2 plus a revision byte), 4 file
 /// size minus 8, 8 frame count, 12 largest frame size, 16 unused, 20 width, 24 height,
 /// 28 fps numerator, 32 fps denominator, 36 video flags, 40 audio track count. BIK revision k
-/// and KB2 revisions i, j and k carry one more u32. Each audio track then has a u32 max
+/// and KB2 revisions i, j, k and n carry one more u32. Each audio track then has a u32 max
 /// decoded size, a u16 sample rate and u16 flags, and a u32 track id. The frame index follows
 /// with one u32 per frame (bit 0 is the keyframe flag). The last frame ends at the file size.
+///
+/// FFmpeg does not know KB2n. Its layout was verified against the movies PAYDAY 3 ships since
+/// its Unreal Engine 5.5 update.
 ///
 /// This proves a structurally complete container, not that the game can play it: a zero-byte
 /// or truncated file fails here, a valid 1-frame skip video passes.
@@ -201,9 +204,10 @@ pub(crate) fn validate_bink(path: &Path) -> Result<BinkGeneration, String> {
         (b"BIK", rev @ (b'b' | b'f' | b'g' | b'h' | b'i' | b'k')) => {
             (BinkGeneration::Bink1, rev == b'k')
         }
-        (b"KB2", rev @ (b'a' | b'd' | b'f' | b'g' | b'h' | b'i' | b'j' | b'k')) => {
-            (BinkGeneration::Bink2, matches!(rev, b'i' | b'j' | b'k'))
-        }
+        (b"KB2", rev @ (b'a' | b'd' | b'f' | b'g' | b'h' | b'i' | b'j' | b'k' | b'n')) => (
+            BinkGeneration::Bink2,
+            matches!(rev, b'i' | b'j' | b'k' | b'n'),
+        ),
         _ => return Err("the file is not a Bink 1 or Bink 2 movie".to_string()),
     };
     let file_size = u64::from(u32_at(&header, 4)) + 8;

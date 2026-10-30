@@ -228,7 +228,7 @@ fn switching_packs_keeps_first_personal_baseline_and_refuses_divergence() {
 fn container_validation_checks_frame_index_and_known_revisions() {
     let temp = tempfile::tempdir().unwrap();
     let path = temp.path().join("sample.bk2");
-    for (signature, index) in [(b"BIKi", 44usize), (b"KB2i", 48)] {
+    for (signature, index) in [(b"BIKi", 44usize), (b"KB2i", 48), (b"KB2n", 48)] {
         let mut bytes = vec![0u8; 64];
         bytes[..4].copy_from_slice(signature);
         for (offset, value) in [
