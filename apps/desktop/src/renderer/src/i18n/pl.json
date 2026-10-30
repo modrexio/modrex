@@ -137,7 +137,7 @@
             "checking": "! Checking the {filename} location...",
             "found": "! {filename} found.",
             "missing": "! {filename} not found.",
-            "missingHint": "! Start the game to create it, then check again, or choose an existing file.",
+            "missingHint": "! Some games create it only when they have settings to save. Check again after playing, or choose an existing file.",
             "needsLocation": "! Modrex cannot automatically locate {filename} for this installation. Choose the file.",
             "checkFailed": "! Modrex could not check the {filename} location.",
             "checkingGameFolder": "! Looking for the game folder...",

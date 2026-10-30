@@ -137,7 +137,7 @@
             "checking": "正在检查 {filename} 的位置…",
             "found": "已找到 {filename}。",
             "missing": "未找到 {filename}。",
-            "missingHint": "启动游戏以生成此文件，然后重新检查，或选择一个已有文件。",
+            "missingHint": "? 启动游戏以生成此文件，然后重新检查，或选择一个已有文件。",
             "needsLocation": "Modrex 无法自动定位此游戏安装的 {filename}。请手动选择该文件。",
             "checkFailed": "Modrex 无法检查 {filename} 的位置。",
             "checkingGameFolder": "正在查找游戏文件夹…",
