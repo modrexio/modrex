@@ -933,9 +933,8 @@ fn build_review(
 ) -> Result<BuiltReview, String> {
     let spec =
         game_spec(&ctx.game_id).ok_or_else(|| format!("unknown game id '{}'", ctx.game_id))?;
-    let launcher = ctx.launcher.as_deref();
-    let slots = movies::movies_dir(&ctx.game_id, &ctx.game_path, launcher)
-        .and_then(|dir| movies::slot_inventory(&ctx.game_id, &dir, launcher));
+    let slots = movies::movies_dir(&ctx.game_id, &ctx.game_path, ctx.launcher.as_deref())
+        .and_then(|dir| movies::slot_inventory(&ctx.game_id, &dir));
     let config = resolve_engine_ini(app, ctx);
     let members: Vec<(Option<u32>, String)> = if found.is_archive {
         found.members.clone()
@@ -1492,7 +1491,7 @@ async fn install_movie_pack(
 ) -> Result<ResourceInstallResult, String> {
     let ctx = &review.context;
     let dir = movies::movies_dir(&ctx.game_id, &ctx.game_path, ctx.launcher.as_deref())?;
-    let inventory = movies::slot_inventory(&ctx.game_id, &dir, ctx.launcher.as_deref())?;
+    let inventory = movies::slot_inventory(&ctx.game_id, &dir)?;
     let mut destinations = Vec::new();
     for c in &choices {
         destinations.push(movies::slot_destination(&dir, &c.slot, &inventory)?);
@@ -2217,8 +2216,7 @@ fn validate_deployment_paths(deployment: &Deployment) -> Result<(), String> {
         &deployment.game_path,
         deployment.launcher.as_deref(),
     )?;
-    let inventory =
-        movies::slot_inventory(&deployment.game_id, &dir, deployment.launcher.as_deref())?;
+    let inventory = movies::slot_inventory(&deployment.game_id, &dir)?;
     for slot in slots {
         if movies::slot_destination(&dir, &slot.slot, &inventory)? != Path::new(&slot.destination) {
             return Err(format!(

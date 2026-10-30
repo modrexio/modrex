@@ -243,7 +243,6 @@ pub fn check(id: &str, package: &GamePackage) -> Result<(), String> {
 
 fn check_movies(movies: &MovieReplacement, package: &GamePackage) -> Result<(), String> {
     let storefronts = movies.storefronts();
-    let absent_slots = movies.absent_slots();
     check_resource_path(movies.directory(), "movie directory")?;
     if storefronts.is_empty() {
         return Err("movie replacement lists no supported storefronts".into());
@@ -259,44 +258,6 @@ fn check_movies(movies: &MovieReplacement, package: &GamePackage) -> Result<(), 
                 "movie replacement names the '{}' store, which install does not list",
                 storefront.provider()
             ));
-        }
-    }
-    if let Some(duplicate) =
-        first_duplicate(absent_slots.iter().map(|slots| slots.store.provider()))
-    {
-        return Err(format!(
-            "movie replacement declares absent slots twice for '{duplicate}'"
-        ));
-    }
-    for slots in absent_slots {
-        if !storefronts.contains(&slots.store) {
-            return Err(format!(
-                "movie absent slots name the '{}' store, which movie replacement does not support",
-                slots.store.provider()
-            ));
-        }
-        if slots.filenames.is_empty() {
-            return Err("movie absent slots must list at least one filename".into());
-        }
-        let names: Vec<_> = slots
-            .filenames
-            .iter()
-            .map(|name| name.to_ascii_lowercase())
-            .collect();
-        if let Some(duplicate) = first_duplicate(names.iter().map(String::as_str)) {
-            return Err(format!("movie absent slots repeat '{duplicate}'"));
-        }
-        for filename in &slots.filenames {
-            check_resource_path(std::slice::from_ref(filename), "movie slot")?;
-            let extension = movies.extension();
-            if !filename
-                .to_ascii_lowercase()
-                .ends_with(&format!(".{extension}"))
-            {
-                return Err(format!(
-                    "movie slot '{filename}' must have the .{extension} extension"
-                ));
-            }
         }
     }
     Ok(())

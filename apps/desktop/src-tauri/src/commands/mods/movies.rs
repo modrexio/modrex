@@ -1,8 +1,7 @@
 //! Movie replacement using the format and destinations a game package declares.
 //!
-//! Destinations are files the declared directory holds, plus absent slots authorized for the
-//! selected store. Archive entry names identify payloads and never decide a destination.
-//! The user maps each payload.
+//! Destinations are the movie files the declared directory holds. Archive entry names identify
+//! payloads and never decide a destination. The user maps each payload.
 
 use super::resource_state::{
     live_content, Content, Deployment, DeploymentBody, Manifest, MovieBaseline, MovieSlot,
@@ -70,19 +69,11 @@ fn movies_dir_for(
 }
 
 /// The slots this install offers, sorted.
-pub(crate) fn slot_inventory(
-    game_id: &str,
-    dir: &Path,
-    launcher: Option<&str>,
-) -> Result<Vec<String>, String> {
-    slot_inventory_for(replacement(game_id)?, dir, launcher)
+pub(crate) fn slot_inventory(game_id: &str, dir: &Path) -> Result<Vec<String>, String> {
+    slot_inventory_for(replacement(game_id)?, dir)
 }
 
-fn slot_inventory_for(
-    replacement: &MovieReplacement,
-    dir: &Path,
-    launcher: Option<&str>,
-) -> Result<Vec<String>, String> {
+fn slot_inventory_for(replacement: &MovieReplacement, dir: &Path) -> Result<Vec<String>, String> {
     let mut slots = Vec::new();
     for entry in
         std::fs::read_dir(dir).map_err(|e| format!("could not list {}: {e}", dir.display()))?
@@ -98,23 +89,12 @@ fn slot_inventory_for(
             slots.push(name);
         }
     }
-    for verified in replacement
-        .absent_slots()
-        .iter()
-        .filter(|slots| launcher == Some(slots.store.provider()))
-    {
-        for slot in &verified.filenames {
-            let present =
-                slots
-                    .iter()
-                    .try_fold(false, |found, existing| -> Result<bool, String> {
-                        Ok(found || same_slot_name(existing, slot)?)
-                    })?;
-            if present {
-                continue;
-            }
-            slots.push(slot.clone());
-        }
+    if slots.is_empty() {
+        return Err(format!(
+            "{} has no .{} movies. Verify the game files in your launcher to restore them, then try again",
+            dir.display(),
+            replacement.extension()
+        ));
     }
     for (index, slot) in slots.iter().enumerate() {
         for other in &slots[..index] {

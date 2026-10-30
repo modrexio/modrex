@@ -7,9 +7,8 @@
 use crate::{
     Activation, ConfigLocation, ConfigPresets, DecoderBinding, Discovery, FileFamily, FileNaming,
     GamePackage, GraphicsConfig, Install, LoadOrder, LoaderBinding, MarkerMode, MarkerRule,
-    ModMetadata, MovieReplacement, MovieSlots, NamePreset, NewsBinding, PackageReaderBinding,
-    SourceBinding, StoreBinding, StoreInstallInto, StorePath, Storefront, Target, TargetLabel,
-    Unit,
+    ModMetadata, MovieReplacement, NamePreset, NewsBinding, PackageReaderBinding, SourceBinding,
+    StoreBinding, StoreInstallInto, StorePath, Storefront, Target, TargetLabel, Unit,
 };
 
 const PATH: &str = "::modrex_game_package";
@@ -382,19 +381,15 @@ fn movie_replacement(value: &MovieReplacement) -> String {
         MovieReplacement::Mp4 { .. } => "Mp4",
     };
     format!(
-        "{PATH}::MovieReplacement::{variant} {{ directory: {}, storefronts: {}, absent_slots: {} }}",
+        "{PATH}::MovieReplacement::{variant} {{ directory: {}, storefronts: {} }}",
         texts(value.directory()),
-        list(value.storefronts().iter().map(|store| storefront(*store)).collect()),
-        list(value.absent_slots().iter().map(movie_slots).collect()),
-    )
-}
-
-fn movie_slots(value: &MovieSlots) -> String {
-    let MovieSlots { store, filenames } = value;
-    format!(
-        "{PATH}::MovieSlots {{ store: {}, filenames: {} }}",
-        storefront(*store),
-        texts(filenames)
+        list(
+            value
+                .storefronts()
+                .iter()
+                .map(|store| storefront(*store))
+                .collect()
+        ),
     )
 }
 

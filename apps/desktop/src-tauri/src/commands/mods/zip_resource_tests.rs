@@ -26,7 +26,6 @@ fn config_and_movie_archive_routing_use_independent_declarations() {
     let movies = MovieReplacement::Bink {
         directory: vec!["Media".into()],
         storefronts: vec![Storefront::Steam],
-        absent_slots: vec![],
     };
     let config = ConfigPresets::UnrealEngineIni {};
     let ini = archive("Engine.ini");
@@ -61,7 +60,6 @@ fn loose_resources_require_their_own_declared_mechanism() {
     let movies = MovieReplacement::Bink {
         directory: vec!["Media".into()],
         storefronts: vec![Storefront::Steam],
-        absent_slots: vec![],
     };
     let config = ConfigPresets::UnrealEngineIni {};
     let temp = tempfile::tempdir().unwrap();

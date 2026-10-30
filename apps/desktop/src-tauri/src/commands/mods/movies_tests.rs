@@ -1,15 +1,11 @@
 use super::*;
-use crate::game_package::{MovieSlots, Storefront};
+use crate::game_package::Storefront;
 use std::fs;
 
 fn declared_movies() -> MovieReplacement {
     MovieReplacement::Bink {
         directory: vec!["Media".into()],
         storefronts: vec![Storefront::Steam],
-        absent_slots: vec![MovieSlots {
-            store: Storefront::Steam,
-            filenames: vec!["MissingIntro.bk2".into()],
-        }],
     }
 }
 
@@ -28,9 +24,8 @@ fn mp4_inventory_uses_the_declared_extension_and_exact_native_names() {
     let definition = MovieReplacement::Mp4 {
         directory: vec!["Media".into()],
         storefronts: vec![Storefront::Steam],
-        absent_slots: vec![],
     };
-    let inventory = slot_inventory_for(&definition, temp.path(), Some("steam")).unwrap();
+    let inventory = slot_inventory_for(&definition, temp.path()).unwrap();
     assert_eq!(inventory, ["ReadyOrNot_StartupMovie.MP4"]);
     assert_eq!(
         slot_destination(temp.path(), &inventory[0], &inventory).unwrap(),
@@ -43,27 +38,18 @@ fn mp4_inventory_uses_the_declared_extension_and_exact_native_names() {
     )
     .is_err());
     assert_eq!(
-        slot_inventory_for(&declared_movies(), temp.path(), None).unwrap(),
+        slot_inventory_for(&declared_movies(), temp.path()).unwrap(),
         ["Intro.bk2"]
     );
 }
 
 #[test]
-fn an_authorized_absent_slot_keeps_an_existing_slots_exact_spelling() {
+fn a_movie_folder_without_movies_points_to_store_verification() {
     let temp = tempfile::tempdir().unwrap();
-    fs::write(temp.path().join("Intro.MP4"), b"manual clip").unwrap();
-    let definition = MovieReplacement::Mp4 {
-        directory: vec!["Media".into()],
-        storefronts: vec![Storefront::Steam],
-        absent_slots: vec![MovieSlots {
-            store: Storefront::Steam,
-            filenames: vec!["intro.mp4".into()],
-        }],
-    };
-    assert_eq!(
-        slot_inventory_for(&definition, temp.path(), Some("steam")).unwrap(),
-        ["Intro.MP4"]
-    );
+    fs::write(temp.path().join("Intro.mp4"), b"other format").unwrap();
+    let error = slot_inventory_for(&declared_movies(), temp.path()).unwrap_err();
+    assert!(error.contains("has no .bk2 movies"));
+    assert!(error.contains("Verify the game files"));
 }
 
 #[cfg(windows)]
@@ -95,23 +81,6 @@ fn movie_destinations_and_store_permissions_follow_the_declaration() {
     }
 }
 
-#[test]
-fn absent_movie_slots_are_authorized_only_for_the_declared_store() {
-    let temp = tempfile::tempdir().unwrap();
-    fs::write(temp.path().join("Existing.bk2"), b"on disk").unwrap();
-    let definition = declared_movies();
-    assert_eq!(
-        slot_inventory_for(&definition, temp.path(), Some("steam")).unwrap(),
-        ["Existing.bk2", "MissingIntro.bk2"]
-    );
-    for launcher in [Some("epic"), Some("manual"), None] {
-        assert_eq!(
-            slot_inventory_for(&definition, temp.path(), launcher).unwrap(),
-            ["Existing.bk2"]
-        );
-    }
-}
-
 #[cfg(unix)]
 #[test]
 fn declared_movie_directory_cannot_link_outside_the_installation() {
@@ -133,7 +102,7 @@ fn case_colliding_movie_slots_are_refused_before_mapping() {
     let temp = tempfile::tempdir().unwrap();
     fs::write(temp.path().join("Intro.bk2"), b"first").unwrap();
     fs::write(temp.path().join("intro.BK2"), b"second").unwrap();
-    let error = slot_inventory("pd3", temp.path(), Some("steam")).unwrap_err();
+    let error = slot_inventory("pd3", temp.path()).unwrap_err();
     assert!(error.contains("differ only in case"));
     assert_eq!(fs::read(temp.path().join("Intro.bk2")).unwrap(), b"first");
     assert_eq!(fs::read(temp.path().join("intro.BK2")).unwrap(), b"second");
@@ -282,7 +251,6 @@ fn container_validation_checks_frame_index_and_known_revisions() {
             &MovieReplacement::Mp4 {
                 directory: vec!["Media".into()],
                 storefronts: vec![Storefront::Steam],
-                absent_slots: vec![],
             },
             &path
         )

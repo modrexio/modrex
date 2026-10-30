@@ -133,19 +133,15 @@ has no verified movie replacement mechanism.
 
 | Format | Fields |
 | --- | --- |
-| `bink` | `directory`, `storefronts`, optional `absent_slots` |
-| `mp4` | `directory`, `storefronts`, optional `absent_slots` |
+| `bink` | `directory`, `storefronts` |
+| `mp4` | `directory`, `storefronts` |
 
 `directory` is a list of relative components below the selected install. This mechanism
 accepts `.bk2` for Bink or `.mp4` for MP4. MP4 payloads require one H.264 video
 track and at most one AAC LC audio track. `storefronts` lists supported stores
 from `install.stores`.
-A manual installation with no recognised store offers only slots found on disk.
-
-Each `absent_slots` entry names a supported `store` and its verified `filenames`.
-These slots may be offered even when the files are absent, so declare them only
-after verifying published replacement instructions for that store. Filenames must
-be single names with the declared movie extension and unique ignoring ASCII case.
+Only movie files present in `directory` can be replaced. A file the game ships but
+the install lacks comes back through the store's file verification.
 
 ## `config_presets`
 

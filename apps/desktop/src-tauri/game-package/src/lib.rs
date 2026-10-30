@@ -338,14 +338,10 @@ pub enum MovieReplacement {
     Bink {
         directory: Vec<String>,
         storefronts: Vec<Storefront>,
-        #[serde(default)]
-        absent_slots: Vec<MovieSlots>,
     },
     Mp4 {
         directory: Vec<String>,
         storefronts: Vec<Storefront>,
-        #[serde(default)]
-        absent_slots: Vec<MovieSlots>,
     },
 }
 
@@ -368,20 +364,6 @@ impl MovieReplacement {
             Self::Bink { storefronts, .. } | Self::Mp4 { storefronts, .. } => storefronts,
         }
     }
-
-    pub fn absent_slots(&self) -> &[MovieSlots] {
-        match self {
-            Self::Bink { absent_slots, .. } | Self::Mp4 { absent_slots, .. } => absent_slots,
-        }
-    }
-}
-
-/// Slots verified against published replacement instructions for this store.
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
-#[serde(deny_unknown_fields)]
-pub struct MovieSlots {
-    pub store: Storefront,
-    pub filenames: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]

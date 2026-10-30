@@ -588,8 +588,8 @@ fn with_root_declaration(declaration: &str) -> String {
     )
 }
 
-const MOVIES: &str = r#"movie_replacement = { format = "bink", directory = ["Content", "Movies"], storefronts = ["steam"], absent_slots = [{ store = "steam", filenames = ["Intro.bk2"] }] }"#;
-const MP4_MOVIES: &str = r#"movie_replacement = { format = "mp4", directory = ["Content", "Movies"], storefronts = ["steam"], absent_slots = [{ store = "steam", filenames = ["Intro.mp4"] }] }"#;
+const MOVIES: &str = r#"movie_replacement = { format = "bink", directory = ["Content", "Movies"], storefronts = ["steam"] }"#;
+const MP4_MOVIES: &str = r#"movie_replacement = { format = "mp4", directory = ["Content", "Movies"], storefronts = ["steam"] }"#;
 const CONFIGS: &str = r#"config_presets = { format = "unreal_engine_ini" }"#;
 const CONFIG_LOCATION: &str = r#"config_presets = { format = "unreal_engine_ini" }
 unreal_config = { roots = [{ root = "windows_local_app_data", store = "steam", path = ["Fixture", "Saved", "Config"] }] }"#;
@@ -638,7 +638,7 @@ fn resource_contract_rejects_unimplemented_formats_and_unknown_fields() {
 }
 
 #[test]
-fn movie_formats_keep_distinct_extensions_and_store_slots() {
+fn movie_formats_keep_distinct_extensions() {
     for (declaration, extension) in [(MOVIES, "bk2"), (MP4_MOVIES, "mp4")] {
         let package: GamePackage = toml::from_str(&with_root_declaration(declaration)).unwrap();
         validate::check("fixture", &package).unwrap();
@@ -646,22 +646,11 @@ fn movie_formats_keep_distinct_extensions_and_store_slots() {
         assert_eq!(movies.extension(), extension);
         assert_eq!(movies.directory(), ["Content", "Movies"]);
         assert_eq!(movies.storefronts().len(), 1);
-        assert_eq!(
-            movies.absent_slots()[0].filenames,
-            [format!("Intro.{extension}")]
-        );
-        let other = if extension == "bk2" { "mp4" } else { "bk2" };
-        assert_rejected(
-            &with_root_declaration(
-                &declaration.replace(&format!("Intro.{extension}"), &format!("Intro.{other}")),
-            ),
-            &format!(".{extension} extension"),
-        );
     }
 }
 
 #[test]
-fn movie_declarations_reject_unsafe_destinations_and_unverified_store_slots() {
+fn movie_declarations_reject_unsafe_destinations_and_unlisted_stores() {
     for (declaration, expected) in [
         (
             MOVIES.replace(r#"["Content", "Movies"]"#, "[]"),
@@ -682,19 +671,6 @@ fn movie_declarations_reject_unsafe_destinations_and_unverified_store_slots() {
         (
             MOVIES.replace(r#"["steam"]"#, r#"["epic"]"#),
             "install does not list",
-        ),
-        (
-            MOVIES.replace(r#"store = "steam""#, r#"store = "epic""#),
-            "does not support",
-        ),
-        (
-            MOVIES.replace("Intro.bk2", "../Intro.bk2"),
-            "plain relative",
-        ),
-        (MOVIES.replace("Intro.bk2", "Intro.bak2"), ".bk2 extension"),
-        (
-            MOVIES.replace(r#"["Intro.bk2"]"#, r#"["Intro.bk2", "intro.BK2"]"#),
-            "repeat",
         ),
     ] {
         assert_rejected(&with_root_declaration(&declaration), expected);
