@@ -588,8 +588,8 @@ fn with_root_declaration(declaration: &str) -> String {
     )
 }
 
-const MOVIES: &str = r#"movie_replacement = { format = "bink", directory = ["Content", "Movies"], storefronts = ["steam"] }"#;
-const MP4_MOVIES: &str = r#"movie_replacement = { format = "mp4", directory = ["Content", "Movies"], storefronts = ["steam"] }"#;
+const MOVIES: &str = r#"movie_replacement = { formats = ["bink"], directory = ["Content", "Movies"], storefronts = ["steam"] }"#;
+const MP4_MOVIES: &str = r#"movie_replacement = { formats = ["mp4"], directory = ["Content", "Movies"], storefronts = ["steam"] }"#;
 const CONFIGS: &str = r#"config_presets = { format = "unreal_engine_ini" }"#;
 const CONFIG_LOCATION: &str = r#"config_presets = { format = "unreal_engine_ini" }
 unreal_config = { roots = [{ root = "windows_local_app_data", store = "steam", path = ["Fixture", "Saved", "Config"] }] }"#;
@@ -617,7 +617,7 @@ fn resource_contract_rejects_unimplemented_formats_and_unknown_fields() {
     for (declaration, expected) in [
         (MOVIES.replace("bink", "webm"), "unknown variant"),
         (
-            MOVIES.replace("format =", "callback = \"run\", format ="),
+            MOVIES.replace("formats =", "callback = \"run\", formats ="),
             "unknown field",
         ),
         (
@@ -639,13 +639,23 @@ fn resource_contract_rejects_unimplemented_formats_and_unknown_fields() {
 
 #[test]
 fn movie_formats_keep_distinct_extensions() {
-    for (declaration, extension) in [(MOVIES, "bk2"), (MP4_MOVIES, "mp4")] {
-        let package: GamePackage = toml::from_str(&with_root_declaration(declaration)).unwrap();
+    let both = MOVIES.replace(r#"["bink"]"#, r#"["bink", "mp4"]"#);
+    for (declaration, extensions) in [
+        (MOVIES.to_string(), &["bk2"][..]),
+        (MP4_MOVIES.to_string(), &["mp4"][..]),
+        (both, &["bk2", "mp4"][..]),
+    ] {
+        let package: GamePackage = toml::from_str(&with_root_declaration(&declaration)).unwrap();
         validate::check("fixture", &package).unwrap();
         let movies = package.movie_replacement.unwrap();
-        assert_eq!(movies.extension(), extension);
-        assert_eq!(movies.directory(), ["Content", "Movies"]);
-        assert_eq!(movies.storefronts().len(), 1);
+        let declared: Vec<_> = movies.formats.iter().map(|f| f.extension()).collect();
+        assert_eq!(declared, extensions);
+        assert_eq!(movies.directory, ["Content", "Movies"]);
+        assert_eq!(movies.storefronts.len(), 1);
+        assert_eq!(
+            movies.format_of("Heists/Intro.BK2").is_some(),
+            extensions.contains(&"bk2")
+        );
     }
 }
 
@@ -671,6 +681,11 @@ fn movie_declarations_reject_unsafe_destinations_and_unlisted_stores() {
         (
             MOVIES.replace(r#"["steam"]"#, r#"["epic"]"#),
             "install does not list",
+        ),
+        (MOVIES.replace(r#"["bink"]"#, "[]"), "no formats"),
+        (
+            MOVIES.replace(r#"["bink"]"#, r#"["bink", "bink"]"#),
+            "format twice",
         ),
     ] {
         assert_rejected(&with_root_declaration(&declaration), expected);

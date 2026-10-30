@@ -242,8 +242,17 @@ pub fn check(id: &str, package: &GamePackage) -> Result<(), String> {
 }
 
 fn check_movies(movies: &MovieReplacement, package: &GamePackage) -> Result<(), String> {
-    let storefronts = movies.storefronts();
-    check_resource_path(movies.directory(), "movie directory")?;
+    let storefronts = &movies.storefronts;
+    check_resource_path(&movies.directory, "movie directory")?;
+    if movies.formats.is_empty() {
+        return Err("movie replacement lists no formats".into());
+    }
+    if let Some(duplicate) = first_duplicate(movies.formats.iter().map(|format| format.extension()))
+    {
+        return Err(format!(
+            "movie replacement lists the '{duplicate}' format twice"
+        ));
+    }
     if storefronts.is_empty() {
         return Err("movie replacement lists no supported storefronts".into());
     }

@@ -2,11 +2,16 @@ use super::*;
 use crate::game_package::Storefront;
 use std::fs;
 
-fn declared_movies() -> MovieReplacement {
-    MovieReplacement::Bink {
+fn movies_in(formats: &[MovieFormat]) -> MovieReplacement {
+    MovieReplacement {
+        formats: formats.to_vec(),
         directory: vec!["Media".into()],
         storefronts: vec![Storefront::Steam],
     }
+}
+
+fn declared_movies() -> MovieReplacement {
+    movies_in(&[MovieFormat::Bink])
 }
 
 #[test]
@@ -21,22 +26,17 @@ fn mp4_inventory_uses_the_declared_extension_and_exact_native_names() {
         fs::write(temp.path().join(name), b"on disk").unwrap();
     }
     fs::create_dir(temp.path().join("folder.mp4")).unwrap();
-    let definition = MovieReplacement::Mp4 {
-        directory: vec!["Media".into()],
-        storefronts: vec![Storefront::Steam],
-    };
-    let inventory = slot_inventory_for(&definition, temp.path()).unwrap();
+    let root = temp.path().canonicalize().unwrap();
+    let definition = movies_in(&[MovieFormat::Mp4]);
+    let inventory = slot_inventory_for(&definition, &root).unwrap();
     assert_eq!(inventory, ["ReadyOrNot_StartupMovie.MP4"]);
     assert_eq!(
-        slot_destination(temp.path(), &inventory[0], &inventory).unwrap(),
-        temp.path().join(&inventory[0])
+        slot_destination(&root, &inventory[0], &inventory).unwrap(),
+        root.join(&inventory[0])
     );
-    assert!(slot_destination(
-        temp.path(),
-        "Sins_MovieScreen_Cherade1963_film_B.mp4",
-        &inventory
-    )
-    .is_err());
+    assert!(
+        slot_destination(&root, "Sins_MovieScreen_Cherade1963_film_B.mp4", &inventory).is_err()
+    );
     assert_eq!(
         slot_inventory_for(&declared_movies(), temp.path()).unwrap(),
         ["Intro.bk2"]
@@ -97,6 +97,37 @@ fn payday_3_store_installs_offer_their_movies() {
     assert_eq!(
         slot_inventory("pd3", &dir).unwrap(),
         ["BG_LoginVideo_01.bk2", "StartUp_SBZ.bk2"]
+    );
+}
+
+#[test]
+fn payday_3_offers_nested_movies_and_its_mp4_intro() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().canonicalize().unwrap();
+    fs::create_dir_all(root.join("Heists")).unwrap();
+    fs::create_dir_all(root.join("StoryMode")).unwrap();
+    for name in [
+        "BG_LoginVideo_01.bk2",
+        "PD3_SplashScreen_01_intro.mp4",
+        "Heists/HeistBG_BranchBank.bk2",
+        "StoryMode/StoryMode_Cinematic_01.bk2",
+        "StoryMode/StoryMode_Cinematic_01_en.srt",
+    ] {
+        fs::write(root.join(name), b"movie").unwrap();
+    }
+    let inventory = slot_inventory("pd3", &root).unwrap();
+    assert_eq!(
+        inventory,
+        [
+            "BG_LoginVideo_01.bk2",
+            "Heists/HeistBG_BranchBank.bk2",
+            "PD3_SplashScreen_01_intro.mp4",
+            "StoryMode/StoryMode_Cinematic_01.bk2",
+        ]
+    );
+    assert_eq!(
+        slot_destination(&root, "Heists/HeistBG_BranchBank.bk2", &inventory).unwrap(),
+        root.join("Heists").join("HeistBG_BranchBank.bk2")
     );
 }
 
@@ -265,15 +296,11 @@ fn container_validation_checks_frame_index_and_known_revisions() {
         }
         fs::write(&path, &bytes).unwrap();
         assert!(validate_bink(&path).is_ok());
-        assert!(validate_payload_for(&declared_movies(), &path).is_ok());
-        assert!(validate_payload_for(
-            &MovieReplacement::Mp4 {
-                directory: vec!["Media".into()],
-                storefronts: vec![Storefront::Steam],
-            },
-            &path
-        )
-        .is_err());
+        let both = movies_in(&[MovieFormat::Bink, MovieFormat::Mp4]);
+        assert!(validate_payload_for(&declared_movies(), "Intro.bk2", &path).is_ok());
+        assert!(validate_payload_for(&both, "Movies/Intro.BK2", &path).is_ok());
+        assert!(validate_payload_for(&both, "Splash.mp4", &path).is_err());
+        assert!(validate_payload_for(&declared_movies(), "Splash.mp4", &path).is_err());
         bytes[index..index + 4].copy_from_slice(&0u32.to_le_bytes());
         fs::write(&path, &bytes).unwrap();
         assert!(validate_bink(&path).is_err());

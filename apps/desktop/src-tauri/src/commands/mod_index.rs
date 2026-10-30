@@ -118,10 +118,9 @@ pub async fn inspect_movie_resources(
     game_id: String,
 ) -> Result<MovieRecognitionScan, String> {
     let cfg = crate::commands::mods::engine_for_game(&game_id)?;
-    let extension = crate::commands::games::game_spec(&game_id)
+    crate::commands::games::game_spec(&game_id)
         .and_then(|game| game.movie_replacement)
-        .ok_or("Movie replacement is not supported for this game.")?
-        .extension();
+        .ok_or("Movie replacement is not supported for this game.")?;
     let settings = crate::commands::settings::read_settings(&app);
     let install = crate::commands::settings::game_settings(&settings, &game_id)
         .and_then(|game| game.game_path.as_ref())
@@ -159,20 +158,11 @@ pub async fn inspect_movie_resources(
             }
             _ => HashSet::new(),
         };
-        let mut paths = std::fs::read_dir(&movies_root)
-            .map_err(|error| format!("Cannot list game movies: {error}"))?
-            .map(|entry| entry.map(|entry| entry.path()))
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(|error| format!("Cannot read movie directory entry: {error}"))?;
-        paths.sort();
+        let slots = crate::commands::mods::movies::slot_inventory(&game_id, &movies_root)?;
         let mut movies = Vec::new();
-        for path in paths {
-            if !path
-                .extension()
-                .is_some_and(|candidate| candidate.eq_ignore_ascii_case(extension))
-            {
-                continue;
-            }
+        for slot in slots {
+            let mut path = movies_root.clone();
+            path.extend(slot.split('/'));
             let physical = path
                 .canonicalize()
                 .map_err(|error| format!("Cannot resolve movie {}: {error}", path.display()))?;

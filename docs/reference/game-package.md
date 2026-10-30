@@ -131,17 +131,16 @@ than guessing a key.
 Independent of package readers, loaders and config presets. Omit it when this game
 has no verified movie replacement mechanism.
 
-| Format | Fields |
+| Field | Meaning |
 | --- | --- |
-| `bink` | `directory`, `storefronts` |
-| `mp4` | `directory`, `storefronts` |
+| `formats` | `bink` for `.bk2` files, `mp4` for `.mp4` files, one or both |
+| `directory` | relative components below the selected install |
+| `storefronts` | supported stores from `install.stores` |
 
-`directory` is a list of relative components below the selected install. This mechanism
-accepts `.bk2` for Bink or `.mp4` for MP4. MP4 payloads require one H.264 video
-track and at most one AAC LC audio track. `storefronts` lists supported stores
-from `install.stores`.
-Only movie files present in `directory` can be replaced. A file the game ships but
-the install lacks comes back through the store's file verification.
+MP4 payloads require one H.264 video track and at most one AAC LC audio track. A
+payload replaces only a movie of its own format.
+Only movie files present in `directory` or its subfolders can be replaced. A file the
+game ships but the install lacks comes back through the store's file verification.
 
 ## `config_presets`
 

@@ -807,11 +807,19 @@ fn assess(
         ResourceEntryKind::Other => Err("not a movie or Engine.ini".to_string()),
         ResourceEntryKind::Movie => (|| {
             let format = movie_format.ok_or("Movie replacements are not supported for this game")?;
-            if ext != format.extension() {
-                return Err(format!("This game accepts .{} movie replacements", format.extension()));
+            if format.format_for_extension(&ext).is_none() {
+                let accepted: Vec<_> = format
+                    .formats
+                    .iter()
+                    .map(|format| format!(".{}", format.extension()))
+                    .collect();
+                return Err(format!(
+                    "This game accepts {} movie replacements",
+                    accepted.join(" and ")
+                ));
             }
             movies.as_ref().map_err(Clone::clone)?;
-            movies::validate_payload_for(format, staged.expect("movies are staged"))
+            movies::validate_payload_for(format, name, staged.expect("movies are staged"))
         })(),
         ResourceEntryKind::Ini if config.is_none() => {
             Err("Engine.ini presets are not supported for this game".into())
@@ -954,7 +962,7 @@ fn build_review(
             && (ext == "ini"
                 || spec
                     .movie_replacement
-                    .is_some_and(|format| ext == format.extension()));
+                    .is_some_and(|movies| movies.format_for_extension(&ext).is_some()));
         if wanted
             && entries
                 .iter()
@@ -1509,7 +1517,7 @@ async fn install_movie_pack(
             else {
                 return Err(format!("{} disappeared from staging", c.entry_name));
             };
-            movies::validate_payload(&game_id, &store.object_path(&sha256))?;
+            movies::validate_payload(&game_id, &c.slot, &store.object_path(&sha256))?;
             slots.push(MovieSlot {
                 slot: c.slot,
                 destination: dest.to_string_lossy().to_string(),
@@ -1558,7 +1566,11 @@ fn apply_movie_pack(
     replacing: Option<String>,
 ) -> Result<ResourceInstallResult, String> {
     for slot in movies::slots_of(&pack) {
-        movies::validate_payload(game_id, &store.object_path(&slot.payload_sha256))?;
+        movies::validate_payload(
+            game_id,
+            &slot.slot,
+            &store.object_path(&slot.payload_sha256),
+        )?;
     }
     let plan = movies::plan_apply(store, manifest, &pack, replacing.as_deref())?;
     if let DeploymentBody::Movie { slots } = &mut pack.body {

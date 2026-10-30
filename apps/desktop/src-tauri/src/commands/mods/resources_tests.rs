@@ -487,7 +487,7 @@ fn recovery_opener_does_not_wait_for_or_kill_a_running_file_manager() {
 
 #[test]
 fn movies_in_the_wrong_declared_format_are_rejected_without_staging() {
-    for (game_id, name, extension) in [("pd3", "trailer.mp4", "bk2"), ("ron", "trailer.bk2", "mp4")]
+    for (game_id, name, extension) in [("cb", "trailer.mp4", "bk2"), ("ron", "trailer.bk2", "mp4")]
     {
         let spec = game_spec(game_id).unwrap();
         let (kind, verdict) = assess(name, None, &Ok(vec![]), spec.movie_replacement, None);

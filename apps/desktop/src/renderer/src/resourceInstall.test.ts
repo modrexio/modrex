@@ -5,6 +5,7 @@ import {
     getPendingResourceReview,
     requestResourceReview,
     initialResourceSelection,
+    movieSlotsFor,
     resourceSelectionValid,
     resourceSelectionIssue,
     matchingMovieSlot,
@@ -137,6 +138,18 @@ describe('resource review selection', () => {
         expect(
             initialResourceSelection({ ...review, entries: [sbz], moviePackApplied: true })
         ).toEqual({})
+    })
+
+    it('offers only destinations of the movie file format', () => {
+        const mixed = {
+            ...review,
+            movieSlots: ['Heists/HeistBG_BranchBank.bk2', 'PD3_SplashScreen_01_intro.mp4'],
+        }
+        const movie = review.entries[0]!
+        expect(movieSlotsFor(mixed, movie)).toEqual(['Heists/HeistBG_BranchBank.bk2'])
+        expect(movieSlotsFor(mixed, { ...movie, name: 'Intro/Splash.MP4' })).toEqual([
+            'PD3_SplashScreen_01_intro.mp4',
+        ])
     })
 
     it('requires a unique verified slot per movie and one INI variant', () => {

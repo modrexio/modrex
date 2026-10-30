@@ -8,6 +8,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 - Added graphics config shortcuts for PAYDAY 3 and Crime Boss: Rockay City.
 - Added movie replacements for PAYDAY 3 on the Microsoft Store.
+- Added PAYDAY 3 heist, story and tutorial movies and its .mp4 intro to movie replacements.
 
 ### Changed
 

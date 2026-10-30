@@ -1,14 +1,15 @@
 //! Movie replacement using the format and destinations a game package declares.
 //!
-//! Destinations are the movie files the declared directory holds. Archive entry names identify
-//! payloads and never decide a destination. The user maps each payload.
+//! Destinations are the movie files the declared directory and its subfolders hold, named by
+//! their path below it with forward slashes. Archive entry names identify payloads and never
+//! decide a destination. The user maps each payload to a movie of the same format.
 
 use super::resource_state::{
     live_content, Content, Deployment, DeploymentBody, Manifest, MovieBaseline, MovieSlot,
     ResourceStore, Step,
 };
 use crate::commands::games::game_spec;
-use crate::game_package::MovieReplacement;
+use crate::game_package::{MovieFormat, MovieReplacement};
 use std::collections::HashSet;
 use std::fs::File;
 use std::io::Read;
@@ -43,7 +44,7 @@ fn movies_dir_for(
         launcher.filter(|store| crate::commands::launchers::is_store_launcher(store))
     {
         if !replacement
-            .storefronts()
+            .storefronts
             .iter()
             .any(|allowed| allowed.provider() == store)
         {
@@ -52,7 +53,7 @@ fn movies_dir_for(
             ));
         }
     }
-    let sub = replacement.directory().join("/");
+    let sub = replacement.directory.join("/");
     let root = Path::new(game_path)
         .canonicalize()
         .map_err(|e| format!("the game folder could not be resolved: {e}"))?;
@@ -74,28 +75,25 @@ pub(crate) fn slot_inventory(game_id: &str, dir: &Path) -> Result<Vec<String>, S
 }
 
 fn slot_inventory_for(replacement: &MovieReplacement, dir: &Path) -> Result<Vec<String>, String> {
-    let mut slots = Vec::new();
-    for entry in
-        std::fs::read_dir(dir).map_err(|e| format!("could not list {}: {e}", dir.display()))?
-    {
-        let entry = entry.map_err(|e| e.to_string())?;
-        if !entry.file_type().map_err(|e| e.to_string())?.is_file() {
-            continue;
-        }
-        let Some(name) = entry.file_name().to_str().map(String::from) else {
-            continue;
-        };
-        if has_movie_extension(&name, replacement.extension()) {
-            slots.push(name);
-        }
-    }
+    let slots = listed_slots(replacement, dir)?;
     if slots.is_empty() {
+        let extensions: Vec<_> = replacement
+            .formats
+            .iter()
+            .map(|format| format!(".{}", format.extension()))
+            .collect();
         return Err(format!(
-            "{} has no .{} movies. Verify the game files in your launcher to restore them, then try again",
+            "{} has no {} movies. Verify the game files in your launcher to restore them, then try again",
             dir.display(),
-            replacement.extension()
+            extensions.join(" or ")
         ));
     }
+    Ok(slots)
+}
+
+fn listed_slots(replacement: &MovieReplacement, dir: &Path) -> Result<Vec<String>, String> {
+    let mut slots = Vec::new();
+    collect_slots(replacement, dir, "", &mut slots)?;
     for (index, slot) in slots.iter().enumerate() {
         for other in &slots[..index] {
             if same_slot_name(slot, other)? {
@@ -105,6 +103,33 @@ fn slot_inventory_for(replacement: &MovieReplacement, dir: &Path) -> Result<Vec<
     }
     slots.sort();
     Ok(slots)
+}
+
+/// file_type does not follow links, so a linked subfolder is never entered.
+fn collect_slots(
+    replacement: &MovieReplacement,
+    dir: &Path,
+    prefix: &str,
+    slots: &mut Vec<String>,
+) -> Result<(), String> {
+    for entry in
+        std::fs::read_dir(dir).map_err(|e| format!("could not list {}: {e}", dir.display()))?
+    {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let file_type = entry.file_type().map_err(|e| e.to_string())?;
+        let Some(name) = entry.file_name().to_str().map(String::from) else {
+            continue;
+        };
+        let slot = format!("{prefix}{name}");
+        if file_type.is_dir() {
+            collect_slots(replacement, &entry.path(), &format!("{slot}/"), slots)?;
+            continue;
+        }
+        if file_type.is_file() && replacement.format_of(&name).is_some() {
+            slots.push(slot);
+        }
+    }
+    Ok(())
 }
 
 fn same_slot_name(left: &str, right: &str) -> Result<bool, String> {
@@ -121,17 +146,23 @@ pub(crate) fn has_movie_extension(name: &str, extension: &str) -> bool {
         .is_some_and(|e| e.eq_ignore_ascii_case(extension))
 }
 
-pub(crate) fn validate_payload(game_id: &str, path: &Path) -> Result<(), String> {
-    validate_payload_for(replacement(game_id)?, path)
+/// Validates a payload as the format of the movie it replaces, so a .bk2 file can never land in
+/// an .mp4 slot. The name is a slot or a file name carrying the format's extension.
+pub(crate) fn validate_payload(game_id: &str, name: &str, path: &Path) -> Result<(), String> {
+    validate_payload_for(replacement(game_id)?, name, path)
 }
 
 pub(crate) fn validate_payload_for(
     replacement: &MovieReplacement,
+    name: &str,
     path: &Path,
 ) -> Result<(), String> {
-    match replacement {
-        MovieReplacement::Bink { .. } => validate_bink(path).map(|_| ()),
-        MovieReplacement::Mp4 { .. } => super::mp4::validate_mp4(path),
+    match replacement
+        .format_of(name)
+        .ok_or_else(|| format!("{name} is not a movie format this game plays"))?
+    {
+        MovieFormat::Bink => validate_bink(path).map(|_| ()),
+        MovieFormat::Mp4 => super::mp4::validate_mp4(path),
     }
 }
 
@@ -144,7 +175,20 @@ pub(crate) fn slot_destination(
     if !inventory.iter().any(|s| s == slot) {
         return Err(format!("{slot} is not a movie slot of this install"));
     }
-    let dest = dir.join(slot);
+    let mut dest = dir.to_path_buf();
+    dest.extend(slot.split('/'));
+    let parent = dest
+        .parent()
+        .expect("a slot names a file below the movie folder");
+    if parent
+        .canonicalize()
+        .map_err(|e| format!("could not resolve the folder of {slot}: {e}"))?
+        != parent
+    {
+        return Err(format!(
+            "{slot} is inside a linked folder; Modrex will not write there"
+        ));
+    }
     let meta = match std::fs::symlink_metadata(&dest) {
         Ok(meta) => meta,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(dest),

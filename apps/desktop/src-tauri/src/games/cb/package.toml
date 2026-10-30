@@ -47,7 +47,7 @@ package_reader = {
 }
 
 movie_replacement = {
-    format = "bink",
+    formats = ["bink"],
     directory = ["CrimeBoss", "Content", "Movies"],
     storefronts = ["steam", "epic"],
 }

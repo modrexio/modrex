@@ -100,7 +100,7 @@ it('keeps config-only recovery available without a movie scan', () => {
 it('offers a movie scan from the declaration of a game with no hardcoded resource ID', () => {
     GAMES.pd2 = {
         ...original,
-        movieReplacement: { extension: 'bk2', storefronts: ['steam'] },
+        movieReplacement: { extensions: ['bk2'], storefronts: ['steam'] },
     }
     health()
     fireEvent.mouseDown(screen.getByRole('tab', { name: 'Game files' }))
@@ -158,7 +158,10 @@ it('offers the PAYDAY 3 movie scan on Xbox', () => {
 it.each(['steam', 'manual', 'unknown', null])(
     'allows inventory scanning for launcher %s',
     (launcher) => {
-        GAMES.pd2 = { ...original, movieReplacement: { extension: 'bk2', storefronts: ['steam'] } }
+        GAMES.pd2 = {
+            ...original,
+            movieReplacement: { extensions: ['bk2'], storefronts: ['steam'] },
+        }
         cachedSettings.mockReturnValue({ settings: { gamePath: 'C:/game', launcher } })
         health()
         fireEvent.mouseDown(screen.getByRole('tab', { name: 'Game files' }))
@@ -167,7 +170,7 @@ it.each(['steam', 'manual', 'unknown', null])(
 )
 
 it('ignores a cached launcher that belongs to a different game installation', () => {
-    GAMES.pd2 = { ...original, movieReplacement: { extension: 'bk2', storefronts: ['steam'] } }
+    GAMES.pd2 = { ...original, movieReplacement: { extensions: ['bk2'], storefronts: ['steam'] } }
     cachedSettings.mockReturnValue({ settings: { gamePath: 'C:/another-copy', launcher: 'xbox' } })
     health()
     fireEvent.mouseDown(screen.getByRole('tab', { name: 'Game files' }))
@@ -196,7 +199,7 @@ it.each(['movies', 'config'] as const)(
     (kind) => {
         GAMES.pd2 =
             kind === 'movies'
-                ? { ...original, movieReplacement: { extension: 'bk2', storefronts: ['steam'] } }
+                ? { ...original, movieReplacement: { extensions: ['bk2'], storefronts: ['steam'] } }
                 : { ...original, configPresets: { filename: 'Engine.ini' } }
         render(<GameTopBar activeGame="pd2" gamePath="C:/game" />)
         const button = screen.getByRole('button', { name: 'Launch without package mods' })

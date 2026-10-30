@@ -7,6 +7,7 @@ import {
     initialResourceSelection,
     resourceSelectionIssue,
     matchingMovieSlot,
+    movieSlotsFor,
     resourceConflicts,
     subscribeResourceReview,
 } from '../resourceInstall'
@@ -215,7 +216,10 @@ function Review({ handle }: { handle: string }) {
                             }
                             options={[
                                 { value: '', label: t('resources.install.chooseSlot') },
-                                ...review!.movieSlots.map((slot) => ({ value: slot, label: slot })),
+                                ...movieSlotsFor(review!, entry).map((slot) => ({
+                                    value: slot,
+                                    label: slot,
+                                })),
                             ]}
                             disabled={busy}
                         />

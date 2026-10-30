@@ -154,7 +154,7 @@ fn movie_assessment_and_saved_payload_apply_reject_the_wrong_format_without_writ
     let payload = super::super::mp4_tests::sample_mp4();
     fs::write(&staged, &payload).unwrap();
     let ron = game_spec("ron").unwrap().movie_replacement;
-    let bink = game_spec("pd3").unwrap().movie_replacement;
+    let bink = game_spec("cb").unwrap().movie_replacement;
     let inventory = Ok(vec!["ReadyOrNot_StartupMovie.mp4".into()]);
     assert!(
         assess("arbitrary source.mp4", Some(&staged), &inventory, ron, None)
@@ -170,7 +170,7 @@ fn movie_assessment_and_saved_payload_apply_reject_the_wrong_format_without_writ
         .unwrap_err()
         .contains(".bk2"));
     fs::write(&staged, b"modified after review").unwrap();
-    assert!(movies::validate_payload("ron", &staged).is_err());
+    assert!(movies::validate_payload("ron", "Intro.mp4", &staged).is_err());
     let store = ResourceStore::at(temp.path().join("recovery"));
     let path = temp
         .path()
@@ -182,7 +182,7 @@ fn movie_assessment_and_saved_payload_apply_reject_the_wrong_format_without_writ
     let manifest = store.load_manifest().unwrap();
     let before = serde_json::to_vec(&manifest).unwrap();
     let mut deployment = pack(&store, &path, "bad", &payload);
-    assert!(apply_movie_pack(&store, "pd3", &manifest, deployment.clone(), None).is_err());
+    assert!(apply_movie_pack(&store, "cb", &manifest, deployment.clone(), None).is_err());
     let Content::Present { sha256, size } = store.capture(&staged).unwrap() else {
         unreachable!()
     };

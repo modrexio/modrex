@@ -296,17 +296,25 @@ pub fn markdown(examples: &[(&str, &str)]) -> String {
         "\n## `movie_replacement`\n\n\
          Independent of package readers, loaders and config presets. Omit it when this game\n\
          has no verified movie replacement mechanism.\n\n\
-         | Format | Fields |\n| --- | --- |\n",
+         | Field | Meaning |\n| --- | --- |\n",
     );
-    out.push_str(&row("bink", "`directory`, `storefronts`"));
-    out.push_str(&row("mp4", "`directory`, `storefronts`"));
+    out.push_str(&row(
+        "formats",
+        "`bink` for `.bk2` files, `mp4` for `.mp4` files, one or both",
+    ));
+    out.push_str(&row(
+        "directory",
+        "relative components below the selected install",
+    ));
+    out.push_str(&row(
+        "storefronts",
+        "supported stores from `install.stores`",
+    ));
     out.push_str(
-        "\n`directory` is a list of relative components below the selected install. This mechanism\n\
-         accepts `.bk2` for Bink or `.mp4` for MP4. MP4 payloads require one H.264 video\n\
-         track and at most one AAC LC audio track. `storefronts` lists supported stores\n\
-         from `install.stores`.\n\
-         Only movie files present in `directory` can be replaced. A file the game ships but\n\
-         the install lacks comes back through the store's file verification.\n",
+        "\nMP4 payloads require one H.264 video track and at most one AAC LC audio track. A\n\
+         payload replaces only a movie of its own format.\n\
+         Only movie files present in `directory` or its subfolders can be replaced. A file the\n\
+         game ships but the install lacks comes back through the store's file verification.\n",
     );
     out.push_str(
         "\n## `config_presets`\n\n\

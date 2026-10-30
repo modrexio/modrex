@@ -73,6 +73,20 @@ export function matchingMovieSlot(
     return slots.length === 1 && sources.length === 1 ? slots[0]! : null
 }
 
+function movieExtension(name: string): string {
+    const file = name.split(/[\\/]/).at(-1)!
+    return file.slice(file.lastIndexOf('.') + 1).toLowerCase()
+}
+
+// A payload replaces only a movie of its own format, which the backend enforces too.
+export function movieSlotsFor(
+    review: ResourceReview,
+    entry: ResourceReview['entries'][number]
+): string[] {
+    const extension = movieExtension(entry.name)
+    return review.movieSlots.filter((slot) => movieExtension(slot) === extension)
+}
+
 // Variants without an exact match stay unselected, since they compete for the same slot.
 // A lone movie starts selected even without a match so its destination choice is in view.
 export function initialResourceSelection(review: ResourceReview): Record<string, string | null> {

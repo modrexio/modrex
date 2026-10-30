@@ -9,7 +9,7 @@ package_reader = {
 }
 
 movie_replacement = {
-    format = "mp4",
+    formats = ["mp4"],
     directory = ["ReadyOrNot", "Content", "Movies"],
     storefronts = ["steam"],
 }
