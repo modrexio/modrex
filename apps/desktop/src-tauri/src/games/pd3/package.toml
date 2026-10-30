@@ -69,7 +69,7 @@ package_reader = {
 }
 
 movie_replacement = {
-    formats = ["bink", "mp4"],
+    formats = ["bink"],
     directory = ["PAYDAY3", "Content", "Movies"],
     storefronts = ["steam", "epic", "xbox"],
 }

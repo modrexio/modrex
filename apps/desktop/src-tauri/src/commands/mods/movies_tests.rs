@@ -101,7 +101,7 @@ fn payday_3_store_installs_offer_their_movies() {
 }
 
 #[test]
-fn payday_3_offers_nested_movies_and_its_mp4_intro() {
+fn payday_3_offers_nested_movies_but_not_its_unused_mp4() {
     let temp = tempfile::tempdir().unwrap();
     let root = temp.path().canonicalize().unwrap();
     fs::create_dir_all(root.join("Heists")).unwrap();
@@ -121,7 +121,6 @@ fn payday_3_offers_nested_movies_and_its_mp4_intro() {
         [
             "BG_LoginVideo_01.bk2",
             "Heists/HeistBG_BranchBank.bk2",
-            "PD3_SplashScreen_01_intro.mp4",
             "StoryMode/StoryMode_Cinematic_01.bk2",
         ]
     );
@@ -152,12 +151,23 @@ fn a_pack_keeps_the_slots_it_created_when_their_files_are_gone() {
         pack_inventory("pd3", &root, &[own("BG_LoginVideo_01.bk2")]).unwrap(),
         ["BG_LoginVideo_01.bk2"]
     );
+    // A recorded slot in a format the game does not declare stays usable, so its pack can
+    // be turned off and restore the original.
+    let dropped = own("PD3_SplashScreen_01_intro.mp4");
+    assert!(pack_inventory("pd3", &root, std::slice::from_ref(&dropped))
+        .unwrap()
+        .contains(&dropped.slot));
     for unsafe_slot in [
         "../Intro.bk2",
-        r"Heists\..\Intro.bk2",
-        "Intro.srt",
+        "Heists/../Intro.bk2",
         "/Intro.bk2",
+        "Heists//Intro.bk2",
     ] {
+        assert!(pack_inventory("pd3", &root, &[own(unsafe_slot)]).is_err());
+    }
+    // Unix reads these as plain file names, which cannot leave the folder there.
+    #[cfg(windows)]
+    for unsafe_slot in [r"Heists\..\Intro.bk2", "C:Intro.bk2"] {
         assert!(pack_inventory("pd3", &root, &[own(unsafe_slot)]).is_err());
     }
 }

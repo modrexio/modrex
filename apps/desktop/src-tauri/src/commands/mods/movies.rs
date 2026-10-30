@@ -101,7 +101,7 @@ pub(crate) fn pack_inventory(
     let replacement = replacement(game_id)?;
     let mut slots = listed_slots(replacement, dir)?;
     for slot in own {
-        if !is_plain_slot(replacement, &slot.slot) {
+        if !is_plain_slot(&slot.slot) {
             return Err(format!("{} is not a movie slot of this install", slot.slot));
         }
         let listed = slots
@@ -157,16 +157,16 @@ fn collect_slots(
     Ok(())
 }
 
-/// A slot is relative plain names joined by forward slashes and ends in a declared format.
-fn is_plain_slot(replacement: &MovieReplacement, slot: &str) -> bool {
-    replacement.format_of(slot).is_some()
-        && slot.split('/').all(|part| {
-            let mut components = Path::new(part).components();
-            matches!(
-                (components.next(), components.next()),
-                (Some(std::path::Component::Normal(name)), None) if name == part
-            )
-        })
+/// A slot is relative plain names joined by forward slashes. Its format is not checked, so a
+/// recorded slot whose format the game does not declare can still be turned off.
+fn is_plain_slot(slot: &str) -> bool {
+    slot.split('/').all(|part| {
+        let mut components = Path::new(part).components();
+        matches!(
+            (components.next(), components.next()),
+            (Some(std::path::Component::Normal(name)), None) if name == part
+        )
+    })
 }
 
 fn same_slot_name(left: &str, right: &str) -> Result<bool, String> {
