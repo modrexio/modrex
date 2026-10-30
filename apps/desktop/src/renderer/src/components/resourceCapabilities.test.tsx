@@ -125,7 +125,7 @@ it('keeps existing deployments recoverable after install support is removed', ()
     expect(screen.queryByTestId('movie-scan')).toBeNull()
 })
 
-it('keeps PAYDAY 3 recovery visible on Xbox without offering its unsupported movie scan', () => {
+it('keeps recovery visible on an unsupported store without offering its movie scan', () => {
     cachedSettings.mockReturnValue({ settings: { gamePath: 'C:/game', launcher: 'xbox' } })
     health(
         [
@@ -142,10 +142,17 @@ it('keeps PAYDAY 3 recovery visible on Xbox without offering its unsupported mov
             },
         ],
         vi.fn(),
-        'pd3'
+        'cb'
     )
     expect(screen.getByRole('button', { name: 'Review files' })).toBeTruthy()
     expect(screen.queryByTestId('movie-scan')).toBeNull()
+})
+
+it('offers the PAYDAY 3 movie scan on Xbox', () => {
+    cachedSettings.mockReturnValue({ settings: { gamePath: 'C:/game', launcher: 'xbox' } })
+    health([], vi.fn(), 'pd3')
+    fireEvent.mouseDown(screen.getByRole('tab', { name: 'Game files' }))
+    expect(screen.getByTestId('movie-scan').getAttribute('data-game')).toBe('pd3')
 })
 
 it.each(['steam', 'manual', 'unknown', null])(

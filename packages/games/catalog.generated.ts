@@ -47,7 +47,7 @@ export const GAME_SPECS = {
         storageKey: 'pd3',
         hasNews: true,
         supportsPackageViewer: true,
-        movieReplacement: { extension: 'bk2', storefronts: ['steam', 'epic'] },
+        movieReplacement: { extension: 'bk2', storefronts: ['steam', 'epic', 'xbox'] },
         configPresets: { filename: 'Engine.ini' },
         graphicsConfig: { filename: 'GameUserSettings.ini' },
         launchers: ['Steam', 'Epic Games', 'Xbox App'],

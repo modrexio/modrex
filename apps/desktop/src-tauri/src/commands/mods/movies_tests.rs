@@ -81,6 +81,25 @@ fn movie_destinations_and_store_permissions_follow_the_declaration() {
     }
 }
 
+#[test]
+fn payday_3_store_installs_offer_their_movies() {
+    let content = tempfile::tempdir().unwrap();
+    let movies = content
+        .path()
+        .join("PAYDAY3")
+        .join("Content")
+        .join("Movies");
+    fs::create_dir_all(&movies).unwrap();
+    fs::write(movies.join("BG_LoginVideo_01.bk2"), b"login").unwrap();
+    fs::write(movies.join("StartUp_SBZ.bk2"), b"intro").unwrap();
+    let dir = movies_dir("pd3", content.path().to_str().unwrap(), Some("xbox")).unwrap();
+    assert_eq!(dir, movies.canonicalize().unwrap());
+    assert_eq!(
+        slot_inventory("pd3", &dir).unwrap(),
+        ["BG_LoginVideo_01.bk2", "StartUp_SBZ.bk2"]
+    );
+}
+
 #[cfg(unix)]
 #[test]
 fn declared_movie_directory_cannot_link_outside_the_installation() {
