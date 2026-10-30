@@ -160,7 +160,7 @@ fn check(bytes: &[u8]) -> Result<(), String> {
     let temp = tempfile::tempdir().unwrap();
     let path = temp.path().join("movie.mp4");
     fs::write(&path, bytes).unwrap();
-    validate_mp4(&path)
+    validate_mp4(&path).map(|_| ())
 }
 
 fn position(bytes: &[u8], kind: &[u8; 4]) -> usize {

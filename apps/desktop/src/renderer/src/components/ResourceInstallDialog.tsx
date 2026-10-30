@@ -4,6 +4,7 @@ import { api, type ResourceReview } from '../api'
 import {
     finishResourceReview,
     getPendingResourceReview,
+    formatMovieLength,
     initialResourceSelection,
     resourceSelectionIssue,
     matchingMovieSlot,
@@ -19,6 +20,10 @@ import { ZipPickerModal, type ZipMultiPakPayload } from './ZipPickerModal'
 import { refreshInstalled } from '../gameData'
 import { GAMES, type InstalledMod } from '../../../shared/types'
 import { displayPath } from '../lib/displayPath'
+import { ModworkshopMarkup } from './MarkdownContent'
+import { getCachedMod } from '../modCache'
+
+type Instructions = { text: string; legacy: boolean } | { error: string }
 
 function Review({ handle }: { handle: string }) {
     const [review, setReview] = useState<ResourceReview | null>(null)
@@ -28,6 +33,7 @@ function Review({ handle }: { handle: string }) {
     const [pakChoice, setPakChoice] = useState<InstalledMod[] | null>(null)
     const [pakApplied, setPakApplied] = useState(false)
     const [pakComplete, setPakComplete] = useState(false)
+    const [instructions, setInstructions] = useState<Instructions | null>(null)
     const [completion, setCompletion] = useState<Awaited<
         ReturnType<typeof api.installReviewedResources>
     > | null>(null)
@@ -51,6 +57,43 @@ function Review({ handle }: { handle: string }) {
             cancelled = true
         }
     }, [handle])
+
+    const instructionsId =
+        review?.source === 'modworkshop' && review.entries.some((entry) => entry.kind === 'movie')
+            ? Number(review.remoteId)
+            : null
+    useEffect(() => {
+        if (!instructionsId) return
+        let cancelled = false
+        getCachedMod(instructionsId).then(
+            (mod) => {
+                const text = mod.instructions?.trim()
+                if (!cancelled && text) setInstructions({ text, legacy: mod.legacy_markup })
+            },
+            (failure) => {
+                if (!cancelled) setInstructions({ error: String(failure) })
+            }
+        )
+        return () => {
+            cancelled = true
+        }
+    }, [instructionsId])
+
+    function slotLabel(slot: string) {
+        const details = review!.movieDetails[slot]
+        if (!details || details.seconds === null) return slot
+        return t(
+            details.sound
+                ? 'resources.install.slotWithDetails'
+                : 'resources.install.slotWithDetailsSilent',
+            {
+                slot,
+                length: formatMovieLength(details.seconds),
+                width: details.width,
+                height: details.height,
+            }
+        )
+    }
 
     function toggle(entry: ResourceReview['entries'][number], checked: boolean) {
         setSelection((current) => {
@@ -218,7 +261,7 @@ function Review({ handle }: { handle: string }) {
                                 { value: '', label: t('resources.install.chooseSlot') },
                                 ...movieSlotsFor(review!, entry).map((slot) => ({
                                     value: slot,
-                                    label: slot,
+                                    label: slotLabel(slot),
                                 })),
                             ]}
                             disabled={busy}
@@ -401,6 +444,26 @@ function Review({ handle }: { handle: string }) {
                         <p className="text-xs text-text-subtle">
                             {t('resources.install.slotHelp')}
                         </p>
+                        {instructions && 'text' in instructions && (
+                            <details open className="text-xs">
+                                <DisclosureSummary className="cursor-pointer font-medium">
+                                    {t('resources.install.authorInstructions')}
+                                </DisclosureSummary>
+                                <div className="mt-2 max-h-48 overflow-y-auto text-text-muted">
+                                    <ModworkshopMarkup
+                                        text={instructions.text}
+                                        legacy={instructions.legacy}
+                                    />
+                                </div>
+                            </details>
+                        )}
+                        {instructions && 'error' in instructions && (
+                            <p className="text-xs text-text-subtle">
+                                {t('resources.install.instructionsUnavailable', {
+                                    error: instructions.error,
+                                })}
+                            </p>
+                        )}
                         {review.entries.filter((entry) => entry.kind === 'movie').map(renderEntry)}
                     </fieldset>
                 )}

@@ -353,3 +353,42 @@ fn container_validation_checks_frame_index_and_known_revisions() {
     assert!(!has_movie_extension("intro.bak2", "bk2"));
     assert!(slot_destination(temp.path(), "../Intro.bk2", &["Intro.bk2".into()]).is_err());
 }
+
+#[test]
+fn slot_details_describe_length_size_and_sound_for_both_formats() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().canonicalize().unwrap();
+    let mut bink = vec![0u8; 64];
+    bink[..4].copy_from_slice(b"KB2n");
+    for (offset, value) in [
+        (4, 56u32),
+        (8, 1),
+        (12, 16),
+        (20, 1920),
+        (24, 1080),
+        (28, 30),
+        (32, 1),
+        (48, 52),
+    ] {
+        bink[offset..offset + 4].copy_from_slice(&value.to_le_bytes());
+    }
+    fs::create_dir(root.join("Heists")).unwrap();
+    fs::write(root.join("Heists").join("Intro.bk2"), &bink).unwrap();
+    fs::write(
+        root.join("Splash.mp4"),
+        super::super::mp4_tests::sample_mp4(),
+    )
+    .unwrap();
+    assert_eq!(
+        slot_details("pd3", &root, "Heists/Intro.bk2").unwrap(),
+        MovieDetails {
+            seconds: 1.0 / 30.0,
+            width: 1920,
+            height: 1080,
+            sound: false,
+        }
+    );
+    let splash = slot_details("ron", &root, "Splash.mp4").unwrap();
+    assert!(splash.seconds > 0.0 && splash.width > 0 && splash.height > 0);
+    assert!(slot_details("pd3", &root, "Missing.bk2").is_err());
+}

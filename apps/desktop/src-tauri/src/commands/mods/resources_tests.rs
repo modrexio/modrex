@@ -825,6 +825,7 @@ fn review_from(source: Option<&str>, picker: Option<ZipMultiPakPayload>) -> Revi
         staging_dir: PathBuf::from("/nonexistent/staging"),
         entries: Vec::new(),
         movie_slots: Vec::new(),
+        movie_details: HashMap::new(),
         config_path: None,
         config_revision: None,
         manifest_revision: None,
@@ -925,7 +926,7 @@ fn real_archives_keep_slot_names_validate_movies_and_reject_duplicate_presets() 
             remaining -= available - budget;
             if movie {
                 assert_eq!(
-                    movies::validate_bink(&destination).unwrap(),
+                    movies::validate_bink(&destination).unwrap().generation,
                     movies::BinkGeneration::Bink1,
                     "{name}"
                 );
@@ -1025,4 +1026,39 @@ fn relocation_only_qualifies_sibling_platform_folders_inside_the_declared_root()
         root,
         &new
     ));
+}
+
+#[test]
+fn unreadable_game_movies_stay_selectable_without_details() {
+    let temp = tempfile::tempdir().unwrap();
+    let movies = temp.path().join("PAYDAY3").join("Content").join("Movies");
+    fs::create_dir_all(&movies).unwrap();
+    let mut bink = vec![0u8; 64];
+    bink[..4].copy_from_slice(b"KB2n");
+    for (offset, value) in [
+        (4, 56u32),
+        (8, 1),
+        (12, 16),
+        (20, 1920),
+        (24, 1080),
+        (28, 30),
+        (32, 1),
+        (48, 52),
+    ] {
+        bink[offset..offset + 4].copy_from_slice(&value.to_le_bytes());
+    }
+    fs::write(movies.join("Intro.bk2"), &bink).unwrap();
+    fs::write(movies.join("Broken.bk2"), b"not a movie").unwrap();
+    let ctx = InstallContext {
+        game_id: "pd3".into(),
+        game_path: temp.path().to_string_lossy().into_owned(),
+        canonical_game_path: temp.path().to_string_lossy().into_owned(),
+        launcher: None,
+    };
+    let slots = movies::slot_inventory("pd3", &movies.canonicalize().unwrap()).unwrap();
+    assert_eq!(slots, ["Broken.bk2", "Intro.bk2"]);
+    let details = describe_slots(&ctx, &slots).unwrap();
+    assert_eq!(details.len(), 1);
+    assert_eq!(details["Intro.bk2"].width, 1920);
+    assert!(describe_slots(&ctx, &[]).unwrap().is_empty());
 }

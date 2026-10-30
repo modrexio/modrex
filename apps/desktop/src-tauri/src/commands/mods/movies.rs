@@ -199,7 +199,30 @@ pub(crate) fn validate_payload_for(
         .ok_or_else(|| format!("{name} is not a movie format this game plays"))?
     {
         MovieFormat::Bink => validate_bink(path).map(|_| ()),
-        MovieFormat::Mp4 => super::mp4::validate_mp4(path),
+        MovieFormat::Mp4 => super::mp4::validate_mp4(path).map(|_| ()),
+    }
+}
+
+/// What a movie shows, so a user can tell its slot from the others by length, size and sound.
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct MovieDetails {
+    pub seconds: f64,
+    pub width: u32,
+    pub height: u32,
+    pub sound: bool,
+}
+
+/// Reads a slot's movie through the same validator a payload for it must pass.
+pub(crate) fn slot_details(game_id: &str, dir: &Path, slot: &str) -> Result<MovieDetails, String> {
+    let mut path = dir.to_path_buf();
+    path.extend(slot.split('/'));
+    match replacement(game_id)?
+        .format_of(slot)
+        .ok_or_else(|| format!("{slot} is not a movie format this game plays"))?
+    {
+        MovieFormat::Bink => validate_bink(&path).map(|movie| movie.details),
+        MovieFormat::Mp4 => super::mp4::validate_mp4(&path),
     }
 }
 
@@ -255,6 +278,12 @@ pub(crate) enum BinkGeneration {
     Bink2,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) struct BinkMovie {
+    pub generation: BinkGeneration,
+    pub details: MovieDetails,
+}
+
 const BINK_MAX_WIDTH: u32 = 7680;
 const BINK_MAX_HEIGHT: u32 = 4800;
 const BINK_MAX_AUDIO_TRACKS: u32 = 256;
@@ -274,7 +303,7 @@ const BINK_MAX_FRAMES: u32 = 1_000_000;
 ///
 /// This proves a structurally complete container, not that the game can play it: a zero-byte
 /// or truncated file fails here, a valid 1-frame skip video passes.
-pub(crate) fn validate_bink(path: &Path) -> Result<BinkGeneration, String> {
+pub(crate) fn validate_bink(path: &Path) -> Result<BinkMovie, String> {
     let mut file = File::open(path).map_err(|e| format!("could not read the movie: {e}"))?;
     let actual_len = file.metadata().map_err(|e| e.to_string())?.len();
     let mut header = [0u8; 44];
@@ -337,7 +366,15 @@ pub(crate) fn validate_bink(path: &Path) -> Result<BinkGeneration, String> {
         }
         pos = next;
     }
-    Ok(generation)
+    Ok(BinkMovie {
+        generation,
+        details: MovieDetails {
+            seconds: f64::from(frames) * f64::from(fps_den) / f64::from(fps_num),
+            width,
+            height,
+            sound: audio_tracks > 0,
+        },
+    })
 }
 
 /// What a destination should hold right now, from Modrex's own records.

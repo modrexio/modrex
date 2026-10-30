@@ -685,7 +685,7 @@ fn track_samples(
     Ok(())
 }
 
-pub(crate) fn validate_mp4(path: &Path) -> Result<(), String> {
+pub(crate) fn validate_mp4(path: &Path) -> Result<super::movies::MovieDetails, String> {
     let mut file = File::open(path).map_err(|e| format!("could not read the MP4 movie: {e}"))?;
     let length = file
         .metadata()
@@ -746,6 +746,7 @@ pub(crate) fn validate_mp4(path: &Path) -> Result<(), String> {
         .map_err(|e| format!("the MP4 metadata is invalid: {e}"))?;
     let mut video_count = 0;
     let mut audio_count = 0;
+    let mut video = None;
     let mut ids = HashSet::new();
     if context.tracks.len() != counts.len() {
         return Err("the MP4 metadata does not describe every track".into());
@@ -757,6 +758,9 @@ pub(crate) fn validate_mp4(path: &Path) -> Result<(), String> {
             return Err("the MP4 repeats a track ID or uses the reserved zero ID".into());
         }
         let nal_length = codec_nal_length(track)?;
+        if nal_length.is_some() {
+            video = Some(track);
+        }
         video_count += usize::from(nal_length.is_some());
         audio_count += usize::from(nal_length.is_none());
         if video_count > 1 || audio_count > 1 {
@@ -764,10 +768,25 @@ pub(crate) fn validate_mp4(path: &Path) -> Result<(), String> {
         }
         track_samples(&mut file, track, count, &media, nal_length)?;
     }
-    if video_count != 1 {
+    let (Some(track), 1) = (video, video_count) else {
         return Err(
             "the MP4 requires one H.264 video track and at most one AAC LC audio track".into(),
         );
-    }
-    Ok(())
+    };
+    let Some(SampleEntry::Video(entry)) = track
+        .stsd
+        .as_ref()
+        .and_then(|stsd| stsd.descriptions.first())
+    else {
+        unreachable!("codec_nal_length accepted this track as video");
+    };
+    let (Some(duration), Some(timescale)) = (track.duration, track.timescale) else {
+        unreachable!("track_samples checked the video timing");
+    };
+    Ok(super::movies::MovieDetails {
+        seconds: duration.0 as f64 / timescale.0 as f64,
+        width: u32::from(entry.width),
+        height: u32::from(entry.height),
+        sound: audio_count == 1,
+    })
 }

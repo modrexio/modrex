@@ -73,6 +73,11 @@ export function matchingMovieSlot(
     return slots.length === 1 && sources.length === 1 ? slots[0]! : null
 }
 
+export function formatMovieLength(seconds: number): string {
+    const total = Math.round(seconds)
+    return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`
+}
+
 function movieExtension(name: string): string {
     const file = name.split(/[\\/]/).at(-1)!
     return file.slice(file.lastIndexOf('.') + 1).toLowerCase()

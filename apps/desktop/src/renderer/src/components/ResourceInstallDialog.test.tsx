@@ -3,6 +3,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { ResourceInstallDialog } from './ResourceInstallDialog'
 import { api, type ResourceReview } from '../api'
+import { getCachedMod } from '../modCache'
+import type { Mod } from '../../../shared/types'
 import {
     finishResourceReview,
     getPendingResourceReview,
@@ -23,6 +25,10 @@ vi.mock('../api', () => ({
 }))
 
 vi.mock('../gameData', () => ({ refreshInstalled: vi.fn(() => Promise.resolve()) }))
+vi.mock('../modCache', () => ({ getCachedMod: vi.fn() }))
+vi.mock('./MarkdownContent', () => ({
+    ModworkshopMarkup: ({ text }: { text: string }) => <div>{text}</div>,
+}))
 
 vi.mock('./Select', () => ({
     Select: ({
@@ -62,6 +68,8 @@ const reviewFixture: ResourceReview = {
     movieConflicts: [],
     iniConflicts: [],
     movieSlots: ['Intro.bk2'],
+    movieDetails: {},
+    remoteId: null,
     entries: [
         {
             entryId: 0,
@@ -205,6 +213,48 @@ describe('resource review completion', () => {
         await expect(completed).resolves.toBe(false)
         expect(api.cancelResourceReview).not.toHaveBeenCalled()
         expect(getPendingResourceReview()).toBeNull()
+    })
+
+    it('describes each game movie and shows the author instructions', async () => {
+        vi.mocked(getCachedMod).mockResolvedValue({
+            instructions: 'Rename it to Intro.bk2',
+            legacy_markup: false,
+        } as Mod)
+        vi.mocked(api.getResourceReview).mockResolvedValue({
+            ...reviewFixture,
+            source: 'modworkshop',
+            remoteId: '57781',
+            movieDetails: {
+                'Intro.bk2': { seconds: 14.2, width: 1920, height: 1080, sound: true },
+            },
+        })
+        requestResourceReview('matching')
+        render(<ResourceInstallDialog />)
+        expect(
+            await screen.findByRole('option', {
+                name: 'Intro.bk2 (0:14, 1920x1080, with sound)',
+            })
+        ).toBeTruthy()
+        expect(await screen.findByText('Rename it to Intro.bk2')).toBeTruthy()
+        expect(getCachedMod).toHaveBeenCalledWith(57781)
+    })
+
+    it('reports unavailable instructions and names a slot without readable details', async () => {
+        vi.mocked(getCachedMod).mockRejectedValue(new Error('API 429'))
+        vi.mocked(api.getResourceReview).mockResolvedValue({
+            ...reviewFixture,
+            source: 'modworkshop',
+            remoteId: '57781',
+            movieDetails: {
+                'Intro.bk2': { seconds: null, width: 1920, height: 1080, sound: true },
+            },
+        })
+        requestResourceReview('matching')
+        render(<ResourceInstallDialog />)
+        expect(await screen.findByRole('option', { name: 'Intro.bk2' })).toBeTruthy()
+        expect(
+            await screen.findByText("The author's instructions could not be loaded: Error: API 429")
+        ).toBeTruthy()
     })
 
     it('suggests an exact movie destination and installs only the chosen INI variant', async () => {

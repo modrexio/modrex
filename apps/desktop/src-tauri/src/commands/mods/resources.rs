@@ -107,11 +107,15 @@ pub struct ResourceReview {
     pub mod_name: String,
     pub entries: Vec<ResourceReviewEntry>,
     pub movie_slots: Vec<String>,
+    /// Length, size and sound of each slot's current movie, for telling the slots apart.
+    pub movie_details: HashMap<String, movies::MovieDetails>,
     pub config_path: Option<String>,
     pub pak_picker: Option<ZipMultiPakPayload>,
     /// The catalog the download came from, None for a dropped file. A Nexus review's packages
     /// install through install_nexus_review_pak, never the ModWorkshop entry installer.
     pub source: Option<String>,
+    /// The mod's id in that catalog, so the dialog can show the author's instructions.
+    pub remote_id: Option<String>,
     pub movie_pack_applied: bool,
     pub movie_conflicts: Vec<ResourceMovieConflict>,
     pub ini_conflicts: Vec<ResourceIniConflict>,
@@ -715,6 +719,7 @@ struct Review {
     staging_dir: PathBuf,
     entries: Vec<StagedResource>,
     movie_slots: Vec<String>,
+    movie_details: HashMap<String, movies::MovieDetails>,
     config_path: Option<PathBuf>,
     config_revision: Option<Content>,
     manifest_revision: Option<u64>,
@@ -895,6 +900,13 @@ pub(crate) fn open_review(
             return Err(e);
         }
     };
+    let movie_details = match describe_slots(&ctx, &movie_slots) {
+        Ok(details) => details,
+        Err(e) => {
+            cleanup::run_sync(&CleanupPlan::RemoveOwnedDirectory(staging_dir));
+            return Err(e);
+        }
+    };
     let handle = Uuid::new_v4().to_string();
     let review = Review {
         handle: handle.clone(),
@@ -903,6 +915,7 @@ pub(crate) fn open_review(
         staging_dir,
         entries,
         movie_slots,
+        movie_details,
         config_path,
         config_revision: None,
         manifest_revision: None,
@@ -1038,6 +1051,28 @@ fn build_review(
     Ok((entries, slots.unwrap_or_default(), config.ok().flatten()))
 }
 
+fn describe_slots(
+    ctx: &InstallContext,
+    slots: &[String],
+) -> Result<HashMap<String, movies::MovieDetails>, String> {
+    if slots.is_empty() {
+        return Ok(HashMap::new());
+    }
+    let dir = movies::movies_dir(&ctx.game_id, &ctx.game_path, ctx.launcher.as_deref())?;
+    let mut details = HashMap::new();
+    for slot in slots {
+        match movies::slot_details(&ctx.game_id, &dir, slot) {
+            Ok(found) => {
+                details.insert(slot.clone(), found);
+            }
+            // A game movie Modrex cannot read still takes a replacement. Only its
+            // description is missing, so the review goes ahead.
+            Err(error) => log::warn!("could not describe the movie {slot}: {error}"),
+        }
+    }
+    Ok(details)
+}
+
 pub(crate) fn get_review(app: &AppHandle, handle: &str) -> Result<ResourceReview, String> {
     let mut list = reviews(app).0.lock().unwrap_or_else(|e| e.into_inner());
     let r = list
@@ -1169,12 +1204,14 @@ pub(crate) fn get_review(app: &AppHandle, handle: &str) -> Result<ResourceReview
         mod_name: r.provenance.name.clone(),
         entries: r.entries.iter().map(|e| e.entry.clone()).collect(),
         movie_slots: r.movie_slots.clone(),
+        movie_details: r.movie_details.clone(),
         config_path: r
             .config_path
             .as_ref()
             .map(|p| p.to_string_lossy().to_string()),
         pak_picker: r.pak_picker.clone(),
         source: r.provenance.source.clone(),
+        remote_id: r.provenance.remote_id.clone(),
         movie_pack_applied: r.movie_pack_applied,
         movie_conflicts,
         ini_conflicts,

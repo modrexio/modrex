@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 import type { ResourceReview } from './api'
 import {
     finishResourceReview,
+    formatMovieLength,
     getPendingResourceReview,
     requestResourceReview,
     initialResourceSelection,
@@ -25,6 +26,8 @@ const review: ResourceReview = {
     movieConflicts: [],
     iniConflicts: [],
     movieSlots: ['StartUp_SBZ.bk2', 'StartUp_Unreal.bk2'],
+    movieDetails: {},
+    remoteId: null,
     entries: [
         {
             entryId: 1,
@@ -138,6 +141,12 @@ describe('resource review selection', () => {
         expect(
             initialResourceSelection({ ...review, entries: [sbz], moviePackApplied: true })
         ).toEqual({})
+    })
+
+    it('formats movie lengths as minutes and seconds', () => {
+        expect(formatMovieLength(9.4)).toBe('0:09')
+        expect(formatMovieLength(59.6)).toBe('1:00')
+        expect(formatMovieLength(605)).toBe('10:05')
     })
 
     it('offers only destinations of the movie file format', () => {
