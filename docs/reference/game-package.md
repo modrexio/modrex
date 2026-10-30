@@ -22,7 +22,8 @@ missing game at runtime.
 | `decoders` | no | container formats to unpack before install |
 | `package_reader` | no | how to read the game's own packages so a mod's assets can be listed |
 | `movie_replacement` | no | replacement movie slots in a declared game folder |
-| `config_presets` | no | config preset syntax and verified automatic locations |
+| `config_presets` | no | config preset syntax |
+| `unreal_config` | no | shared Unreal configuration roots for verified stores |
 | `graphics_config` | no | one graphics config file the user can open in an external application |
 | `targets` | yes | the places mods are installed |
 
@@ -148,23 +149,27 @@ be single names with the declared movie extension and unique ignoring ASCII case
 
 ## `config_presets`
 
-Independent of movie replacement. An empty or omitted `locations` list means the user
-chooses the config file or its folder for the selected installation.
+Independent of movie replacement. The `unreal_engine_ini` format has no other fields.
+It merges unambiguous scalar assignments into `Engine.ini`. Repeated assignments and
+Unreal array operators require manual editing. Other INI dialects are unsupported.
 
-| Format | Fields |
-| --- | --- |
-| `unreal_engine_ini` | optional `locations` |
+## `unreal_config`
 
-This mechanism merges unambiguous scalar assignments into `Engine.ini`. Repeated
-assignments and Unreal array operators require manual editing. It does not claim
-support for other INI dialects or config formats.
-
-Each location names a `root`, a declared `store` and relative `path` components ending
-in `Engine.ini`. Only one Windows location may be declared for each store.
+Shared by config presets and graphics config access. `roots` is a nonempty list of
+objects with a `root`, a declared `store`, and safe relative `path` components naming
+the folder above Unreal platform folders. Only one root may be declared per store.
+A package cannot also declare fixed graphics config locations.
 
 | Root | Meaning |
 | --- | --- |
-| `windows_local_app_data` | Windows Local AppData, resolved by the host's Known Folder API. This location applies only on Windows |
+| `windows_local_app_data` | Windows Local AppData, resolved by the host's Known Folder API |
+| `windows_user_profile` | Windows user profile, resolved from USERPROFILE |
+
+Roots apply only on Windows. The host inspects immediate folders for regular
+`GameUserSettings.ini` files and uses the newest modification time. An exact tie or
+no marker requires a manual choice. Discovery never creates platform folders.
+Stores without a declared root require a manual choice. A choice is remembered per
+physical install and store only when automatic discovery has no answer.
 
 ## `graphics_config`
 
@@ -174,11 +179,11 @@ preset installation or parse the file's contents.
 | Field | Required | Meaning |
 | --- | --- | --- |
 | `filename` | yes | the single permitted filename, without a directory or path prefix |
-| `locations` | no | verified automatic locations, using the roots documented under `config_presets` |
+| `locations` | no | verified automatic locations, using `windows_local_app_data` roots |
 
 Each location names a declared `store` and relative `path` components ending in
 `filename`. Only one Windows location may be declared for each store. An empty or omitted
-list requires the user to choose the file. Finding the file does not prove
+list uses `unreal_config` when declared, otherwise the user chooses the file. Finding the file does not prove
 that it is the game's active configuration.
 
 ## `targets`

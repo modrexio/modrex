@@ -4,6 +4,14 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 ## Unreleased
 
+### Added
+
+- Added graphics config shortcuts for PAYDAY 3 and Crime Boss: Rockay City.
+
+### Fixed
+
+- Fixed Engine.ini presets for PAYDAY 3 on Steam not applying in game.
+
 ## 0.16.0
 
 ### Added

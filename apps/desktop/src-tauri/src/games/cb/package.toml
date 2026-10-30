@@ -58,8 +58,22 @@ movie_replacement = {
     ],
 }
 
+unreal_config = {
+    roots = [
+        {
+            root = "windows_user_profile",
+            store = "steam",
+            path = ["Saved Games", "CrimeBoss", "Steam", "Saved", "Config"],
+        },
+    ],
+}
+
 config_presets = {
     format = "unreal_engine_ini",
+}
+
+graphics_config = {
+    filename = "GameUserSettings.ini",
 }
 
 targets = [

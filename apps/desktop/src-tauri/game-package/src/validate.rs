@@ -5,9 +5,9 @@
 //! references between sections, and values that would build a path the scan cannot find.
 
 use crate::{
-    Activation, ConfigLocation, ConfigPresets, Discovery, FileFamily, GamePackage, LoaderBinding,
-    MarkerMode, MovieReplacement, NewsBinding, PackageReaderBinding, SourceBinding, StoreBinding,
-    Target, TargetLabel, TargetScope, Unit,
+    Activation, ConfigLocation, Discovery, FileFamily, GamePackage, LoaderBinding, MarkerMode,
+    MovieReplacement, NewsBinding, PackageReaderBinding, SourceBinding, StoreBinding, Target,
+    TargetLabel, TargetScope, Unit,
 };
 
 /// Rejects a manifest that parses but could not work, so a contributor sees the problem at
@@ -124,9 +124,18 @@ pub fn check(id: &str, package: &GamePackage) -> Result<(), String> {
     if let Some(movies) = &package.movie_replacement {
         check_movies(movies, package)?;
     }
-    if let Some(configs) = &package.config_presets {
-        let ConfigPresets::UnrealEngineIni { locations } = configs;
-        check_config_locations(locations, configs.filename(), package)?;
+    if let Some(config) = &package.unreal_config {
+        if config.roots.is_empty() {
+            return Err("unreal config declares no roots".into());
+        }
+        if package
+            .graphics_config
+            .as_ref()
+            .is_some_and(|graphics| !graphics.locations.is_empty())
+        {
+            return Err("unreal config cannot coexist with graphics config locations".into());
+        }
+        check_config_roots(&config.roots, package)?;
     }
     if let Some(config) = &package.graphics_config {
         check_resource_path(
@@ -298,22 +307,10 @@ fn check_config_locations(
     filename: &str,
     package: &GamePackage,
 ) -> Result<(), String> {
-    if let Some(duplicate) = first_duplicate(locations.iter().map(|location| match location {
-        ConfigLocation::WindowsLocalAppData { store, .. } => store.provider(),
-    })) {
-        return Err(format!(
-            "config locations declare a Windows location twice for '{duplicate}'"
-        ));
-    }
+    check_config_roots(locations, package)?;
     for location in locations {
-        let ConfigLocation::WindowsLocalAppData { store, path } = location;
-        if package.install.store(*store).is_none() {
-            return Err(format!(
-                "config location names the '{}' store, which install does not list",
-                store.provider()
-            ));
-        }
-        check_resource_path(path, "config location")?;
+        let (ConfigLocation::WindowsLocalAppData { path, .. }
+        | ConfigLocation::WindowsUserProfile { path, .. }) = location;
         if !path
             .last()
             .expect("nonempty path was checked")
@@ -321,6 +318,29 @@ fn check_config_locations(
         {
             return Err(format!("config location must end in {}", filename));
         }
+    }
+    Ok(())
+}
+
+fn check_config_roots(locations: &[ConfigLocation], package: &GamePackage) -> Result<(), String> {
+    if let Some(duplicate) = first_duplicate(locations.iter().map(|location| match location {
+        ConfigLocation::WindowsLocalAppData { store, .. }
+        | ConfigLocation::WindowsUserProfile { store, .. } => store.provider(),
+    })) {
+        return Err(format!(
+            "config locations declare a Windows location twice for '{duplicate}'"
+        ));
+    }
+    for location in locations {
+        let (ConfigLocation::WindowsLocalAppData { store, path }
+        | ConfigLocation::WindowsUserProfile { store, path }) = location;
+        if package.install.store(*store).is_none() {
+            return Err(format!(
+                "config location names the '{}' store, which install does not list",
+                store.provider()
+            ));
+        }
+        check_resource_path(path, "config location")?;
     }
     Ok(())
 }

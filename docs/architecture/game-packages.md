@@ -70,9 +70,11 @@ replacement does not require an Unreal package reader, and the current config me
 only supported Unreal Engine.ini scalar presets. The generated catalog exposes these capabilities
 to the renderer and index without repeating game identifiers.
 
-Graphics config access is a separate declaration naming one permitted file and verified store
-locations. It opens the existing file for manual editing without parsing it or enabling resource
-installation. A found file is not evidence that the game currently reads it.
+Graphics config access is a separate declaration naming one permitted file. It opens the existing
+file for manual editing without parsing it or enabling resource installation. A found file is not
+evidence that the game currently reads it. Other engines declare fixed graphics config locations.
+Unreal games declare one unreal_config root per verified store instead, shared by presets and
+graphics config access, and the platform folder below it is discovered at runtime.
 
 New resource installations require the declared capability. Existing resource deployments and
 pending journals remain visible to the host even when installation eligibility changes. Removing

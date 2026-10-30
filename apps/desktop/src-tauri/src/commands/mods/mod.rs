@@ -38,6 +38,7 @@ pub(crate) use self::staging_tokens::StagingRegistry;
 mod state;
 mod types;
 mod ue4ss_modstxt;
+mod unreal_config;
 pub(crate) mod unreal_plugin;
 mod zip;
 
@@ -309,6 +310,8 @@ pub async fn get_installed(app: AppHandle, game_id: String) -> Result<InstalledR
         });
     };
 
+    // Launch preflight takes the resource lock before the game state lock.
+    resources::relocate_stale_presets(&app, game_id, &game_path).await;
     let _state_guard = lock_game_state(&app, game_id).await;
     let native_guard = native_files::NativeGuard::load(&game_path, cfg)?;
     let state_path = get_state_path(&game_path, cfg);

@@ -68,7 +68,7 @@ export function createResourceReview(gameId: GameId, gamePath: string): string {
     const slot = gameId === 'ron' ? 'ReadyOrNot_StartupMovie.mp4' : 'Intro.bk2'
     const configPath =
         gameId === 'pd3'
-            ? 'C:/Users/Preview/AppData/Local/PAYDAY3/Saved/Config/WindowsClient/Engine.ini'
+            ? 'C:/Users/Preview/AppData/Local/PAYDAY3/Saved/Config/Windows/Engine.ini'
             : gameId === 'ron'
               ? 'C:/Users/Preview/AppData/Local/ReadyOrNot/Saved/Config/Windows/Engine.ini'
               : 'C:/Preview/chosen-config/Engine.ini'

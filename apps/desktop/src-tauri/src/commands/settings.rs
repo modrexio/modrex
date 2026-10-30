@@ -73,6 +73,16 @@ pub struct GameSettings {
     #[serde(default, deserialize_with = "null_default")]
     #[specta(type = HashMap<String, LoaderInstall>)]
     pub loaders: HashMap<String, LoaderInstall>,
+    #[serde(default)]
+    pub config_directories: Vec<ConfigDirectory>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct ConfigDirectory {
+    pub canonical_game_path: String,
+    pub launcher: Option<String>,
+    pub directory: String,
 }
 
 /// The mod page a loader was installed from, recorded because the installed files carry no
@@ -116,6 +126,7 @@ impl Default for GameSettings {
             suppress_crash_reporter: false,
             crimeboss_install_mode: default_crimeboss_mode(),
             loaders: HashMap::new(),
+            config_directories: Vec::new(),
         }
     }
 }

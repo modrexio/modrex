@@ -14,26 +14,22 @@ movie_replacement = {
     storefronts = ["steam"],
 }
 
-config_presets = {
-    format = "unreal_engine_ini",
-    locations = [
+unreal_config = {
+    roots = [
         {
             root = "windows_local_app_data",
             store = "steam",
-            path = ["ReadyOrNot", "Saved", "Config", "Windows", "Engine.ini"],
+            path = ["ReadyOrNot", "Saved", "Config"],
         },
     ],
 }
 
+config_presets = {
+    format = "unreal_engine_ini",
+}
+
 graphics_config = {
     filename = "GameUserSettings.ini",
-    locations = [
-        {
-            root = "windows_local_app_data",
-            store = "steam",
-            path = ["ReadyOrNot", "Saved", "Config", "Windows", "GameUserSettings.ini"],
-        },
-    ],
 }
 
 sources = [

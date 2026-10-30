@@ -14,6 +14,7 @@ export const GAME_SPECS = {
         supportsPackageViewer: true,
         movieReplacement: { extension: 'bk2', storefronts: ['steam', 'epic'] },
         configPresets: { filename: 'Engine.ini' },
+        graphicsConfig: { filename: 'GameUserSettings.ini' },
         launchers: ['Steam', 'Epic Games'],
         modTargets: [
             { id: 'mods', path: 'CrimeBoss/Mods' },
@@ -48,6 +49,7 @@ export const GAME_SPECS = {
         supportsPackageViewer: true,
         movieReplacement: { extension: 'bk2', storefronts: ['steam', 'epic'] },
         configPresets: { filename: 'Engine.ini' },
+        graphicsConfig: { filename: 'GameUserSettings.ini' },
         launchers: ['Steam', 'Epic Games', 'Xbox App'],
         modTargets: [
             { id: 'paks', path: 'PAYDAY3/Content/Paks/~mods' },

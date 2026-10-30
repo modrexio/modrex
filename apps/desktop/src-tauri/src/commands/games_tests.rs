@@ -106,6 +106,7 @@ fn a_discovered_spec_resolves_its_package() {
         assert_eq!(spec.movie_replacement, pkg.movie_replacement.as_ref());
         assert_eq!(spec.config_presets, pkg.config_presets.as_ref());
         assert_eq!(spec.graphics_config, pkg.graphics_config.as_ref());
+        assert_eq!(spec.unreal_config, pkg.unreal_config.as_ref());
 
         for store in &pkg.install.stores {
             match store {
@@ -337,7 +338,11 @@ fn movie_and_config_resources_are_independent_in_the_adapter() {
 fn graphics_config_access_follows_a_new_package_without_enabling_presets() {
     let mut pkg = crate::games::discovered()
         .iter()
-        .find(|(_, pkg)| pkg.graphics_config.is_some())
+        .find(|(_, pkg)| {
+            pkg.graphics_config.is_some()
+                && pkg.config_presets.is_none()
+                && pkg.movie_replacement.is_none()
+        })
         .unwrap()
         .1
         .clone();

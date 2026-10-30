@@ -501,7 +501,7 @@ fn config_presets_can_be_reviewed_without_movie_support() {
     let temp = tempfile::tempdir().unwrap();
     let path = temp.path().join("Engine.ini");
     fs::write(&path, b"[S]\nA=1\n").unwrap();
-    let config = ConfigPresets::UnrealEngineIni { locations: vec![] };
+    let config = ConfigPresets::UnrealEngineIni {};
     let no_movies = Err("Movie replacements are not supported".into());
     let (kind, verdict) = assess("Engine.ini", Some(&path), &no_movies, None, Some(&config));
     assert!(matches!(kind, ResourceEntryKind::Ini));
@@ -939,4 +939,90 @@ fn real_archives_keep_slot_names_validate_movies_and_reject_duplicate_presets() 
             );
         }
     }
+}
+
+fn relocation_fixture() -> (tempfile::TempDir, ResourceStore, PathBuf, PathBuf) {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().canonicalize().unwrap();
+    let old = root.join("WindowsClient/Engine.ini");
+    let new = root.join("Windows/Engine.ini");
+    fs::create_dir_all(old.parent().unwrap()).unwrap();
+    fs::create_dir_all(new.parent().unwrap()).unwrap();
+    fs::write(&old, b"[S]\nA=0\nOther=keep\n").unwrap();
+    fs::write(&new, b"[S]\nA=7\nNew=keep\n").unwrap();
+    let store = ResourceStore::at(root.join("recovery"));
+    let deployment = preset(&store, &old, b"[S]\nA=1\n");
+    apply_preset(
+        &store,
+        "pd3",
+        &store.load_manifest().unwrap(),
+        deployment,
+        None,
+    )
+    .unwrap();
+    (temp, store, old, new)
+}
+
+#[test]
+fn enabled_preset_relocation_restores_old_keys_and_recalculates_new_ownership() {
+    let (_temp, store, old, new) = relocation_fixture();
+    let before = store.load_manifest().unwrap();
+    let deployment = &before.deployments[0];
+    relocate_preset(&store, &before, deployment, &new).unwrap();
+    assert_eq!(fs::read(&old).unwrap(), b"[S]\nA=0\nOther=keep\n");
+    assert_eq!(fs::read(&new).unwrap(), b"[S]\nA=1\nNew=keep\n");
+    let after = store.load_manifest().unwrap();
+    assert_eq!(after.revision, before.revision + 1);
+    assert_eq!(after.deployments.len(), 1);
+    assert_eq!(after.deployments[0].id, deployment.id);
+    assert!(after.deployments[0].enabled);
+    assert_eq!(
+        preset_of(&after.deployments[0]).unwrap().source_sha256,
+        preset_of(deployment).unwrap().source_sha256
+    );
+    assert_eq!(after.ini_revisions.len(), before.ini_revisions.len() + 2);
+    release_preset(&store, "pd3", &after.deployments[0], false).unwrap();
+    assert_eq!(fs::read(&new).unwrap(), b"[S]\nA=7\nNew=keep\n");
+}
+
+#[test]
+fn disabled_preset_relocation_only_moves_the_record() {
+    let (_temp, store, old, new) = relocation_fixture();
+    let deployment = store.load_manifest().unwrap().deployments.remove(0);
+    release_preset(&store, "pd3", &deployment, false).unwrap();
+    let before = store.load_manifest().unwrap();
+    let old_bytes = fs::read(&old).unwrap();
+    let new_bytes = fs::read(&new).unwrap();
+    relocate_preset(&store, &before, &before.deployments[0], &new).unwrap();
+    let after = store.load_manifest().unwrap();
+    assert!(!after.deployments[0].enabled);
+    assert_eq!(
+        preset_of(&after.deployments[0]).unwrap().config_path,
+        new.to_string_lossy()
+    );
+    assert_eq!(after.ini_revisions.len(), before.ini_revisions.len());
+    assert_eq!(fs::read(old).unwrap(), old_bytes);
+    assert_eq!(fs::read(new).unwrap(), new_bytes);
+}
+
+#[test]
+fn relocation_only_qualifies_sibling_platform_folders_inside_the_declared_root() {
+    let root = Path::new("Config");
+    let new = root.join("Windows/Engine.ini");
+    assert!(stale_platform_path(
+        &root.join("WindowsClient/Engine.ini"),
+        root,
+        &new
+    ));
+    assert!(!stale_platform_path(&new, root, &new));
+    assert!(!stale_platform_path(
+        Path::new("Picked/WindowsClient/Engine.ini"),
+        root,
+        &new
+    ));
+    assert!(!stale_platform_path(
+        &root.join("nested/WindowsClient/Engine.ini"),
+        root,
+        &new
+    ));
 }

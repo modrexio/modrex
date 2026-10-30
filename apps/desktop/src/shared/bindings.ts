@@ -297,6 +297,12 @@ export type CbFlatPayload_Serialize = {
 	modVersion?: string | null,
 };
 
+export type ConfigDirectory = {
+	canonicalGamePath: string,
+	launcher: string | null,
+	directory: string,
+};
+
 export type ConfigFileLocation = { status: "found"; path: string } | { status: "missing"; path: string } | { status: "needsLocation" };
 
 export type ConfirmLoaderArgs = {
@@ -379,6 +385,7 @@ export type GameSettings_Deserialize = {
 	 *  whether it is current, and every page reads as installed at once.
 	 */
 	loaders?: { [key in string]: LoaderInstall_Deserialize },
+	configDirectories?: ConfigDirectory[],
 };
 
 export type GameSettings_Serialize = {
@@ -397,6 +404,7 @@ export type GameSettings_Serialize = {
 	 *  whether it is current, and every page reads as installed at once.
 	 */
 	loaders: { [key in string]: LoaderInstall_Serialize },
+	configDirectories: ConfigDirectory[],
 };
 
 export type HostPackPayload = HostPackPayload_Serialize | HostPackPayload_Deserialize;
