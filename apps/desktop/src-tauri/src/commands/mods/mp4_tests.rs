@@ -1,4 +1,4 @@
-use super::mp4::validate_mp4;
+use super::mp4::{presentation_end, validate_mp4};
 use std::fs;
 
 fn atom(kind: &[u8; 4], data: &[u8]) -> Vec<u8> {
@@ -201,6 +201,69 @@ fn media_header_allows_one_clock_tick_of_timing_rounding() {
     check(&bytes).unwrap();
     replace_u32(&mut bytes, b"mdhd", 20, 2998);
     assert!(check(&bytes).unwrap_err().contains("sample timing"));
+}
+
+#[test]
+fn b_frame_reordering_extends_the_presented_end() {
+    // ffmpeg's I, P, B order: decoded at 0, 512, 1024, shown at 1024, 2560, 1536. Its track
+    // declares a duration between the 1536 tick decode total and the 3072 tick presented end.
+    assert_eq!(
+        presentation_end(
+            [(3, 512)].into_iter(),
+            [(1, 1024), (1, 2048), (1, 512)].into_iter()
+        ),
+        3072
+    );
+    assert_eq!(
+        presentation_end([(2, 3)].into_iter(), [(2, 0)].into_iter()),
+        6
+    );
+}
+
+/// Inserts a one-sample composition offset table after the sample timing table.
+fn with_composition(mut movie: Vec<u8>, version: u8, offset: u32) -> Vec<u8> {
+    let mut data = vec![version, 0, 0, 0];
+    data.extend(1u32.to_be_bytes());
+    data.extend(1u32.to_be_bytes());
+    data.extend(offset.to_be_bytes());
+    let ctts = atom(b"ctts", &data);
+    for kind in [b"moov", b"trak", b"mdia", b"minf", b"stbl"] {
+        let at = position(&movie, kind) - 4;
+        let size = u32::from_be_bytes(movie[at..at + 4].try_into().unwrap()) + ctts.len() as u32;
+        movie[at..at + 4].copy_from_slice(&size.to_be_bytes());
+    }
+    let stts = position(&movie, b"stts") - 4;
+    let end = stts + u32::from_be_bytes(movie[stts..stts + 4].try_into().unwrap()) as usize;
+    movie.splice(end..end, ctts);
+    movie
+}
+
+#[test]
+fn declared_duration_may_reach_the_latest_composition_end() {
+    let mut decoded = sample_mp4();
+    replace_u32(&mut decoded, b"stts", 16, 3000);
+    for (version, offset, latest) in [(0, 1000, 4000), (1, (-500i32) as u32, 3000)] {
+        let movie = with_composition(decoded.clone(), version, offset);
+        let declared = |duration: u32| {
+            let mut bytes = movie.clone();
+            replace_u32(&mut bytes, b"mdhd", 20, duration);
+            check(&bytes)
+        };
+        for accepted in [2999, 3000, latest, latest + 1] {
+            declared(accepted).unwrap();
+        }
+        for refused in [2998, latest + 2] {
+            assert!(declared(refused).unwrap_err().contains("sample timing"));
+        }
+    }
+    // The parser reads every offset as signed, so the largest one only widens the accepted
+    // range and never overflows.
+    let extreme = with_composition(decoded, 0, i32::MAX as u32);
+    for duration in [3000, 2_000_000_000] {
+        let mut bytes = extreme.clone();
+        replace_u32(&mut bytes, b"mdhd", 20, duration);
+        check(&bytes).unwrap();
+    }
 }
 
 #[test]

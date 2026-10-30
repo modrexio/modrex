@@ -4,7 +4,10 @@
 //! allocations also precede EOF checks, so box ranges and counts must be bounded first.
 //! Container validation does not decode frames or guarantee playback in the game.
 
-use mp4parse::{AudioCodecSpecific, CodecType, SampleEntry, Track, TrackType, VideoCodecSpecific};
+use mp4parse::{
+    AudioCodecSpecific, CodecType, SampleEntry, TimeOffsetVersion, Track, TrackType,
+    VideoCodecSpecific,
+};
 use std::collections::HashSet;
 use std::fs::File;
 use std::io::{BufReader, Read, Seek, SeekFrom};
@@ -500,6 +503,23 @@ fn video_sample(
     Ok(())
 }
 
+/// The latest presented sample end on the decode clock. Both run lists cover the same samples,
+/// which the caller checks first.
+pub(crate) fn presentation_end(
+    timing: impl Iterator<Item = (u32, u32)>,
+    offsets: impl Iterator<Item = (u32, i64)>,
+) -> u64 {
+    let deltas = timing.flat_map(|(count, delta)| std::iter::repeat_n(delta, count as usize));
+    let offsets = offsets.flat_map(|(count, offset)| std::iter::repeat_n(offset, count as usize));
+    let (mut decode, mut end) = (0i128, 0i128);
+    for (delta, offset) in deltas.zip(offsets) {
+        end = end.max(decode + i128::from(offset) + i128::from(delta));
+        decode += i128::from(delta);
+    }
+    // Saturating only widens the accepted range for absurd offsets and never panics on one.
+    u64::try_from(end).unwrap_or(u64::MAX)
+}
+
 fn track_samples(
     file: &mut BufReader<File>,
     track: &Track,
@@ -527,9 +547,9 @@ fn track_samples(
             .checked_add(u64::from(run.sample_count) * u64::from(run.sample_delta))
             .ok_or("the MP4 sample timing overflows")?;
     }
-    // media_header_allows_one_clock_tick_of_timing_rounding covers integer clock rounding.
-    if timed_count != u64::from(count) || timed_duration.abs_diff(duration) > 1 {
-        return Err("the MP4 sample timing does not match its declared count and duration".into());
+    let mismatch = "the MP4 sample timing does not match its declared count and duration";
+    if timed_count != u64::from(count) {
+        return Err(mismatch.into());
     }
     if let Some(composition) = &track.ctts {
         if composition.samples.iter().any(|run| run.sample_count == 0)
@@ -542,6 +562,29 @@ fn track_samples(
         {
             return Err("the MP4 composition timing does not match its samples".into());
         }
+    }
+    // A declared duration runs from the decode timeline to the latest presented sample end,
+    // because muxers such as ffmpeg count B-frame composition offsets into it. Each end
+    // allows one clock tick of rounding, see media_header_allows_one_clock_tick_of_timing_rounding.
+    let presented_end = track.ctts.as_ref().map_or(timed_duration, |composition| {
+        presentation_end(
+            timing
+                .samples
+                .iter()
+                .map(|run| (run.sample_count, run.sample_delta)),
+            composition.samples.iter().map(|run| {
+                let offset = match run.time_offset {
+                    TimeOffsetVersion::Version0(offset) => i64::from(offset),
+                    TimeOffsetVersion::Version1(offset) => i64::from(offset),
+                };
+                (run.sample_count, offset)
+            }),
+        )
+    });
+    if duration.saturating_add(1) < timed_duration
+        || duration > presented_end.max(timed_duration).saturating_add(1)
+    {
+        return Err(mismatch.into());
     }
     if let Some(sync) = &track.stss {
         let mut previous = 0;
