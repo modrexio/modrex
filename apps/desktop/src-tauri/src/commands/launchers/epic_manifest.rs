@@ -31,6 +31,9 @@ const MAX_FILES: usize = 1_000_000;
 const MANIFEST_MAGIC: u32 = 0x44bec00c;
 const STORED_COMPRESSED: u8 = 1;
 const STORED_ENCRYPTED: u8 = 2;
+// Later file list versions append per-file arrays after the ones read here. A version above
+// this one has not been seen, so its layout is not assumed.
+const MAX_FILE_LIST_VERSION: u8 = 2;
 
 #[derive(Clone, Debug)]
 pub(crate) struct EpicNativeFiles {
@@ -90,11 +93,20 @@ pub(crate) fn read_native_files(
             continue;
         }
         let item_bytes = read_bounded(&path, MAX_ITEM_BYTES)?;
-        // The launcher leaves empty or zero-filled records behind. One that is not JSON
-        // describes no installation, so it cannot hold part of this one.
-        let Ok(record) = serde_json::from_slice::<serde_json::Value>(&item_bytes) else {
+        // The launcher leaves empty or zero-filled records behind, which describe no
+        // installation. Any other unreadable record could be a damaged DLC of this one.
+        if item_bytes
+            .iter()
+            .all(|byte| *byte == 0 || byte.is_ascii_whitespace())
+        {
             continue;
-        };
+        }
+        let record = serde_json::from_slice::<serde_json::Value>(&item_bytes).map_err(|e| {
+            format!(
+                "Epic installation record {} is not valid JSON: {e}",
+                display_path(&path)
+            )
+        })?;
         let Some(location) = record["InstallLocation"].as_str() else {
             continue;
         };
@@ -194,8 +206,8 @@ impl<'a> Reader<'a> {
         ))
     }
 
-    /// The section's contents after its size and version, leaving the cursor past its end.
-    fn section(&mut self) -> Result<Reader<'a>, String> {
+    /// The section's version and contents, leaving the cursor past its end.
+    fn section(&mut self) -> Result<(u8, Reader<'a>), String> {
         let start = self.cursor;
         let size = self.u32()? as usize;
         if size < 5 {
@@ -203,10 +215,13 @@ impl<'a> Reader<'a> {
         }
         self.cursor = start;
         let section = self.take(size)?;
-        Ok(Reader {
-            bytes: &section[5..],
-            cursor: 0,
-        })
+        Ok((
+            section[4],
+            Reader {
+                bytes: &section[5..],
+                cursor: 0,
+            },
+        ))
     }
 
     fn string(&mut self) -> Result<String, String> {
@@ -302,7 +317,10 @@ fn parse_manifest(bytes: &[u8]) -> Result<Vec<String>, String> {
     };
     sections.section()?;
     sections.section()?;
-    let mut file_list = sections.section()?;
+    let (file_list_version, mut file_list) = sections.section()?;
+    if file_list_version > MAX_FILE_LIST_VERSION {
+        return Err(format!("unsupported file list version {file_list_version}"));
+    }
     let count = file_list.u32()? as usize;
     if count > MAX_FILES {
         return Err("file list exceeds the path count limit".into());

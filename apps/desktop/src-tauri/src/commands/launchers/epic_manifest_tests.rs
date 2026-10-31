@@ -23,8 +23,12 @@ fn utf16(text: &str) -> Vec<u8> {
 }
 
 fn section(contents: &[u8]) -> Vec<u8> {
+    versioned_section(0, contents)
+}
+
+fn versioned_section(version: u8, contents: &[u8]) -> Vec<u8> {
     let mut out = ((contents.len() + 5) as u32).to_le_bytes().to_vec();
-    out.push(0);
+    out.push(version);
     out.extend_from_slice(contents);
     out
 }
@@ -217,6 +221,7 @@ fn junk_records_and_records_for_other_folders_are_ignored() {
     let install = Install::new();
     install.record("game.item", "Game", GUID, &["Game.exe"]);
     fs::write(install.manifests.path().join("zeros.item"), [0u8; 64]).unwrap();
+    fs::write(install.manifests.path().join("empty.item"), b"").unwrap();
     let elsewhere = TempDir::new().unwrap();
     let other = serde_json::json!({
         "DisplayName": "Game",
@@ -329,4 +334,32 @@ pub(crate) fn write_test_install(
         manifest(files),
     )
     .unwrap();
+}
+
+#[test]
+fn refuses_an_unknown_file_list_version() {
+    let mut file_list = 1u32.to_le_bytes().to_vec();
+    file_list.extend(ascii("a.pak"));
+    file_list.extend(0i32.to_le_bytes());
+    let mut body = section(&[7, 0, 0, 0, 1]);
+    body.extend(section(&0u32.to_le_bytes()));
+    body.extend(versioned_section(MAX_FILE_LIST_VERSION + 1, &file_list));
+    body.extend(section(&0u32.to_le_bytes()));
+
+    let error = parse_manifest(&manifest_from_body(&body, true)).unwrap_err();
+
+    assert!(error.contains("file list version"), "{error}");
+}
+
+#[test]
+fn a_damaged_record_refuses_rather_than_dropping_its_files() {
+    let install = Install::new();
+    install.record("game.item", "Game", GUID, &["Game.exe"]);
+    fs::write(
+        install.manifests.path().join("dlc.item"),
+        br#"{"DisplayName": "Game DLC", "InstallLocation": "#,
+    )
+    .unwrap();
+
+    assert!(install.read().unwrap_err().contains("not valid JSON"));
 }
