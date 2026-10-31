@@ -2,10 +2,11 @@
 //! describes the selected installation.
 
 use crate::commands::path_display::display_path;
+use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs::File;
 use std::io::Read;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 pub(super) const MAX_PATH_BYTES: usize = 4096;
 
@@ -85,6 +86,35 @@ impl NativePaths {
             }
         }
         Ok(false)
+    }
+}
+
+/// A store record the file list was built from, rechecked before every change.
+#[derive(Clone, Debug)]
+pub(super) struct CatalogSource {
+    pub path: PathBuf,
+    digest: [u8; 32],
+    limit: usize,
+}
+
+impl CatalogSource {
+    pub(super) fn new(path: PathBuf, bytes: &[u8], limit: usize) -> Self {
+        Self {
+            path,
+            digest: Sha256::digest(bytes).into(),
+            limit,
+        }
+    }
+
+    pub(super) fn verify_unchanged(&self) -> Result<(), String> {
+        let bytes = read_bounded(&self.path, self.limit)?;
+        if <[u8; 32]>::from(Sha256::digest(&bytes)) != self.digest {
+            return Err(format!(
+                "The game's native-file catalog changed during the operation: {}",
+                display_path(&self.path)
+            ));
+        }
+        Ok(())
     }
 }
 

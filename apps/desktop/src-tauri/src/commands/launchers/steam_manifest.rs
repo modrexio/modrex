@@ -1,8 +1,9 @@
 #[cfg(windows)]
 use super::native_paths::validate_windows_paths;
-use super::native_paths::{normalize_native_path, read_bounded, NativePaths, MAX_PATH_BYTES};
+use super::native_paths::{
+    normalize_native_path, read_bounded, CatalogSource, NativePaths, MAX_PATH_BYTES,
+};
 use crate::commands::path_display::display_path;
-use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -23,13 +24,6 @@ const SYMLINK_FLAG: u32 = 512;
 pub(crate) struct InstalledDepot {
     pub depot_id: u32,
     pub manifest_id: u64,
-}
-
-#[derive(Clone, Debug)]
-struct CatalogSource {
-    path: PathBuf,
-    digest: [u8; 32],
-    limit: usize,
 }
 
 #[derive(Clone, Debug)]
@@ -66,16 +60,9 @@ impl NativeFilesSnapshot {
         if cache != self.cache_root {
             return Err("Primary Steam depotcache changed during the operation".into());
         }
-        for source in &self.sources {
-            let bytes = read_bounded(&source.path, source.limit)?;
-            if <[u8; 32]>::from(Sha256::digest(&bytes)) != source.digest {
-                return Err(format!(
-                    "Steam native-file catalog changed during the operation: {}",
-                    display_path(&source.path)
-                ));
-            }
-        }
-        Ok(())
+        self.sources
+            .iter()
+            .try_for_each(CatalogSource::verify_unchanged)
     }
 }
 
@@ -115,11 +102,11 @@ pub(crate) fn read_native_files(
         .map_err(|e| format!("Could not resolve primary Steam depotcache path: {e}"))?;
     let cache = fs::canonicalize(&selected_cache_root)
         .map_err(|e| format!("Could not resolve primary Steam depotcache: {e}"))?;
-    let mut sources = vec![CatalogSource {
-        path: appmanifest,
-        digest: Sha256::digest(&app_bytes).into(),
-        limit: MAX_APPSTATE_BYTES,
-    }];
+    let mut sources = vec![CatalogSource::new(
+        appmanifest,
+        &app_bytes,
+        MAX_APPSTATE_BYTES,
+    )];
     let mut native_paths = BTreeMap::<String, String>::new();
     let mut catalog_bytes = 0usize;
     for depot in &app.depots {
@@ -154,11 +141,7 @@ pub(crate) fn read_native_files(
             }
             native_paths.insert(normalized, spelling);
         }
-        sources.push(CatalogSource {
-            path,
-            digest: Sha256::digest(&bytes).into(),
-            limit: MAX_MANIFEST_BYTES,
-        });
+        sources.push(CatalogSource::new(path, &bytes, MAX_MANIFEST_BYTES));
     }
     let snapshot = NativeFilesSnapshot {
         game_root,

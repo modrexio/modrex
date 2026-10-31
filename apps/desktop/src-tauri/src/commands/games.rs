@@ -101,10 +101,12 @@ fn scan_target(pkg: &'static GamePackage, target: &'static package::Target) -> S
         },
         shared_paks: (target.scope == package::TargetScope::UnrealPaks).then(|| SharedPaks {
             steam_app: match pkg.install.store(package::Storefront::Steam) {
-                Some(package::StoreBinding::Steam { app_id, .. }) => *app_id,
-                _ => {
-                    unreachable!("validate::check requires a Steam binding for shared Unreal Paks")
-                }
+                Some(package::StoreBinding::Steam { app_id, .. }) => Some(*app_id),
+                _ => None,
+            },
+            epic_name: match pkg.install.store(package::Storefront::Epic) {
+                Some(package::StoreBinding::Epic { name }) => Some(name.as_str()),
+                _ => None,
             },
         }),
         unit: match &target.unit {

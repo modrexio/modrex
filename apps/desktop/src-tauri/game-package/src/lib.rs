@@ -587,7 +587,8 @@ pub struct Target {
 pub enum TargetScope {
     #[default]
     Mods,
-    /// Native paths come from the installed Steam depot manifests, never filename guesses.
+    /// Native paths come from the installed store's own record of the build, never filename
+    /// guesses.
     UnrealPaks,
 }
 

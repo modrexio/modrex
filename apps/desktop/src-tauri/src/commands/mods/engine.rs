@@ -42,7 +42,9 @@ pub struct StoreLayout {
 
 /// Where each store's copy records which files in a shared Paks directory belong to the game.
 pub struct SharedPaks {
-    pub steam_app: u32,
+    pub steam_app: Option<u32>,
+    /// The Epic launcher's display name for the base game.
+    pub epic_name: Option<&'static str>,
 }
 
 pub struct ScanTarget {

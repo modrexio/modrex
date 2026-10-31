@@ -1,4 +1,5 @@
-mod epic;
+pub(crate) mod epic;
+pub(crate) mod epic_manifest;
 pub(crate) mod native_paths;
 mod steam;
 pub(crate) mod steam_manifest;

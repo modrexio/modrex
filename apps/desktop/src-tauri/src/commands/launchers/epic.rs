@@ -49,7 +49,7 @@ pub(crate) struct EpicRecord {
     pub app_name: String,
 }
 
-fn epic_manifest_dir() -> PathBuf {
+pub(crate) fn epic_manifest_dir() -> PathBuf {
     let prog_data = std::env::var("PROGRAMDATA").unwrap_or_else(|_| "C:\\ProgramData".to_string());
     PathBuf::from(prog_data)
         .join("Epic")

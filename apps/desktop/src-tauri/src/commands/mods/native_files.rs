@@ -1,6 +1,7 @@
 use super::engine::{mods_dir, ModEngineConfig};
 use super::naming::log_name;
-use crate::commands::launchers::steam_manifest::{read_native_files, NativeFilesSnapshot};
+use crate::commands::launchers::epic_manifest::EpicNativeFiles;
+use crate::commands::launchers::steam_manifest::NativeFilesSnapshot;
 use std::fs;
 use std::path::{Component, Path, PathBuf};
 
@@ -14,7 +15,50 @@ struct NativeTarget {
     root: PathBuf,
     disabled_suffix: &'static str,
     companions: &'static [&'static str],
-    snapshot: NativeFilesSnapshot,
+    snapshot: NativeCatalog,
+}
+
+/// Where the selected copy's own store keeps its record of the installed build.
+pub(super) enum CatalogStore {
+    /// The primary Steam installation, which holds every library's depot cache.
+    Steam(PathBuf),
+    /// The Epic launcher's installation record directory.
+    Epic(PathBuf),
+}
+
+enum NativeCatalog {
+    Steam(NativeFilesSnapshot),
+    Epic(EpicNativeFiles),
+}
+
+impl NativeCatalog {
+    fn game_root(&self) -> &Path {
+        match self {
+            NativeCatalog::Steam(snapshot) => &snapshot.game_root,
+            NativeCatalog::Epic(snapshot) => &snapshot.game_root,
+        }
+    }
+
+    fn protects(&self, relative: &Path) -> Result<bool, String> {
+        match self {
+            NativeCatalog::Steam(snapshot) => snapshot.protects(relative),
+            NativeCatalog::Epic(snapshot) => snapshot.protects(relative),
+        }
+    }
+
+    fn protects_tree(&self, relative: &Path) -> Result<bool, String> {
+        match self {
+            NativeCatalog::Steam(snapshot) => snapshot.protects_tree(relative),
+            NativeCatalog::Epic(snapshot) => snapshot.protects_tree(relative),
+        }
+    }
+
+    fn verify_unchanged(&self) -> Result<(), String> {
+        match self {
+            NativeCatalog::Steam(snapshot) => snapshot.verify_unchanged(),
+            NativeCatalog::Epic(snapshot) => snapshot.verify_unchanged(),
+        }
+    }
 }
 
 impl NativeGuard {
@@ -29,16 +73,23 @@ impl NativeGuard {
                 targets: Vec::new(),
             });
         }
-        let steam_root = crate::commands::launchers::steam_install_path().ok_or(
-            "Steam must be installed to verify native game files in the shared Paks directory",
-        )?;
-        Self::load_from_steam_root(game_path, cfg, Path::new(&steam_root))
+        // Read from disk, not the saved launcher, because a hand-picked folder has none. A
+        // store whose record does not name this folder refuses, so a wrong guess cannot pass.
+        let store = if Path::new(game_path).join(".egstore").is_dir() {
+            CatalogStore::Epic(crate::commands::launchers::epic::epic_manifest_dir())
+        } else {
+            let steam_root = crate::commands::launchers::steam_install_path().ok_or(
+                "Steam must be installed to verify native game files in the shared Paks directory",
+            )?;
+            CatalogStore::Steam(PathBuf::from(steam_root))
+        };
+        Self::load_from(game_path, cfg, &store)
     }
 
-    fn load_from_steam_root(
+    pub(super) fn load_from(
         game_path: &str,
         cfg: &ModEngineConfig,
-        steam_root: &Path,
+        store: &CatalogStore,
     ) -> Result<Self, String> {
         let game_root = PathBuf::from(game_path);
         let mut targets = Vec::new();
@@ -46,14 +97,35 @@ impl NativeGuard {
             let Some(shared) = &target.shared_paks else {
                 continue;
             };
-            let snapshot = read_native_files(steam_root, &game_root, shared.steam_app)
-                .map_err(|error| format!("Cannot verify the game's original files: {error}. Open Steam to finish or verify the installation, then return to Modrex."))?;
-            log::debug!(
-                "Verified native files for Steam app {} build {} from {} depots",
-                snapshot.app_id,
-                snapshot.build_id,
-                snapshot.depots.len()
-            );
+            let snapshot = match store {
+                CatalogStore::Steam(steam_root) => {
+                    let app_id = shared
+                        .steam_app
+                        .ok_or("This game's shared Paks are not supported for Steam copies")?;
+                    let snapshot = crate::commands::launchers::steam_manifest::read_native_files(
+                        steam_root, &game_root, app_id,
+                    )
+                    .map_err(|error| format!("Cannot verify the game's original files: {error}. Open Steam to finish or verify the installation, then return to Modrex."))?;
+                    log::debug!(
+                        "Verified native files for Steam app {} build {} from {} depots",
+                        snapshot.app_id,
+                        snapshot.build_id,
+                        snapshot.depots.len()
+                    );
+                    NativeCatalog::Steam(snapshot)
+                }
+                CatalogStore::Epic(manifest_dir) => {
+                    let name = shared
+                        .epic_name
+                        .ok_or("This game's shared Paks are not supported for Epic copies")?;
+                    NativeCatalog::Epic(
+                        crate::commands::launchers::epic_manifest::read_native_files(
+                            manifest_dir, name, &game_root,
+                        )
+                        .map_err(|error| format!("Cannot verify the game's original files: {error}. Open Epic Games Launcher to finish or verify the installation, then return to Modrex."))?,
+                    )
+                }
+            };
             targets.push(NativeTarget {
                 root: mods_dir(game_path, target),
                 disabled_suffix: target.disabled_suffix(),
@@ -139,7 +211,7 @@ impl NativeGuard {
         let resolved = resolve_existing_ancestor(path)?;
         for target in &self.targets {
             let relative = resolved
-                .strip_prefix(&target.snapshot.game_root)
+                .strip_prefix(target.snapshot.game_root())
                 .map_err(|_| "The mod path resolves outside the configured game directory")?;
             if target.snapshot.protects(relative)? {
                 return Ok(true);
@@ -213,7 +285,7 @@ impl NativeGuard {
             }
             let resolved = resolve_existing_ancestor(path)?;
             let relative = resolved
-                .strip_prefix(&target.snapshot.game_root)
+                .strip_prefix(target.snapshot.game_root())
                 .map_err(|_| "The mod folder resolves outside the configured game directory")?;
             if target.snapshot.protects_tree(relative)? {
                 return Err(format!(

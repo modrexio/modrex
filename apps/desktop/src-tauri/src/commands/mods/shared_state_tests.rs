@@ -6,7 +6,10 @@ const SHARED_TARGET: ScanTarget = ScanTarget {
     tag: "paks",
     label_key: "pakMods",
     label_name: None,
-    shared_paks: Some(SharedPaks { steam_app: 78 }),
+    shared_paks: Some(SharedPaks {
+        steam_app: Some(78),
+        epic_name: None,
+    }),
     unit: ModUnit::File {
         extension: "pak",
         disabled_suffix: ".disabled",

@@ -219,11 +219,15 @@ pub fn check(id: &str, package: &GamePackage) -> Result<(), String> {
                         .into(),
                 );
             }
-            if package.install.stores.len() != 1
-                || package.install.store(crate::Storefront::Steam).is_none()
+            if package
+                .install
+                .stores
+                .iter()
+                .any(|store| matches!(store, crate::StoreBinding::Xbox { .. }))
             {
                 return Err(
-                    "shared Unreal Paks require an installed Steam depot catalog".to_string(),
+                    "shared Unreal Paks require a store that lists the game's installed files, which Steam and Epic do"
+                        .to_string(),
                 );
             }
             if !matches!(&target.unit, Unit::File { family, filename: crate::FileNaming::Archive, .. } if family.extension == "pak")
