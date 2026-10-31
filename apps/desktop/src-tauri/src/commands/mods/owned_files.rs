@@ -37,7 +37,7 @@ pub(super) struct OwnedFiles {
     pub game_root: PathBuf,
     selected_game_root: PathBuf,
     hashes: PlacedHashes,
-    /// Lowercase, as the normalized keys it is compared with.
+    /// ASCII lowercase, for comparing with a lowercased filename.
     disabled_suffix: String,
     /// The target's active and disabled folders. Paths outside them belong to other targets,
     /// which this policy does not govern.
@@ -107,7 +107,7 @@ impl OwnedFiles {
             game_root,
             selected_game_root,
             hashes,
-            disabled_suffix: target.disabled_suffix().to_lowercase(),
+            disabled_suffix: target.disabled_suffix().to_ascii_lowercase(),
             roots,
             files,
             own_paths,
@@ -130,7 +130,7 @@ impl OwnedFiles {
             return Ok(false);
         }
         let path = self.game_root.join(relative);
-        if self.signed(&path, &key)? {
+        if self.signed(&path)? {
             return Ok(true);
         }
         if let Some(sha256) = self.files.get(&key) {
@@ -157,19 +157,21 @@ impl OwnedFiles {
 
     // Unreal signs only the game's own Paks, so a signature marks a file as the game's
     // even if a recorded mod's name now points at it.
-    fn signed(&self, path: &Path, key: &str) -> Result<bool, String> {
-        let active = key.strip_suffix(&self.disabled_suffix).unwrap_or(key);
+    // The sibling is named from the file's own spelling, since a case-sensitive filesystem
+    // would not find a signature under the lowercased key.
+    fn signed(&self, path: &Path) -> Result<bool, String> {
+        let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
+            return Ok(false);
+        };
+        let lower = name.to_ascii_lowercase();
+        let active = lower.strip_suffix(&self.disabled_suffix).unwrap_or(&lower);
         if active.ends_with(".sig") {
             return Ok(true);
         }
-        let Some(stem) = active.strip_suffix(".pak") else {
+        if !active.ends_with(".pak") {
             return Ok(false);
-        };
-        let Some(name) = Path::new(stem).file_name() else {
-            return Ok(false);
-        };
-        let mut signature = name.to_os_string();
-        signature.push(".sig");
+        }
+        let signature = format!("{}.sig", &name[..active.len() - ".pak".len()]);
         path.with_file_name(signature)
             .try_exists()
             .map_err(|e| format!("Could not inspect {}: {e}", path.display()))
