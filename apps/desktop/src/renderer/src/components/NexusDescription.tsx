@@ -13,6 +13,7 @@ import { parseModworkshopModId } from '../modLinks'
 import { YOUTUBE_EMBED } from '../embeds'
 import { t } from '../i18n'
 import { EmbedPlayer } from './EmbedPlayer'
+import { ScrollArea } from './ScrollArea'
 
 const NexusNavContext = createContext<((modId: number) => void) | undefined>(undefined)
 
@@ -391,8 +392,33 @@ function normalizeNode(node: ReactNode): ReactNode {
     return cloneElement(node, undefined, children)
 }
 
+// Runs after stripRedundantBreaks, which recognizes pre and table as blocks only by
+// their own element type. Wrapping them first would keep the breaks beside them.
+function withScrollbar(node: ReactNode): ReactNode {
+    if (!isValidElement(node)) return node
+    if (node.type === 'pre') {
+        return (
+            <ScrollArea
+                key={node.key}
+                hostClassName="my-2 rounded bg-surface-hover"
+                className="overflow-x-auto"
+            >
+                {node}
+            </ScrollArea>
+        )
+    }
+    if (node.type === 'table') {
+        return (
+            <ScrollArea key={node.key} hostClassName="my-2" className="overflow-x-auto">
+                {node}
+            </ScrollArea>
+        )
+    }
+    return node
+}
+
 function normalizeNodes(nodes: ReactNode[]): ReactNode[] {
-    return stripRedundantBreaks(nodes.map(normalizeNode))
+    return stripRedundantBreaks(nodes.map(normalizeNode)).map(withScrollbar)
 }
 
 export function NexusDescription({

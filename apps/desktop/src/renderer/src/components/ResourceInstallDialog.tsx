@@ -16,6 +16,7 @@ import { t, useLocale } from '../i18n'
 import { Dialog, DialogHeader } from './Dialog'
 import { Button } from './ui/Button'
 import { Select } from './Select'
+import { ScrollArea } from './ScrollArea'
 import { ZipPickerModal, type ZipMultiPakPayload } from './ZipPickerModal'
 import { refreshInstalled } from '../gameData'
 import { GAMES, type InstalledMod } from '../../../shared/types'
@@ -372,7 +373,7 @@ function Review({ handle }: { handle: string }) {
                 onClose={() => void cancel()}
                 closeDisabled={busy}
             />
-            <div className="flex-1 min-h-0 overflow-y-auto p-5 flex flex-col gap-4">
+            <ScrollArea hostClassName="flex-1" className="overflow-y-auto p-5 flex flex-col gap-4">
                 <p className="text-xs text-text-muted">
                     {t(packagesOnly ? 'zipPicker.sharedHelp' : 'resources.install.description')}
                 </p>
@@ -449,12 +450,15 @@ function Review({ handle }: { handle: string }) {
                                 <DisclosureSummary className="cursor-pointer font-medium">
                                     {t('resources.install.authorInstructions')}
                                 </DisclosureSummary>
-                                <div className="mt-2 max-h-48 overflow-y-auto text-text-muted">
+                                <ScrollArea
+                                    hostClassName="mt-2 max-h-48"
+                                    className="overflow-y-auto text-text-muted"
+                                >
                                     <ModworkshopMarkup
                                         text={instructions.text}
                                         legacy={instructions.legacy}
                                     />
-                                </div>
+                                </ScrollArea>
                             </details>
                         )}
                         {instructions && 'error' in instructions && (
@@ -579,7 +583,7 @@ function Review({ handle }: { handle: string }) {
                         {review.entries.filter((entry) => entry.kind === 'other').map(renderEntry)}
                     </fieldset>
                 )}
-            </div>
+            </ScrollArea>
             <div className="flex flex-col gap-3 p-4 border-t border-border shrink-0">
                 {!packagesOnly && (
                     <p className="text-xs text-text-muted">
