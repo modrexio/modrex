@@ -1,6 +1,6 @@
 use super::engine::{mods_dir, ModEngineConfig};
 use super::naming::log_name;
-use super::owned_files::OwnedFiles;
+use super::owned_files::{OwnedFiles, PlacedHashes};
 use crate::commands::launchers::epic_manifest::EpicNativeFiles;
 use crate::commands::launchers::steam_manifest::NativeFilesSnapshot;
 use std::fs;
@@ -26,7 +26,7 @@ pub(super) enum CatalogStore {
     /// The Epic launcher's installation record directory.
     Epic(PathBuf),
     /// The Microsoft Store keeps no readable file list, so only Modrex's own files may change.
-    Xbox,
+    Xbox(PlacedHashes),
 }
 
 enum NativeCatalog {
@@ -72,7 +72,21 @@ impl NativeCatalog {
 }
 
 impl NativeGuard {
+    /// For an operation that changes files.
     pub fn load(game_path: &str, cfg: &ModEngineConfig) -> Result<Self, String> {
+        Self::load_with(game_path, cfg, PlacedHashes::Fresh)
+    }
+
+    /// For a scan that only reads, which may trust hashes of files that look unchanged.
+    pub fn load_for_scan(game_path: &str, cfg: &ModEngineConfig) -> Result<Self, String> {
+        Self::load_with(game_path, cfg, PlacedHashes::Cached)
+    }
+
+    fn load_with(
+        game_path: &str,
+        cfg: &ModEngineConfig,
+        hashes: PlacedHashes,
+    ) -> Result<Self, String> {
         if !cfg
             .targets
             .iter()
@@ -83,17 +97,14 @@ impl NativeGuard {
                 targets: Vec::new(),
             });
         }
-        // Read from disk, not the saved launcher, because a hand-picked folder has none. A
-        // store whose record does not name this folder refuses, so a wrong guess cannot pass.
-        let store = if Path::new(game_path).join("MicrosoftGame.config").is_file() {
-            CatalogStore::Xbox
-        } else if Path::new(game_path).join(".egstore").is_dir() {
-            CatalogStore::Epic(crate::commands::launchers::epic::epic_manifest_dir())
-        } else {
-            let steam_root = crate::commands::launchers::steam_install_path().ok_or(
-                "Steam must be installed to verify native game files in the shared Paks directory",
-            )?;
-            CatalogStore::Steam(PathBuf::from(steam_root))
+        let store = match detect_store(Path::new(game_path), hashes) {
+            Some(store) => store,
+            None => {
+                let steam_root = crate::commands::launchers::steam_install_path().ok_or(
+                    "Steam must be installed to verify native game files in the shared Paks directory",
+                )?;
+                CatalogStore::Steam(PathBuf::from(steam_root))
+            }
         };
         Self::load_from(game_path, cfg, &store)
     }
@@ -137,14 +148,14 @@ impl NativeGuard {
                         .map_err(|error| format!("Cannot verify the game's original files: {error}. Open Epic Games Launcher to finish or verify the installation, then return to Modrex."))?,
                     )
                 }
-                CatalogStore::Xbox => {
+                CatalogStore::Xbox(hashes) => {
                     if !shared.xbox {
                         return Err(
                             "This game's shared Paks are not supported for Microsoft Store copies"
                                 .into(),
                         );
                     }
-                    NativeCatalog::Owned(OwnedFiles::load(game_path, cfg, target)?)
+                    NativeCatalog::Owned(OwnedFiles::load(game_path, cfg, target, *hashes)?)
                 }
             };
             targets.push(NativeTarget {
@@ -387,6 +398,21 @@ impl NativeGuard {
         }
         Ok(())
     }
+}
+
+// Read from disk, not the saved launcher, because a hand-picked folder has none. A store
+// whose record does not name this folder refuses, so a wrong guess cannot pass. None means
+// the folder carries no Microsoft Store or Epic marker, which leaves Steam.
+fn detect_store(game_root: &Path, hashes: PlacedHashes) -> Option<CatalogStore> {
+    if game_root.join("MicrosoftGame.config").is_file() {
+        return Some(CatalogStore::Xbox(hashes));
+    }
+    if game_root.join(".egstore").is_dir() {
+        return Some(CatalogStore::Epic(
+            crate::commands::launchers::epic::epic_manifest_dir(),
+        ));
+    }
+    None
 }
 
 pub(super) fn check_contained_path(root: &Path, path: &Path) -> Result<(), String> {

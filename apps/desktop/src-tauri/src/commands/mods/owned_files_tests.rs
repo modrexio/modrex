@@ -1,4 +1,4 @@
-use super::super::engine::{Activation, ModMetadata, ModUnit, SharedPaks};
+use super::super::engine::{synthetic_shared_paks_target, ModMetadata, ModUnit, SharedPaks};
 use super::super::native_files::NativeGuard;
 use super::super::types::{InstalledMod, ModsState};
 use super::super::{install, state};
@@ -10,29 +10,11 @@ static XBOX_PAK_ENGINE: ModEngineConfig = ModEngineConfig {
     decoders: &[],
     index_game_name: "Synthetic Game",
     mod_metadata: ModMetadata::None,
-    targets: &[ScanTarget {
-        tag: "paks",
-        label_key: "pakMods",
-        label_name: None,
-        shared_paks: Some(SharedPaks {
-            steam_app: None,
-            epic_name: None,
-            xbox: true,
-        }),
-        unit: ModUnit::File {
-            extension: "pak",
-            disabled_suffix: ".disabled",
-            priority_prefix: false,
-            keeps_archive_filename: true,
-        },
-        companions: &[],
-        contained_extension: None,
-        enabled_state: Activation::Filesystem,
-        mods_subpath: &["ReadyOrNot", "Content", "Paks"],
-        disabled_subpath: &["ReadyOrNot", "Content", "Paks", "disabled"],
-        backup_subpath: &["ReadyOrNot", "Content", "Paks.mods.bak"],
-        store_layouts: &[],
-    }],
+    targets: &[synthetic_shared_paks_target(SharedPaks {
+        steam_app: None,
+        epic_name: None,
+        xbox: true,
+    })],
 };
 
 struct Fixture {
@@ -263,4 +245,131 @@ fn a_record_without_a_placed_hash_grants_nothing() {
 
     assert!(error.contains("not installed by Modrex"), "{error}");
     fixture.assert_game_and_manual_files_untouched();
+}
+
+#[test]
+fn a_change_rehashes_even_when_size_and_time_look_unchanged() {
+    let fixture = Fixture::new();
+    fixture.install("pakchunk99-New_P.pak", b"new mod").unwrap();
+    let active = fixture.paks.join("pakchunk99-New_P.pak");
+    let modified = filetime::FileTime::from_last_modification_time(&fs::metadata(&active).unwrap());
+    let scan = NativeGuard::load_for_scan(fixture.game_path(), &XBOX_PAK_ENGINE).unwrap();
+    assert!(!scan.protects(&active).unwrap());
+
+    fs::write(&active, b"new MOD").unwrap();
+    filetime::set_file_mtime(&active, modified).unwrap();
+    let error = install::uninstall_mod_op(
+        fixture.game_path(),
+        &fixture.state_path,
+        "pakchunk99-New_P.pak",
+        &XBOX_PAK_ENGINE,
+    )
+    .unwrap_err();
+
+    assert!(error.contains("not installed by Modrex"), "{error}");
+    assert_eq!(fs::read(&active).unwrap(), b"new MOD");
+}
+
+#[test]
+fn paths_outside_the_target_belong_to_other_targets() {
+    let fixture = Fixture::new();
+    let binaries = fixture.game.join("Synthetic/Binaries/WinGDK/Mods/Lua");
+    fs::create_dir_all(&binaries).unwrap();
+
+    assert!(!fixture.guard().protects(&binaries).unwrap());
+}
+
+static SHOUTING_SUFFIX_ENGINE: ModEngineConfig = ModEngineConfig {
+    targets: &[ScanTarget {
+        unit: ModUnit::File {
+            extension: "pak",
+            disabled_suffix: ".DISABLED",
+            priority_prefix: false,
+            keeps_archive_filename: true,
+        },
+        ..synthetic_shared_paks_target(SharedPaks {
+            steam_app: None,
+            epic_name: None,
+            xbox: true,
+        })
+    }],
+    ..XBOX_PAK_ENGINE
+};
+
+#[test]
+fn a_signature_fences_a_disabled_pak_whatever_the_suffix_case() {
+    let fixture = Fixture::new();
+    let disabled = fixture.paks.join("disabled");
+    fs::create_dir_all(&disabled).unwrap();
+    fs::write(disabled.join("Signed.sig"), b"signature").unwrap();
+    let guard = NativeGuard::load(fixture.game_path(), &SHOUTING_SUFFIX_ENGINE).unwrap();
+
+    assert!(guard
+        .protects(&disabled.join("Signed.pak.DISABLED"))
+        .unwrap());
+}
+
+#[test]
+fn reconcile_keeps_placed_mods_and_drops_records_that_prove_nothing() {
+    let fixture = Fixture::new();
+    fixture.install("pakchunk99-Kept_P.pak", b"kept").unwrap();
+    fixture
+        .install("pakchunk99-Changed_P.pak", b"changed")
+        .unwrap();
+    fs::write(fixture.paks.join("pakchunk99-Changed_P.pak"), b"edited").unwrap();
+    let mut state = state::read_state(&fixture.state_path).unwrap();
+    state.mods.push(InstalledMod {
+        uid: "manual".into(),
+        filename: "Manual.pak".into(),
+        enabled: true,
+        ..InstalledMod::default()
+    });
+    state::save_state(&fixture.state_path, &state).unwrap();
+
+    let reconciled =
+        state::reconcile_state(fixture.game_path(), &fixture.state_path, &XBOX_PAK_ENGINE).unwrap();
+
+    let uids: Vec<_> = reconciled.mods.iter().map(|m| m.uid.as_str()).collect();
+    assert_eq!(uids, ["pakchunk99-Kept_P.pak"]);
+    assert_eq!(
+        fs::read(fixture.paks.join("pakchunk99-Changed_P.pak")).unwrap(),
+        b"edited"
+    );
+    fixture.assert_game_and_manual_files_untouched();
+}
+
+#[test]
+fn a_modrex_folder_moves_only_while_it_holds_nothing_foreign() {
+    let fixture = Fixture::new();
+    let folder = super::super::types::ModFolder {
+        id: "weapons".into(),
+        disk_name: "001_Weapons".into(),
+        display_name: "Weapons".into(),
+        priority: 1,
+        parent_id: None,
+    };
+    let dir = fixture.paks.join("001_Weapons");
+    fs::create_dir_all(&dir).unwrap();
+    state::save_state(
+        &fixture.state_path,
+        &ModsState {
+            folders: vec![folder],
+            mods: vec![],
+        },
+    )
+    .unwrap();
+    fixture.guard().check_tree(&dir).unwrap();
+
+    fs::write(dir.join("Dropped.pak"), b"hand installed").unwrap();
+
+    assert!(fixture.guard().check_tree(&dir).is_err());
+    assert!(fixture
+        .guard()
+        .check_tree(&fixture.paks.join("Unknown"))
+        .is_ok());
+    fs::create_dir_all(fixture.paks.join("Unknown")).unwrap();
+    assert!(fixture
+        .guard()
+        .check_tree(&fixture.paks.join("Unknown"))
+        .is_err());
 }

@@ -784,8 +784,8 @@ pub fn reconcile_state(
         if migrate_legacy { &legacy } else { state_path },
         cfg,
     )?;
-    let native_guard =
-        super::native_files::NativeGuard::load(game_path, cfg).map_err(StateLoadError::Invalid)?;
+    let native_guard = super::native_files::NativeGuard::load_for_scan(game_path, cfg)
+        .map_err(StateLoadError::Invalid)?;
     native_guard
         .check_state_path(state_path)
         .map_err(StateLoadError::Invalid)?;

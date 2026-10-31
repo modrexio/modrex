@@ -314,7 +314,7 @@ pub async fn get_installed(app: AppHandle, game_id: String) -> Result<InstalledR
     // Launch preflight takes the resource lock before the game state lock.
     resources::relocate_stale_presets(&app, game_id, &game_path).await;
     let _state_guard = lock_game_state(&app, game_id).await;
-    let native_guard = native_files::NativeGuard::load(&game_path, cfg)?;
+    let native_guard = native_files::NativeGuard::load_for_scan(&game_path, cfg)?;
     let state_path = get_state_path(&game_path, cfg);
     native_guard.check_state_path(&state_path)?;
     let mods_hidden =

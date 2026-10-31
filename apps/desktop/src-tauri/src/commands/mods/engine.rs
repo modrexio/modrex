@@ -50,6 +50,31 @@ pub struct SharedPaks {
     pub xbox: bool,
 }
 
+/// A shared Paks target in an Unreal project named Synthetic, for tests of every store's
+/// protection of the game's own files.
+#[cfg(test)]
+pub(crate) const fn synthetic_shared_paks_target(shared: SharedPaks) -> ScanTarget {
+    ScanTarget {
+        tag: "paks",
+        label_key: "pakMods",
+        label_name: None,
+        shared_paks: Some(shared),
+        unit: ModUnit::File {
+            extension: "pak",
+            disabled_suffix: ".disabled",
+            priority_prefix: false,
+            keeps_archive_filename: true,
+        },
+        companions: &[],
+        contained_extension: None,
+        enabled_state: Activation::Filesystem,
+        mods_subpath: &["Synthetic", "Content", "Paks"],
+        disabled_subpath: &["Synthetic", "Content", "Paks", "disabled"],
+        backup_subpath: &["Synthetic", "Content", "Paks.mods.bak"],
+        store_layouts: &[],
+    }
+}
+
 pub struct ScanTarget {
     pub tag: &'static str,
     pub label_key: &'static str,

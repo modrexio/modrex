@@ -15,7 +15,8 @@ use std::sync::{LazyLock, Mutex};
 use std::time::SystemTime;
 
 // A scan checks every recorded file, so hashing them all on every refresh would reread
-// gigabytes. A file whose size and modification time are unchanged keeps its hash.
+// gigabytes. A scan trusts a file whose size and modification time are unchanged. A change
+// to the file always hashes it again, because an installer can preserve timestamps.
 static PLACED_HASHES: LazyLock<Mutex<HashMap<PathBuf, HashedFile>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
@@ -25,10 +26,22 @@ struct HashedFile {
     sha256: String,
 }
 
+/// Whether a check may reuse a hash taken while size and modification time stayed the same.
+#[derive(Clone, Copy)]
+pub(super) enum PlacedHashes {
+    Cached,
+    Fresh,
+}
+
 pub(super) struct OwnedFiles {
     pub game_root: PathBuf,
     selected_game_root: PathBuf,
-    disabled_suffix: &'static str,
+    hashes: PlacedHashes,
+    /// Lowercase, as the normalized keys it is compared with.
+    disabled_suffix: String,
+    /// The target's active and disabled folders. Paths outside them belong to other targets,
+    /// which this policy does not govern.
+    roots: [String; 2],
     /// Placed files by normalized path relative to the game root, under both the active and
     /// the disabled name, mapped to the SHA-256 Modrex recorded.
     files: HashMap<String, String>,
@@ -41,6 +54,7 @@ impl OwnedFiles {
         game_path: &str,
         cfg: &ModEngineConfig,
         target: &ScanTarget,
+        hashes: PlacedHashes,
     ) -> Result<Self, String> {
         let selected_game_root = PathBuf::from(game_path);
         let game_root = fs::canonicalize(&selected_game_root)
@@ -58,13 +72,12 @@ impl OwnedFiles {
                     .ok_or("A recorded mod path is not valid UTF-8")?,
             )
         };
-        let mut own_paths = HashSet::new();
-        for path in [
-            mods_base(game_path, target),
-            disabled_base(game_path, target),
-            temporary_state_path(&state_path),
-            state_path,
-        ] {
+        let roots = [
+            relative(&mods_base(game_path, target))?,
+            relative(&disabled_base(game_path, target))?,
+        ];
+        let mut own_paths: HashSet<String> = roots.iter().cloned().collect();
+        for path in [temporary_state_path(&state_path), state_path] {
             own_paths.insert(relative(&path)?);
         }
         for folder in &state.folders {
@@ -93,7 +106,9 @@ impl OwnedFiles {
         Ok(Self {
             game_root,
             selected_game_root,
-            disabled_suffix: target.disabled_suffix(),
+            hashes,
+            disabled_suffix: target.disabled_suffix().to_lowercase(),
+            roots,
             files,
             own_paths,
         })
@@ -107,12 +122,19 @@ impl OwnedFiles {
                 .to_str()
                 .ok_or("Native-file query contains a non-UTF-8 path")?,
         )?;
+        if !self
+            .roots
+            .iter()
+            .any(|root| key == *root || key.starts_with(&format!("{root}/")))
+        {
+            return Ok(false);
+        }
         let path = self.game_root.join(relative);
         if self.signed(&path, &key)? {
             return Ok(true);
         }
         if let Some(sha256) = self.files.get(&key) {
-            return Ok(!placed_bytes_match(&path, sha256)?);
+            return Ok(!placed_bytes_match(&path, sha256, self.hashes)?);
         }
         if self.own_paths.contains(&key) {
             return Ok(false);
@@ -136,7 +158,7 @@ impl OwnedFiles {
     // Unreal signs only the game's own Paks, so a signature marks a file as the game's
     // even if a recorded mod's name now points at it.
     fn signed(&self, path: &Path, key: &str) -> Result<bool, String> {
-        let active = key.strip_suffix(self.disabled_suffix).unwrap_or(key);
+        let active = key.strip_suffix(&self.disabled_suffix).unwrap_or(key);
         if active.ends_with(".sig") {
             return Ok(true);
         }
@@ -155,7 +177,7 @@ impl OwnedFiles {
 }
 
 /// A recorded file that is absent has nothing left to damage.
-fn placed_bytes_match(path: &Path, expected: &str) -> Result<bool, String> {
+fn placed_bytes_match(path: &Path, expected: &str, hashes: PlacedHashes) -> Result<bool, String> {
     let metadata = match fs::metadata(path) {
         Ok(metadata) => metadata,
         Err(error) if error.kind() == ErrorKind::NotFound => return Ok(true),
@@ -164,8 +186,8 @@ fn placed_bytes_match(path: &Path, expected: &str) -> Result<bool, String> {
     let modified = metadata
         .modified()
         .map_err(|e| format!("Could not inspect {}: {e}", path.display()))?;
-    let mut hashes = PLACED_HASHES.lock().unwrap_or_else(|e| e.into_inner());
-    if let Some(hashed) = hashes.get(path) {
+    let mut cache = PLACED_HASHES.lock().unwrap_or_else(|e| e.into_inner());
+    if let (PlacedHashes::Cached, Some(hashed)) = (hashes, cache.get(path)) {
         if hashed.len == metadata.len() && hashed.modified == modified {
             return Ok(hashed.sha256 == expected);
         }
@@ -174,7 +196,7 @@ fn placed_bytes_match(path: &Path, expected: &str) -> Result<bool, String> {
         .map_err(|e| format!("Could not read {}: {e}", path.display()))?
         .ok_or_else(|| format!("{} disappeared while it was checked", path.display()))?;
     let matches = sha256 == expected;
-    hashes.insert(
+    cache.insert(
         path.to_path_buf(),
         HashedFile {
             len: metadata.len(),

@@ -1,6 +1,6 @@
 use super::*;
 use crate::commands::launchers::steam_manifest::write_test_catalog;
-use crate::commands::mods::engine::{Activation, ModMetadata, ModUnit, ScanTarget, SharedPaks};
+use crate::commands::mods::engine::{synthetic_shared_paks_target, ModMetadata, SharedPaks};
 use crate::commands::mods::{
     decisions, file_transaction, get_state_path, install, paths, state, InstalledMod, ModFolder,
     ModsState,
@@ -12,29 +12,11 @@ static SHARED_PAK_ENGINE: ModEngineConfig = ModEngineConfig {
     decoders: &[],
     index_game_name: "Synthetic Game",
     mod_metadata: ModMetadata::None,
-    targets: &[ScanTarget {
-        tag: "paks",
-        label_key: "pakMods",
-        label_name: None,
-        shared_paks: Some(SharedPaks {
-            steam_app: Some(78),
-            epic_name: None,
-            xbox: false,
-        }),
-        unit: ModUnit::File {
-            extension: "pak",
-            disabled_suffix: ".disabled",
-            priority_prefix: false,
-            keeps_archive_filename: true,
-        },
-        companions: &[],
-        contained_extension: None,
-        enabled_state: Activation::Filesystem,
-        mods_subpath: &["ReadyOrNot", "Content", "Paks"],
-        disabled_subpath: &["ReadyOrNot", "Content", "Paks", "disabled"],
-        backup_subpath: &["ReadyOrNot", "Content", "Paks.mods.bak"],
-        store_layouts: &[],
-    }],
+    targets: &[synthetic_shared_paks_target(SharedPaks {
+        steam_app: Some(78),
+        epic_name: None,
+        xbox: false,
+    })],
 };
 
 struct Fixture {
@@ -54,9 +36,9 @@ fn fixture() -> Fixture {
         &game,
         78,
         &[
-            "ReadyOrNot/Content/Paks/native.pak",
-            "ReadyOrNot/Content/Paks/native.sig",
-            "ReadyOrNot/Content/Paks/native-folder/missing.pak",
+            "Synthetic/Content/Paks/native.pak",
+            "Synthetic/Content/Paks/native.sig",
+            "Synthetic/Content/Paks/native-folder/missing.pak",
         ],
     )
     .unwrap();
@@ -646,8 +628,8 @@ fn missing_native_staging_name_blocks_a_manual_move_before_any_changes() {
         &fixture.game,
         78,
         &[
-            "ReadyOrNot/Content/Paks/native.pak",
-            "ReadyOrNot/Content/Paks/__modrex_move_0__Manual.pak",
+            "Synthetic/Content/Paks/native.pak",
+            "Synthetic/Content/Paks/__modrex_move_0__Manual.pak",
         ],
     )
     .unwrap();
@@ -711,8 +693,8 @@ fn unicode_aliases_block_missing_native_paths_and_leave_manual_names_editable() 
         &fixture.game,
         78,
         &[
-            "ReadyOrNot/Content/Paks/native.pak",
-            "ReadyOrNot/Content/Paks/ΟΣ/missing.pak",
+            "Synthetic/Content/Paks/native.pak",
+            "Synthetic/Content/Paks/ΟΣ/missing.pak",
         ],
     )
     .unwrap();
@@ -737,29 +719,11 @@ static EPIC_PAK_ENGINE: ModEngineConfig = ModEngineConfig {
     decoders: &[],
     index_game_name: "Synthetic Game",
     mod_metadata: ModMetadata::None,
-    targets: &[ScanTarget {
-        tag: "paks",
-        label_key: "pakMods",
-        label_name: None,
-        shared_paks: Some(SharedPaks {
-            steam_app: Some(78),
-            epic_name: Some("Synthetic Game"),
-            xbox: false,
-        }),
-        unit: ModUnit::File {
-            extension: "pak",
-            disabled_suffix: ".disabled",
-            priority_prefix: false,
-            keeps_archive_filename: true,
-        },
-        companions: &[],
-        contained_extension: None,
-        enabled_state: Activation::Filesystem,
-        mods_subpath: &["ReadyOrNot", "Content", "Paks"],
-        disabled_subpath: &["ReadyOrNot", "Content", "Paks", "disabled"],
-        backup_subpath: &["ReadyOrNot", "Content", "Paks.mods.bak"],
-        store_layouts: &[],
-    }],
+    targets: &[synthetic_shared_paks_target(SharedPaks {
+        steam_app: Some(78),
+        epic_name: Some("Synthetic Game"),
+        xbox: false,
+    })],
 };
 
 fn epic_install(temp: &TempDir) -> (PathBuf, PathBuf) {
@@ -770,8 +734,8 @@ fn epic_install(temp: &TempDir) -> (PathBuf, PathBuf) {
         &game,
         "Synthetic Game",
         &[
-            "ReadyOrNot/Content/Paks/native.pak",
-            "ReadyOrNot/Content/Paks/native.sig",
+            "Synthetic/Content/Paks/native.pak",
+            "Synthetic/Content/Paks/native.sig",
         ],
     );
     (manifests, game)
@@ -831,4 +795,23 @@ fn an_epic_folder_its_records_do_not_name_is_refused() {
     .unwrap();
 
     assert!(error.contains("Open Epic Games Launcher"), "{error}");
+}
+
+#[test]
+fn the_store_is_read_from_markers_in_the_game_folder() {
+    let temp = TempDir::new().unwrap();
+    let game = temp.path();
+    assert!(detect_store(game, PlacedHashes::Fresh).is_none());
+
+    fs::create_dir(game.join(".egstore")).unwrap();
+    assert!(matches!(
+        detect_store(game, PlacedHashes::Fresh),
+        Some(CatalogStore::Epic(_))
+    ));
+
+    fs::write(game.join("MicrosoftGame.config"), "<Game/>").unwrap();
+    assert!(matches!(
+        detect_store(game, PlacedHashes::Fresh),
+        Some(CatalogStore::Xbox(_))
+    ));
 }
