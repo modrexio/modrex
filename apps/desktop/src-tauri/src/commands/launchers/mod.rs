@@ -1,4 +1,5 @@
 mod epic;
+pub(crate) mod native_paths;
 mod steam;
 pub(crate) mod steam_manifest;
 pub(crate) use steam::steam_install_path;

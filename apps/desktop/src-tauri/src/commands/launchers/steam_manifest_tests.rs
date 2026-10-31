@@ -254,7 +254,7 @@ fn installed_depots_union_uses_primary_cache_and_requires_every_depot() {
     .unwrap();
     let snapshot = read_native_files(&steam, &game, 78).unwrap();
     assert_eq!(snapshot.depots.len(), 2);
-    assert_eq!(snapshot.native_paths.len(), 4);
+    assert_eq!(snapshot.native.paths.len(), 4);
     assert!(snapshot.protects(Path::new("DLC/extra.pak")).unwrap());
     fs::write(
         steam.join("depotcache/90_91.manifest"),
@@ -724,13 +724,13 @@ fn inspect_installed_catalog_read_only() {
         .parse()
         .unwrap();
     let snapshot = read_native_files(Path::new(&steam), Path::new(&game), app).unwrap();
-    assert!(!snapshot.native_paths.is_empty());
+    assert!(!snapshot.native.paths.is_empty());
     snapshot.verify_unchanged().unwrap();
     println!(
         "Validated app {} build {}, {} depots and {} protected native files",
         snapshot.app_id,
         snapshot.build_id,
         snapshot.depots.len(),
-        snapshot.native_paths.len()
+        snapshot.native.paths.len()
     );
 }

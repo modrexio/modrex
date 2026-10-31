@@ -1728,9 +1728,9 @@ fn validate_shared_windows_member_paths(names: &HashSet<String>) -> Result<(), S
         .iter()
         .map(|name| (name.encode_utf16().collect::<Vec<_>>(), name))
         .collect();
-    crate::commands::launchers::steam_manifest::sort_windows_paths(&mut paths)?;
+    crate::commands::launchers::native_paths::sort_windows_paths(&mut paths)?;
     for pair in paths.windows(2) {
-        if crate::commands::launchers::steam_manifest::windows_path_order(&pair[0].0, &pair[1].0)?
+        if crate::commands::launchers::native_paths::windows_path_order(&pair[0].0, &pair[1].0)?
             == std::cmp::Ordering::Equal
         {
             return Err(format!(

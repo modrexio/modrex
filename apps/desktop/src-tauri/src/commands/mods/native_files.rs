@@ -311,7 +311,7 @@ pub(super) fn paths_equal(left: &Path, right: &Path) -> Result<bool, String> {
         use std::os::windows::ffi::OsStrExt;
         let left: Vec<u16> = left.as_os_str().encode_wide().collect();
         let right: Vec<u16> = right.as_os_str().encode_wide().collect();
-        crate::commands::launchers::steam_manifest::windows_path_order(&left, &right)
+        crate::commands::launchers::native_paths::windows_path_order(&left, &right)
             .map(|order| order == std::cmp::Ordering::Equal)
     }
     #[cfg(not(windows))]
