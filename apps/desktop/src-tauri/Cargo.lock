@@ -3142,7 +3142,7 @@ dependencies = [
 
 [[package]]
 name = "modrex"
-version = "0.16.0"
+version = "0.16.1"
 dependencies = [
  "aes 0.8.4",
  "base64 0.23.1",

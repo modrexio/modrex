@@ -4,6 +4,8 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 ## Unreleased
 
+## 0.16.1
+
 ### Added
 
 - Added graphics config shortcuts for PAYDAY 3 and Crime Boss: Rockay City.
