@@ -9,6 +9,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - Added graphics config shortcuts for PAYDAY 3 and Crime Boss: Rockay City.
 - Added movie replacements for PAYDAY 3 on the Microsoft Store.
 - Added PAYDAY 3 heist, story and tutorial movies to movie replacements.
+- Added Ready or Not support for the Epic Games Store and Microsoft Store.
 
 ### Changed
 
@@ -26,6 +27,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - Fixed some windows still showing the old scrollbar.
 - Fixed Nexus mods installed by drag and drop not being recognized.
 - Fixed endless loading cards for mods installed from a dropped archive.
+- Fixed Epic copies not being found when Epic kept an old install record.
 
 ## 0.16.0
 
