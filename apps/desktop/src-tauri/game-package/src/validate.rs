@@ -219,11 +219,13 @@ pub fn check(id: &str, package: &GamePackage) -> Result<(), String> {
                         .into(),
                 );
             }
-            if package.install.stores.len() != 1
-                || package.install.store(crate::Storefront::Steam).is_none()
+            // The Microsoft Store keeps no readable file list, so there Modrex proves a file is
+            // its own by the one SHA-256 it records per installed mod.
+            if package.install.store(crate::Storefront::Xbox).is_some()
+                && matches!(&target.unit, Unit::File { family, .. } if !family.companions.is_empty())
             {
                 return Err(
-                    "shared Unreal Paks require an installed Steam depot catalog".to_string(),
+                    "shared Unreal Paks with an Xbox binding cannot declare companions".to_string(),
                 );
             }
             if !matches!(&target.unit, Unit::File { family, filename: crate::FileNaming::Archive, .. } if family.extension == "pak")

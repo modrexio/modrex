@@ -1001,3 +1001,64 @@ fn the_pdml_loader_needs_a_plugin_target_naming_it() {
         "pdml loader without a target",
     );
 }
+
+const SHARED_PAKS: &str = r#"
+id = "fixture"
+name = "Fixture"
+short_name = "FIX"
+mod_metadata = "none"
+
+[install]
+executables = ["Fixture.exe"]
+processes = ["Fixture"]
+stores = [
+    { provider = "steam", app_id = 1, folder = "Fixture" },
+    { provider = "epic", name = "Fixture" },
+]
+
+[[targets]]
+tag = "paks"
+label = "pak_mods"
+primary = true
+scope = "unreal_paks"
+path = ["Fixture", "Content", "Paks"]
+backup = ["Fixture", "Content", "Paks.mods.bak"]
+activation = "filesystem"
+load_order = "none"
+
+[targets.unit]
+kind = "file"
+disabled_suffix = ".disabled"
+filename = "archive"
+family = { extension = "pak", companions = [] }
+"#;
+
+#[test]
+fn shared_paks_accept_the_stores_that_list_installed_files() {
+    let parsed: GamePackage = toml::from_str(SHARED_PAKS).expect("shared Paks parse");
+    validate::check("fixture", &parsed).expect("Steam and Epic list the installed files");
+}
+
+#[test]
+fn shared_paks_with_an_xbox_binding_accept_single_file_mods() {
+    let text = SHARED_PAKS.replace(
+        r#"{ provider = "epic", name = "Fixture" },"#,
+        r#"{ provider = "epic", name = "Fixture" },
+    { provider = "xbox", product_id = "9N", executable = "Fixture.exe" },"#,
+    );
+    let parsed: GamePackage = toml::from_str(&text).expect("shared Paks parse");
+    validate::check("fixture", &parsed).expect("an Xbox copy manages the files Modrex placed");
+}
+
+#[test]
+fn shared_paks_with_an_xbox_binding_refuse_companions() {
+    assert_rejected(
+        &SHARED_PAKS
+            .replace(
+                r#"{ provider = "epic", name = "Fixture" },"#,
+                r#"{ provider = "xbox", product_id = "9N", executable = "Fixture.exe" },"#,
+            )
+            .replace("companions = []", r#"companions = ["ucas", "utoc"]"#),
+        "cannot declare companions",
+    );
+}

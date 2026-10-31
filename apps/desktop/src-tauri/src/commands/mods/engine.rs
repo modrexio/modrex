@@ -40,12 +40,47 @@ pub struct StoreLayout {
     pub backup_subpath: &'static [&'static str],
 }
 
+/// Where each store's copy records which files in a shared Paks directory belong to the game.
+pub struct SharedPaks {
+    pub steam_app: Option<u32>,
+    /// The Epic launcher's display name for the base game.
+    pub epic_name: Option<&'static str>,
+    /// The Microsoft Store build keeps no readable file list, so there Modrex changes only
+    /// the files it placed itself (owned_files.rs).
+    pub xbox: bool,
+}
+
+/// A shared Paks target in an Unreal project named Synthetic, for tests of every store's
+/// protection of the game's own files.
+#[cfg(test)]
+pub(crate) const fn synthetic_shared_paks_target(shared: SharedPaks) -> ScanTarget {
+    ScanTarget {
+        tag: "paks",
+        label_key: "pakMods",
+        label_name: None,
+        shared_paks: Some(shared),
+        unit: ModUnit::File {
+            extension: "pak",
+            disabled_suffix: ".disabled",
+            priority_prefix: false,
+            keeps_archive_filename: true,
+        },
+        companions: &[],
+        contained_extension: None,
+        enabled_state: Activation::Filesystem,
+        mods_subpath: &["Synthetic", "Content", "Paks"],
+        disabled_subpath: &["Synthetic", "Content", "Paks", "disabled"],
+        backup_subpath: &["Synthetic", "Content", "Paks.mods.bak"],
+        store_layouts: &[],
+    }
+}
+
 pub struct ScanTarget {
     pub tag: &'static str,
     pub label_key: &'static str,
     pub label_name: Option<&'static str>,
-    /// Some when this Unreal target shares a directory with native Steam depot files.
-    pub native_steam_app: Option<u32>,
+    /// Some when this Unreal target shares a directory with the game's own files.
+    pub shared_paks: Option<SharedPaks>,
     pub unit: ModUnit,
     /// Extensions carried alongside a mod's primary file wherever it is copied, renamed,
     /// removed or extracted, because they share its filename stem. Empty when one mod here is

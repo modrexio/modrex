@@ -367,7 +367,7 @@ pub fn markdown(examples: &[(&str, &str)]) -> String {
          | `label` | yes | which folder name the interface shows |\n\
          | `loader` | no | id of a loader declared by this package that reads this folder. Required for `loader_mods`. A loader may serve at most one target |\n\
          | `primary` | no | defaults to `false`; exactly one target must set it |\n\
-         | `scope` | no | `mods` by default. `unreal_paks` shares native game files and requires a complete installed Steam depot catalog before mod changes. It supports archive-named Pak file units without filename ordering and never moves the whole target |\n\
+         | `scope` | no | `mods` by default. `unreal_paks` shares native game files and requires the installed store record of every native path before mod changes: the Steam depot manifests or the Epic BuildPatch manifests. A Microsoft Store copy has no such record, so there only files Modrex installed and whose bytes are unchanged may change, and the target cannot declare companions. It supports archive-named Pak file units without filename ordering and never moves the whole target |\n\
          | `path` | yes | components below the game path |\n\
          | `disabled` | no | where disabled mods move; `path` plus `disabled` when omitted |\n\
          | `backup` | yes | where launching without mods moves the contents |\n\

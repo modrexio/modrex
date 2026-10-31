@@ -43,7 +43,7 @@ pub struct PluginInstallReport {
 }
 
 fn is_loose_pak_target(target: &ScanTarget) -> bool {
-    matches!(target.unit, ModUnit::File { .. }) && target.native_steam_app.is_none()
+    matches!(target.unit, ModUnit::File { .. }) && target.shared_paks.is_none()
 }
 
 /// Misplaced records grouped by mod.

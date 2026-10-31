@@ -1,26 +1,12 @@
 use super::*;
-use crate::commands::mods::engine::{Activation, ModMetadata, ModUnit};
+use crate::commands::mods::engine::{synthetic_shared_paks_target, ModMetadata, SharedPaks};
 use tempfile::TempDir;
 
-const SHARED_TARGET: ScanTarget = ScanTarget {
-    tag: "paks",
-    label_key: "pakMods",
-    label_name: None,
-    native_steam_app: Some(78),
-    unit: ModUnit::File {
-        extension: "pak",
-        disabled_suffix: ".disabled",
-        priority_prefix: false,
-        keeps_archive_filename: true,
-    },
-    companions: &[],
-    contained_extension: None,
-    enabled_state: Activation::Filesystem,
-    mods_subpath: &["Synthetic", "Content", "Paks"],
-    disabled_subpath: &["Synthetic", "Content", "Paks", "disabled"],
-    backup_subpath: &["Synthetic", "Content", "Paks.mods.bak"],
-    store_layouts: &[],
-};
+const SHARED_TARGET: ScanTarget = synthetic_shared_paks_target(SharedPaks {
+    steam_app: Some(78),
+    epic_name: None,
+    xbox: false,
+});
 
 fn config(targets: &'static [ScanTarget]) -> ModEngineConfig {
     ModEngineConfig {
@@ -130,7 +116,7 @@ fn compaction_without_filename_ordering_still_saves_metadata_once() {
 #[test]
 fn compaction_metadata_after_a_checkpoint_still_needs_a_final_save() {
     static TARGETS: [ScanTarget; 1] = [ScanTarget {
-        native_steam_app: None,
+        shared_paks: None,
         unit: ModUnit::Directory {
             entry_markers: &[],
             scan_markers: &[],
@@ -211,7 +197,7 @@ fn shared_state_rejects_duplicate_missing_and_cyclic_folder_references() {
     );
 
     static LEGACY_TARGETS: [ScanTarget; 1] = [ScanTarget {
-        native_steam_app: None,
+        shared_paks: None,
         ..SHARED_TARGET
     }];
     let legacy = config(&LEGACY_TARGETS);

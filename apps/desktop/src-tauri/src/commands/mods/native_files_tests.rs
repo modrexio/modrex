@@ -1,6 +1,6 @@
 use super::*;
 use crate::commands::launchers::steam_manifest::write_test_catalog;
-use crate::commands::mods::engine::{Activation, ModMetadata, ModUnit, ScanTarget};
+use crate::commands::mods::engine::{synthetic_shared_paks_target, ModMetadata, SharedPaks};
 use crate::commands::mods::{
     decisions, file_transaction, get_state_path, install, paths, state, InstalledMod, ModFolder,
     ModsState,
@@ -12,25 +12,11 @@ static SHARED_PAK_ENGINE: ModEngineConfig = ModEngineConfig {
     decoders: &[],
     index_game_name: "Synthetic Game",
     mod_metadata: ModMetadata::None,
-    targets: &[ScanTarget {
-        tag: "paks",
-        label_key: "pakMods",
-        label_name: None,
-        native_steam_app: Some(78),
-        unit: ModUnit::File {
-            extension: "pak",
-            disabled_suffix: ".disabled",
-            priority_prefix: false,
-            keeps_archive_filename: true,
-        },
-        companions: &[],
-        contained_extension: None,
-        enabled_state: Activation::Filesystem,
-        mods_subpath: &["ReadyOrNot", "Content", "Paks"],
-        disabled_subpath: &["ReadyOrNot", "Content", "Paks", "disabled"],
-        backup_subpath: &["ReadyOrNot", "Content", "Paks.mods.bak"],
-        store_layouts: &[],
-    }],
+    targets: &[synthetic_shared_paks_target(SharedPaks {
+        steam_app: Some(78),
+        epic_name: None,
+        xbox: false,
+    })],
 };
 
 struct Fixture {
@@ -50,9 +36,9 @@ fn fixture() -> Fixture {
         &game,
         78,
         &[
-            "ReadyOrNot/Content/Paks/native.pak",
-            "ReadyOrNot/Content/Paks/native.sig",
-            "ReadyOrNot/Content/Paks/native-folder/missing.pak",
+            "Synthetic/Content/Paks/native.pak",
+            "Synthetic/Content/Paks/native.sig",
+            "Synthetic/Content/Paks/native-folder/missing.pak",
         ],
     )
     .unwrap();
@@ -61,7 +47,12 @@ fn fixture() -> Fixture {
     fs::create_dir_all(&paks).unwrap();
     fs::write(paks.join("native.pak"), b"native pak").unwrap();
     fs::write(paks.join("native.sig"), b"native signature").unwrap();
-    let native = NativeGuard::load_from_steam_root(game.to_str().unwrap(), cfg, &steam).unwrap();
+    let native = NativeGuard::load_from(
+        game.to_str().unwrap(),
+        cfg,
+        &CatalogStore::Steam(steam.clone()),
+    )
+    .unwrap();
     Fixture {
         _temp: temp,
         steam,
@@ -85,10 +76,10 @@ fn pending_update_fixture() -> Fixture {
         .replace("\"StateFlags\" \"4\"", "\"StateFlags\" \"6\"")
         .replace("\"TargetBuildID\" \"56\"", "\"TargetBuildID\" \"57\"");
     fs::write(acf, app).unwrap();
-    fixture.native = NativeGuard::load_from_steam_root(
+    fixture.native = NativeGuard::load_from(
         fixture.game.to_str().unwrap(),
         &SHARED_PAK_ENGINE,
-        &fixture.steam,
+        &CatalogStore::Steam(fixture.steam.clone()),
     )
     .unwrap();
     fixture
@@ -637,15 +628,15 @@ fn missing_native_staging_name_blocks_a_manual_move_before_any_changes() {
         &fixture.game,
         78,
         &[
-            "ReadyOrNot/Content/Paks/native.pak",
-            "ReadyOrNot/Content/Paks/__modrex_move_0__Manual.pak",
+            "Synthetic/Content/Paks/native.pak",
+            "Synthetic/Content/Paks/__modrex_move_0__Manual.pak",
         ],
     )
     .unwrap();
-    let native = NativeGuard::load_from_steam_root(
+    let native = NativeGuard::load_from(
         fixture.game.to_str().unwrap(),
         &SHARED_PAK_ENGINE,
-        &fixture.steam,
+        &CatalogStore::Steam(fixture.steam.clone()),
     )
     .unwrap();
     let old = fixture.paks.join("Manual.pak");
@@ -702,15 +693,15 @@ fn unicode_aliases_block_missing_native_paths_and_leave_manual_names_editable() 
         &fixture.game,
         78,
         &[
-            "ReadyOrNot/Content/Paks/native.pak",
-            "ReadyOrNot/Content/Paks/ΟΣ/missing.pak",
+            "Synthetic/Content/Paks/native.pak",
+            "Synthetic/Content/Paks/ΟΣ/missing.pak",
         ],
     )
     .unwrap();
-    let native = NativeGuard::load_from_steam_root(
+    let native = NativeGuard::load_from(
         fixture.game.to_str().unwrap(),
         &SHARED_PAK_ENGINE,
-        &fixture.steam,
+        &CatalogStore::Steam(fixture.steam.clone()),
     )
     .unwrap();
     assert!(native
@@ -721,4 +712,106 @@ fn unicode_aliases_block_missing_native_paths_and_leave_manual_names_editable() 
         .check_file(&fixture.paks.join("ος/missing.pak"))
         .is_ok());
     assert!(native.check_file(&fixture.paks.join("個人.pak")).is_ok());
+}
+
+static EPIC_PAK_ENGINE: ModEngineConfig = ModEngineConfig {
+    game_id: "shared-pak-test",
+    decoders: &[],
+    index_game_name: "Synthetic Game",
+    mod_metadata: ModMetadata::None,
+    targets: &[synthetic_shared_paks_target(SharedPaks {
+        steam_app: Some(78),
+        epic_name: Some("Synthetic Game"),
+        xbox: false,
+    })],
+};
+
+fn epic_install(temp: &TempDir) -> (PathBuf, PathBuf) {
+    let manifests = temp.path().join("Manifests");
+    let game = temp.path().join("Epic Games/Synthetic Game");
+    crate::commands::launchers::epic_manifest::write_test_install(
+        &manifests,
+        &game,
+        "Synthetic Game",
+        &[
+            "Synthetic/Content/Paks/native.pak",
+            "Synthetic/Content/Paks/native.sig",
+        ],
+    );
+    (manifests, game)
+}
+
+#[test]
+fn an_epic_copy_protects_the_files_its_manifest_lists() {
+    let temp = TempDir::new().unwrap();
+    let (manifests, game) = epic_install(&temp);
+    let paks = mods_dir(game.to_str().unwrap(), EPIC_PAK_ENGINE.primary());
+    fs::create_dir_all(&paks).unwrap();
+
+    let native = NativeGuard::load_from(
+        game.to_str().unwrap(),
+        &EPIC_PAK_ENGINE,
+        &CatalogStore::Epic(manifests),
+    )
+    .unwrap();
+
+    assert!(native
+        .check_file(&paks.join("native.pak"))
+        .unwrap_err()
+        .contains("belongs to the game"));
+    native.check_file(&paks.join("Mod_P.pak")).unwrap();
+    native.verify_unchanged().unwrap();
+}
+
+#[test]
+fn an_epic_copy_of_a_game_without_an_epic_binding_is_refused() {
+    let temp = TempDir::new().unwrap();
+    let (manifests, game) = epic_install(&temp);
+
+    let error = NativeGuard::load_from(
+        game.to_str().unwrap(),
+        &SHARED_PAK_ENGINE,
+        &CatalogStore::Epic(manifests),
+    )
+    .err()
+    .unwrap();
+
+    assert!(error.contains("not supported for Epic"), "{error}");
+}
+
+#[test]
+fn an_epic_folder_its_records_do_not_name_is_refused() {
+    let temp = TempDir::new().unwrap();
+    let (manifests, _) = epic_install(&temp);
+    let other = temp.path().join("Elsewhere");
+    fs::create_dir_all(&other).unwrap();
+
+    let error = NativeGuard::load_from(
+        other.to_str().unwrap(),
+        &EPIC_PAK_ENGINE,
+        &CatalogStore::Epic(manifests),
+    )
+    .err()
+    .unwrap();
+
+    assert!(error.contains("Open Epic Games Launcher"), "{error}");
+}
+
+#[test]
+fn the_store_is_read_from_markers_in_the_game_folder() {
+    let temp = TempDir::new().unwrap();
+    let game = temp.path();
+    assert!(detect_store(game, PlacedHashes::Fresh).is_none());
+
+    fs::create_dir(game.join(".egstore")).unwrap();
+    assert!(matches!(
+        detect_store(game, PlacedHashes::Fresh),
+        Some(CatalogStore::Epic(_))
+    ));
+
+    fs::write(game.join("MicrosoftGame.config"), "<Game/>").unwrap();
+    assert!(matches!(
+        detect_store(game, PlacedHashes::Fresh),
+        Some(CatalogStore::Xbox(_))
+    ));
 }

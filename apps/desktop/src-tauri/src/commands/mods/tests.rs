@@ -3533,7 +3533,7 @@ const fn companion_target(companions: &'static [&'static str]) -> ScanTarget {
         tag: "paks",
         label_key: "pakMods",
         label_name: None,
-        native_steam_app: None,
+        shared_paks: None,
         unit: ModUnit::File {
             keeps_archive_filename: false,
             extension: "pak",
@@ -3574,7 +3574,7 @@ const VPK_TARGETS: [ScanTarget; 1] = [ScanTarget {
     tag: "paks",
     label_key: "pakMods",
     label_name: None,
-    native_steam_app: None,
+    shared_paks: None,
     unit: ModUnit::File {
         keeps_archive_filename: false,
         extension: "vpk",
@@ -4352,7 +4352,7 @@ const fn overrides_target() -> ScanTarget {
         tag: "mod_overrides",
         label_key: "overrides",
         label_name: None,
-        native_steam_app: None,
+        shared_paks: None,
         unit: ModUnit::Directory {
             entry_markers: &[],
             scan_markers: &[],
@@ -4486,7 +4486,7 @@ const fn crossed_target(tag: &'static str, enabled_state: Activation) -> ScanTar
         tag,
         label_key: "loaderMods",
         label_name: Some("UE4SS"),
-        native_steam_app: None,
+        shared_paks: None,
         unit: ModUnit::Directory {
             entry_markers: &["Scripts/main.lua"],
             scan_markers: &["Scripts/main.lua"],

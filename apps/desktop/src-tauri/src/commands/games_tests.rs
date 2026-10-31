@@ -873,3 +873,18 @@ fn viewer_support_follows_the_declaration_rather_than_the_game_id() {
     keys.dedup();
     assert_eq!(keys.len(), total, "two games share one package key");
 }
+
+#[test]
+fn ready_or_not_protects_its_shared_paks_on_every_store_it_declares() {
+    let shared = game_spec("ron")
+        .unwrap()
+        .engine
+        .primary()
+        .shared_paks
+        .as_ref()
+        .unwrap();
+
+    assert_eq!(shared.steam_app, Some(1144200));
+    assert_eq!(shared.epic_name, Some("Ready or Not"));
+    assert!(shared.xbox);
+}

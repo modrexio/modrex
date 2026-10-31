@@ -184,7 +184,7 @@ pub(super) fn read_state_for_game(
     if !cfg
         .targets
         .iter()
-        .any(|target| target.native_steam_app.is_some())
+        .any(|target| target.shared_paks.is_some())
     {
         return Ok(state);
     }
@@ -241,7 +241,7 @@ pub(super) fn read_state_for_game(
             ));
         }
     }
-    if cfg.primary().native_steam_app.is_some() {
+    if cfg.primary().shared_paks.is_some() {
         let root = mods_base(game_path, cfg.primary());
         for folder in &state.folders {
             let relative = get_folder_path(&state.folders, Some(&folder.id))
@@ -252,7 +252,7 @@ pub(super) fn read_state_for_game(
     let mut owned_paths = Vec::<PathBuf>::new();
     for entry in &state.mods {
         let target = cfg.target_for(entry.location.as_deref());
-        if target.native_steam_app.is_none() {
+        if target.shared_paks.is_none() {
             continue;
         }
         let folder = get_folder_path(&state.folders, entry.folder_id.as_deref());
@@ -768,7 +768,7 @@ pub fn reconcile_state(
     cfg: &ModEngineConfig,
 ) -> Result<ModsState, StateLoadError> {
     let bak = backup_dir(game_path, cfg.primary());
-    if cfg.primary().native_steam_app.is_none() && bak.exists() {
+    if cfg.primary().shared_paks.is_none() && bak.exists() {
         if cfg.primary().is_directory_unit() {
             // BLT: state file stays in mods/ because only user mod dirs were moved to backup.
             return read_state_for_game(game_path, state_path, cfg);
@@ -784,8 +784,8 @@ pub fn reconcile_state(
         if migrate_legacy { &legacy } else { state_path },
         cfg,
     )?;
-    let native_guard =
-        super::native_files::NativeGuard::load(game_path, cfg).map_err(StateLoadError::Invalid)?;
+    let native_guard = super::native_files::NativeGuard::load_for_scan(game_path, cfg)
+        .map_err(StateLoadError::Invalid)?;
     native_guard
         .check_state_path(state_path)
         .map_err(StateLoadError::Invalid)?;
@@ -808,7 +808,7 @@ pub fn reconcile_state(
             protected.insert(entry.uid.clone());
             continue;
         }
-        if target.native_steam_app.is_some() {
+        if target.shared_paks.is_some() {
             native_guard
                 .check_file(&active)
                 .map_err(StateLoadError::Invalid)?;
@@ -926,11 +926,7 @@ pub fn reconcile_state(
     let disabled_mods: Vec<InstalledMod> =
         state.mods.iter().filter(|m| !m.enabled).cloned().collect();
     for m in &disabled_mods {
-        if cfg
-            .target_for(m.location.as_deref())
-            .native_steam_app
-            .is_some()
-        {
+        if cfg.target_for(m.location.as_deref()).shared_paks.is_some() {
             continue;
         }
         let folder_rel = get_folder_path(&state.folders, m.folder_id.as_deref());

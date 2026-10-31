@@ -105,6 +105,11 @@ pub struct InstalledMod {
     pub file_type: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sha256: Option<String>,
+    // SHA-256 of the bytes Modrex itself placed for a shared Paks file, written only by that
+    // install. In a copy with no store record of the game's files it is the only proof that
+    // a file there is a mod Modrex may change (owned_files.rs).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub placed_sha256: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub priority: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -200,6 +205,7 @@ impl Default for InstalledMod {
             file_id: None,
             file_type: None,
             sha256: None,
+            placed_sha256: None,
             priority: None,
             missing: None,
             folder_id: None,

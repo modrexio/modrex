@@ -125,7 +125,7 @@ pub fn install_filename_for_dropped(
 }
 
 pub fn dropped_uid(target: &ScanTarget, filename: &str) -> String {
-    if target.native_steam_app.is_some() {
+    if target.shared_paks.is_some() {
         return filename.to_string();
     }
     naming::strip_priority_prefix(filename).to_string()
@@ -139,7 +139,7 @@ pub fn archive_entry_identity(
     entry_stem: &str,
     filename: &str,
 ) -> InstalledMod {
-    if target.native_steam_app.is_some() && is_local_archive(mod_id) {
+    if target.shared_paks.is_some() && is_local_archive(mod_id) {
         return InstalledMod {
             uid: format!("local:{file_id}:entry:{}", entry_name.replace('\\', "/")),
             id: naming::hash_filename(filename),
