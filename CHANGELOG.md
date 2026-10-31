@@ -24,6 +24,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - Fixed dropped movie and INI files getting stuck on Installing.
 - Fixed MP4 movie mods made with ffmpeg being rejected.
 - Fixed some windows still showing the old scrollbar.
+- Fixed endless loading cards for mods installed from a dropped archive.
 
 ## 0.16.0
 
