@@ -1107,7 +1107,7 @@ pub(crate) fn identify_untracked(
                         &by_uid,
                         &filename,
                         rel_path,
-                        entry_target.native_steam_app.is_some(),
+                        entry_target.shared_paks.is_some(),
                     )
                 } else {
                     candidate
@@ -1117,7 +1117,7 @@ pub(crate) fn identify_untracked(
                 &by_uid,
                 &filename,
                 rel_path,
-                entry_target.native_steam_app.is_some(),
+                entry_target.shared_paks.is_some(),
             ),
         };
 

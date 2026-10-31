@@ -22,7 +22,7 @@ impl NativeGuard {
         if !cfg
             .targets
             .iter()
-            .any(|target| target.native_steam_app.is_some())
+            .any(|target| target.shared_paks.is_some())
         {
             return Ok(Self {
                 game_root: PathBuf::from(game_path),
@@ -43,10 +43,10 @@ impl NativeGuard {
         let game_root = PathBuf::from(game_path);
         let mut targets = Vec::new();
         for target in cfg.targets {
-            let Some(app_id) = target.native_steam_app else {
+            let Some(shared) = &target.shared_paks else {
                 continue;
             };
-            let snapshot = read_native_files(steam_root, &game_root, app_id)
+            let snapshot = read_native_files(steam_root, &game_root, shared.steam_app)
                 .map_err(|error| format!("Cannot verify the game's original files: {error}. Open Steam to finish or verify the installation, then return to Modrex."))?;
             log::debug!(
                 "Verified native files for Steam app {} build {} from {} depots",

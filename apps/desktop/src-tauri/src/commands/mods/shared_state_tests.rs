@@ -1,12 +1,12 @@
 use super::*;
-use crate::commands::mods::engine::{Activation, ModMetadata, ModUnit};
+use crate::commands::mods::engine::{Activation, ModMetadata, ModUnit, SharedPaks};
 use tempfile::TempDir;
 
 const SHARED_TARGET: ScanTarget = ScanTarget {
     tag: "paks",
     label_key: "pakMods",
     label_name: None,
-    native_steam_app: Some(78),
+    shared_paks: Some(SharedPaks { steam_app: 78 }),
     unit: ModUnit::File {
         extension: "pak",
         disabled_suffix: ".disabled",
@@ -130,7 +130,7 @@ fn compaction_without_filename_ordering_still_saves_metadata_once() {
 #[test]
 fn compaction_metadata_after_a_checkpoint_still_needs_a_final_save() {
     static TARGETS: [ScanTarget; 1] = [ScanTarget {
-        native_steam_app: None,
+        shared_paks: None,
         unit: ModUnit::Directory {
             entry_markers: &[],
             scan_markers: &[],
@@ -211,7 +211,7 @@ fn shared_state_rejects_duplicate_missing_and_cyclic_folder_references() {
     );
 
     static LEGACY_TARGETS: [ScanTarget; 1] = [ScanTarget {
-        native_steam_app: None,
+        shared_paks: None,
         ..SHARED_TARGET
     }];
     let legacy = config(&LEGACY_TARGETS);

@@ -567,7 +567,7 @@ const DISPOSABLE_BACKUP_DIRS: &[&str] = &["logs", "downloads"];
 
 fn do_restore(game_path: &str, cfg: &crate::commands::mods::ModEngineConfig) -> Result<(), String> {
     for target in cfg.targets {
-        if target.native_steam_app.is_some() {
+        if target.shared_paks.is_some() {
             continue;
         }
         let mods_dir = mods_base(game_path, target);
@@ -619,7 +619,7 @@ fn hide_package_mods(game_path: &str, cfg: &ModEngineConfig) -> Result<(), Strin
     if cfg
         .targets
         .iter()
-        .any(|target| target.native_steam_app.is_some())
+        .any(|target| target.shared_paks.is_some())
     {
         return Err("This game shares its Paks directory with native files. Use its supported no-mods launch option.".into());
     }
@@ -664,7 +664,7 @@ fn hide_package_mods(game_path: &str, cfg: &ModEngineConfig) -> Result<(), Strin
 
 fn restore_pending_packages(game_path: &str, cfg: &ModEngineConfig) -> Result<(), String> {
     for target in cfg.targets {
-        if target.native_steam_app.is_some() {
+        if target.shared_paks.is_some() {
             continue;
         }
         if !target.is_directory_unit()
@@ -678,7 +678,7 @@ fn restore_pending_packages(game_path: &str, cfg: &ModEngineConfig) -> Result<()
     if cfg
         .targets
         .iter()
-        .any(|target| target.native_steam_app.is_none() && backup_dir(game_path, target).exists())
+        .any(|target| target.shared_paks.is_none() && backup_dir(game_path, target).exists())
     {
         return Err("Some mod folders could not be restored. Their backup folders were kept for manual recovery".into());
     }

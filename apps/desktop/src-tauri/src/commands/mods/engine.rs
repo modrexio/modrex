@@ -40,12 +40,17 @@ pub struct StoreLayout {
     pub backup_subpath: &'static [&'static str],
 }
 
+/// Where each store's copy records which files in a shared Paks directory belong to the game.
+pub struct SharedPaks {
+    pub steam_app: u32,
+}
+
 pub struct ScanTarget {
     pub tag: &'static str,
     pub label_key: &'static str,
     pub label_name: Option<&'static str>,
-    /// Some when this Unreal target shares a directory with native Steam depot files.
-    pub native_steam_app: Option<u32>,
+    /// Some when this Unreal target shares a directory with the game's own files.
+    pub shared_paks: Option<SharedPaks>,
     pub unit: ModUnit,
     /// Extensions carried alongside a mod's primary file wherever it is copied, renamed,
     /// removed or extracted, because they share its filename stem. Empty when one mod here is

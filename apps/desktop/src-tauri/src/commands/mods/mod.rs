@@ -45,7 +45,7 @@ mod zip;
 // Public API used by lib.rs, launchers/, and other modules
 pub use self::companions::LeftoverFiles;
 pub use self::engine::{
-    backup_dir, engine_for_game, ModEngineConfig, ModUnit, ScanTarget, StoreLayout,
+    backup_dir, engine_for_game, ModEngineConfig, ModUnit, ScanTarget, SharedPaks, StoreLayout,
 };
 pub use self::identity::IdentityEvidence;
 pub use self::install::install_mod_from_path;
@@ -317,7 +317,7 @@ pub async fn get_installed(app: AppHandle, game_id: String) -> Result<InstalledR
     let state_path = get_state_path(&game_path, cfg);
     native_guard.check_state_path(&state_path)?;
     let mods_hidden =
-        cfg.primary().native_steam_app.is_none() && backup_dir(&game_path, cfg.primary()).exists();
+        cfg.primary().shared_paks.is_none() && backup_dir(&game_path, cfg.primary()).exists();
 
     let (mut state, writeback) = load_for_scan(&game_path, &state_path, cfg);
     let repaired = !mods_hidden && repair_installs(&app, &game_path, cfg, &mut state);
@@ -1267,7 +1267,7 @@ pub(crate) async fn install_nexus_download(
     } = meta;
     let cfg = engine_for_game(game_id)?;
     let dl_path = downloaded.clone();
-    if cfg.primary().native_steam_app.is_some()
+    if cfg.primary().shared_paks.is_some()
         && (file_type.eq_ignore_ascii_case("pak")
             || downloaded.extension().is_some_and(|extension| {
                 cfg.primary()
@@ -1281,7 +1281,7 @@ pub(crate) async fn install_nexus_download(
         }
     }
     let needs_update_choice =
-        if cfg.primary().native_steam_app.is_some() && zip::detect_archive(&downloaded).is_some() {
+        if cfg.primary().shared_paks.is_some() && zip::detect_archive(&downloaded).is_some() {
             let _guard = lock_game_state(app, game_id).await;
             let saved =
                 match state::read_state_for_game(game_path, &get_state_path(game_path, cfg), cfg) {
@@ -1438,7 +1438,7 @@ pub(crate) async fn install_nexus_download(
                 &tmp,
                 name_source,
             );
-            let existing = if target.native_steam_app.is_some() {
+            let existing = if target.shared_paks.is_some() {
                 decisions::shared_nexus_update(
                     &saved.mods,
                     nexus_mod_id,
@@ -2092,7 +2092,7 @@ pub async fn install_dropped_file(
             let syn = hash_filename(&file_stem);
             return Ok((*prompt)
                 .with_mod_context(ModContext {
-                    mod_id: if cfg.primary().native_steam_app.is_some() {
+                    mod_id: if cfg.primary().shared_paks.is_some() {
                         0
                     } else {
                         syn
@@ -2410,7 +2410,7 @@ pub async fn install_from_zip_entry(
     );
     let local = decisions::is_local_archive(mod_id);
     // Shared packages are variants of one mod, so they keep the archive's name.
-    let mod_name = if local && target.native_steam_app.is_none() {
+    let mod_name = if local && target.shared_paks.is_none() {
         decisions::local_entry_name(cfg, target, cb_dir_entry, &entry_stem, &entry_filename)
     } else {
         mod_name
@@ -2662,7 +2662,7 @@ async fn install_nexus_review_entry(
             let picker = &choice.picker;
             resources::validate_nexus_pak_choice(&app, &choice)?;
             let sp = get_state_path(&choice.game_path, cfg);
-            let mut uid = if target.native_steam_app.is_some() {
+            let mut uid = if target.shared_paks.is_some() {
                 format!(
                     "nexus:{}:{}:entry:{}",
                     choice.mod_id, choice.file_id, entry.display_name
@@ -2673,7 +2673,7 @@ async fn install_nexus_review_entry(
             let mut filename =
                 decisions::install_filename_for_zip_entry(cfg, &choice.name, &entry_filename);
             let mut destination_folder = folder_id;
-            if target.native_steam_app.is_some() {
+            if target.shared_paks.is_some() {
                 let saved = state::read_state_for_game(&choice.game_path, &sp, cfg)
                     .map_err(|error| error.to_string())?;
                 let filename_is_unique = picker
@@ -3088,7 +3088,7 @@ pub async fn identify_mod_via_nexus_content(
     };
     let target = cfg.target_for(m.location.as_deref());
 
-    if target.native_steam_app.is_some() {
+    if target.shared_paks.is_some() {
         let folder = get_folder_path(&state.folders, m.folder_id.as_deref());
         native.check_file(&active_mod_path(
             &game_path,

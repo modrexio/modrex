@@ -1,6 +1,6 @@
 use super::*;
 use crate::commands::launchers::steam_manifest::write_test_catalog;
-use crate::commands::mods::engine::{Activation, ModMetadata, ModUnit, ScanTarget};
+use crate::commands::mods::engine::{Activation, ModMetadata, ModUnit, ScanTarget, SharedPaks};
 use crate::commands::mods::{
     decisions, file_transaction, get_state_path, install, paths, state, InstalledMod, ModFolder,
     ModsState,
@@ -16,7 +16,7 @@ static SHARED_PAK_ENGINE: ModEngineConfig = ModEngineConfig {
         tag: "paks",
         label_key: "pakMods",
         label_name: None,
-        native_steam_app: Some(78),
+        shared_paks: Some(SharedPaks { steam_app: 78 }),
         unit: ModUnit::File {
             extension: "pak",
             disabled_suffix: ".disabled",

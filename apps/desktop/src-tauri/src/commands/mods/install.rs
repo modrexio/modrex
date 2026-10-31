@@ -120,7 +120,7 @@ pub fn install_mod_from_path(
         None
     };
     // Restoring the folder launching without mods set aside would collide with this install.
-    if target.native_steam_app.is_none() && backup_dir(game_path, target).exists() {
+    if target.shared_paks.is_none() && backup_dir(game_path, target).exists() {
         return Err(
             "Mods are set aside for a launch without mods. Start the game normally once to restore them, then install again."
                 .to_string(),
@@ -176,7 +176,7 @@ pub fn install_mod_from_path(
         ..mod_data
     };
 
-    if target.native_steam_app.is_some() {
+    if target.shared_paks.is_some() {
         let native = NativeGuard::load(game_path, cfg)?;
         return install_shared_pak(
             game_path, state_path, mod_data, source, cfg, target, state, &native,
@@ -601,7 +601,7 @@ pub fn uninstall_mod_op(
     } else {
         disabled_mod_path(game_path, &m.filename, rel.as_deref(), target)
     };
-    if target.native_steam_app.is_some() {
+    if target.shared_paks.is_some() {
         let native = super::native_files::NativeGuard::load(game_path, cfg)?;
         native.check_file(&active_mod_path(
             game_path,
@@ -744,7 +744,7 @@ fn set_activation(
     let rel = get_folder_path(&state.folders, m.folder_id.as_deref());
     let active = active_mod_path(game_path, &m.filename, rel.as_deref(), target);
     let disabled = disabled_mod_path(game_path, &m.filename, rel.as_deref(), target);
-    if target.native_steam_app.is_some() {
+    if target.shared_paks.is_some() {
         let native = super::native_files::NativeGuard::load(game_path, cfg)?;
         native.check_file(&active)?;
         native.check_file(&disabled)?;

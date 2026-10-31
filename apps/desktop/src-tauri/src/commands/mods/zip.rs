@@ -1590,7 +1590,7 @@ fn detect_resource_download(
             None,
             None,
         )?;
-        picker.shared_paks = cfg.primary().native_steam_app.is_some();
+        picker.shared_paks = cfg.primary().shared_paks.is_some();
         pak_picker = Some(picker);
     }
     Ok(Some(ResourceArchive {
@@ -1875,7 +1875,7 @@ pub fn resolve_archive_download(
     cfg: &ModEngineConfig,
     registry: &StagingRegistry,
 ) -> ResolvedArchive {
-    if cfg.primary().native_steam_app.is_some() {
+    if cfg.primary().shared_paks.is_some() {
         if let Err(error) = validate_shared_pak_download(&downloaded, cfg) {
             cleanup::run_sync(&CleanupPlan::RemoveOwnedFile(downloaded));
             return Err(ResolveError::Failure(error));
@@ -2011,7 +2011,7 @@ pub fn resolve_archive_download(
                         .collect();
                     let mut payload =
                         multi_pak_payload(registry, zip_path, staged, None, None, None)?;
-                    payload.shared_paks = cfg.primary().native_steam_app.is_some();
+                    payload.shared_paks = cfg.primary().shared_paks.is_some();
                     Err(prompt_err(InstallPrompt::ZipMultiPak(payload)))
                 }
             }
