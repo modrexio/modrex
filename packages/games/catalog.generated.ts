@@ -98,7 +98,7 @@ export const GAME_SPECS = {
         movieReplacement: { extensions: ['mp4'], storefronts: ['steam'] },
         configPresets: { filename: 'Engine.ini' },
         graphicsConfig: { filename: 'GameUserSettings.ini' },
-        launchers: ['Steam'],
+        launchers: ['Steam', 'Epic Games', 'Xbox App'],
         modTargets: [
             { id: 'paks', path: 'ReadyOrNot/Content/Paks' },
         ],
