@@ -1040,12 +1040,25 @@ fn shared_paks_accept_the_stores_that_list_installed_files() {
 }
 
 #[test]
-fn shared_paks_refuse_a_store_without_an_installed_file_list() {
+fn shared_paks_with_an_xbox_binding_accept_single_file_mods() {
+    let text = SHARED_PAKS.replace(
+        r#"{ provider = "epic", name = "Fixture" },"#,
+        r#"{ provider = "epic", name = "Fixture" },
+    { provider = "xbox", product_id = "9N", executable = "Fixture.exe" },"#,
+    );
+    let parsed: GamePackage = toml::from_str(&text).expect("shared Paks parse");
+    validate::check("fixture", &parsed).expect("an Xbox copy manages the files Modrex placed");
+}
+
+#[test]
+fn shared_paks_with_an_xbox_binding_refuse_companions() {
     assert_rejected(
-        &SHARED_PAKS.replace(
-            r#"{ provider = "epic", name = "Fixture" },"#,
-            r#"{ provider = "xbox", product_id = "9N", executable = "Fixture.exe" },"#,
-        ),
-        "lists the game's installed files",
+        &SHARED_PAKS
+            .replace(
+                r#"{ provider = "epic", name = "Fixture" },"#,
+                r#"{ provider = "xbox", product_id = "9N", executable = "Fixture.exe" },"#,
+            )
+            .replace("companions = []", r#"companions = ["ucas", "utoc"]"#),
+        "cannot declare companions",
     );
 }

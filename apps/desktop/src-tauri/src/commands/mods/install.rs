@@ -349,6 +349,11 @@ pub(super) fn install_shared_pak(
     }
     state.mods.retain(|entry| entry.uid != mod_data.uid);
     mod_data.installed_at = Utc::now().to_rfc3339();
+    mod_data.placed_sha256 = Some(
+        super::identify::hash_file(source)
+            .map_err(|e| format!("Could not read {}: {e}", log_name(source)))?
+            .ok_or_else(|| format!("{} disappeared before it was installed", log_name(source)))?,
+    );
     state.mods.push(mod_data);
     super::file_transaction::replace_family(
         Some(source),

@@ -158,7 +158,7 @@ pub(super) fn read_bounded(path: &Path, limit: usize) -> Result<Vec<u8>, String>
     Ok(bytes)
 }
 
-pub(super) fn normalize_native_path(path: &str) -> Result<String, String> {
+pub(crate) fn normalize_native_path(path: &str) -> Result<String, String> {
     if path.is_empty() || path.len() > MAX_PATH_BYTES {
         return Err("Native path is empty or exceeds the path length limit".into());
     }

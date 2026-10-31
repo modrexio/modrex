@@ -9,6 +9,7 @@ const SHARED_TARGET: ScanTarget = ScanTarget {
     shared_paks: Some(SharedPaks {
         steam_app: Some(78),
         epic_name: None,
+        xbox: false,
     }),
     unit: ModUnit::File {
         extension: "pak",

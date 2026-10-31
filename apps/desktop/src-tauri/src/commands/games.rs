@@ -108,6 +108,7 @@ fn scan_target(pkg: &'static GamePackage, target: &'static package::Target) -> S
                 Some(package::StoreBinding::Epic { name }) => Some(name.as_str()),
                 _ => None,
             },
+            xbox: pkg.install.store(package::Storefront::Xbox).is_some(),
         }),
         unit: match &target.unit {
             package::Unit::File {

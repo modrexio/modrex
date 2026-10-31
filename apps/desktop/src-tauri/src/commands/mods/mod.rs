@@ -20,6 +20,7 @@ mod mp4;
 mod naming;
 mod native_files;
 mod nexus_content;
+mod owned_files;
 mod paths;
 mod pdmod;
 mod plugin_repair;

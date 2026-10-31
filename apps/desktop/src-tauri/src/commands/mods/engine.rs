@@ -45,6 +45,9 @@ pub struct SharedPaks {
     pub steam_app: Option<u32>,
     /// The Epic launcher's display name for the base game.
     pub epic_name: Option<&'static str>,
+    /// The Microsoft Store build keeps no readable file list, so there Modrex changes only
+    /// the files it placed itself (owned_files.rs).
+    pub xbox: bool,
 }
 
 pub struct ScanTarget {

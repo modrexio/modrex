@@ -1,5 +1,6 @@
 use super::engine::{mods_dir, ModEngineConfig};
 use super::naming::log_name;
+use super::owned_files::OwnedFiles;
 use crate::commands::launchers::epic_manifest::EpicNativeFiles;
 use crate::commands::launchers::steam_manifest::NativeFilesSnapshot;
 use std::fs;
@@ -24,11 +25,14 @@ pub(super) enum CatalogStore {
     Steam(PathBuf),
     /// The Epic launcher's installation record directory.
     Epic(PathBuf),
+    /// The Microsoft Store keeps no readable file list, so only Modrex's own files may change.
+    Xbox,
 }
 
 enum NativeCatalog {
     Steam(NativeFilesSnapshot),
     Epic(EpicNativeFiles),
+    Owned(OwnedFiles),
 }
 
 impl NativeCatalog {
@@ -36,6 +40,7 @@ impl NativeCatalog {
         match self {
             NativeCatalog::Steam(snapshot) => &snapshot.game_root,
             NativeCatalog::Epic(snapshot) => &snapshot.game_root,
+            NativeCatalog::Owned(owned) => &owned.game_root,
         }
     }
 
@@ -43,6 +48,7 @@ impl NativeCatalog {
         match self {
             NativeCatalog::Steam(snapshot) => snapshot.protects(relative),
             NativeCatalog::Epic(snapshot) => snapshot.protects(relative),
+            NativeCatalog::Owned(owned) => owned.protects(relative),
         }
     }
 
@@ -50,6 +56,9 @@ impl NativeCatalog {
         match self {
             NativeCatalog::Steam(snapshot) => snapshot.protects_tree(relative),
             NativeCatalog::Epic(snapshot) => snapshot.protects_tree(relative),
+            // Without a file list nothing under a folder can be known in advance, so callers
+            // walk the folder and check each existing entry.
+            NativeCatalog::Owned(owned) => owned.protects(relative),
         }
     }
 
@@ -57,6 +66,7 @@ impl NativeCatalog {
         match self {
             NativeCatalog::Steam(snapshot) => snapshot.verify_unchanged(),
             NativeCatalog::Epic(snapshot) => snapshot.verify_unchanged(),
+            NativeCatalog::Owned(owned) => owned.verify_unchanged(),
         }
     }
 }
@@ -75,7 +85,9 @@ impl NativeGuard {
         }
         // Read from disk, not the saved launcher, because a hand-picked folder has none. A
         // store whose record does not name this folder refuses, so a wrong guess cannot pass.
-        let store = if Path::new(game_path).join(".egstore").is_dir() {
+        let store = if Path::new(game_path).join("MicrosoftGame.config").is_file() {
+            CatalogStore::Xbox
+        } else if Path::new(game_path).join(".egstore").is_dir() {
             CatalogStore::Epic(crate::commands::launchers::epic::epic_manifest_dir())
         } else {
             let steam_root = crate::commands::launchers::steam_install_path().ok_or(
@@ -125,6 +137,15 @@ impl NativeGuard {
                         .map_err(|error| format!("Cannot verify the game's original files: {error}. Open Epic Games Launcher to finish or verify the installation, then return to Modrex."))?,
                     )
                 }
+                CatalogStore::Xbox => {
+                    if !shared.xbox {
+                        return Err(
+                            "This game's shared Paks are not supported for Microsoft Store copies"
+                                .into(),
+                        );
+                    }
+                    NativeCatalog::Owned(OwnedFiles::load(game_path, cfg, target)?)
+                }
             };
             targets.push(NativeTarget {
                 root: mods_dir(game_path, target),
@@ -134,6 +155,23 @@ impl NativeGuard {
             });
         }
         Ok(Self { game_root, targets })
+    }
+
+    fn refusal(&self, path: &Path) -> String {
+        if self
+            .targets
+            .iter()
+            .any(|target| matches!(target.snapshot, NativeCatalog::Owned(_)))
+        {
+            return format!(
+                "{} was not installed by Modrex or has changed since, so Modrex will not modify it",
+                log_name(path)
+            );
+        }
+        format!(
+            "{} belongs to the game and cannot be modified",
+            log_name(path)
+        )
     }
 
     pub fn shares_native_files(&self) -> bool {
@@ -260,10 +298,7 @@ impl NativeGuard {
             ));
         }
         if self.protects(path)? {
-            return Err(format!(
-                "{} belongs to the game and cannot be modified",
-                log_name(path)
-            ));
+            return Err(self.refusal(path));
         }
         Ok(())
     }
@@ -348,10 +383,7 @@ impl NativeGuard {
             }
         }
         if self.protects(path)? {
-            return Err(format!(
-                "{} belongs to the game and cannot be modified",
-                log_name(path)
-            ));
+            return Err(self.refusal(path));
         }
         Ok(())
     }
