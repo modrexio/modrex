@@ -25,7 +25,6 @@ struct HashedFile {
     sha256: String,
 }
 
-#[derive(Debug)]
 pub(super) struct OwnedFiles {
     pub game_root: PathBuf,
     selected_game_root: PathBuf,
