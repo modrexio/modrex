@@ -1,7 +1,7 @@
 use super::engine::{backup_dir, join_subpath, ModEngineConfig, ModUnit, ScanTarget};
 use super::moves::{folder_targets, Moves};
 use super::naming::log_name;
-use super::naming::{apply_priority_prefix, make_uid, strip_priority_prefix};
+use super::naming::{apply_priority_prefix, hash_filename, make_uid, strip_priority_prefix};
 use super::paths::{
     active_mod_path, disabled_base, disabled_mod_path, host_pack_dir, host_pack_disabled_dir,
     mods_base,
@@ -52,6 +52,45 @@ fn migrate_version_sentinels(m: &mut InstalledMod) {
     };
     m.update_status = migrated;
     m.version = String::new();
+}
+
+// State files can carry a catalog link no catalog serves: a dropped archive's placeholder id
+// recorded as a ModWorkshop link, or a local shared package's uid read back as one. Such a
+// record waits forever for metadata and is never identified, since a recorded link and the
+// identity derived from it stop every identification pass.
+fn drop_unservable_catalog_link(cfg: &ModEngineConfig, m: &mut InstalledMod) {
+    let Some(remote_id) = m.remote_id.clone() else {
+        return;
+    };
+    let servable = match m.source.as_str() {
+        "modworkshop" => remote_id.parse::<u32>().is_ok_and(|id| id > 0),
+        "local" => false,
+        _ => true,
+    };
+    if servable {
+        return;
+    }
+    if m.identity
+        .as_ref()
+        .is_some_and(|identity| identity.key == remote_id)
+    {
+        m.identity = None;
+    }
+    // The placeholder is the hash of the archive's name, which every entry was named after.
+    if hash_filename(&m.name).to_string() == remote_id {
+        let file = strip_priority_prefix(&m.filename);
+        m.name = match &cfg.target_for(m.location.as_deref()).unit {
+            ModUnit::File { extension, .. } => file
+                .strip_suffix(&format!(".{extension}"))
+                .unwrap_or(file)
+                .to_string(),
+            ModUnit::Directory { .. } => file.to_string(),
+        };
+    }
+    m.remote_id = None;
+    m.file_remote_id = None;
+    m.id = hash_filename(&m.filename);
+    m.update_status = UpdateStatus::Unknown;
 }
 
 /// Why a state file could not be loaded.
@@ -138,7 +177,10 @@ pub(super) fn read_state_for_game(
     state_path: &Path,
     cfg: &ModEngineConfig,
 ) -> Result<ModsState, StateLoadError> {
-    let state = read_state(state_path)?;
+    let mut state = read_state(state_path)?;
+    for m in state.mods.iter_mut() {
+        drop_unservable_catalog_link(cfg, m);
+    }
     if !cfg
         .targets
         .iter()
@@ -776,10 +818,11 @@ pub fn reconcile_state(
 
     // Recover source-native identity for entries written before remote_id existed:
     // their uid already encodes it as {source}:{mod_id}:{file_id} (the nexus install
-    // convention), so migration is a pure parse.
+    // convention), so migration is a pure parse. A local shared package's uid has the same
+    // shape with a placeholder in it, so only Nexus uids are read.
     let mut identity_migrated = false;
     for m in state.mods.iter_mut() {
-        if m.source == "modworkshop" || m.remote_id.is_some() {
+        if m.source != "nexus" || m.remote_id.is_some() {
             continue;
         }
         let mut parts = m.uid.splitn(3, ':');
@@ -802,7 +845,7 @@ pub fn reconcile_state(
     // tell "never identified" from "identified before remote_id existed", and its name
     // fallback would mass-mark pre-existing installs Outdated during a plain data migration.
     for m in state.mods.iter_mut() {
-        if m.remote_id.is_some() || m.id < 0 || m.source != "modworkshop" {
+        if m.remote_id.is_some() || m.id <= 0 || m.source != "modworkshop" {
             continue;
         }
         m.remote_id = Some(m.id.to_string());

@@ -45,6 +45,14 @@ export function hasCatalogLink(m: InstalledMod): boolean {
     return !!m.remoteId
 }
 
+// The ModWorkshop id useModData fetches display metadata for, which the API takes as a u32.
+// A card waits for that fetch only when this returns an id, or it would wait forever.
+export function workshopMetadataId(m: InstalledMod): number | undefined {
+    if (m.source && m.source !== 'modworkshop') return undefined
+    const id = Number(m.remoteId)
+    return Number.isInteger(id) && id > 0 && id <= 0xffff_ffff ? id : undefined
+}
+
 // The stable grouping key for one project: several installed files of the same mod belong
 // together. Falls back to the installed record while a mod has no resolved identity.
 export function identityKey(m: InstalledMod): string {

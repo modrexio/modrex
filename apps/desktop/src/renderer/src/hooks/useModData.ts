@@ -12,6 +12,7 @@ import type { VersionState } from '../modVersions'
 import { nexusFileId, updatableMods } from '../updatePolicy'
 import type { NexusFileCheck, NexusInstalledFile } from '../api'
 import { getLocalImage } from '../thumbnailCache'
+import { workshopMetadataId } from './installedUtils'
 
 interface NexusObservation {
     state: VersionState
@@ -65,13 +66,7 @@ export function useModData(
     )
     const [clock, setClock] = useState(0)
     const nexusAuthEpoch = useNexusAuthEpoch()
-    const workshop = installed.filter(
-        (mod) =>
-            (!mod.source || mod.source === 'modworkshop') &&
-            Number.isInteger(Number(mod.remoteId)) &&
-            Number(mod.remoteId) > 0 &&
-            Number(mod.remoteId) <= 0xffff_ffff
-    )
+    const workshop = installed.filter((mod) => workshopMetadataId(mod) !== undefined)
     const remoteVersions = useModVersions(workshop.map((mod) => Number(mod.remoteId)))
     const key = installed
         .map((mod) => [mod.id, mod.source, mod.remoteId].join(':'))
@@ -148,8 +143,7 @@ export function useModData(
                         const fileId = nexusFileId(mod)
                         if (fileId !== undefined) files.push({ fileId, version: mod.version })
                         nexusFiles.set(id, files)
-                    } else if ((!mod.source || mod.source === 'modworkshop') && id <= 0xffff_ffff)
-                        workshopIds.push(id)
+                    } else if (workshopMetadataId(mod) !== undefined) workshopIds.push(id)
                 }
                 await Promise.all([
                     workshopId === undefined || !workshopIds.length

@@ -2408,7 +2408,13 @@ pub async fn install_from_zip_entry(
         &entry_stem,
         &install_filename,
     );
-    let local_shared_pak = target.native_steam_app.is_some() && mod_id <= 0;
+    let local = decisions::is_local_archive(mod_id);
+    // Shared packages are variants of one mod, so they keep the archive's name.
+    let mod_name = if local && target.native_steam_app.is_none() {
+        decisions::local_entry_name(cfg, target, cb_dir_entry, &entry_stem, &entry_filename)
+    } else {
+        mod_name
+    };
 
     let result = async {
         let sha256 = staged_content_sha256(target, &ext).await?;
@@ -2428,9 +2434,10 @@ pub async fn install_from_zip_entry(
             let saved =
                 state::read_state_for_game(&game_path, &sp, cfg).map_err(|e| e.to_string())?;
 
-            // A shared Pak hash can be identical across distinct author choices, so it cannot
-            // replace the local archive member's identity.
-            let sha256_match = (!local_shared_pak)
+            // A dropped archive's entry is matched by its own uid only. A shared Pak hash can be
+            // identical across distinct author choices, and a marker file's hash says nothing
+            // about which folder a record owns.
+            let sha256_match = (!local)
                 .then(|| {
                     saved
                         .mods
@@ -2502,12 +2509,13 @@ pub async fn install_from_zip_entry(
     }
     .await;
 
-    if result.is_ok() && !local_shared_pak {
+    if result.is_ok() && !local {
         register_download(&app, file_id).await;
     }
     // Keep the zip alive for multi-entry installs; only remove the extracted temp here.
     cleanup::run(&entry_cleanup).await;
     match &result {
+        Ok(_) if local => track_mod_installed(&app, game_id.as_str(), -1, "local"),
         Ok(_) => track_mod_installed(&app, game_id.as_str(), mod_id, &install_format),
         Err(e) => log::warn!("install_from_zip_entry {mod_id} file={file_id}: {e}"),
     }
@@ -2781,12 +2789,18 @@ pub async fn install_cb_flat_archive(
             let saved =
                 state::read_state_for_game(&game_path, &sp, cfg).map_err(|e| e.to_string())?;
             let uid = format!("{}_flat", file_id);
-            let sha256_match = saved
-                .mods
-                .iter()
-                .find(|m| m.sha256.as_deref() == Some(sha256.as_str()));
+            // A dropped archive is matched by its own uid only, as in install_from_zip_entry.
+            let sha256_match = (!decisions::is_local_archive(mod_id))
+                .then(|| {
+                    saved
+                        .mods
+                        .iter()
+                        .find(|m| m.sha256.as_deref() == Some(sha256.as_str()))
+                })
+                .flatten();
             let uid = sha256_match.map(|m| m.uid.clone()).unwrap_or(uid);
             let filename = naming::mod_folder_name(&mod_name);
+            let provenance = decisions::archive_provenance(mod_id, file_id, &filename);
 
             install_mod_from_path(
                 &game_path,
@@ -2798,14 +2812,9 @@ pub async fn install_cb_flat_archive(
                     filename,
                     enabled: true,
                     installed_at: Utc::now().to_rfc3339(),
-                    file_id: Some(file_id),
                     file_type: Some(file_type),
                     sha256: Some(sha256),
-                    ..InstalledMod::from_catalog(
-                        "modworkshop",
-                        mod_id.to_string(),
-                        IdentityEvidence::InstallProvenance,
-                    )
+                    ..provenance
                 },
                 &tmp_dir,
                 folder_id,
@@ -2821,11 +2830,13 @@ pub async fn install_cb_flat_archive(
 
     cleanup::run(&cleanup::CleanupPlan::RemoveOwnedDirectory(tmp_dir.clone())).await;
     finish_with_archive(staged_archives(&app), &archive_handle).await;
-    if result.is_ok() {
+    let local = decisions::is_local_archive(mod_id);
+    if result.is_ok() && !local {
         register_download(&app, file_id).await;
     }
 
     match &result {
+        Ok(_) if local => track_mod_installed(&app, "cb", -1, "local"),
         Ok(_) => track_mod_installed(&app, "cb", mod_id, &file_type),
         Err(e) => log::warn!("install_cb_flat_archive {mod_id} file={file_id}: {e}"),
     }
@@ -2892,14 +2903,9 @@ pub async fn install_host_pack(app: AppHandle, args: InstallHostPackArgs) -> Res
         let mod_data = InstalledMod {
             name: mod_name,
             version: mod_version,
-            file_id: Some(file_id),
             file_type: Some(file_type),
             location: Some(format!("host:{}:{}", host_mod_id, host_subpath)),
-            ..InstalledMod::from_catalog(
-                "modworkshop",
-                mod_id.to_string(),
-                IdentityEvidence::InstallProvenance,
-            )
+            ..decisions::archive_provenance(mod_id, file_id, &entry_name)
         };
         install_host_pack_op(&game_path, &sp, &zip, &entry_name, mod_data, cfg)?;
 
@@ -2907,8 +2913,11 @@ pub async fn install_host_pack(app: AppHandle, args: InstallHostPackArgs) -> Res
     })
     .await?;
 
+    if decisions::is_local_archive(mod_id) {
+        track_mod_installed(&app, game_id.as_str(), -1, "local");
+        return Ok(());
+    }
     register_download(&app, file_id).await;
-
     track_mod_installed(&app, game_id.as_str(), mod_id, &install_format);
     Ok(())
 }

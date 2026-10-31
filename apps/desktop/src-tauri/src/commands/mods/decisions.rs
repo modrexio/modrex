@@ -139,7 +139,7 @@ pub fn archive_entry_identity(
     entry_stem: &str,
     filename: &str,
 ) -> InstalledMod {
-    if target.native_steam_app.is_some() && mod_id <= 0 {
+    if target.native_steam_app.is_some() && is_local_archive(mod_id) {
         return InstalledMod {
             uid: format!("local:{file_id}:entry:{}", entry_name.replace('\\', "/")),
             id: naming::hash_filename(filename),
@@ -150,12 +150,52 @@ pub fn archive_entry_identity(
     }
     InstalledMod {
         uid: format!("{file_id}_{entry_stem}"),
+        ..archive_provenance(mod_id, file_id, filename)
+    }
+}
+
+/// What an archive install records about where it came from. A dropped archive arrives with
+/// a placeholder mod id of zero or below, which no catalog knows, so recording it as a link
+/// leaves the card waiting forever for metadata. It keeps its file id, which is what stops
+/// reconcile_state purging an installed folder that lacks the target's scan markers.
+pub fn archive_provenance(mod_id: i64, file_id: i64, filename: &str) -> InstalledMod {
+    if is_local_archive(mod_id) {
+        return InstalledMod {
+            id: naming::hash_filename(filename),
+            file_id: Some(file_id),
+            update_status: super::types::UpdateStatus::Unknown,
+            ..InstalledMod::default()
+        };
+    }
+    InstalledMod {
         file_id: Some(file_id),
         ..InstalledMod::from_catalog(
             "modworkshop",
             mod_id.to_string(),
             super::identity::IdentityEvidence::InstallProvenance,
         )
+    }
+}
+
+/// Whether an archive install came from a dropped file rather than a catalog download.
+pub fn is_local_archive(mod_id: i64) -> bool {
+    mod_id <= 0
+}
+
+/// The name a dropped archive's entry is recorded under. The archive's own name describes
+/// the bundle, and several unrelated mods can share it.
+pub fn local_entry_name(
+    cfg: &ModEngineConfig,
+    target: &ScanTarget,
+    cb_dir_entry: bool,
+    entry_stem: &str,
+    entry_filename: &str,
+) -> String {
+    match entry_extraction(cfg, target, cb_dir_entry) {
+        EntryExtraction::DirEntry => entry_filename.to_string(),
+        EntryExtraction::EntryWithSidecars | EntryExtraction::AlreadyStaged => {
+            entry_stem.to_string()
+        }
     }
 }
 
