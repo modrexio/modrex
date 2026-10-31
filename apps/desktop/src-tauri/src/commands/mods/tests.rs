@@ -1612,6 +1612,126 @@ fn reconcile_state_recovers_source_identity_from_uid() {
 }
 
 #[test]
+fn reconcile_state_drops_placeholder_catalog_links_from_dropped_archives() {
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let cfg = engine_for_game("pd2").unwrap();
+    let sp = get_state_path(game, cfg);
+
+    // The shape a two-folder archive named mods.zip was recorded with.
+    let dropped = |folder: &str, stem: &str| InstalledMod {
+        uid: format!("-3357105_{stem}"),
+        name: "mods".to_string(),
+        filename: folder.to_string(),
+        enabled: true,
+        file_id: Some(-3357105),
+        ..InstalledMod::from_catalog(
+            "modworkshop",
+            "-3357105".to_string(),
+            IdentityEvidence::InstallProvenance,
+        )
+    };
+    let catalog = InstalledMod {
+        uid: "61234".to_string(),
+        name: "VanillaHUD Plus".to_string(),
+        filename: "VanillaHUD Plus".to_string(),
+        enabled: true,
+        file_id: Some(61234),
+        ..InstalledMod::from_catalog(
+            "modworkshop",
+            "25629".to_string(),
+            IdentityEvidence::InstallProvenance,
+        )
+    };
+    save_state(
+        &sp,
+        &ModsState {
+            folders: vec![],
+            mods: vec![
+                dropped("Biglobby-3-1.0.1", "Biglobby-3-1.0"),
+                dropped("PAYDAY2Versus", "PAYDAY2Versus"),
+                catalog,
+            ],
+        },
+    )
+    .unwrap();
+
+    let state = super::state::reconcile_state(game, &sp, cfg).unwrap();
+    for folder in ["Biglobby-3-1.0.1", "PAYDAY2Versus"] {
+        let m = state.mods.iter().find(|m| m.filename == folder).unwrap();
+        assert_eq!(m.remote_id, None);
+        assert!(m.identity.is_none());
+        assert_eq!(m.name, folder);
+        assert_eq!(m.id, hash_filename(folder));
+        assert_eq!(m.file_id, Some(-3357105));
+        assert_eq!(m.update_status, UpdateStatus::Unknown);
+    }
+    let catalog = state.mods.iter().find(|m| m.uid == "61234").unwrap();
+    assert_eq!(catalog.remote_id.as_deref(), Some("25629"));
+    assert!(catalog.identity.is_some());
+}
+
+#[test]
+fn reconcile_state_never_reads_a_local_package_uid_as_a_catalog_link() {
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let cfg = engine_for_game("pd3").unwrap();
+    let sp = get_state_path(game, cfg);
+
+    let fresh = InstalledMod {
+        uid: "local:-123:entry:Hard/Payload_P.pak".to_string(),
+        id: hash_filename("Payload_P.pak"),
+        name: "Pack".to_string(),
+        filename: "Payload_P.pak".to_string(),
+        enabled: true,
+        source: "local".to_string(),
+        ..InstalledMod::default()
+    };
+    let read_back = InstalledMod {
+        uid: "local:-123:entry:Soft/Payload_S.pak".to_string(),
+        name: "Pack".to_string(),
+        filename: "Payload_S.pak".to_string(),
+        enabled: true,
+        file_remote_id: Some("entry:Soft/Payload_S.pak".to_string()),
+        ..InstalledMod::from_catalog(
+            "local",
+            "-123".to_string(),
+            IdentityEvidence::CatalogReference,
+        )
+    };
+    let zero = InstalledMod {
+        uid: "zero.pak".to_string(),
+        id: 0,
+        name: "Zero".to_string(),
+        filename: "zero.pak".to_string(),
+        enabled: true,
+        ..InstalledMod::default()
+    };
+    save_state(
+        &sp,
+        &ModsState {
+            folders: vec![],
+            mods: vec![fresh, read_back, zero],
+        },
+    )
+    .unwrap();
+
+    let state = super::state::reconcile_state(game, &sp, cfg).unwrap();
+    for m in &state.mods {
+        assert_eq!(m.remote_id, None, "{}", m.uid);
+        assert!(m.identity.is_none(), "{}", m.uid);
+    }
+    let read_back = state
+        .mods
+        .iter()
+        .find(|m| m.filename == "Payload_S.pak")
+        .unwrap();
+    assert_eq!(read_back.id, hash_filename("Payload_S.pak"));
+    assert_eq!(read_back.file_remote_id, None);
+    assert_eq!(read_back.source, "local");
+}
+
+#[test]
 fn reconcile_state_leaves_unparsable_source_uid_alone() {
     // A non-modworkshop entry whose uid does not carry the {source}:{mod}:{file}
     // shape stays unmigrated rather than gaining a guessed identity.
