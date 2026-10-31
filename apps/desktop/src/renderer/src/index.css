@@ -188,9 +188,7 @@ body {
 .nexus-description table {
     border-collapse: collapse;
     display: block;
-    margin-block: 0.5rem;
     max-width: 100%;
-    overflow-x: auto;
     text-align: left;
 }
 
@@ -206,13 +204,9 @@ body {
 }
 
 .nexus-description pre {
-    background: var(--color-surface-hover);
-    border-radius: 0.25rem;
     color: var(--color-text);
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     font-size: 0.875rem;
-    margin-block: 0.5rem;
-    overflow-x: auto;
     padding: 0.75rem;
     white-space: pre;
 }

@@ -3,6 +3,7 @@ import { error as logError } from '@tauri-apps/plugin-log'
 import { X } from 'lucide-react'
 import { api } from '../api'
 import { Button } from './ui/Button'
+import { ScrollArea } from './ScrollArea'
 import { t } from '../i18n'
 
 interface Props {
@@ -47,9 +48,11 @@ export class ErrorBoundary extends Component<Props, State> {
                     </div>
                     <div className="flex flex-col items-center justify-center flex-1 gap-4">
                         <p className="text-sm">{t('errorBoundary.message')}</p>
-                        <pre className="text-xs max-w-lg overflow-auto text-danger-text">
-                            {this.state.error.message}
-                        </pre>
+                        <ScrollArea hostClassName="max-w-lg" className="overflow-auto">
+                            <pre className="text-xs text-danger-text">
+                                {this.state.error.message}
+                            </pre>
+                        </ScrollArea>
                     </div>
                 </div>
             )
