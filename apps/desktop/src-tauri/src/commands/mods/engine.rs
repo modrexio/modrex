@@ -68,7 +68,6 @@ pub(crate) const fn synthetic_shared_paks_target(shared: SharedPaks) -> ScanTarg
         companions: &[],
         contained_extension: None,
         enabled_state: Activation::Filesystem,
-        recursive_load: false,
         mods_subpath: &["Synthetic", "Content", "Paks"],
         disabled_subpath: &["Synthetic", "Content", "Paks", "disabled"],
         backup_subpath: &["Synthetic", "Content", "Paks.mods.bak"],
@@ -92,9 +91,6 @@ pub struct ScanTarget {
     /// hashed instead of the content.
     pub contained_extension: Option<&'static str>,
     pub enabled_state: Activation,
-    /// The game reads mods_subpath itself, recursively, so a mod left in a subfolder of it
-    /// still loads. Disabling and backup must then sit outside mods_subpath.
-    pub recursive_load: bool,
     pub mods_subpath: &'static [&'static str],
     pub disabled_subpath: &'static [&'static str],
     pub backup_subpath: &'static [&'static str],
@@ -130,12 +126,6 @@ impl ScanTarget {
                 ..
             }
         )
-    }
-
-    /// Whether the game reads this target's folder recursively, so a mod left in a subfolder
-    /// of it still loads and disabling must move the mod outside the folder.
-    pub fn loads_recursively(&self) -> bool {
-        self.recursive_load || self.is_unreal_plugin_unit()
     }
 
     pub fn excluded_names(&self) -> &'static [&'static str] {

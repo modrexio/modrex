@@ -233,16 +233,16 @@ pub async fn find_untracked_paks(
         // mods/base is the BLT loader's basemod, not a user mod. Tracking it would let
         // the user disable their mod loader from the installed list.
         let skip_base = i == 0 && matches!(target.unit, ModUnit::Directory { .. });
+        let mods = mods_dir(game_path, target);
+        // Only a disabled folder that really sits inside the target is skipped. Where it sits
+        // elsewhere, a child named disabled is a mod the game loads.
+        let skip_disabled = disabled_dir(game_path, target) == mods.join("disabled");
+        let skip = TopLevelSkip {
+            base: skip_base,
+            disabled: skip_disabled,
+        };
         let mut target_out: Vec<(String, bool)> = Vec::new();
-        scan_active(
-            &mods_dir(game_path, target),
-            "",
-            &target_known,
-            target,
-            skip_base,
-            &mut target_out,
-        )
-        .await;
+        scan_active(&mods, "", &target_known, target, skip, &mut target_out).await;
         scan_disabled(
             &disabled_dir(game_path, target),
             "",
@@ -258,12 +258,20 @@ pub async fn find_untracked_paks(
     out
 }
 
+/// Names the scan passes over at the top of a target, because they are not mods there.
+#[derive(Clone, Copy)]
+struct TopLevelSkip {
+    /// The BLT basemod.
+    base: bool,
+    disabled: bool,
+}
+
 async fn scan_active(
     dir: &Path,
     prefix: &str,
     known: &HashSet<String>,
     target: &ScanTarget,
-    skip_base: bool,
+    skip: TopLevelSkip,
     out: &mut Vec<(String, bool)>,
 ) {
     let mut rd = match tokio::fs::read_dir(dir).await {
@@ -273,10 +281,9 @@ async fn scan_active(
     let mut subdirs = Vec::new();
     while let Ok(Some(entry)) = rd.next_entry().await {
         let name = entry.file_name().to_string_lossy().into_owned();
-        // A target that disables outside its folder, so a child named disabled there is a
-        // folder the game still loads.
-        let disabled_here = name == "disabled" && !target.loads_recursively();
-        if prefix.is_empty() && (disabled_here || (skip_base && name == "base")) {
+        if prefix.is_empty()
+            && ((skip.disabled && name == "disabled") || (skip.base && name == "base"))
+        {
             continue;
         }
         // The mod.io SDK owns this subtree and its subscription metadata.
@@ -343,7 +350,7 @@ async fn scan_active(
         }
     }
     for (path, sub) in subdirs {
-        Box::pin(scan_active(&path, &sub, known, target, skip_base, out)).await;
+        Box::pin(scan_active(&path, &sub, known, target, skip, out)).await;
     }
 }
 

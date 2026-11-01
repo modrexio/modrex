@@ -429,23 +429,23 @@ fn check_target(target: &Target) -> Result<(), String> {
         }
     }
     if target.recursive_load {
-        if matches!(target.unit, Unit::File { .. }) {
-            return Err(
-                "sets recursive_load on a file unit, which disables by renaming its file; the flag describes a folder the game reads recursively"
-                    .to_string(),
-            );
-        }
-        let Some(disabled) = &target.disabled else {
-            return Err(
-                "sets recursive_load without a disabled path; the game would still load a mod in path/disabled"
-                    .to_string(),
-            );
-        };
-        if within(disabled, &target.path) {
-            return Err(
-                "sets recursive_load with a disabled path inside path, where the game still loads it"
-                    .to_string(),
-            );
+        match &target.unit {
+            Unit::File { .. } => {
+                return Err(
+                    "sets recursive_load on a file unit, which disables by renaming its file. The flag describes a folder the game reads recursively"
+                        .to_string(),
+                );
+            }
+            Unit::Directory {
+                discovery: Discovery::UnrealPlugin,
+                ..
+            } => {
+                return Err(
+                    "sets recursive_load on an unreal_plugin target, which Unreal already reads recursively"
+                        .to_string(),
+                );
+            }
+            Unit::Directory { .. } => check_outside_recursive_path(target, "sets recursive_load")?,
         }
     }
     if let Some(disabled) = &target.disabled {
@@ -481,23 +481,26 @@ fn check_plugin_target(target: &Target, synthesizes: bool) -> Result<(), String>
     if !target.store_paths.is_empty() {
         return Err("uses unreal_plugin discovery, which cannot declare store_paths".to_string());
     }
+    check_outside_recursive_path(target, "uses unreal_plugin discovery")
+}
+
+/// A game that reads a folder recursively still loads a mod moved anywhere below it, so a
+/// target like that must disable mods and back them up outside its path.
+fn check_outside_recursive_path(target: &Target, rule: &str) -> Result<(), String> {
     let Some(disabled) = &target.disabled else {
-        return Err(
-            "uses unreal_plugin discovery without a disabled path; Unreal would still load a plugin in path/disabled"
-                .to_string(),
-        );
+        return Err(format!(
+            "{rule} without a disabled path, and the game would still load a mod in path/disabled"
+        ));
     };
     if within(disabled, &target.path) {
-        return Err(
-            "uses unreal_plugin discovery with a disabled path inside path, where Unreal still loads it"
-                .to_string(),
-        );
+        return Err(format!(
+            "{rule} with a disabled path inside path, where the game still loads it"
+        ));
     }
     if within(&target.backup, &target.path) {
-        return Err(
-            "uses unreal_plugin discovery with a backup inside path, where Unreal still loads it"
-                .to_string(),
-        );
+        return Err(format!(
+            "{rule} with a backup inside path, where the game still loads it"
+        ));
     }
     Ok(())
 }

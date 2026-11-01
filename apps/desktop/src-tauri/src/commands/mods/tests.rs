@@ -2561,6 +2561,31 @@ async fn find_untracked_paks_primary_has_no_location() {
 }
 
 #[tokio::test]
+async fn a_recursive_target_scans_a_mod_named_disabled_because_it_disables_elsewhere() {
+    let tmp = TempDir::new().unwrap();
+    let scripts = tmp.path().join("r6").join("scripts");
+    make_dir_mod(&scripts, "disabled", "a.reds");
+    make_dir_mod(
+        &tmp.path().join("r6").join("scripts.disabled"),
+        "Off",
+        "b.reds",
+    );
+
+    let cfg = engine_for_game("cp2077").unwrap();
+    let mut results = find_untracked_paks(tmp.path().to_str().unwrap(), &HashSet::new(), cfg).await;
+    results.sort();
+
+    let tag = Some("redscript_mods".to_string());
+    assert_eq!(
+        results,
+        vec![
+            ("Off".to_string(), false, tag.clone()),
+            ("disabled".to_string(), true, tag),
+        ]
+    );
+}
+
+#[tokio::test]
 async fn find_untracked_paks_secondary_has_location_tag() {
     let tmp = TempDir::new().unwrap();
     let mo_dir = tmp.path().join("assets").join("mod_overrides");
@@ -3543,7 +3568,6 @@ const fn companion_target(companions: &'static [&'static str]) -> ScanTarget {
         companions,
         contained_extension: None,
         enabled_state: Activation::Filesystem,
-        recursive_load: false,
         mods_subpath: &["Paks"],
         disabled_subpath: &["Paks", "disabled"],
         backup_subpath: &["Paks.bak"],
@@ -3585,7 +3609,6 @@ const VPK_TARGETS: [ScanTarget; 1] = [ScanTarget {
     companions: &["vsig"],
     contained_extension: None,
     enabled_state: Activation::Filesystem,
-    recursive_load: false,
     mods_subpath: &["Paks"],
     disabled_subpath: &["Paks", "disabled"],
     backup_subpath: &["Paks.bak"],
@@ -4366,7 +4389,6 @@ const fn overrides_target() -> ScanTarget {
         companions: &[],
         contained_extension: None,
         enabled_state: Activation::Filesystem,
-        recursive_load: false,
         mods_subpath: &["assets", "mod_overrides"],
         disabled_subpath: &["assets", "mod_overrides", "disabled"],
         backup_subpath: &["assets", "mod_overrides.bak"],
@@ -4501,7 +4523,6 @@ const fn crossed_target(tag: &'static str, enabled_state: Activation) -> ScanTar
         companions: &[],
         contained_extension: None,
         enabled_state,
-        recursive_load: false,
         mods_subpath: &["Binaries", "Win64", "Mods"],
         disabled_subpath: &["Binaries", "Win64", "Mods", "disabled"],
         backup_subpath: &["Binaries", "Win64", "Mods.bak"],

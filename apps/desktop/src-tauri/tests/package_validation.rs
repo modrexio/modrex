@@ -1040,6 +1040,27 @@ fn a_recursive_load_target_cannot_disable_inside_the_folder_the_game_reads() {
 }
 
 #[test]
+fn a_recursive_load_target_cannot_back_up_inside_the_folder_the_game_reads() {
+    assert_rejected(
+        &BASE.replace(
+            "backup = [\"mods.bak\"]",
+            "recursive_load = true\ndisabled = [\"mods.disabled\"]\nbackup = [\"MODS\", \"bak\"]",
+        ),
+        "sets recursive_load with a backup inside path",
+    );
+}
+
+#[test]
+fn recursive_load_cannot_be_set_on_a_plugin_target() {
+    assert_rejected(
+        &with_plugin_target(
+            "recursive_load = true\ndisabled = [\"Game\", \"Mods.disabled\"]\nbackup = [\"Game\", \"Mods.bak\"]",
+        ),
+        "recursive_load on an unreal_plugin target",
+    );
+}
+
+#[test]
 fn recursive_load_cannot_be_set_on_a_file_unit() {
     assert_rejected(
         &file_unit("[]").replace(

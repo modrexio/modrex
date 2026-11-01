@@ -127,7 +127,28 @@ fn disabled_suffix_matches_the_unit_kind() {
     }
 }
 
-/// Except a plugin target, whose disabled folder Unreal would still load from inside it.
+/// What the package declares, since the runtime target keeps no copy of it.
+fn reads_recursively(game_id: &str, tag: &str) -> bool {
+    let (_, package) = crate::games::discovered()
+        .iter()
+        .find(|(id, _)| *id == game_id)
+        .expect("every registered game is a discovered package");
+    let target = package
+        .targets
+        .iter()
+        .find(|target| target.tag == tag)
+        .expect("every runtime target comes from its package");
+    target.recursive_load
+        || matches!(
+            &target.unit,
+            crate::game_package::Unit::Directory {
+                discovery: crate::game_package::Discovery::UnrealPlugin,
+                ..
+            }
+        )
+}
+
+/// Except a target the game reads recursively, which would still load a mod disabled inside it.
 #[test]
 fn disabled_dir_lives_under_its_own_mods_dir() {
     let game_path = "C:/game";
@@ -135,7 +156,7 @@ fn disabled_dir_lives_under_its_own_mods_dir() {
         for target in spec.engine.targets {
             let mods = mods_dir(game_path, target);
             let disabled = disabled_dir(game_path, target);
-            if target.loads_recursively() {
+            if reads_recursively(spec.id, target.tag) {
                 assert!(
                     !disabled.starts_with(&mods),
                     "{}:{} disables inside {:?}, where the game still loads the mod",

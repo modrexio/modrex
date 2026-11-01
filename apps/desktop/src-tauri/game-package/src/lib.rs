@@ -576,8 +576,8 @@ pub struct Target {
     /// as Unreal does for plugins.
     #[serde(default)]
     pub disabled: Option<Vec<String>>,
-    /// Set when the game reads `path` recursively, so a mod left in a subfolder of it still
-    /// loads. Disabling and the backup must then sit outside `path`, which validation enforces.
+    /// Set when the game reads path recursively, so a mod left in a subfolder of it still
+    /// loads. Validation then requires disabled and backup to sit outside path.
     #[serde(default)]
     pub recursive_load: bool,
     /// Where launching without mods moves this target's contents. Not derived from path
