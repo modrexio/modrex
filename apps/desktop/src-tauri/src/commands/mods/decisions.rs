@@ -55,6 +55,8 @@ pub fn install_filename_from_mod_name(
         ModUnit::File { extension, .. } => staged_file_name(target, tmp, name_source)
             .unwrap_or_else(|| unit_filename(mod_name, extension)),
         ModUnit::Directory { .. } if is_crimeboss(cfg) => naming::mod_folder_name(mod_name),
+        // A bundle's staging folder is named after nothing, and the record is the mod itself.
+        ModUnit::Bundle { .. } => naming::mod_folder_name(mod_name),
         ModUnit::Directory { .. } => tmp
             .file_name()
             .and_then(|s| s.to_str())
@@ -86,6 +88,8 @@ pub fn install_filename_for_source_file(
             }
         }
         ModUnit::Directory { .. } if is_crimeboss(cfg) => naming::mod_folder_name(mod_name),
+        // A bundle's staging folder is named after nothing, and the record is the mod itself.
+        ModUnit::Bundle { .. } => naming::mod_folder_name(mod_name),
         ModUnit::Directory { .. } => tmp
             .file_name()
             .and_then(|s| s.to_str())
@@ -120,7 +124,7 @@ pub fn install_filename_for_dropped(
         }
         ModUnit::File { extension, .. } => unit_filename(display_stem, extension),
         ModUnit::Directory { .. } if is_crimeboss(cfg) => naming::mod_folder_name(display_stem),
-        ModUnit::Directory { .. } => display_stem.to_string(),
+        ModUnit::Directory { .. } | ModUnit::Bundle { .. } => display_stem.to_string(),
     }
 }
 
@@ -305,7 +309,7 @@ pub fn entry_staging(
     }
     match &target.unit {
         ModUnit::File { .. } => EntryStaging::SingleTempFile,
-        ModUnit::Directory { .. } => EntryStaging::DirectoryUnderNewParent,
+        ModUnit::Directory { .. } | ModUnit::Bundle { .. } => EntryStaging::DirectoryUnderNewParent,
     }
 }
 
@@ -322,6 +326,6 @@ pub fn entry_extraction(
     }
     match &target.unit {
         ModUnit::File { .. } => EntryExtraction::EntryWithSidecars,
-        ModUnit::Directory { .. } => EntryExtraction::DirEntry,
+        ModUnit::Directory { .. } | ModUnit::Bundle { .. } => EntryExtraction::DirEntry,
     }
 }

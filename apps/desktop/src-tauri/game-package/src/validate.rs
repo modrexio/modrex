@@ -6,8 +6,8 @@
 
 use crate::{
     Activation, ConfigLocation, Discovery, FileFamily, GamePackage, LoaderBinding, MarkerMode,
-    MovieReplacement, NewsBinding, PackageReaderBinding, SourceBinding, StoreBinding, Target,
-    TargetLabel, TargetScope, Unit,
+    MovieReplacement, NewsBinding, PackageReaderBinding, Placement, SourceBinding, StoreBinding,
+    Target, TargetLabel, TargetScope, Unit,
 };
 
 /// Rejects a manifest that parses but could not work, so a contributor sees the problem at
@@ -172,11 +172,21 @@ pub fn check(id: &str, package: &GamePackage) -> Result<(), String> {
             "assigns loader '{duplicate}' to more than one target"
         ));
     }
+    for target in &package.targets {
+        if is_bundle(target) && !target.primary {
+            return Err(format!(
+                "target '{}' is a bundle but not primary. A bundle covers the whole game folder, so it holds the state file and receives every download",
+                target.tag
+            ));
+        }
+    }
     let mut labels = Vec::new();
     for target in &package.targets {
-        if target.label == TargetLabel::Mods && package.targets.len() > 1 {
+        // A bundle lays mods over the whole game folder, so it is the one place mods in
+        // general go even beside other targets.
+        if target.label == TargetLabel::Mods && package.targets.len() > 1 && !is_bundle(target) {
             return Err(format!(
-                "target '{}' uses label mods, which only a game's sole target may use",
+                "target '{}' uses label mods, which only a game's sole target or a bundle may use",
                 target.tag
             ));
         }
@@ -382,7 +392,19 @@ fn check_package_reader(reader: &PackageReaderBinding) -> Result<(), String> {
     Ok(())
 }
 
+fn is_bundle(target: &Target) -> bool {
+    matches!(target.unit, Unit::Bundle { .. })
+}
+
 fn check_target(target: &Target) -> Result<(), String> {
+    if let Unit::Bundle {
+        roots,
+        placements,
+        flat,
+    } = &target.unit
+    {
+        return check_bundle_target(target, roots, placements, flat);
+    }
     if target.path.is_empty() {
         return Err("has an empty path".to_string());
     }
@@ -427,6 +449,7 @@ fn check_target(target: &Target) -> Result<(), String> {
                 check_plugin_target(target, contains.is_some())?;
             }
         }
+        Unit::Bundle { .. } => unreachable!("bundle targets return above"),
     }
     if target.recursive_load {
         match &target.unit {
@@ -446,6 +469,7 @@ fn check_target(target: &Target) -> Result<(), String> {
                 );
             }
             Unit::Directory { .. } => check_outside_recursive_path(target, "sets recursive_load")?,
+            Unit::Bundle { .. } => unreachable!("bundle targets return above"),
         }
     }
     if let Some(disabled) = &target.disabled {
@@ -461,6 +485,107 @@ fn check_target(target: &Target) -> Result<(), String> {
                 "declares both disabled and store_paths; a store path has no disabled folder of its own"
                     .to_string(),
             );
+        }
+    }
+    Ok(())
+}
+
+/// A bundle's files sit anywhere under its roots, so it is laid over the game folder itself and
+/// keeps its disabled files and its launch-without-mods backup outside every root.
+fn check_bundle_target(
+    target: &Target,
+    roots: &[String],
+    placements: &[Placement],
+    flat: &[Vec<String>],
+) -> Result<(), String> {
+    if !target.path.is_empty() {
+        return Err(
+            "is a bundle with a path. A bundle is laid over the game folder, so path must be empty"
+                .to_string(),
+        );
+    }
+    if target.activation != Activation::Filesystem
+        || target.load_order != crate::LoadOrder::None
+        || target.scope != TargetScope::Mods
+        || target.recursive_load
+        || target.loader.is_some()
+        || !target.store_paths.is_empty()
+    {
+        return Err("is a bundle, which needs filesystem activation, no load order, the mods scope, and no recursive_load, loader or store_paths".to_string());
+    }
+    if roots.is_empty() {
+        return Err("is a bundle with no roots, so no download could be placed".to_string());
+    }
+    for root in roots {
+        check_resource_path(std::slice::from_ref(root), "bundle root")?;
+    }
+    let lowered: Vec<String> = roots.iter().map(|root| root.to_ascii_lowercase()).collect();
+    if let Some(duplicate) = first_duplicate(lowered.iter().map(String::as_str)) {
+        return Err(format!("lists the bundle root '{duplicate}' twice"));
+    }
+    let inside_root = |path: &[String]| {
+        path.first()
+            .is_some_and(|first| roots.iter().any(|root| root.eq_ignore_ascii_case(first)))
+    };
+    let Some(disabled) = &target.disabled else {
+        return Err("is a bundle without a disabled path. Disabled files need a folder of their own outside every root".to_string());
+    };
+    for (path, label) in [(disabled, "disabled path"), (&target.backup, "backup path")] {
+        check_resource_path(path, label)?;
+        if inside_root(path) {
+            return Err(format!(
+                "is a bundle whose {label} sits inside a root, where the game would load it"
+            ));
+        }
+    }
+    if within(disabled, &target.backup) || within(&target.backup, disabled) {
+        return Err("is a bundle whose disabled and backup paths overlap".to_string());
+    }
+    if placements.is_empty() {
+        return Err("is a bundle with no placements".to_string());
+    }
+    let bare = |value: &str| !value.is_empty() && value.chars().all(|c| c.is_ascii_alphanumeric());
+    for placement in placements {
+        let into = placement.destination();
+        check_resource_path(into, "placement destination")?;
+        if !inside_root(into) {
+            return Err(format!(
+                "places into {}, which is outside every root",
+                into.join("/")
+            ));
+        }
+        match placement {
+            Placement::File { extension, .. } | Placement::Contains { extension, .. } => {
+                if !bare(extension) {
+                    return Err(format!(
+                        "declares the placement extension '{extension}'. Write it bare, with no leading dot or path separator"
+                    ));
+                }
+            }
+            Placement::Marker { file, .. } => {
+                check_resource_path(std::slice::from_ref(file), "placement marker")?;
+            }
+        }
+    }
+    let loose: Vec<String> = placements
+        .iter()
+        .filter_map(|placement| match placement {
+            Placement::File { extension, .. } => Some(extension.to_ascii_lowercase()),
+            _ => None,
+        })
+        .collect();
+    if let Some(duplicate) = first_duplicate(loose.iter().map(String::as_str)) {
+        return Err(format!(
+            "places loose .{duplicate} files twice, so their destination would be ambiguous"
+        ));
+    }
+    for path in flat {
+        check_resource_path(path, "flat folder")?;
+        if !inside_root(path) {
+            return Err(format!(
+                "declares the flat folder {}, which is outside every root",
+                path.join("/")
+            ));
         }
     }
     Ok(())

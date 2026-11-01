@@ -569,7 +569,7 @@ const DISPOSABLE_BACKUP_DIRS: &[&str] = &["logs", "downloads"];
 
 fn do_restore(game_path: &str, cfg: &crate::commands::mods::ModEngineConfig) -> Result<(), String> {
     for target in cfg.targets {
-        if target.shared_paks.is_some() {
+        if target.shared_paks.is_some() || target.is_bundle() {
             continue;
         }
         let mods_dir = mods_base(game_path, target);
@@ -614,7 +614,7 @@ fn do_restore(game_path: &str, cfg: &crate::commands::mods::ModEngineConfig) -> 
             fs::remove_dir_all(&mods_bak).ok();
         }
     }
-    Ok(())
+    crate::commands::mods::restore_bundles(game_path, cfg)
 }
 
 fn hide_package_mods(game_path: &str, cfg: &ModEngineConfig) -> Result<(), String> {
@@ -625,7 +625,11 @@ fn hide_package_mods(game_path: &str, cfg: &ModEngineConfig) -> Result<(), Strin
     {
         return Err("This game shares its Paks directory with native files. Use its supported no-mods launch option.".into());
     }
+    crate::commands::mods::hide_bundles(game_path, cfg)?;
     for (i, target) in cfg.targets.iter().enumerate() {
+        if target.is_bundle() {
+            continue;
+        }
         let mods_dir = mods_base(game_path, target);
         let mods_bak = backup_dir(game_path, target);
         if mods_bak.exists() || !mods_dir.exists() {
@@ -670,6 +674,7 @@ fn restore_pending_packages(game_path: &str, cfg: &ModEngineConfig) -> Result<()
             continue;
         }
         if !target.is_directory_unit()
+            && !target.is_bundle()
             && backup_dir(game_path, target).exists()
             && mods_base(game_path, target).exists()
         {

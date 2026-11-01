@@ -269,6 +269,16 @@ export const commands = {
  */
 export type ArchiveEntryId = number;
 
+/**
+ *  One file a bundle placed, with the bytes it wrote, so uninstalling and updating can tell a
+ *  file they may remove from one that changed since.
+ */
+export type BundleFile = {
+	path: string,
+	size: number,
+	sha256: string,
+};
+
 export type CbFlatPayload = CbFlatPayload_Serialize | CbFlatPayload_Deserialize;
 
 export type CbFlatPayload_Deserialize = {
@@ -594,6 +604,7 @@ export type InstalledMod_Deserialize = {
 	declared?: DeclaredMetadata_Deserialize | null,
 	deployment?: ResourceDeployment | null,
 	resourceStatus?: ResourceStatus | null,
+	bundle?: BundleFile[] | null,
 };
 
 export type InstalledMod_Serialize = {
@@ -625,6 +636,7 @@ export type InstalledMod_Serialize = {
 	declared?: DeclaredMetadata_Serialize | null,
 	deployment?: ResourceDeployment | null,
 	resourceStatus?: ResourceStatus | null,
+	bundle?: BundleFile[] | null,
 };
 
 export type InstalledResponse = InstalledResponse_Serialize | InstalledResponse_Deserialize;

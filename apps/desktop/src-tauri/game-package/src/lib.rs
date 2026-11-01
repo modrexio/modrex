@@ -481,6 +481,36 @@ pub enum Discovery {
     UnrealPlugin,
 }
 
+/// Where a download that is not laid out from the game folder goes, decided by what one of its
+/// top level entries is.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[serde(tag = "match", rename_all = "snake_case", deny_unknown_fields)]
+pub enum Placement {
+    /// A loose file with this extension.
+    File {
+        extension: String,
+        into: Vec<String>,
+    },
+    /// A folder holding this file directly inside it. The folder keeps its own name.
+    Marker { file: String, into: Vec<String> },
+    /// A folder holding a file with this extension directly inside it. The folder keeps its
+    /// own name.
+    Contains {
+        extension: String,
+        into: Vec<String>,
+    },
+}
+
+impl Placement {
+    pub fn destination(&self) -> &[String] {
+        match self {
+            Placement::File { into, .. }
+            | Placement::Marker { into, .. }
+            | Placement::Contains { into, .. } => into,
+        }
+    }
+}
+
 /// What one mod looks like inside a target.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
@@ -499,6 +529,19 @@ pub enum Unit {
         /// rather than an author-supplied folder copied as-is.
         #[serde(default)]
         contains: Option<FileFamily>,
+    },
+    /// One mod is a set of files laid over the game folder, for games whose downloads write
+    /// into several of its folders at once. The record lists every file it placed, so nothing
+    /// on disk has to mark where one mod ends.
+    Bundle {
+        /// Folders directly in the game folder that a download laid out from the game folder
+        /// may write into.
+        roots: Vec<String>,
+        placements: Vec<Placement>,
+        /// Folders the game reads only at their top level, so a file in a subfolder of one
+        /// would never load.
+        #[serde(default)]
+        flat: Vec<Vec<String>>,
     },
 }
 

@@ -260,6 +260,9 @@ fn a_discovered_spec_resolves_its_package() {
                             .unwrap_or_default()
                     );
                 }
+                (ModUnit::Bundle { roots: runtime, .. }, package::Unit::Bundle { roots, .. }) => {
+                    assert_eq!(roots, runtime);
+                }
                 _ => panic!("{} target {} changed unit kind", pkg.id, target.tag),
             }
         }

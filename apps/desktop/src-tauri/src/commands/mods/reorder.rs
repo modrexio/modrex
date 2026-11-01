@@ -85,6 +85,7 @@ pub fn move_mod_to_folder_op(
         .as_deref()
         .is_some_and(|tag| tag.starts_with("host:"))
         || cfg.mod_target(&moving).tag != cfg.primary().tag
+        || cfg.primary().is_bundle()
     {
         return Ok(());
     }

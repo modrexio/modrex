@@ -30,6 +30,8 @@ export interface GameSpec {
     storageKey: string
     hasNews: boolean
     supportsPackageViewer: boolean
+    // False where mods are laid over the game folder, which has no place for app folders.
+    appFolders: boolean
     movieReplacement?: {
         extensions: readonly ('bk2' | 'mp4')[]
         storefronts: readonly StorefrontId[]

@@ -1139,3 +1139,146 @@ fn shared_paks_with_an_xbox_binding_refuse_companions() {
         "cannot declare companions",
     );
 }
+
+/// A bundle primary laid over the game folder, beside a hand-installed directory target.
+fn with_bundle(target_fields: &str, unit_fields: &str) -> String {
+    format!(
+        r#"
+id = "fixture"
+name = "Fixture"
+short_name = "FIX"
+mod_metadata = "none"
+
+[install]
+executables = ["Fixture.exe"]
+processes = ["Fixture"]
+stores = [
+    {{ provider = "steam", app_id = 1, folder = "Fixture" }},
+]
+
+[[targets]]
+tag = "bundle"
+label = "mods"
+primary = true
+activation = "filesystem"
+load_order = "none"
+{target_fields}
+
+[targets.unit]
+kind = "bundle"
+roots = ["archive", "r6"]
+{unit_fields}
+
+[[targets]]
+tag = "scripts"
+label = "overrides"
+path = ["r6", "scripts"]
+backup = ["r6", "scripts.bak"]
+activation = "filesystem"
+load_order = "none"
+
+[targets.unit]
+kind = "directory"
+
+[targets.unit.discovery]
+policy = "all_directories"
+"#
+    )
+}
+
+const BUNDLE_TARGET: &str =
+    "path = []\ndisabled = [\".modrex\", \"disabled\"]\nbackup = [\".modrex\", \"hidden\"]";
+const BUNDLE_UNIT: &str = "placements = [\n    { match = \"file\", extension = \"archive\", into = [\"archive\", \"pc\", \"mod\"] },\n]\nflat = [[\"archive\", \"pc\", \"mod\"]]";
+
+#[test]
+fn a_bundle_primary_is_accepted_and_may_be_labelled_mods() {
+    let parsed: GamePackage =
+        toml::from_str(&with_bundle(BUNDLE_TARGET, BUNDLE_UNIT)).expect("parses");
+    validate::check("fixture", &parsed).expect("passes the checks");
+}
+
+#[test]
+fn a_bundle_lies_over_the_game_folder() {
+    assert_rejected(
+        &with_bundle(
+            &BUNDLE_TARGET.replace("path = []", "path = [\"mods\"]"),
+            BUNDLE_UNIT,
+        ),
+        "path must be empty",
+    );
+}
+
+#[test]
+fn a_bundle_must_be_the_primary_target() {
+    let text = with_bundle(BUNDLE_TARGET, BUNDLE_UNIT)
+        .replacen("primary = true\n", "", 1)
+        .replace("tag = \"scripts\"\n", "tag = \"scripts\"\nprimary = true\n");
+    assert_rejected(&text, "is a bundle but not primary");
+}
+
+#[test]
+fn a_bundle_keeps_disabled_files_outside_every_root() {
+    assert_rejected(
+        &with_bundle(
+            &BUNDLE_TARGET.replace("[\".modrex\", \"disabled\"]", "[\"R6\", \"off\"]"),
+            BUNDLE_UNIT,
+        ),
+        "disabled path sits inside a root",
+    );
+}
+
+#[test]
+fn a_bundle_keeps_its_backup_outside_every_root() {
+    assert_rejected(
+        &with_bundle(
+            &BUNDLE_TARGET.replace("[\".modrex\", \"hidden\"]", "[\"archive\", \"bak\"]"),
+            BUNDLE_UNIT,
+        ),
+        "backup path sits inside a root",
+    );
+}
+
+#[test]
+fn a_bundle_places_only_inside_its_roots() {
+    assert_rejected(
+        &with_bundle(
+            BUNDLE_TARGET,
+            &BUNDLE_UNIT.replace("into = [\"archive\", \"pc\", \"mod\"]", "into = [\"bin\"]"),
+        ),
+        "outside every root",
+    );
+}
+
+#[test]
+fn a_bundle_cannot_place_one_extension_twice() {
+    assert_rejected(
+        &with_bundle(
+            BUNDLE_TARGET,
+            "placements = [\n    { match = \"file\", extension = \"archive\", into = [\"archive\"] },\n    { match = \"file\", extension = \"ARCHIVE\", into = [\"r6\"] },\n]",
+        ),
+        "places loose .archive files twice",
+    );
+}
+
+#[test]
+fn a_flat_folder_sits_inside_a_root() {
+    assert_rejected(
+        &with_bundle(
+            BUNDLE_TARGET,
+            &BUNDLE_UNIT.replace(
+                "flat = [[\"archive\", \"pc\", \"mod\"]]",
+                "flat = [[\"bin\"]]",
+            ),
+        ),
+        "flat folder bin, which is outside every root",
+    );
+}
+
+#[test]
+fn only_a_bundle_shares_the_mods_label_with_other_targets() {
+    assert_rejected(
+        &with_bundle(BUNDLE_TARGET, BUNDLE_UNIT)
+            .replace("label = \"overrides\"", "label = \"mods\""),
+        "only a game's sole target or a bundle may use",
+    );
+}

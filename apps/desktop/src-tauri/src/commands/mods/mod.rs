@@ -1,3 +1,4 @@
+mod bundle;
 mod cleanup;
 mod companions;
 mod crimeboss_settings;
@@ -44,6 +45,9 @@ pub(crate) mod unreal_plugin;
 mod zip;
 
 // Public API used by lib.rs, launchers/, and other modules
+pub(crate) use self::bundle::{
+    hide_for_launch as hide_bundles, restore_after_launch as restore_bundles,
+};
 pub use self::companions::LeftoverFiles;
 pub use self::engine::{
     backup_dir, engine_for_game, ModEngineConfig, ModUnit, ScanTarget, SharedPaks, StoreLayout,
@@ -432,6 +436,7 @@ pub async fn get_installed(app: AppHandle, game_id: String) -> Result<InstalledR
             };
             format!("{}:{}", m.location.as_deref().unwrap_or(""), rel_path)
         })
+        .chain(bundle::owned_scan_keys(cfg, &state.mods))
         .collect();
 
     let mut untracked = find_untracked_paks(&game_path, &known, cfg).await;
@@ -3373,6 +3378,9 @@ pub fn open_mod_folder(app: AppHandle, game_id: String, tag: String) -> Result<(
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod bundle_tests;
 
 #[cfg(test)]
 mod shared_archive_tests;

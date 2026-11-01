@@ -278,6 +278,41 @@ bare download carries no archive name and falls back to the mod title either way
 Modrex synthesizes the folder around a file family rather than copying an author's
 folder as-is.
 
+`kind = "bundle"` means one mod is a set of files laid over the game folder, for a game
+whose downloads write into several of its folders at once. The installed record lists
+every file it placed. A bundle target is the primary target, its `path` is empty, it
+declares `disabled` and `backup` outside every root, and it uses filesystem activation
+with no load order. Its other targets are still scanned for mods installed by hand, and
+a file a bundle placed is never listed there. App folders are unavailable, since nothing
+about a bundle's location on disk follows a folder.
+
+```toml
+unit = {
+    kind = "bundle",
+    roots = ["archive", "r6"],
+    flat = [["archive", "pc", "mod"]],
+    placements = [
+        {
+            match = "file",
+            extension = "archive",
+            into = ["archive", "pc", "mod"],
+        },
+    ],
+}
+```
+
+A download whose top level holds only `roots` folders is installed exactly as laid out.
+Anything else goes through `placements`, matched against each top level entry: `file`
+places a loose file by `extension`, `marker` places a folder holding `file` directly
+inside it, and `contains` places a folder holding a file with `extension` directly inside
+it. A placed folder keeps its own name inside `into`. A single folder that is neither a
+root nor placed is a wrapper and is looked through. Several such folders that each place
+on their own are variants, offered for the user to pick. Documentation at a level that
+is not itself placed is skipped. Everything else refuses the install and names what
+could not be placed, as do a folder two placements both match, a file under a `flat`
+folder's subfolder, and a FOMOD installer. Nothing is overwritten that another bundle
+or no bundle owns.
+
 ### `family` and `contains`
 
 A file family is a primary `extension` plus the `companions` that travel with it

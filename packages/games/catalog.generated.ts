@@ -12,6 +12,7 @@ export const GAME_SPECS = {
         storageKey: 'cb',
         hasNews: false,
         supportsPackageViewer: true,
+        appFolders: true,
         movieReplacement: { extensions: ['bk2'], storefronts: ['steam', 'epic'] },
         configPresets: { filename: 'Engine.ini' },
         graphicsConfig: { filename: 'GameUserSettings.ini' },
@@ -30,8 +31,10 @@ export const GAME_SPECS = {
         storageKey: 'cp2077',
         hasNews: false,
         supportsPackageViewer: false,
+        appFolders: false,
         launchers: ['Steam', 'Epic Games'],
         modTargets: [
+            { id: 'mods', path: '' },
             { id: 'archive_mods', path: 'archive/pc/mod' },
             { id: 'redmod_mods', path: 'mods' },
             { id: 'cet_mods', path: 'bin/x64/plugins/cyber_engine_tweaks/mods' },
@@ -47,6 +50,7 @@ export const GAME_SPECS = {
         storageKey: 'pd2',
         hasNews: true,
         supportsPackageViewer: false,
+        appFolders: true,
         graphicsConfig: { filename: 'renderer_settings_dx11.xml' },
         launchers: ['Steam', 'Epic Games'],
         modTargets: [
@@ -63,6 +67,7 @@ export const GAME_SPECS = {
         storageKey: 'pd3',
         hasNews: true,
         supportsPackageViewer: true,
+        appFolders: true,
         movieReplacement: { extensions: ['bk2'], storefronts: ['steam', 'epic', 'xbox'] },
         configPresets: { filename: 'Engine.ini' },
         graphicsConfig: { filename: 'GameUserSettings.ini' },
@@ -82,6 +87,7 @@ export const GAME_SPECS = {
         storageKey: 'pdth',
         hasNews: true,
         supportsPackageViewer: false,
+        appFolders: true,
         graphicsConfig: { filename: 'renderer_settings.xml' },
         launchers: ['Steam'],
         modTargets: [
@@ -97,6 +103,7 @@ export const GAME_SPECS = {
         storageKey: 'raid',
         hasNews: false,
         supportsPackageViewer: false,
+        appFolders: true,
         graphicsConfig: { filename: 'renderer_settings_dx11.xml' },
         launchers: ['Steam'],
         modTargets: [
@@ -111,6 +118,7 @@ export const GAME_SPECS = {
         storageKey: 'ron',
         hasNews: false,
         supportsPackageViewer: true,
+        appFolders: true,
         movieReplacement: { extensions: ['mp4'], storefronts: ['steam'] },
         configPresets: { filename: 'Engine.ini' },
         graphicsConfig: { filename: 'GameUserSettings.ini' },

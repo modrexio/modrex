@@ -73,6 +73,15 @@ pub fn catalog_typescript() -> String {
             "        supportsPackageViewer: {},",
             pkg.package_reader.is_some()
         );
+        // App folders live on disk inside the primary target, which a bundle does not have.
+        let _ = writeln!(
+            out,
+            "        appFolders: {},",
+            !matches!(
+                pkg.primary_target().unit,
+                crate::game_package::Unit::Bundle { .. }
+            )
+        );
         if let Some(flag) = pkg.install.launch_flag.as_ref() {
             let _ = writeln!(out, "        requiredLaunchFlag: {},", quote(flag));
         }

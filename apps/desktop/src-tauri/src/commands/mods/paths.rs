@@ -168,7 +168,7 @@ pub fn disabled_mod_path(
         ModUnit::File {
             disabled_suffix, ..
         } => base.join(format!("{}{}", filename, disabled_suffix)),
-        ModUnit::Directory { .. } => base.join(filename),
+        ModUnit::Directory { .. } | ModUnit::Bundle { .. } => base.join(filename),
     }
 }
 
@@ -220,6 +220,10 @@ pub async fn find_untracked_paks(
 ) -> Vec<(String, bool, Option<String>)> {
     let mut out = Vec::new();
     for (i, target) in cfg.targets.iter().enumerate() {
+        // A bundle's files carry no mark of where one mod ends, so only its records know them.
+        if target.is_bundle() {
+            continue;
+        }
         if target.shared_paks.is_none() && engine_backup_dir(game_path, target).exists() {
             continue;
         }
@@ -256,6 +260,13 @@ pub async fn find_untracked_paks(
         }
     }
     out
+}
+
+/// Windows folders compare without case, and a bundle records the spelling its download used
+/// while the folder on disk keeps whichever spelling existed first, so a lowercase key matches
+/// too.
+fn is_known(known: &HashSet<String>, rel: &str) -> bool {
+    known.contains(rel) || known.contains(&rel.to_ascii_lowercase())
 }
 
 /// Names the scan passes over at the top of a target, because they are not mods there.
@@ -316,7 +327,7 @@ async fn scan_active(
                 };
                 if ft.is_dir() {
                     subdirs.push((entry.path(), rel));
-                } else if matches && !known.contains(&rel) {
+                } else if matches && !is_known(known, &rel) {
                     out.push((rel, true));
                 }
             }
@@ -342,11 +353,12 @@ async fn scan_active(
                     };
                     if !is_mod {
                         subdirs.push((entry.path(), rel));
-                    } else if !known.contains(&rel) {
+                    } else if !is_known(known, &rel) {
                         out.push((rel, true));
                     }
                 }
             }
+            ModUnit::Bundle { .. } => unreachable!("find_untracked_paks skips bundle targets"),
         }
     }
     for (path, sub) in subdirs {
@@ -404,7 +416,7 @@ async fn scan_disabled(
                     } else {
                         format!("{}/{}", prefix, active)
                     };
-                    if !known.contains(&rel) {
+                    if !is_known(known, &rel) {
                         out.push((rel, false));
                     }
                 }
@@ -431,11 +443,12 @@ async fn scan_disabled(
                     };
                     if !is_mod {
                         subdirs.push((entry.path(), sub));
-                    } else if !known.contains(&sub) {
+                    } else if !is_known(known, &sub) {
                         out.push((sub, false));
                     }
                 }
             }
+            ModUnit::Bundle { .. } => unreachable!("find_untracked_paks skips bundle targets"),
         }
     }
     for (path, sub) in subdirs {

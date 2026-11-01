@@ -29,9 +29,57 @@ install = {
 
 targets = [
     {
+        tag = "mods",
+        label = "mods",
+        primary = true,
+        path = [],
+        disabled = [".modrex", "disabled"],
+        backup = [".modrex", "hidden"],
+        activation = "filesystem",
+        load_order = "none",
+
+        unit = {
+            kind = "bundle",
+            roots = ["archive", "bin", "engine", "mods", "r6", "red4ext"],
+            flat = [["archive", "pc", "mod"]],
+
+            placements = [
+                {
+                    match = "file",
+                    extension = "archive",
+                    into = ["archive", "pc", "mod"],
+                },
+                {
+                    match = "file",
+                    extension = "xl",
+                    into = ["archive", "pc", "mod"],
+                },
+                {
+                    match = "file",
+                    extension = "reds",
+                    into = ["r6", "scripts"],
+                },
+                {
+                    match = "marker",
+                    file = "init.lua",
+                    into = ["bin", "x64", "plugins", "cyber_engine_tweaks", "mods"],
+                },
+                {
+                    match = "marker",
+                    file = "info.json",
+                    into = ["mods"],
+                },
+                {
+                    match = "contains",
+                    extension = "reds",
+                    into = ["r6", "scripts"],
+                },
+            ],
+        },
+    },
+    {
         tag = "archive_mods",
         label = "archive_mods",
-        primary = true,
         path = ["archive", "pc", "mod"],
         backup = ["archive", "pc", "mod.bak"],
         activation = "filesystem",

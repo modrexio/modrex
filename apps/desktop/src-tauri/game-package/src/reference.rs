@@ -435,6 +435,38 @@ pub fn markdown(examples: &[(&str, &str)]) -> String {
          `ignore_preset` names a host list of folders that are never mods. `contains` is set when\n\
          Modrex synthesizes the folder around a file family rather than copying an author's\n\
          folder as-is.\n\n\
+         `kind = \"bundle\"` means one mod is a set of files laid over the game folder, for a game\n\
+         whose downloads write into several of its folders at once. The installed record lists\n\
+         every file it placed. A bundle target is the primary target, its `path` is empty, it\n\
+         declares `disabled` and `backup` outside every root, and it uses filesystem activation\n\
+         with no load order. Its other targets are still scanned for mods installed by hand, and\n\
+         a file a bundle placed is never listed there. App folders are unavailable, since nothing\n\
+         about a bundle's location on disk follows a folder.\n\n\
+         ```toml\n\
+         unit = {\n\
+         \x20   kind = \"bundle\",\n\
+         \x20   roots = [\"archive\", \"r6\"],\n\
+         \x20   flat = [[\"archive\", \"pc\", \"mod\"]],\n\
+         \x20   placements = [\n\
+         \x20       {\n\
+         \x20           match = \"file\",\n\
+         \x20           extension = \"archive\",\n\
+         \x20           into = [\"archive\", \"pc\", \"mod\"],\n\
+         \x20       },\n\
+         \x20   ],\n\
+         }\n\
+         ```\n\n\
+         A download whose top level holds only `roots` folders is installed exactly as laid out.\n\
+         Anything else goes through `placements`, matched against each top level entry: `file`\n\
+         places a loose file by `extension`, `marker` places a folder holding `file` directly\n\
+         inside it, and `contains` places a folder holding a file with `extension` directly inside\n\
+         it. A placed folder keeps its own name inside `into`. A single folder that is neither a\n\
+         root nor placed is a wrapper and is looked through. Several such folders that each place\n\
+         on their own are variants, offered for the user to pick. Documentation at a level that\n\
+         is not itself placed is skipped. Everything else refuses the install and names what\n\
+         could not be placed, as do a folder two placements both match, a file under a `flat`\n\
+         folder's subfolder, and a FOMOD installer. Nothing is overwritten that another bundle\n\
+         or no bundle owns.\n\n\
          ### `family` and `contains`\n\n\
          A file family is a primary `extension` plus the `companions` that travel with it\n\
          because they share its filename stem. Unreal splits one mod across a `pak` holding\n\

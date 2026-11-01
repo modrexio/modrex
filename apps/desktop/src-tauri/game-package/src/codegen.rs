@@ -8,8 +8,8 @@ use crate::{
     Activation, ConfigLocation, ConfigPresets, DecoderBinding, Discovery, FileFamily, FileNaming,
     GamePackage, GraphicsConfig, Install, LoadOrder, LoaderBinding, MarkerMode, MarkerRule,
     ModMetadata, MovieFormat, MovieReplacement, NamePreset, NewsBinding, PackageReaderBinding,
-    SourceBinding, StoreBinding, StoreInstallInto, StorePath, Storefront, Target, TargetLabel,
-    Unit,
+    Placement, SourceBinding, StoreBinding, StoreInstallInto, StorePath, Storefront, Target,
+    TargetLabel, Unit,
 };
 
 const PATH: &str = "::modrex_game_package";
@@ -129,6 +129,26 @@ fn discovery(value: &Discovery) -> String {
     }
 }
 
+fn placement(value: &Placement) -> String {
+    match value {
+        Placement::File { extension, into } => format!(
+            "{PATH}::Placement::File {{ extension: {}, into: {} }}",
+            text(extension),
+            texts(into),
+        ),
+        Placement::Marker { file, into } => format!(
+            "{PATH}::Placement::Marker {{ file: {}, into: {} }}",
+            text(file),
+            texts(into),
+        ),
+        Placement::Contains { extension, into } => format!(
+            "{PATH}::Placement::Contains {{ extension: {}, into: {} }}",
+            text(extension),
+            texts(into),
+        ),
+    }
+}
+
 fn file_naming(value: FileNaming) -> String {
     let name = match value {
         FileNaming::ModName => "ModName",
@@ -170,6 +190,16 @@ fn unit(value: &Unit) -> String {
             discovery(policy),
             optional(ignore_preset.map(name_preset)),
             optional(contains.as_ref().map(file_family)),
+        ),
+        Unit::Bundle {
+            roots,
+            placements,
+            flat,
+        } => format!(
+            "{PATH}::Unit::Bundle {{ roots: {}, placements: {}, flat: {} }}",
+            texts(roots),
+            list(placements.iter().map(placement).collect()),
+            list(flat.iter().map(|path| texts(path)).collect()),
         ),
     }
 }

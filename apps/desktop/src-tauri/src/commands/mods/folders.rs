@@ -17,6 +17,13 @@ pub fn create_folder_op(
     parent_id: Option<String>,
     cfg: &ModEngineConfig,
 ) -> Result<ModFolder, String> {
+    // App folders exist on disk inside the primary target, and a bundle game's primary is
+    // the game folder itself.
+    if cfg.primary().is_bundle() {
+        return Err(
+            "This game has no app folders, because its mods are laid over the game folder".into(),
+        );
+    }
     let mut state = read_state_for_game(game_path, state_path, cfg).map_err(|e| e.to_string())?;
 
     let slug: String = display_name

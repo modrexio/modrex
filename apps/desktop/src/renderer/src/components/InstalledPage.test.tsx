@@ -116,6 +116,12 @@ describe('InstalledPage header', () => {
         expect(newFolder.querySelector('svg')?.getAttribute('class')).toContain('w-3.5 h-3.5')
     })
 
+    it('offers no New Folder where mods are laid over the game folder', async () => {
+        renderPage('cp2077')
+        await waitFor(() => expect(api.listModFolders).toHaveBeenCalledWith('cp2077'))
+        expect(screen.queryByRole('button', { name: t('installed.newFolder') })).toBeNull()
+    })
+
     it('places open folder last after refresh and health on a single-location page', async () => {
         renderPage()
         await waitFor(() => expect(api.listModFolders).toHaveBeenCalledWith('raid'))

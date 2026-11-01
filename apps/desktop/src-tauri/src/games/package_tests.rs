@@ -317,6 +317,37 @@ fn the_raid_package_has_one_blanket_accept_target() {
 }
 
 #[test]
+fn the_catalogue_offers_app_folders_only_where_the_primary_holds_them() {
+    let catalogue = super::catalog::catalog_typescript();
+    for (_, pkg) in super::discovered() {
+        let entry = catalogue
+            .split(&format!(
+                "    {}: {{
+",
+                pkg.id
+            ))
+            .nth(1)
+            .and_then(|rest| {
+                rest.split(
+                    "
+    },",
+                )
+                .next()
+            })
+            .unwrap_or_else(|| panic!("{} is missing from the catalogue", pkg.id));
+        let bundle = matches!(
+            pkg.primary_target().unit,
+            crate::game_package::Unit::Bundle { .. }
+        );
+        assert!(
+            entry.contains(&format!("appFolders: {},", !bundle)),
+            "{} reports the wrong app folder support",
+            pkg.id
+        );
+    }
+}
+
+#[test]
 fn the_catalogue_reports_viewer_support_without_the_key_it_would_use() {
     let catalogue = super::catalog::catalog_typescript();
     for (_, pkg) in super::discovered() {

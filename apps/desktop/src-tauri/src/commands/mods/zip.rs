@@ -1914,6 +1914,9 @@ pub fn resolve_archive_download(
     if cfg.game_id == "cb" {
         return resolve_crimeboss_archive(downloaded, cfg, registry);
     }
+    if cfg.primary().is_bundle() {
+        return resolve_bundle_archive(downloaded, cfg, registry);
+    }
     if detect_archive(&downloaded).is_none() {
         // Nothing was extracted, so the caller's own downloaded file is the only artifact.
         let cleanup = CleanupPlan::RemoveOwnedFileWithSidecars {
@@ -1923,6 +1926,7 @@ pub fn resolve_archive_download(
         let name_source = match &cfg.primary().unit {
             ModUnit::Directory { .. } => NameSource::FromArchive,
             ModUnit::File { .. } => NameSource::FromModDisplayName,
+            ModUnit::Bundle { .. } => unreachable!("bundle primaries resolve above"),
         };
         return Ok(Staged {
             root: downloaded,
@@ -2016,6 +2020,7 @@ pub fn resolve_archive_download(
                 }
             }
         }
+        ModUnit::Bundle { .. } => unreachable!("bundle primaries resolve above"),
         ModUnit::Directory { .. } => {
             let names: Vec<String> = list_entries(&downloaded)?
                 .into_iter()
@@ -2065,7 +2070,7 @@ pub fn resolve_archive_download(
                 .iter()
                 .flat_map(|t| match &t.unit {
                     ModUnit::Directory { entry_markers, .. } => entry_markers.iter().copied(),
-                    ModUnit::File { .. } => [].iter().copied(),
+                    ModUnit::File { .. } | ModUnit::Bundle { .. } => [].iter().copied(),
                 })
                 .collect();
             if is_unplaceable_pack(&names, &engine_markers) {
@@ -2141,6 +2146,91 @@ pub fn resolve_archive_download(
     }
 }
 
+/// A bundle game's download is planned whole before anything is staged, so a file the planner
+/// cannot place refuses the install rather than being dropped. Planning runs again at install
+/// over the staged files, which are the same files, to decide each destination.
+fn resolve_bundle_archive(
+    downloaded: PathBuf,
+    cfg: &ModEngineConfig,
+    registry: &StagingRegistry,
+) -> ResolvedArchive {
+    let layout = super::bundle::Layout::of(cfg.primary())
+        .expect("resolve_bundle_archive is only called for a bundle primary");
+    let refuse = |error: String| {
+        cleanup::run_sync(&CleanupPlan::RemoveOwnedFile(downloaded.clone()));
+        Err(ResolveError::Failure(error))
+    };
+    if detect_archive(&downloaded).is_none() {
+        // A loose file places by its extension. It is named at install, where the mod's own
+        // name is known, because a download's temp file is named after nothing.
+        let name = downloaded
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or_default()
+            .to_string();
+        if let Err(error) = super::bundle::plan(&[name], layout) {
+            return refuse(error);
+        }
+        return Ok(Staged {
+            root: downloaded.clone(),
+            cleanup: CleanupPlan::RemoveOwnedFile(downloaded),
+            name_source: NameSource::FromModDisplayName,
+            target_tag: None,
+            original_archive: None,
+        });
+    }
+    let entries = match list_entries(&downloaded) {
+        Ok(entries) => entries,
+        Err(error) => return refuse(error),
+    };
+    let files: Vec<String> = entries
+        .into_iter()
+        .filter(|entry| !entry.is_dir)
+        .map(|entry| entry.name)
+        .collect();
+    match super::bundle::plan(&files, layout) {
+        Err(error) => refuse(error),
+        Ok(super::bundle::Plan::Variants(prefixes)) => {
+            let zip_path = downloaded.to_string_lossy().to_string();
+            let staged = prefixes
+                .iter()
+                .map(|prefix| StagedEntry {
+                    source: StagedEntrySource::Directory {
+                        prefix: prefix.clone(),
+                    },
+                    display_name: prefix.clone(),
+                })
+                .collect();
+            // The primary's own tag keeps the picker from turning variant folders into app
+            // folders, which a bundle game does not have.
+            let payload = multi_pak_payload(
+                registry,
+                zip_path,
+                staged,
+                Some(cfg.primary().tag.to_string()),
+                None,
+                Some("dir".to_string()),
+            )?;
+            Err(prompt_err(InstallPrompt::ZipMultiPak(payload)))
+        }
+        Ok(super::bundle::Plan::Files(_)) => {
+            let parent = std::env::temp_dir().join(format!("modrex-mod-{}", Uuid::new_v4()));
+            let root = parent.join("download");
+            if let Err(error) = extract_archive_flat(&downloaded, &root) {
+                let _ = std::fs::remove_dir_all(&parent);
+                return refuse(error);
+            }
+            Ok(Staged {
+                root,
+                cleanup: CleanupPlan::RemoveOwnedDirectory(parent),
+                name_source: NameSource::FromModDisplayName,
+                target_tag: None,
+                original_archive: Some(downloaded),
+            })
+        }
+    }
+}
+
 /// Entry names with directories ending in a slash.
 fn archive_names(path: &Path) -> Option<Vec<String>> {
     detect_archive(path)?;
@@ -2176,7 +2266,7 @@ fn resolve_plugin_archive(
     // Loose containers outside every plugin are an independent payload for the pak folder.
     let loose: Vec<(u32, String)> = match &cfg.primary().unit {
         ModUnit::File { extension, .. } => list_unit_entries_indexed(downloaded, extension).ok()?,
-        ModUnit::Directory { .. } => Vec::new(),
+        ModUnit::Directory { .. } | ModUnit::Bundle { .. } => Vec::new(),
     };
     let plugins = match super::unreal_plugin::plugins_in_archive(&names) {
         super::unreal_plugin::ArchivePlugins::None => return None,
