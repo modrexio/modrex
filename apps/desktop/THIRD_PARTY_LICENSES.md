@@ -7577,7 +7577,7 @@ DEALINGS IN THE SOFTWARE.
 
 ## MIT License
 
-Used by: libsqlite3-sys 0.38.2, rusqlite 0.40.2
+Used by: libsqlite3-sys 0.39.1, rusqlite 0.41.1
 
 ```
 Copyright (c) 2014 The rusqlite developers
