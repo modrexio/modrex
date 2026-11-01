@@ -1,5 +1,103 @@
 ---
 import Nav from '../Nav.astro'
+
+const { hasSidebar } = Astro.locals.starlightRoute
 ---
 
 <Nav activePage="docs" />
+
+{hasSidebar && (
+    <>
+        <div class="docs-sidebar-peek-zone" data-docs-sidebar-peek-zone />
+        <div class="docs-sidebar-pill">
+            <button
+                type="button"
+                class="docs-sidebar-icon-button"
+                aria-label="Expand sidebar"
+                title="Expand sidebar"
+                data-docs-sidebar-toggle
+            >
+                <svg
+                    aria-hidden="true"
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                >
+                    <rect width="18" height="18" x="3" y="3" rx="2" />
+                    <path d="M9 3v18" />
+                </svg>
+            </button>
+            <button
+                type="button"
+                class="docs-sidebar-icon-button"
+                aria-label="Search docs"
+                title="Search docs"
+                data-docs-sidebar-search
+            >
+                <svg
+                    aria-hidden="true"
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                >
+                    <circle cx="11" cy="11" r="8" />
+                    <path d="m21 21-4.35-4.35" />
+                </svg>
+            </button>
+        </div>
+    </>
+)}
+
+<script>
+    // The stored choice is applied to the html element by an inline script in
+    // Head.astro, before first paint, so a collapsed sidebar never flashes open.
+    const root = document.documentElement
+    const pane = document.querySelector<HTMLElement>('#starlight__sidebar')
+    const peekZone = document.querySelector<HTMLElement>('[data-docs-sidebar-peek-zone]')
+
+    if (pane && peekZone) {
+        document.querySelectorAll('[data-docs-sidebar-toggle]').forEach((button) => {
+            button.addEventListener('click', () => {
+                const collapsed = root.dataset.docsSidebar !== 'collapsed'
+                if (collapsed) root.dataset.docsSidebar = 'collapsed'
+                else delete root.dataset.docsSidebar
+                delete root.dataset.docsSidebarPeek
+                try {
+                    localStorage.setItem('docs-sidebar', collapsed ? 'collapsed' : 'expanded')
+                } catch {
+                    // localStorage can be unavailable in restricted browser contexts.
+                }
+            })
+        })
+
+        // The peek opens only from the screen edge, never from the pane itself, so
+        // the pane does not spring back open under the pointer that just collapsed it.
+        peekZone.addEventListener('pointerenter', () => {
+            root.dataset.docsSidebarPeek = ''
+        })
+        peekZone.addEventListener('pointerleave', (event) => {
+            if (pane.contains(event.relatedTarget as Node | null)) return
+            delete root.dataset.docsSidebarPeek
+        })
+        pane.addEventListener('pointerleave', () => {
+            delete root.dataset.docsSidebarPeek
+        })
+
+        // The search field it forwards to stops the click itself, see Search.astro.
+        const searchField = document.querySelector<HTMLButtonElement>('[data-docs-search-trigger]')!
+        document.querySelector('[data-docs-sidebar-search]')!.addEventListener('click', (event) => {
+            event.stopPropagation()
+            searchField.click()
+        })
+    }
+</script>

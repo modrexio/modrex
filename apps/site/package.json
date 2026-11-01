@@ -43,6 +43,7 @@
         "@modrex/scrollbars": "workspace:*",
         "@astrojs/sitemap": "3.7.4",
         "@astrojs/starlight": "0.42.7",
-        "lucide": "1.61.0"
+        "lucide": "1.61.0",
+        "p5": "2.3.4"
     }
 }

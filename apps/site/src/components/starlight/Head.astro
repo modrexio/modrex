@@ -162,6 +162,15 @@ const faqPage = {
 ---
 
 <Default {...Astro.props} />
+<script is:inline>
+    try {
+        if (window.localStorage.getItem('docs-sidebar') === 'collapsed') {
+            window.document.documentElement.dataset.docsSidebar = 'collapsed'
+        }
+    } catch {
+        // localStorage can be unavailable in restricted browser contexts.
+    }
+</script>
 <Font cssVariable="--font-bebas-neue" preload />
 <Scrollbars />
 <meta property="og:image" content={ogImageUrl} />

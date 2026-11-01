@@ -1,6 +1,8 @@
 use super::engine::{mods_dir, ModEngineConfig};
 use super::naming::log_name;
-use crate::commands::launchers::steam_manifest::{read_native_files, NativeFilesSnapshot};
+use super::owned_files::{OwnedFiles, PlacedHashes};
+use crate::commands::launchers::epic_manifest::EpicNativeFiles;
+use crate::commands::launchers::steam_manifest::NativeFilesSnapshot;
 use std::fs;
 use std::path::{Component, Path, PathBuf};
 
@@ -14,46 +16,148 @@ struct NativeTarget {
     root: PathBuf,
     disabled_suffix: &'static str,
     companions: &'static [&'static str],
-    snapshot: NativeFilesSnapshot,
+    snapshot: NativeCatalog,
+}
+
+/// Where the selected copy's own store keeps its record of the installed build.
+pub(super) enum CatalogStore {
+    /// The primary Steam installation, which holds every library's depot cache.
+    Steam(PathBuf),
+    /// The Epic launcher's installation record directory.
+    Epic(PathBuf),
+    /// The Microsoft Store keeps no readable file list, so only Modrex's own files may change.
+    Xbox(PlacedHashes),
+}
+
+enum NativeCatalog {
+    Steam(NativeFilesSnapshot),
+    Epic(EpicNativeFiles),
+    Owned(OwnedFiles),
+}
+
+impl NativeCatalog {
+    fn game_root(&self) -> &Path {
+        match self {
+            NativeCatalog::Steam(snapshot) => &snapshot.game_root,
+            NativeCatalog::Epic(snapshot) => &snapshot.game_root,
+            NativeCatalog::Owned(owned) => &owned.game_root,
+        }
+    }
+
+    fn protects(&self, relative: &Path) -> Result<bool, String> {
+        match self {
+            NativeCatalog::Steam(snapshot) => snapshot.protects(relative),
+            NativeCatalog::Epic(snapshot) => snapshot.protects(relative),
+            NativeCatalog::Owned(owned) => owned.protects(relative),
+        }
+    }
+
+    fn protects_tree(&self, relative: &Path) -> Result<bool, String> {
+        match self {
+            NativeCatalog::Steam(snapshot) => snapshot.protects_tree(relative),
+            NativeCatalog::Epic(snapshot) => snapshot.protects_tree(relative),
+            // Without a file list nothing under a folder can be known in advance, so callers
+            // walk the folder and check each existing entry.
+            NativeCatalog::Owned(owned) => owned.protects(relative),
+        }
+    }
+
+    fn verify_unchanged(&self) -> Result<(), String> {
+        match self {
+            NativeCatalog::Steam(snapshot) => snapshot.verify_unchanged(),
+            NativeCatalog::Epic(snapshot) => snapshot.verify_unchanged(),
+            NativeCatalog::Owned(owned) => owned.verify_unchanged(),
+        }
+    }
 }
 
 impl NativeGuard {
+    /// For an operation that changes files.
     pub fn load(game_path: &str, cfg: &ModEngineConfig) -> Result<Self, String> {
+        Self::load_with(game_path, cfg, PlacedHashes::Fresh)
+    }
+
+    /// For a scan that only reads, which may trust hashes of files that look unchanged.
+    pub fn load_for_scan(game_path: &str, cfg: &ModEngineConfig) -> Result<Self, String> {
+        Self::load_with(game_path, cfg, PlacedHashes::Cached)
+    }
+
+    fn load_with(
+        game_path: &str,
+        cfg: &ModEngineConfig,
+        hashes: PlacedHashes,
+    ) -> Result<Self, String> {
         if !cfg
             .targets
             .iter()
-            .any(|target| target.native_steam_app.is_some())
+            .any(|target| target.shared_paks.is_some())
         {
             return Ok(Self {
                 game_root: PathBuf::from(game_path),
                 targets: Vec::new(),
             });
         }
-        let steam_root = crate::commands::launchers::steam_install_path().ok_or(
-            "Steam must be installed to verify native game files in the shared Paks directory",
-        )?;
-        Self::load_from_steam_root(game_path, cfg, Path::new(&steam_root))
+        let store = match detect_store(Path::new(game_path), hashes) {
+            Some(store) => store,
+            None => {
+                let steam_root = crate::commands::launchers::steam_install_path().ok_or(
+                    "Steam must be installed to verify native game files in the shared Paks directory",
+                )?;
+                CatalogStore::Steam(PathBuf::from(steam_root))
+            }
+        };
+        Self::load_from(game_path, cfg, &store)
     }
 
-    fn load_from_steam_root(
+    pub(super) fn load_from(
         game_path: &str,
         cfg: &ModEngineConfig,
-        steam_root: &Path,
+        store: &CatalogStore,
     ) -> Result<Self, String> {
         let game_root = PathBuf::from(game_path);
         let mut targets = Vec::new();
         for target in cfg.targets {
-            let Some(app_id) = target.native_steam_app else {
+            let Some(shared) = &target.shared_paks else {
                 continue;
             };
-            let snapshot = read_native_files(steam_root, &game_root, app_id)
-                .map_err(|error| format!("Cannot verify the game's original files: {error}. Open Steam to finish or verify the installation, then return to Modrex."))?;
-            log::debug!(
-                "Verified native files for Steam app {} build {} from {} depots",
-                snapshot.app_id,
-                snapshot.build_id,
-                snapshot.depots.len()
-            );
+            let snapshot = match store {
+                CatalogStore::Steam(steam_root) => {
+                    let app_id = shared
+                        .steam_app
+                        .ok_or("This game's shared Paks are not supported for Steam copies")?;
+                    let snapshot = crate::commands::launchers::steam_manifest::read_native_files(
+                        steam_root, &game_root, app_id,
+                    )
+                    .map_err(|error| format!("Cannot verify the game's original files: {error}. Open Steam to finish or verify the installation, then return to Modrex."))?;
+                    log::debug!(
+                        "Verified native files for Steam app {} build {} from {} depots",
+                        snapshot.app_id,
+                        snapshot.build_id,
+                        snapshot.depots.len()
+                    );
+                    NativeCatalog::Steam(snapshot)
+                }
+                CatalogStore::Epic(manifest_dir) => {
+                    let name = shared
+                        .epic_name
+                        .ok_or("This game's shared Paks are not supported for Epic copies")?;
+                    NativeCatalog::Epic(
+                        crate::commands::launchers::epic_manifest::read_native_files(
+                            manifest_dir, name, &game_root,
+                        )
+                        .map_err(|error| format!("Cannot verify the game's original files: {error}. Open Epic Games Launcher to finish or verify the installation, then return to Modrex."))?,
+                    )
+                }
+                CatalogStore::Xbox(hashes) => {
+                    if !shared.xbox {
+                        return Err(
+                            "This game's shared Paks are not supported for Microsoft Store copies"
+                                .into(),
+                        );
+                    }
+                    NativeCatalog::Owned(OwnedFiles::load(game_path, cfg, target, *hashes)?)
+                }
+            };
             targets.push(NativeTarget {
                 root: mods_dir(game_path, target),
                 disabled_suffix: target.disabled_suffix(),
@@ -62,6 +166,23 @@ impl NativeGuard {
             });
         }
         Ok(Self { game_root, targets })
+    }
+
+    fn refusal(&self, path: &Path) -> String {
+        if self
+            .targets
+            .iter()
+            .any(|target| matches!(target.snapshot, NativeCatalog::Owned(_)))
+        {
+            return format!(
+                "{} was not installed by Modrex or has changed since, so Modrex will not modify it",
+                log_name(path)
+            );
+        }
+        format!(
+            "{} belongs to the game and cannot be modified",
+            log_name(path)
+        )
     }
 
     pub fn shares_native_files(&self) -> bool {
@@ -139,7 +260,7 @@ impl NativeGuard {
         let resolved = resolve_existing_ancestor(path)?;
         for target in &self.targets {
             let relative = resolved
-                .strip_prefix(&target.snapshot.game_root)
+                .strip_prefix(target.snapshot.game_root())
                 .map_err(|_| "The mod path resolves outside the configured game directory")?;
             if target.snapshot.protects(relative)? {
                 return Ok(true);
@@ -188,10 +309,7 @@ impl NativeGuard {
             ));
         }
         if self.protects(path)? {
-            return Err(format!(
-                "{} belongs to the game and cannot be modified",
-                log_name(path)
-            ));
+            return Err(self.refusal(path));
         }
         Ok(())
     }
@@ -213,7 +331,7 @@ impl NativeGuard {
             }
             let resolved = resolve_existing_ancestor(path)?;
             let relative = resolved
-                .strip_prefix(&target.snapshot.game_root)
+                .strip_prefix(target.snapshot.game_root())
                 .map_err(|_| "The mod folder resolves outside the configured game directory")?;
             if target.snapshot.protects_tree(relative)? {
                 return Err(format!(
@@ -276,13 +394,25 @@ impl NativeGuard {
             }
         }
         if self.protects(path)? {
-            return Err(format!(
-                "{} belongs to the game and cannot be modified",
-                log_name(path)
-            ));
+            return Err(self.refusal(path));
         }
         Ok(())
     }
+}
+
+// Read from disk, not the saved launcher, because a hand-picked folder has none. A store
+// whose record does not name this folder refuses, so a wrong guess cannot pass. None means
+// the folder carries no Microsoft Store or Epic marker, which leaves Steam.
+fn detect_store(game_root: &Path, hashes: PlacedHashes) -> Option<CatalogStore> {
+    if game_root.join("MicrosoftGame.config").is_file() {
+        return Some(CatalogStore::Xbox(hashes));
+    }
+    if game_root.join(".egstore").is_dir() {
+        return Some(CatalogStore::Epic(
+            crate::commands::launchers::epic::epic_manifest_dir(),
+        ));
+    }
+    None
 }
 
 pub(super) fn check_contained_path(root: &Path, path: &Path) -> Result<(), String> {
@@ -311,7 +441,7 @@ pub(super) fn paths_equal(left: &Path, right: &Path) -> Result<bool, String> {
         use std::os::windows::ffi::OsStrExt;
         let left: Vec<u16> = left.as_os_str().encode_wide().collect();
         let right: Vec<u16> = right.as_os_str().encode_wide().collect();
-        crate::commands::launchers::steam_manifest::windows_path_order(&left, &right)
+        crate::commands::launchers::native_paths::windows_path_order(&left, &right)
             .map(|order| order == std::cmp::Ordering::Equal)
     }
     #[cfg(not(windows))]

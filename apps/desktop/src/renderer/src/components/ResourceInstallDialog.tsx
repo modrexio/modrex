@@ -4,8 +4,11 @@ import { api, type ResourceReview } from '../api'
 import {
     finishResourceReview,
     getPendingResourceReview,
+    formatMovieLength,
+    initialResourceSelection,
     resourceSelectionIssue,
     matchingMovieSlot,
+    movieSlotsFor,
     resourceConflicts,
     subscribeResourceReview,
 } from '../resourceInstall'
@@ -13,10 +16,15 @@ import { t, useLocale } from '../i18n'
 import { Dialog, DialogHeader } from './Dialog'
 import { Button } from './ui/Button'
 import { Select } from './Select'
+import { ScrollArea } from './ScrollArea'
 import { ZipPickerModal, type ZipMultiPakPayload } from './ZipPickerModal'
 import { refreshInstalled } from '../gameData'
 import { GAMES, type InstalledMod } from '../../../shared/types'
 import { displayPath } from '../lib/displayPath'
+import { ModworkshopMarkup } from './MarkdownContent'
+import { getCachedMod } from '../modCache'
+
+type Instructions = { text: string; legacy: boolean } | { error: string }
 
 function Review({ handle }: { handle: string }) {
     const [review, setReview] = useState<ResourceReview | null>(null)
@@ -26,6 +34,7 @@ function Review({ handle }: { handle: string }) {
     const [pakChoice, setPakChoice] = useState<InstalledMod[] | null>(null)
     const [pakApplied, setPakApplied] = useState(false)
     const [pakComplete, setPakComplete] = useState(false)
+    const [instructions, setInstructions] = useState<Instructions | null>(null)
     const [completion, setCompletion] = useState<Awaited<
         ReturnType<typeof api.installReviewedResources>
     > | null>(null)
@@ -37,7 +46,9 @@ function Review({ handle }: { handle: string }) {
         let cancelled = false
         api.getResourceReview(handle).then(
             (value) => {
-                if (!cancelled) setReview(value)
+                if (cancelled) return
+                setReview(value)
+                setSelection(initialResourceSelection(value))
             },
             (failure) => {
                 if (!cancelled) setError(String(failure))
@@ -47,6 +58,43 @@ function Review({ handle }: { handle: string }) {
             cancelled = true
         }
     }, [handle])
+
+    const instructionsId =
+        review?.source === 'modworkshop' && review.entries.some((entry) => entry.kind === 'movie')
+            ? Number(review.remoteId)
+            : null
+    useEffect(() => {
+        if (!instructionsId) return
+        let cancelled = false
+        getCachedMod(instructionsId).then(
+            (mod) => {
+                const text = mod.instructions?.trim()
+                if (!cancelled && text) setInstructions({ text, legacy: mod.legacy_markup })
+            },
+            (failure) => {
+                if (!cancelled) setInstructions({ error: String(failure) })
+            }
+        )
+        return () => {
+            cancelled = true
+        }
+    }, [instructionsId])
+
+    function slotLabel(slot: string) {
+        const details = review!.movieDetails[slot]
+        if (!details || details.seconds === null) return slot
+        return t(
+            details.sound
+                ? 'resources.install.slotWithDetails'
+                : 'resources.install.slotWithDetailsSilent',
+            {
+                slot,
+                length: formatMovieLength(details.seconds),
+                width: details.width,
+                height: details.height,
+            }
+        )
+    }
 
     function toggle(entry: ResourceReview['entries'][number], checked: boolean) {
         setSelection((current) => {
@@ -212,7 +260,10 @@ function Review({ handle }: { handle: string }) {
                             }
                             options={[
                                 { value: '', label: t('resources.install.chooseSlot') },
-                                ...review!.movieSlots.map((slot) => ({ value: slot, label: slot })),
+                                ...movieSlotsFor(review!, entry).map((slot) => ({
+                                    value: slot,
+                                    label: slotLabel(slot),
+                                })),
                             ]}
                             disabled={busy}
                         />
@@ -322,7 +373,7 @@ function Review({ handle }: { handle: string }) {
                 onClose={() => void cancel()}
                 closeDisabled={busy}
             />
-            <div className="flex-1 min-h-0 overflow-y-auto p-5 flex flex-col gap-4">
+            <ScrollArea hostClassName="flex-1" className="overflow-y-auto p-5 flex flex-col gap-4">
                 <p className="text-xs text-text-muted">
                     {t(packagesOnly ? 'zipPicker.sharedHelp' : 'resources.install.description')}
                 </p>
@@ -394,6 +445,29 @@ function Review({ handle }: { handle: string }) {
                         <p className="text-xs text-text-subtle">
                             {t('resources.install.slotHelp')}
                         </p>
+                        {instructions && 'text' in instructions && (
+                            <details open className="text-xs">
+                                <DisclosureSummary className="cursor-pointer font-medium">
+                                    {t('resources.install.authorInstructions')}
+                                </DisclosureSummary>
+                                <ScrollArea
+                                    hostClassName="mt-2 max-h-48"
+                                    className="overflow-y-auto text-text-muted"
+                                >
+                                    <ModworkshopMarkup
+                                        text={instructions.text}
+                                        legacy={instructions.legacy}
+                                    />
+                                </ScrollArea>
+                            </details>
+                        )}
+                        {instructions && 'error' in instructions && (
+                            <p className="text-xs text-text-subtle">
+                                {t('resources.install.instructionsUnavailable', {
+                                    error: instructions.error,
+                                })}
+                            </p>
+                        )}
                         {review.entries.filter((entry) => entry.kind === 'movie').map(renderEntry)}
                     </fieldset>
                 )}
@@ -509,7 +583,7 @@ function Review({ handle }: { handle: string }) {
                         {review.entries.filter((entry) => entry.kind === 'other').map(renderEntry)}
                     </fieldset>
                 )}
-            </div>
+            </ScrollArea>
             <div className="flex flex-col gap-3 p-4 border-t border-border shrink-0">
                 {!packagesOnly && (
                     <p className="text-xs text-text-muted">

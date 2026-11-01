@@ -1,0 +1,76 @@
+name: PR Labels
+
+on:
+    pull_request_target:
+        types: [opened, edited, reopened, synchronize]
+
+# pull_request_target hands fork PRs a write token, so this job must never check out or run PR
+# code. It reads the body and the changed file list through the API only.
+permissions:
+    pull-requests: write
+
+concurrency:
+    group: pr-labels-${{ github.event.pull_request.number }}
+
+jobs:
+    label:
+        if: github.event.action != 'edited' || github.event.changes.body
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/github-script@v9
+              with:
+                  script: |
+                      // Keys are the Type of change boxes in .github/pull_request_template.md. The
+                      // label rules themselves live in .agents/skills/pr/SKILL.md.
+                      const primary = {
+                          'Bug fix': 'bug',
+                          'Feature': 'feature',
+                          'Improvement': 'improvement',
+                          'Translation': 'translation',
+                          'Maintenance (CI, build, tooling, refactors)': 'maintenance',
+                          'Dependencies': 'dependencies',
+                          'Documentation only': 'documentation',
+                      };
+                      const issue = { ...context.repo, issue_number: context.issue.number };
+                      const { data: pr } = await github.rest.pulls.get({
+                          ...context.repo,
+                          pull_number: context.issue.number,
+                      });
+                      const current = new Set(pr.labels.map((label) => label.name));
+                      const add = [];
+
+                      const section = (pr.body ?? '')
+                          .replace(/<!--[\s\S]*?-->/g, '')
+                          .split(/^## /m)
+                          .find((part) => part.startsWith('Type of change'));
+                      const ticked = (section ?? '')
+                          .split(/\r?\n/)
+                          .map((line) => line.match(/^\s*[-*]\s+\[[xX]\]\s+(.+?)\s*$/)?.[1])
+                          .filter((box) => box in primary)
+                          .map((box) => primary[box]);
+
+                      // Exactly one box has to be ticked. Guessing between several would put the
+                      // wrong purpose on the PR, so an ambiguous body leaves the labels alone.
+                      if (ticked.length === 1) {
+                          for (const label of Object.values(primary)) {
+                              if (label !== ticked[0] && current.has(label)) {
+                                  await github.rest.issues.removeLabel({ ...issue, name: label });
+                              }
+                          }
+                          if (!current.has(ticked[0])) add.push(ticked[0]);
+                      } else {
+                          core.warning(`Expected one ticked Type of change box, found ${ticked.length}.`);
+                      }
+
+                      const files = await github.paginate(github.rest.pulls.listFiles, {
+                          ...context.repo,
+                          pull_number: pr.number,
+                          per_page: 100,
+                      });
+                      const gamePackage = /^apps\/desktop\/src-tauri\/src\/games\/[^/]+\//;
+                      const touchesGame = files.some(
+                          (file) => gamePackage.test(file.filename) || gamePackage.test(file.previous_filename ?? ''),
+                      );
+                      if (touchesGame && !current.has('game support')) add.push('game support');
+
+                      if (add.length > 0) await github.rest.issues.addLabels({ ...issue, labels: add });

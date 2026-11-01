@@ -78,7 +78,7 @@ const extension = (file: DlFile) => file.name.split('.').pop()
                 <div class="dl-body">
                     <div class="files">
                         {windowsFiles.map((f) => (
-                            <a class="btn-lg primary dl-btn" href={f.url} data-os-main="windows">
+                            <a class="btn-lg secondary dl-btn" href={f.url} data-os-main="windows">
                                 Download .{extension(f)}{' '}
                                 {f.size && <span class="fsize">{f.size}</span>}
                             </a>
@@ -147,7 +147,7 @@ const extension = (file: DlFile) => file.name.split('.').pop()
 
 <script>
     import { createIcons, Check, Copy } from 'lucide'
-    import { detectOs } from '../lib/os-detect'
+    import { detectPlatform } from '../lib/os-detect'
     createIcons({ icons: { Check, Copy } })
 
     document.querySelectorAll<HTMLElement>('.copy-btn').forEach((copyBtn) => {
@@ -167,15 +167,12 @@ const extension = (file: DlFile) => file.name.split('.').pop()
         })
     })
 
-    // Windows is the filled button in the markup. A desktop Linux visitor gets the
-    // AppImage filled instead, so there is only ever one primary download.
-    const { isMobile, isLinux } = detectOs()
-    if (!isMobile && isLinux) {
-        document.querySelectorAll<HTMLElement>('[data-os-main]').forEach((button) => {
-            const main = button.dataset.osMain === 'linux'
-            button.classList.toggle('primary', main)
-            button.classList.toggle('secondary', !main)
-        })
+    // Every download is secondary in the markup. Only a recognized platform gets its
+    // main build filled, so there is at most one primary download.
+    const platform = detectPlatform()
+    if (platform) {
+        const main = document.querySelector<HTMLElement>(`[data-os-main="${platform}"]`)!
+        main.classList.replace('secondary', 'primary')
     }
 </script>
 

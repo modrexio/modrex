@@ -56,7 +56,10 @@ const lua = makeMod({ uid: 'lua', remoteId: '7', filename: 'SplitLua', location:
 
 function renderItem(
     elsewhereByIdentity: InstalledContextValue['elsewhereByIdentity'],
-    manageFilesKey: string | null = null
+    manageFilesKey: string | null = null,
+    item: InstalledMod = pak,
+    failedIds = new Set([-7]),
+    activeGame: InstalledContextValue['activeGame'] = 'pd3'
 ) {
     const handlers = {
         handleUninstall: vi.fn(async () => {}),
@@ -66,9 +69,9 @@ function renderItem(
     }
     const ctx = {
         modData: new Map(),
-        failedIds: new Set([-7]),
+        failedIds,
         viewMode: 'grid',
-        activeGame: 'pd3',
+        activeGame,
         gamePath: 'C:/game',
         isFiltering: false,
         visibleFolderIds: undefined,
@@ -98,7 +101,7 @@ function renderItem(
     } satisfies InstalledContextValue
     render(
         <InstalledContext.Provider value={ctx}>
-            <InstalledModItem mods={[pak]} />
+            <InstalledModItem mods={[item]} />
         </InstalledContext.Provider>
     )
     return handlers
@@ -131,5 +134,30 @@ describe('InstalledModItem across location tabs', () => {
         expect(screen.getByTestId('note').textContent).toBe('')
         fireEvent.click(screen.getByText('disable'))
         expect(handlers.handleDisable).toHaveBeenCalledWith([pak])
+    })
+})
+
+describe('InstalledModItem while metadata loads', () => {
+    const waiting = (
+        item: InstalledMod,
+        activeGame: InstalledContextValue['activeGame'] = 'pd3'
+    ) => {
+        renderItem(new Map(), null, item, new Set(), activeGame)
+        return screen.queryByTestId('note') === null
+    }
+
+    it('waits for a ModWorkshop id the metadata fetch requests', () => {
+        expect(waiting(makeMod({ remoteId: '25629' }))).toBe(true)
+    })
+
+    it('shows local data for ids no fetch will ever request', () => {
+        for (const remoteId of ['-3357105', '0', '4294967296', '12.5', 'abc']) {
+            expect(waiting(makeMod({ remoteId })), remoteId).toBe(false)
+            cleanup()
+        }
+    })
+
+    it('shows local data in a game ModWorkshop does not list', () => {
+        expect(waiting(makeMod({ remoteId: '25629' }), 'ron')).toBe(false)
     })
 })

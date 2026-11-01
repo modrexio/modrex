@@ -1,5 +1,5 @@
 use super::*;
-use crate::game_package::{ConfigPresets, MovieReplacement, Storefront};
+use crate::game_package::{ConfigPresets, MovieFormat, MovieReplacement, Storefront};
 use std::io::Write;
 
 fn archive(name: &str) -> tempfile::NamedTempFile {
@@ -23,12 +23,12 @@ fn archive_entries(entries: &[(&str, &[u8])]) -> tempfile::NamedTempFile {
 fn config_and_movie_archive_routing_use_independent_declarations() {
     let cfg = super::super::engine::engine_for_game("pd3").unwrap();
     let registry = StagingRegistry::new();
-    let movies = MovieReplacement::Bink {
+    let movies = MovieReplacement {
+        formats: vec![MovieFormat::Bink],
         directory: vec!["Media".into()],
         storefronts: vec![Storefront::Steam],
-        absent_slots: vec![],
     };
-    let config = ConfigPresets::UnrealEngineIni { locations: vec![] };
+    let config = ConfigPresets::UnrealEngineIni {};
     let ini = archive("Engine.ini");
     let movie = archive("Intro.bk2");
 
@@ -58,12 +58,12 @@ fn config_and_movie_archive_routing_use_independent_declarations() {
 fn loose_resources_require_their_own_declared_mechanism() {
     let cfg = super::super::engine::engine_for_game("pd3").unwrap();
     let registry = StagingRegistry::new();
-    let movies = MovieReplacement::Bink {
+    let movies = MovieReplacement {
+        formats: vec![MovieFormat::Bink],
         directory: vec!["Media".into()],
         storefronts: vec![Storefront::Steam],
-        absent_slots: vec![],
     };
-    let config = ConfigPresets::UnrealEngineIni { locations: vec![] };
+    let config = ConfigPresets::UnrealEngineIni {};
     let temp = tempfile::tempdir().unwrap();
     let ini = temp.path().join("Engine.ini");
     let movie = temp.path().join("Intro.bk2");

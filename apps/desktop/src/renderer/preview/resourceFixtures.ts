@@ -68,7 +68,7 @@ export function createResourceReview(gameId: GameId, gamePath: string): string {
     const slot = gameId === 'ron' ? 'ReadyOrNot_StartupMovie.mp4' : 'Intro.bk2'
     const configPath =
         gameId === 'pd3'
-            ? 'C:/Users/Preview/AppData/Local/PAYDAY3/Saved/Config/WindowsClient/Engine.ini'
+            ? 'C:/Users/Preview/AppData/Local/PAYDAY3/Saved/Config/Windows/Engine.ini'
             : gameId === 'ron'
               ? 'C:/Users/Preview/AppData/Local/ReadyOrNot/Saved/Config/Windows/Engine.ini'
               : 'C:/Preview/chosen-config/Engine.ini'
@@ -116,9 +116,13 @@ export function createResourceReview(gameId: GameId, gamePath: string): string {
                 : []),
         ],
         movieSlots: game.movieReplacement ? [slot] : [],
+        movieDetails: game.movieReplacement
+            ? { [slot]: { seconds: 9.4, width: 1920, height: 1080, sound: true } }
+            : {},
         configPath: game.configPresets ? configPath : null,
         pakPicker: null,
         source: null,
+        remoteId: null,
         moviePackApplied: false,
         movieConflicts: game.movieReplacement
             ? [{ name: 'Skip startup movies', slots: [slot], replacing: false }]

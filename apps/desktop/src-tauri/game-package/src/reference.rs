@@ -189,7 +189,8 @@ pub fn markdown(examples: &[(&str, &str)]) -> String {
          | `decoders` | no | container formats to unpack before install |\n\
          | `package_reader` | no | how to read the game's own packages so a mod's assets can be listed |\n\
          | `movie_replacement` | no | replacement movie slots in a declared game folder |\n\
-         | `config_presets` | no | config preset syntax and verified automatic locations |\n\
+         | `config_presets` | no | config preset syntax |\n\
+         | `unreal_config` | no | shared Unreal configuration roots for verified stores |\n\
          | `graphics_config` | no | one graphics config file the user can open in an external application |\n\
          | `targets` | yes | the places mods are installed |\n\n\
          Components are values, not table headers. A repeated component is a list of objects,\n\
@@ -303,43 +304,53 @@ pub fn markdown(examples: &[(&str, &str)]) -> String {
         "\n## `movie_replacement`\n\n\
          Independent of package readers, loaders and config presets. Omit it when this game\n\
          has no verified movie replacement mechanism.\n\n\
-         | Format | Fields |\n| --- | --- |\n",
+         | Field | Meaning |\n| --- | --- |\n",
     );
     out.push_str(&row(
-        "bink",
-        "`directory`, `storefronts`, optional `absent_slots`",
+        "formats",
+        "`bink` for `.bk2` files, `mp4` for `.mp4` files, one or both",
     ));
     out.push_str(&row(
-        "mp4",
-        "`directory`, `storefronts`, optional `absent_slots`",
+        "directory",
+        "relative components below the selected install",
+    ));
+    out.push_str(&row(
+        "storefronts",
+        "supported stores from `install.stores`",
     ));
     out.push_str(
-        "\n`directory` is a list of relative components below the selected install. This mechanism\n\
-         accepts `.bk2` for Bink or `.mp4` for MP4. MP4 payloads require one H.264 video\n\
-         track and at most one AAC LC audio track. `storefronts` lists supported stores\n\
-         from `install.stores`.\n\
-         A manual installation with no recognised store offers only slots found on disk.\n\n\
-         Each `absent_slots` entry names a supported `store` and its verified `filenames`.\n\
-         These slots may be offered even when the files are absent, so declare them only\n\
-         after verifying published replacement instructions for that store. Filenames must\n\
-         be single names with the declared movie extension and unique ignoring ASCII case.\n",
+        "\nMP4 payloads require one H.264 video track and at most one AAC LC audio track. A\n\
+         payload replaces only a movie of its own format.\n\
+         Only movie files present in `directory` or its subfolders can be replaced. A file the\n\
+         game ships but the install lacks comes back through the store's file verification.\n",
     );
     out.push_str(
         "\n## `config_presets`\n\n\
-         Independent of movie replacement. An empty or omitted `locations` list means the user\n\
-         chooses the config file or its folder for the selected installation.\n\n\
-         | Format | Fields |\n| --- | --- |\n",
-    );
-    out.push_str(&row("unreal_engine_ini", "optional `locations`"));
-    out.push_str(
-        "\nThis mechanism merges unambiguous scalar assignments into `Engine.ini`. Repeated\n\
-         assignments and Unreal array operators require manual editing. It does not claim\n\
-         support for other INI dialects or config formats.\n\n\
-         Each location names a `root`, a declared `store` and relative `path` components ending\n\
-         in `Engine.ini`. Only one Windows location may be declared for each store.\n\n\
+         Independent of movie replacement. The `unreal_engine_ini` format has no other fields.\n\
+         It merges unambiguous scalar assignments into `Engine.ini`. Repeated assignments and\n\
+         Unreal array operators require manual editing. Other INI dialects are unsupported.\n\n\
+         ## `unreal_config`\n\n\
+         Shared by config presets and graphics config access. `roots` is a nonempty list of\n\
+         objects with a `root`, a declared `store`, and safe relative `path` components naming\n\
+         the folder above Unreal platform folders. Only one root may be declared per store.\n\
+         A package cannot also declare fixed graphics config locations.\n\n\
          | Root | Meaning |\n| --- | --- |\n",
     );
-    out.push_str(&row("windows_local_app_data", "Windows Local AppData, resolved by the host's Known Folder API. This location applies only on Windows"));
+    out.push_str(&row(
+        "windows_local_app_data",
+        "Windows Local AppData, resolved by the host's Known Folder API",
+    ));
+    out.push_str(&row(
+        "windows_user_profile",
+        "Windows user profile, resolved from USERPROFILE",
+    ));
+    out.push_str(
+        "\nRoots apply only on Windows. The host inspects immediate folders for regular\n\
+         `GameUserSettings.ini` files and uses the newest modification time. An exact tie or\n\
+         no marker requires a manual choice. Discovery never creates platform folders.\n\
+         Stores without a declared root require a manual choice. A choice is remembered per\n\
+         physical install and store only when automatic discovery has no answer.\n",
+    );
 
     out.push_str(
         "\n## `graphics_config`\n\n\
@@ -347,10 +358,10 @@ pub fn markdown(examples: &[(&str, &str)]) -> String {
          preset installation or parse the file's contents.\n\n\
          | Field | Required | Meaning |\n| --- | --- | --- |\n\
          | `filename` | yes | the single permitted filename, without a directory or path prefix |\n\
-         | `locations` | no | verified automatic locations, using the roots documented under `config_presets` |\n\n\
+         | `locations` | no | verified automatic locations, using `windows_local_app_data` roots |\n\n\
          Each location names a declared `store` and relative `path` components ending in\n\
          `filename`. Only one Windows location may be declared for each store. An empty or omitted\n\
-         list requires the user to choose the file. Finding the file does not prove\n\
+         list uses `unreal_config` when declared, otherwise the user chooses the file. Finding the file does not prove\n\
          that it is the game's active configuration.\n",
     );
 
@@ -364,7 +375,7 @@ pub fn markdown(examples: &[(&str, &str)]) -> String {
          | `label` | yes | which folder name the interface shows |\n\
          | `loader` | no | id of a loader declared by this package that reads this folder. Required for `loader_mods`. A loader may serve at most one target |\n\
          | `primary` | no | defaults to `false`; exactly one target must set it |\n\
-         | `scope` | no | `mods` by default. `unreal_paks` shares native game files and requires a complete installed Steam depot catalog before mod changes. It supports archive-named Pak file units without filename ordering and never moves the whole target |\n\
+         | `scope` | no | `mods` by default. `unreal_paks` shares native game files and requires the installed store record of every native path before mod changes: the Steam depot manifests or the Epic BuildPatch manifests. A Microsoft Store copy has no such record, so there only files Modrex installed and whose bytes are unchanged may change, and the target cannot declare companions. It supports archive-named Pak file units without filename ordering and never moves the whole target |\n\
          | `path` | yes | components below the game path |\n\
          | `disabled` | no | where disabled mods move; `path` plus `disabled` when omitted |\n\
          | `recursive_load` | no | defaults to `false`; set when the game reads `path` recursively, so disabling and `backup` must sit outside it |\n\

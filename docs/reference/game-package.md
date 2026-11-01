@@ -22,7 +22,8 @@ missing game at runtime.
 | `decoders` | no | container formats to unpack before install |
 | `package_reader` | no | how to read the game's own packages so a mod's assets can be listed |
 | `movie_replacement` | no | replacement movie slots in a declared game folder |
-| `config_presets` | no | config preset syntax and verified automatic locations |
+| `config_presets` | no | config preset syntax |
+| `unreal_config` | no | shared Unreal configuration roots for verified stores |
 | `graphics_config` | no | one graphics config file the user can open in an external application |
 | `targets` | yes | the places mods are installed |
 
@@ -130,41 +131,40 @@ than guessing a key.
 Independent of package readers, loaders and config presets. Omit it when this game
 has no verified movie replacement mechanism.
 
-| Format | Fields |
+| Field | Meaning |
 | --- | --- |
-| `bink` | `directory`, `storefronts`, optional `absent_slots` |
-| `mp4` | `directory`, `storefronts`, optional `absent_slots` |
+| `formats` | `bink` for `.bk2` files, `mp4` for `.mp4` files, one or both |
+| `directory` | relative components below the selected install |
+| `storefronts` | supported stores from `install.stores` |
 
-`directory` is a list of relative components below the selected install. This mechanism
-accepts `.bk2` for Bink or `.mp4` for MP4. MP4 payloads require one H.264 video
-track and at most one AAC LC audio track. `storefronts` lists supported stores
-from `install.stores`.
-A manual installation with no recognised store offers only slots found on disk.
-
-Each `absent_slots` entry names a supported `store` and its verified `filenames`.
-These slots may be offered even when the files are absent, so declare them only
-after verifying published replacement instructions for that store. Filenames must
-be single names with the declared movie extension and unique ignoring ASCII case.
+MP4 payloads require one H.264 video track and at most one AAC LC audio track. A
+payload replaces only a movie of its own format.
+Only movie files present in `directory` or its subfolders can be replaced. A file the
+game ships but the install lacks comes back through the store's file verification.
 
 ## `config_presets`
 
-Independent of movie replacement. An empty or omitted `locations` list means the user
-chooses the config file or its folder for the selected installation.
+Independent of movie replacement. The `unreal_engine_ini` format has no other fields.
+It merges unambiguous scalar assignments into `Engine.ini`. Repeated assignments and
+Unreal array operators require manual editing. Other INI dialects are unsupported.
 
-| Format | Fields |
-| --- | --- |
-| `unreal_engine_ini` | optional `locations` |
+## `unreal_config`
 
-This mechanism merges unambiguous scalar assignments into `Engine.ini`. Repeated
-assignments and Unreal array operators require manual editing. It does not claim
-support for other INI dialects or config formats.
-
-Each location names a `root`, a declared `store` and relative `path` components ending
-in `Engine.ini`. Only one Windows location may be declared for each store.
+Shared by config presets and graphics config access. `roots` is a nonempty list of
+objects with a `root`, a declared `store`, and safe relative `path` components naming
+the folder above Unreal platform folders. Only one root may be declared per store.
+A package cannot also declare fixed graphics config locations.
 
 | Root | Meaning |
 | --- | --- |
-| `windows_local_app_data` | Windows Local AppData, resolved by the host's Known Folder API. This location applies only on Windows |
+| `windows_local_app_data` | Windows Local AppData, resolved by the host's Known Folder API |
+| `windows_user_profile` | Windows user profile, resolved from USERPROFILE |
+
+Roots apply only on Windows. The host inspects immediate folders for regular
+`GameUserSettings.ini` files and uses the newest modification time. An exact tie or
+no marker requires a manual choice. Discovery never creates platform folders.
+Stores without a declared root require a manual choice. A choice is remembered per
+physical install and store only when automatic discovery has no answer.
 
 ## `graphics_config`
 
@@ -174,11 +174,11 @@ preset installation or parse the file's contents.
 | Field | Required | Meaning |
 | --- | --- | --- |
 | `filename` | yes | the single permitted filename, without a directory or path prefix |
-| `locations` | no | verified automatic locations, using the roots documented under `config_presets` |
+| `locations` | no | verified automatic locations, using `windows_local_app_data` roots |
 
 Each location names a declared `store` and relative `path` components ending in
 `filename`. Only one Windows location may be declared for each store. An empty or omitted
-list requires the user to choose the file. Finding the file does not prove
+list uses `unreal_config` when declared, otherwise the user chooses the file. Finding the file does not prove
 that it is the game's active configuration.
 
 ## `targets`
@@ -193,7 +193,7 @@ elsewhere.
 | `label` | yes | which folder name the interface shows |
 | `loader` | no | id of a loader declared by this package that reads this folder. Required for `loader_mods`. A loader may serve at most one target |
 | `primary` | no | defaults to `false`; exactly one target must set it |
-| `scope` | no | `mods` by default. `unreal_paks` shares native game files and requires a complete installed Steam depot catalog before mod changes. It supports archive-named Pak file units without filename ordering and never moves the whole target |
+| `scope` | no | `mods` by default. `unreal_paks` shares native game files and requires the installed store record of every native path before mod changes: the Steam depot manifests or the Epic BuildPatch manifests. A Microsoft Store copy has no such record, so there only files Modrex installed and whose bytes are unchanged may change, and the target cannot declare companions. It supports archive-named Pak file units without filename ordering and never moves the whole target |
 | `path` | yes | components below the game path |
 | `disabled` | no | where disabled mods move; `path` plus `disabled` when omitted |
 | `recursive_load` | no | defaults to `false`; set when the game reads `path` recursively, so disabling and `backup` must sit outside it |

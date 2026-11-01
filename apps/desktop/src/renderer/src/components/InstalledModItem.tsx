@@ -11,6 +11,7 @@ import {
     detailNavArgs,
     hasCatalogLink,
     identityKey,
+    workshopMetadataId,
     type ModGroup,
 } from '../hooks/installedUtils'
 import { useInstalledContext } from './InstalledContext'
@@ -234,11 +235,12 @@ export function InstalledModItem({ mods }: { mods: ModGroup }) {
         )
     }
 
-    // Nexus's own fetch trickles in slowly (rate-limited, one at a time), so a Nexus mod
-    // always falls straight to syntheticMod instead of blocking on a skeleton, matching
-    // handleOpen's same source split above.
-    const isModworkshopSourced = !ins.source || ins.source === 'modworkshop'
-    if (!apiMod && !failedIds.has(id) && isModworkshopSourced && hasCatalogLink(ins)) {
+    // Only a record useModData fetches may wait on a skeleton, since nothing else ever
+    // settles it. Nexus's own fetch trickles in slowly (rate-limited, one at a time), so a
+    // Nexus mod falls straight to syntheticMod, matching handleOpen's source split above.
+    const awaitsMetadata =
+        GAMES[activeGame].workshopId !== undefined && workshopMetadataId(ins) !== undefined
+    if (!apiMod && !failedIds.has(id) && awaitsMetadata) {
         return viewMode === 'list' ? <SkeletonListRow /> : <SkeletonCard />
     }
 

@@ -47,19 +47,27 @@ package_reader = {
 }
 
 movie_replacement = {
-    format = "bink",
+    formats = ["bink"],
     directory = ["CrimeBoss", "Content", "Movies"],
     storefronts = ["steam", "epic"],
-    absent_slots = [
+}
+
+unreal_config = {
+    roots = [
         {
+            root = "windows_user_profile",
             store = "steam",
-            filenames = ["ARC_25FPS.bk2", "cs_splash_505_igs_crimeboss.bk2", "logo_arc_4k_60fps.bk2", "UE4_Logo.bk2"],
+            path = ["Saved Games", "CrimeBoss", "Steam", "Saved", "Config"],
         },
     ],
 }
 
 config_presets = {
     format = "unreal_engine_ini",
+}
+
+graphics_config = {
+    filename = "GameUserSettings.ini",
 }
 
 targets = [

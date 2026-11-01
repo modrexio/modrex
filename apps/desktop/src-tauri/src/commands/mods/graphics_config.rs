@@ -2,6 +2,7 @@ use super::resources::{
     blocking, current_context, declared_config_path, require_context, ConfigFileLocation,
     InstallContext,
 };
+use super::unreal_config;
 use crate::commands::games::game_spec;
 use crate::commands::path_display::display_path;
 use crate::game_package::GraphicsConfig;
@@ -58,6 +59,18 @@ fn destination(
     context: &InstallContext,
     config: &GraphicsConfig,
 ) -> Result<Option<GraphicsDestination>, String> {
+    if game_spec(&context.game_id)
+        .expect("validated game")
+        .unreal_config
+        .is_some()
+    {
+        return Ok(
+            unreal_config::directory(app, context)?.map(|(path, chosen)| GraphicsDestination {
+                path: path.join(&config.filename),
+                chosen,
+            }),
+        );
+    }
     if let Some(path) = app.state::<GraphicsConfigLocations>().for_context(context) {
         return Ok(Some(GraphicsDestination { path, chosen: true }));
     }
@@ -145,6 +158,18 @@ pub(super) async fn pick(
         let path = picked.into_path().map_err(|error| error.to_string())?;
         let path = validate_file(&path, &config.filename)?;
         require_context(&app, &context)?;
+        if game_spec(&context.game_id)
+            .expect("validated game")
+            .unreal_config
+            .is_some()
+        {
+            super::resources::remember_directory(
+                &app,
+                &context,
+                path.parent().expect("validated file parent"),
+            )?;
+            return Ok(Some(display_path(&path)));
+        }
         app.state::<GraphicsConfigLocations>()
             .0
             .lock()

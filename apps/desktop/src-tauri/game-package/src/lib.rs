@@ -332,65 +332,48 @@ impl PackageReaderBinding {
     }
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum MovieFormat {
+    Bink,
+    Mp4,
+}
+
+impl MovieFormat {
+    pub fn extension(self) -> &'static str {
+        match self {
+            Self::Bink => "bk2",
+            Self::Mp4 => "mp4",
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
-#[serde(tag = "format", rename_all = "snake_case", deny_unknown_fields)]
-pub enum MovieReplacement {
-    Bink {
-        directory: Vec<String>,
-        storefronts: Vec<Storefront>,
-        #[serde(default)]
-        absent_slots: Vec<MovieSlots>,
-    },
-    Mp4 {
-        directory: Vec<String>,
-        storefronts: Vec<Storefront>,
-        #[serde(default)]
-        absent_slots: Vec<MovieSlots>,
-    },
+#[serde(deny_unknown_fields)]
+pub struct MovieReplacement {
+    pub formats: Vec<MovieFormat>,
+    pub directory: Vec<String>,
+    pub storefronts: Vec<Storefront>,
 }
 
 impl MovieReplacement {
-    pub fn extension(&self) -> &'static str {
-        match self {
-            Self::Bink { .. } => "bk2",
-            Self::Mp4 { .. } => "mp4",
-        }
+    /// The declared format a file name's extension names, ignoring ASCII case.
+    pub fn format_of(&self, name: &str) -> Option<MovieFormat> {
+        self.format_for_extension(name.rsplit_once('.')?.1)
     }
 
-    pub fn directory(&self) -> &[String] {
-        match self {
-            Self::Bink { directory, .. } | Self::Mp4 { directory, .. } => directory,
-        }
+    pub fn format_for_extension(&self, extension: &str) -> Option<MovieFormat> {
+        self.formats
+            .iter()
+            .copied()
+            .find(|format| extension.eq_ignore_ascii_case(format.extension()))
     }
-
-    pub fn storefronts(&self) -> &[Storefront] {
-        match self {
-            Self::Bink { storefronts, .. } | Self::Mp4 { storefronts, .. } => storefronts,
-        }
-    }
-
-    pub fn absent_slots(&self) -> &[MovieSlots] {
-        match self {
-            Self::Bink { absent_slots, .. } | Self::Mp4 { absent_slots, .. } => absent_slots,
-        }
-    }
-}
-
-/// Slots verified against published replacement instructions for this store.
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
-#[serde(deny_unknown_fields)]
-pub struct MovieSlots {
-    pub store: Storefront,
-    pub filenames: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(tag = "format", rename_all = "snake_case", deny_unknown_fields)]
 pub enum ConfigPresets {
-    UnrealEngineIni {
-        #[serde(default)]
-        locations: Vec<ConfigLocation>,
-    },
+    UnrealEngineIni {},
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
@@ -412,10 +395,20 @@ impl ConfigPresets {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(tag = "root", rename_all = "snake_case", deny_unknown_fields)]
 pub enum ConfigLocation {
+    WindowsUserProfile {
+        store: Storefront,
+        path: Vec<String>,
+    },
     WindowsLocalAppData {
         store: Storefront,
         path: Vec<String>,
     },
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct UnrealConfig {
+    pub roots: Vec<ConfigLocation>,
 }
 
 /// A primary mod file plus the files that travel with it because they share its stem.
@@ -606,7 +599,8 @@ pub struct Target {
 pub enum TargetScope {
     #[default]
     Mods,
-    /// Native paths come from the installed Steam depot manifests, never filename guesses.
+    /// Native paths come from the installed store's own record of the build, never filename
+    /// guesses.
     UnrealPaks,
 }
 
@@ -634,6 +628,8 @@ pub struct GamePackage {
     pub config_presets: Option<ConfigPresets>,
     #[serde(default)]
     pub graphics_config: Option<GraphicsConfig>,
+    #[serde(default)]
+    pub unreal_config: Option<UnrealConfig>,
     pub targets: Vec<Target>,
 }
 

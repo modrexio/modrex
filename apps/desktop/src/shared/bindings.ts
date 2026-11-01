@@ -297,6 +297,12 @@ export type CbFlatPayload_Serialize = {
 	modVersion?: string | null,
 };
 
+export type ConfigDirectory = {
+	canonicalGamePath: string,
+	launcher: string | null,
+	directory: string,
+};
+
 export type ConfigFileLocation = { status: "found"; path: string } | { status: "missing"; path: string } | { status: "needsLocation" };
 
 export type ConfirmLoaderArgs = {
@@ -379,6 +385,7 @@ export type GameSettings_Deserialize = {
 	 *  whether it is current, and every page reads as installed at once.
 	 */
 	loaders?: { [key in string]: LoaderInstall_Deserialize },
+	configDirectories?: ConfigDirectory[],
 };
 
 export type GameSettings_Serialize = {
@@ -397,6 +404,7 @@ export type GameSettings_Serialize = {
 	 *  whether it is current, and every page reads as installed at once.
 	 */
 	loaders: { [key in string]: LoaderInstall_Serialize },
+	configDirectories: ConfigDirectory[],
 };
 
 export type HostPackPayload = HostPackPayload_Serialize | HostPackPayload_Deserialize;
@@ -573,6 +581,7 @@ export type InstalledMod_Deserialize = {
 	fileId: number | null,
 	fileType: string | null,
 	sha256: string | null,
+	placedSha256?: string | null,
 	priority: number | null,
 	missing: boolean | null,
 	folderId?: string | null,
@@ -603,6 +612,7 @@ export type InstalledMod_Serialize = {
 	fileId?: number | null,
 	fileType?: string | null,
 	sha256?: string | null,
+	placedSha256?: string | null,
 	priority?: number | null,
 	missing?: boolean | null,
 	folderId?: string | null,
@@ -1002,6 +1012,14 @@ export type ModUser = {
 
 export type ModVersionResult = { status: "known"; id: number; version: string } | { status: "unversioned"; id: number } | { status: "missing"; id: number } | { status: "failed"; id: number; error: string };
 
+/**  What a movie shows, so a user can tell its slot from the others by length, size and sound. */
+export type MovieDetails = {
+	seconds: number | null,
+	width: number,
+	height: number,
+	sound: boolean,
+};
+
 export type MovieRecognition = {
 	path: string,
 	sha256: string | null,
@@ -1178,6 +1196,8 @@ export type ResourceReview_Deserialize = {
 	modName: string,
 	entries: ResourceReviewEntry[],
 	movieSlots: string[],
+	/**  Length, size and sound of each slot's current movie, for telling the slots apart. */
+	movieDetails: { [key in string]: MovieDetails },
 	configPath: string | null,
 	pakPicker: ZipMultiPakPayload_Deserialize | null,
 	/**
@@ -1185,6 +1205,8 @@ export type ResourceReview_Deserialize = {
 	 *  install through install_nexus_review_pak, never the ModWorkshop entry installer.
 	 */
 	source: string | null,
+	/**  The mod's id in that catalog, so the dialog can show the author's instructions. */
+	remoteId: string | null,
 	moviePackApplied: boolean,
 	movieConflicts: ResourceMovieConflict[],
 	iniConflicts: ResourceIniConflict[],
@@ -1197,6 +1219,8 @@ export type ResourceReview_Serialize = {
 	modName: string,
 	entries: ResourceReviewEntry[],
 	movieSlots: string[],
+	/**  Length, size and sound of each slot's current movie, for telling the slots apart. */
+	movieDetails: { [key in string]: MovieDetails },
 	configPath: string | null,
 	pakPicker: ZipMultiPakPayload_Serialize | null,
 	/**
@@ -1204,6 +1228,8 @@ export type ResourceReview_Serialize = {
 	 *  install through install_nexus_review_pak, never the ModWorkshop entry installer.
 	 */
 	source: string | null,
+	/**  The mod's id in that catalog, so the dialog can show the author's instructions. */
+	remoteId: string | null,
 	moviePackApplied: boolean,
 	movieConflicts: ResourceMovieConflict[],
 	iniConflicts: ResourceIniConflict[],

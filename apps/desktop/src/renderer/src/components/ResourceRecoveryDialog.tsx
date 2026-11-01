@@ -10,6 +10,7 @@ import { Button } from './ui/Button'
 import { formatBytes } from './modDetail/format'
 import { displayPath } from '../lib/displayPath'
 import { RecoveryFolderButton } from './RecoveryFolderButton'
+import { ScrollArea } from './ScrollArea'
 
 export function ResourceRecoveryDialog({
     activeGame,
@@ -122,7 +123,7 @@ export function ResourceRecoveryDialog({
                 onClose={() => void close()}
                 closeDisabled={busy}
             />
-            <div className="p-5 flex flex-col gap-4 overflow-y-auto text-sm">
+            <ScrollArea className="p-5 flex flex-col gap-4 overflow-y-auto text-sm">
                 <p className="text-text-muted">
                     {t(kept ? 'resources.recovery.kept' : 'resources.recovery.description')}
                 </p>
@@ -196,7 +197,7 @@ export function ResourceRecoveryDialog({
                         )}
                     </div>
                 )}
-            </div>
+            </ScrollArea>
             <div className="flex justify-end gap-2 p-4 border-t border-border shrink-0">
                 <Button variant="secondary" size="sm" disabled={busy} onClick={() => void close()}>
                     {t(kept ? 'common.close' : 'common.cancel')}

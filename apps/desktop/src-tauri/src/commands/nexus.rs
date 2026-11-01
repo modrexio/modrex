@@ -378,7 +378,7 @@ pub async fn nexus_search_mods(
 // is a real, populated version here, unlike SEARCH_QUERY's mods, which carries none
 // (see the empty-version note in domain.rs), so a hit from this path may set version.
 const FILE_HASHES_QUERY: &str = r#"
-query ModrexFileHashes($md5s: [String]!) {
+query ModrexFileHashes($md5s: [String!]!) {
     fileHashes(md5s: $md5s) {
         md5 fileName fileSize gameId modFileId
         modFile { modId fileId name version }

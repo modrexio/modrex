@@ -107,7 +107,7 @@ body {
     }
 
     /* Sits 14px left of the site menu button, which follows the page wrap padding. */
-    starlight-menu-button button {
+    .sl-menu-button {
         top: 12px;
         inset-inline-end: 80px;
         display: flex;
@@ -121,11 +121,11 @@ body {
         box-shadow: none;
     }
 
-    starlight-menu-button button svg {
+    .sl-menu-button svg {
         transform: scale(1.7);
     }
 
-    starlight-menu-button[aria-expanded='true'] button {
+    .sl-menu-button:has(~ :popover-open) {
         background: var(--color-surface-active);
     }
 }
@@ -135,7 +135,7 @@ body {
         padding-inline: 16px;
     }
 
-    starlight-menu-button button {
+    .sl-menu-button {
         inset-inline-end: 64px;
     }
 }
@@ -146,6 +146,159 @@ body {
 
 .docs-sidebar-search {
     padding-bottom: 0.25rem;
+}
+
+/* Collapsible sidebar, desktop only, modelled on Fumadocs. Collapsing slides the
+   pane out whole, and it peeks back in over the content while the pointer rests
+   on the screen edge. The pill and the peek zone are rendered
+   by Header.astro, outside the pane, so the pane's overflow cannot clip them.
+   The mobile sidebar is Starlight's popover menu, so none of this applies there. */
+.docs-sidebar-collapse,
+.docs-sidebar-pill,
+.docs-sidebar-peek-zone {
+    display: none;
+}
+
+@media (min-width: 50rem) {
+    :root {
+        --docs-sidebar-duration: 250ms;
+    }
+
+    .docs-sidebar-search {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+
+    .docs-sidebar-search > .docs-search {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .docs-sidebar-icon-button {
+        display: flex;
+        flex-shrink: 0;
+        align-items: center;
+        justify-content: center;
+        width: 1.875rem;
+        height: 1.875rem;
+        padding: 0;
+        border: 0;
+        border-radius: var(--radius-sm);
+        background: transparent;
+        color: var(--color-text-muted);
+        cursor: pointer;
+        transition: var(--transition-colors);
+    }
+
+    .docs-sidebar-icon-button:hover,
+    .docs-sidebar-icon-button:focus-visible {
+        background: var(--color-surface-active);
+        color: var(--color-text);
+    }
+
+    .docs-sidebar-icon-button:focus-visible {
+        outline: 2px solid var(--color-accent-bright);
+        outline-offset: 2px;
+    }
+
+    .sidebar-pane {
+        transition:
+            transform var(--docs-sidebar-duration) var(--ease),
+            visibility 0s;
+    }
+
+    .main-frame {
+        transition: padding-inline-start var(--docs-sidebar-duration) var(--ease);
+    }
+
+    mobile-starlight-toc nav {
+        transition: inset-inline-start var(--docs-sidebar-duration) var(--ease);
+    }
+
+    .docs-sidebar-pill {
+        position: fixed;
+        top: calc(var(--sl-nav-height) + 1rem);
+        left: 1rem;
+        z-index: var(--sl-z-index-menu);
+        display: flex;
+        padding: 0.125rem;
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-lg);
+        background: var(--color-surface-hover);
+        opacity: 0;
+        visibility: hidden;
+        transition:
+            opacity 150ms var(--ease),
+            visibility 0s 150ms;
+    }
+
+    .docs-sidebar-peek-zone {
+        position: fixed;
+        top: var(--sl-nav-height);
+        bottom: 0;
+        left: 0;
+        z-index: var(--sl-z-index-menu);
+        width: 0.75rem;
+    }
+
+    .docs-sidebar-collapse {
+        display: flex;
+    }
+
+    :root[data-docs-sidebar='collapsed'] .docs-sidebar-peek-zone {
+        display: block;
+    }
+
+    :root[data-docs-sidebar='collapsed'] .docs-sidebar-pill {
+        opacity: 1;
+        visibility: visible;
+        transition: opacity 150ms var(--ease);
+    }
+
+    /* Below 72rem the pill would cover the start of Starlight's On this page
+       bar, which follows this variable, so the content keeps clear of it. */
+    :root[data-docs-sidebar='collapsed'][data-has-sidebar] {
+        --sl-content-inline-start: 6.5rem;
+    }
+
+    /* Collapsed, the pane is parked off screen, above the pill and the peek zone.
+       Hidden after the slide so its links leave the tab order. The search dialog lives inside the
+       pane and still opens from the pill or Ctrl K, so it opts back in. */
+    :root[data-docs-sidebar='collapsed'] .sidebar-pane {
+        z-index: calc(var(--sl-z-index-menu) + 1);
+        transform: translateX(-100%);
+        visibility: hidden;
+        transition:
+            transform var(--docs-sidebar-duration) var(--ease),
+            visibility 0s var(--docs-sidebar-duration);
+    }
+
+    :root[data-docs-sidebar='collapsed'][data-docs-sidebar-peek] .docs-sidebar-pill {
+        opacity: 0;
+        visibility: hidden;
+        transition:
+            opacity 150ms var(--ease),
+            visibility 0s 150ms;
+    }
+
+    :root[data-docs-sidebar='collapsed'][data-docs-sidebar-peek] .sidebar-pane {
+        transform: none;
+        visibility: visible;
+        transition:
+            transform var(--docs-sidebar-duration) var(--ease),
+            visibility 0s;
+    }
+
+    :root[data-docs-sidebar='collapsed'] .docs-pagefind-search dialog {
+        visibility: visible;
+    }
+}
+
+@media (min-width: 72rem) {
+    :root[data-docs-sidebar='collapsed'][data-has-sidebar] {
+        --sl-content-inline-start: 0rem;
+    }
 }
 
 #starlight__sidebar .docs-search {
@@ -461,6 +614,13 @@ html:has(body[data-search-modal-open]) {
 }
 
 @media (prefers-reduced-motion: reduce) {
+    .sidebar-pane,
+    :root[data-docs-sidebar='collapsed'] .sidebar-pane,
+    :root[data-docs-sidebar='collapsed'][data-docs-sidebar-peek] .sidebar-pane,
+    .main-frame,
+    mobile-starlight-toc nav,
+    .docs-sidebar-pill,
+    :root[data-docs-sidebar='collapsed'] .docs-sidebar-pill,
     .docs-pagefind-search dialog,
     .docs-pagefind-search dialog::backdrop {
         transition: none;

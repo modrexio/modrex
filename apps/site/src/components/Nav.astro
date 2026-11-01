@@ -53,9 +53,9 @@ const linUrl =
             </a>
             <a
                 id="nav-dl-btn"
-                href={winUrl}
-                data-win={winUrl}
-                data-lin={linUrl}
+                href={sitePath('/#download')}
+                data-windows={winUrl}
+                data-linux={linUrl}
                 class="btn-lg primary nav-dl-btn"
                 style="padding: 8px 16px; font-size: 13px"
             >
@@ -105,9 +105,9 @@ const linUrl =
                 </a>
                 <a
                     id="mobile-dl-btn"
-                    href={winUrl}
-                    data-win={winUrl}
-                    data-lin={linUrl}
+                    href={sitePath('/#download')}
+                    data-windows={winUrl}
+                    data-linux={linUrl}
                     class="btn-lg primary mobile-dl-btn"
                 >
                     Download
@@ -120,16 +120,19 @@ const linUrl =
 <script>
     import { sitePath } from '../lib/site-path'
     import { createIcons, Menu, X } from 'lucide'
-    import { detectOs } from '../lib/os-detect'
+    import { detectPlatform } from '../lib/os-detect'
 
     createIcons({ icons: { Menu, X } })
 
-    const navDlBtn = document.getElementById('nav-dl-btn') as HTMLAnchorElement | null
-    const mobileDlBtn = document.getElementById('mobile-dl-btn') as HTMLAnchorElement | null
-    const { isMobile, isLinux } = detectOs()
-    if (!isMobile && isLinux) {
-        if (navDlBtn) navDlBtn.href = navDlBtn.dataset.lin ?? navDlBtn.href
-        if (mobileDlBtn) mobileDlBtn.href = mobileDlBtn.dataset.lin ?? mobileDlBtn.href
+    // Download opens the download section until the platform is recognized, then
+    // links straight to that platform's build.
+    const platform = detectPlatform()
+    if (platform) {
+        document
+            .querySelectorAll<HTMLAnchorElement>('#nav-dl-btn, #mobile-dl-btn')
+            .forEach((button) => {
+                button.href = button.dataset[platform]!
+            })
     }
 
     const hamburger = document.getElementById('nav-hamburger')

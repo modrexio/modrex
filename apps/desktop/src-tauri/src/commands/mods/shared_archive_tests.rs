@@ -348,6 +348,11 @@ fn shared_archive_local_variant_records_keep_full_member_without_catalog_claims(
         "Payload_P.pak",
     );
     assert_eq!(legacy.uid, "-123_Payload_P");
+    assert!(legacy.remote_id.is_none());
+    assert_eq!(legacy.file_id, Some(-123));
+    assert!(legacy.identity.is_none());
+    assert_eq!(legacy.id, super::naming::hash_filename("Payload_P.pak"));
+    assert_eq!(legacy.update_status, super::types::UpdateStatus::Unknown);
 }
 
 fn nexus_record(uid: &str, filename: &str) -> InstalledMod {

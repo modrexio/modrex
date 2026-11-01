@@ -135,6 +135,7 @@ function settings(gameId: string): GameSettings_Serialize {
         launchOptions: '',
         suppressCrashReporter: false,
         crimebossInstallMode: 'auto',
+        configDirectories: [],
         loaders: {},
     }
     gameSettings.set(id, created)
@@ -205,7 +206,7 @@ const handlers = {
         if (id === 'pd3')
             return {
                 status: 'found',
-                path: 'C:/Users/Preview/AppData/Local/PAYDAY3/Saved/Config/WindowsClient/Engine.ini',
+                path: 'C:/Users/Preview/AppData/Local/PAYDAY3/Saved/Config/Windows/Engine.ini',
             }
         if (id === 'ron')
             return {
@@ -224,7 +225,7 @@ const handlers = {
         const configPath =
             game(gameId) === 'ron'
                 ? 'C:/Users/Preview/AppData/Local/ReadyOrNot/Saved/Config/Windows/Engine.ini'
-                : path + '/Saved/Config/WindowsClient/Engine.ini'
+                : path + '/Saved/Config/Windows/Engine.ini'
         chosenIniLocations.set(game(gameId), configPath)
         return configPath
     },

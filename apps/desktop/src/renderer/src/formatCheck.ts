@@ -26,7 +26,7 @@ export function isUnsupportedFormat(
     const dot = filename.lastIndexOf('.')
     const extension = normalized || filename.slice(dot + 1)
     if (extension === 'bk2' || extension === 'mp4')
-        return game.movieReplacement?.extension !== extension
+        return !game.movieReplacement?.extensions.includes(extension)
     if (extension === 'ini')
         return !game.configPresets || filename !== game.configPresets.filename.toLowerCase()
     if (filename.endsWith('.tar.gz') || filename.endsWith('.tar.xz')) return false

@@ -12,6 +12,7 @@ accepted = [
     "CC0-1.0",
     "CDLA-Permissive-2.0",
     "OpenSSL",
+    "bzip2-1.0.6",
 ]
 
 targets = [

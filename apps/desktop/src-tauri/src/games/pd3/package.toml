@@ -69,26 +69,27 @@ package_reader = {
 }
 
 movie_replacement = {
-    format = "bink",
+    formats = ["bink"],
     directory = ["PAYDAY3", "Content", "Movies"],
-    storefronts = ["steam", "epic"],
-    absent_slots = [
+    storefronts = ["steam", "epic", "xbox"],
+}
+
+unreal_config = {
+    roots = [
         {
+            root = "windows_local_app_data",
             store = "steam",
-            filenames = ["StartUp_Unreal.bk2", "StartUp_DeepSilver.bk2", "StartUp_SBZ.bk2", "BG_LoginVideo_01.bk2"],
+            path = ["PAYDAY3", "Saved", "Config"],
         },
     ],
 }
 
 config_presets = {
     format = "unreal_engine_ini",
-    locations = [
-        {
-            root = "windows_local_app_data",
-            store = "steam",
-            path = ["PAYDAY3", "Saved", "Config", "WindowsClient", "Engine.ini"],
-        },
-    ],
+}
+
+graphics_config = {
+    filename = "GameUserSettings.ini",
 }
 
 targets = [

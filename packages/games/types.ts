@@ -31,7 +31,7 @@ export interface GameSpec {
     hasNews: boolean
     supportsPackageViewer: boolean
     movieReplacement?: {
-        extension: 'bk2' | 'mp4'
+        extensions: readonly ('bk2' | 'mp4')[]
         storefronts: readonly StorefrontId[]
     }
     configPresets?: {

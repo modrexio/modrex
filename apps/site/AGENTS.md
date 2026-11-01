@@ -99,9 +99,9 @@ CORS rule on the R2 bucket (Cloudflare dashboard, not this repo) allowing `GET` 
 
 ### OS detection
 
-Client-side OS detection is shared: `detectOs()` in `src/lib/os-detect.ts` returns `{ isMobile, isLinux }` and is imported by the three components with download buttons — `Hero.astro`, `DownloadSection.astro`, `Nav.astro`. The `isMobile` check is two-part: a UA pattern for standard mobile devices plus a `maxTouchPoints` branch for iPadOS 13+, which reports its user agent as macOS.
+Client-side OS detection is shared: `detectPlatform()` in `src/lib/os-detect.ts` returns `'windows'`, `'linux'` or `null`, and is imported by the three components with download buttons — `Hero.astro`, `DownloadSection.astro`, `Nav.astro`.
 
-On mobile: no OS highlight or badge is shown, and the hero hides its download button, keeping only the link to the download section. On desktop Linux: switch to Linux assets (the install command is the one-liner served by `functions/install.sh.ts`). On desktop Windows/other: default to Windows assets. Change detection logic only in `os-detect.ts`.
+Principle: a build is proposed only once its platform is recognized, never by default. The markup proposes nothing: the hero's per-platform download buttons are hidden, the nav Download buttons link to the download section, and every download in that section is secondary. A recognized platform reveals its hero button, points the nav buttons at its build and fills its main download (the Linux install command is the one-liner served by `functions/install.sh.ts`). Change detection logic only in `os-detect.ts`.
 
 ### Analytics & consent
 
@@ -150,6 +150,12 @@ with a `sizes` value scaled to match. Re-check the rectangles whenever the scree
 ### Static assets
 
 `public/icons/` contains SVG icons for platforms (`windows`, `linux`) and launchers (`steam`, `epicgames`, `xbox`) in normal and `-white` variants (e.g. `steam-white.svg`). Use the `-white` variants in the dark-only UI. In MDX files, always use self-closing `<img />` — bare `<img>` causes an MDX parse error.
+
+### Feature sketches
+
+`src/lib/sketches/` holds p5.js sketches written by the project's designer. `Sketch.astro` renders each one into a card that is a row in `Features.astro`, and the sketch's progress follows that card through the viewport. Keep each file's structure as the designer wrote it (palette, helpers, setup/draw, artwork) so a new export from the p5 editor can be diffed against it; only typing and site integration differ. p5 is imported lazily when a card nears the viewport.
+
+p5 is LGPL-2.1. It must stay an unmodified npm dependency loaded as its own chunk, never patched in this repo or merged into a site bundle, and `public/licenses/p5/` must name the shipped version.
 
 ### Icons
 

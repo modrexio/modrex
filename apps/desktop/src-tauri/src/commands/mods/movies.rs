@@ -1,15 +1,15 @@
 //! Movie replacement using the format and destinations a game package declares.
 //!
-//! Destinations are files the declared directory holds, plus absent slots authorized for the
-//! selected store. Archive entry names identify payloads and never decide a destination.
-//! The user maps each payload.
+//! Destinations are the movie files the declared directory and its subfolders hold, named by
+//! their path below it with forward slashes. Archive entry names identify payloads and never
+//! decide a destination. The user maps each payload to a movie of the same format.
 
 use super::resource_state::{
     live_content, Content, Deployment, DeploymentBody, Manifest, MovieBaseline, MovieSlot,
     ResourceStore, Step,
 };
 use crate::commands::games::game_spec;
-use crate::game_package::MovieReplacement;
+use crate::game_package::{MovieFormat, MovieReplacement};
 use std::collections::HashSet;
 use std::fs::File;
 use std::io::Read;
@@ -44,7 +44,7 @@ fn movies_dir_for(
         launcher.filter(|store| crate::commands::launchers::is_store_launcher(store))
     {
         if !replacement
-            .storefronts()
+            .storefronts
             .iter()
             .any(|allowed| allowed.provider() == store)
         {
@@ -53,7 +53,7 @@ fn movies_dir_for(
             ));
         }
     }
-    let sub = replacement.directory().join("/");
+    let sub = replacement.directory.join("/");
     let root = Path::new(game_path)
         .canonicalize()
         .map_err(|e| format!("the game folder could not be resolved: {e}"))?;
@@ -70,52 +70,55 @@ fn movies_dir_for(
 }
 
 /// The slots this install offers, sorted.
-pub(crate) fn slot_inventory(
-    game_id: &str,
-    dir: &Path,
-    launcher: Option<&str>,
-) -> Result<Vec<String>, String> {
-    slot_inventory_for(replacement(game_id)?, dir, launcher)
+pub(crate) fn slot_inventory(game_id: &str, dir: &Path) -> Result<Vec<String>, String> {
+    slot_inventory_for(replacement(game_id)?, dir)
 }
 
-fn slot_inventory_for(
-    replacement: &MovieReplacement,
+fn slot_inventory_for(replacement: &MovieReplacement, dir: &Path) -> Result<Vec<String>, String> {
+    let slots = listed_slots(replacement, dir)?;
+    if slots.is_empty() {
+        let extensions: Vec<_> = replacement
+            .formats
+            .iter()
+            .map(|format| format!(".{}", format.extension()))
+            .collect();
+        return Err(format!(
+            "{} has no {} movies. Verify the game files in your launcher to restore them, then try again",
+            dir.display(),
+            extensions.join(" or ")
+        ));
+    }
+    Ok(slots)
+}
+
+/// The slots an existing pack may use. A pack keeps its own slots even when their files are
+/// gone, because turning it off deletes a movie that did not exist before the pack wrote it.
+pub(crate) fn pack_inventory(
+    game_id: &str,
     dir: &Path,
-    launcher: Option<&str>,
+    own: &[MovieSlot],
 ) -> Result<Vec<String>, String> {
+    let replacement = replacement(game_id)?;
+    let mut slots = listed_slots(replacement, dir)?;
+    for slot in own {
+        if !is_plain_slot(&slot.slot) {
+            return Err(format!("{} is not a movie slot of this install", slot.slot));
+        }
+        let listed = slots
+            .iter()
+            .try_fold(false, |found, existing| -> Result<bool, String> {
+                Ok(found || same_slot_name(existing, &slot.slot)?)
+            })?;
+        if !listed {
+            slots.push(slot.slot.clone());
+        }
+    }
+    Ok(slots)
+}
+
+fn listed_slots(replacement: &MovieReplacement, dir: &Path) -> Result<Vec<String>, String> {
     let mut slots = Vec::new();
-    for entry in
-        std::fs::read_dir(dir).map_err(|e| format!("could not list {}: {e}", dir.display()))?
-    {
-        let entry = entry.map_err(|e| e.to_string())?;
-        if !entry.file_type().map_err(|e| e.to_string())?.is_file() {
-            continue;
-        }
-        let Some(name) = entry.file_name().to_str().map(String::from) else {
-            continue;
-        };
-        if has_movie_extension(&name, replacement.extension()) {
-            slots.push(name);
-        }
-    }
-    for verified in replacement
-        .absent_slots()
-        .iter()
-        .filter(|slots| launcher == Some(slots.store.provider()))
-    {
-        for slot in &verified.filenames {
-            let present =
-                slots
-                    .iter()
-                    .try_fold(false, |found, existing| -> Result<bool, String> {
-                        Ok(found || same_slot_name(existing, slot)?)
-                    })?;
-            if present {
-                continue;
-            }
-            slots.push(slot.clone());
-        }
-    }
+    collect_slots(replacement, dir, "", &mut slots)?;
     for (index, slot) in slots.iter().enumerate() {
         for other in &slots[..index] {
             if same_slot_name(slot, other)? {
@@ -125,6 +128,45 @@ fn slot_inventory_for(
     }
     slots.sort();
     Ok(slots)
+}
+
+/// file_type does not follow links, so a linked subfolder is never entered.
+fn collect_slots(
+    replacement: &MovieReplacement,
+    dir: &Path,
+    prefix: &str,
+    slots: &mut Vec<String>,
+) -> Result<(), String> {
+    for entry in
+        std::fs::read_dir(dir).map_err(|e| format!("could not list {}: {e}", dir.display()))?
+    {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let file_type = entry.file_type().map_err(|e| e.to_string())?;
+        let Some(name) = entry.file_name().to_str().map(String::from) else {
+            continue;
+        };
+        let slot = format!("{prefix}{name}");
+        if file_type.is_dir() {
+            collect_slots(replacement, &entry.path(), &format!("{slot}/"), slots)?;
+            continue;
+        }
+        if file_type.is_file() && replacement.format_of(&name).is_some() {
+            slots.push(slot);
+        }
+    }
+    Ok(())
+}
+
+/// A slot is relative plain names joined by forward slashes. Its format is not checked, so a
+/// recorded slot whose format the game does not declare can still be turned off.
+fn is_plain_slot(slot: &str) -> bool {
+    slot.split('/').all(|part| {
+        let mut components = Path::new(part).components();
+        matches!(
+            (components.next(), components.next()),
+            (Some(std::path::Component::Normal(name)), None) if name == part
+        )
+    })
 }
 
 fn same_slot_name(left: &str, right: &str) -> Result<bool, String> {
@@ -141,17 +183,46 @@ pub(crate) fn has_movie_extension(name: &str, extension: &str) -> bool {
         .is_some_and(|e| e.eq_ignore_ascii_case(extension))
 }
 
-pub(crate) fn validate_payload(game_id: &str, path: &Path) -> Result<(), String> {
-    validate_payload_for(replacement(game_id)?, path)
+/// Validates a payload as the format of the movie it replaces, so a .bk2 file can never land in
+/// an .mp4 slot. The name is a slot or a file name carrying the format's extension.
+pub(crate) fn validate_payload(game_id: &str, name: &str, path: &Path) -> Result<(), String> {
+    validate_payload_for(replacement(game_id)?, name, path)
 }
 
 pub(crate) fn validate_payload_for(
     replacement: &MovieReplacement,
+    name: &str,
     path: &Path,
 ) -> Result<(), String> {
-    match replacement {
-        MovieReplacement::Bink { .. } => validate_bink(path).map(|_| ()),
-        MovieReplacement::Mp4 { .. } => super::mp4::validate_mp4(path),
+    match replacement
+        .format_of(name)
+        .ok_or_else(|| format!("{name} is not a movie format this game plays"))?
+    {
+        MovieFormat::Bink => validate_bink(path).map(|_| ()),
+        MovieFormat::Mp4 => super::mp4::validate_mp4(path).map(|_| ()),
+    }
+}
+
+/// What a movie shows, so a user can tell its slot from the others by length, size and sound.
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct MovieDetails {
+    pub seconds: f64,
+    pub width: u32,
+    pub height: u32,
+    pub sound: bool,
+}
+
+/// Reads a slot's movie through the same validator a payload for it must pass.
+pub(crate) fn slot_details(game_id: &str, dir: &Path, slot: &str) -> Result<MovieDetails, String> {
+    let mut path = dir.to_path_buf();
+    path.extend(slot.split('/'));
+    match replacement(game_id)?
+        .format_of(slot)
+        .ok_or_else(|| format!("{slot} is not a movie format this game plays"))?
+    {
+        MovieFormat::Bink => validate_bink(&path).map(|movie| movie.details),
+        MovieFormat::Mp4 => super::mp4::validate_mp4(&path),
     }
 }
 
@@ -164,7 +235,20 @@ pub(crate) fn slot_destination(
     if !inventory.iter().any(|s| s == slot) {
         return Err(format!("{slot} is not a movie slot of this install"));
     }
-    let dest = dir.join(slot);
+    let mut dest = dir.to_path_buf();
+    dest.extend(slot.split('/'));
+    let parent = dest
+        .parent()
+        .expect("a slot names a file below the movie folder");
+    if parent
+        .canonicalize()
+        .map_err(|e| format!("could not resolve the folder of {slot}: {e}"))?
+        != parent
+    {
+        return Err(format!(
+            "{slot} is inside a linked folder; Modrex will not write there"
+        ));
+    }
     let meta = match std::fs::symlink_metadata(&dest) {
         Ok(meta) => meta,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(dest),
@@ -194,6 +278,12 @@ pub(crate) enum BinkGeneration {
     Bink2,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) struct BinkMovie {
+    pub generation: BinkGeneration,
+    pub details: MovieDetails,
+}
+
 const BINK_MAX_WIDTH: u32 = 7680;
 const BINK_MAX_HEIGHT: u32 = 4800;
 const BINK_MAX_AUDIO_TRACKS: u32 = 256;
@@ -204,13 +294,16 @@ const BINK_MAX_FRAMES: u32 = 1_000_000;
 /// Header, little-endian u32 fields: 0 signature (BIK or KB2 plus a revision byte), 4 file
 /// size minus 8, 8 frame count, 12 largest frame size, 16 unused, 20 width, 24 height,
 /// 28 fps numerator, 32 fps denominator, 36 video flags, 40 audio track count. BIK revision k
-/// and KB2 revisions i, j and k carry one more u32. Each audio track then has a u32 max
+/// and KB2 revisions i, j, k and n carry one more u32. Each audio track then has a u32 max
 /// decoded size, a u16 sample rate and u16 flags, and a u32 track id. The frame index follows
 /// with one u32 per frame (bit 0 is the keyframe flag). The last frame ends at the file size.
 ///
+/// FFmpeg does not know KB2n. Its layout was verified against the movies PAYDAY 3 ships since
+/// its Unreal Engine 5.5 update.
+///
 /// This proves a structurally complete container, not that the game can play it: a zero-byte
 /// or truncated file fails here, a valid 1-frame skip video passes.
-pub(crate) fn validate_bink(path: &Path) -> Result<BinkGeneration, String> {
+pub(crate) fn validate_bink(path: &Path) -> Result<BinkMovie, String> {
     let mut file = File::open(path).map_err(|e| format!("could not read the movie: {e}"))?;
     let actual_len = file.metadata().map_err(|e| e.to_string())?.len();
     let mut header = [0u8; 44];
@@ -221,9 +314,10 @@ pub(crate) fn validate_bink(path: &Path) -> Result<BinkGeneration, String> {
         (b"BIK", rev @ (b'b' | b'f' | b'g' | b'h' | b'i' | b'k')) => {
             (BinkGeneration::Bink1, rev == b'k')
         }
-        (b"KB2", rev @ (b'a' | b'd' | b'f' | b'g' | b'h' | b'i' | b'j' | b'k')) => {
-            (BinkGeneration::Bink2, matches!(rev, b'i' | b'j' | b'k'))
-        }
+        (b"KB2", rev @ (b'a' | b'd' | b'f' | b'g' | b'h' | b'i' | b'j' | b'k' | b'n')) => (
+            BinkGeneration::Bink2,
+            matches!(rev, b'i' | b'j' | b'k' | b'n'),
+        ),
         _ => return Err("the file is not a Bink 1 or Bink 2 movie".to_string()),
     };
     let file_size = u64::from(u32_at(&header, 4)) + 8;
@@ -272,7 +366,15 @@ pub(crate) fn validate_bink(path: &Path) -> Result<BinkGeneration, String> {
         }
         pos = next;
     }
-    Ok(generation)
+    Ok(BinkMovie {
+        generation,
+        details: MovieDetails {
+            seconds: f64::from(frames) * f64::from(fps_den) / f64::from(fps_num),
+            width,
+            height,
+            sound: audio_tracks > 0,
+        },
+    })
 }
 
 /// What a destination should hold right now, from Modrex's own records.

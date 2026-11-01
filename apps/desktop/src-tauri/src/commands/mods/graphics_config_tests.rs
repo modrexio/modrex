@@ -4,12 +4,9 @@ use std::fs;
 
 #[test]
 fn only_declared_games_can_access_graphics_configs() {
-    for id in ["pd2", "pdth", "raid"] {
+    for id in ["pd2", "pdth", "raid", "pd3", "cb", "ron"] {
         assert!(graphics_config(id).is_ok());
     }
-    assert!(graphics_config("pd3")
-        .unwrap_err()
-        .contains("not supported"));
     assert!(graphics_config("not-a-game")
         .unwrap_err()
         .contains("unknown game"));

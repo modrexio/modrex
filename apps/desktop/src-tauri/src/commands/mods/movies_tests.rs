@@ -1,16 +1,17 @@
 use super::*;
-use crate::game_package::{MovieSlots, Storefront};
+use crate::game_package::Storefront;
 use std::fs;
 
-fn declared_movies() -> MovieReplacement {
-    MovieReplacement::Bink {
+fn movies_in(formats: &[MovieFormat]) -> MovieReplacement {
+    MovieReplacement {
+        formats: formats.to_vec(),
         directory: vec!["Media".into()],
         storefronts: vec![Storefront::Steam],
-        absent_slots: vec![MovieSlots {
-            store: Storefront::Steam,
-            filenames: vec!["MissingIntro.bk2".into()],
-        }],
     }
+}
+
+fn declared_movies() -> MovieReplacement {
+    movies_in(&[MovieFormat::Bink])
 }
 
 #[test]
@@ -25,45 +26,30 @@ fn mp4_inventory_uses_the_declared_extension_and_exact_native_names() {
         fs::write(temp.path().join(name), b"on disk").unwrap();
     }
     fs::create_dir(temp.path().join("folder.mp4")).unwrap();
-    let definition = MovieReplacement::Mp4 {
-        directory: vec!["Media".into()],
-        storefronts: vec![Storefront::Steam],
-        absent_slots: vec![],
-    };
-    let inventory = slot_inventory_for(&definition, temp.path(), Some("steam")).unwrap();
+    let root = temp.path().canonicalize().unwrap();
+    let definition = movies_in(&[MovieFormat::Mp4]);
+    let inventory = slot_inventory_for(&definition, &root).unwrap();
     assert_eq!(inventory, ["ReadyOrNot_StartupMovie.MP4"]);
     assert_eq!(
-        slot_destination(temp.path(), &inventory[0], &inventory).unwrap(),
-        temp.path().join(&inventory[0])
+        slot_destination(&root, &inventory[0], &inventory).unwrap(),
+        root.join(&inventory[0])
     );
-    assert!(slot_destination(
-        temp.path(),
-        "Sins_MovieScreen_Cherade1963_film_B.mp4",
-        &inventory
-    )
-    .is_err());
+    assert!(
+        slot_destination(&root, "Sins_MovieScreen_Cherade1963_film_B.mp4", &inventory).is_err()
+    );
     assert_eq!(
-        slot_inventory_for(&declared_movies(), temp.path(), None).unwrap(),
+        slot_inventory_for(&declared_movies(), temp.path()).unwrap(),
         ["Intro.bk2"]
     );
 }
 
 #[test]
-fn an_authorized_absent_slot_keeps_an_existing_slots_exact_spelling() {
+fn a_movie_folder_without_movies_points_to_store_verification() {
     let temp = tempfile::tempdir().unwrap();
-    fs::write(temp.path().join("Intro.MP4"), b"manual clip").unwrap();
-    let definition = MovieReplacement::Mp4 {
-        directory: vec!["Media".into()],
-        storefronts: vec![Storefront::Steam],
-        absent_slots: vec![MovieSlots {
-            store: Storefront::Steam,
-            filenames: vec!["intro.mp4".into()],
-        }],
-    };
-    assert_eq!(
-        slot_inventory_for(&definition, temp.path(), Some("steam")).unwrap(),
-        ["Intro.MP4"]
-    );
+    fs::write(temp.path().join("Intro.mp4"), b"other format").unwrap();
+    let error = slot_inventory_for(&declared_movies(), temp.path()).unwrap_err();
+    assert!(error.contains("has no .bk2 movies"));
+    assert!(error.contains("Verify the game files"));
 }
 
 #[cfg(windows)]
@@ -96,19 +82,93 @@ fn movie_destinations_and_store_permissions_follow_the_declaration() {
 }
 
 #[test]
-fn absent_movie_slots_are_authorized_only_for_the_declared_store() {
-    let temp = tempfile::tempdir().unwrap();
-    fs::write(temp.path().join("Existing.bk2"), b"on disk").unwrap();
-    let definition = declared_movies();
+fn payday_3_store_installs_offer_their_movies() {
+    let content = tempfile::tempdir().unwrap();
+    let movies = content
+        .path()
+        .join("PAYDAY3")
+        .join("Content")
+        .join("Movies");
+    fs::create_dir_all(&movies).unwrap();
+    fs::write(movies.join("BG_LoginVideo_01.bk2"), b"login").unwrap();
+    fs::write(movies.join("StartUp_SBZ.bk2"), b"intro").unwrap();
+    let dir = movies_dir("pd3", content.path().to_str().unwrap(), Some("xbox")).unwrap();
+    assert_eq!(dir, movies.canonicalize().unwrap());
     assert_eq!(
-        slot_inventory_for(&definition, temp.path(), Some("steam")).unwrap(),
-        ["Existing.bk2", "MissingIntro.bk2"]
+        slot_inventory("pd3", &dir).unwrap(),
+        ["BG_LoginVideo_01.bk2", "StartUp_SBZ.bk2"]
     );
-    for launcher in [Some("epic"), Some("manual"), None] {
-        assert_eq!(
-            slot_inventory_for(&definition, temp.path(), launcher).unwrap(),
-            ["Existing.bk2"]
-        );
+}
+
+#[test]
+fn payday_3_offers_nested_movies_but_not_its_unused_mp4() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().canonicalize().unwrap();
+    fs::create_dir_all(root.join("Heists")).unwrap();
+    fs::create_dir_all(root.join("StoryMode")).unwrap();
+    for name in [
+        "BG_LoginVideo_01.bk2",
+        "PD3_SplashScreen_01_intro.mp4",
+        "Heists/HeistBG_BranchBank.bk2",
+        "StoryMode/StoryMode_Cinematic_01.bk2",
+        "StoryMode/StoryMode_Cinematic_01_en.srt",
+    ] {
+        fs::write(root.join(name), b"movie").unwrap();
+    }
+    let inventory = slot_inventory("pd3", &root).unwrap();
+    assert_eq!(
+        inventory,
+        [
+            "BG_LoginVideo_01.bk2",
+            "Heists/HeistBG_BranchBank.bk2",
+            "StoryMode/StoryMode_Cinematic_01.bk2",
+        ]
+    );
+    assert_eq!(
+        slot_destination(&root, "Heists/HeistBG_BranchBank.bk2", &inventory).unwrap(),
+        root.join("Heists").join("HeistBG_BranchBank.bk2")
+    );
+}
+
+#[test]
+fn a_pack_keeps_the_slots_it_created_when_their_files_are_gone() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().canonicalize().unwrap();
+    fs::write(root.join("StartUp_SBZ.bk2"), b"intro").unwrap();
+    let own = |slot: &str| MovieSlot {
+        slot: slot.into(),
+        destination: root.join(slot).to_string_lossy().into_owned(),
+        entry_name: "replacement.bk2".into(),
+        payload_sha256: "0".repeat(64),
+        payload_size: 1,
+    };
+    assert_eq!(
+        pack_inventory("pd3", &root, &[own("BG_LoginVideo_01.bk2")]).unwrap(),
+        ["StartUp_SBZ.bk2", "BG_LoginVideo_01.bk2"]
+    );
+    fs::remove_file(root.join("StartUp_SBZ.bk2")).unwrap();
+    assert_eq!(
+        pack_inventory("pd3", &root, &[own("BG_LoginVideo_01.bk2")]).unwrap(),
+        ["BG_LoginVideo_01.bk2"]
+    );
+    // A recorded slot in a format the game does not declare stays usable, so its pack can
+    // be turned off and restore the original.
+    let dropped = own("PD3_SplashScreen_01_intro.mp4");
+    assert!(pack_inventory("pd3", &root, std::slice::from_ref(&dropped))
+        .unwrap()
+        .contains(&dropped.slot));
+    for unsafe_slot in [
+        "../Intro.bk2",
+        "Heists/../Intro.bk2",
+        "/Intro.bk2",
+        "Heists//Intro.bk2",
+    ] {
+        assert!(pack_inventory("pd3", &root, &[own(unsafe_slot)]).is_err());
+    }
+    // Unix reads these as plain file names, which cannot leave the folder there.
+    #[cfg(windows)]
+    for unsafe_slot in [r"Heists\..\Intro.bk2", "C:Intro.bk2"] {
+        assert!(pack_inventory("pd3", &root, &[own(unsafe_slot)]).is_err());
     }
 }
 
@@ -133,7 +193,7 @@ fn case_colliding_movie_slots_are_refused_before_mapping() {
     let temp = tempfile::tempdir().unwrap();
     fs::write(temp.path().join("Intro.bk2"), b"first").unwrap();
     fs::write(temp.path().join("intro.BK2"), b"second").unwrap();
-    let error = slot_inventory("pd3", temp.path(), Some("steam")).unwrap_err();
+    let error = slot_inventory("pd3", temp.path()).unwrap_err();
     assert!(error.contains("differ only in case"));
     assert_eq!(fs::read(temp.path().join("Intro.bk2")).unwrap(), b"first");
     assert_eq!(fs::read(temp.path().join("intro.BK2")).unwrap(), b"second");
@@ -259,7 +319,7 @@ fn switching_packs_keeps_first_personal_baseline_and_refuses_divergence() {
 fn container_validation_checks_frame_index_and_known_revisions() {
     let temp = tempfile::tempdir().unwrap();
     let path = temp.path().join("sample.bk2");
-    for (signature, index) in [(b"BIKi", 44usize), (b"KB2i", 48)] {
+    for (signature, index) in [(b"BIKi", 44usize), (b"KB2i", 48), (b"KB2n", 48)] {
         let mut bytes = vec![0u8; 64];
         bytes[..4].copy_from_slice(signature);
         for (offset, value) in [
@@ -277,16 +337,11 @@ fn container_validation_checks_frame_index_and_known_revisions() {
         }
         fs::write(&path, &bytes).unwrap();
         assert!(validate_bink(&path).is_ok());
-        assert!(validate_payload_for(&declared_movies(), &path).is_ok());
-        assert!(validate_payload_for(
-            &MovieReplacement::Mp4 {
-                directory: vec!["Media".into()],
-                storefronts: vec![Storefront::Steam],
-                absent_slots: vec![],
-            },
-            &path
-        )
-        .is_err());
+        let both = movies_in(&[MovieFormat::Bink, MovieFormat::Mp4]);
+        assert!(validate_payload_for(&declared_movies(), "Intro.bk2", &path).is_ok());
+        assert!(validate_payload_for(&both, "Movies/Intro.BK2", &path).is_ok());
+        assert!(validate_payload_for(&both, "Splash.mp4", &path).is_err());
+        assert!(validate_payload_for(&declared_movies(), "Splash.mp4", &path).is_err());
         bytes[index..index + 4].copy_from_slice(&0u32.to_le_bytes());
         fs::write(&path, &bytes).unwrap();
         assert!(validate_bink(&path).is_err());
@@ -297,4 +352,43 @@ fn container_validation_checks_frame_index_and_known_revisions() {
     assert!(has_movie_extension("INTRO.BK2", "bk2"));
     assert!(!has_movie_extension("intro.bak2", "bk2"));
     assert!(slot_destination(temp.path(), "../Intro.bk2", &["Intro.bk2".into()]).is_err());
+}
+
+#[test]
+fn slot_details_describe_length_size_and_sound_for_both_formats() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().canonicalize().unwrap();
+    let mut bink = vec![0u8; 64];
+    bink[..4].copy_from_slice(b"KB2n");
+    for (offset, value) in [
+        (4, 56u32),
+        (8, 1),
+        (12, 16),
+        (20, 1920),
+        (24, 1080),
+        (28, 30),
+        (32, 1),
+        (48, 52),
+    ] {
+        bink[offset..offset + 4].copy_from_slice(&value.to_le_bytes());
+    }
+    fs::create_dir(root.join("Heists")).unwrap();
+    fs::write(root.join("Heists").join("Intro.bk2"), &bink).unwrap();
+    fs::write(
+        root.join("Splash.mp4"),
+        super::super::mp4_tests::sample_mp4(),
+    )
+    .unwrap();
+    assert_eq!(
+        slot_details("pd3", &root, "Heists/Intro.bk2").unwrap(),
+        MovieDetails {
+            seconds: 1.0 / 30.0,
+            width: 1920,
+            height: 1080,
+            sound: false,
+        }
+    );
+    let splash = slot_details("ron", &root, "Splash.mp4").unwrap();
+    assert!(splash.seconds > 0.0 && splash.width > 0 && splash.height > 0);
+    assert!(slot_details("pd3", &root, "Missing.bk2").is_err());
 }

@@ -2,7 +2,7 @@
 //! package declares.
 
 use crate::commands::launchers::{EpicDef, GameDef, SteamDef, XboxDef};
-use crate::commands::mods::{ModEngineConfig, ModUnit, ScanTarget, StoreLayout};
+use crate::commands::mods::{ModEngineConfig, ModUnit, ScanTarget, SharedPaks, StoreLayout};
 use crate::game_package::{self as package, GamePackage};
 use std::sync::LazyLock;
 
@@ -15,6 +15,7 @@ pub struct GameSpec {
     pub package_reader: Option<&'static package::PackageReaderBinding>,
     pub movie_replacement: Option<&'static package::MovieReplacement>,
     pub config_presets: Option<&'static package::ConfigPresets>,
+    pub unreal_config: Option<&'static package::UnrealConfig>,
     pub graphics_config: Option<&'static package::GraphicsConfig>,
 }
 
@@ -77,6 +78,7 @@ fn spec_from(pkg: &'static GamePackage) -> GameSpec {
         movie_replacement: pkg.movie_replacement.as_ref(),
         config_presets: pkg.config_presets.as_ref(),
         graphics_config: pkg.graphics_config.as_ref(),
+        unreal_config: pkg.unreal_config.as_ref(),
     }
 }
 
@@ -97,13 +99,16 @@ fn scan_target(pkg: &'static GamePackage, target: &'static package::Target) -> S
             ),
             _ => None,
         },
-        native_steam_app: (target.scope == package::TargetScope::UnrealPaks).then(|| {
-            match pkg.install.store(package::Storefront::Steam) {
-                Some(package::StoreBinding::Steam { app_id, .. }) => *app_id,
-                _ => {
-                    unreachable!("validate::check requires a Steam binding for shared Unreal Paks")
-                }
-            }
+        shared_paks: (target.scope == package::TargetScope::UnrealPaks).then(|| SharedPaks {
+            steam_app: match pkg.install.store(package::Storefront::Steam) {
+                Some(package::StoreBinding::Steam { app_id, .. }) => Some(*app_id),
+                _ => None,
+            },
+            epic_name: match pkg.install.store(package::Storefront::Epic) {
+                Some(package::StoreBinding::Epic { name }) => Some(name.as_str()),
+                _ => None,
+            },
+            xbox: pkg.install.store(package::Storefront::Xbox).is_some(),
         }),
         unit: match &target.unit {
             package::Unit::File {

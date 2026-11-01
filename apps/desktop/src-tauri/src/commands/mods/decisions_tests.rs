@@ -383,3 +383,49 @@ fn filename_decisions_sanitize_through_naming() {
         "Cool_Mod"
     );
 }
+
+#[test]
+fn dropped_archive_entries_claim_no_catalog_link() {
+    let local = archive_provenance(-3357105, -3357105, "Biglobby-3-1.0.1");
+    assert!(local.remote_id.is_none());
+    assert_eq!(local.file_id, Some(-3357105));
+    assert!(local.identity.is_none());
+    assert_eq!(local.id, super::naming::hash_filename("Biglobby-3-1.0.1"));
+    assert_eq!(local.update_status, super::types::UpdateStatus::Unknown);
+
+    let entry = archive_entry_identity(
+        pd2_engine().primary(),
+        -3357105,
+        -3357105,
+        "mods/Biglobby-3-1.0.1",
+        "Biglobby-3-1.0",
+        "Biglobby-3-1.0.1",
+    );
+    assert_eq!(entry.uid, "-3357105_Biglobby-3-1.0");
+    assert!(entry.remote_id.is_none());
+
+    let catalog = archive_provenance(25629, 61234, "VanillaHUD Plus");
+    assert_eq!(catalog.source, "modworkshop");
+    assert_eq!(catalog.remote_id.as_deref(), Some("25629"));
+    assert_eq!(catalog.file_id, Some(61234));
+}
+
+#[test]
+fn dropped_archive_entries_are_named_after_themselves() {
+    let pd2 = pd2_engine();
+    assert_eq!(
+        local_entry_name(
+            pd2,
+            pd2.primary(),
+            false,
+            "Biglobby-3-1.0",
+            "Biglobby-3-1.0.1"
+        ),
+        "Biglobby-3-1.0.1"
+    );
+    let pd3 = pd3_engine();
+    assert_eq!(
+        local_entry_name(pd3, pd3.primary(), false, "CoolSkin_P", "CoolSkin_P.pak"),
+        "CoolSkin_P"
+    );
+}

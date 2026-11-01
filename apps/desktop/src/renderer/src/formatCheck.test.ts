@@ -4,10 +4,10 @@ import { isUnsupportedFormat } from './formatCheck'
 
 const noResources: Pick<GameSpec, 'movieReplacement' | 'configPresets'> = {}
 const movieOnly: typeof noResources = {
-    movieReplacement: { extension: 'bk2', storefronts: ['steam'] },
+    movieReplacement: { extensions: ['bk2'], storefronts: ['steam'] },
 }
 const mp4Only: typeof noResources = {
-    movieReplacement: { extension: 'mp4', storefronts: ['steam'] },
+    movieReplacement: { extensions: ['mp4'], storefronts: ['steam'] },
 }
 const configOnly: typeof noResources = { configPresets: { filename: 'Engine.ini' } }
 

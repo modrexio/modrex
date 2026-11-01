@@ -16,6 +16,7 @@ use super::resource_state::{
     ResourceStore, Step,
 };
 use super::types::{InstalledMod, ResourceDeployment, ResourceStatus, UpdateStatus};
+use super::unreal_config;
 use super::zip::{extract_entry_at_budget, safe_dest, ResourceArchive, ZipMultiPakPayload};
 use crate::commands::games::game_spec;
 use crate::commands::settings::{game_settings, read_settings};
@@ -106,11 +107,15 @@ pub struct ResourceReview {
     pub mod_name: String,
     pub entries: Vec<ResourceReviewEntry>,
     pub movie_slots: Vec<String>,
+    /// Length, size and sound of each slot's current movie, for telling the slots apart.
+    pub movie_details: HashMap<String, movies::MovieDetails>,
     pub config_path: Option<String>,
     pub pak_picker: Option<ZipMultiPakPayload>,
     /// The catalog the download came from, None for a dropped file. A Nexus review's packages
     /// install through install_nexus_review_pak, never the ModWorkshop entry installer.
     pub source: Option<String>,
+    /// The mod's id in that catalog, so the dialog can show the author's instructions.
+    pub remote_id: Option<String>,
     pub movie_pack_applied: bool,
     pub movie_conflicts: Vec<ResourceMovieConflict>,
     pub ini_conflicts: Vec<ResourceIniConflict>,
@@ -255,9 +260,19 @@ async fn lock_and_recover(
         ensure_not_running(app, game).await?;
     }
     let (s, id) = (store.clone(), game_id.to_string());
-    tauri::async_runtime::spawn_blocking(move || s.recover(&id))
-        .await
-        .map_err(|e| e.to_string())??;
+    let guard = tauri::async_runtime::spawn_blocking(move || {
+        s.recover(&id)?;
+        // A copy that cannot be deleted now is retried by the next operation, so the
+        // requested change still goes ahead.
+        match s.collect_garbage(&guard) {
+            Ok(0) => {}
+            Ok(freed) => log::info!("deleted {freed} bytes of unused movie and INI copies"),
+            Err(error) => log::warn!("unused movie and INI copies were kept: {error}"),
+        }
+        Ok::<_, String>(guard)
+    })
+    .await
+    .map_err(|e| e.to_string())??;
     for game in &affected {
         ensure_not_running(app, game).await?;
     }
@@ -327,25 +342,32 @@ fn config_presets(game_id: &str) -> Result<&'static ConfigPresets, String> {
         .ok_or_else(|| format!("Engine.ini presets are not supported for '{game_id}'"))
 }
 
-/// Only package-declared locations identify an active config automatically.
-fn verified_engine_ini(game_id: &str, launcher: Option<&str>) -> Result<Option<PathBuf>, String> {
-    let ConfigPresets::UnrealEngineIni { locations } = config_presets(game_id)?;
-    declared_config_path(locations, launcher)
-}
-
 pub(super) fn declared_config_path(
     locations: &[ConfigLocation],
     launcher: Option<&str>,
 ) -> Result<Option<PathBuf>, String> {
     #[cfg(windows)]
     {
-        let Some(path) = locations.iter().find_map(|location| {
-            let ConfigLocation::WindowsLocalAppData { store, path } = location;
-            (launcher == Some(store.provider())).then_some(path)
+        let Some(location) = locations.iter().find(|location| {
+            let (ConfigLocation::WindowsLocalAppData { store, .. }
+            | ConfigLocation::WindowsUserProfile { store, .. }) = location;
+            launcher == Some(store.provider())
         }) else {
             return Ok(None);
         };
-        let root = local_app_data()?;
+        let (root, path) = match location {
+            ConfigLocation::WindowsLocalAppData { path, .. } => (local_app_data()?, path),
+            ConfigLocation::WindowsUserProfile { path, .. } => {
+                let root = std::env::var_os("USERPROFILE")
+                    .filter(|value| !value.is_empty())
+                    .ok_or("Windows user profile is unavailable")?;
+                let root = PathBuf::from(root);
+                if !root.is_absolute() {
+                    return Err("Windows user profile is not an absolute path".into());
+                }
+                (root, path)
+            }
+        };
         Ok(Some(path.iter().fold(root, |directory, component| {
             directory.join(component)
         })))
@@ -483,27 +505,49 @@ fn engine_ini_destination(
     ctx: &InstallContext,
 ) -> Result<Option<IniDestination>, String> {
     config_presets(&ctx.game_id)?;
-    let picked = app
-        .state::<IniLocations>()
+    Ok(
+        unreal_config::directory(app, ctx)?.map(|(path, chosen)| IniDestination {
+            path: path.join("Engine.ini"),
+            chosen,
+        }),
+    )
+}
+
+pub(super) fn picked_directory(app: &AppHandle, ctx: &InstallContext) -> Option<PathBuf> {
+    app.state::<IniLocations>()
         .0
         .lock()
         .unwrap_or_else(|e| e.into_inner())
         .get(&ctx.game_id)
-        .cloned();
-    let Some(picked) = picked.filter(|location| location.context == *ctx) else {
-        return Ok(
-            verified_engine_ini(&ctx.game_id, ctx.launcher.as_deref())?.map(|path| {
-                IniDestination {
-                    path,
-                    chosen: false,
-                }
-            }),
+        .filter(|picked| picked.context == *ctx)
+        .map(|picked| {
+            picked
+                .path
+                .parent()
+                .expect("a validated Engine.ini has a parent")
+                .to_path_buf()
+        })
+}
+
+pub(super) fn remember_directory(
+    app: &AppHandle,
+    ctx: &InstallContext,
+    directory: &Path,
+) -> Result<(), String> {
+    unreal_config::persist_pick(app, ctx, directory)?;
+    require_context(app, ctx)?;
+    app.state::<IniLocations>()
+        .0
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .insert(
+            ctx.game_id.clone(),
+            PickedIni {
+                context: ctx.clone(),
+                path: directory.join("Engine.ini"),
+            },
         );
-    };
-    Ok(Some(IniDestination {
-        path: picked.path,
-        chosen: true,
-    }))
+    Ok(())
 }
 
 /// The verified Engine.ini destination or a location chosen for this physical installation.
@@ -654,17 +698,7 @@ pub(crate) async fn pick_engine_ini(
     }
     require_context(app, &ctx)?;
     let path = validate_engine_ini(&picked)?;
-    app.state::<IniLocations>()
-        .0
-        .lock()
-        .unwrap_or_else(|e| e.into_inner())
-        .insert(
-            game_id.to_string(),
-            PickedIni {
-                context: ctx.clone(),
-                path: path.clone(),
-            },
-        );
+    remember_directory(app, &ctx, path.parent().expect("validated parent"))?;
     Ok(Some(path.to_string_lossy().into_owned()))
 }
 
@@ -685,6 +719,7 @@ struct Review {
     staging_dir: PathBuf,
     entries: Vec<StagedResource>,
     movie_slots: Vec<String>,
+    movie_details: HashMap<String, movies::MovieDetails>,
     config_path: Option<PathBuf>,
     config_revision: Option<Content>,
     manifest_revision: Option<u64>,
@@ -787,11 +822,19 @@ fn assess(
         ResourceEntryKind::Other => Err("not a movie or Engine.ini".to_string()),
         ResourceEntryKind::Movie => (|| {
             let format = movie_format.ok_or("Movie replacements are not supported for this game")?;
-            if ext != format.extension() {
-                return Err(format!("This game accepts .{} movie replacements", format.extension()));
+            if format.format_for_extension(&ext).is_none() {
+                let accepted: Vec<_> = format
+                    .formats
+                    .iter()
+                    .map(|format| format!(".{}", format.extension()))
+                    .collect();
+                return Err(format!(
+                    "This game accepts {} movie replacements",
+                    accepted.join(" and ")
+                ));
             }
             movies.as_ref().map_err(Clone::clone)?;
-            movies::validate_payload_for(format, staged.expect("movies are staged"))
+            movies::validate_payload_for(format, name, staged.expect("movies are staged"))
         })(),
         ResourceEntryKind::Ini if config.is_none() => {
             Err("Engine.ini presets are not supported for this game".into())
@@ -857,6 +900,13 @@ pub(crate) fn open_review(
             return Err(e);
         }
     };
+    let movie_details = match describe_slots(&ctx, &movie_slots) {
+        Ok(details) => details,
+        Err(e) => {
+            cleanup::run_sync(&CleanupPlan::RemoveOwnedDirectory(staging_dir));
+            return Err(e);
+        }
+    };
     let handle = Uuid::new_v4().to_string();
     let review = Review {
         handle: handle.clone(),
@@ -865,6 +915,7 @@ pub(crate) fn open_review(
         staging_dir,
         entries,
         movie_slots,
+        movie_details,
         config_path,
         config_revision: None,
         manifest_revision: None,
@@ -913,9 +964,8 @@ fn build_review(
 ) -> Result<BuiltReview, String> {
     let spec =
         game_spec(&ctx.game_id).ok_or_else(|| format!("unknown game id '{}'", ctx.game_id))?;
-    let launcher = ctx.launcher.as_deref();
-    let slots = movies::movies_dir(&ctx.game_id, &ctx.game_path, launcher)
-        .and_then(|dir| movies::slot_inventory(&ctx.game_id, &dir, launcher));
+    let slots = movies::movies_dir(&ctx.game_id, &ctx.game_path, ctx.launcher.as_deref())
+        .and_then(|dir| movies::slot_inventory(&ctx.game_id, &dir));
     let config = resolve_engine_ini(app, ctx);
     let members: Vec<(Option<u32>, String)> = if found.is_archive {
         found.members.clone()
@@ -935,7 +985,7 @@ fn build_review(
             && (ext == "ini"
                 || spec
                     .movie_replacement
-                    .is_some_and(|format| ext == format.extension()));
+                    .is_some_and(|movies| movies.format_for_extension(&ext).is_some()));
         if wanted
             && entries
                 .iter()
@@ -999,6 +1049,28 @@ fn build_review(
         });
     }
     Ok((entries, slots.unwrap_or_default(), config.ok().flatten()))
+}
+
+fn describe_slots(
+    ctx: &InstallContext,
+    slots: &[String],
+) -> Result<HashMap<String, movies::MovieDetails>, String> {
+    if slots.is_empty() {
+        return Ok(HashMap::new());
+    }
+    let dir = movies::movies_dir(&ctx.game_id, &ctx.game_path, ctx.launcher.as_deref())?;
+    let mut details = HashMap::new();
+    for slot in slots {
+        match movies::slot_details(&ctx.game_id, &dir, slot) {
+            Ok(found) => {
+                details.insert(slot.clone(), found);
+            }
+            // A game movie Modrex cannot read still takes a replacement. Only its
+            // description is missing, so the review goes ahead.
+            Err(error) => log::warn!("could not describe the movie {slot}: {error}"),
+        }
+    }
+    Ok(details)
 }
 
 pub(crate) fn get_review(app: &AppHandle, handle: &str) -> Result<ResourceReview, String> {
@@ -1132,12 +1204,14 @@ pub(crate) fn get_review(app: &AppHandle, handle: &str) -> Result<ResourceReview
         mod_name: r.provenance.name.clone(),
         entries: r.entries.iter().map(|e| e.entry.clone()).collect(),
         movie_slots: r.movie_slots.clone(),
+        movie_details: r.movie_details.clone(),
         config_path: r
             .config_path
             .as_ref()
             .map(|p| p.to_string_lossy().to_string()),
         pak_picker: r.pak_picker.clone(),
         source: r.provenance.source.clone(),
+        remote_id: r.provenance.remote_id.clone(),
         movie_pack_applied: r.movie_pack_applied,
         movie_conflicts,
         ini_conflicts,
@@ -1472,7 +1546,7 @@ async fn install_movie_pack(
 ) -> Result<ResourceInstallResult, String> {
     let ctx = &review.context;
     let dir = movies::movies_dir(&ctx.game_id, &ctx.game_path, ctx.launcher.as_deref())?;
-    let inventory = movies::slot_inventory(&ctx.game_id, &dir, ctx.launcher.as_deref())?;
+    let inventory = movies::slot_inventory(&ctx.game_id, &dir)?;
     let mut destinations = Vec::new();
     for c in &choices {
         destinations.push(movies::slot_destination(&dir, &c.slot, &inventory)?);
@@ -1490,7 +1564,7 @@ async fn install_movie_pack(
             else {
                 return Err(format!("{} disappeared from staging", c.entry_name));
             };
-            movies::validate_payload(&game_id, &store.object_path(&sha256))?;
+            movies::validate_payload(&game_id, &c.slot, &store.object_path(&sha256))?;
             slots.push(MovieSlot {
                 slot: c.slot,
                 destination: dest.to_string_lossy().to_string(),
@@ -1539,7 +1613,11 @@ fn apply_movie_pack(
     replacing: Option<String>,
 ) -> Result<ResourceInstallResult, String> {
     for slot in movies::slots_of(&pack) {
-        movies::validate_payload(game_id, &store.object_path(&slot.payload_sha256))?;
+        movies::validate_payload(
+            game_id,
+            &slot.slot,
+            &store.object_path(&slot.payload_sha256),
+        )?;
     }
     let plan = movies::plan_apply(store, manifest, &pack, replacing.as_deref())?;
     if let DeploymentBody::Movie { slots } = &mut pack.body {
@@ -1768,9 +1846,64 @@ fn apply_preset(
     store: &ResourceStore,
     game_id: &str,
     manifest: &Manifest,
-    mut preset: Deployment,
+    preset: Deployment,
     replacing: Option<String>,
 ) -> Result<(), String> {
+    let mut planned = manifest.clone();
+    let steps = plan_apply_preset(store, game_id, &mut planned, preset, replacing)?;
+    store.apply(game_id, steps, |manifest| *manifest = planned)
+}
+
+fn release_preset(
+    store: &ResourceStore,
+    game_id: &str,
+    preset: &Deployment,
+    remove: bool,
+) -> Result<(), String> {
+    let mut planned = store.load_manifest()?;
+    let steps = plan_release_preset(store, game_id, &mut planned, preset, remove)?;
+    store.apply(game_id, steps, |manifest| *manifest = planned)
+}
+
+fn relocate_preset(
+    store: &ResourceStore,
+    manifest: &Manifest,
+    deployment: &Deployment,
+    destination: &Path,
+) -> Result<(), String> {
+    let mut moved = deployment.clone();
+    if let DeploymentBody::Ini { preset } = &mut moved.body {
+        preset.config_path = destination.to_string_lossy().into_owned();
+        preset.changes.clear();
+        preset.created_sections.clear();
+        preset.created_file = false;
+    }
+    // A disabled preset owns no live settings, so moving it changes only its record.
+    if !deployment.enabled {
+        return store.apply(&deployment.game_id, Vec::new(), |manifest| {
+            upsert(manifest, moved)
+        });
+    }
+    let game_id = &deployment.game_id;
+    let mut planned = manifest.clone();
+    let mut steps = plan_release_preset(store, game_id, &mut planned, deployment, true)?;
+    steps.extend(plan_apply_preset(
+        store,
+        game_id,
+        &mut planned,
+        moved,
+        None,
+    )?);
+    store.apply(game_id, steps, |manifest| *manifest = planned)
+}
+
+fn plan_apply_preset(
+    store: &ResourceStore,
+    game_id: &str,
+    manifest: &mut Manifest,
+    mut preset: Deployment,
+    replacing: Option<String>,
+) -> Result<Vec<Step>, String> {
     let p = preset_of(&preset).expect("an INI deployment").clone();
     let path = PathBuf::from(&p.config_path);
     let (_original, decoded, original_revision) = read_config(&path)?;
@@ -1820,40 +1953,40 @@ fn apply_preset(
         None => (Vec::new(), None),
     };
     let config_path = p.config_path.clone();
-    store.apply(game_id, steps, |m| {
-        if let Some(old) = &replacing {
-            m.deployments.retain(|d| &d.id != old);
+    if let Some(old) = &replacing {
+        manifest.deployments.retain(|d| &d.id != old);
+    }
+    for d in manifest
+        .deployments
+        .iter_mut()
+        .filter(|d| switched_off.contains(&d.id))
+    {
+        d.enabled = false;
+        if let DeploymentBody::Ini { preset } = &mut d.body {
+            preset.changes.clear();
+            preset.created_sections.clear();
         }
-        for d in m
-            .deployments
-            .iter_mut()
-            .filter(|d| switched_off.contains(&d.id))
-        {
-            d.enabled = false;
-            if let DeploymentBody::Ini { preset } = &mut d.body {
-                preset.changes.clear();
-                preset.created_sections.clear();
-            }
-        }
-        upsert(m, preset);
-        if let Some(prior) = revision {
-            m.ini_revisions.push(IniRevision {
-                config_path,
-                game_id: game_id.to_string(),
-                prior,
-                saved_at: chrono::Utc::now().to_rfc3339(),
-            });
-        }
-    })
+    }
+    upsert(manifest, preset);
+    if let Some(prior) = revision {
+        manifest.ini_revisions.push(IniRevision {
+            config_path,
+            game_id: game_id.to_string(),
+            prior,
+            saved_at: chrono::Utc::now().to_rfc3339(),
+        });
+    }
+    Ok(steps)
 }
 
-/// Restores a preset's owned settings, refusing changed or ambiguous assignments.
-fn release_preset(
+/// Plans restoration of owned settings, refusing changed or ambiguous assignments.
+fn plan_release_preset(
     store: &ResourceStore,
     game_id: &str,
+    manifest: &mut Manifest,
     preset: &Deployment,
     remove: bool,
-) -> Result<(), String> {
+) -> Result<Vec<Step>, String> {
     let p = preset_of(preset).expect("an INI deployment").clone();
     let id = preset.id.clone();
     let mut steps = Vec::new();
@@ -1886,26 +2019,25 @@ fn release_preset(
             }
         }
     }
-    store.apply(game_id, steps, |m| {
-        if remove {
-            m.deployments.retain(|d| d.id != id);
+    if remove {
+        manifest.deployments.retain(|d| d.id != id);
+    }
+    if let Some(d) = manifest.deployments.iter_mut().find(|d| d.id == id) {
+        d.enabled = false;
+        if let DeploymentBody::Ini { preset } = &mut d.body {
+            preset.changes.clear();
+            preset.created_sections.clear();
         }
-        if let Some(d) = m.deployments.iter_mut().find(|d| d.id == id) {
-            d.enabled = false;
-            if let DeploymentBody::Ini { preset } = &mut d.body {
-                preset.changes.clear();
-                preset.created_sections.clear();
-            }
-        }
-        if let Some(prior) = revision {
-            m.ini_revisions.push(IniRevision {
-                config_path: p.config_path,
-                game_id: game_id.to_string(),
-                prior,
-                saved_at: chrono::Utc::now().to_rfc3339(),
-            });
-        }
-    })
+    }
+    if let Some(prior) = revision {
+        manifest.ini_revisions.push(IniRevision {
+            config_path: p.config_path,
+            game_id: game_id.to_string(),
+            prior,
+            saved_at: chrono::Utc::now().to_rfc3339(),
+        });
+    }
+    Ok(steps)
 }
 
 // ---------------------------------------------------------------------------------------
@@ -2062,6 +2194,9 @@ pub(crate) async fn act(
     uid: &str,
     action: ResourceAction,
 ) -> Result<(), String> {
+    if action == ResourceAction::Enable {
+        relocate_stale_presets(app, game_id, game_path).await;
+    }
     let id = uid
         .strip_prefix(RESOURCE_UID_PREFIX)
         .ok_or("not a resource row")?
@@ -2140,8 +2275,7 @@ fn validate_deployment_paths(deployment: &Deployment) -> Result<(), String> {
         &deployment.game_path,
         deployment.launcher.as_deref(),
     )?;
-    let inventory =
-        movies::slot_inventory(&deployment.game_id, &dir, deployment.launcher.as_deref())?;
+    let inventory = movies::pack_inventory(&deployment.game_id, &dir, slots)?;
     for slot in slots {
         if movies::slot_destination(&dir, &slot.slot, &inventory)? != Path::new(&slot.destination) {
             return Err(format!(
@@ -2215,6 +2349,112 @@ fn row(d: &Deployment, status: ResourceStatus) -> InstalledMod {
         m.update_status = UpdateStatus::Known;
     }
     m
+}
+
+fn stale_platform_path(recorded: &Path, root: &Path, destination: &Path) -> bool {
+    recorded
+        .file_name()
+        .is_some_and(|name| name == "Engine.ini")
+        && recorded.parent().and_then(Path::parent) == Some(root)
+        && destination.parent().and_then(Path::parent) == Some(root)
+        && recorded.parent() != destination.parent()
+}
+
+pub(super) async fn relocate_stale_presets(app: &AppHandle, game_id: &str, game_path: &str) {
+    let result = relocate_stale_presets_inner(app, game_id, game_path).await;
+    if let Err(error) = result {
+        log::warn!("Preset relocation for {game_id}: {error}");
+    }
+}
+
+async fn relocate_stale_presets_inner(
+    app: &AppHandle,
+    game_id: &str,
+    game_path: &str,
+) -> Result<(), String> {
+    let store = ResourceStore::for_app(app)?;
+    let inspection_app = app.clone();
+    let inspection_store = store.clone();
+    let id = game_id.to_string();
+    let path = game_path.to_string();
+    let planned = blocking(move || {
+        let context = current_context(&inspection_app, &id)?;
+        if context.game_path != path || picked_directory(&inspection_app, &context).is_some() {
+            return Ok(None);
+        }
+        let manifest = inspection_store.load_manifest()?;
+        let presets: Vec<_> = manifest
+            .deployments
+            .iter()
+            .filter(|deployment| {
+                deployment.game_id == id
+                    && deployment.canonical_game_path == context.canonical_game_path
+                    && deployment.launcher == context.launcher
+                    && preset_of(deployment).is_some()
+            })
+            .collect();
+        if presets.is_empty() {
+            return Ok(None);
+        }
+        let launcher = context.launcher.as_deref();
+        let Some(directory) = unreal_config::automatic_directory(&id, launcher)? else {
+            return Ok(None);
+        };
+        let root = directory
+            .parent()
+            .expect("discovered platform folder")
+            .to_path_buf();
+        let destination = directory.join("Engine.ini");
+        let mut paths: Vec<_> = presets
+            .into_iter()
+            .filter_map(|deployment| {
+                let recorded =
+                    Path::new(&preset_of(deployment).expect("INI deployment").config_path);
+                stale_platform_path(recorded, &root, &destination).then(|| recorded.to_path_buf())
+            })
+            .collect();
+        // The game rewrites its config while running, so a move waits for the next refresh.
+        if paths.is_empty() || crate::commands::launchers::game_running(&id)? {
+            return Ok(None);
+        }
+        paths.push(destination.clone());
+        Ok(Some((context, root, destination, paths)))
+    })
+    .await?;
+    let Some((context, root, destination, paths)) = planned else {
+        return Ok(());
+    };
+    let (_guard, store) = lock_and_recover(app, game_id, &paths).await?;
+    let app = app.clone();
+    blocking(move || {
+        require_context(&app, &context)?;
+        if picked_directory(&app, &context).is_some() {
+            return Ok(());
+        }
+        if unreal_config::automatic_directory(&context.game_id, context.launcher.as_deref())?
+            .as_deref()
+            != destination.parent()
+        {
+            return Err(
+                "The automatic preset destination changed while waiting for the resource lock"
+                    .into(),
+            );
+        }
+        let manifest = store.load_manifest()?;
+        for deployment in manifest.deployments.iter().filter(|deployment| {
+            deployment.game_id == context.game_id
+                && deployment.canonical_game_path == context.canonical_game_path
+                && deployment.launcher == context.launcher
+                && preset_of(deployment).is_some_and(|preset| {
+                    stale_platform_path(Path::new(&preset.config_path), &root, &destination)
+                })
+        }) {
+            let current = store.load_manifest()?;
+            relocate_preset(&store, &current, deployment, &destination)?;
+        }
+        Ok(())
+    })
+    .await
 }
 
 /// Installed-list rows for this install, derived only from the resource manifest.

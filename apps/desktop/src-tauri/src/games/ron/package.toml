@@ -9,31 +9,37 @@ package_reader = {
 }
 
 movie_replacement = {
-    format = "mp4",
+    formats = ["mp4"],
     directory = ["ReadyOrNot", "Content", "Movies"],
     storefronts = ["steam"],
 }
 
-config_presets = {
-    format = "unreal_engine_ini",
-    locations = [
+unreal_config = {
+    roots = [
         {
             root = "windows_local_app_data",
             store = "steam",
-            path = ["ReadyOrNot", "Saved", "Config", "Windows", "Engine.ini"],
+            path = ["ReadyOrNot", "Saved", "Config"],
+        },
+        {
+            root = "windows_local_app_data",
+            store = "epic",
+            path = ["ReadyOrNot", "Saved", "Config"],
+        },
+        {
+            root = "windows_local_app_data",
+            store = "xbox",
+            path = ["ReadyOrNot", "Saved", "Config"],
         },
     ],
 }
 
+config_presets = {
+    format = "unreal_engine_ini",
+}
+
 graphics_config = {
     filename = "GameUserSettings.ini",
-    locations = [
-        {
-            root = "windows_local_app_data",
-            store = "steam",
-            path = ["ReadyOrNot", "Saved", "Config", "Windows", "GameUserSettings.ini"],
-        },
-    ],
 }
 
 sources = [
@@ -45,14 +51,27 @@ sources = [
 ]
 
 install = {
-    executables = ["ReadyOrNot.exe"],
-    processes = ["ReadyOrNotSteam-Win64-Shipping"],
+    executables = ["ReadyOrNot.exe", "ReadyOrNotEGS.exe"],
+    processes = [
+        "ReadyOrNotSteam-Win64-Shipping",
+        "ReadyOrNotEGS-Win64-Shipping",
+        "ReadyOrNotXBoxPC-WinGDK-Shipping",
+    ],
     steam_windows_no_mods_argument = "-paksafemode",
     stores = [
         {
             provider = "steam",
             app_id = 1144200,
             folder = "Ready Or Not",
+        },
+        {
+            provider = "epic",
+            name = "Ready or Not",
+        },
+        {
+            provider = "xbox",
+            product_id = "9NBR63PT4FZC",
+            executable = "ReadyOrNot/Binaries/WinGDK/ReadyOrNotXBoxPC-WinGDK-Shipping.exe",
         },
     ],
 }
