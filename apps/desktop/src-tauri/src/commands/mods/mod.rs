@@ -2225,7 +2225,11 @@ pub async fn install_dropped_file(
         commit_install(state_guard, move || {
             // Discovery-matching identity: filename drives the uid/id the untracked-scan would assign,
             // so a later manual refresh reconciles this entry instead of duplicating it.
-            let filename = if target.keeps_archive_filename() && loose_file {
+            // A loose file in a bundle keeps its whole name, so Foo.archive and Foo.reds dropped
+            // one after the other stay two mods rather than the second replacing the first.
+            let filename = if target.is_bundle() && loose_file {
+                dropped_file_name(&path).to_string()
+            } else if target.keeps_archive_filename() && loose_file {
                 decisions::loose_published_filename(target, dropped_file_name(&path))?
             } else {
                 decisions::install_filename_for_dropped(cfg, target, &display_stem)

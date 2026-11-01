@@ -504,6 +504,7 @@ fn owners<'a>(mods: &'a [InstalledMod], except: Option<&str>) -> HashMap<String,
 fn separately_tracked<'a>(
     cfg: &ModEngineConfig,
     mods: &'a [InstalledMod],
+    folders: &[super::types::ModFolder],
 ) -> Vec<(String, bool, &'a InstalledMod)> {
     let mut out = Vec::new();
     for m in mods
@@ -530,9 +531,12 @@ fn separately_tracked<'a>(
                 format!("{}{}", m.filename, target.disabled_suffix()),
             )
         };
+        // A unit found nested in a folder of its target records that folder separately.
+        let folder = super::state::get_folder_path(folders, m.folder_id.as_deref());
         let rel = base
             .iter()
             .map(|part| part.to_string())
+            .chain(folder)
             .chain(std::iter::once(name))
             .collect::<Vec<_>>()
             .join("/")
@@ -592,7 +596,14 @@ pub(crate) fn install(
     refuse_while_hidden(game_path, target, "install again")?;
     let state =
         super::state::read_state_for_game(game_path, state_path, cfg).map_err(|e| e.to_string())?;
-    let placed = place(game_path, cfg, target, staged, &state.mods, &mod_data)?;
+    let placed = place(
+        game_path,
+        cfg,
+        target,
+        staged,
+        (&state.mods, &state.folders),
+        &mod_data,
+    )?;
     let mut record = InstalledMod {
         bundle: Some(placed.files.clone()),
         enabled: true,
@@ -734,7 +745,7 @@ fn place(
     cfg: &ModEngineConfig,
     target: &ScanTarget,
     staged: &Path,
-    mods: &[InstalledMod],
+    (mods, folders): (&[InstalledMod], &[super::types::ModFolder]),
     incoming: &InstalledMod,
 ) -> Result<Placed, String> {
     let layout = Layout::of(target).expect("place is only called for bundle targets");
@@ -762,7 +773,7 @@ fn place(
     let game_canonical =
         fs::canonicalize(game).map_err(|e| format!("could not resolve the game folder: {e}"))?;
     let others = owners(mods, replaced.map(|m| m.uid.as_str()));
-    let tracked = separately_tracked(cfg, mods);
+    let tracked = separately_tracked(cfg, mods, folders);
     let previous: HashSet<String> = replaced
         .map(|m| {
             files_of(m)
@@ -772,6 +783,30 @@ fn place(
         })
         .unwrap_or_default();
     let replaced_enabled = replaced.is_some_and(|m| m.enabled);
+    // A file of the previous release this one ships again would be overwritten, so one the user
+    // changed since stops the update rather than being lost.
+    if let Some(old) = replaced {
+        let incoming_keys: HashSet<String> = planned
+            .iter()
+            .map(|file| file.destination.to_ascii_lowercase())
+            .collect();
+        let changed: Vec<String> = files_of(old)
+            .iter()
+            .filter(|file| incoming_keys.contains(&file.path.to_ascii_lowercase()))
+            .filter(|file| {
+                let path = current_file(game_path, target, old, &file.path);
+                path.exists() && !unchanged(&path, file)
+            })
+            .map(|file| file.path.clone())
+            .collect();
+        if !changed.is_empty() {
+            return Err(format!(
+                "The update would overwrite files changed since {} was installed: {}. Back them up or undo the changes, then update again. Nothing was changed.",
+                old.name,
+                listed(&changed)
+            ));
+        }
+    }
     for file in &planned {
         let key = file.destination.to_ascii_lowercase();
         if let Some(owner) = others.get(&key) {
@@ -938,6 +973,30 @@ fn move_all(moves: &[(PathBuf, PathBuf)]) -> Result<(), String> {
     Ok(())
 }
 
+/// Refuses a path whose folder resolves outside the game folder, which a folder link placed
+/// inside it after the install could make it do.
+fn require_inside_game(game_canonical: &Path, path: &Path) -> Result<(), String> {
+    let Some(parent) = path.parent() else {
+        return Ok(());
+    };
+    if !parent.exists() {
+        return Ok(());
+    }
+    let resolved = fs::canonicalize(parent)
+        .map_err(|e| format!("could not resolve {}: {e}", log_name(parent)))?;
+    if !resolved.starts_with(game_canonical) {
+        return Err(format!(
+            "{} leads outside the game folder",
+            log_name(parent)
+        ));
+    }
+    Ok(())
+}
+
+fn game_canonical(game_path: &str) -> Result<PathBuf, String> {
+    fs::canonicalize(game_path).map_err(|e| format!("could not resolve the game folder: {e}"))
+}
+
 /// While a launch without mods has an enabled bundle's files in the backup folder, the record
 /// no longer says where they are, so nothing may change them until they are restored.
 pub(crate) fn refuse_while_hidden(
@@ -977,6 +1036,11 @@ pub(crate) fn set_enabled(
         })
         .filter(|(from, _)| from.exists())
         .collect();
+    let game_root = game_canonical(game_path)?;
+    for (from, to) in &moves {
+        require_inside_game(&game_root, from)?;
+        require_inside_game(&game_root, to)?;
+    }
     move_all(&moves)?;
     for file in files {
         if enable {
@@ -1001,12 +1065,14 @@ pub(crate) fn remove(
     let layout = Layout::of(target).expect("remove is only called for bundle targets");
     let files = checked(m, layout)?;
     let store = disabled_store(game_path, target, &m.uid);
+    let game_root = game_canonical(game_path)?;
     let mut kept = Vec::new();
     for file in files {
         let path = current_file(game_path, target, m, &file.path);
         if !path.exists() {
             continue;
         }
+        require_inside_game(&game_root, &path)?;
         if !unchanged(&path, file) {
             log::warn!(
                 "bundle: kept {} because it changed since install",
@@ -1134,12 +1200,24 @@ pub(crate) fn owned_scan_keys(cfg: &ModEngineConfig, mods: &[InstalledMod]) -> H
                 continue;
             }
             let rest = &parts[base.len()..];
-            let key = match &target.unit {
-                ModUnit::File { .. } => rest.join("/"),
-                ModUnit::Directory { .. } => rest[0].to_string(),
+            match &target.unit {
+                ModUnit::File { .. } => {
+                    keys.insert(format!(
+                        "{}:{}",
+                        target.tag,
+                        rest.join("/").to_ascii_lowercase()
+                    ));
+                }
+                // The scan descends through folders without a marker, so every folder on the
+                // way to the file is a unit it could list.
+                ModUnit::Directory { .. } => {
+                    for depth in 1..rest.len() {
+                        let unit = rest[..depth].join("/").to_ascii_lowercase();
+                        keys.insert(format!("{}:{unit}", target.tag));
+                    }
+                }
                 ModUnit::Bundle { .. } => continue,
-            };
-            keys.insert(format!("{}:{}", target.tag, key.to_ascii_lowercase()));
+            }
         }
     }
     keys

@@ -937,3 +937,76 @@ fn separate_files_of_one_mod_are_never_taken_for_superseded_releases() {
     }
     assert!(super::state::superseded_records(&mods).is_empty());
 }
+
+#[tokio::test]
+async fn a_bundle_hides_every_nested_folder_it_owns_from_the_scan() {
+    let game = Game::new();
+    game.install(
+        record("grouped", None),
+        &[(
+            "bin/x64/plugins/cyber_engine_tweaks/mods/Group/Foo/init.lua",
+            "L",
+        )],
+    )
+    .unwrap();
+    let known = bundle::owned_scan_keys(cfg(), &game.mods());
+    let found = find_untracked_paks(game.path(), &known, cfg()).await;
+    assert!(found.is_empty(), "{found:?}");
+}
+
+#[test]
+fn a_bundle_never_writes_inside_a_nested_mod_installed_separately() {
+    let game = Game::new();
+    let mut state = read_state_for_game(game.path(), &game.state_path(), cfg()).unwrap();
+    state.folders.push(super::types::ModFolder {
+        id: "g".to_string(),
+        disk_name: "Group".to_string(),
+        display_name: "Group".to_string(),
+        priority: 1,
+        parent_id: None,
+    });
+    state.mods.push(InstalledMod {
+        uid: "cet:Foo".to_string(),
+        name: "Foo".to_string(),
+        filename: "Foo".to_string(),
+        enabled: true,
+        folder_id: Some("g".to_string()),
+        location: Some("cet_mods".to_string()),
+        ..InstalledMod::default()
+    });
+    super::state::save_state(&game.state_path(), &state).unwrap();
+
+    let error = game
+        .install(
+            record("extra", None),
+            &[(
+                "bin/x64/plugins/cyber_engine_tweaks/mods/Group/Foo/extra.lua",
+                "X",
+            )],
+        )
+        .unwrap_err();
+    assert!(error.contains("installed separately"), "{error}");
+}
+
+#[test]
+fn an_update_refuses_to_overwrite_a_file_the_user_changed() {
+    let game = Game::new();
+    game.install(
+        record("nexus:7:100", Some("7")),
+        &[("r6/scripts/m/config.reds", "default")],
+    )
+    .unwrap();
+    fs::write(game.file("r6/scripts/m/config.reds"), "mine!!!").unwrap();
+    let error = game
+        .install(
+            record("nexus:7:200", Some("7")),
+            &[("r6/scripts/m/config.reds", "release")],
+        )
+        .unwrap_err();
+    assert!(error.contains("changed since"), "{error}");
+    assert_eq!(
+        fs::read_to_string(game.file("r6/scripts/m/config.reds")).unwrap(),
+        "mine!!!"
+    );
+    assert_eq!(game.mods()[0].uid, "nexus:7:100");
+}
