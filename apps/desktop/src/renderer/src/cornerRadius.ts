@@ -1,52 +1,80 @@
 import { useSyncExternalStore } from 'react'
 
-export const CORNER_RADIUS_MIN = 0
-export const CORNER_RADIUS_MAX = 10
+// The scale multiplies every corner radius the design declares, so 1 is the design itself.
+// It is stored rather than a pixel value so a redesign with different radii keeps each
+// user's preference meaning the same thing. index.css owns the radii and their ceilings.
+export const DEFAULT_CORNER_SCALE = 1
+// At this scale the tallest controls, about 34px, reach half their height and turn into pills.
+export const MAX_CORNER_SCALE = 4.5
 
-const CORNER_RADIUS_STORAGE_KEY = 'modrex:corner-radius'
-const DEFAULT_CORNER_RADIUS = 4
+export const CORNER_POSITION_MAX = 100
+export const DEFAULT_CORNER_POSITION = CORNER_POSITION_MAX / 2
 
-function readSavedCornerRadius(): number {
-    if (typeof localStorage === 'undefined') return DEFAULT_CORNER_RADIUS
-    const raw = localStorage.getItem(CORNER_RADIUS_STORAGE_KEY)
-    if (raw === null) return DEFAULT_CORNER_RADIUS
+const CORNER_SCALE_STORAGE_KEY = 'modrex:corner-scale'
+
+// The default sits mid-bar, so the left half spans sharp to default and the right half
+// spans default to the maximum. A linear bar would leave the default near the left end.
+export function cornerScaleFromPosition(position: number): number {
+    const half = DEFAULT_CORNER_POSITION
+    const scale =
+        position <= half
+            ? (position / half) * DEFAULT_CORNER_SCALE
+            : DEFAULT_CORNER_SCALE +
+              ((position - half) / half) * (MAX_CORNER_SCALE - DEFAULT_CORNER_SCALE)
+    return Math.round(scale * 100) / 100
+}
+
+export function cornerPositionFromScale(scale: number): number {
+    const half = DEFAULT_CORNER_POSITION
+    const position =
+        scale <= DEFAULT_CORNER_SCALE
+            ? (scale / DEFAULT_CORNER_SCALE) * half
+            : half +
+              ((scale - DEFAULT_CORNER_SCALE) / (MAX_CORNER_SCALE - DEFAULT_CORNER_SCALE)) * half
+    return Math.round(position)
+}
+
+function readSavedCornerScale(): number {
+    if (typeof localStorage === 'undefined') return DEFAULT_CORNER_SCALE
+    const raw = localStorage.getItem(CORNER_SCALE_STORAGE_KEY)
+    if (raw === null || raw === '') return DEFAULT_CORNER_SCALE
     const saved = Number(raw)
-    return Number.isInteger(saved) && saved >= CORNER_RADIUS_MIN && saved <= CORNER_RADIUS_MAX
+    return Number.isFinite(saved) && saved >= 0 && saved <= MAX_CORNER_SCALE
         ? saved
-        : DEFAULT_CORNER_RADIUS
+        : DEFAULT_CORNER_SCALE
 }
 
-function applyCornerRadius(radius: number): void {
+function applyCornerScale(scale: number): void {
     if (typeof document === 'undefined') return
-    document.documentElement.style.setProperty('--modrex-radius', `${radius}px`)
+    document.documentElement.style.setProperty('--modrex-radius-scale', String(scale))
 }
 
-let activeCornerRadius = readSavedCornerRadius()
+let activeCornerScale = readSavedCornerScale()
 const listeners = new Set<() => void>()
 
-export function initCornerRadius(): void {
-    applyCornerRadius(activeCornerRadius)
+export function initCornerScale(): void {
+    applyCornerScale(activeCornerScale)
 }
 
-export function getCornerRadius(): number {
-    return activeCornerRadius
+export function getCornerScale(): number {
+    return activeCornerScale
 }
 
-export function setCornerRadius(radius: number): void {
-    if (radius === activeCornerRadius) return
-    activeCornerRadius = radius
+export function setCornerScale(scale: number): void {
+    if (scale === activeCornerScale) return
+    activeCornerScale = scale
     if (typeof localStorage !== 'undefined') {
-        localStorage.setItem(CORNER_RADIUS_STORAGE_KEY, String(radius))
+        localStorage.setItem(CORNER_SCALE_STORAGE_KEY, String(scale))
     }
-    applyCornerRadius(radius)
+    applyCornerScale(scale)
     for (const listener of listeners) listener()
 }
 
-export function subscribeCornerRadius(callback: () => void): () => void {
+export function subscribeCornerScale(callback: () => void): () => void {
     listeners.add(callback)
     return () => listeners.delete(callback)
 }
 
-export function useCornerRadius(): number {
-    return useSyncExternalStore(subscribeCornerRadius, getCornerRadius)
+export function useCornerScale(): number {
+    return useSyncExternalStore(subscribeCornerScale, getCornerScale)
 }

@@ -1,8 +1,10 @@
 import { api, type StartupPhase } from './api'
 import { getLocale, t, type StringKey } from './i18n'
 import { initAccentColor } from './accentColor'
+import { initCornerScale } from './cornerRadius'
 
 initAccentColor()
+initCornerScale()
 
 const phases: Exclude<StartupPhase, 'error'>[] = ['prepare', 'interface', 'game', 'mods', 'ready']
 

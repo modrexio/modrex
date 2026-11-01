@@ -15,72 +15,80 @@ async function loadModule() {
     return import('./cornerRadius')
 }
 
-describe('corner radius store', () => {
+describe('corner scale store', () => {
     beforeEach(() => {
         vi.stubGlobal('localStorage', freshStorage())
         vi.stubGlobal('document', { documentElement: { style: { setProperty: vi.fn() } } })
     })
 
-    it('defaults to 4px and applies it as --modrex-radius', async () => {
-        const { getCornerRadius, initCornerRadius } = await loadModule()
-        expect(getCornerRadius()).toBe(4)
-        initCornerRadius()
+    it('defaults to the design unchanged', async () => {
+        const { getCornerScale, initCornerScale } = await loadModule()
+        expect(getCornerScale()).toBe(1)
+        initCornerScale()
         expect(document.documentElement.style.setProperty).toHaveBeenCalledWith(
-            '--modrex-radius',
-            '4px'
+            '--modrex-radius-scale',
+            '1'
         )
     })
 
-    it('loads and applies a saved radius', async () => {
-        localStorage.setItem('modrex:corner-radius', '8')
-        const { getCornerRadius, initCornerRadius } = await loadModule()
-        expect(getCornerRadius()).toBe(8)
-        initCornerRadius()
-        expect(document.documentElement.style.setProperty).toHaveBeenCalledWith(
-            '--modrex-radius',
-            '8px'
-        )
+    it('loads a saved scale', async () => {
+        localStorage.setItem('modrex:corner-scale', '2.75')
+        const { getCornerScale } = await loadModule()
+        expect(getCornerScale()).toBe(2.75)
     })
 
-    it('applies the minimum and maximum unchanged', async () => {
-        localStorage.setItem('modrex:corner-radius', '0')
-        const { getCornerRadius } = await loadModule()
-        expect(getCornerRadius()).toBe(0)
+    it.each(['round', '-1', '9', ''])('ignores the saved value %j', async (saved) => {
+        localStorage.setItem('modrex:corner-scale', saved)
+        const { getCornerScale } = await loadModule()
+        expect(getCornerScale()).toBe(1)
     })
 
-    it('persists changes and notifies subscribers', async () => {
-        const { setCornerRadius, getCornerRadius, subscribeCornerRadius } = await loadModule()
+    it('persists, applies and announces a change', async () => {
+        const { setCornerScale, getCornerScale, subscribeCornerScale } = await loadModule()
         const listener = vi.fn()
-        subscribeCornerRadius(listener)
+        subscribeCornerScale(listener)
 
-        setCornerRadius(7)
+        setCornerScale(0.5)
 
         expect(listener).toHaveBeenCalledTimes(1)
-        expect(localStorage.getItem('modrex:corner-radius')).toBe('7')
-        expect(getCornerRadius()).toBe(7)
+        expect(localStorage.getItem('modrex:corner-scale')).toBe('0.5')
+        expect(getCornerScale()).toBe(0.5)
         expect(document.documentElement.style.setProperty).toHaveBeenCalledWith(
-            '--modrex-radius',
-            '7px'
+            '--modrex-radius-scale',
+            '0.5'
         )
     })
 
-    it('does not notify when setting the active radius', async () => {
-        const { setCornerRadius, subscribeCornerRadius } = await loadModule()
+    it('stays quiet when the scale does not change', async () => {
+        const { setCornerScale, subscribeCornerScale } = await loadModule()
         const listener = vi.fn()
-        subscribeCornerRadius(listener)
-        setCornerRadius(4)
+        subscribeCornerScale(listener)
+        setCornerScale(1)
         expect(listener).not.toHaveBeenCalled()
     })
+})
 
-    it('falls back to 4px for a non-numeric saved value', async () => {
-        localStorage.setItem('modrex:corner-radius', 'quite-round')
-        const { getCornerRadius } = await loadModule()
-        expect(getCornerRadius()).toBe(4)
+describe('corner bar position', () => {
+    it('puts sharp, default and maximum at the start, middle and end', async () => {
+        const { cornerScaleFromPosition, MAX_CORNER_SCALE } = await loadModule()
+        expect(cornerScaleFromPosition(0)).toBe(0)
+        expect(cornerScaleFromPosition(50)).toBe(1)
+        expect(cornerScaleFromPosition(100)).toBe(MAX_CORNER_SCALE)
     })
 
-    it('falls back to 4px for an out-of-range saved value', async () => {
-        localStorage.setItem('modrex:corner-radius', '40')
-        const { getCornerRadius } = await loadModule()
-        expect(getCornerRadius()).toBe(4)
+    it('returns every bar position from the scale it produces', async () => {
+        const { cornerScaleFromPosition, cornerPositionFromScale } = await loadModule()
+        for (let position = 0; position <= 100; position++) {
+            expect(cornerPositionFromScale(cornerScaleFromPosition(position))).toBe(position)
+        }
+    })
+
+    it('grows with the bar', async () => {
+        const { cornerScaleFromPosition } = await loadModule()
+        for (let position = 1; position <= 100; position++) {
+            expect(cornerScaleFromPosition(position)).toBeGreaterThan(
+                cornerScaleFromPosition(position - 1)
+            )
+        }
     })
 })

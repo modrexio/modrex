@@ -36,7 +36,7 @@ export function EmbedPlayer({ embed }: { embed: Embed }) {
                             aria-label={t('embed.play')}
                         >
                             <div className="absolute inset-0 bg-black/10 group-hover:bg-black/30 transition-colors duration-150" />
-                            <div className="relative flex items-center justify-center w-14 h-14 bg-black/50 rounded-full shadow-2xl group-hover:scale-105 group-hover:bg-black/70 transition-all duration-150">
+                            <div className="relative flex items-center justify-center w-14 h-14 bg-black/50 rounded-[calc(28px*var(--modrex-radius-scale))] shadow-2xl group-hover:scale-105 group-hover:bg-black/70 transition-all duration-150">
                                 <svg
                                     className="w-6 h-6 text-white"
                                     viewBox="0 0 24 24"

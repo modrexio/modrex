@@ -13,7 +13,7 @@ export function SkeletonListRow() {
                 <SkeletonBar className="h-2.5 w-1/4" />
             </div>
             <div className="flex items-center gap-2 px-4 shrink-0">
-                <SkeletonBar className="w-9 h-5 rounded-full" />
+                <SkeletonBar className="w-9 h-5 rounded-[calc(10px*var(--modrex-radius-scale))]" />
                 <SkeletonBar className="w-8 h-8" />
             </div>
         </div>

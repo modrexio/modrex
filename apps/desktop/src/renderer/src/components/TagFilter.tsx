@@ -129,7 +129,7 @@ export function TagFilter({ tags, include, exclude, onChange }: Props) {
                                             )}
                                         </span>
                                         <span
-                                            className="text-sm px-2.5 py-0.5 rounded-full border"
+                                            className="text-sm px-2.5 py-0.5 rounded-[calc(14px*var(--modrex-radius-scale))] border"
                                             style={{
                                                 borderColor: tag.color + '80',
                                                 color: tag.color,

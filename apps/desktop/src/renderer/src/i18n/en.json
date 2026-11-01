@@ -587,8 +587,11 @@
             "gray": "Gray"
         },
         "cornerRadius": {
-            "title": "Corner radius",
-            "description": "How rounded buttons, cards and panels look. 0 is sharp, 10 is fully rounded."
+            "title": "Corners",
+            "description": "How rounded buttons, cards and dialogs are. The middle of the bar is the default.",
+            "reset": "Reset to default",
+            "default": "Default",
+            "percent": "{percent}% of the default"
         },
         "gamePath": {
             "title": "Game Path",
