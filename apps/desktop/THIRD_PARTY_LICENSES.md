@@ -13234,7 +13234,7 @@ SOFTWARE.
 
 ## MIT License
 
-Used by: sysinfo 0.39.6
+Used by: sysinfo 0.40.0
 
 ```
 The MIT License (MIT)

@@ -15,7 +15,7 @@
     },
     "apps/desktop": {
       "name": "modrex",
-      "version": "0.16.0",
+      "version": "0.16.1",
       "dependencies": {
         "@modrex/games": "workspace:*",
         "@modrex/scrollbars": "workspace:*",
