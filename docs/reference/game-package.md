@@ -222,7 +222,7 @@ state file lives there and must be found at the same place in every store's copy
 
 | Value | Interface string |
 | --- | --- |
-| `mods` | `settings.folders.mods`, only on a game's sole target |
+| `mods` | `settings.folders.mods`, only on a game's sole target or a bundle |
 | `pak_mods` | `settings.folders.pakMods` |
 | `loader_mods` | `settings.folders.loaderMods` with the loader display name substituted |
 | `overrides` | `settings.folders.overrides` |

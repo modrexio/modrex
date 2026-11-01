@@ -100,43 +100,21 @@ fn preset_rows() -> String {
 }
 
 fn label_rows() -> String {
-    [
-        TargetLabel::Mods,
-        TargetLabel::PakMods,
-        TargetLabel::LoaderMods,
-        TargetLabel::Overrides,
-        TargetLabel::ModkitMods,
-        TargetLabel::LegacyPaks,
-        TargetLabel::ArchiveMods,
-        TargetLabel::RedmodMods,
-        TargetLabel::CetMods,
-        TargetLabel::RedscriptMods,
-    ]
-    .iter()
-    .map(|label| {
-        format!(
-            "| `{}` | `settings.folders.{}`{} |\n",
-            match label {
-                TargetLabel::Mods => "mods",
-                TargetLabel::PakMods => "pak_mods",
-                TargetLabel::LoaderMods => "loader_mods",
-                TargetLabel::ModkitMods => "modkit_mods",
-                TargetLabel::LegacyPaks => "legacy_paks",
-                TargetLabel::Overrides => "overrides",
-                TargetLabel::ArchiveMods => "archive_mods",
-                TargetLabel::RedmodMods => "redmod_mods",
-                TargetLabel::CetMods => "cet_mods",
-                TargetLabel::RedscriptMods => "redscript_mods",
-            },
-            label.key(),
-            match label {
-                TargetLabel::LoaderMods => " with the loader display name substituted",
-                TargetLabel::Mods => ", only on a game's sole target",
-                _ => "",
-            }
-        )
-    })
-    .collect()
+    TargetLabel::ALL
+        .iter()
+        .map(|label| {
+            format!(
+                "| `{}` | `settings.folders.{}`{} |\n",
+                label.manifest_value(),
+                label.key(),
+                match label {
+                    TargetLabel::LoaderMods => " with the loader display name substituted",
+                    TargetLabel::Mods => ", only on a game's sole target or a bundle",
+                    _ => "",
+                }
+            )
+        })
+        .collect()
 }
 
 fn discovery_rows() -> String {

@@ -2,16 +2,9 @@ export const LAUNCHERS = ['Steam', 'Epic Games', 'Xbox App'] as const
 
 export type LauncherName = (typeof LAUNCHERS)[number]
 export type StorefrontId = 'steam' | 'epic' | 'xbox'
-export type ModTargetId =
-    | 'mods'
-    | 'paks'
-    | 'plugins'
-    | 'ue4ss_mods'
-    | 'mod_overrides'
-    | 'archive_mods'
-    | 'redmod_mods'
-    | 'cet_mods'
-    | 'redscript_mods'
+// Every target tag a package declares, generated so a new target needs no edit here.
+export type { ModTargetId } from './catalog.generated.js'
+import type { ModTargetId } from './catalog.generated.js'
 
 export interface ModTarget {
     id: ModTargetId

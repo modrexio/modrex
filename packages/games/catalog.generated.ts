@@ -128,3 +128,9 @@ export const GAME_SPECS = {
         ],
     },
 } satisfies Record<string, GameSpec>
+
+export const TARGET_LABEL_KEYS = ['mods', 'pakMods', 'loaderMods', 'overrides', 'modkitMods', 'legacyPaks', 'archiveMods', 'redmodMods', 'cetMods', 'redscriptMods'] as const
+
+export type TargetLabelKey = (typeof TARGET_LABEL_KEYS)[number]
+
+export type ModTargetId = 'archive_mods' | 'cet_mods' | 'mod_overrides' | 'mods' | 'paks' | 'plugins' | 'redmod_mods' | 'redscript_mods' | 'ue4ss_mods'

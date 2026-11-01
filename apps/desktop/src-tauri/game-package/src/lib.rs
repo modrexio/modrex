@@ -583,6 +583,37 @@ pub enum TargetLabel {
 }
 
 impl TargetLabel {
+    /// Every label. The reference, the generated renderer catalogue and the tests list labels
+    /// from here, so a new label is this list plus the two matches below.
+    pub const ALL: &'static [TargetLabel] = &[
+        TargetLabel::Mods,
+        TargetLabel::PakMods,
+        TargetLabel::LoaderMods,
+        TargetLabel::Overrides,
+        TargetLabel::ModkitMods,
+        TargetLabel::LegacyPaks,
+        TargetLabel::ArchiveMods,
+        TargetLabel::RedmodMods,
+        TargetLabel::CetMods,
+        TargetLabel::RedscriptMods,
+    ];
+
+    /// The value a manifest writes.
+    pub fn manifest_value(self) -> &'static str {
+        match self {
+            TargetLabel::Mods => "mods",
+            TargetLabel::PakMods => "pak_mods",
+            TargetLabel::LoaderMods => "loader_mods",
+            TargetLabel::ModkitMods => "modkit_mods",
+            TargetLabel::LegacyPaks => "legacy_paks",
+            TargetLabel::Overrides => "overrides",
+            TargetLabel::ArchiveMods => "archive_mods",
+            TargetLabel::RedmodMods => "redmod_mods",
+            TargetLabel::CetMods => "cet_mods",
+            TargetLabel::RedscriptMods => "redscript_mods",
+        }
+    }
+
     /// The key the renderer looks up under settings.folders.
     pub fn key(self) -> &'static str {
         match self {

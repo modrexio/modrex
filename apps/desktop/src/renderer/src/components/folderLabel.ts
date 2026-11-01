@@ -1,27 +1,20 @@
-import { t, type StringKey } from '../i18n'
+import { TARGET_LABEL_KEYS, type TargetLabelKey } from '@modrex/games'
+import { t } from '../i18n'
 import type { ModFolderInfo } from '../api'
 
-// The closed label vocabulary of game packages, TargetLabel in the game-package crate. The
-// build validates every package against it, so a label missing here is a renderer that fell
-// behind the crate, and it throws rather than show a raw key.
-const FOLDER_LABEL_KEYS: Record<string, StringKey> = {
-    mods: 'settings.folders.mods',
-    pakMods: 'settings.folders.pakMods',
-    modkitMods: 'settings.folders.modkitMods',
-    legacyPaks: 'settings.folders.legacyPaks',
-    overrides: 'settings.folders.overrides',
-    archiveMods: 'settings.folders.archiveMods',
-    redmodMods: 'settings.folders.redmodMods',
-    cetMods: 'settings.folders.cetMods',
-    redscriptMods: 'settings.folders.redscriptMods',
+// The label vocabulary is generated from the game-package crate's TargetLabel, so a label
+// with no string under settings.folders fails the type check here instead of showing a raw key.
+function isTargetLabelKey(key: string): key is TargetLabelKey {
+    return (TARGET_LABEL_KEYS as readonly string[]).includes(key)
 }
 
 export function folderLabel(folder: ModFolderInfo): string {
+    if (!isTargetLabelKey(folder.labelKey)) {
+        throw new Error(`Unknown mod folder label ${folder.labelKey} for ${folder.tag}`)
+    }
     if (folder.labelKey === 'loaderMods') {
         if (!folder.labelName) throw new Error(`Mod folder ${folder.tag} names no loader`)
         return t('settings.folders.loaderMods', { name: folder.labelName })
     }
-    const key = FOLDER_LABEL_KEYS[folder.labelKey]
-    if (!key) throw new Error(`Unknown mod folder label ${folder.labelKey} for ${folder.tag}`)
-    return t(key)
+    return t(`settings.folders.${folder.labelKey}`)
 }

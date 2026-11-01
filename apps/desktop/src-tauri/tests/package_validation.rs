@@ -4,7 +4,7 @@
 //! validate::check. Exercising them here means CI proves the rejections without needing a
 //! failing build.
 
-use modrex_game_package::{validate, GamePackage};
+use modrex_game_package::{validate, GamePackage, TargetLabel};
 
 /// Kept minimal on purpose: anything a case does not care about should be able to disappear
 /// without the case changing meaning.
@@ -189,18 +189,8 @@ fn a_built_in_loader_without_mod_pages_is_rejected() {
 
 #[test]
 fn target_labels_have_exact_manifest_values_and_interface_keys() {
-    for (value, key) in [
-        ("mods", "mods"),
-        ("pak_mods", "pakMods"),
-        ("loader_mods", "loaderMods"),
-        ("overrides", "overrides"),
-        ("modkit_mods", "modkitMods"),
-        ("legacy_paks", "legacyPaks"),
-        ("archive_mods", "archiveMods"),
-        ("redmod_mods", "redmodMods"),
-        ("cet_mods", "cetMods"),
-        ("redscript_mods", "redscriptMods"),
-    ] {
+    for label in TargetLabel::ALL {
+        let (value, key) = (label.manifest_value(), label.key());
         let text = with_root_declaration("loaders = [{ kind = \"dahm\" }]").replace(
             "label = \"pak_mods\"",
             &format!("label = \"{value}\"\nloader = \"dahm\""),
@@ -266,16 +256,11 @@ fn a_loader_cannot_serve_two_targets_even_with_different_labels() {
 
 #[test]
 fn non_loader_labels_are_unique_regardless_of_loader() {
-    for label in [
-        "pak_mods",
-        "overrides",
-        "modkit_mods",
-        "legacy_paks",
-        "archive_mods",
-        "redmod_mods",
-        "cet_mods",
-        "redscript_mods",
-    ] {
+    let labels = TargetLabel::ALL
+        .iter()
+        .filter(|label| !matches!(label, TargetLabel::Mods | TargetLabel::LoaderMods))
+        .map(|label| label.manifest_value());
+    for label in labels {
         for loaders in [false, true] {
             let mut base =
                 with_root_declaration("loaders = [{ kind = \"dahm\" }, { kind = \"superblt\" }]")
@@ -1281,4 +1266,29 @@ fn only_a_bundle_shares_the_mods_label_with_other_targets() {
             .replace("label = \"overrides\"", "label = \"mods\""),
         "only a game's sole target or a bundle may use",
     );
+}
+
+/// A label added to the enum without joining TargetLabel::ALL would be missing from the
+/// reference and the renderer catalogue. The match is exhaustive, so a new variant needs an
+/// arm here, and the arm's position then has to be the variant's place in ALL.
+#[test]
+fn every_target_label_is_listed_once_in_order() {
+    fn position(label: TargetLabel) -> usize {
+        match label {
+            TargetLabel::Mods => 0,
+            TargetLabel::PakMods => 1,
+            TargetLabel::LoaderMods => 2,
+            TargetLabel::Overrides => 3,
+            TargetLabel::ModkitMods => 4,
+            TargetLabel::LegacyPaks => 5,
+            TargetLabel::ArchiveMods => 6,
+            TargetLabel::RedmodMods => 7,
+            TargetLabel::CetMods => 8,
+            TargetLabel::RedscriptMods => 9,
+        }
+    }
+    for (index, label) in TargetLabel::ALL.iter().enumerate() {
+        assert_eq!(position(*label), index, "{label:?} is out of place in ALL");
+    }
+    assert_eq!(TargetLabel::ALL.len(), 10);
 }
