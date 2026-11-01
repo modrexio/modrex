@@ -4,6 +4,12 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 ## Unreleased
 
+### Added
+
+- Added Cyberpunk 2077 support for Steam and the Epic Games Store, including mods and frameworks that span several game folders.
+- Added a Corners setting that makes the interface sharper or rounder.
+- Added a pink accent colour.
+
 ## 0.16.1
 
 ### Added
