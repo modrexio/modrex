@@ -12,8 +12,8 @@
 //! Disabling moves the files into the record's own subfolder of the target's disabled folder,
 //! outside every root, and enabling moves them back. Launching without mods moves every enabled
 //! bundle's files into the target's backup folder, laid out as in the game folder, and restoring
-//! moves back whatever is not in the way. Uninstalling deletes the files whose size still
-//! matches what was placed, and keeps and reports any that changed since.
+//! moves back whatever is not in the way. Uninstalling deletes the files whose bytes still
+//! match what was placed, and keeps and reports any that changed since.
 
 use super::engine::{backup_dir, disabled_dir, ModEngineConfig, ModUnit, Placement, ScanTarget};
 use super::naming::log_name;
@@ -712,18 +712,21 @@ impl Placed {
     }
 
     fn undo(self, game_path: &str) -> Result<(), String> {
+        let mut failed = Vec::new();
         for path in self.written.iter().rev().filter(|path| path.exists()) {
             if let Err(e) = fs::remove_file(path) {
-                log::warn!("bundle: rollback could not remove {}: {e}", log_name(path));
+                failed.push(format!("{} could not be removed ({e})", log_name(path)));
             }
         }
         for rel in &self.planned {
             prune_game_folders(game_path, self.layout, rel);
         }
-        let mut failed = Vec::new();
         for (original, aside_path) in self.set_aside.iter().rev() {
             if let Err(e) = move_file(aside_path, original) {
-                failed.push(format!("{} ({e})", log_name(original)));
+                failed.push(format!(
+                    "{} could not be put back ({e})",
+                    log_name(original)
+                ));
             }
         }
         if failed.is_empty() {
@@ -731,7 +734,7 @@ impl Placed {
             return Ok(());
         }
         Err(format!(
-            "{}, which stay in {}",
+            "{}. Anything set aside stays in {}",
             failed.join(", "),
             self.aside.display()
         ))
@@ -851,14 +854,15 @@ fn place(
     };
     let result = (|| -> Result<(), String> {
         // The replaced release's files are set aside first, so a failure part way can put the
-        // old install back exactly. One the user changed since, which this release no longer
-        // ships, stays where it is rather than being deleted with the old release.
+        // old install back exactly. One the user changed since, which this release does not
+        // ship, stays where it is rather than being deleted with the old release.
         if let Some(old) = replaced {
             for file in files_of(old) {
                 let from = current_file(game_path, target, old, &file.path);
                 if !from.exists() {
                     continue;
                 }
+                require_inside_game(&game_canonical, &from)?;
                 let replaced_here = planned_keys.contains(&file.path.to_ascii_lowercase());
                 if !replaced_here && !unchanged(&from, file) {
                     log::warn!(
@@ -998,7 +1002,7 @@ fn game_canonical(game_path: &str) -> Result<PathBuf, String> {
 }
 
 /// While a launch without mods has an enabled bundle's files in the backup folder, the record
-/// no longer says where they are, so nothing may change them until they are restored.
+/// does not say where they are, so nothing may change them until they are restored.
 pub(crate) fn refuse_while_hidden(
     game_path: &str,
     target: &ScanTarget,
@@ -1126,6 +1130,10 @@ pub(crate) fn hide(
             }
         }
     }
+    let game_root = game_canonical(game_path)?;
+    for (from, _) in &moves {
+        require_inside_game(&game_root, from)?;
+    }
     fs::create_dir_all(&backup)
         .map_err(|e| format!("Could not create the mods backup folder: {e}"))?;
     if let Err(error) = move_all(&moves) {
@@ -1147,11 +1155,12 @@ pub(crate) fn restore(game_path: &str, target: &ScanTarget) -> Result<(), String
     if !backup.exists() {
         return Ok(());
     }
+    let game_root = game_canonical(game_path)?;
     let mut blocked = Vec::new();
     for rel in staged_files(&backup)? {
         let from = rel_path(&backup, &rel);
         let to = rel_path(Path::new(game_path), &rel);
-        if fs::symlink_metadata(&to).is_ok() {
+        if fs::symlink_metadata(&to).is_ok() || require_inside_game(&game_root, &to).is_err() {
             blocked.push(rel);
             continue;
         }
@@ -1175,8 +1184,7 @@ pub(crate) fn restore(game_path: &str, target: &ScanTarget) -> Result<(), String
 
 /// Scan keys of the units other targets would list for files a bundle placed, so a mod
 /// installed as a bundle is not listed a second time as one installed by hand. A key is
-/// "tag:rel", where rel is the unit's path inside that target, lowercased because the scan
-/// compares it against whatever case the folder on disk has.
+/// "tag:rel", where rel is the unit's path inside that target.
 pub(crate) fn owned_scan_keys(cfg: &ModEngineConfig, mods: &[InstalledMod]) -> HashSet<String> {
     let mut keys = HashSet::new();
     let placed: Vec<&BundleFile> = mods
@@ -1202,18 +1210,13 @@ pub(crate) fn owned_scan_keys(cfg: &ModEngineConfig, mods: &[InstalledMod]) -> H
             let rest = &parts[base.len()..];
             match &target.unit {
                 ModUnit::File { .. } => {
-                    keys.insert(format!(
-                        "{}:{}",
-                        target.tag,
-                        rest.join("/").to_ascii_lowercase()
-                    ));
+                    insert_both_cases(&mut keys, target.tag, &rest.join("/"));
                 }
                 // The scan descends through folders without a marker, so every folder on the
                 // way to the file is a unit it could list.
                 ModUnit::Directory { .. } => {
                     for depth in 1..rest.len() {
-                        let unit = rest[..depth].join("/").to_ascii_lowercase();
-                        keys.insert(format!("{}:{unit}", target.tag));
+                        insert_both_cases(&mut keys, target.tag, &rest[..depth].join("/"));
                     }
                 }
                 ModUnit::Bundle { .. } => continue,
@@ -1221,6 +1224,13 @@ pub(crate) fn owned_scan_keys(cfg: &ModEngineConfig, mods: &[InstalledMod]) -> H
         }
     }
     keys
+}
+
+/// The key as recorded, which a case-sensitive filesystem compares exactly, and lowercased,
+/// which the scan compares on Windows where the folder may keep another spelling.
+fn insert_both_cases(keys: &mut HashSet<String>, tag: &str, unit: &str) {
+    keys.insert(format!("{tag}:{unit}"));
+    keys.insert(format!("{tag}:{}", unit.to_ascii_lowercase()));
 }
 
 /// Hides every enabled bundle of a game before a launch without mods. Runs before the other

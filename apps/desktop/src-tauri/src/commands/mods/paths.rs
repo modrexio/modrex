@@ -263,10 +263,10 @@ pub async fn find_untracked_paks(
 }
 
 /// Windows folders compare without case, and a bundle records the spelling its download used
-/// while the folder on disk keeps whichever spelling existed first, so a lowercase key matches
-/// too.
+/// while the folder on disk keeps whichever spelling existed first, so there a lowercase key
+/// matches too. A case-sensitive filesystem holds two folders that differ only in case.
 fn is_known(known: &HashSet<String>, rel: &str) -> bool {
-    known.contains(rel) || known.contains(&rel.to_ascii_lowercase())
+    known.contains(rel) || (cfg!(windows) && known.contains(&rel.to_ascii_lowercase()))
 }
 
 /// Names the scan passes over at the top of a target, because they are not mods there.

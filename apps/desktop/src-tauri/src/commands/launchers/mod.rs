@@ -568,6 +568,7 @@ pub async fn pick_folder(
 const DISPOSABLE_BACKUP_DIRS: &[&str] = &["logs", "downloads"];
 
 fn do_restore(game_path: &str, cfg: &crate::commands::mods::ModEngineConfig) -> Result<(), String> {
+    let mut recreated = false;
     for target in cfg.targets {
         if target.shared_paks.is_some() || target.is_bundle() {
             continue;
@@ -603,18 +604,26 @@ fn do_restore(game_path: &str, cfg: &crate::commands::mods::ModEngineConfig) -> 
             }
             // remove_dir no-ops when non-empty, so any entry that failed to rename is never deleted.
             fs::remove_dir(&mods_bak).ok();
-        } else if !mods_dir.exists() {
+        } else {
+            // A folder recreated empty while the mods were set aside is only in the way. One
+            // holding anything is kept beside the backup, which is never deleted for it.
+            if mods_dir.exists() && fs::remove_dir(&mods_dir).is_err() {
+                recreated = true;
+                continue;
+            }
             fs::rename(&mods_bak, &mods_dir).map_err(|e| {
                 format!(
                     "Could not restore mods folder. You may need to manually rename the backup folder. ({})",
                     e.kind()
                 )
             })?;
-        } else {
-            fs::remove_dir_all(&mods_bak).ok();
         }
     }
-    crate::commands::mods::restore_bundles(game_path, cfg)
+    crate::commands::mods::restore_bundles(game_path, cfg)?;
+    if recreated {
+        return Err("A mods folder was recreated while its backup was hidden. Review both folders before restoring".into());
+    }
+    Ok(())
 }
 
 fn hide_package_mods(game_path: &str, cfg: &ModEngineConfig) -> Result<(), String> {

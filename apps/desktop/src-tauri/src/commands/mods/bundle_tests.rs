@@ -262,7 +262,7 @@ fn macos_resource_forks_are_not_content() {
     );
 }
 
-// ── lifecycle ────────────────────────────────────────────────────────────────
+// Lifecycle
 
 struct Game {
     dir: TempDir,
@@ -687,7 +687,7 @@ fn installing_while_mods_are_hidden_is_refused() {
     assert!(error.contains("launch without mods"), "{error}");
 }
 
-// ── resolution of real archives ─────────────────────────────────────────────
+// Resolution of real archives
 
 fn make_zip(dir: &TempDir, entries: &[(&str, &[u8])]) -> std::path::PathBuf {
     use std::io::Write;

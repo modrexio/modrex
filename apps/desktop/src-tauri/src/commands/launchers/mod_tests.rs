@@ -118,6 +118,42 @@ fn incomplete_directory_restore_reports_failure_and_preserves_both_mod_copies() 
     assert_eq!(fs::read(saved.join("mod.txt")).unwrap(), b"hidden mod");
 }
 
+#[test]
+fn a_launch_restore_never_deletes_a_backup_whose_folder_was_recreated() {
+    let temp = tempfile::tempdir().unwrap();
+    let path = temp.path().to_str().unwrap();
+    let cfg = engine_for_game("pd3").unwrap();
+    let mods = mods_base(path, cfg.primary());
+    let backup = backup_dir(path, cfg.primary());
+    fs::create_dir_all(&mods).unwrap();
+    fs::create_dir_all(&backup).unwrap();
+    fs::write(mods.join("new.pak"), b"added while hidden").unwrap();
+    fs::write(backup.join("old.pak"), b"hidden mod").unwrap();
+
+    assert!(do_restore(path, cfg).unwrap_err().contains("recreated"));
+    assert_eq!(fs::read(backup.join("old.pak")).unwrap(), b"hidden mod");
+    assert_eq!(
+        fs::read(mods.join("new.pak")).unwrap(),
+        b"added while hidden"
+    );
+}
+
+#[test]
+fn a_launch_restore_replaces_a_folder_recreated_empty() {
+    let temp = tempfile::tempdir().unwrap();
+    let path = temp.path().to_str().unwrap();
+    let cfg = engine_for_game("pd3").unwrap();
+    let mods = mods_base(path, cfg.primary());
+    let backup = backup_dir(path, cfg.primary());
+    fs::create_dir_all(&mods).unwrap();
+    fs::create_dir_all(&backup).unwrap();
+    fs::write(backup.join("old.pak"), b"hidden mod").unwrap();
+
+    do_restore(path, cfg).unwrap();
+    assert_eq!(fs::read(mods.join("old.pak")).unwrap(), b"hidden mod");
+    assert!(!backup.exists());
+}
+
 #[tokio::test]
 async fn an_observed_vanilla_session_retains_its_original_install_until_restore_succeeds() {
     let temp = tempfile::tempdir().unwrap();
