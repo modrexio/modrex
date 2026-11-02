@@ -7,9 +7,9 @@
             "short_desc": "",
             "legacy_markup": false,
             "version": "2.0",
-            "downloads": 202,
-            "likes": 14,
-            "views": 1871,
+            "downloads": 206,
+            "likes": 15,
+            "views": 1933,
             "published_at": "2023-11-03T23:06:37.000000Z",
             "bumped_at": "2026-10-23T01:46:13.000000Z",
             "category_id": 256,
@@ -85,9 +85,9 @@
                         "desc": "NOTE: Due to many requests I decided to post this here. Since I'd rather have everything in one place and there's too much info for a comments section, I made a Steam group for the mod.\n\nThe mod, called DAHM (formerly known as DorHUD, but use whatever you like), is basically a collection of modifications to (in my eyes) improve the game. The core is comparable to BLT, but has a bunch of extra features and is now (almost) fully compatible with BLT since version 1.6. The mod is a framework that provides a way to add sub-modules, so that the whole thing is very customizable. The basic version comes bundled with a bunch of default submods to provide the most requested features without being intrusive or gameplay altering (for the most part).\n\nThe game is no longer officially supported and I therefore I assume that the executable will not be updated. If this is the case, then the mod has to be updated. But for now it fixes a few bugs, some well known and other not so much. I tried to patch the game crashing bugs, but I'm pretty sure I didn't get them all. A more known bug is that the Vyse masks (and others) disappear from time to time. This is because the Steam community group page is fetched and then checked for the presence of your Steam ID. This is not very reliable, so I replaced it with a call to your local Steam client to the groups you're in. Another thing is that the mute state is now preserved between games, so you don't have to mute people on every single map. And you can open the menu when someone is loading, etc., etc., etc. Just don't expect all solutions to be very elegant ;).\n\nThe majority of the sub-modules involve anticheat stuff and profile checking, simply because there are so many cheaters in this game that think they can do that without any consequences. Those that still want to ruin my games can only do it once with that account before they (manually) get added to a banlist. For now the list is only local, so nothing is shared (unless you count the manual sharing of it). Furthermore, there is a very simplistic HUD addon to keep track of the game time and the kills you've made, there's a new difficulty, you can add your own matchmaking filters and there's the possibility to ban players both by keeping a local file and by blocking them on Steam (the latter requires the provided hook).\n\nSince I don't want to type things twice, more specific information can be found on the Steam group page. That's also where I try to provide support and where updates will be posted, so that everything is kept in one place.\n\n*Not all mods are posted to this website. Some smaller mods are posted in the [DAHM Downloads forum](https://steamcommunity.com/groups/dahm4pd/discussions/3/).*",
                         "short_desc": "Mod framework for PAYDAY: The Heist that comes bundled with a bunch of submods that provide the most requested functionality in the most unobtrusive w",
                         "legacy_markup": false,
-                        "downloads": 11395,
+                        "downloads": 11454,
                         "likes": 60,
-                        "views": 31658,
+                        "views": 31761,
                         "published_at": "2017-11-03T21:54:21.000000Z",
                         "bumped_at": "2018-12-06T19:37:27.000000Z",
                         "category_id": 0,
@@ -156,7 +156,7 @@
                     "image_id": null,
                     "desc": "",
                     "label": "",
-                    "downloads": 8,
+                    "downloads": 12,
                     "created_at": "2026-10-23T01:46:08.000000Z"
                 },
                 {
@@ -199,9 +199,9 @@
             "short_desc": "",
             "legacy_markup": false,
             "version": "",
-            "downloads": 30,
+            "downloads": 33,
             "likes": 2,
-            "views": 241,
+            "views": 268,
             "published_at": "2025-07-12T00:41:10.000000Z",
             "bumped_at": "2026-10-23T10:22:28.000000Z",
             "category_id": 255,
@@ -287,7 +287,7 @@
                     "image_id": null,
                     "desc": "Unzip and drop folder to ...\\assets\\mod_overrides",
                     "label": "",
-                    "downloads": 5,
+                    "downloads": 8,
                     "created_at": "2026-10-23T10:22:26.000000Z"
                 }
             ],
@@ -316,9 +316,9 @@
             "short_desc": "Visual consistency, and two (2) bugfixes",
             "legacy_markup": false,
             "version": "1.3",
-            "downloads": 131,
+            "downloads": 132,
             "likes": 9,
-            "views": 539,
+            "views": 545,
             "published_at": "2025-09-05T10:01:19.000000Z",
             "bumped_at": "2026-10-06T03:38:00.000000Z",
             "category_id": 257,
@@ -395,9 +395,9 @@
                         "desc": "# **This mod is deprecated with the release of [Update 23 for PAYDAY: The Heist](https://store.steampowered.com/news/app/24240/view/689771494788563593). This page is kept up only for historical reference and use with older versions of the game**\n\nPorts `mod_overrides`, `DB:create_entry`, `DB:remove_entry` and `DB:reload_override_mods` from PAYDAY 2 and RAID to PAYDAY: The Heist.\n\n## How does it work?\nIt works exactly the same as it does for PAYDAY 2: create a folder inside of the `assets` folder called `mod_overrides`.\n\n## Does this depend on any other mods?\nNo, it does not require any other mods to work.\n\n## Installation Guide\nDownload the zip folder, and unpack `DINPUT8.dll` and `PDTHModOverrides.dll` to your install folder.\nFor those playing on Linux: add `WINEDLLOVERRIDES=\"DINPUT8=n,b\" %command%` to your launch options.\nTo Uninstall: Delete `DINPUT8.dll` and `PDTHModOverrides.dll`.\n### Updating from the previous release\nThose who are updating from the previous release (uses `VERSION.dll`), delete `VERSION.dll` and update as normal.\n\n## How can I port my PDMod mods to this?\nRename the `.pdmod` file to `.zip` and extract its contents into its own mod_overrides folder with the password `0$45'5))66S2ixF51a<6}L2UK`.\n\n**Or**: use [.pdmod Extractor](https://modworkshop.net/mod/53516)\n\n## What files can I override with this?\nAll file types can be overriden.\n`.dds` and `.bik` files will be interpreted as `.texture` and `.movie` respectively.\n\n## Can this add any new files to the game?\nYes! With version 2.0 `DB:create_entry` has been backported and is available via Lua. This is not bound to any mod loader, anything that can execute Lua in-game can access these functions.\n### Backported Lua Functions\n - `DB:create_entry(type, name, filepath)` filepath must be relative to the game's install folder, not your mod folder. type and name accept Idstrings and normal strings. Overwriting existing game files is supported. Example: `DB:create_entry(\"unit\", \"units/myunit/myunit\", \"./mods/mymod/myunit.unit\")`\n   Custom packages can be added by just setting the type in `create_entry` to `package` and providing it a valid package file.\n - `DB:remove_entry(type, name)` type and name accept Idstrings and normal strings. Removing a file critical to the game and not replacing it will crash the game. Example: `DB:remove_entry(\"unit\", \"units/characters/bain/bain\")`\n - `DB:reload_override_mods()` (will reload the `mod_overrides` folder)\n\n#### Source Code\nSource Code: https://github.com/HW12Dev/PDTHModOverrides",
                         "short_desc": "",
                         "legacy_markup": false,
-                        "downloads": 1680,
+                        "downloads": 1690,
                         "likes": 75,
-                        "views": 4241,
+                        "views": 4292,
                         "published_at": "2025-08-16T09:25:44.000000Z",
                         "bumped_at": "2026-04-01T22:30:34.000000Z",
                         "category_id": 0,
@@ -441,7 +441,7 @@
                     "image_id": null,
                     "desc": "",
                     "label": "",
-                    "downloads": 18,
+                    "downloads": 19,
                     "created_at": "2026-10-06T03:37:57.000000Z"
                 }
             ],
@@ -470,9 +470,9 @@
             "short_desc": "",
             "legacy_markup": false,
             "version": "1,05",
-            "downloads": 57,
+            "downloads": 60,
             "likes": 10,
-            "views": 455,
+            "views": 475,
             "published_at": "2025-12-11T00:11:06.000000Z",
             "bumped_at": "2026-10-22T15:58:41.000000Z",
             "category_id": 795,
@@ -697,7 +697,7 @@
                     "image_id": null,
                     "desc": "",
                     "label": "",
-                    "downloads": 7,
+                    "downloads": 10,
                     "created_at": "2026-10-22T15:58:31.000000Z"
                 },
                 {
@@ -711,7 +711,7 @@
                     "image_id": null,
                     "desc": "",
                     "label": "",
-                    "downloads": 35,
+                    "downloads": 36,
                     "created_at": "2025-12-11T00:06:58.000000Z"
                 }
             ],
@@ -740,9 +740,9 @@
             "short_desc": "",
             "legacy_markup": false,
             "version": "1.0.5",
-            "downloads": 71,
+            "downloads": 73,
             "likes": 10,
-            "views": 640,
+            "views": 671,
             "published_at": "2026-02-21T18:07:31.000000Z",
             "bumped_at": "2026-10-22T16:31:55.000000Z",
             "category_id": 795,
@@ -860,7 +860,7 @@
                     "image_id": 155868,
                     "desc": "",
                     "label": "",
-                    "downloads": 9,
+                    "downloads": 11,
                     "created_at": "2026-10-22T16:31:43.000000Z"
                 }
             ],
@@ -889,9 +889,9 @@
             "short_desc": "",
             "legacy_markup": false,
             "version": "1.0.1",
-            "downloads": 46,
+            "downloads": 50,
             "likes": 3,
-            "views": 317,
+            "views": 334,
             "published_at": "2026-05-20T20:57:51.000000Z",
             "bumped_at": "2026-10-22T16:44:59.000000Z",
             "category_id": 795,
@@ -985,9 +985,9 @@
                         "desc": "# **This mod is deprecated with the release of [Update 23 for PAYDAY: The Heist](https://store.steampowered.com/news/app/24240/view/689771494788563593). This page is kept up only for historical reference and use with older versions of the game**\n\nPorts `mod_overrides`, `DB:create_entry`, `DB:remove_entry` and `DB:reload_override_mods` from PAYDAY 2 and RAID to PAYDAY: The Heist.\n\n## How does it work?\nIt works exactly the same as it does for PAYDAY 2: create a folder inside of the `assets` folder called `mod_overrides`.\n\n## Does this depend on any other mods?\nNo, it does not require any other mods to work.\n\n## Installation Guide\nDownload the zip folder, and unpack `DINPUT8.dll` and `PDTHModOverrides.dll` to your install folder.\nFor those playing on Linux: add `WINEDLLOVERRIDES=\"DINPUT8=n,b\" %command%` to your launch options.\nTo Uninstall: Delete `DINPUT8.dll` and `PDTHModOverrides.dll`.\n### Updating from the previous release\nThose who are updating from the previous release (uses `VERSION.dll`), delete `VERSION.dll` and update as normal.\n\n## How can I port my PDMod mods to this?\nRename the `.pdmod` file to `.zip` and extract its contents into its own mod_overrides folder with the password `0$45'5))66S2ixF51a<6}L2UK`.\n\n**Or**: use [.pdmod Extractor](https://modworkshop.net/mod/53516)\n\n## What files can I override with this?\nAll file types can be overriden.\n`.dds` and `.bik` files will be interpreted as `.texture` and `.movie` respectively.\n\n## Can this add any new files to the game?\nYes! With version 2.0 `DB:create_entry` has been backported and is available via Lua. This is not bound to any mod loader, anything that can execute Lua in-game can access these functions.\n### Backported Lua Functions\n - `DB:create_entry(type, name, filepath)` filepath must be relative to the game's install folder, not your mod folder. type and name accept Idstrings and normal strings. Overwriting existing game files is supported. Example: `DB:create_entry(\"unit\", \"units/myunit/myunit\", \"./mods/mymod/myunit.unit\")`\n   Custom packages can be added by just setting the type in `create_entry` to `package` and providing it a valid package file.\n - `DB:remove_entry(type, name)` type and name accept Idstrings and normal strings. Removing a file critical to the game and not replacing it will crash the game. Example: `DB:remove_entry(\"unit\", \"units/characters/bain/bain\")`\n - `DB:reload_override_mods()` (will reload the `mod_overrides` folder)\n\n#### Source Code\nSource Code: https://github.com/HW12Dev/PDTHModOverrides",
                         "short_desc": "",
                         "legacy_markup": false,
-                        "downloads": 1680,
+                        "downloads": 1690,
                         "likes": 75,
-                        "views": 4241,
+                        "views": 4292,
                         "published_at": "2025-08-16T09:25:44.000000Z",
                         "bumped_at": "2026-04-01T22:30:34.000000Z",
                         "category_id": 0,
@@ -1036,7 +1036,7 @@
                     "image_id": null,
                     "desc": "",
                     "label": "",
-                    "downloads": 6,
+                    "downloads": 11,
                     "created_at": "2026-10-22T16:44:57.000000Z"
                 }
             ],
@@ -1065,9 +1065,9 @@
             "short_desc": "",
             "legacy_markup": false,
             "version": "2.0",
-            "downloads": 74,
+            "downloads": 82,
             "likes": 7,
-            "views": 661,
+            "views": 696,
             "published_at": "2026-06-29T05:26:36.000000Z",
             "bumped_at": "2026-10-20T21:58:40.000000Z",
             "category_id": 256,
@@ -1134,9 +1134,9 @@
                         "desc": "This is a customizable HUD mod for PAYDAY: The Heist with mostly aesthetic/quality of life changes.\n\n# Features\n* [Dropdown menus](https://modworkshop.net/mod/43115) for your loadout items for quick selection.\n* A [custom interface](https://modworkshop.net/mod/51818) to quickly change your mask set and character.\n* An option to color code deployable and player contours. (deployable contour colors require the peer_equipment module to be enabled)\n* The ability to see the remaining charges of deployables in form of a text in the 3d environment. (requires the peer_equipment module to be enabled)\n* A custom player label panel which adds a health bar on top of your teammate's heads.\n* A custom player health interface with interchangeable designs to match your teammate mugshot panels or look like RAIDs player health interface.\n* A custom weapon panel design and the option to show magazine ammo on top of your unequiped weapon icons in the vanilla panel.\n* A custom drop-in panel which supports the display of multiple players joining at once and has the option to show each player's equipped loadout plus the ability to see their installed gameplay changing mods.\n* A ported version of PAYDAY 2's assault and point of no return panels.\n* An option to show reload and shotgun fire timers on screen.\n\n# Notes\n* This mod uses DAHMs hud module as a dependency, in order to use this hud you must have said module enabled.\n* Deployable contours will not apply for some deployables if you drop-in after they were already placed and the host is not running DAHM.\n* There may be some incompatibilities with WTFBM, I do not plan to develop compatibility with said hud.\n\n# Credits:\n* DorentuZ` - Assistance with development and the inclusion of specific changes in the framework so I could expand my mod.\n* @neonsynth - Testing, German localization.\n* Sergeant Panda - Testing since early versions of the mod and making me go insane by finding the most nefarious bugs known to mankind.\n* @kfcdragon756 - Chinese localization.\n\n[Source Code](https://github.com/mbien1981/_hud)",
                         "short_desc": "A HUD mod for PAYDAY: The Heist with aesthetic changes and QoL features.",
                         "legacy_markup": false,
-                        "downloads": 900,
+                        "downloads": 907,
                         "likes": 18,
-                        "views": 2995,
+                        "views": 3017,
                         "published_at": "2024-11-06T08:48:13.000000Z",
                         "bumped_at": "2025-07-25T22:15:05.000000Z",
                         "category_id": 256,
@@ -1182,7 +1182,7 @@
                     "image_id": null,
                     "desc": "",
                     "label": "",
-                    "downloads": 35,
+                    "downloads": 44,
                     "created_at": "2026-10-20T21:58:38.000000Z"
                 }
             ],
@@ -1215,111 +1215,192 @@
             }
         }
     },
-    "59091": {
+    "58353": {
         "detail": {
-            "id": 59091,
-            "name": "Hired Enforcers",
-            "desc": "Recently, Chavez has brought in a mysterious group of well-dressed enforcers from out of town to protect his illegal drug operation. Clearly not part of his usual crew, they keep their distance from Chavez's men, and the feeling appears to be mutual.",
-            "short_desc": "A mod that replaces the models of the Gangsters with the model of Escort Guy 5.",
+            "id": 58353,
+            "name": "Phase Connect Vtubers Paintings",
+            "desc": "Changes the majority of paintings in the game to Vtubers from Phase Connect (including local fox woman Kirsche Verstahl), I don't own a single piece of art used in this mod\n\nsome of the paintings are gonna be upside down/sideways due to how the game places the assets, ~~can't really do anything about that sadly~~ use [this](https://modworkshop.net/mod/58401) to fix it\n\n[PAYDAY 2 Version here](https://modworkshop.net/mod/59423)\n\nThe original artists are credited on the license tab\nThis mod is not associated with Phase Connect, the original artists or Kirsche.",
+            "short_desc": "Mod made for the 3 Phase fans that play PAYDAY The Heist",
             "legacy_markup": false,
-            "version": "",
-            "downloads": 3,
+            "version": "3.2",
+            "downloads": 21,
             "likes": 0,
-            "views": 181,
-            "published_at": "2026-09-21T14:52:08.000000Z",
-            "bumped_at": "2026-09-27T08:54:31.000000Z",
-            "category_id": 795,
+            "views": 255,
+            "published_at": "2026-08-09T00:29:58.000000Z",
+            "bumped_at": "2026-11-02T05:55:23.000000Z",
+            "category_id": 258,
             "has_download": true,
-            "disable_mod_managers": false,
+            "disable_mod_managers": true,
             "download_type": null,
             "thumbnail": {
-                "file": "e46KdZoaXOGTiey2DqwjSU2bnAcLMSMrTMlpeFwW.webp",
+                "file": "Rqy737yTGC1DoRF88K3Eh5Eh80lZHh4lcEI1idzv.webp",
                 "has_thumb": true
             },
             "download": {
-                "id": 103764,
-                "version": "",
-                "size": 396582,
-                "type": "zip",
-                "download_url": "https://storage.modworkshop.net/mods/files/59091_231310_fPlz6lVP1IxAOgWLvAKM5uMGdiw44mnLxHrmDuqg.zip?filename=Hired%20Enforcers%20Some.zip",
+                "id": 105533,
+                "version": "3.2",
+                "size": 1059256,
+                "type": "7z",
+                "download_url": "https://storage.modworkshop.net/mods/files/58353_211738_ZJDArCVc6u5RFbrQWaDbptZ4Spt3Evnzcczd5Hrx.7z?filename=Phase%20Connect%203.7z",
                 "url": null
             },
             "download_id": null,
             "files_are_versions": true,
             "user": {
-                "id": 231310,
-                "name": "Aquarius",
-                "donation_url": null,
-                "avatar": "UWsbE5zd5FIGMEMF9ac3o5CLuc6xsKArFmZfWSMd.webp",
+                "id": 211738,
+                "name": "Sopmod",
+                "donation_url": "",
+                "avatar": "quA8ywm8uQCg5U064lK0qZI8alg3FPeNmWjMx7JG.webp",
                 "avatar_has_thumb": true
             },
-            "changelog": "",
-            "instructions": "",
-            "license": "",
+            "changelog": "Update 3.2\nConverted all textures to the .texture format\n\nUpdate 3.1\nRemoved the normal map from the First World Bank secret paintings\n\nUpdate 3\nFlipped painting_27, fixed painting_28 having the wrong orientation, replaced painting_30 with a wide picture\n\nUpdate 2\nAdded more paintings",
+            "instructions": "put it on mod_overrides",
+            "license": "Credits:\nPhase Connect - original character designs\nPainting_tester2 - original by Jarv on Pixiv\ndiamondheist_paintingmystery - original by valefor on Pixiv\npainting_01 through painting_12 - originals by Frankcegs on Pixiv\npainting_13 - original by AzzyPics on Pixiv\npainting_15 - original by Tsukasa on Pixiv\npainting_16, painting_24, painting_25_alternate, painting_28 and painting_30 - originals by Default on Pixiv\npainting_17 and painting_19 - originals by Tuna_fan68 on Pixiv\npainting_18 - original by kamome_umiko on Pixiv\npainting_20 - original by WILDSAKE on Pixiv\npainting_21 - original by AsteraTofu on Pixiv\npainting_22 - original by SDA Tetra on Pixiv\npainting_23 - original by PrinceHotdog on Pixiv\npainting_25 and painting_27 - originals by Kaemble on Pixiv \npainting_26 and painting_29 - originals by Inkerdeeper on Pixiv\npainting_df - originals by Kaemble, LazyRevenant and AzzyPics on Pixiv\nsuburb_painting - original by Kaemble on Pixiv",
             "repo_url": null,
             "donation": "",
             "banner": {
-                "id": 171617,
-                "file": "e46KdZoaXOGTiey2DqwjSU2bnAcLMSMrTMlpeFwW.webp",
+                "id": 168276,
+                "file": "drDmUrCTaEapTdLmOr50I2jKuckMYXtWLsCsWCpf.webp",
                 "type": "webp",
-                "size": 283048,
-                "display_order": 5,
-                "visible": true,
+                "size": 26056,
+                "display_order": 3,
+                "visible": false,
                 "has_thumb": true
             },
             "images": [
                 {
-                    "id": 171028,
-                    "file": "qlj65zS46NIrVyuPGZraG9ey18EK19toJsgvuav0.webp",
+                    "id": 168097,
+                    "file": "Z55XubDRTRnEdYvWhUhExFPi8AsK892vDAX0gKhX.webp",
                     "type": "webp",
-                    "size": 156268,
+                    "size": 17982,
                     "display_order": 0,
-                    "visible": true,
+                    "visible": false,
                     "has_thumb": true
                 },
                 {
-                    "id": 171029,
-                    "file": "yzlRs8HMz6cxnxHFQsVeNHR9CZtOGvHbVjDKGwqk.webp",
+                    "id": 168098,
+                    "file": "IToemRQesFfpwvpbfuAke7bwbYFQyG7lry6JMrxG.webp",
                     "type": "webp",
-                    "size": 101358,
+                    "size": 60098,
                     "display_order": 1,
                     "visible": true,
                     "has_thumb": true
                 },
                 {
-                    "id": 171031,
-                    "file": "n6uk4HVsMN1aAtO7mrtiOOlBc2BsfPfC4mwHoZPp.webp",
+                    "id": 170332,
+                    "file": "ev7Ks78MMp7EwwG4zJeYYNy149NgyWQVPbr9CVTx.webp",
                     "type": "webp",
-                    "size": 122802,
+                    "size": 23106,
                     "display_order": 2,
                     "visible": true,
                     "has_thumb": true
                 },
                 {
-                    "id": 171032,
-                    "file": "TEdAMGO4Q0szXgRQdF6oYecbHIKNhDu8oL9TfQLW.webp",
+                    "id": 168276,
+                    "file": "drDmUrCTaEapTdLmOr50I2jKuckMYXtWLsCsWCpf.webp",
                     "type": "webp",
-                    "size": 161034,
+                    "size": 26056,
                     "display_order": 3,
-                    "visible": true,
+                    "visible": false,
                     "has_thumb": true
                 },
                 {
-                    "id": 171125,
-                    "file": "edEmyhoSqUM3qVBp7ZM0jHWgLy5ZaRHpjIOE871R.webp",
+                    "id": 168277,
+                    "file": "O4TgubOU9Jhii1htKxgrVgMwkt2tE7ziGYHVfnnF.webp",
                     "type": "webp",
-                    "size": 340286,
+                    "size": 12552,
                     "display_order": 4,
-                    "visible": true,
+                    "visible": false,
                     "has_thumb": true
                 },
                 {
-                    "id": 171617,
-                    "file": "e46KdZoaXOGTiey2DqwjSU2bnAcLMSMrTMlpeFwW.webp",
+                    "id": 168278,
+                    "file": "qBwPLmKnFkgfEwY50US4M5a9OffjoHubfdSHiSGU.webp",
                     "type": "webp",
-                    "size": 283048,
+                    "size": 54736,
                     "display_order": 5,
                     "visible": true,
+                    "has_thumb": true
+                },
+                {
+                    "id": 168275,
+                    "file": "MHKLs04MXT2IBbkLoxXAMjrGhJKA5MRiuNO5macH.webp",
+                    "type": "webp",
+                    "size": 18122,
+                    "display_order": 6,
+                    "visible": true,
+                    "has_thumb": true
+                },
+                {
+                    "id": 168099,
+                    "file": "qPJaDLOD3MNT38lp7Bmp1c8ReTwHAZRUZexVa3oV.webp",
+                    "type": "webp",
+                    "size": 35786,
+                    "display_order": 7,
+                    "visible": true,
+                    "has_thumb": true
+                },
+                {
+                    "id": 170334,
+                    "file": "NIqUfiG732Op7prDVWmxxChizXljIIBeHbuQ6NR3.webp",
+                    "type": "webp",
+                    "size": 21668,
+                    "display_order": 8,
+                    "visible": true,
+                    "has_thumb": true
+                },
+                {
+                    "id": 168096,
+                    "file": "2vUQLchcyxgTTGsl3SIeOUfXcYefbJekej9iFdcB.webp",
+                    "type": "webp",
+                    "size": 15128,
+                    "display_order": 9,
+                    "visible": true,
+                    "has_thumb": true
+                },
+                {
+                    "id": 170329,
+                    "file": "B44dVMQRI4GuqEjD5usBA3foFsdIfddC9JJ2U2WG.webp",
+                    "type": "webp",
+                    "size": 10986,
+                    "display_order": 10,
+                    "visible": true,
+                    "has_thumb": true
+                },
+                {
+                    "id": 170327,
+                    "file": "xcnu7AVGoHAvKv6d13gk0Du7f1IvjwiDE1AHfSJv.webp",
+                    "type": "webp",
+                    "size": 17098,
+                    "display_order": 11,
+                    "visible": true,
+                    "has_thumb": true
+                },
+                {
+                    "id": 170328,
+                    "file": "Rqy737yTGC1DoRF88K3Eh5Eh80lZHh4lcEI1idzv.webp",
+                    "type": "webp",
+                    "size": 9316,
+                    "display_order": 12,
+                    "visible": false,
+                    "has_thumb": true
+                },
+                {
+                    "id": 170331,
+                    "file": "rZZRqAtn0axE4zqTKkxEeLkTVLvbrrSDm4uSBcdF.webp",
+                    "type": "webp",
+                    "size": 12056,
+                    "display_order": 13,
+                    "visible": true,
+                    "has_thumb": true
+                },
+                {
+                    "id": 170333,
+                    "file": "o0mUxrN9qBAppUaGSJzQ1B2KOp7BUZ55NEZNEl1b.webp",
+                    "type": "webp",
+                    "size": 36830,
+                    "display_order": 14,
+                    "visible": false,
                     "has_thumb": true
                 }
             ],
@@ -1327,9 +1408,24 @@
             "instructs_template": null,
             "tags": [
                 {
+                    "id": 5,
+                    "name": "Anime",
+                    "color": "#25767a"
+                },
+                {
                     "id": 1,
                     "name": "Mod Overrides",
                     "color": "#a87133"
+                },
+                {
+                    "id": 8,
+                    "name": "Retexture",
+                    "color": "#3c80c4"
+                },
+                {
+                    "id": 62,
+                    "name": "Client-side",
+                    "color": "#5151ff"
                 }
             ],
             "members": []
@@ -1337,39 +1433,25 @@
         "files": {
             "data": [
                 {
-                    "id": 103764,
-                    "name": "Hired Enforcers (Some)",
-                    "version": "",
-                    "size": 396582,
-                    "type": "zip",
-                    "download_url": "https://storage.modworkshop.net/mods/files/59091_231310_fPlz6lVP1IxAOgWLvAKM5uMGdiw44mnLxHrmDuqg.zip?filename=Hired%20Enforcers%20Some.zip",
+                    "id": 105533,
+                    "name": "Phase Connect 3",
+                    "version": "3.2",
+                    "size": 1059256,
+                    "type": "7z",
+                    "download_url": "https://storage.modworkshop.net/mods/files/58353_211738_ZJDArCVc6u5RFbrQWaDbptZ4Spt3Evnzcczd5Hrx.7z?filename=Phase%20Connect%203.7z",
                     "url": null,
-                    "image_id": 171617,
-                    "desc": "",
+                    "image_id": null,
+                    "desc": "It works now",
                     "label": "",
-                    "downloads": 0,
-                    "created_at": "2026-09-27T08:54:27.000000Z"
-                },
-                {
-                    "id": 103352,
-                    "name": "Hired Enforcers (All)",
-                    "version": "",
-                    "size": 924278,
-                    "type": "zip",
-                    "download_url": "https://storage.modworkshop.net/mods/files/59091_231310_otlzhkVZD0yUUsjiSvCNVuQFrIreEe4B49NBr22F.zip?filename=Hired%20Enforcers%20All.zip",
-                    "url": null,
-                    "image_id": 171125,
-                    "desc": "",
-                    "label": "",
-                    "downloads": 0,
-                    "created_at": "2026-09-21T14:47:50.000000Z"
+                    "downloads": 1,
+                    "created_at": "2026-11-02T05:55:17.000000Z"
                 }
             ],
             "meta": {
                 "current_page": 1,
                 "last_page": 1,
                 "per_page": 20,
-                "total": 2
+                "total": 1
             }
         },
         "links": {
@@ -1392,7 +1474,7 @@
             "version": "",
             "downloads": 1,
             "likes": 1,
-            "views": 177,
+            "views": 183,
             "published_at": "2026-09-21T14:59:32.000000Z",
             "bumped_at": "2026-09-27T09:07:42.000000Z",
             "category_id": 795,
@@ -1548,9 +1630,9 @@
             "short_desc": "This mod replaces the models of the Heavy SWAT with the model of the Shield.",
             "legacy_markup": false,
             "version": "",
-            "downloads": 3,
+            "downloads": 4,
             "likes": 2,
-            "views": 199,
+            "views": 211,
             "published_at": "2026-09-21T19:40:56.000000Z",
             "bumped_at": "2026-10-06T19:56:55.000000Z",
             "category_id": 795,
@@ -1654,7 +1736,7 @@
                     "image_id": 171129,
                     "desc": "",
                     "label": "",
-                    "downloads": 3,
+                    "downloads": 4,
                     "created_at": "2026-09-21T19:39:37.000000Z"
                 }
             ],
@@ -1685,7 +1767,7 @@
             "version": "",
             "downloads": 7,
             "likes": 0,
-            "views": 166,
+            "views": 171,
             "published_at": "2026-09-21T19:58:06.000000Z",
             "bumped_at": "2026-10-06T17:52:12.000000Z",
             "category_id": 795,
@@ -1841,9 +1923,9 @@
             "short_desc": "A mod that replaces the models of the Blue SWAT and the Sniper with the models of the FBI Agents and the models of the FBI Agents with the models of FBI 1.",
             "legacy_markup": false,
             "version": "",
-            "downloads": 5,
+            "downloads": 6,
             "likes": 0,
-            "views": 158,
+            "views": 170,
             "published_at": "2026-09-21T20:09:44.000000Z",
             "bumped_at": "2026-10-14T08:18:31.000000Z",
             "category_id": 795,
@@ -1938,7 +2020,7 @@
                     "image_id": 172944,
                     "desc": "",
                     "label": "",
-                    "downloads": 3,
+                    "downloads": 4,
                     "created_at": "2026-10-14T08:11:56.000000Z"
                 },
                 {
@@ -1987,313 +2069,6 @@
             }
         }
     },
-    "59131": {
-        "detail": {
-            "id": 59131,
-            "name": "Visor Reskin Pack And Enemy Reskin",
-            "desc": "Messed around with some stuff and made some more colors for the visors.\n\nUpdate: Added another enemy reskin that needs some work",
-            "short_desc": "Pretty cool I think this is.",
-            "legacy_markup": false,
-            "version": "",
-            "downloads": 14,
-            "likes": 1,
-            "views": 196,
-            "published_at": "2026-09-23T08:23:51.000000Z",
-            "bumped_at": "2026-09-27T03:46:08.000000Z",
-            "category_id": 258,
-            "has_download": true,
-            "disable_mod_managers": false,
-            "download_type": null,
-            "thumbnail": {
-                "file": "IQUKEKFZKcDZAwBH7tHSofKav9VAA5vijqp3WlGY.webp",
-                "has_thumb": true
-            },
-            "download": {
-                "id": 103756,
-                "version": "",
-                "size": 663207,
-                "type": "zip",
-                "download_url": "https://storage.modworkshop.net/mods/files/59131_220131_PmLexbIHNPz95yOUWCH2l7XeOT69m7JbZOG1UdPz.zip?filename=Seal%20Team.zip",
-                "url": null
-            },
-            "download_id": null,
-            "files_are_versions": true,
-            "user": {
-                "id": 220131,
-                "name": "Adam",
-                "donation_url": "",
-                "avatar": "oTecxmfo8R1ufReoNwDROICqwJl8CpVBEJMtaTiu.webp",
-                "avatar_has_thumb": true
-            },
-            "changelog": "",
-            "instructions": "Gonna need this https://modworkshop.net/mod/53474\n\nChoose which one you want and put it into mod overrides",
-            "license": "",
-            "repo_url": null,
-            "donation": "",
-            "banner": {
-                "id": 171193,
-                "file": "OXCGYol0JlQktYcbnk6ZHm3fHC4avJN9zZlQUDLm.webp",
-                "type": "webp",
-                "size": 73552,
-                "display_order": 6,
-                "visible": true,
-                "has_thumb": true
-            },
-            "images": [
-                {
-                    "id": 171187,
-                    "file": "GgPoX8hhJcyoNhXdKTpC5DFmeRFrIqj5ZMb6CWVn.webp",
-                    "type": "webp",
-                    "size": 76276,
-                    "display_order": 0,
-                    "visible": true,
-                    "has_thumb": true
-                },
-                {
-                    "id": 171188,
-                    "file": "IQUKEKFZKcDZAwBH7tHSofKav9VAA5vijqp3WlGY.webp",
-                    "type": "webp",
-                    "size": 62306,
-                    "display_order": 1,
-                    "visible": true,
-                    "has_thumb": true
-                },
-                {
-                    "id": 171189,
-                    "file": "qXaosHOlOsq7WwvGesudeLN8hPqI5HTNRyUvlrJG.webp",
-                    "type": "webp",
-                    "size": 35580,
-                    "display_order": 2,
-                    "visible": true,
-                    "has_thumb": true
-                },
-                {
-                    "id": 171190,
-                    "file": "7F7kfF0KkKMTTy18MDk7EORGsdwB8kRwr9RH1ruP.webp",
-                    "type": "webp",
-                    "size": 65742,
-                    "display_order": 2,
-                    "visible": true,
-                    "has_thumb": true
-                },
-                {
-                    "id": 171191,
-                    "file": "ZSf7EgjSIHzrt9BaaVT7qN2c63gwbH1tF7wyZeuF.webp",
-                    "type": "webp",
-                    "size": 63482,
-                    "display_order": 2,
-                    "visible": true,
-                    "has_thumb": true
-                },
-                {
-                    "id": 171192,
-                    "file": "GeMd4dFVsDZ53k8Myj9Iycac0MbKlwhLnjGGdm7R.webp",
-                    "type": "webp",
-                    "size": 60348,
-                    "display_order": 2,
-                    "visible": true,
-                    "has_thumb": true
-                },
-                {
-                    "id": 171193,
-                    "file": "OXCGYol0JlQktYcbnk6ZHm3fHC4avJN9zZlQUDLm.webp",
-                    "type": "webp",
-                    "size": 73552,
-                    "display_order": 6,
-                    "visible": true,
-                    "has_thumb": true
-                },
-                {
-                    "id": 171194,
-                    "file": "xkgFzsJudilnQDO3fmkyRoqJqSrzRjWnZ4NIgy3T.webp",
-                    "type": "webp",
-                    "size": 39878,
-                    "display_order": 6,
-                    "visible": true,
-                    "has_thumb": true
-                },
-                {
-                    "id": 171613,
-                    "file": "8AEoJ1RcoglZlIydrUZwuV7pl5Jxcamioh6yjSF0.webp",
-                    "type": "webp",
-                    "size": 84826,
-                    "display_order": 8,
-                    "visible": true,
-                    "has_thumb": true
-                }
-            ],
-            "dependencies": [],
-            "instructs_template": null,
-            "tags": [
-                {
-                    "id": 8,
-                    "name": "Retexture",
-                    "color": "#3c80c4"
-                }
-            ],
-            "members": []
-        },
-        "files": {
-            "data": [
-                {
-                    "id": 103756,
-                    "name": "Seal Team",
-                    "version": "",
-                    "size": 663207,
-                    "type": "zip",
-                    "download_url": "https://storage.modworkshop.net/mods/files/59131_220131_PmLexbIHNPz95yOUWCH2l7XeOT69m7JbZOG1UdPz.zip?filename=Seal%20Team.zip",
-                    "url": null,
-                    "image_id": null,
-                    "desc": "",
-                    "label": "",
-                    "downloads": 8,
-                    "created_at": "2026-09-27T03:46:04.000000Z"
-                },
-                {
-                    "id": 103459,
-                    "name": "PDTH Visors and stuff",
-                    "version": "",
-                    "size": 528662,
-                    "type": "zip",
-                    "download_url": "https://storage.modworkshop.net/mods/files/59131_220131_Rl4Ffnp01Sa6AIAWB9KZuvcIbz3OguJ6bbi654Kb.zip?filename=PDTH%20Visors%20and%20stuff.zip",
-                    "url": null,
-                    "image_id": null,
-                    "desc": "",
-                    "label": "",
-                    "downloads": 8,
-                    "created_at": "2026-09-23T03:21:42.000000Z"
-                }
-            ],
-            "meta": {
-                "current_page": 1,
-                "last_page": 1,
-                "per_page": 20,
-                "total": 2
-            }
-        },
-        "links": {
-            "data": [],
-            "meta": {
-                "current_page": 1,
-                "last_page": 1,
-                "per_page": 20,
-                "total": 0
-            }
-        }
-    },
-    "59139": {
-        "detail": {
-            "id": 59139,
-            "name": "Default Units replaced with Special Units",
-            "desc": "I made this mod a week ago to have fun with my friends, but they don’t want to play Payday :(\nAnd because of that, I HAVE NO AN IDEA HOW IT WORKS ONLINE\n     \n\nSo, yes\nDie from a horde of bulldozers. Or cloakers. Or tasers. Or shields.",
-            "short_desc": "Die from a horde of bulldozers. Or cloakers. Or tasers. Or shields.",
-            "legacy_markup": false,
-            "version": "1.0.0",
-            "downloads": 9,
-            "likes": 0,
-            "views": 91,
-            "published_at": "2026-09-23T14:09:04.000000Z",
-            "bumped_at": "2026-09-23T14:09:04.000000Z",
-            "category_id": 256,
-            "has_download": true,
-            "disable_mod_managers": false,
-            "download_type": null,
-            "thumbnail": {
-                "file": "en4Fkf5PVJoYoLjg8MPtFT4DKI4vVrAAyG6nCtz4.webp",
-                "has_thumb": true
-            },
-            "download": {
-                "id": 103483,
-                "version": "1.0.0",
-                "size": 217542,
-                "type": "rar",
-                "download_url": "https://storage.modworkshop.net/mods/files/59139_229191_QoBteIU5oIFAVhe2Y2RvooG99u1kD87GRjmCKkdN.rar?filename=SpecUnits.rar",
-                "url": null
-            },
-            "download_id": null,
-            "files_are_versions": true,
-            "user": {
-                "id": 229191,
-                "name": "Sportsrobot32",
-                "donation_url": "",
-                "avatar": "vo1i9HPlitTEWS6sxycnA7OD2cIYWMYLdrg6GaZo.webp",
-                "avatar_has_thumb": true
-            },
-            "changelog": "",
-            "instructions": "Nothing",
-            "license": "",
-            "repo_url": null,
-            "donation": "",
-            "banner": {
-                "id": 171220,
-                "file": "en4Fkf5PVJoYoLjg8MPtFT4DKI4vVrAAyG6nCtz4.webp",
-                "type": "webp",
-                "size": 22442,
-                "display_order": 0,
-                "visible": true,
-                "has_thumb": true
-            },
-            "images": [
-                {
-                    "id": 171220,
-                    "file": "en4Fkf5PVJoYoLjg8MPtFT4DKI4vVrAAyG6nCtz4.webp",
-                    "type": "webp",
-                    "size": 22442,
-                    "display_order": 0,
-                    "visible": true,
-                    "has_thumb": true
-                }
-            ],
-            "dependencies": [],
-            "instructs_template": null,
-            "tags": [
-                {
-                    "id": 4,
-                    "name": "Lua",
-                    "color": "#7036af"
-                },
-                {
-                    "id": 17,
-                    "name": "Joke",
-                    "color": "#b747c7"
-                }
-            ],
-            "members": []
-        },
-        "files": {
-            "data": [
-                {
-                    "id": 103483,
-                    "name": "SpecUnits",
-                    "version": "1.0.0",
-                    "size": 217542,
-                    "type": "rar",
-                    "download_url": "https://storage.modworkshop.net/mods/files/59139_229191_QoBteIU5oIFAVhe2Y2RvooG99u1kD87GRjmCKkdN.rar?filename=SpecUnits.rar",
-                    "url": null,
-                    "image_id": null,
-                    "desc": "",
-                    "label": "",
-                    "downloads": 9,
-                    "created_at": "2026-09-23T14:01:27.000000Z"
-                }
-            ],
-            "meta": {
-                "current_page": 1,
-                "last_page": 1,
-                "per_page": 20,
-                "total": 1
-            }
-        },
-        "links": {
-            "data": [],
-            "meta": {
-                "current_page": 1,
-                "last_page": 1,
-                "per_page": 20,
-                "total": 0
-            }
-        }
-    },
     "59142": {
         "detail": {
             "id": 59142,
@@ -2302,9 +2077,9 @@
             "short_desc": "A mod that replaces the fictional weapon names with their real-life names.",
             "legacy_markup": false,
             "version": "",
-            "downloads": 36,
+            "downloads": 40,
             "likes": 2,
-            "views": 239,
+            "views": 259,
             "published_at": "2026-09-23T16:06:31.000000Z",
             "bumped_at": "2026-10-15T06:56:19.000000Z",
             "category_id": 256,
@@ -2416,9 +2191,9 @@
                         "desc": "NOTE: Due to many requests I decided to post this here. Since I'd rather have everything in one place and there's too much info for a comments section, I made a Steam group for the mod.\n\nThe mod, called DAHM (formerly known as DorHUD, but use whatever you like), is basically a collection of modifications to (in my eyes) improve the game. The core is comparable to BLT, but has a bunch of extra features and is now (almost) fully compatible with BLT since version 1.6. The mod is a framework that provides a way to add sub-modules, so that the whole thing is very customizable. The basic version comes bundled with a bunch of default submods to provide the most requested features without being intrusive or gameplay altering (for the most part).\n\nThe game is no longer officially supported and I therefore I assume that the executable will not be updated. If this is the case, then the mod has to be updated. But for now it fixes a few bugs, some well known and other not so much. I tried to patch the game crashing bugs, but I'm pretty sure I didn't get them all. A more known bug is that the Vyse masks (and others) disappear from time to time. This is because the Steam community group page is fetched and then checked for the presence of your Steam ID. This is not very reliable, so I replaced it with a call to your local Steam client to the groups you're in. Another thing is that the mute state is now preserved between games, so you don't have to mute people on every single map. And you can open the menu when someone is loading, etc., etc., etc. Just don't expect all solutions to be very elegant ;).\n\nThe majority of the sub-modules involve anticheat stuff and profile checking, simply because there are so many cheaters in this game that think they can do that without any consequences. Those that still want to ruin my games can only do it once with that account before they (manually) get added to a banlist. For now the list is only local, so nothing is shared (unless you count the manual sharing of it). Furthermore, there is a very simplistic HUD addon to keep track of the game time and the kills you've made, there's a new difficulty, you can add your own matchmaking filters and there's the possibility to ban players both by keeping a local file and by blocking them on Steam (the latter requires the provided hook).\n\nSince I don't want to type things twice, more specific information can be found on the Steam group page. That's also where I try to provide support and where updates will be posted, so that everything is kept in one place.\n\n*Not all mods are posted to this website. Some smaller mods are posted in the [DAHM Downloads forum](https://steamcommunity.com/groups/dahm4pd/discussions/3/).*",
                         "short_desc": "Mod framework for PAYDAY: The Heist that comes bundled with a bunch of submods that provide the most requested functionality in the most unobtrusive w",
                         "legacy_markup": false,
-                        "downloads": 11395,
+                        "downloads": 11454,
                         "likes": 60,
-                        "views": 31658,
+                        "views": 31761,
                         "published_at": "2017-11-03T21:54:21.000000Z",
                         "bumped_at": "2018-12-06T19:37:27.000000Z",
                         "category_id": 0,
@@ -2467,7 +2242,7 @@
                     "image_id": 171243,
                     "desc": "",
                     "label": "",
-                    "downloads": 32,
+                    "downloads": 36,
                     "created_at": "2026-09-24T13:16:20.000000Z"
                 }
             ],
@@ -2498,7 +2273,7 @@
             "version": "",
             "downloads": 2,
             "likes": 0,
-            "views": 96,
+            "views": 106,
             "published_at": "2026-09-27T14:27:09.000000Z",
             "bumped_at": "2026-10-04T16:01:18.000000Z",
             "category_id": 795,
@@ -2604,9 +2379,9 @@
             "short_desc": "A mod that brings Crime.net contractors from PAYDAY 2 to PAYDAY: The Heist, giving existing heists new briefings.",
             "legacy_markup": false,
             "version": "",
-            "downloads": 30,
+            "downloads": 33,
             "likes": 2,
-            "views": 572,
+            "views": 604,
             "published_at": "2026-10-01T17:28:16.000000Z",
             "bumped_at": "2026-10-18T17:11:43.000000Z",
             "category_id": 256,
@@ -2745,9 +2520,9 @@
                         "desc": "NOTE: Due to many requests I decided to post this here. Since I'd rather have everything in one place and there's too much info for a comments section, I made a Steam group for the mod.\n\nThe mod, called DAHM (formerly known as DorHUD, but use whatever you like), is basically a collection of modifications to (in my eyes) improve the game. The core is comparable to BLT, but has a bunch of extra features and is now (almost) fully compatible with BLT since version 1.6. The mod is a framework that provides a way to add sub-modules, so that the whole thing is very customizable. The basic version comes bundled with a bunch of default submods to provide the most requested features without being intrusive or gameplay altering (for the most part).\n\nThe game is no longer officially supported and I therefore I assume that the executable will not be updated. If this is the case, then the mod has to be updated. But for now it fixes a few bugs, some well known and other not so much. I tried to patch the game crashing bugs, but I'm pretty sure I didn't get them all. A more known bug is that the Vyse masks (and others) disappear from time to time. This is because the Steam community group page is fetched and then checked for the presence of your Steam ID. This is not very reliable, so I replaced it with a call to your local Steam client to the groups you're in. Another thing is that the mute state is now preserved between games, so you don't have to mute people on every single map. And you can open the menu when someone is loading, etc., etc., etc. Just don't expect all solutions to be very elegant ;).\n\nThe majority of the sub-modules involve anticheat stuff and profile checking, simply because there are so many cheaters in this game that think they can do that without any consequences. Those that still want to ruin my games can only do it once with that account before they (manually) get added to a banlist. For now the list is only local, so nothing is shared (unless you count the manual sharing of it). Furthermore, there is a very simplistic HUD addon to keep track of the game time and the kills you've made, there's a new difficulty, you can add your own matchmaking filters and there's the possibility to ban players both by keeping a local file and by blocking them on Steam (the latter requires the provided hook).\n\nSince I don't want to type things twice, more specific information can be found on the Steam group page. That's also where I try to provide support and where updates will be posted, so that everything is kept in one place.\n\n*Not all mods are posted to this website. Some smaller mods are posted in the [DAHM Downloads forum](https://steamcommunity.com/groups/dahm4pd/discussions/3/).*",
                         "short_desc": "Mod framework for PAYDAY: The Heist that comes bundled with a bunch of submods that provide the most requested functionality in the most unobtrusive w",
                         "legacy_markup": false,
-                        "downloads": 11395,
+                        "downloads": 11454,
                         "likes": 60,
-                        "views": 31658,
+                        "views": 31761,
                         "published_at": "2017-11-03T21:54:21.000000Z",
                         "bumped_at": "2018-12-06T19:37:27.000000Z",
                         "category_id": 0,
@@ -2801,7 +2576,7 @@
                     "image_id": null,
                     "desc": "",
                     "label": "",
-                    "downloads": 30,
+                    "downloads": 33,
                     "created_at": "2026-10-01T17:26:37.000000Z"
                 }
             ],
@@ -2830,9 +2605,9 @@
             "short_desc": "A mod that replaces Player Upgrades and Crew Bonuses with Skills and Crew Boosts.",
             "legacy_markup": false,
             "version": "",
-            "downloads": 33,
+            "downloads": 34,
             "likes": 0,
-            "views": 451,
+            "views": 495,
             "published_at": "2026-10-03T13:58:57.000000Z",
             "bumped_at": "2026-10-15T07:00:59.000000Z",
             "category_id": 256,
@@ -2908,9 +2683,9 @@
                         "desc": "NOTE: Due to many requests I decided to post this here. Since I'd rather have everything in one place and there's too much info for a comments section, I made a Steam group for the mod.\n\nThe mod, called DAHM (formerly known as DorHUD, but use whatever you like), is basically a collection of modifications to (in my eyes) improve the game. The core is comparable to BLT, but has a bunch of extra features and is now (almost) fully compatible with BLT since version 1.6. The mod is a framework that provides a way to add sub-modules, so that the whole thing is very customizable. The basic version comes bundled with a bunch of default submods to provide the most requested features without being intrusive or gameplay altering (for the most part).\n\nThe game is no longer officially supported and I therefore I assume that the executable will not be updated. If this is the case, then the mod has to be updated. But for now it fixes a few bugs, some well known and other not so much. I tried to patch the game crashing bugs, but I'm pretty sure I didn't get them all. A more known bug is that the Vyse masks (and others) disappear from time to time. This is because the Steam community group page is fetched and then checked for the presence of your Steam ID. This is not very reliable, so I replaced it with a call to your local Steam client to the groups you're in. Another thing is that the mute state is now preserved between games, so you don't have to mute people on every single map. And you can open the menu when someone is loading, etc., etc., etc. Just don't expect all solutions to be very elegant ;).\n\nThe majority of the sub-modules involve anticheat stuff and profile checking, simply because there are so many cheaters in this game that think they can do that without any consequences. Those that still want to ruin my games can only do it once with that account before they (manually) get added to a banlist. For now the list is only local, so nothing is shared (unless you count the manual sharing of it). Furthermore, there is a very simplistic HUD addon to keep track of the game time and the kills you've made, there's a new difficulty, you can add your own matchmaking filters and there's the possibility to ban players both by keeping a local file and by blocking them on Steam (the latter requires the provided hook).\n\nSince I don't want to type things twice, more specific information can be found on the Steam group page. That's also where I try to provide support and where updates will be posted, so that everything is kept in one place.\n\n*Not all mods are posted to this website. Some smaller mods are posted in the [DAHM Downloads forum](https://steamcommunity.com/groups/dahm4pd/discussions/3/).*",
                         "short_desc": "Mod framework for PAYDAY: The Heist that comes bundled with a bunch of submods that provide the most requested functionality in the most unobtrusive w",
                         "legacy_markup": false,
-                        "downloads": 11395,
+                        "downloads": 11454,
                         "likes": 60,
-                        "views": 31658,
+                        "views": 31761,
                         "published_at": "2017-11-03T21:54:21.000000Z",
                         "bumped_at": "2018-12-06T19:37:27.000000Z",
                         "category_id": 0,
@@ -2959,7 +2734,7 @@
                     "image_id": null,
                     "desc": "",
                     "label": "",
-                    "downloads": 33,
+                    "downloads": 34,
                     "created_at": "2026-10-03T13:58:49.000000Z"
                 }
             ],
@@ -2988,9 +2763,9 @@
             "short_desc": "A mod that gives the weapons more realistic names and descriptions.",
             "legacy_markup": false,
             "version": "",
-            "downloads": 8,
+            "downloads": 10,
             "likes": 0,
-            "views": 155,
+            "views": 170,
             "published_at": "2026-10-03T16:17:29.000000Z",
             "bumped_at": "2026-10-15T06:55:41.000000Z",
             "category_id": 256,
@@ -3102,9 +2877,9 @@
                         "desc": "NOTE: Due to many requests I decided to post this here. Since I'd rather have everything in one place and there's too much info for a comments section, I made a Steam group for the mod.\n\nThe mod, called DAHM (formerly known as DorHUD, but use whatever you like), is basically a collection of modifications to (in my eyes) improve the game. The core is comparable to BLT, but has a bunch of extra features and is now (almost) fully compatible with BLT since version 1.6. The mod is a framework that provides a way to add sub-modules, so that the whole thing is very customizable. The basic version comes bundled with a bunch of default submods to provide the most requested features without being intrusive or gameplay altering (for the most part).\n\nThe game is no longer officially supported and I therefore I assume that the executable will not be updated. If this is the case, then the mod has to be updated. But for now it fixes a few bugs, some well known and other not so much. I tried to patch the game crashing bugs, but I'm pretty sure I didn't get them all. A more known bug is that the Vyse masks (and others) disappear from time to time. This is because the Steam community group page is fetched and then checked for the presence of your Steam ID. This is not very reliable, so I replaced it with a call to your local Steam client to the groups you're in. Another thing is that the mute state is now preserved between games, so you don't have to mute people on every single map. And you can open the menu when someone is loading, etc., etc., etc. Just don't expect all solutions to be very elegant ;).\n\nThe majority of the sub-modules involve anticheat stuff and profile checking, simply because there are so many cheaters in this game that think they can do that without any consequences. Those that still want to ruin my games can only do it once with that account before they (manually) get added to a banlist. For now the list is only local, so nothing is shared (unless you count the manual sharing of it). Furthermore, there is a very simplistic HUD addon to keep track of the game time and the kills you've made, there's a new difficulty, you can add your own matchmaking filters and there's the possibility to ban players both by keeping a local file and by blocking them on Steam (the latter requires the provided hook).\n\nSince I don't want to type things twice, more specific information can be found on the Steam group page. That's also where I try to provide support and where updates will be posted, so that everything is kept in one place.\n\n*Not all mods are posted to this website. Some smaller mods are posted in the [DAHM Downloads forum](https://steamcommunity.com/groups/dahm4pd/discussions/3/).*",
                         "short_desc": "Mod framework for PAYDAY: The Heist that comes bundled with a bunch of submods that provide the most requested functionality in the most unobtrusive w",
                         "legacy_markup": false,
-                        "downloads": 11395,
+                        "downloads": 11454,
                         "likes": 60,
-                        "views": 31658,
+                        "views": 31761,
                         "published_at": "2017-11-03T21:54:21.000000Z",
                         "bumped_at": "2018-12-06T19:37:27.000000Z",
                         "category_id": 0,
@@ -3158,7 +2933,7 @@
                     "image_id": null,
                     "desc": "",
                     "label": "",
-                    "downloads": 8,
+                    "downloads": 10,
                     "created_at": "2026-10-03T16:17:15.000000Z"
                 }
             ],
@@ -3189,7 +2964,7 @@
             "version": "",
             "downloads": 6,
             "likes": 0,
-            "views": 164,
+            "views": 179,
             "published_at": "2026-10-04T18:09:49.000000Z",
             "bumped_at": "2026-10-04T18:09:49.000000Z",
             "category_id": 795,
@@ -3295,9 +3070,9 @@
             "short_desc": "A mod that replaces the models of the Heavy SWAT with the models of the Murkywater Contractors.",
             "legacy_markup": false,
             "version": "",
-            "downloads": 5,
+            "downloads": 6,
             "likes": 0,
-            "views": 76,
+            "views": 86,
             "published_at": "2026-10-14T12:36:52.000000Z",
             "bumped_at": "2026-10-14T12:36:52.000000Z",
             "category_id": 795,
@@ -3374,7 +3149,7 @@
                     "image_id": 172948,
                     "desc": "",
                     "label": "",
-                    "downloads": 5,
+                    "downloads": 6,
                     "created_at": "2026-10-14T12:36:24.000000Z"
                 }
             ],
@@ -3405,7 +3180,7 @@
             "version": "",
             "downloads": 9,
             "likes": 0,
-            "views": 160,
+            "views": 190,
             "published_at": "2026-10-22T09:53:44.000000Z",
             "bumped_at": "2026-10-22T09:53:44.000000Z",
             "category_id": 258,
@@ -3562,15 +3337,15 @@
         "detail": {
             "id": 59706,
             "name": "F.U.B.A.R. (Difficulty Enhancer)",
-            "desc": "This is a project I've been working on for quite a good while, good month or two I think? I never really keep up with time these days. Anyhow this will up the difficulty by a lot, especially on Overkill and above. This does that by allowing certain enemies to have additional weapons that they don't normally have, upping the number of specials that spawn as well as the cap on specials, raising the number of cops that can be present, replacing enemies, adding new custom events, adding events and changes from Overkill 145+ onto the lower difficulties such as bulldozers being present in the vault on First World Bank, and having bonus mutators that turns this game into a nightmare for even the most seasoned players.\n\nHere's the trailers for this in case you want some videos to see what you're in for:\n\nTrailer 1: https://youtu.be/41rlyNDLMgw\n\nTrailer 2: https://youtu.be/2IQgn28sCT8\n\n\nTo detail the changes made in more specifics:\n\n\nEnemy Spawn Changes:\n\nGensec White Shirt Guards are now replaced with Heavy Swats. (Made Possible By Warmod By BAnXZ)\n\nGensec Red Shirt Guards are now replaced with Cloakers. (Made Possible By Warmod By BAnXZ)\n\nAll Gangsters are now replaced with some kind of law enforcement officer. (Made Possible By Warmod By BAnXZ)\n\nMurky 1 now can be replaced by a Cloaker. (Made Possible By Warmod By BAnXZ)\n\nMurky 2 now can be replaced by a Taser. (Made Possible By Warmod By BAnXZ)\n\nFBI 1 now can be replaced by a Cloaker. (Made Possible By Warmod By BAnXZ)\n\nFBI 2 now can be replaced by a Cloaker or Taser. (Made Possible By Warmod By BAnXZ)\n\nFBI 3 now can be replaced by a Cloaker or Taser. (Made Possible By Warmod By BAnXZ)\n\n\nWeapon Changes:\n\nMurkys can now spawn with either an M4 or AK47. (Made Possible By Warmod By BAnXZ)\n\nCop 2 can now spawn with either a Crosskill 45 or Bronco 44. (Made Possible By Warmod By BAnXZ)\n\nFBI 1 can now spawn with either a BS-9, M4, or Reinbeck. (Made Possible By Warmod By BAnXZ)\n\nFBI 2 can now spawn with either a BS-9 or MP5. (Made Possible By Warmod By BAnXZ)\n\nFBI 3 can now spawn with either a BS-9 or M4. (Made Possible By Warmod By BAnXZ)\n\nCloakers can now spawn with either a BS-9 or MP5. (Made Possible By Warmod By BAnXZ)\n\nTasers can now spawn with either an M4 or AK47. (Made Possible By Warmod By BAnXZ)\n\nBulldozers can now spawn with a either a AK47, MP5, Brenner, or Reinbeck. (Made Possible By Warmod By BAnXZ)\n\n\nAssault Time Changes:\n\nEasy - Assault 60s to 120s, Street Assault 30s to 60s. (Made By Me, Added By Base F.U.B.A.R. Mutator)\n\nNormal - Assault 120s to 180s, Street Assault 60s to 90s. (Made By Me, Added By Base F.U.B.A.R. Mutator)\n\nHard - Assault 180s to 240s, Street Assault 90s to 120s. (Made By Me, Added By Base F.U.B.A.R. Mutator)\n\nOverkill - Assault 240s to 300s, Street Assault 120s to 150s. (Made By Me, Added By Base F.U.B.A.R. Mutator)\n\nOverkill 145+ - Assault 300s to 360s, Street Assault 150s to 180s. (Made By Me, Added By Base F.U.B.A.R. Mutator)\n\nOverkill 193+ - Assault 360s to 420s, Street Assault 180s to 210s. (Made By Me, Added By Base F.U.B.A.R. Mutator)\n\n\nSpecial Cap Changes:\n\nEasy - Special Cap 8, Shield Cap 0, Taser Cap 0, Spooc Cap 0, Tank 0 (Made By Me, Added By Base F.U.B.A.R. Mutator)\n\nNormal - Special Cap 8, Shield Cap 1, Taser Cap 1, Spooc Cap 1, Tank 1 (Made By Me, Added By Base F.U.B.A.R. Mutator)\n\nHard - Special Cap 12, Shield Cap 2, Taser Cap 2, Spooc Cap 2, Tank 1 (Made By Me, Added By Base F.U.B.A.R. Mutator)\n\nOverkill - Special Cap 14, Shield Cap 3, Taser Cap 3, Spooc Cap 3, Tank 2 (Made By Me, Added By Base F.U.B.A.R. Mutator)\n\nOverkill 145+ - Special Cap 16, Shield Cap 4, Taser Cap 4, Spooc Cap 4, Tank 3 (Made By Me, Added By Base F.U.B.A.R. Mutator)\n\nOverkill 193+ - Special Cap 18, Shield Cap 5, Taser Cap 5, Spooc Cap 5, Tank 4 (Made By Me, Added By Base F.U.B.A.R. Mutator)\n\nBonus Mutators List:\n\nBonus 1 - Tasers are better at tasing. (One Of B Dawg's Mutator's From Their Overhaul Mod, Added By F.U.B.A.R. Bonus Mutator)\n\nBonus 2 - Friendly fire is turned on. (One Of B Dawg's Mutator's From Their Overhaul Mod, Added By F.U.B.A.R. Bonus Mutator)\n\nBonus 3 - You can't see outlines anymore. (One Of B Dawg's Mutator's From Their Overhaul Mod, Added By F.U.B.A.R. Bonus Mutator)\n\nBonus 4 - Ammo left in a clip will be tossed away when reloading your weapons. (One Of B Dawg's Mutator's From Their Overhaul Mod, Added By F.U.B.A.R. Bonus Mutator)\n\nBonus 5 - No more automatic reloading. (One Of B Dawg's Mutator's From Their Overhaul Mod, Added By F.U.B.A.R. Bonus Mutator)\n\nBonus 6 - No more crosshair. (One Of B Dawg's Mutator's From Their Overhaul Mod, Added By F.U.B.A.R. Bonus Mutator)\n\nBonus 7 - Only FBI units will spawn in during assaults. (One Of B Dawg's Mutator's From Their Overhaul Mod, Added By F.U.B.A.R. Bonus Mutator)\n\nBonus 8 - Armor regens in chunks now. (One Of B Dawg's Mutator's From Their Overhaul Mod, Added By F.U.B.A.R. Bonus Mutator)\n\nBonus 9 - Only Murkywater units will be swarming you in Slaughterhouse during assaults. (One Of B Dawg's Mutator's From Their Overhaul Mod, Added By F.U.B.A.R. Bonus Mutator)\n\n\nAdditional Events And Ported Events From Overkill 145+:\n\nChanged spawn point access across most heists that enhances over all difficulty. To list them Shields, Bulldozers, and other units can spawn from behind the riot fences at inkwell as well as from the brick wall behind inkwell and in the back alley you push matt through and the riot fences at the top of Armitage ave near the overkill cola sign on Heat Street. Two unused Armitage ave spawn points on two roof tops have been enabled on Heat Street. Shields, Bulldozers, and other units can spawn from behind the brick walls in the alley and on the rooftops on Panic Room. Shields, Bulldozers, and other units can spawn from the spawns near the 3rd and 4th convoy trucks, and from the ground level inside the scaffolding on the side where you send the prisoner up into the sky on Green Bridge. Fixed Shields and Bulldozers getting trapped on the roof access rooftop spawn near the PR department on floor 22. An unused container yard slaughterhouse roof spawn has been enabled on Slaughterhouse. Shields, Bulldozers, and other units can spawn from the scaffolding in the kitchen and on top of the containers in the container yard. Various spawns all around on Counterfeit have been modified. (Made By Cranky's Mod Emporium And Neonsynth, Added By F.U.B.A.R.+ Mutator)\n\n4 Bulldozers spawn in the vault on First World Bank across all difficulties. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nAll 4 computers have to be hacked on First World Bank. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nA Cloaker ambush on First World Bank from Overkill 145+ can now happen on all difficulties. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nThe Overkill 145+ stairs ambush on First World Bank can now happen across all difficulties. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nThe police arrive much faster on First World Bank. (Made By Cranky's Mod Emporium, Added By F.U.B.A.R.+ Mutator)\n\nA Bulldozer and Cloaker spawn in the server room as well as a sniper ambush spawns on a building over looking the drill on First World Bank. (Made By Neonsynth, Modified By Me, Added By F.U.B.A.R.+ Mutator)\n\nGuards are now guaranteed to spawn in the pre vault area on First World Bank. (Made By Neonsynth, Added By F.U.B.A.R.+ Mutator)\n\nTwo Tasers, a Cloaker, and a Bulldozer now spawn in the pre vault area on First World Bank. (Made By Neonsynth, Modified By Me, Added By F.U.B.A.R.+ Mutator)\n\nTwo Tasers now spawn in the vault and an ambush is set up when entering the vault on First World Bank. (Made By Neonsynth, Added By F.U.B.A.R.+ Mutator)\n\nTwo Bulldozers now spawn outside the vault in the pre vault area when leaving the vault and another sniper ambush is set up on the same building over looking the drill on First World Bank. (Made By Neonsynth, Modified By Me, Added By F.U.B.A.R.+ Mutator)\n\nThe sniper ambush in the lobby will always spawn now on First World Bank. (Made By Neonsynth, Added By F.U.B.A.R.+ Mutator)\n\nWhen escaping on First World Bank there is now an ambush before the stairs with two Cloakers and a Taser. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nIn the under halls with all the doors after the stairs on First World Bank there will be an ambush with a Shield and Taser. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nIn the basement area before the escape there will be a ambush consisting of a Bulldozer, Two Tasers, a Cloaker, and one Heavy Swat on First World Bank. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nThere are now some surprise enemies in the overvault area on First World Bank, you have been warned. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nSome spawns that trigger after the vault doors open on First World Bank are now forced to spawn. (Made By Neonsynth, Added By F.U.B.A.R.+ Mutator)\n\nTwo Bulldozers will now spawn if you fail to kill the swats who plant C4 on the windows on First World Bank. (Made By Neonsynth, Added By F.U.B.A.R.+ Mutator)\n\nThe cars that are disabled on Overkill 145+ are now disabled on all difficulties on Heat Street. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nA Overkill 145+ Taser and Shield ambush is now enabled on all difficulties on Heat Street. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nA Overkill 145+ Shield ambush is now enabled on all difficulties on Heat Street. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nA Overkill 145+ Bulldozer ambush is now enabled on all difficulties on Heat Street. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nThere is now a fifty percent chance for a back-alley door to be opened on Heat Street. (Made By Neonsynth, Modified By Me, Added By F.U.B.A.R.+ Mutator)\n\nThere is now an ambush as well as a second ambush at the start on Heat Street. (Made By Neonsynth, Modified By Me, Added By F.U.B.A.R.+ Mutator)\n\nThere are now multiple new sniper spawns that trigger on starting on Heat Street. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nA Taser and Bulldozer now spawn where Bruce crashes and dies on Heat Street. (Made By Neonsynth, Added By F.U.B.A.R.+ Mutator)\n\nA Bulldozer now spawns on Easy Street on Heat Street. (Made By Neonsynth, Added By F.U.B.A.R.+ Mutator)\n\nThere is now an ambush at the crash site of Matt on Heat Street. (Made By Neonsynth, Added By F.U.B.A.R.+ Mutator)\n\nSome helicopters spawn after Matt comes out of the van on Heat Street. (Made By Neonsynth, Added By F.U.B.A.R.+ Mutator)\n\nThere is now an ambush at Jakes Parking on Heat Street. (Made By Neonsynth, Added By F.U.B.A.R.+ Mutator)\n\nThere is now an ambush on Armitage Avenue on Heat Street. (Made By Neonsynth, Added By F.U.B.A.R.+ Mutator)\n\nMultiple snipers spawn on the way of taking Matt up the hill on Heat Street. (Made By Neonsynth, Modified By Me, Added By F.U.B.A.R.+ Mutator)\n\n4 Bulldozers spawn on the hill by helicopter on Heat Street. (Made By Neonsynth, Added By F.U.B.A.R.+ Mutator)\n\nThere is now a Bulldozer ambush at the top of the hill on Heat Street. (Made By Neonsynth, Added By F.U.B.A.R.+ Mutator)\n\nAll the stuff in relation to the Overkill 145+ room on Panic Room is enabled and an extra crowbar has been added as well. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nA Bulldozer spawns upon opening the Overkill 145+ room on Panic Room. (Made By Neonsynth, Added By F.U.B.A.R.+ Mutator)\n\nSome Overkill 145+ spawns have been enabled on Panic Room. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nSome Bulldozers spawn on the roof at mask up on Panic Room. (Made By Neonsynth, Added By F.U.B.A.R.+ Mutator)\n\nSome Snipers and a Bulldozer spawns when the C4 explodes on Panic Room. (Made By Neonsynth, Added By F.U.B.A.R.+ Mutator)\n\nSome special enemies spawn at the escape on Panic Room. (Made By Neonsynth, Added By F.U.B.A.R.+ Mutator)\n\nThe helicopter that goes onto the roof on Panic Room will always spawn and will spawn Two Cloakers and Two Bulldozers. (Made By Neonsynth, Modified By Me, Added By F.U.B.A.R.+ Mutator)\n\nThe laundry room on Panic Room now has a 75 precent chance to be open. (Made By Neonsynth, Modified By Me, Added By F.U.B.A.R.+ Mutator)\n\nThe roof door on Panic Room now has a 5 percent chance on Normal, 15 percent chance on Hard, and 25 percent chance on Overkill and above to be closed. (Made By Neonsynth, Modified By Me, Added By F.U.B.A.R.+ Mutator)\n\nOn Panic Room more snipers are required to be killed before C4 drops. (Made By Neonsynth, Modified By Me, Added By F.U.B.A.R.+ Mutator)\n\nSome Overkill 145+ spawns have been enabled on Diamond Heist. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nAll Seven hacking boxes need to be hacked now on Diamond Heist. (Made By Neonsynth, Added By F.U.B.A.R.+ Mutator)\n\nA Cloaker now spawns in the server room on Diamond Heist. (Made By Neonsynth, Added By F.U.B.A.R.+ Mutator)\n\nA helicopter now drops Bulldozers on Diamond Heist. (Made By Neonsynth, Added By F.U.B.A.R.+ Mutator)\n\nA Bulldozer ambush will be in the area for the red diamond on Diamond Heist. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nA Sniper and Bulldozer ambush now happens when you enter the vault on Diamond Heist. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nSome Overkill 145+ events have been enabled on all difficulties for Green Bridge. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\n24 Enemies will always spawn at the start of Green Bridge. (Made By Neonsynth, Added By F.U.B.A.R.+ Mutator)\n\nThe fourth truck will never slide off the bridge on Green Bridge. (Made By Neonsynth, Added By F.U.B.A.R.+ Mutator)\n\nA Bulldozer will always spawn on the zip line on Green Bridge. (Made By Neonsynth, Added By F.U.B.A.R.+ Mutator)\n\nTwo Bulldozers and Two Snipers will spawn at the beginning of Green Bridge. (Made By Neonsynth, Modified By Me, Added By F.U.B.A.R.+ Mutator)\n\nSnipers will spawn on the escort objective on Green Bridge. (Made By Neonsynth, Modified By Me, Added By F.U.B.A.R.+ Mutator)\n\nSnipers will spawn on the path to the escape on Green Bridge. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nA Bulldozer spawn will continue to spawn on Green Bridge. (Made By Neonsynth, Added By F.U.B.A.R.+ Mutator)\n\nA lot of Overkill 145+ events have been enabled on Slaughterhouse. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nThe ambush at the beginning of Slaughterhouse has been overhauled. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nSome Sniper spawns have been added after the ambush on Slaughterhouse. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nThere will be a Sniper ambush in the container yard on Slaughterhouse. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nHelicopters that spawn in the container yard on Slaughterhouse now always spawn. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nThere will always be Bulldozers at the escape of Slaughterhouse as well as Snipers and Heavy Swats on the roof overlooking the escape truck. (Made By Neonsynth, Modified By Me, Added By F.U.B.A.R.+ Mutator)\n\nSwat truck spawns on Counterfeit are now faster. (Made By Cranky's Mod Emporium, Modified By Me, Added By F.U.B.A.R.+ Mutator)\n\nPolice are now protecting Mitchell and Wilson on Counterfeit. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nThere is now a Bulldozer that will spawn after opening the bookcase on Counterfeit. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nThere is now a Bulldozer that will spawn where the money printer is on Counterfeit. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nSnipers will now spawn on surrounding roofs as you escape on Counterfeit. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nTwo Bulldozers will now spawn at the end of the tunnel on Counterfeit. (Made By Neonsynth, Added By F.U.B.A.R.+ Mutator)\n\nThe Tax Man will now have some security with him on Undercover. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nYou get five minutes to prepare yourself on Undercover, make those minutes count. (Made By Neonsynth, Modified By Me, Added By F.U.B.A.R.+ Mutator)\n\nCloakers now spawn on the roof on Undercover. (Made By Neonsynth, Added By F.U.B.A.R.+ Mutator)\n\nSnipers now respawn faster on Undercover. (Made By Neonsynth, Added By F.U.B.A.R.+ Mutator)\n\nThere is now heavy security guarding the ICU on No Mercy. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nThere will be a Bulldozer spawn in each ICU unit on No Mercy. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nThere will be an ambush in the mortuary on No Mercy. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nThe Overkill 145+ elevator Bulldozer ambush now has a 100 percent chance to trigger on No Mercy. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nA Bulldozer will now spawn on the entrance to the roof escape area on No Mercy. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nBulldozers will spawn in the tunnel that connects the elevator to the laundry room on No Mercy. (Made By Neonsynth, Added By F.U.B.A.R.+ Mutator)\n\nThe elevator timer has been adjusted as well as the amount of power downs that can happen on No Mercy. (Made By Neonsynth, Modified By Me, Added By F.U.B.A.R.+ Mutator)\n\nA Bulldozer will spawn each time the power goes down on No Mercy. (Made By Neonsynth, Added By F.U.B.A.R.+ Mutator)\n\n4 Blood samples will be required now to escape on No Mercy. (Made By Neonsynth, Added By F.U.B.A.R.+ Mutator)\n\nModding Credits:\n\nNeonsynth - Provided a basis for the additional events mod which a good amount of his events are included from his own mutator mod. Which you can find here: https://modworkshop.net/mod/48690 Along with that Neon inspired me a lot to make this, so thank you for that Neon.\n\n_atom - Provided a level debugging tool that I am really glad I got so I could make the additional events mod as well as helped me code some of the stuff like Slaughterhouse Sniper spawns, so thank you very much for all of that.\n\nB Dawg - All the bonus mutators since they are all their mutators from their Payday The Heist Overhaul mod which you can find here: https://modworkshop.net/mod/42754, anyhow I have gotten permission for this so thank you so much B Dawg, your awesome. \n\nCranky's Mod Emporium - For most of the spawn changes as well as the faster police response on First World Bank that comes from their mutator pack which you can find here: https://modworkshop.net/mod/31978 Also if your seeing this Cranky you can ask for me to remove this stuff if you'd like, its no problem.\n\nBAnXZ - For the existence of Warmod and its weapon and enemy changing functionalities, which you can find here: https://modworkshop.net/mod/35091\n\nBeta Tester Credits:\n\n_atom\n\nBaxtron5000\n\nADEXO\n\nNeonsynth\n\nProlificMack45",
+            "desc": "This is a project I've been working on for quite a good while, good month or two I think? I never really keep up with time these days. Anyhow this will up the difficulty by a lot, especially on Overkill and above. This does that by allowing certain enemies to have additional weapons that they don't normally have, upping the number of specials that spawn as well as the cap on specials, raising the number of cops that can be present, replacing enemies, adding new custom events, adding events and changes from Overkill 145+ onto the lower difficulties such as bulldozers being present in the vault on First World Bank, and having bonus mutators that turns this game into a nightmare for even the most seasoned players.\n\nHere's the trailers for this in case you want some videos to see what you're in for:\n\nTrailer 1: https://youtu.be/41rlyNDLMgw\n\nTrailer 2: https://youtu.be/2IQgn28sCT8\n\n\nTo detail the changes made in more specifics:\n\n\nEnemy Spawn Changes:\n\nGensec White Shirt Guards are now replaced with Heavy Swats. (Made Possible By Warmod By BAnXZ)\n\nGensec Red Shirt Guards are now replaced with Cloakers. (Made Possible By Warmod By BAnXZ)\n\nAll Gangsters are now replaced with some kind of law enforcement officer. (Made Possible By Warmod By BAnXZ)\n\nMurky 1 now can be replaced by a Cloaker. (Made Possible By Warmod By BAnXZ)\n\nMurky 2 now can be replaced by a Taser. (Made Possible By Warmod By BAnXZ)\n\nFBI 1 now can be replaced by a Cloaker. (Made Possible By Warmod By BAnXZ)\n\nFBI 2 now can be replaced by a Cloaker or Taser. (Made Possible By Warmod By BAnXZ)\n\nFBI 3 now can be replaced by a Cloaker or Taser. (Made Possible By Warmod By BAnXZ)\n\n\nWeapon Changes:\n\nMurkys can now spawn with either an M4 or AK47. (Made Possible By Warmod By BAnXZ)\n\nCop 2 can now spawn with either a Crosskill 45 or Bronco 44. (Made Possible By Warmod By BAnXZ)\n\nFBI 1 can now spawn with either a BS-9, M4, or Reinbeck. (Made Possible By Warmod By BAnXZ)\n\nFBI 2 can now spawn with either a BS-9 or MP5. (Made Possible By Warmod By BAnXZ)\n\nFBI 3 can now spawn with either a BS-9 or M4. (Made Possible By Warmod By BAnXZ)\n\nCloakers can now spawn with either a BS-9 or MP5. (Made Possible By Warmod By BAnXZ)\n\nTasers can now spawn with either an M4 or AK47. (Made Possible By Warmod By BAnXZ)\n\nBulldozers can now spawn with a either a AK47, MP5, Brenner, or Reinbeck. (Made Possible By Warmod By BAnXZ)\n\n\nAssault Time Changes:\n\nEasy - Assault 60s to 120s, Street Assault 30s to 60s. (Made By Me, Added By Base F.U.B.A.R. Mutator)\n\nNormal - Assault 120s to 180s, Street Assault 60s to 90s. (Made By Me, Added By Base F.U.B.A.R. Mutator)\n\nHard - Assault 180s to 240s, Street Assault 90s to 120s. (Made By Me, Added By Base F.U.B.A.R. Mutator)\n\nOverkill - Assault 240s to 300s, Street Assault 120s to 150s. (Made By Me, Added By Base F.U.B.A.R. Mutator)\n\nOverkill 145+ - Assault 300s to 360s, Street Assault 150s to 180s. (Made By Me, Added By Base F.U.B.A.R. Mutator)\n\nOverkill 193+ - Assault 360s to 420s, Street Assault 180s to 210s. (Made By Me, Added By Base F.U.B.A.R. Mutator)\n\n\nSpecial Cap Changes:\n\nEasy - Special Cap 8, Shield Cap 0, Taser Cap 0, Spooc Cap 0, Tank 0 (Made By Me, Added By Base F.U.B.A.R. Mutator)\n\nNormal - Special Cap 8, Shield Cap 1, Taser Cap 1, Spooc Cap 1, Tank 1 (Made By Me, Added By Base F.U.B.A.R. Mutator)\n\nHard - Special Cap 12, Shield Cap 2, Taser Cap 2, Spooc Cap 2, Tank 1 (Made By Me, Added By Base F.U.B.A.R. Mutator)\n\nOverkill - Special Cap 14, Shield Cap 3, Taser Cap 3, Spooc Cap 3, Tank 2 (Made By Me, Added By Base F.U.B.A.R. Mutator)\n\nOverkill 145+ - Special Cap 16, Shield Cap 4, Taser Cap 4, Spooc Cap 4, Tank 3 (Made By Me, Added By Base F.U.B.A.R. Mutator)\n\nOverkill 193+ - Special Cap 18, Shield Cap 5, Taser Cap 5, Spooc Cap 5, Tank 4 (Made By Me, Added By Base F.U.B.A.R. Mutator)\n\nBonus Mutators List:\n\nBonus 1 - Tasers are better at tasing. (One Of B Dawg's Mutator's From Their Overhaul Mod, Added By F.U.B.A.R. Bonus Mutator)\n\nBonus 2 - Friendly fire is turned on. (One Of B Dawg's Mutator's From Their Overhaul Mod, Added By F.U.B.A.R. Bonus Mutator)\n\nBonus 3 - You can't see outlines anymore. (One Of B Dawg's Mutator's From Their Overhaul Mod, Added By F.U.B.A.R. Bonus Mutator)\n\nBonus 4 - Ammo left in a clip will be tossed away when reloading your weapons. (One Of B Dawg's Mutator's From Their Overhaul Mod, Added By F.U.B.A.R. Bonus Mutator)\n\nBonus 5 - No more automatic reloading. (One Of B Dawg's Mutator's From Their Overhaul Mod, Added By F.U.B.A.R. Bonus Mutator)\n\nBonus 6 - No more crosshair. (One Of B Dawg's Mutator's From Their Overhaul Mod, Added By F.U.B.A.R. Bonus Mutator)\n\nBonus 7 - Only FBI units will spawn in during assaults. (One Of B Dawg's Mutator's From Their Overhaul Mod, Added By F.U.B.A.R. Bonus Mutator)\n\nBonus 8 - Armor regens in chunks now. (One Of B Dawg's Mutator's From Their Overhaul Mod, Added By F.U.B.A.R. Bonus Mutator)\n\nBonus 9 - Only Murkywater units will be swarming you in Slaughterhouse during assaults. (One Of B Dawg's Mutator's From Their Overhaul Mod, Added By F.U.B.A.R. Bonus Mutator)\n\n\nAdditional Events And Ported Events From Overkill 145+:\n\nChanged spawn point access across most heists that enhances over all difficulty. To list them Shields, Bulldozers, and other units can spawn from behind the riot fences at inkwell as well as from the brick wall behind inkwell and in the back alley you push matt through and the riot fences at the top of Armitage ave near the overkill cola sign on Heat Street. Two unused Armitage ave spawn points on two roof tops have been enabled on Heat Street. Shields, Bulldozers, and other units can spawn from behind the brick walls in the alley and on the rooftops on Panic Room. Shields, Bulldozers, and other units can spawn from the spawns near the 3rd and 4th convoy trucks, and from the ground level inside the scaffolding on the side where you send the prisoner up into the sky on Green Bridge. Fixed Shields and Bulldozers getting trapped on the roof access rooftop spawn near the PR department on floor 22. An unused container yard slaughterhouse roof spawn has been enabled on Slaughterhouse. Shields, Bulldozers, and other units can spawn from the scaffolding in the kitchen and on top of the containers in the container yard. Various spawns all around on Counterfeit have been modified. (Made By Cranky's Mod Emporium And Neonsynth, Added By F.U.B.A.R.+ Mutator)\n\n4 Bulldozers spawn in the vault on First World Bank across all difficulties. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nAll 4 computers have to be hacked on First World Bank. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nA Cloaker ambush on First World Bank from Overkill 145+ can now happen on all difficulties. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nThe Overkill 145+ stairs ambush on First World Bank can now happen across all difficulties. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nThe police arrive much faster on First World Bank. (Made By Cranky's Mod Emporium, Added By F.U.B.A.R.+ Mutator)\n\nA Bulldozer and Cloaker spawn in the server room as well as a sniper ambush spawns on a building over looking the drill on First World Bank. (Made By Neonsynth, Modified By Me, Added By F.U.B.A.R.+ Mutator)\n\nGuards are now guaranteed to spawn in the pre vault area on First World Bank. (Made By Neonsynth, Added By F.U.B.A.R.+ Mutator)\n\nTwo Tasers, a Cloaker, and a Bulldozer now spawn in the pre vault area on First World Bank. (Made By Neonsynth, Modified By Me, Added By F.U.B.A.R.+ Mutator)\n\nTwo Tasers now spawn in the vault and an ambush is set up when entering the vault on First World Bank. (Made By Neonsynth, Added By F.U.B.A.R.+ Mutator)\n\nTwo Bulldozers now spawn outside the vault in the pre vault area when leaving the vault and another sniper ambush is set up on the same building over looking the drill on First World Bank. (Made By Neonsynth, Modified By Me, Added By F.U.B.A.R.+ Mutator)\n\nThe sniper ambush in the lobby will always spawn now on First World Bank. (Made By Neonsynth, Added By F.U.B.A.R.+ Mutator)\n\nWhen escaping on First World Bank there is now an ambush before the stairs with two Cloakers and a Taser. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nIn the under halls with all the doors after the stairs on First World Bank there will be an ambush with a Shield and Taser. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nIn the basement area before the escape there will be a ambush consisting of a Bulldozer, Two Tasers, a Cloaker, and one Heavy Swat on First World Bank. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nThere are now some surprise enemies in the overvault area on First World Bank, you have been warned. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nSome spawns that trigger after the vault doors open on First World Bank are now forced to spawn. (Made By Neonsynth, Added By F.U.B.A.R.+ Mutator)\n\nTwo Bulldozers will now spawn if you fail to kill the swats who plant C4 on the windows on First World Bank. (Made By Neonsynth, Added By F.U.B.A.R.+ Mutator)\n\nThe cars that are disabled on Overkill 145+ are now disabled on all difficulties on Heat Street. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nA Overkill 145+ Taser and Shield ambush is now enabled on all difficulties on Heat Street. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nA Overkill 145+ Shield ambush is now enabled on all difficulties on Heat Street. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nA Overkill 145+ Bulldozer ambush is now enabled on all difficulties on Heat Street. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nThere is now a fifty percent chance for a back-alley door to be opened on Heat Street. (Made By Neonsynth, Modified By Me, Added By F.U.B.A.R.+ Mutator)\n\nThere is now an ambush as well as a second ambush at the start on Heat Street. (Made By Neonsynth, Modified By Me, Added By F.U.B.A.R.+ Mutator)\n\nThere are now multiple new sniper spawns that trigger on starting on Heat Street. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nA Taser and Bulldozer now spawn where Bruce crashes and dies on Heat Street. (Made By Neonsynth, Added By F.U.B.A.R.+ Mutator)\n\nA Bulldozer now spawns on Easy Street on Heat Street. (Made By Neonsynth, Added By F.U.B.A.R.+ Mutator)\n\nThere is now an ambush at the crash site of Matt on Heat Street. (Made By Neonsynth, Added By F.U.B.A.R.+ Mutator)\n\nSome helicopters spawn after Matt comes out of the van on Heat Street. (Made By Neonsynth, Added By F.U.B.A.R.+ Mutator)\n\nThere is now an ambush at Jakes Parking on Heat Street. (Made By Neonsynth, Added By F.U.B.A.R.+ Mutator)\n\nThere is now an ambush on Armitage Avenue on Heat Street. (Made By Neonsynth, Added By F.U.B.A.R.+ Mutator)\n\nMultiple snipers spawn on the way of taking Matt up the hill on Heat Street. (Made By Neonsynth, Modified By Me, Added By F.U.B.A.R.+ Mutator)\n\n4 Bulldozers spawn on the hill by helicopter on Heat Street. (Made By Neonsynth, Added By F.U.B.A.R.+ Mutator)\n\nThere is now a Bulldozer ambush at the top of the hill on Heat Street. (Made By Neonsynth, Added By F.U.B.A.R.+ Mutator)\n\nAll the stuff in relation to the Overkill 145+ room on Panic Room is enabled and an extra crowbar has been added as well. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nA Bulldozer spawns upon opening the Overkill 145+ room on Panic Room. (Made By Neonsynth, Added By F.U.B.A.R.+ Mutator)\n\nSome Overkill 145+ spawns have been enabled on Panic Room. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nSome Bulldozers spawn on the roof at mask up on Panic Room. (Made By Neonsynth, Added By F.U.B.A.R.+ Mutator)\n\nSome Snipers and a Bulldozer spawns when the C4 explodes on Panic Room. (Made By Neonsynth, Added By F.U.B.A.R.+ Mutator)\n\nSome special enemies spawn at the escape on Panic Room. (Made By Neonsynth, Added By F.U.B.A.R.+ Mutator)\n\nThe helicopter that goes onto the roof on Panic Room will always spawn and will spawn Two Cloakers and Two Bulldozers. (Made By Neonsynth, Modified By Me, Added By F.U.B.A.R.+ Mutator)\n\nThe laundry room on Panic Room now has a 75 precent chance to be open. (Made By Neonsynth, Modified By Me, Added By F.U.B.A.R.+ Mutator)\n\nThe roof door on Panic Room now has a 5 percent chance on Normal, 15 percent chance on Hard, and 25 percent chance on Overkill and above to be closed. (Made By Neonsynth, Modified By Me, Added By F.U.B.A.R.+ Mutator)\n\nOn Panic Room more snipers are required to be killed before C4 drops. (Made By Neonsynth, Modified By Me, Added By F.U.B.A.R.+ Mutator)\n\nSome Overkill 145+ spawns have been enabled on Diamond Heist. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nAll Seven hacking boxes need to be hacked now on Diamond Heist. (Made By Neonsynth, Added By F.U.B.A.R.+ Mutator)\n\nA Cloaker now spawns in the server room on Diamond Heist. (Made By Neonsynth, Added By F.U.B.A.R.+ Mutator)\n\nA helicopter now drops Bulldozers on Diamond Heist. (Made By Neonsynth, Added By F.U.B.A.R.+ Mutator)\n\nA Bulldozer ambush will be in the area for the red diamond on Diamond Heist. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nA Sniper and Bulldozer ambush now happens when you enter the vault on Diamond Heist. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nSome Overkill 145+ events have been enabled on all difficulties for Green Bridge. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\n24 Enemies will always spawn at the start of Green Bridge. (Made By Neonsynth, Added By F.U.B.A.R.+ Mutator)\n\nThe fourth truck will never slide off the bridge on Green Bridge. (Made By Neonsynth, Added By F.U.B.A.R.+ Mutator)\n\nA Bulldozer will always spawn on the zip line on Green Bridge. (Made By Neonsynth, Added By F.U.B.A.R.+ Mutator)\n\nTwo Bulldozers and Two Snipers will spawn at the beginning of Green Bridge. (Made By Neonsynth, Modified By Me, Added By F.U.B.A.R.+ Mutator)\n\nSnipers will spawn on the escort objective on Green Bridge. (Made By Neonsynth, Modified By Me, Added By F.U.B.A.R.+ Mutator)\n\nSnipers will spawn on the path to the escape on Green Bridge. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nA Bulldozer spawn will continue to spawn on Green Bridge. (Made By Neonsynth, Added By F.U.B.A.R.+ Mutator)\n\nA lot of Overkill 145+ events have been enabled on Slaughterhouse. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nThe ambush at the beginning of Slaughterhouse has been overhauled. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nSome Sniper spawns have been added after the ambush on Slaughterhouse. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nThere will be a Sniper ambush in the container yard on Slaughterhouse. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nHelicopters that spawn in the container yard on Slaughterhouse now always spawn. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nAdded Sniper ambushes on lifting the gold as well as the trap on Slaughterhouse. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nYou have to get all the gold now to complete the Heist on Slaughterhouse. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nThere will always be Bulldozers at the escape of Slaughterhouse as well as Snipers and Heavy Swats on the roof overlooking the escape truck. (Made By Neonsynth, Modified By Me, Added By F.U.B.A.R.+ Mutator)\n\nSwat truck spawns on Counterfeit are now faster. (Made By Cranky's Mod Emporium, Modified By Me, Added By F.U.B.A.R.+ Mutator)\n\nPolice are now protecting Mitchell and Wilson on Counterfeit. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nThere is now a Bulldozer that will spawn after opening the bookcase on Counterfeit. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nThere is now a Bulldozer that will spawn where the money printer is on Counterfeit. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nSnipers will now spawn on surrounding roofs as you escape on Counterfeit. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nTwo Bulldozers will now spawn at the end of the tunnel on Counterfeit. (Made By Neonsynth, Added By F.U.B.A.R.+ Mutator)\n\nThe Tax Man will now have some security with him on Undercover. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nYou get five minutes to prepare yourself on Undercover, make those minutes count. (Made By Neonsynth, Modified By Me, Added By F.U.B.A.R.+ Mutator)\n\nCloakers now spawn on the roof on Undercover. (Made By Neonsynth, Added By F.U.B.A.R.+ Mutator)\n\nSnipers now respawn faster on Undercover. (Made By Neonsynth, Added By F.U.B.A.R.+ Mutator)\n\nThere will be Snipers now a part of the escape ambush on Undercover. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nThere is now heavy security guarding the ICU on No Mercy. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nThere will be a Bulldozer spawn in each ICU unit on No Mercy. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nThere will be an ambush in the mortuary on No Mercy. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nThere is now an ambush consisting of two Tasers and Heavy Swats that spawns in the elevator when it opens on No Mercy. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nThe chances of the elevator Cloaker ambush have been increased. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nThe Overkill 145+ elevator Bulldozer ambush now has a 100 percent chance to trigger on No Mercy. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nA Bulldozer will now spawn on the entrance to the roof escape area on No Mercy. (Made By Me, Added By F.U.B.A.R.+ Mutator)\n\nBulldozers will spawn in the tunnel that connects the elevator to the laundry room on No Mercy. (Made By Neonsynth, Added By F.U.B.A.R.+ Mutator)\n\nThe elevator timer has been adjusted as well as the amount of power downs that can happen on No Mercy. (Made By Neonsynth, Modified By Me, Added By F.U.B.A.R.+ Mutator)\n\nA Bulldozer will spawn each time the power goes down on No Mercy. (Made By Neonsynth, Added By F.U.B.A.R.+ Mutator)\n\n4 Blood samples will be required now to escape on No Mercy. (Made By Neonsynth, Added By F.U.B.A.R.+ Mutator)\n\nModding Credits:\n\nNeonsynth - Provided a basis for the additional events mod which a good amount of his events are included from his own mutator mod. Which you can find here: https://modworkshop.net/mod/48690 Along with that Neon inspired me a lot to make this, so thank you for that Neon.\n\n_atom - Provided a level debugging tool that I am really glad I got so I could make the additional events mod as well as helped me code some of the stuff like Slaughterhouse Sniper spawns, so thank you very much for all of that.\n\nB Dawg - All the bonus mutators since they are all their mutators from their Payday The Heist Overhaul mod which you can find here: https://modworkshop.net/mod/42754, anyhow I have gotten permission for this so thank you so much B Dawg, your awesome. \n\nCranky's Mod Emporium - For most of the spawn changes as well as the faster police response on First World Bank that comes from their mutator pack which you can find here: https://modworkshop.net/mod/31978 Also if your seeing this Cranky you can ask for me to remove this stuff if you'd like, its no problem.\n\nBAnXZ - For the existence of Warmod and its weapon and enemy changing functionalities, which you can find here: https://modworkshop.net/mod/35091\n\nBeta Tester Credits:\n\nDDOSBOX\n\n_atom\n\nBaxtron5000\n\nADEXO\n\nNeonsynth\n\nProlificMack45",
             "short_desc": "This is totally F.U.B.A.R.",
             "legacy_markup": false,
-            "version": "1.2",
-            "downloads": 8,
-            "likes": 1,
-            "views": 132,
+            "version": "1.8",
+            "downloads": 19,
+            "likes": 2,
+            "views": 322,
             "published_at": "2026-10-25T09:03:47.000000Z",
-            "bumped_at": "2026-10-25T09:03:47.000000Z",
+            "bumped_at": "2026-10-29T03:01:42.000000Z",
             "category_id": 259,
             "has_download": true,
             "disable_mod_managers": false,
@@ -3580,11 +3355,11 @@
                 "has_thumb": true
             },
             "download": {
-                "id": 105170,
-                "version": "1.2",
-                "size": 59583,
+                "id": 105339,
+                "version": "1.8",
+                "size": 60879,
                 "type": "zip",
-                "download_url": "https://storage.modworkshop.net/mods/files/59706_220131_EQpSeX2VRmk16Nc1IkDOa0AzECK49FKpmMcpfuof.zip?filename=fubar_release.zip",
+                "download_url": "https://storage.modworkshop.net/mods/files/59706_220131_IxdP49hQQe03L7RRlSWtXW4HcNXxMqF8L1oaIXii.zip?filename=fubar_release.zip",
                 "url": null
             },
             "download_id": null,
@@ -3596,7 +3371,7 @@
                 "avatar": "oTecxmfo8R1ufReoNwDROICqwJl8CpVBEJMtaTiu.webp",
                 "avatar_has_thumb": true
             },
-            "changelog": "1.1 - Updated description to better credit those involved.\n\n1.2 - Changed Street Assault times to be more forgiving.\n\n1.3 - Updated description to make it clearer what adds what within this. (I probably shouldn't have written most of this description at 4 in the morning.)\n\n1.4 - Updated description once more to list spawn point changes.\n\n1.5 - Updated description again to list special cap changes.",
+            "changelog": "1.1 - Updated description to better credit those involved.\n\n1.2 - Changed Street Assault times to be more forgiving.\n\n1.3 - Updated description to make it clearer what adds what within this. (I probably shouldn't have written most of this description at 4 in the morning.)\n\n1.4 - Updated description once more to list spawn point changes.\n\n1.5 - Updated description again to list special cap changes.\n\n1.6 - Added Sniper ambushes on lifting the gold as well as the trap and moved a Bulldozer spawn a part of the ambush on Slaughterhouse, added Snipers a part of the escape ambush on Undercover, increased chances of the elevator Cloaker ambush and added an ambush that spawns in the elevator when it opens on No Mercy.\n\n1.7 - Added missing beta tester I forgot to list by accident, oops.\n\n1.8 - Made Bulldozer ambush in the red diamond room on Diamond Heist now spawn when the door opens instead of using an area enter trigger, fixed a sniper spawn a part of the container yard sniper ambush that triggers after opening the safe on Slaughterhouse, made it to where you have to grab all bags of gold before lifting on Slaughterhouse, changed the ICU ambush Bulldozers on No Mercy to now spawn right after their respective saws finish, moved the Bulldozer a part of the added roof ambush on No Mercy, and made the ambush that happens in the morgue on No Mercy to now trigger when you open the elevator door down there.",
             "instructions": "To install: \nStep 1: Place folders mutator_fubar+_release, mutator_fubar_bonus_release, and mutator_fubar_release into the mods folder.\nStep 2: Download Warmod\nStep 3: Unzip and find a folder labeled scripts\nStep 4: Find files named missionscriptcontroller and missionscriptcontroller2\nStep 5: Delete these files\nStep 6: Go into folder labeled fubar_additions_release and copy its contents\nStep 7: Find folder within the Warmod folder labeled configs\nStep 8: Open this folder and paste what you copied in step 6.\nStep 9: Copy Warmod folder into mods\n\nIf anyone has problems doing this feel free to leave a comment and I will help you when I can.",
             "license": "",
             "repo_url": null,
@@ -3734,9 +3509,9 @@
                         "desc": "This mod provides you some features to make your gameplay much more challenging. Because the vanilla game is so easy and boring, right?\r\nThe basic features are:\r\nChanging enemies spawn logic. Now they will spawn exactly in that location where you are.\r\nDecreasing enemies spawn delay. Now you don’t have to waste time waiting them to respawn :)\r\nChanging enemies behaviour logic.\r\nChanging spawn tables. This means the game can spawn stronger enemies instead of weak ones. Heavy SWATs instead of cops for instance.\r\nChanging weapons used by enemies.\r\n\r\nYou can rewrite the script elements of each map (for example, energy and water elements is rewritten on the \"counterfit\" map. Part of the gameplay has been rewritten. Thus, on the counterfeit map, the logic of electric boxes and reels has been changed.\r\n\r\nSETUP and EDIT:\r\nif you want to play with this, you need to setup DAHM platform. After you need to copy the warmod folder to the \"mods\" folder.\r\nHow edit mod settings? - in warmod folder, open \"configs\" folder. And you can open 4 cfg:\r\neventlist.lua - event config( activate vault bulldozers on all diff, activate energy on countefeit and etc.. )\r\nspawnlist.lua - change spawn enemy table( gensec on cloaker, shield, sniper )\r\nweaponlist.lua - change weapons enemy( add bulldozer ak )\r\nwarmodcfg.lua - there you can activate/disable all mod functions.\r\nWarmodCFG.EnableUniqueCopLogic - The police are much more dangerous now\r\n\r\n!You should open cfg with \"Notepad++\" program, and edit cfg with encoding \"utf-8\" without BOOM.\r\nBut, i think, standart notepad you can use too ( It was noticed that due to the inappropriate encoding, the scripts were not readable by the game, That is why I advise you to use Notepad++ and edit the config with utf-8 encoding without BOOM ).\r\n\r\nThe mod complicates the gameplay precisely thanks to the introduced navigation (The police always know where the player is, and no one will be able to sit out, they will come for everyone. The situation becomes more complicated if the spawn graph is modified on the map.  It is not working on all maps, but it feels very good on first world bank. \r\n\r\n---------\r\nSome things were not unfinished due to disagreements.\r\nI posted the source code because it was available to some people. and they started using the modules for their own purposes. If you see that something like this is written in such a style, it was exclusively used for this mod.\r\nUse wisely and make the game harder.\r\nGood luck!",
                         "short_desc": "You can change cop weapons, edit game scripts, and etc.  Cops got smarter ",
                         "legacy_markup": true,
-                        "downloads": 480,
+                        "downloads": 485,
                         "likes": 5,
-                        "views": 7081,
+                        "views": 7095,
                         "published_at": "2021-11-13T17:09:37.000000Z",
                         "bumped_at": "2021-11-14T19:02:45.000000Z",
                         "category_id": 259,
@@ -3769,9 +3544,9 @@
                         "desc": "NOTE: Due to many requests I decided to post this here. Since I'd rather have everything in one place and there's too much info for a comments section, I made a Steam group for the mod.\n\nThe mod, called DAHM (formerly known as DorHUD, but use whatever you like), is basically a collection of modifications to (in my eyes) improve the game. The core is comparable to BLT, but has a bunch of extra features and is now (almost) fully compatible with BLT since version 1.6. The mod is a framework that provides a way to add sub-modules, so that the whole thing is very customizable. The basic version comes bundled with a bunch of default submods to provide the most requested features without being intrusive or gameplay altering (for the most part).\n\nThe game is no longer officially supported and I therefore I assume that the executable will not be updated. If this is the case, then the mod has to be updated. But for now it fixes a few bugs, some well known and other not so much. I tried to patch the game crashing bugs, but I'm pretty sure I didn't get them all. A more known bug is that the Vyse masks (and others) disappear from time to time. This is because the Steam community group page is fetched and then checked for the presence of your Steam ID. This is not very reliable, so I replaced it with a call to your local Steam client to the groups you're in. Another thing is that the mute state is now preserved between games, so you don't have to mute people on every single map. And you can open the menu when someone is loading, etc., etc., etc. Just don't expect all solutions to be very elegant ;).\n\nThe majority of the sub-modules involve anticheat stuff and profile checking, simply because there are so many cheaters in this game that think they can do that without any consequences. Those that still want to ruin my games can only do it once with that account before they (manually) get added to a banlist. For now the list is only local, so nothing is shared (unless you count the manual sharing of it). Furthermore, there is a very simplistic HUD addon to keep track of the game time and the kills you've made, there's a new difficulty, you can add your own matchmaking filters and there's the possibility to ban players both by keeping a local file and by blocking them on Steam (the latter requires the provided hook).\n\nSince I don't want to type things twice, more specific information can be found on the Steam group page. That's also where I try to provide support and where updates will be posted, so that everything is kept in one place.\n\n*Not all mods are posted to this website. Some smaller mods are posted in the [DAHM Downloads forum](https://steamcommunity.com/groups/dahm4pd/discussions/3/).*",
                         "short_desc": "Mod framework for PAYDAY: The Heist that comes bundled with a bunch of submods that provide the most requested functionality in the most unobtrusive w",
                         "legacy_markup": false,
-                        "downloads": 11395,
+                        "downloads": 11454,
                         "likes": 60,
-                        "views": 31658,
+                        "views": 31761,
                         "published_at": "2017-11-03T21:54:21.000000Z",
                         "bumped_at": "2018-12-06T19:37:27.000000Z",
                         "category_id": 0,
@@ -3838,18 +3613,18 @@
         "files": {
             "data": [
                 {
-                    "id": 105170,
+                    "id": 105339,
                     "name": "fubar_release",
-                    "version": "1.2",
-                    "size": 59583,
+                    "version": "1.8",
+                    "size": 60879,
                     "type": "zip",
-                    "download_url": "https://storage.modworkshop.net/mods/files/59706_220131_EQpSeX2VRmk16Nc1IkDOa0AzECK49FKpmMcpfuof.zip?filename=fubar_release.zip",
+                    "download_url": "https://storage.modworkshop.net/mods/files/59706_220131_IxdP49hQQe03L7RRlSWtXW4HcNXxMqF8L1oaIXii.zip?filename=fubar_release.zip",
                     "url": null,
                     "image_id": null,
                     "desc": "",
                     "label": "",
-                    "downloads": 7,
-                    "created_at": "2026-10-25T05:41:44.000000Z"
+                    "downloads": 6,
+                    "created_at": "2026-10-29T03:01:39.000000Z"
                 }
             ],
             "meta": {
@@ -3873,15 +3648,15 @@
         "detail": {
             "id": 59723,
             "name": "More Accurate Crosshair",
-            "desc": "Changes the crosshair to better reflect how accurate your weapon actually is.\n\n**Do note that this mod is intended for vanilla weapon spread.**",
+            "desc": "Changes the crosshair to better reflect how accurate your weapon actually is.\n\nAlso has support for the following rebalance mods:\n[All Weapons Useful Rebalance](https://modworkshop.net/mod/24600)\n[YAWR - Yet Another Weapon Rebalance](https://modworkshop.net/mod/40752)\n[Alleviation Weapon Rework](https://modworkshop.net/mod/39461)\n\nYou can select what rebalance your using in the mods settings menu.",
             "short_desc": "",
             "legacy_markup": false,
-            "version": "",
-            "downloads": 15,
+            "version": "1.1",
+            "downloads": 36,
             "likes": 1,
-            "views": 109,
+            "views": 241,
             "published_at": "2026-10-24T18:25:36.000000Z",
-            "bumped_at": "2026-10-24T18:25:36.000000Z",
+            "bumped_at": "2026-10-29T22:52:26.000000Z",
             "category_id": 256,
             "has_download": true,
             "disable_mod_managers": false,
@@ -3891,11 +3666,11 @@
                 "has_thumb": true
             },
             "download": {
-                "id": 105131,
-                "version": "",
-                "size": 1100,
+                "id": 105378,
+                "version": "1.1",
+                "size": 1987,
                 "type": "rar",
-                "download_url": "https://storage.modworkshop.net/mods/files/59723_10026_57avzcIyXJjGYsruDguHwCHlYBPc0Q4c2VD4jorY.rar?filename=More%20Accurate%20Crosshair.rar",
+                "download_url": "https://storage.modworkshop.net/mods/files/59723_10026_iLYNuOEyDl14zu4R4ZmNBT2naJs4V0rvngVLUYoN.rar?filename=More%20Accurate%20Crosshair.rar",
                 "url": null
             },
             "download_id": null,
@@ -3907,7 +3682,7 @@
                 "avatar": "https://avatars.akamai.steamstatic.com/a243eab65c75833c5ad00cd1c42edcb0bfc6df00_full.jpg",
                 "avatar_has_thumb": false
             },
-            "changelog": "",
+            "changelog": "V1.1: Added a new menu option, allowing you to pick what rebalance mod your using (from the three curently supported).",
             "instructions": "",
             "license": "",
             "repo_url": null,
@@ -3947,9 +3722,9 @@
                         "desc": "NOTE: Due to many requests I decided to post this here. Since I'd rather have everything in one place and there's too much info for a comments section, I made a Steam group for the mod.\n\nThe mod, called DAHM (formerly known as DorHUD, but use whatever you like), is basically a collection of modifications to (in my eyes) improve the game. The core is comparable to BLT, but has a bunch of extra features and is now (almost) fully compatible with BLT since version 1.6. The mod is a framework that provides a way to add sub-modules, so that the whole thing is very customizable. The basic version comes bundled with a bunch of default submods to provide the most requested features without being intrusive or gameplay altering (for the most part).\n\nThe game is no longer officially supported and I therefore I assume that the executable will not be updated. If this is the case, then the mod has to be updated. But for now it fixes a few bugs, some well known and other not so much. I tried to patch the game crashing bugs, but I'm pretty sure I didn't get them all. A more known bug is that the Vyse masks (and others) disappear from time to time. This is because the Steam community group page is fetched and then checked for the presence of your Steam ID. This is not very reliable, so I replaced it with a call to your local Steam client to the groups you're in. Another thing is that the mute state is now preserved between games, so you don't have to mute people on every single map. And you can open the menu when someone is loading, etc., etc., etc. Just don't expect all solutions to be very elegant ;).\n\nThe majority of the sub-modules involve anticheat stuff and profile checking, simply because there are so many cheaters in this game that think they can do that without any consequences. Those that still want to ruin my games can only do it once with that account before they (manually) get added to a banlist. For now the list is only local, so nothing is shared (unless you count the manual sharing of it). Furthermore, there is a very simplistic HUD addon to keep track of the game time and the kills you've made, there's a new difficulty, you can add your own matchmaking filters and there's the possibility to ban players both by keeping a local file and by blocking them on Steam (the latter requires the provided hook).\n\nSince I don't want to type things twice, more specific information can be found on the Steam group page. That's also where I try to provide support and where updates will be posted, so that everything is kept in one place.\n\n*Not all mods are posted to this website. Some smaller mods are posted in the [DAHM Downloads forum](https://steamcommunity.com/groups/dahm4pd/discussions/3/).*",
                         "short_desc": "Mod framework for PAYDAY: The Heist that comes bundled with a bunch of submods that provide the most requested functionality in the most unobtrusive w",
                         "legacy_markup": false,
-                        "downloads": 11395,
+                        "downloads": 11454,
                         "likes": 60,
-                        "views": 31658,
+                        "views": 31761,
                         "published_at": "2017-11-03T21:54:21.000000Z",
                         "bumped_at": "2018-12-06T19:37:27.000000Z",
                         "category_id": 0,
@@ -3977,18 +3752,378 @@
         "files": {
             "data": [
                 {
-                    "id": 105131,
+                    "id": 105378,
                     "name": "More Accurate Crosshair",
-                    "version": "",
-                    "size": 1100,
+                    "version": "1.1",
+                    "size": 1987,
                     "type": "rar",
-                    "download_url": "https://storage.modworkshop.net/mods/files/59723_10026_57avzcIyXJjGYsruDguHwCHlYBPc0Q4c2VD4jorY.rar?filename=More%20Accurate%20Crosshair.rar",
+                    "download_url": "https://storage.modworkshop.net/mods/files/59723_10026_iLYNuOEyDl14zu4R4ZmNBT2naJs4V0rvngVLUYoN.rar?filename=More%20Accurate%20Crosshair.rar",
                     "url": null,
                     "image_id": null,
                     "desc": "",
                     "label": "",
-                    "downloads": 15,
-                    "created_at": "2026-10-24T18:21:35.000000Z"
+                    "downloads": 10,
+                    "created_at": "2026-10-29T22:52:24.000000Z"
+                }
+            ],
+            "meta": {
+                "current_page": 1,
+                "last_page": 1,
+                "per_page": 20,
+                "total": 1
+            }
+        },
+        "links": {
+            "data": [],
+            "meta": {
+                "current_page": 1,
+                "last_page": 1,
+                "per_page": 20,
+                "total": 0
+            }
+        }
+    },
+    "59790": {
+        "detail": {
+            "id": 59790,
+            "name": "No ADS Idle Sway",
+            "desc": "Removes the idle sway effect when aiming down sight.",
+            "short_desc": "Removes the idle sway effect when aiming down sight.",
+            "legacy_markup": false,
+            "version": "",
+            "downloads": 12,
+            "likes": 0,
+            "views": 93,
+            "published_at": "2026-10-29T17:15:38.000000Z",
+            "bumped_at": "2026-10-29T17:15:38.000000Z",
+            "category_id": 256,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "download_type": null,
+            "thumbnail": {
+                "file": "H66eeHOoyCEEMFqCvrD7vk89dzNBLlkhvxACDS9k.webp",
+                "has_thumb": true
+            },
+            "download": {
+                "id": 105355,
+                "version": "",
+                "size": 654,
+                "type": "rar",
+                "download_url": "https://storage.modworkshop.net/mods/files/59790_10026_CbxUIO09hWu9d6G9UBxsyzwNNPQw3TKBsPaF7act.rar?filename=No%20ADS%20Idle%20Sway.rar",
+                "url": null
+            },
+            "download_id": null,
+            "files_are_versions": true,
+            "user": {
+                "id": 10026,
+                "name": "linuskall01",
+                "donation_url": "",
+                "avatar": "https://avatars.akamai.steamstatic.com/a243eab65c75833c5ad00cd1c42edcb0bfc6df00_full.jpg",
+                "avatar_has_thumb": false
+            },
+            "changelog": "",
+            "instructions": "",
+            "license": "",
+            "repo_url": null,
+            "donation": "",
+            "banner": null,
+            "images": [
+                {
+                    "id": 174017,
+                    "file": "kDExbcUEsWzimRSxUOVDCsWTxhttT59VcUCg0B35.webp",
+                    "type": "webp",
+                    "size": 55954,
+                    "display_order": 0,
+                    "visible": true,
+                    "has_thumb": true
+                },
+                {
+                    "id": 174019,
+                    "file": "H66eeHOoyCEEMFqCvrD7vk89dzNBLlkhvxACDS9k.webp",
+                    "type": "webp",
+                    "size": 18936,
+                    "display_order": 1,
+                    "visible": false,
+                    "has_thumb": true
+                }
+            ],
+            "dependencies": [
+                {
+                    "id": 6497,
+                    "mod_id": 14267,
+                    "name": null,
+                    "url": null,
+                    "optional": false,
+                    "order": 1,
+                    "mod": {
+                        "id": 14267,
+                        "name": "DAHM/DorHUD Framework + mod collection",
+                        "desc": "NOTE: Due to many requests I decided to post this here. Since I'd rather have everything in one place and there's too much info for a comments section, I made a Steam group for the mod.\n\nThe mod, called DAHM (formerly known as DorHUD, but use whatever you like), is basically a collection of modifications to (in my eyes) improve the game. The core is comparable to BLT, but has a bunch of extra features and is now (almost) fully compatible with BLT since version 1.6. The mod is a framework that provides a way to add sub-modules, so that the whole thing is very customizable. The basic version comes bundled with a bunch of default submods to provide the most requested features without being intrusive or gameplay altering (for the most part).\n\nThe game is no longer officially supported and I therefore I assume that the executable will not be updated. If this is the case, then the mod has to be updated. But for now it fixes a few bugs, some well known and other not so much. I tried to patch the game crashing bugs, but I'm pretty sure I didn't get them all. A more known bug is that the Vyse masks (and others) disappear from time to time. This is because the Steam community group page is fetched and then checked for the presence of your Steam ID. This is not very reliable, so I replaced it with a call to your local Steam client to the groups you're in. Another thing is that the mute state is now preserved between games, so you don't have to mute people on every single map. And you can open the menu when someone is loading, etc., etc., etc. Just don't expect all solutions to be very elegant ;).\n\nThe majority of the sub-modules involve anticheat stuff and profile checking, simply because there are so many cheaters in this game that think they can do that without any consequences. Those that still want to ruin my games can only do it once with that account before they (manually) get added to a banlist. For now the list is only local, so nothing is shared (unless you count the manual sharing of it). Furthermore, there is a very simplistic HUD addon to keep track of the game time and the kills you've made, there's a new difficulty, you can add your own matchmaking filters and there's the possibility to ban players both by keeping a local file and by blocking them on Steam (the latter requires the provided hook).\n\nSince I don't want to type things twice, more specific information can be found on the Steam group page. That's also where I try to provide support and where updates will be posted, so that everything is kept in one place.\n\n*Not all mods are posted to this website. Some smaller mods are posted in the [DAHM Downloads forum](https://steamcommunity.com/groups/dahm4pd/discussions/3/).*",
+                        "short_desc": "Mod framework for PAYDAY: The Heist that comes bundled with a bunch of submods that provide the most requested functionality in the most unobtrusive w",
+                        "legacy_markup": false,
+                        "downloads": 11454,
+                        "likes": 60,
+                        "views": 31761,
+                        "published_at": "2017-11-03T21:54:21.000000Z",
+                        "bumped_at": "2018-12-06T19:37:27.000000Z",
+                        "category_id": 0,
+                        "has_download": true,
+                        "disable_mod_managers": false,
+                        "download_type": null,
+                        "thumbnail": {
+                            "file": "preview_10733_1445561722_9fa1e98d18ea062195339ce832a999aa.png",
+                            "has_thumb": true
+                        },
+                        "user": {
+                            "id": 10733,
+                            "name": "DorentuZ`",
+                            "donation_url": "https://ko-fi.com/dorentuz",
+                            "avatar": "https://avatars.akamai.steamstatic.com/dc16daca89c0b4a4947b94caf157e37c504ed864_full.jpg",
+                            "avatar_has_thumb": false
+                        }
+                    }
+                }
+            ],
+            "instructs_template": null,
+            "tags": [],
+            "members": []
+        },
+        "files": {
+            "data": [
+                {
+                    "id": 105355,
+                    "name": "No ADS Idle Sway",
+                    "version": "",
+                    "size": 654,
+                    "type": "rar",
+                    "download_url": "https://storage.modworkshop.net/mods/files/59790_10026_CbxUIO09hWu9d6G9UBxsyzwNNPQw3TKBsPaF7act.rar?filename=No%20ADS%20Idle%20Sway.rar",
+                    "url": null,
+                    "image_id": null,
+                    "desc": "",
+                    "label": "",
+                    "downloads": 12,
+                    "created_at": "2026-10-29T17:13:27.000000Z"
+                }
+            ],
+            "meta": {
+                "current_page": 1,
+                "last_page": 1,
+                "per_page": 20,
+                "total": 1
+            }
+        },
+        "links": {
+            "data": [],
+            "meta": {
+                "current_page": 1,
+                "last_page": 1,
+                "per_page": 20,
+                "total": 0
+            }
+        }
+    },
+    "59809": {
+        "detail": {
+            "id": 59809,
+            "name": "Improved Location Cards",
+            "desc": "This mod improves the location cards for all heists with revised times, dates, and locations.",
+            "short_desc": "A mod improves the location cards for all heists with revised times, dates, and locations.",
+            "legacy_markup": false,
+            "version": "",
+            "downloads": 10,
+            "likes": 0,
+            "views": 99,
+            "published_at": "2026-10-31T09:31:14.000000Z",
+            "bumped_at": "2026-10-31T09:31:14.000000Z",
+            "category_id": 256,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "download_type": null,
+            "thumbnail": {
+                "file": "vHBVuWjnHR9uOHePJWXkiJC9KaxLnlSFIxXCVc7X.webp",
+                "has_thumb": true
+            },
+            "download": {
+                "id": 105440,
+                "version": "",
+                "size": 957,
+                "type": "zip",
+                "download_url": "https://storage.modworkshop.net/mods/files/59809_231310_lRn0wL1wWK45grn1MgXBK09BKkz9pN5bEWnWFi2E.zip?filename=Improved%20Location%20Cards.zip",
+                "url": null
+            },
+            "download_id": null,
+            "files_are_versions": true,
+            "user": {
+                "id": 231310,
+                "name": "Aquarius",
+                "donation_url": null,
+                "avatar": "UWsbE5zd5FIGMEMF9ac3o5CLuc6xsKArFmZfWSMd.webp",
+                "avatar_has_thumb": true
+            },
+            "changelog": "",
+            "instructions": "",
+            "license": "",
+            "repo_url": null,
+            "donation": "",
+            "banner": {
+                "id": 174145,
+                "file": "vHBVuWjnHR9uOHePJWXkiJC9KaxLnlSFIxXCVc7X.webp",
+                "type": "webp",
+                "size": 10130,
+                "display_order": 4,
+                "visible": true,
+                "has_thumb": true
+            },
+            "images": [
+                {
+                    "id": 174151,
+                    "file": "0Fm1Cj9p7kNaG5SYNAgd9MtDCuxOAHxGpbvFkkCu.webp",
+                    "type": "webp",
+                    "size": 12690,
+                    "display_order": 0,
+                    "visible": true,
+                    "has_thumb": true
+                },
+                {
+                    "id": 174149,
+                    "file": "syeWTXhXWGVZUml2Aqc7rzahAxkFgtV9gvVxH8aS.webp",
+                    "type": "webp",
+                    "size": 13356,
+                    "display_order": 1,
+                    "visible": true,
+                    "has_thumb": true
+                },
+                {
+                    "id": 174147,
+                    "file": "GjrWt458t0WE65ZrFmsz2fsZLKA0ciTMSaWmXPfM.webp",
+                    "type": "webp",
+                    "size": 12722,
+                    "display_order": 2,
+                    "visible": true,
+                    "has_thumb": true
+                },
+                {
+                    "id": 174146,
+                    "file": "IuG19ekcudDEikdnCVXvl0nRul27M5WjnE8OzV88.webp",
+                    "type": "webp",
+                    "size": 13894,
+                    "display_order": 3,
+                    "visible": true,
+                    "has_thumb": true
+                },
+                {
+                    "id": 174145,
+                    "file": "vHBVuWjnHR9uOHePJWXkiJC9KaxLnlSFIxXCVc7X.webp",
+                    "type": "webp",
+                    "size": 10130,
+                    "display_order": 4,
+                    "visible": true,
+                    "has_thumb": true
+                },
+                {
+                    "id": 174152,
+                    "file": "oXpVekY1niVAaCNO5PuXj0dIoTvMDv21GNAlwB3N.webp",
+                    "type": "webp",
+                    "size": 15342,
+                    "display_order": 5,
+                    "visible": true,
+                    "has_thumb": true
+                },
+                {
+                    "id": 174153,
+                    "file": "QiXwHHa4sglY8PrbQui4PIOoJSEVJBtfn4pfAxNu.webp",
+                    "type": "webp",
+                    "size": 12166,
+                    "display_order": 6,
+                    "visible": true,
+                    "has_thumb": true
+                },
+                {
+                    "id": 174150,
+                    "file": "zsMZDewKFvXtpooUVU3HsVTEriAmo7OJKFaOW1LR.webp",
+                    "type": "webp",
+                    "size": 16352,
+                    "display_order": 7,
+                    "visible": true,
+                    "has_thumb": true
+                },
+                {
+                    "id": 174148,
+                    "file": "eb3TQ4edqqhAUZ9yfh2MQ7XTMOrdOOGxWxymX8Gw.webp",
+                    "type": "webp",
+                    "size": 14002,
+                    "display_order": 8,
+                    "visible": true,
+                    "has_thumb": true
+                }
+            ],
+            "dependencies": [
+                {
+                    "id": 6509,
+                    "mod_id": 14267,
+                    "name": null,
+                    "url": null,
+                    "optional": false,
+                    "order": 1,
+                    "mod": {
+                        "id": 14267,
+                        "name": "DAHM/DorHUD Framework + mod collection",
+                        "desc": "NOTE: Due to many requests I decided to post this here. Since I'd rather have everything in one place and there's too much info for a comments section, I made a Steam group for the mod.\n\nThe mod, called DAHM (formerly known as DorHUD, but use whatever you like), is basically a collection of modifications to (in my eyes) improve the game. The core is comparable to BLT, but has a bunch of extra features and is now (almost) fully compatible with BLT since version 1.6. The mod is a framework that provides a way to add sub-modules, so that the whole thing is very customizable. The basic version comes bundled with a bunch of default submods to provide the most requested features without being intrusive or gameplay altering (for the most part).\n\nThe game is no longer officially supported and I therefore I assume that the executable will not be updated. If this is the case, then the mod has to be updated. But for now it fixes a few bugs, some well known and other not so much. I tried to patch the game crashing bugs, but I'm pretty sure I didn't get them all. A more known bug is that the Vyse masks (and others) disappear from time to time. This is because the Steam community group page is fetched and then checked for the presence of your Steam ID. This is not very reliable, so I replaced it with a call to your local Steam client to the groups you're in. Another thing is that the mute state is now preserved between games, so you don't have to mute people on every single map. And you can open the menu when someone is loading, etc., etc., etc. Just don't expect all solutions to be very elegant ;).\n\nThe majority of the sub-modules involve anticheat stuff and profile checking, simply because there are so many cheaters in this game that think they can do that without any consequences. Those that still want to ruin my games can only do it once with that account before they (manually) get added to a banlist. For now the list is only local, so nothing is shared (unless you count the manual sharing of it). Furthermore, there is a very simplistic HUD addon to keep track of the game time and the kills you've made, there's a new difficulty, you can add your own matchmaking filters and there's the possibility to ban players both by keeping a local file and by blocking them on Steam (the latter requires the provided hook).\n\nSince I don't want to type things twice, more specific information can be found on the Steam group page. That's also where I try to provide support and where updates will be posted, so that everything is kept in one place.\n\n*Not all mods are posted to this website. Some smaller mods are posted in the [DAHM Downloads forum](https://steamcommunity.com/groups/dahm4pd/discussions/3/).*",
+                        "short_desc": "Mod framework for PAYDAY: The Heist that comes bundled with a bunch of submods that provide the most requested functionality in the most unobtrusive w",
+                        "legacy_markup": false,
+                        "downloads": 11454,
+                        "likes": 60,
+                        "views": 31761,
+                        "published_at": "2017-11-03T21:54:21.000000Z",
+                        "bumped_at": "2018-12-06T19:37:27.000000Z",
+                        "category_id": 0,
+                        "has_download": true,
+                        "disable_mod_managers": false,
+                        "download_type": null,
+                        "thumbnail": {
+                            "file": "preview_10733_1445561722_9fa1e98d18ea062195339ce832a999aa.png",
+                            "has_thumb": true
+                        },
+                        "user": {
+                            "id": 10733,
+                            "name": "DorentuZ`",
+                            "donation_url": "https://ko-fi.com/dorentuz",
+                            "avatar": "https://avatars.akamai.steamstatic.com/dc16daca89c0b4a4947b94caf157e37c504ed864_full.jpg",
+                            "avatar_has_thumb": false
+                        }
+                    }
+                }
+            ],
+            "instructs_template": null,
+            "tags": [
+                {
+                    "id": 4,
+                    "name": "Lua",
+                    "color": "#7036af"
+                },
+                {
+                    "id": 62,
+                    "name": "Client-side",
+                    "color": "#5151ff"
+                }
+            ],
+            "members": []
+        },
+        "files": {
+            "data": [
+                {
+                    "id": 105440,
+                    "name": "Improved Location Cards",
+                    "version": "",
+                    "size": 957,
+                    "type": "zip",
+                    "download_url": "https://storage.modworkshop.net/mods/files/59809_231310_lRn0wL1wWK45grn1MgXBK09BKkz9pN5bEWnWFi2E.zip?filename=Improved%20Location%20Cards.zip",
+                    "url": null,
+                    "image_id": null,
+                    "desc": "",
+                    "label": "",
+                    "downloads": 10,
+                    "created_at": "2026-10-31T09:29:54.000000Z"
                 }
             ],
             "meta": {
