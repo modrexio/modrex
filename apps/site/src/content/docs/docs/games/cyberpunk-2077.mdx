@@ -62,8 +62,10 @@ folder rather than kept in one place.
 
 ## Mods installed by hand
 
-Archive, REDmod, Cyber Engine Tweaks and redscript mods that were installed without Modrex appear
-in the installed list under their own tabs and can be enabled, disabled and removed there.
+Archives in `archive/pc/mod`, REDmods in `mods`, Cyber Engine Tweaks mod folders and redscript
+mod folders in `r6/scripts` that were installed without Modrex appear in the installed list under
+their own tabs and can be enabled, disabled and removed there. Loose `.reds` files placed by hand
+directly in `r6/scripts`, and anything else installed by hand, are not listed.
 
 ## REDmod
 
@@ -73,6 +75,7 @@ yourself.
 
 ## Launch without mods
 
-This action moves every enabled mod's files out of the game folder for one session and puts them
-back on the next normal launch. Frameworks and mods installed by hand outside the folders listed
-above stay in place.
+This action moves the files of every enabled mod Modrex installed out of the game folder for one
+session, and puts them back on the next normal launch. Mods installed by hand are set aside too
+when they are listed under their own tabs. Anything installed by hand that is not listed, such as
+loose `.reds` files or a framework copied in manually, stays in place and still loads.
