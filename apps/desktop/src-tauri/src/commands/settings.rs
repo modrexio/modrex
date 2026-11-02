@@ -160,6 +160,9 @@ pub struct Settings {
     pub analytics_consent_asked: bool,
     #[serde(default, deserialize_with = "null_default")]
     pub analytics_enabled: bool,
+    // The privacy policy version the user last accepted. Every one before versioning reads as 0.
+    #[serde(default, deserialize_with = "null_default")]
+    pub analytics_consent_version: u32,
     pub analytics_id: Option<String>,
     #[serde(default = "default_true", deserialize_with = "null_or_true")]
     pub discord_rich_presence_enabled: bool,
@@ -201,6 +204,7 @@ impl Default for Settings {
             dismissed_deps_warnings: Vec::new(),
             analytics_consent_asked: false,
             analytics_enabled: false,
+            analytics_consent_version: 0,
             analytics_id: None,
             discord_rich_presence_enabled: true,
             auto_launch_sisr: false,
@@ -437,14 +441,34 @@ pub fn set_skip_fileopenlog_warning(app: AppHandle, skip: bool) {
     update_settings(&app, |s| s.skip_file_open_log_warning = skip);
 }
 
-/// Current analytics consent: None = not yet asked, Some(true/false) = chosen.
-/// The Option only exists at this IPC boundary. settings.json itself tracks
-/// "asked" and "enabled" as two separate plain bools (see Settings).
+/// The analytics choice as the renderer needs it. Outdated means the user opted in under an
+/// earlier privacy policy and must review the current one before anything is sent.
+#[derive(Debug, Serialize, Clone, Copy, PartialEq, Eq, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub enum AnalyticsConsent {
+    Unasked,
+    Declined,
+    Outdated,
+    Granted,
+}
+
+pub(crate) fn analytics_consent(s: &Settings) -> AnalyticsConsent {
+    if !s.analytics_consent_asked {
+        return AnalyticsConsent::Unasked;
+    }
+    if !s.analytics_enabled {
+        return AnalyticsConsent::Declined;
+    }
+    if s.analytics_consent_version < crate::commands::analytics::ANALYTICS_CONSENT_VERSION {
+        return AnalyticsConsent::Outdated;
+    }
+    AnalyticsConsent::Granted
+}
+
 #[tauri::command]
 #[specta::specta]
-pub fn get_analytics_consent(app: AppHandle) -> Option<bool> {
-    let s = read_settings(&app);
-    s.analytics_consent_asked.then_some(s.analytics_enabled)
+pub fn get_analytics_consent(app: AppHandle) -> AnalyticsConsent {
+    analytics_consent(&read_settings(&app))
 }
 
 /// Records the user's explicit analytics choice. Generates the anonymous install
@@ -456,6 +480,9 @@ pub fn set_analytics_consent(app: AppHandle, enabled: bool) {
         let changed = s.analytics_enabled != enabled;
         s.analytics_consent_asked = true;
         s.analytics_enabled = enabled;
+        if enabled {
+            s.analytics_consent_version = crate::commands::analytics::ANALYTICS_CONSENT_VERSION;
+        }
         if enabled && s.analytics_id.is_none() {
             s.analytics_id = Some(uuid::Uuid::new_v4().to_string());
         }

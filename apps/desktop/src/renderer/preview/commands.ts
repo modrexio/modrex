@@ -260,7 +260,12 @@ const handlers = {
         return configPath
     },
     reportStartupPhase: async () => null,
-    getAnalyticsConsent: async () => (previewState.onboarding === 'first-run' ? null : true),
+    getAnalyticsConsent: async () => {
+        if (previewState.onboarding === 'first-run') return 'unasked'
+        if (previewState.onboarding === 'consent-updated') return 'outdated'
+        return 'granted'
+    },
+    setAnalyticsLanguage: async () => {},
     setAnalyticsConsent: async () => {},
     trackEvent: async () => {},
     setDiscordPresenceEnabled: async () => {},

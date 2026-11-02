@@ -386,6 +386,14 @@ test('the first-run onboarding state asks for telemetry consent', async () => {
     expect((await screen.findAllByText('Help improve Modrex')).length).toBeGreaterThan(0)
 })
 
+test('the consent-updated onboarding state asks to review the changed privacy policy', async () => {
+    window.history.replaceState({}, '', '/?onboarding=consent-updated')
+    await mount()
+    expect((await screen.findAllByText('Our privacy policy has changed')).length).toBeGreaterThan(0)
+    fireEvent.click(screen.getByRole('button', { name: 'Decline' }))
+    expect(screen.queryByRole('dialog', { name: 'Our privacy policy has changed' })).toBeNull()
+})
+
 test('thumbnails fall back to the original when the catalog has no small variant', async () => {
     // Live snapshots can lack an image without a small variant, so the test owns both cases.
     const records = structuredClone(pd2ModRecords) as unknown as Record<

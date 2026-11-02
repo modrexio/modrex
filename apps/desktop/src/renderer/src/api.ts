@@ -101,6 +101,8 @@ import type {
 
 export type { StartupPhase } from '../../shared/bindings'
 import type { StartupPhase } from '../../shared/bindings'
+export type { AnalyticsConsent } from '../../shared/bindings'
+import type { AnalyticsConsent } from '../../shared/bindings'
 
 type Settings = {
     gamePath?: string
@@ -580,9 +582,11 @@ export const api = {
     trackEvent(name: string, params?: Record<string, string | number | boolean>): Promise<void> {
         return commands.trackEvent(name, params ?? {})
     },
-    // null = the user hasn't been asked yet (show the first-run consent dialog).
-    getAnalyticsConsent(): Promise<boolean | null> {
+    getAnalyticsConsent(): Promise<AnalyticsConsent> {
         return commands.getAnalyticsConsent()
+    },
+    setAnalyticsLanguage(appLocale: string, systemLocale: string): Promise<void> {
+        return commands.setAnalyticsLanguage(appLocale, systemLocale)
     },
     setAnalyticsConsent(enabled: boolean): Promise<void> {
         return commands.setAnalyticsConsent(enabled)

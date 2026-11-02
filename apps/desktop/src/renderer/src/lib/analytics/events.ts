@@ -1,4 +1,5 @@
 import { api } from '../../api'
+import type { LocaleId } from '../../locales'
 import type { GameId } from '../../../../shared/types'
 
 // Backend-neutral event catalog. Call-sites use these typed helpers and never
@@ -37,4 +38,10 @@ export function trackModIdentification(game: GameId, counts: ModIdentificationCo
         identified: counts.identified,
         unidentified: counts.unidentified,
     })
+}
+
+/** The language Modrex is shown in and the system's own language setting. Rust attaches
+ *  them to later events, only for users whose consent covers language. */
+export function reportLanguage(appLocale: LocaleId): void {
+    void api.setAnalyticsLanguage(appLocale, navigator.language)
 }

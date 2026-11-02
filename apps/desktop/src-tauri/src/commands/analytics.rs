@@ -41,6 +41,15 @@ fn collect_url() -> &'static str {
         .unwrap_or("https://modrex.net/api/collect")
 }
 
+/// The version of the privacy policy a user must have accepted for anything to be sent.
+/// Bump it whenever what the app sends changes. A user who accepted an earlier version is
+/// asked to review the policy, and nothing is sent until they accept.
+pub(crate) const ANALYTICS_CONSENT_VERSION: u32 = 1;
+
+fn sending_allowed(s: &settings::Settings) -> bool {
+    s.analytics_enabled && s.analytics_consent_version >= ANALYTICS_CONSENT_VERSION
+}
+
 const ACTIVITY_INTERVAL: Duration = Duration::from_secs(60);
 const SESSION_TIMEOUT: Duration = Duration::from_secs(30 * 60);
 
@@ -136,7 +145,7 @@ pub(crate) fn track(app: &AppHandle, name: &str, mut params: Value) {
     if measurement_id().is_none() {
         return;
     }
-    if !settings::read_settings(app).analytics_enabled {
+    if !sending_allowed(&settings::read_settings(app)) {
         reset_activity();
         return;
     }
@@ -166,19 +175,22 @@ pub(crate) fn track(app: &AppHandle, name: &str, mut params: Value) {
     });
 }
 
-async fn send_event(app: &AppHandle, name: &str, params: Value, timestamp_micros: u64) {
+async fn send_event(app: &AppHandle, name: &str, mut params: Value, timestamp_micros: u64) {
     // Recheck consent because it may have changed while this task was queued.
-    if !settings::read_settings(app).analytics_enabled {
+    if !sending_allowed(&settings::read_settings(app)) {
         return;
     }
     let Some(measurement_id) = measurement_id() else {
         return;
     };
 
+    let mut device = json!({ "category": "desktop", "operating_system": operating_system(std::env::consts::OS) });
+    let language = language().lock().unwrap_or_else(|e| e.into_inner()).clone();
+    attach_language(&language, &mut device, &mut params);
     let body = json!({
         "client_id": settings::ensure_analytics_id(app),
         "timestamp_micros": timestamp_micros,
-        "device": { "category": "desktop", "operating_system": operating_system(std::env::consts::OS) },
+        "device": device,
         "events": [{ "name": name, "params": params }],
     });
 
@@ -194,6 +206,61 @@ async fn send_event(app: &AppHandle, name: &str, params: Value, timestamp_micros
     if let Err(e) = res {
         log::warn!("analytics send failed: {}", e.without_url());
     }
+}
+
+/// What the renderer last reported. Events sent before it loads, app_started among them,
+/// carry no language.
+#[derive(Clone, Default)]
+struct Language {
+    app_locale: Option<String>,
+    system: Option<String>,
+}
+
+fn language() -> &'static Mutex<Language> {
+    static LANGUAGE: OnceLock<Mutex<Language>> = OnceLock::new();
+    LANGUAGE.get_or_init(Mutex::default)
+}
+
+/// The system language goes into GA4's built-in language dimension. The UI language is
+/// the app_locale event parameter.
+fn attach_language(language: &Language, device: &mut Value, params: &mut Value) {
+    if let Some(system) = &language.system {
+        device["language"] = json!(system);
+    }
+    if let Some(app_locale) = &language.app_locale {
+        params["app_locale"] = json!(app_locale);
+    }
+}
+
+/// Lowercases a language tag such as en-US or zh-Hant-TW, the form GA4's web tag reports,
+/// and rejects anything else. Only the shape is checked, never a list of locales, so a new
+/// translation or any system language passes without a change here.
+fn language_tag(value: &str) -> Option<String> {
+    let tag = value.replace('_', "-").to_ascii_lowercase();
+    let mut subtags = tag.split('-');
+    let primary = subtags.next()?;
+    let primary_ok =
+        (2..=3).contains(&primary.len()) && primary.bytes().all(|b| b.is_ascii_lowercase());
+    let rest_ok =
+        subtags.all(|s| (1..=8).contains(&s.len()) && s.bytes().all(|b| b.is_ascii_alphanumeric()));
+    (tag.len() <= 35 && primary_ok && rest_ok).then_some(tag)
+}
+
+/// Records the language Modrex is shown in and the system's language setting. The UI
+/// language keeps its locale file name, so zh-CN reads the same as in the app.
+#[tauri::command]
+#[specta::specta]
+pub fn set_analytics_language(app_locale: String, system_locale: String) {
+    let app_locale = language_tag(&app_locale).map(|_| app_locale);
+    let system = language_tag(&system_locale);
+    // The rejected value comes from the renderer and is never logged.
+    if app_locale.is_none() {
+        log::warn!("analytics: dropped a UI language that is not a language tag");
+    }
+    if system.is_none() {
+        log::warn!("analytics: dropped a system language that is not a language tag");
+    }
+    *language().lock().unwrap_or_else(|e| e.into_inner()) = Language { app_locale, system };
 }
 
 pub(crate) fn track_mod_installed(app: &AppHandle, game_id: &str, mod_id: i64, format: &str) {
@@ -300,6 +367,62 @@ pub fn track_event(app: AppHandle, name: String, params: Option<crate::commands:
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn nothing_is_sent_until_the_current_policy_is_accepted() {
+        let mut s = settings::Settings::default();
+        assert!(!sending_allowed(&s));
+        s.analytics_enabled = true;
+        assert!(!sending_allowed(&s), "accepted an earlier policy");
+        s.analytics_consent_version = ANALYTICS_CONSENT_VERSION;
+        assert!(sending_allowed(&s));
+    }
+
+    #[test]
+    fn language_tags_are_checked_by_shape_and_lowercased() {
+        for (value, tag) in [
+            ("en", "en"),
+            ("en-US", "en-us"),
+            ("pt_BR", "pt-br"),
+            ("zh-Hant-TW", "zh-hant-tw"),
+            ("es-419", "es-419"),
+        ] {
+            assert_eq!(language_tag(value).as_deref(), Some(tag), "{value}");
+        }
+        for value in [
+            "",
+            "c",
+            "english",
+            "en-",
+            "en--us",
+            "en/US",
+            "../etc",
+            "en-US:x",
+            "ру",
+            "en-abcdefghi",
+        ] {
+            assert_eq!(language_tag(value), None, "{value}");
+        }
+    }
+
+    #[test]
+    fn language_goes_to_the_device_and_the_ui_locale_parameter() {
+        let mut device = json!({ "category": "desktop" });
+        let mut params = json!({ "game": "pd3" });
+        let language = Language {
+            app_locale: Some("zh-CN".into()),
+            system: Some("zh-cn".into()),
+        };
+        attach_language(&language, &mut device, &mut params);
+        assert_eq!(device["language"], "zh-cn");
+        assert_eq!(params["app_locale"], "zh-CN");
+
+        let mut device = json!({});
+        let mut params = json!({});
+        attach_language(&Language::default(), &mut device, &mut params);
+        assert_eq!(device, json!({}));
+        assert_eq!(params, json!({}));
+    }
 
     #[test]
     fn engagement_counts_foreground_time_once_and_excludes_background_time() {

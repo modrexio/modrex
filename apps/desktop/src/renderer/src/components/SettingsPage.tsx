@@ -71,7 +71,7 @@ function readSavedTab(hasGameSettings: boolean): SettingsTab {
 
 export interface AppSettingsProps {
     isActive: boolean
-    analyticsConsent: boolean | null
+    analyticsConsent: boolean
     onAnalyticsConsent: (enabled: boolean) => void
     discordPresenceEnabled: boolean
     onDiscordPresenceEnabled: (enabled: boolean) => void
