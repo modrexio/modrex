@@ -856,15 +856,16 @@ pub async fn restore_mods(app: AppHandle, game_id: String) -> Result<(), String>
 // Native process enumeration (NtQuerySystemInformation on Windows, /proc elsewhere). It
 // never spawns tasklist or pgrep, so a wedged WMI service or missing procps cannot hang
 // the UI.
-fn refresh_process_list() -> sysinfo::System {
-    let mut sys = sysinfo::System::new();
+fn refresh_process_list() -> Result<sysinfo::System, String> {
+    let mut sys = sysinfo::System::new()
+        .map_err(|error| format!("Could not read the process list: {error}"))?;
     let kind = sysinfo::ProcessRefreshKind::nothing();
     // cmdlines are only needed to see through Proton and wine wrapper process names.
     // On Windows the process name is always the exe name.
     #[cfg(not(windows))]
     let kind = kind.with_cmd(sysinfo::UpdateKind::Always);
     sys.refresh_processes_specifics(sysinfo::ProcessesToUpdate::All, true, kind);
-    sys
+    Ok(sys)
 }
 
 // The on-disk name may carry .exe (Windows, Proton) and Linux /proc truncates names to 15
@@ -886,7 +887,7 @@ fn process_matches(p: &sysinfo::Process, process_name: &str) -> bool {
 /// Blocking process check, shared with the resource writers that must not run under the game.
 pub(crate) fn game_running(game_id: &str) -> Result<bool, String> {
     let process_names = game_def_for_id(game_id)?.process_names;
-    let sys = refresh_process_list();
+    let sys = refresh_process_list()?;
     Ok(sys
         .processes()
         .values()
@@ -961,7 +962,7 @@ pub async fn cancel_pending_game_launch(app: AppHandle, game_id: String) -> Resu
 #[specta::specta]
 pub fn stop_game(game_id: String) -> Result<(), String> {
     let process_names = game_def_for_id(game_id.as_str())?.process_names;
-    let sys = refresh_process_list();
+    let sys = refresh_process_list()?;
     for p in sys
         .processes()
         .values()
