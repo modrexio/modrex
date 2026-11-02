@@ -883,17 +883,11 @@ fn place(
             };
             let to = rel_path(game, &file.destination);
             let parent = to.parent().expect("a planned destination has a folder");
+            // A folder link inside the game folder would carry the write somewhere else, so it
+            // is checked before any missing folder is created through it.
+            require_inside_game(&game_canonical, &to)?;
             fs::create_dir_all(parent)
                 .map_err(|e| format!("could not create {}: {e}", log_name(parent)))?;
-            // A folder link inside the game folder would carry the write somewhere else.
-            let resolved = fs::canonicalize(parent)
-                .map_err(|e| format!("could not resolve {}: {e}", log_name(parent)))?;
-            if !resolved.starts_with(&game_canonical) {
-                return Err(format!(
-                    "{} leads outside the game folder",
-                    log_name(parent)
-                ));
-            }
             // Recorded before the copy, which can fail part way and leave a partial file.
             placed.written.push(to.clone());
             let (size, sha256) = copy_hashed(&from, &to)
@@ -980,18 +974,17 @@ fn move_all(moves: &[(PathBuf, PathBuf)]) -> Result<(), String> {
 /// Refuses a path whose folder resolves outside the game folder, which a folder link placed
 /// inside it after the install could make it do.
 fn require_inside_game(game_canonical: &Path, path: &Path) -> Result<(), String> {
-    let Some(parent) = path.parent() else {
+    // The nearest folder that exists, since the missing ones below it would be created inside
+    // wherever it resolves to.
+    let Some(existing) = path.ancestors().skip(1).find(|dir| dir.exists()) else {
         return Ok(());
     };
-    if !parent.exists() {
-        return Ok(());
-    }
-    let resolved = fs::canonicalize(parent)
-        .map_err(|e| format!("could not resolve {}: {e}", log_name(parent)))?;
+    let resolved = fs::canonicalize(existing)
+        .map_err(|e| format!("could not resolve {}: {e}", log_name(existing)))?;
     if !resolved.starts_with(game_canonical) {
         return Err(format!(
             "{} leads outside the game folder",
-            log_name(parent)
+            log_name(existing)
         ));
     }
     Ok(())
@@ -1226,11 +1219,14 @@ pub(crate) fn owned_scan_keys(cfg: &ModEngineConfig, mods: &[InstalledMod]) -> H
     keys
 }
 
-/// The key as recorded, which a case-sensitive filesystem compares exactly, and lowercased,
-/// which the scan compares on Windows where the folder may keep another spelling.
+/// The key as recorded, which a case-sensitive filesystem compares exactly, and on Windows
+/// also lowercased, which the scan compares there because the folder may keep another
+/// spelling. A case-sensitive filesystem holds two folders that differ only in case.
 fn insert_both_cases(keys: &mut HashSet<String>, tag: &str, unit: &str) {
     keys.insert(format!("{tag}:{unit}"));
-    keys.insert(format!("{tag}:{}", unit.to_ascii_lowercase()));
+    if cfg!(windows) {
+        keys.insert(format!("{tag}:{}", unit.to_ascii_lowercase()));
+    }
 }
 
 /// Hides every enabled bundle of a game before a launch without mods. Runs before the other

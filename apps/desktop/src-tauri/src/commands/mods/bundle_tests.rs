@@ -907,7 +907,8 @@ async fn a_bundle_hides_its_folder_from_the_scan_whatever_its_case_on_disk() {
     )
     .unwrap();
     let known = bundle::owned_scan_keys(cfg(), &game.mods());
-    assert!(known.contains("cet_mods:foo"));
+    assert_eq!(known.contains("cet_mods:foo"), cfg!(windows));
+    assert!(known.contains("cet_mods:Foo"));
     let found = find_untracked_paks(game.path(), &known, cfg()).await;
     assert!(found.is_empty(), "{found:?}");
 }
@@ -1009,4 +1010,56 @@ fn an_update_refuses_to_overwrite_a_file_the_user_changed() {
         "mine!!!"
     );
     assert_eq!(game.mods()[0].uid, "nexus:7:100");
+}
+
+/// A folder link in the game folder must never carry a restore outside it, even when the
+/// folders below the link are missing and would be created.
+#[cfg(windows)]
+#[test]
+fn restoring_never_follows_a_folder_link_out_of_the_game() {
+    let game = Game::new();
+    let outside = TempDir::new().unwrap();
+    game.install(record("m", None), &[("r6/scripts/M/a.reds", "S")])
+        .unwrap();
+    bundle::hide(game.path(), target(), &game.mods()).unwrap();
+    // Built from components, because mklink reads a forward slash as a switch.
+    let scripts = game.file("r6").join("scripts");
+    fs::remove_dir_all(&scripts).ok();
+    let made = std::process::Command::new("cmd")
+        .args(["/C", "mklink", "/J"])
+        .arg(&scripts)
+        .arg(outside.path())
+        .output()
+        .unwrap();
+    assert!(made.status.success(), "{made:?}");
+
+    assert!(bundle::restore(game.path(), target()).is_err());
+    assert!(!outside.path().join("M").exists());
+    assert!(backup_dir(game.path(), target())
+        .join("r6/scripts/M/a.reds")
+        .is_file());
+    fs::remove_dir(&scripts).unwrap();
+}
+
+#[cfg(windows)]
+#[test]
+fn installing_never_creates_folders_through_a_folder_link() {
+    let game = Game::new();
+    let outside = TempDir::new().unwrap();
+    fs::create_dir_all(game.file("r6")).unwrap();
+    let scripts = game.file("r6").join("scripts");
+    let made = std::process::Command::new("cmd")
+        .args(["/C", "mklink", "/J"])
+        .arg(&scripts)
+        .arg(outside.path())
+        .output()
+        .unwrap();
+    assert!(made.status.success(), "{made:?}");
+
+    let error = game
+        .install(record("m", None), &[("r6/scripts/M/a.reds", "S")])
+        .unwrap_err();
+    assert!(error.contains("outside the game folder"), "{error}");
+    assert!(!outside.path().join("M").exists());
+    fs::remove_dir(&scripts).unwrap();
 }
