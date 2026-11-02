@@ -292,7 +292,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ---
 
-### simple-icons 16.35.0
+### simple-icons 16.36.0
 
 **License:** CC0-1.0
 
@@ -355,7 +355,7 @@ PERFORMANCE OF THIS SOFTWARE.
 
 ---
 
-### lucide-react 1.61.0
+### lucide-react 1.63.0
 
 **License:** ISC
 
