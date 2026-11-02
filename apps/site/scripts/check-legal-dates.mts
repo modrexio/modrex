@@ -7,44 +7,39 @@ import { legalContent } from './legal-content.mts'
 const PAGES = ['apps/site/src/pages/privacy.astro', 'apps/site/src/pages/terms.astro']
 const DATE_PATTERN = /^const LAST_UPDATED = '(\d{4}-\d{2}-\d{2})'$/m
 
-export function checkLegalDates(repoRoot: string, today: string) {
+function nextDay(iso: string): string {
+    const date = new Date(`${iso}T00:00:00Z`)
+    date.setUTCDate(date.getUTCDate() + 1)
+    return date.toISOString().slice(0, 10)
+}
+
+// The stated date moves exactly when the wording does. Each version of a page is compared
+// with the one before it rather than with commit dates, which squash merges and time zones
+// shift. base is the published page, compared with HEAD; HEAD is compared with the index and
+// the working tree.
+export function checkLegalDates(repoRoot: string, today: string, base: string) {
     const git = (...args: string[]) =>
         execFileSync('git', args, { cwd: repoRoot, encoding: 'utf8' }).trim()
     const failures: string[] = []
     const lines: string[] = []
 
-    if (git('rev-parse', '--is-shallow-repository') === 'true') {
-        failures.push('Legal date checks require full Git history. Use fetch-depth: 0 in CI.')
-        return { failures, lines }
-    }
-
     for (const page of PAGES) {
-        const log = git('log', '--format=%H%x09%cs', '--', page)
-        if (!log) {
-            failures.push(`${page}: no committed legal content is available to compare.`)
-            continue
-        }
-        const history = log.split('\n').map((entry) => {
-            const [commit, date] = entry.split('\t')
-            if (!commit || !date) throw new Error(`Invalid Git history entry for ${page}`)
-            return { commit, date }
-        })
-        const latest = history[0]!
-        const committedContent = legalContent(git('show', `${latest.commit}:${page}`))
-        let changedOn = latest.date
-
-        // check-legal-dates.test.mts covers wording dates across later formatting commits.
-        for (const { commit, date } of history) {
-            if (legalContent(git('show', `${commit}:${page}`)) !== committedContent) break
-            changedOn = date
-        }
-
+        const published = git('show', `${base}:${page}`)
+        const committed = git('show', `HEAD:${page}`)
         const working = readFileSync(resolve(repoRoot, page), 'utf8')
         const index = git('show', `:${page}`)
-        const versions: [string, string][] = [['working tree', working]]
-        if (index !== working.trim()) versions.push(['index', index])
 
-        for (const [location, source] of versions) {
+        const versions: { location: string; source: string; previous: string }[] = [
+            { location: 'HEAD', source: committed, previous: published },
+        ]
+        if (working.trim() !== committed) {
+            versions.push({ location: 'working tree', source: working, previous: committed })
+        }
+        if (index !== committed && index !== working.trim()) {
+            versions.push({ location: 'index', source: index, previous: committed })
+        }
+
+        for (const { location, source, previous } of versions) {
             const stated = source.match(DATE_PATTERN)?.[1]
             if (!stated) {
                 failures.push(`${page} (${location}): missing LAST_UPDATED in YYYY-MM-DD format.`)
@@ -58,15 +53,36 @@ export function checkLegalDates(repoRoot: string, today: string) {
                 failures.push(`${page} (${location}): invalid LAST_UPDATED date ${stated}.`)
                 continue
             }
-            const contentChanged = legalContent(source) !== committedContent
-            const required = contentChanged ? today : changedOn
-            if (stated < required) {
+            const previousDate = previous.match(DATE_PATTERN)?.[1]
+            if (!previousDate) {
+                throw new Error(`${page}: the version before ${location} has no LAST_UPDATED`)
+            }
+
+            if (legalContent(source) === legalContent(previous)) {
+                if (stated !== previousDate) {
+                    failures.push(
+                        `${page} (${location}): LAST_UPDATED moved to ${stated} without a wording change. Keep ${previousDate}.`
+                    )
+                }
+                continue
+            }
+            // An uncommitted change is dated today. A committed one may be dated earlier than
+            // the day it is merged, but never on or before the date it replaces.
+            if (location !== 'HEAD') {
+                if (stated !== today) {
+                    failures.push(
+                        `${page} (${location}): legal wording changed but LAST_UPDATED is ${stated}. Set it to ${today}.`
+                    )
+                }
+                continue
+            }
+            if (stated <= previousDate || stated > nextDay(today)) {
                 failures.push(
-                    `${page} (${location}): legal content changed on ${required} but LAST_UPDATED is ${stated}.`
+                    `${page} (${location}): legal wording changed since ${base} but LAST_UPDATED is ${stated}. It must be later than ${previousDate} and not in the future.`
                 )
             }
         }
-        lines.push(`check-legal-dates: ${page} checked against legal content history`)
+        lines.push(`check-legal-dates: ${page} checked against ${base}`)
     }
 
     return { failures, lines }
@@ -74,7 +90,20 @@ export function checkLegalDates(repoRoot: string, today: string) {
 
 if (import.meta.main) {
     const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..')
-    const { failures, lines } = checkLegalDates(repoRoot, new Date().toISOString().slice(0, 10))
+    const now = new Date()
+    const today = [
+        now.getFullYear(),
+        String(now.getMonth() + 1).padStart(2, '0'),
+        String(now.getDate()).padStart(2, '0'),
+    ].join('-')
+    // CI names the page's previous version. Locally it is where the branch left main.
+    const base =
+        process.env.LEGAL_DATES_BASE ||
+        execFileSync('git', ['merge-base', 'HEAD', 'origin/main'], {
+            cwd: repoRoot,
+            encoding: 'utf8',
+        }).trim()
+    const { failures, lines } = checkLegalDates(repoRoot, today, base)
     if (failures.length > 0) {
         console.error(failures.join('\n\n'))
         process.exit(1)

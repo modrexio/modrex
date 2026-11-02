@@ -2,6 +2,8 @@ import { execFileSync } from 'node:child_process'
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { format, resolveConfig } from 'prettier'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { checkLegalDates } from './check-legal-dates.mts'
 import { legalContent } from './legal-content.mts'
@@ -52,10 +54,24 @@ describe('legalContent', () => {
         )
         expect(() => legalContent('<p>No main element</p>')).toThrow('no main element')
     })
+
+    // A formatter upgrade reflows these pages and must not read as a wording change.
+    it.each([40, 200])('ignores reflowing the real pages at width %i', async (printWidth) => {
+        for (const page of ['privacy', 'terms']) {
+            const path = fileURLToPath(new URL(`../src/pages/${page}.astro`, import.meta.url))
+            const source = readFileSync(path, 'utf8')
+            const options = await resolveConfig(path)
+            const reflowed = await format(source, { ...options, filepath: path, printWidth })
+
+            expect(reflowed).not.toBe(source)
+            expect(legalContent(reflowed)).toBe(legalContent(source))
+        }
+    })
 })
 
 describe('checkLegalDates', () => {
     let repo: string
+    let base: string
 
     function git(...args: string[]) {
         return execFileSync('git', args, { cwd: repo, encoding: 'utf8' }).trim()
@@ -73,6 +89,10 @@ describe('checkLegalDates', () => {
         })
     }
 
+    function check(today: string) {
+        return checkLegalDates(repo, today, base).failures
+    }
+
     beforeEach(() => {
         repo = mkdtempSync(join(tmpdir(), 'modrex-legal-check-'))
         git('init', '-q')
@@ -85,6 +105,7 @@ describe('checkLegalDates', () => {
         writeFileSync(join(repo, TERMS), PAGE)
         writeFileSync(join(repo, 'apps/site/src/pages/privacy.astro'), PAGE)
         commit('2026-01-01')
+        base = git('rev-parse', 'HEAD')
     })
 
     afterEach(() => {
@@ -93,24 +114,24 @@ describe('checkLegalDates', () => {
         rmSync(repo, { recursive: true, force: true })
     })
 
-    it('allows routing-only changes before and after committing them', () => {
+    it('keeps the date for routing-only changes before and after committing them', () => {
         writeFileSync(
             join(repo, TERMS),
             PAGE.replace('href="/privacy"', "href={sitePath('/privacy')}")
         )
 
-        expect(checkLegalDates(repo, '2026-01-02').failures).toEqual([])
+        expect(check('2026-01-02')).toEqual([])
         commit('2026-01-02')
-        expect(checkLegalDates(repo, '2026-01-03').failures).toEqual([])
+        expect(check('2026-01-03')).toEqual([])
     })
 
-    it('requires a current date for uncommitted wording changes', () => {
+    it('requires today for uncommitted wording changes', () => {
         const revised = PAGE.replace('no data', 'usage data')
         writeFileSync(join(repo, TERMS), revised)
 
-        expect(checkLegalDates(repo, '2026-01-02').failures).toHaveLength(1)
+        expect(check('2026-01-02')).toHaveLength(1)
         writeFileSync(join(repo, TERMS), revised.replace('2026-01-01', '2026-01-02'))
-        expect(checkLegalDates(repo, '2026-01-02').failures).toEqual([])
+        expect(check('2026-01-02')).toEqual([])
     })
 
     it('checks staged wording even when the working tree was reverted', () => {
@@ -118,7 +139,17 @@ describe('checkLegalDates', () => {
         git('add', TERMS)
         writeFileSync(join(repo, TERMS), PAGE)
 
-        expect(checkLegalDates(repo, '2026-01-02').failures[0]).toContain('(index)')
+        expect(check('2026-01-02')[0]).toContain('(index)')
+    })
+
+    it('rejects a date moved without a wording change, uncommitted or committed', () => {
+        writeFileSync(join(repo, TERMS), PAGE.replace('2026-01-01', '2026-01-05'))
+        expect(check('2026-01-05')[0]).toContain('(working tree)')
+
+        commit('2026-01-05')
+        const failures = check('2026-01-05')
+        expect(failures).toHaveLength(1)
+        expect(failures[0]).toContain('(HEAD): LAST_UPDATED moved to 2026-01-05')
     })
 
     it('does not let a later formatting commit hide an undated wording change', () => {
@@ -128,33 +159,46 @@ describe('checkLegalDates', () => {
         writeFileSync(join(repo, TERMS), formatted)
         commit('2026-01-03')
 
-        const { failures } = checkLegalDates(repo, '2026-01-04')
+        const failures = check('2026-01-04')
         expect(failures).toHaveLength(1)
-        expect(failures[0]).toContain('legal content changed on 2026-01-02')
+        expect(failures[0]).toContain('must be later than 2026-01-01')
     })
 
-    it('keeps a correctly dated wording change valid after later formatting', () => {
+    it('accepts a dated wording change merged days after it was written', () => {
         writeFileSync(
             join(repo, TERMS),
             PAGE.replace('no data', 'usage data').replace('2026-01-01', '2026-01-02')
         )
-        commit('2026-01-02')
-        writeFileSync(
-            join(repo, TERMS),
-            readFileSync(join(repo, TERMS), 'utf8').replace('color: black', 'color: white')
-        )
-        commit('2026-01-03')
+        commit('2026-01-09')
 
-        expect(checkLegalDates(repo, '2026-01-04').failures).toEqual([])
+        expect(check('2026-01-09')).toEqual([])
     })
 
-    it('fails when the stated date is missing, invalid or history is shallow', () => {
-        writeFileSync(join(repo, TERMS), PAGE.replace("const LAST_UPDATED = '2026-01-01'", ''))
-        expect(checkLegalDates(repo, '2026-01-02').failures[0]).toContain('missing LAST_UPDATED')
-        writeFileSync(join(repo, TERMS), PAGE.replace('2026-01-01', '2026-02-31'))
-        expect(checkLegalDates(repo, '2026-01-02').failures[0]).toContain('invalid LAST_UPDATED')
+    it('accepts several wording commits on one day before the page is published', () => {
+        const first = PAGE.replace('no data', 'usage data').replace('2026-01-01', '2026-01-02')
+        writeFileSync(join(repo, TERMS), first)
+        commit('2026-01-02')
+        writeFileSync(join(repo, TERMS), first.replace('usage data', 'anonymous usage data'))
 
-        writeFileSync(join(repo, '.git/shallow'), `${git('rev-parse', 'HEAD')}\n`)
-        expect(checkLegalDates(repo, '2026-01-02').failures[0]).toContain('full Git history')
+        expect(check('2026-01-02')).toEqual([])
+        commit('2026-01-02')
+        expect(check('2026-01-02')).toEqual([])
+    })
+
+    it('rejects a committed date in the future', () => {
+        writeFileSync(
+            join(repo, TERMS),
+            PAGE.replace('no data', 'usage data').replace('2026-01-01', '2026-03-01')
+        )
+        commit('2026-01-02')
+
+        expect(check('2026-01-02')[0]).toContain('not in the future')
+    })
+
+    it('fails when the stated date is missing or invalid', () => {
+        writeFileSync(join(repo, TERMS), PAGE.replace("const LAST_UPDATED = '2026-01-01'", ''))
+        expect(check('2026-01-02')[0]).toContain('missing LAST_UPDATED')
+        writeFileSync(join(repo, TERMS), PAGE.replace('2026-01-01', '2026-02-31'))
+        expect(check('2026-01-02')[0]).toContain('invalid LAST_UPDATED')
     })
 })

@@ -4,8 +4,8 @@ import Nav from '../components/Nav.astro'
 import SiteFooter from '../components/SiteFooter.astro'
 import { formatLastUpdated } from '../lib/legal'
 
-// Bump when the wording below changes in substance. `pnpm check-legal-dates` fails the
-// build if this page is committed with a date older than the commit touching it.
+// Set to today when the wording below changes, and only then. bun check-legal-dates
+// enforces both directions.
 const LAST_UPDATED = '2026-11-02'
 ---
 
