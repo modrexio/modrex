@@ -4,6 +4,10 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 ## Unreleased
 
+### Changed
+
+- Usage analytics now include your language.
+
 ## 0.16.1
 
 ### Added

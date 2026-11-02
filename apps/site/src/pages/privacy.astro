@@ -4,9 +4,9 @@ import Nav from '../components/Nav.astro'
 import SiteFooter from '../components/SiteFooter.astro'
 import { formatLastUpdated } from '../lib/legal'
 
-// Bump when the wording below changes in substance. `pnpm check-legal-dates` fails the
-// build if this page is committed with a date older than the commit touching it.
-const LAST_UPDATED = '2026-10-01'
+// Set to today when the wording below changes, and only then. bun check-legal-dates
+// enforces both directions.
+const LAST_UPDATED = '2026-11-02'
 ---
 
 <BaseLayout
@@ -32,14 +32,23 @@ const LAST_UPDATED = '2026-10-01'
                 </p>
                 <ul>
                     <li>
-                        <strong>Opt-in only.</strong> You are asked once on first launch and can
-                        change your choice at any time in Settings.
+                        <strong>Opt-in only.</strong> You are asked on first launch, and asked again
+                        before the app sends anything you have not agreed to. You can change your
+                        choice at any time in Settings.
                     </li>
                     <li>
-                        <strong>What is collected if you opt in:</strong> anonymous usage events
-                        (features used, mods installed, app version, operating system). A random
+                        <strong>What is collected if you opt in:</strong> usage events (features
+                        used, mods installed, app version, operating system, and language: the
+                        language Modrex is shown in and your system's language setting). Language is
+                        used only in aggregate, to decide which translations to work on. A random
                         per-install ID is generated locally — it is never linked to your name,
-                        email, or any account.
+                        email, or any account. Because events carry this ID and reach Google with
+                        your IP address, as described below, they are pseudonymous rather than
+                        anonymous.
+                    </li>
+                    <li>
+                        <strong>Legal basis:</strong> your consent. Turning analytics off in
+                        Settings withdraws it, and the app stops sending events right away.
                     </li>
                     <li>
                         <strong>What is never collected:</strong> file paths, the text you type into
@@ -54,7 +63,8 @@ const LAST_UPDATED = '2026-10-01'
                         reflect where you are rather than where the proxy is. The proxy does not
                         store it and Modrex keeps no database of it. An IP address can count as
                         personal data in some jurisdictions, so it is disclosed here even though it
-                        is used only for approximate location. See{' '}
+                        is used only for approximate location. Google may process analytics data in
+                        the United States, under the EU-U.S. Data Privacy Framework. See{' '}
                         <a
                             href="https://policies.google.com/privacy"
                             target="_blank"
@@ -102,9 +112,9 @@ const LAST_UPDATED = '2026-10-01'
                     </li>
                 </ul>
                 <p>
-                    None of these carry an account identifier or the anonymous analytics ID. Like
-                    any request your computer makes, each one reveals your IP address to the service
-                    it goes to, under that service's own privacy policy.
+                    None of these carry an account identifier or the analytics ID. Like any request
+                    your computer makes, each one reveals your IP address to the service it goes to,
+                    under that service's own privacy policy.
                 </p>
 
                 <h2>Nexus Mods sign-in (optional)</h2>
@@ -174,7 +184,8 @@ const LAST_UPDATED = '2026-10-01'
                 <h2>Changes</h2>
                 <p>
                     We may update this policy at any time. The "Last updated" date above will
-                    reflect any changes.
+                    reflect any changes. If a change affects what the app collects, the app asks you
+                    to review this policy and sends nothing until you accept.
                 </p>
 
                 <h2>Contact</h2>
@@ -188,7 +199,7 @@ const LAST_UPDATED = '2026-10-01'
                         GitHub
                     </a>{' '}
                     or join our{' '}
-                    <a href="https://discord.gg/QM2rDgy43Y" target="_blank" rel="noopener">
+                    <a href="https://modrex.net/discord" target="_blank" rel="noopener">
                         Discord
                     </a>
                     .

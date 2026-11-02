@@ -78,10 +78,12 @@ export function legalContent(source: string): string {
             (attribute) => attribute.name.name === 'href'
         )
         if (href) links.push(linkTarget(href.value))
-        const content = node.children.map(text).join('')
-        return /^(main|div|p|h[1-6]|li|ul|ol|br)$/.test(name) ? `${content} ` : content
+        return node.children.map(text).join('')
     }
 
-    const wording = text(main).replace(/\s+/g, ' ').trim()
+    // Formatters add and remove whitespace beside inline tags, such as a space before the
+    // comma after a closing strong tag, so wording is compared without any. A real wording
+    // change always changes a visible character.
+    const wording = text(main).replace(/\s+/g, '')
     return JSON.stringify({ wording, links })
 }

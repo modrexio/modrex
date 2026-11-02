@@ -40,7 +40,7 @@ const APP_VERSION = import.meta.env.DEV ? 'v-dev' : `v${import.meta.env.VITE_APP
 
 const GITHUB_URL = 'https://github.com/modrexio/modrex'
 const SPONSOR_URL = 'https://github.com/sponsors/modrexio'
-const DISCORD_URL = 'https://discord.gg/QM2rDgy43Y'
+const DISCORD_URL = 'https://modrex.net/discord'
 const X_URL = 'https://x.com/modrexio'
 const BLUESKY_URL = 'https://bsky.app/profile/modrex.net'
 const INSTAGRAM_URL = 'https://www.instagram.com/modrexio/'
@@ -71,7 +71,7 @@ function readSavedTab(hasGameSettings: boolean): SettingsTab {
 
 export interface AppSettingsProps {
     isActive: boolean
-    analyticsConsent: boolean | null
+    analyticsConsent: boolean
     onAnalyticsConsent: (enabled: boolean) => void
     discordPresenceEnabled: boolean
     onDiscordPresenceEnabled: (enabled: boolean) => void

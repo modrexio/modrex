@@ -60,12 +60,7 @@ export const commands = {
 	 *  settings.json survives.
 	 */
 	recordSuccessfulInstall: (cleanSession: boolean) => __TAURI_INVOKE<void>("record_successful_install", { cleanSession }),
-	/**
-	 *  Current analytics consent: None = not yet asked, Some(true/false) = chosen.
-	 *  The Option only exists at this IPC boundary. settings.json itself tracks
-	 *  "asked" and "enabled" as two separate plain bools (see Settings).
-	 */
-	getAnalyticsConsent: () => __TAURI_INVOKE<boolean | null>("get_analytics_consent"),
+	getAnalyticsConsent: () => __TAURI_INVOKE<AnalyticsConsent>("get_analytics_consent"),
 	/**
 	 *  Records the user's explicit analytics choice. Generates the anonymous install
 	 *  ID lazily on first opt-in, so a user who never enables analytics never gets one.
@@ -76,6 +71,11 @@ export const commands = {
 	 *  directly. Both share the consent gate in send_event.
 	 */
 	trackEvent: (name: string, params: unknown | null) => __TAURI_INVOKE<void>("track_event", { name, params }),
+	/**
+	 *  Records the language Modrex is shown in and the system's language setting. The UI
+	 *  language keeps its locale file name, so zh-CN reads the same as in the app.
+	 */
+	setAnalyticsLanguage: (appLocale: string, systemLocale: string) => __TAURI_INVOKE<void>("set_analytics_language", { appLocale, systemLocale }),
 	getInstalled: (gameId: string) => __TAURI_INVOKE<InstalledResponse_Serialize>("get_installed", { gameId }),
 	installMod: (modId: number, fileId: number | null, gamePath: string, folderId: string | null, gameId: string) => __TAURI_INVOKE<InstallOutcome_Serialize>("install_mod", { modId, fileId, gamePath, folderId, gameId }),
 	installFile: (modId: number, modName: string, fileId: number, downloadUrl: string, fileType: string, modVersion: string, gamePath: string, gameId: string) => __TAURI_INVOKE<InstallOutcome_Serialize>("install_file", { modId, modName, fileId, downloadUrl, fileType, modVersion, gamePath, gameId }),
@@ -263,6 +263,12 @@ export const commands = {
 };
 
 /* Types */
+/**
+ *  The analytics choice as the renderer needs it. Outdated means the user opted in under an
+ *  earlier privacy policy and must review the current one before anything is sent.
+ */
+export type AnalyticsConsent = "unasked" | "declined" | "outdated" | "granted";
+
 /**
  *  Identifies one entry of a staged archive. Issued while enumerating, so it survives
  *  display names that normalize onto each other.

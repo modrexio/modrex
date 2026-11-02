@@ -65,6 +65,7 @@ fn ipc_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::settings::get_analytics_consent,
             commands::settings::set_analytics_consent,
             commands::analytics::track_event,
+            commands::analytics::set_analytics_language,
             // mods
             commands::mods::get_installed,
             commands::mods::install_mod,

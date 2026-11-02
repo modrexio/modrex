@@ -10,12 +10,12 @@ Modrex finds mods on ModWorkshop and Nexus Mods, installs them together with the
 need, keeps your load order where you put it, and launches the game modded or vanilla.
 Free and open source, for Windows and Linux.
 
-[Download](#download) - [Documentation](https://modrex.net/docs/) - [Discord](https://discord.gg/QM2rDgy43Y) - [Contributing](CONTRIBUTING.md)
+[Download](#download) - [Documentation](https://modrex.net/docs/) - [Discord](https://modrex.net/discord) - [Contributing](CONTRIBUTING.md)
 
 [![Latest release](https://img.shields.io/github/v/release/modrexio/modrex?style=flat-square&label=release)](https://github.com/modrexio/modrex/releases/latest)
 [![Downloads](https://img.shields.io/endpoint?url=https%3A%2F%2Fmodrex.net%2Fapi%2Fdownloads&style=flat-square)](https://github.com/modrexio/modrex/releases)
 [![Windows and Linux](https://img.shields.io/badge/Windows%20%7C%20Linux-informational?style=flat-square)](#download)
-[![Discord](https://img.shields.io/badge/Discord-Join%20Community-5865F2?style=flat-square&logo=discord&logoColor=white)](https://discord.gg/QM2rDgy43Y)
+[![Discord](https://img.shields.io/badge/Discord-Join%20Community-5865F2?style=flat-square&logo=discord&logoColor=white)](https://modrex.net/discord)
 
 <img src="assets/example.webp" width="900" alt="The Modrex mod library showing installed mods for a game, each with a switch to enable or disable it" />
 
@@ -105,14 +105,14 @@ your log. The log gives maintainers the details needed to diagnose the problem. 
 ## Community and support
 
 Ask questions, share mods and follow development in the
-[Modrex Discord](https://discord.gg/QM2rDgy43Y).
+[Modrex Discord](https://modrex.net/discord).
 
 - [Request a feature](https://github.com/modrexio/modrex/issues/new?template=feature_request.yml)
 - [Report a vulnerability](SECURITY.md), privately, never in an issue or in Discord
 - [Contribute code or documentation](CONTRIBUTING.md)
 - [Translate Modrex](docs/contributing/translating.md), which needs no development setup
 
-<a href="https://discord.gg/QM2rDgy43Y"><img src="https://discord.com/api/guilds/1508553766025170986/widget.png?style=banner3" alt="Modrex Discord server, member count and join link" /></a>
+<a href="https://modrex.net/discord"><img src="https://discord.com/api/guilds/1508553766025170986/widget.png?style=banner3" alt="Modrex Discord server, member count and join link" /></a>
 
 ## Translations
 

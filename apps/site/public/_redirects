@@ -1,0 +1,5 @@
+# Every Modrex link to Discord goes through modrex.net/discord, so changing the invite is
+# an edit here alone. Installed app versions carry the link built in and follow this
+# redirect. It stays a 302 because browsers cache a 301 indefinitely and would keep the
+# old invite.
+/discord https://discord.gg/QM2rDgy43Y 302

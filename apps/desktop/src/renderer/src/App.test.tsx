@@ -10,6 +10,11 @@ const mocks = vi.hoisted(() => ({
     installed: vi.fn(),
     startup: vi.fn(),
     log: vi.fn(),
+    consent: vi.fn(),
+    setConsent: vi.fn(),
+    language: vi.fn(),
+    consentDialog: vi.fn(),
+    policyDialog: vi.fn(),
 }))
 
 vi.mock('@tauri-apps/plugin-log', () => ({ error: mocks.log }))
@@ -21,7 +26,9 @@ vi.mock('./api', () => ({
         getInstalled: mocks.installed,
         reportStartupPhase: mocks.startup,
         updateDiscordPresence: vi.fn().mockResolvedValue(undefined),
-        getAnalyticsConsent: vi.fn().mockResolvedValue(false),
+        getAnalyticsConsent: mocks.consent,
+        setAnalyticsConsent: mocks.setConsent,
+        setAnalyticsLanguage: mocks.language,
         getGameSettings: vi.fn().mockResolvedValue({ launchOptions: '', launcher: 'steam' }),
         getDetectedInstalls: vi.fn().mockResolvedValue([]),
         windowIsMaximized: vi.fn().mockResolvedValue(false),
@@ -52,7 +59,18 @@ vi.mock('./components/FileDropInstall', () => ({
 }))
 vi.mock('./components/Dialog', () => ({ Dialog: () => null }))
 vi.mock('./components/ResourceInstallDialog', () => ({ ResourceInstallDialog: () => null }))
-vi.mock('./components/TelemetryConsentDialog', () => ({ TelemetryConsentDialog: () => null }))
+vi.mock('./components/TelemetryConsentDialog', () => ({
+    TelemetryConsentDialog: (props: unknown) => {
+        mocks.consentDialog(props)
+        return null
+    },
+}))
+vi.mock('./components/TelemetryPolicyDialog', () => ({
+    TelemetryPolicyDialog: (props: unknown) => {
+        mocks.policyDialog(props)
+        return null
+    },
+}))
 vi.mock('./components/TopBar', () => ({ TopBar: () => null }))
 vi.mock('./components/GameTopBar', () => ({ GameTopBar: () => null }))
 vi.mock('./components/WelcomeScreen', () => ({
@@ -128,6 +146,9 @@ beforeEach(() => {
     mocks.installed.mockResolvedValue({ mods: [], folders: [] })
     mocks.startup.mockResolvedValue(undefined)
     mocks.log.mockResolvedValue(undefined)
+    mocks.consent.mockResolvedValue({ status: 'declined', agreedVersion: 0 })
+    mocks.setConsent.mockResolvedValue(undefined)
+    mocks.language.mockResolvedValue(undefined)
 })
 
 afterEach(() => {
@@ -260,4 +281,30 @@ test('picker and global settings remain accessible while sources are loading', a
     expect(screen.getByRole('heading', { name: 'Global settings' })).toBeTruthy()
     expect(mocks.path).not.toHaveBeenCalled()
     expect(mocks.installed).not.toHaveBeenCalled()
+})
+
+test('asks a user who opted in under an earlier policy to review it', async () => {
+    mocks.consent.mockResolvedValue('outdated')
+    await mount()
+    type DialogProps = { open: boolean; onChoice: (accepted: boolean) => void }
+    const policyProps = () => mocks.policyDialog.mock.lastCall![0] as DialogProps
+    await vi.waitFor(() => expect(policyProps().open).toBe(true))
+    expect(mocks.consentDialog.mock.lastCall![0]).toMatchObject({ open: false })
+
+    act(() => policyProps().onChoice(true))
+    expect(mocks.setConsent).toHaveBeenCalledWith(true)
+    expect(policyProps().open).toBe(false)
+    expect(mocks.language).toHaveBeenCalledWith('en', navigator.language)
+})
+
+test('declining the changed policy turns analytics off', async () => {
+    mocks.consent.mockResolvedValue('outdated')
+    await mount()
+    type DialogProps = { open: boolean; onChoice: (accepted: boolean) => void }
+    const policyProps = () => mocks.policyDialog.mock.lastCall![0] as DialogProps
+    await vi.waitFor(() => expect(policyProps().open).toBe(true))
+
+    act(() => policyProps().onChoice(false))
+    expect(mocks.setConsent).toHaveBeenCalledWith(false)
+    expect(policyProps().open).toBe(false)
 })

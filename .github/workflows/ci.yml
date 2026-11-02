@@ -254,7 +254,8 @@ jobs:
         if: needs.changes.outputs.site == 'true'
         runs-on: ubuntu-24.04
         steps:
-            # Legal dates are checked against the commits that changed each page.
+            # Legal dates compare each page with its version before this push. A pull
+            # request is checked out as a merge commit whose first parent is the base branch.
             - uses: actions/checkout@v7
               with:
                   fetch-depth: 0
@@ -264,6 +265,8 @@ jobs:
                   bun-version-file: package.json
             - run: bun install --frozen-lockfile
             - run: bun run site:check-legal-dates
+              env:
+                  LEGAL_DATES_BASE: ${{ github.event_name == 'push' && github.event.before || 'HEAD^1' }}
             - run: bun run site:test
             - run: bun run site:build
               env:

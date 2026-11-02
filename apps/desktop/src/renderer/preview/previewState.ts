@@ -20,6 +20,7 @@ export const GAME_STATES = {
 export const ONBOARDING_STATES = {
     configured: 'Existing installation',
     'first-run': 'Welcome screen and telemetry consent',
+    'consent-updated': 'Existing installation asked to review a changed privacy policy',
 } as const
 
 type Option<T> = Extract<keyof T, string>
