@@ -6,9 +6,17 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 ### Added
 
-- Added Cyberpunk 2077 support for Steam and the Epic Games Store, including mods and frameworks that span several game folders.
-- Added a Corners setting that makes the interface sharper or rounder.
-- Added a pink accent colour.
+- Added Cyberpunk 2077 support for Steam and the Epic Games Store.
+- Added a setting to make the interface's corners sharper or rounder.
+- Added pink as an accent color.
+
+### Changed
+
+- The purple accent color is now deeper.
+
+### Fixed
+
+- Fixed PAYDAY 3 and Crime Boss mods set aside for a launch without mods being deleted when their folder was recreated while the game ran.
 
 ## 0.16.1
 
