@@ -141,7 +141,7 @@ export function Sidebar({ navigation, onShowWelcome }: Props) {
                 </Tooltip>
                 <Tooltip content={t('sidebar.discordTitle')} side="right">
                     <button
-                        onClick={() => api.openExternal('https://discord.gg/QM2rDgy43Y')}
+                        onClick={() => api.openExternal('https://modrex.net/discord')}
                         className="w-full px-2 py-2 gap-2.5 flex items-center rounded text-sm text-text-muted hover:bg-surface-hover hover:text-text transition-colors"
                     >
                         <svg
