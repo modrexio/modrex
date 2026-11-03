@@ -246,8 +246,10 @@ export function InstalledPage({
     // Null while the page has one location, which renders the whole library as one list.
     const activeTab = activeTabKey(tabKeys, savedTab)
     // App folders live in the primary target's tree, so only its tab creates, renames, moves
-    // or deletes them. Another tab shows the folders holding its own mods, read-only.
-    const foldersEditable = activeTab === null || activeTab === primaryTag
+    // or deletes them. Another tab shows the folders holding its own mods, read-only. A game
+    // whose mods are laid over the game folder has no such tree and no app folders at all.
+    const foldersEditable =
+        GAMES[activeGame].appFolders && (activeTab === null || activeTab === primaryTag)
     const tabMods = useMemo(
         () =>
             activeTab === null

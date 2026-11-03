@@ -29,6 +29,14 @@ pub(crate) async fn staged_content_sha256(
                 .ok_or_else(|| "this plugin has no packaged containers".to_string())?;
             compute_sha256(&hash_path).await
         }
+        // A loose download is its own representative. A folder's is chosen as the marker-less
+        // directory contract chooses it.
+        engine::ModUnit::Bundle { .. } if staged.is_file() => compute_sha256(staged).await,
+        engine::ModUnit::Bundle { .. } => {
+            let hash_path = hashable_file_for_mod_dir(staged, None)
+                .ok_or_else(|| "mod directory is empty".to_string())?;
+            compute_sha256(&hash_path).await
+        }
         engine::ModUnit::Directory { entry_markers, .. } => {
             let hash_path = if entry_markers.is_empty() {
                 hashable_file_for_mod_dir(staged, target.contained_extension)
@@ -611,6 +619,9 @@ pub(crate) async fn hash_untracked(
                             ))
                         }
                     }
+                    engine::ModUnit::Bundle { .. } => {
+                        unreachable!("the scan never lists a bundle target")
+                    }
                     engine::ModUnit::Directory {
                         entry_markers,
                         unreal_plugin,
@@ -915,6 +926,7 @@ pub(crate) fn identify_untracked(
                     .unwrap_or(&filename)
             }
             engine::ModUnit::Directory { .. } => &filename[..],
+            engine::ModUnit::Bundle { .. } => unreachable!("the scan never lists a bundle target"),
         };
         let stripped = strip_priority_prefix(stem);
 

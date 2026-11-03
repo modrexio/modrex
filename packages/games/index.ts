@@ -1,4 +1,7 @@
 import { GAME_SPECS } from './catalog.generated.js'
+
+export { TARGET_LABEL_KEYS } from './catalog.generated.js'
+export type { TargetLabelKey } from './catalog.generated.js'
 import type { GameSpec } from './types.js'
 
 export { LAUNCHERS } from './types.js'

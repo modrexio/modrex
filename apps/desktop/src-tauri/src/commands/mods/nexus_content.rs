@@ -31,6 +31,8 @@ pub(crate) fn nexus_content_query_for(
                 file_size: file_size?,
             })
         }
+        // A bundle is only ever recorded by an install, which already knows its source.
+        ModUnit::Bundle { .. } => None,
         ModUnit::Directory { .. } => {
             let segment = derive_content_segment(on_disk_filename)?.to_string();
             Some(NexusContentQuery::FolderSegment { segment })
@@ -85,7 +87,7 @@ pub(crate) async fn identify_via_nexus_content_op(
                 .map_err(|e| e.to_string())?
                 .len() as i64,
         ),
-        ModUnit::Directory { .. } => None,
+        ModUnit::Directory { .. } | ModUnit::Bundle { .. } => None,
     };
 
     let Some(query) = nexus_content_query_for(&target.unit, &m.filename, file_size) else {

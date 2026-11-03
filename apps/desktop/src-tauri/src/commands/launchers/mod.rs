@@ -568,8 +568,9 @@ pub async fn pick_folder(
 const DISPOSABLE_BACKUP_DIRS: &[&str] = &["logs", "downloads"];
 
 fn do_restore(game_path: &str, cfg: &crate::commands::mods::ModEngineConfig) -> Result<(), String> {
+    let mut recreated = false;
     for target in cfg.targets {
-        if target.shared_paks.is_some() {
+        if target.shared_paks.is_some() || target.is_bundle() {
             continue;
         }
         let mods_dir = mods_base(game_path, target);
@@ -603,16 +604,24 @@ fn do_restore(game_path: &str, cfg: &crate::commands::mods::ModEngineConfig) -> 
             }
             // remove_dir no-ops when non-empty, so any entry that failed to rename is never deleted.
             fs::remove_dir(&mods_bak).ok();
-        } else if !mods_dir.exists() {
+        } else {
+            // A folder recreated empty while the mods were set aside is only in the way. One
+            // holding anything is kept beside the backup, which is never deleted for it.
+            if mods_dir.exists() && fs::remove_dir(&mods_dir).is_err() {
+                recreated = true;
+                continue;
+            }
             fs::rename(&mods_bak, &mods_dir).map_err(|e| {
                 format!(
                     "Could not restore mods folder. You may need to manually rename the backup folder. ({})",
                     e.kind()
                 )
             })?;
-        } else {
-            fs::remove_dir_all(&mods_bak).ok();
         }
+    }
+    crate::commands::mods::restore_bundles(game_path, cfg)?;
+    if recreated {
+        return Err("A mods folder was recreated while its backup was hidden. Review both folders before restoring".into());
     }
     Ok(())
 }
@@ -625,7 +634,11 @@ fn hide_package_mods(game_path: &str, cfg: &ModEngineConfig) -> Result<(), Strin
     {
         return Err("This game shares its Paks directory with native files. Use its supported no-mods launch option.".into());
     }
+    crate::commands::mods::hide_bundles(game_path, cfg)?;
     for (i, target) in cfg.targets.iter().enumerate() {
+        if target.is_bundle() {
+            continue;
+        }
         let mods_dir = mods_base(game_path, target);
         let mods_bak = backup_dir(game_path, target);
         if mods_bak.exists() || !mods_dir.exists() {
@@ -670,6 +683,7 @@ fn restore_pending_packages(game_path: &str, cfg: &ModEngineConfig) -> Result<()
             continue;
         }
         if !target.is_directory_unit()
+            && !target.is_bundle()
             && backup_dir(game_path, target).exists()
             && mods_base(game_path, target).exists()
         {

@@ -4,7 +4,7 @@
 //! validate::check. Exercising them here means CI proves the rejections without needing a
 //! failing build.
 
-use modrex_game_package::{validate, GamePackage};
+use modrex_game_package::{validate, GamePackage, TargetLabel};
 
 /// Kept minimal on purpose: anything a case does not care about should be able to disappear
 /// without the case changing meaning.
@@ -189,14 +189,8 @@ fn a_built_in_loader_without_mod_pages_is_rejected() {
 
 #[test]
 fn target_labels_have_exact_manifest_values_and_interface_keys() {
-    for (value, key) in [
-        ("mods", "mods"),
-        ("pak_mods", "pakMods"),
-        ("loader_mods", "loaderMods"),
-        ("overrides", "overrides"),
-        ("modkit_mods", "modkitMods"),
-        ("legacy_paks", "legacyPaks"),
-    ] {
+    for label in TargetLabel::ALL {
+        let (value, key) = (label.manifest_value(), label.key());
         let text = with_root_declaration("loaders = [{ kind = \"dahm\" }]").replace(
             "label = \"pak_mods\"",
             &format!("label = \"{value}\"\nloader = \"dahm\""),
@@ -262,7 +256,11 @@ fn a_loader_cannot_serve_two_targets_even_with_different_labels() {
 
 #[test]
 fn non_loader_labels_are_unique_regardless_of_loader() {
-    for label in ["pak_mods", "overrides", "modkit_mods", "legacy_paks"] {
+    let labels = TargetLabel::ALL
+        .iter()
+        .filter(|label| !matches!(label, TargetLabel::Mods | TargetLabel::LoaderMods))
+        .map(|label| label.manifest_value());
+    for label in labels {
         for loaders in [false, true] {
             let mut base =
                 with_root_declaration("loaders = [{ kind = \"dahm\" }, { kind = \"superblt\" }]")
@@ -995,6 +993,70 @@ fn a_disabled_path_equal_to_the_target_path_is_rejected() {
 }
 
 #[test]
+fn a_recursive_load_target_disabling_outside_its_path_is_accepted() {
+    let text = BASE.replace(
+        "backup = [\"mods.bak\"]",
+        "recursive_load = true\ndisabled = [\"mods.disabled\"]\nbackup = [\"mods.bak\"]",
+    );
+    let parsed: GamePackage = toml::from_str(&text).expect("parses");
+    validate::check("fixture", &parsed).expect("passes the checks");
+}
+
+#[test]
+fn a_recursive_load_target_must_declare_where_disabled_mods_go() {
+    assert_rejected(
+        &BASE.replace(
+            "backup = [\"mods.bak\"]",
+            "recursive_load = true\nbackup = [\"mods.bak\"]",
+        ),
+        "sets recursive_load without a disabled path",
+    );
+}
+
+#[test]
+fn a_recursive_load_target_cannot_disable_inside_the_folder_the_game_reads() {
+    assert_rejected(
+        &BASE.replace(
+            "backup = [\"mods.bak\"]",
+            "recursive_load = true\ndisabled = [\"mods\", \"disabled\"]\nbackup = [\"mods.bak\"]",
+        ),
+        "disabled path inside path",
+    );
+}
+
+#[test]
+fn a_recursive_load_target_cannot_back_up_inside_the_folder_the_game_reads() {
+    assert_rejected(
+        &BASE.replace(
+            "backup = [\"mods.bak\"]",
+            "recursive_load = true\ndisabled = [\"mods.disabled\"]\nbackup = [\"MODS\", \"bak\"]",
+        ),
+        "sets recursive_load with a backup inside path",
+    );
+}
+
+#[test]
+fn recursive_load_cannot_be_set_on_a_plugin_target() {
+    assert_rejected(
+        &with_plugin_target(
+            "recursive_load = true\ndisabled = [\"Game\", \"Mods.disabled\"]\nbackup = [\"Game\", \"Mods.bak\"]",
+        ),
+        "recursive_load on an unreal_plugin target",
+    );
+}
+
+#[test]
+fn recursive_load_cannot_be_set_on_a_file_unit() {
+    assert_rejected(
+        &file_unit("[]").replace(
+            "load_order = \"none\"",
+            "load_order = \"none\"\nrecursive_load = true",
+        ),
+        "recursive_load on a file unit",
+    );
+}
+
+#[test]
 fn the_pdml_loader_needs_a_plugin_target_naming_it() {
     assert_rejected(
         &format!("{BASE}\n[[loaders]]\nkind = \"pdml\"\nmodworkshop_ids = [59255]\n"),
@@ -1061,4 +1123,172 @@ fn shared_paks_with_an_xbox_binding_refuse_companions() {
             .replace("companions = []", r#"companions = ["ucas", "utoc"]"#),
         "cannot declare companions",
     );
+}
+
+/// A bundle primary laid over the game folder, beside a hand-installed directory target.
+fn with_bundle(target_fields: &str, unit_fields: &str) -> String {
+    format!(
+        r#"
+id = "fixture"
+name = "Fixture"
+short_name = "FIX"
+mod_metadata = "none"
+
+[install]
+executables = ["Fixture.exe"]
+processes = ["Fixture"]
+stores = [
+    {{ provider = "steam", app_id = 1, folder = "Fixture" }},
+]
+
+[[targets]]
+tag = "bundle"
+label = "mods"
+primary = true
+activation = "filesystem"
+load_order = "none"
+{target_fields}
+
+[targets.unit]
+kind = "bundle"
+roots = ["archive", "r6"]
+{unit_fields}
+
+[[targets]]
+tag = "scripts"
+label = "overrides"
+path = ["r6", "scripts"]
+backup = ["r6", "scripts.bak"]
+activation = "filesystem"
+load_order = "none"
+
+[targets.unit]
+kind = "directory"
+
+[targets.unit.discovery]
+policy = "all_directories"
+"#
+    )
+}
+
+const BUNDLE_TARGET: &str =
+    "path = []\ndisabled = [\".modrex\", \"disabled\"]\nbackup = [\".modrex\", \"hidden\"]";
+const BUNDLE_UNIT: &str = "placements = [\n    { match = \"file\", extension = \"archive\", into = [\"archive\", \"pc\", \"mod\"] },\n]\nflat = [[\"archive\", \"pc\", \"mod\"]]";
+
+#[test]
+fn a_bundle_primary_is_accepted_and_may_be_labelled_mods() {
+    let parsed: GamePackage =
+        toml::from_str(&with_bundle(BUNDLE_TARGET, BUNDLE_UNIT)).expect("parses");
+    validate::check("fixture", &parsed).expect("passes the checks");
+}
+
+#[test]
+fn a_bundle_lies_over_the_game_folder() {
+    assert_rejected(
+        &with_bundle(
+            &BUNDLE_TARGET.replace("path = []", "path = [\"mods\"]"),
+            BUNDLE_UNIT,
+        ),
+        "path must be empty",
+    );
+}
+
+#[test]
+fn a_bundle_must_be_the_primary_target() {
+    let text = with_bundle(BUNDLE_TARGET, BUNDLE_UNIT)
+        .replacen("primary = true\n", "", 1)
+        .replace("tag = \"scripts\"\n", "tag = \"scripts\"\nprimary = true\n");
+    assert_rejected(&text, "is a bundle but not primary");
+}
+
+#[test]
+fn a_bundle_keeps_disabled_files_outside_every_root() {
+    assert_rejected(
+        &with_bundle(
+            &BUNDLE_TARGET.replace("[\".modrex\", \"disabled\"]", "[\"R6\", \"off\"]"),
+            BUNDLE_UNIT,
+        ),
+        "disabled path sits inside a root",
+    );
+}
+
+#[test]
+fn a_bundle_keeps_its_backup_outside_every_root() {
+    assert_rejected(
+        &with_bundle(
+            &BUNDLE_TARGET.replace("[\".modrex\", \"hidden\"]", "[\"archive\", \"bak\"]"),
+            BUNDLE_UNIT,
+        ),
+        "backup path sits inside a root",
+    );
+}
+
+#[test]
+fn a_bundle_places_only_inside_its_roots() {
+    assert_rejected(
+        &with_bundle(
+            BUNDLE_TARGET,
+            &BUNDLE_UNIT.replace("into = [\"archive\", \"pc\", \"mod\"]", "into = [\"bin\"]"),
+        ),
+        "outside every root",
+    );
+}
+
+#[test]
+fn a_bundle_cannot_place_one_extension_twice() {
+    assert_rejected(
+        &with_bundle(
+            BUNDLE_TARGET,
+            "placements = [\n    { match = \"file\", extension = \"archive\", into = [\"archive\"] },\n    { match = \"file\", extension = \"ARCHIVE\", into = [\"r6\"] },\n]",
+        ),
+        "places loose .archive files twice",
+    );
+}
+
+#[test]
+fn a_flat_folder_sits_inside_a_root() {
+    assert_rejected(
+        &with_bundle(
+            BUNDLE_TARGET,
+            &BUNDLE_UNIT.replace(
+                "flat = [[\"archive\", \"pc\", \"mod\"]]",
+                "flat = [[\"bin\"]]",
+            ),
+        ),
+        "flat folder bin, which is outside every root",
+    );
+}
+
+#[test]
+fn only_a_bundle_shares_the_mods_label_with_other_targets() {
+    assert_rejected(
+        &with_bundle(BUNDLE_TARGET, BUNDLE_UNIT)
+            .replace("label = \"overrides\"", "label = \"mods\""),
+        "only a game's sole target or a bundle may use",
+    );
+}
+
+/// A label added to the enum without joining TargetLabel::ALL would be missing from the
+/// reference and the renderer catalogue. The match is exhaustive, so a new variant needs an
+/// arm here, and the arm's position then has to be the variant's place in ALL.
+#[test]
+fn every_target_label_is_listed_once_in_order() {
+    fn position(label: TargetLabel) -> usize {
+        match label {
+            TargetLabel::Mods => 0,
+            TargetLabel::PakMods => 1,
+            TargetLabel::LoaderMods => 2,
+            TargetLabel::Overrides => 3,
+            TargetLabel::ModkitMods => 4,
+            TargetLabel::LegacyPaks => 5,
+            TargetLabel::ArchiveMods => 6,
+            TargetLabel::RedmodMods => 7,
+            TargetLabel::CetMods => 8,
+            TargetLabel::RedscriptMods => 9,
+        }
+    }
+    for (index, label) in TargetLabel::ALL.iter().enumerate() {
+        assert_eq!(position(*label), index, "{label:?} is out of place in ALL");
+    }
+    assert_eq!(TargetLabel::ALL.len(), 10);
 }

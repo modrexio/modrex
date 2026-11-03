@@ -106,7 +106,7 @@ fn disabled_suffix_matches_the_unit_kind() {
     for spec in GAME_REGISTRY.iter() {
         for target in spec.engine.targets {
             let suffix = target.disabled_suffix();
-            if target.is_directory_unit() {
+            if target.is_directory_unit() || target.is_bundle() {
                 assert!(
                     suffix.is_empty(),
                     "{}:{} is a Directory unit but carries a disabled suffix; disabling moves \
@@ -127,7 +127,28 @@ fn disabled_suffix_matches_the_unit_kind() {
     }
 }
 
-/// Except a plugin target, whose disabled folder Unreal would still load from inside it.
+/// What the package declares, since the runtime target keeps no copy of it.
+fn reads_recursively(game_id: &str, tag: &str) -> bool {
+    let (_, package) = crate::games::discovered()
+        .iter()
+        .find(|(id, _)| *id == game_id)
+        .expect("every registered game is a discovered package");
+    let target = package
+        .targets
+        .iter()
+        .find(|target| target.tag == tag)
+        .expect("every runtime target comes from its package");
+    target.recursive_load
+        || matches!(
+            &target.unit,
+            crate::game_package::Unit::Directory {
+                discovery: crate::game_package::Discovery::UnrealPlugin,
+                ..
+            }
+        )
+}
+
+/// Except a target the game reads recursively, which would still load a mod disabled inside it.
 #[test]
 fn disabled_dir_lives_under_its_own_mods_dir() {
     let game_path = "C:/game";
@@ -135,10 +156,10 @@ fn disabled_dir_lives_under_its_own_mods_dir() {
         for target in spec.engine.targets {
             let mods = mods_dir(game_path, target);
             let disabled = disabled_dir(game_path, target);
-            if target.is_unreal_plugin_unit() {
+            if reads_recursively(spec.id, target.tag) {
                 assert!(
                     !disabled.starts_with(&mods),
-                    "{}:{} disables plugins inside {:?}, where Unreal still loads them",
+                    "{}:{} disables inside {:?}, where the game still loads the mod",
                     spec.id,
                     target.tag,
                     mods
@@ -162,6 +183,11 @@ fn backup_dir_lives_outside_its_own_mods_dir() {
     let game_path = "C:/game";
     for spec in GAME_REGISTRY.iter() {
         for target in spec.engine.targets {
+            // A bundle is laid over the game folder and hides only its own files, which
+            // validation keeps outside every root it writes to.
+            if target.is_bundle() {
+                continue;
+            }
             let mods = mods_dir(game_path, target);
             let backup = backup_dir(game_path, target);
             assert!(

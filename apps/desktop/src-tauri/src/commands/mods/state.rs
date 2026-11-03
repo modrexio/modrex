@@ -84,7 +84,7 @@ fn drop_unservable_catalog_link(cfg: &ModEngineConfig, m: &mut InstalledMod) {
                 .strip_suffix(&format!(".{extension}"))
                 .unwrap_or(file)
                 .to_string(),
-            ModUnit::Directory { .. } => file.to_string(),
+            ModUnit::Directory { .. } | ModUnit::Bundle { .. } => file.to_string(),
         };
     }
     m.remote_id = None;
@@ -740,9 +740,12 @@ fn remove_if_empty(dir: &Path) -> bool {
 }
 
 /// Records of a mod at a path a newer file of the same mod also claims. Only one of them can
-/// own the files there, and file ids grow with every upload.
+/// own the files there, and file ids grow with every upload. A bundle's filename is only its
+/// mod's name, shared by every separate file of the mod, and bundle installs replace their
+/// own predecessors by the files they share, so bundles are never matched here.
 pub(crate) fn superseded_records(mods: &[InstalledMod]) -> HashSet<String> {
     mods.iter()
+        .filter(|m| m.bundle.is_none())
         .filter(|m| {
             let (Some(remote_id), Some(file_id)) = (m.remote_id.as_deref(), m.file_id) else {
                 return false;
@@ -769,7 +772,7 @@ pub fn reconcile_state(
 ) -> Result<ModsState, StateLoadError> {
     let bak = backup_dir(game_path, cfg.primary());
     if cfg.primary().shared_paks.is_none() && bak.exists() {
-        if cfg.primary().is_directory_unit() {
+        if cfg.primary().is_directory_unit() || cfg.primary().is_bundle() {
             // BLT: state file stays in mods/ because only user mod dirs were moved to backup.
             return read_state_for_game(game_path, state_path, cfg);
         }
@@ -968,8 +971,11 @@ pub fn reconcile_state(
                     host_pack_disabled_dir(game_path, cfg, m).is_some_and(|p| p.exists());
                 return active || disabled;
             }
-            let rel = get_folder_path(&state.folders, m.folder_id.as_deref());
             let target = cfg.target_for(m.location.as_deref());
+            if target.is_bundle() {
+                return super::bundle::is_complete(game_path, target, m);
+            }
+            let rel = get_folder_path(&state.folders, m.folder_id.as_deref());
             active_mod_path(game_path, &m.filename, rel.as_deref(), target).exists()
                 || disabled_mod_path(game_path, &m.filename, rel.as_deref(), target).exists()
         })

@@ -107,6 +107,36 @@ export const docsGameRegistry: Partial<Record<GameId, DocsGameRegistration>> = {
             },
         ],
     },
+    cp2077: {
+        slug: 'cyberpunk-2077',
+        targets: [
+            {
+                label: 'Mods',
+                targetId: 'mods',
+                notes: 'Primary target. Each mod is a set of files laid over the game folder under archive, bin, engine, mods, r6 and red4ext. Disabled mods are kept in .modrex/disabled.',
+            },
+            {
+                label: 'Archive mods',
+                targetId: 'archive_mods',
+                notes: 'Archives installed by hand. The game reads only the top of this folder.',
+            },
+            {
+                label: 'REDmod mods',
+                targetId: 'redmod_mods',
+                notes: 'REDmods installed by hand, recognised by info.json.',
+            },
+            {
+                label: 'CET mods',
+                targetId: 'cet_mods',
+                notes: 'Cyber Engine Tweaks mods installed by hand, recognised by init.lua.',
+            },
+            {
+                label: 'redscript mods',
+                targetId: 'redscript_mods',
+                notes: 'Script folders installed by hand. redscript reads this folder recursively, so disabled ones move to r6/scripts.disabled.',
+            },
+        ],
+    },
     ron: {
         slug: 'ready-or-not',
         targets: [

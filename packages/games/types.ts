@@ -2,7 +2,9 @@ export const LAUNCHERS = ['Steam', 'Epic Games', 'Xbox App'] as const
 
 export type LauncherName = (typeof LAUNCHERS)[number]
 export type StorefrontId = 'steam' | 'epic' | 'xbox'
-export type ModTargetId = 'mods' | 'paks' | 'plugins' | 'ue4ss_mods' | 'mod_overrides'
+// Every target tag a package declares, generated so a new target needs no edit here.
+export type { ModTargetId } from './catalog.generated.js'
+import type { ModTargetId } from './catalog.generated.js'
 
 export interface ModTarget {
     id: ModTargetId
@@ -21,6 +23,8 @@ export interface GameSpec {
     storageKey: string
     hasNews: boolean
     supportsPackageViewer: boolean
+    // False where mods are laid over the game folder, which has no place for app folders.
+    appFolders: boolean
     movieReplacement?: {
         extensions: readonly ('bk2' | 'mp4')[]
         storefronts: readonly StorefrontId[]

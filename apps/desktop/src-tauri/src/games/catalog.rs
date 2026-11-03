@@ -73,6 +73,15 @@ pub fn catalog_typescript() -> String {
             "        supportsPackageViewer: {},",
             pkg.package_reader.is_some()
         );
+        // App folders live on disk inside the primary target, which a bundle does not have.
+        let _ = writeln!(
+            out,
+            "        appFolders: {},",
+            !matches!(
+                pkg.primary_target().unit,
+                crate::game_package::Unit::Bundle { .. }
+            )
+        );
         if let Some(flag) = pkg.install.launch_flag.as_ref() {
             let _ = writeln!(out, "        requiredLaunchFlag: {},", quote(flag));
         }
@@ -141,6 +150,28 @@ pub fn catalog_typescript() -> String {
     }
 
     out.push_str("} satisfies Record<string, GameSpec>\n");
+
+    // The folder label vocabulary is the contract's, so the renderer's lookup of each label's
+    // string comes from here and a label without a string fails the renderer type check.
+    let labels: Vec<String> = crate::game_package::TargetLabel::ALL
+        .iter()
+        .map(|label| quote(label.key()))
+        .collect();
+    let _ = write!(
+        out,
+        "\nexport const TARGET_LABEL_KEYS = [{}] as const\n\n\
+         export type TargetLabelKey = (typeof TARGET_LABEL_KEYS)[number]\n",
+        labels.join(", ")
+    );
+
+    let mut tags: Vec<&str> = super::discovered()
+        .iter()
+        .flat_map(|(_, pkg)| pkg.targets.iter().map(|target| target.tag.as_str()))
+        .collect();
+    tags.sort_unstable();
+    tags.dedup();
+    let tags: Vec<String> = tags.into_iter().map(quote).collect();
+    let _ = writeln!(out, "\nexport type ModTargetId = {}", tags.join(" | "));
     out
 }
 

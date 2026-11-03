@@ -587,7 +587,15 @@
             "green": "Green",
             "blue": "Blue",
             "red": "Red",
+            "pink": "Pink",
             "gray": "Gray"
+        },
+        "cornerRadius": {
+            "title": "Corners",
+            "description": "How rounded buttons, cards and dialogs are. The middle of the bar is the default.",
+            "reset": "Reset to default",
+            "default": "Default",
+            "percent": "{percent}% of the default"
         },
         "gamePath": {
             "title": "Game Path",
@@ -673,6 +681,10 @@
             "modkitMods": "ModKit mods",
             "legacyPaks": "Legacy paks",
             "overrides": "Asset overrides",
+            "archiveMods": "Archive mods",
+            "redmodMods": "REDmod mods",
+            "cetMods": "CET mods",
+            "redscriptMods": "redscript mods",
             "ue4ssMods": "UE4SS mods"
         },
         "storage": {

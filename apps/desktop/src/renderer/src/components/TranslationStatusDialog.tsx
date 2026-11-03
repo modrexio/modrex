@@ -88,11 +88,11 @@ export function TranslationStatusDialog({ open, onClose, returnFocus }: Props) {
                                     <td className="px-3 py-2">
                                         <div className="flex items-center gap-2">
                                             <div
-                                                className="h-1 flex-1 rounded-full bg-surface-active overflow-hidden"
+                                                className="h-1 flex-1 rounded-[calc(2px*var(--modrex-radius-scale))] bg-surface-active overflow-hidden"
                                                 aria-hidden
                                             >
                                                 <div
-                                                    className="h-full rounded-full bg-accent"
+                                                    className="h-full rounded-[calc(2px*var(--modrex-radius-scale))] bg-accent"
                                                     style={{ width: `${ratio * 100}%` }}
                                                 />
                                             </div>

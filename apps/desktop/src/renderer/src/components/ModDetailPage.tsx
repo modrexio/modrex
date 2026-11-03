@@ -113,8 +113,8 @@ function ModDetailSkeleton() {
                     <SkeletonBar className="h-2.5 w-3/4" />
                     <SkeletonBar className="h-2.5 w-1/2" />
                     <div className="flex gap-1.5">
-                        <SkeletonBar className="h-5 w-16 rounded-full" />
-                        <SkeletonBar className="h-5 w-20 rounded-full" />
+                        <SkeletonBar className="h-5 w-16 rounded-[calc(10px*var(--modrex-radius-scale))]" />
+                        <SkeletonBar className="h-5 w-20 rounded-[calc(10px*var(--modrex-radius-scale))]" />
                     </div>
                 </div>
             </div>
@@ -1109,9 +1109,9 @@ export function ModDetailPage({
                                         className="flex flex-wrap gap-1.5 animate-pulse"
                                         aria-hidden="true"
                                     >
-                                        <SkeletonBar className="h-5 w-16 rounded-full" />
-                                        <SkeletonBar className="h-5 w-20 rounded-full" />
-                                        <SkeletonBar className="h-5 w-12 rounded-full" />
+                                        <SkeletonBar className="h-5 w-16 rounded-[calc(10px*var(--modrex-radius-scale))]" />
+                                        <SkeletonBar className="h-5 w-20 rounded-[calc(10px*var(--modrex-radius-scale))]" />
+                                        <SkeletonBar className="h-5 w-12 rounded-[calc(10px*var(--modrex-radius-scale))]" />
                                     </div>
                                 </>
                             ) : detail?.tags && detail.tags.length > 0 ? (
@@ -1124,7 +1124,7 @@ export function ModDetailPage({
                                         {detail.tags.map((tag) => (
                                             <span
                                                 key={tag.id}
-                                                className="text-xs px-2 py-0.5 rounded-full border"
+                                                className="text-xs px-2 py-0.5 rounded-[calc(12px*var(--modrex-radius-scale))] border"
                                                 style={{
                                                     borderColor: tag.color + '80',
                                                     color: tag.color,
@@ -1204,7 +1204,7 @@ export function ModDetailPage({
                             e.stopPropagation()
                             setLightboxIndex((i) => (i! > 0 ? i! - 1 : images.length - 1))
                         }}
-                        className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center rounded-full bg-black/50 hover:bg-black/80 text-white transition-colors"
+                        className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center rounded-[calc(20px*var(--modrex-radius-scale))] bg-black/50 hover:bg-black/80 text-white transition-colors"
                     >
                         <ChevronLeft className="w-6 h-6" />
                     </button>
@@ -1216,14 +1216,14 @@ export function ModDetailPage({
                             e.stopPropagation()
                             setLightboxIndex((i) => (i! < images.length - 1 ? i! + 1 : 0))
                         }}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center rounded-full bg-black/50 hover:bg-black/80 text-white transition-colors"
+                        className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center rounded-[calc(20px*var(--modrex-radius-scale))] bg-black/50 hover:bg-black/80 text-white transition-colors"
                     >
                         <ChevronRight className="w-6 h-6" />
                     </button>
 
                     <button
                         onClick={() => setLightboxIndex(null)}
-                        className="absolute top-4 right-4 p-1 rounded-full text-white/70 hover:text-white hover:bg-black/40 transition-colors"
+                        className="absolute top-4 right-4 p-1 rounded-[calc(14px*var(--modrex-radius-scale))] text-white/70 hover:text-white hover:bg-black/40 transition-colors"
                     >
                         <X className="w-5 h-5" />
                     </button>

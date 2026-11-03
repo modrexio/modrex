@@ -196,6 +196,7 @@ elsewhere.
 | `scope` | no | `mods` by default. `unreal_paks` shares native game files and requires the installed store record of every native path before mod changes: the Steam depot manifests or the Epic BuildPatch manifests. A Microsoft Store copy has no such record, so there only files Modrex installed and whose bytes are unchanged may change, and the target cannot declare companions. It supports archive-named Pak file units without filename ordering and never moves the whole target |
 | `path` | yes | components below the game path |
 | `disabled` | no | where disabled mods move; `path` plus `disabled` when omitted |
+| `recursive_load` | no | defaults to `false`; set when the game reads `path` recursively, so disabling and `backup` must sit outside it |
 | `backup` | yes | where launching without mods moves the contents |
 | `store_paths` | no | `path` and `backup` for a store build laid out differently |
 | `activation` | yes | how a mod is enabled and disabled |
@@ -204,7 +205,9 @@ elsewhere.
 
 The disabled folder defaults to `path` plus `disabled`. A target declares `disabled`
 when whatever reads `path` would still find a mod in a subfolder of it: Unreal searches
-a plugin folder recursively, so a plugin target disables outside `path`. `backup`
+a plugin folder recursively, so a plugin target disables outside `path`. A target whose
+game reads the folder by its own recursion sets `recursive_load`, which enforces the
+same outside placement for both `disabled` and `backup`. `backup`
 is declared because it does not follow a pattern: pak targets must place it outside
 `Paks/`, which Unreal mounts recursively.
 
@@ -219,12 +222,16 @@ state file lives there and must be found at the same place in every store's copy
 
 | Value | Interface string |
 | --- | --- |
-| `mods` | `settings.folders.mods`, only on a game's sole target |
+| `mods` | `settings.folders.mods`, only on a game's sole target or a bundle |
 | `pak_mods` | `settings.folders.pakMods` |
 | `loader_mods` | `settings.folders.loaderMods` with the loader display name substituted |
 | `overrides` | `settings.folders.overrides` |
 | `modkit_mods` | `settings.folders.modkitMods` |
 | `legacy_paks` | `settings.folders.legacyPaks` |
+| `archive_mods` | `settings.folders.archiveMods` |
+| `redmod_mods` | `settings.folders.redmodMods` |
+| `cet_mods` | `settings.folders.cetMods` |
+| `redscript_mods` | `settings.folders.redscriptMods` |
 
 No two targets may resolve to the same label. For `loader_mods`, the loader id is
 part of the label, so different loaders may each have a mod folder. For every other
@@ -270,6 +277,41 @@ bare download carries no archive name and falls back to the mod title either way
 `ignore_preset` names a host list of folders that are never mods. `contains` is set when
 Modrex synthesizes the folder around a file family rather than copying an author's
 folder as-is.
+
+`kind = "bundle"` means one mod is a set of files laid over the game folder, for a game
+whose downloads write into several of its folders at once. The installed record lists
+every file it placed. A bundle target is the primary target, its `path` is empty, it
+declares `disabled` and `backup` outside every root, and it uses filesystem activation
+with no load order. Its other targets are still scanned for mods installed by hand, and
+a file a bundle placed is never listed there. App folders are unavailable, since nothing
+about a bundle's location on disk follows a folder.
+
+```toml
+unit = {
+    kind = "bundle",
+    roots = ["archive", "r6"],
+    flat = [["archive", "pc", "mod"]],
+    placements = [
+        {
+            match = "file",
+            extension = "archive",
+            into = ["archive", "pc", "mod"],
+        },
+    ],
+}
+```
+
+A download whose top level holds only `roots` folders is installed exactly as laid out.
+Anything else goes through `placements`, matched against each top level entry: `file`
+places a loose file by `extension`, `marker` places a folder holding `file` directly
+inside it, and `contains` places a folder holding a file with `extension` directly inside
+it. A placed folder keeps its own name inside `into`. A single folder that is neither a
+root nor placed is a wrapper and is looked through. Several such folders that each place
+on their own are variants, offered for the user to pick. Documentation at a level that
+is not itself placed is skipped. Everything else refuses the install and names what
+could not be placed, as do a folder two placements both match, a file under a `flat`
+folder's subfolder, and a FOMOD installer. Nothing is overwritten that another bundle
+or no bundle owns.
 
 ### `family` and `contains`
 

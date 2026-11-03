@@ -587,7 +587,15 @@
             "green": "Зелений",
             "blue": "Синій",
             "red": "Червоний",
+            "pink": "! Pink",
             "gray": "Сірий"
+        },
+        "cornerRadius": {
+            "title": "! Corners",
+            "description": "! How rounded buttons, cards and dialogs are. The middle of the bar is the default.",
+            "reset": "! Reset to default",
+            "default": "! Default",
+            "percent": "! {percent}% of the default"
         },
         "gamePath": {
             "title": "Шлях до гри",
@@ -673,6 +681,10 @@
             "modkitMods": "Моди ModKit",
             "legacyPaks": "Застарілі pak-файли",
             "overrides": "Перевизначення ресурсів",
+            "archiveMods": "! Archive mods",
+            "redmodMods": "! REDmod mods",
+            "cetMods": "! CET mods",
+            "redscriptMods": "! redscript mods",
             "ue4ssMods": "Моди UE4SS"
         },
         "storage": {

@@ -113,6 +113,9 @@ pub fn install_mod_from_path(
     cfg: &ModEngineConfig,
     target: &ScanTarget,
 ) -> Result<(), String> {
+    if target.is_bundle() {
+        return super::bundle::install(game_path, state_path, mod_data, source, cfg, target);
+    }
     // BeardLib (mod_overrides) scans one level deep, so nested dirs are never loaded.
     let folder_id = if std::ptr::eq(target, cfg.primary()) {
         folder_id
@@ -222,6 +225,7 @@ pub fn install_mod_from_path(
             }
             copy_dir_all(source, &dest)?;
         }
+        ModUnit::Bundle { .. } => unreachable!("bundle installs return above"),
     }
 
     if let Some(ref ex) = existing {
@@ -243,6 +247,7 @@ pub fn install_mod_from_path(
                         log::warn!("install: remove old mod dir {}: {e}", log_name(&old));
                     }
                 }
+                ModUnit::Bundle { .. } => unreachable!("bundle installs return above"),
             }
         }
     }
@@ -549,6 +554,7 @@ pub fn move_crimeboss_mod_target_op(
         }
         ModUnit::Directory { .. } => fs::remove_dir_all(&old_path)
             .map_err(|e| format!("could not remove {}: {e}", log_name(&old_path))),
+        ModUnit::Bundle { .. } => unreachable!("only Crime Boss moves a mod between targets"),
     };
     // The mod now exists under both targets and the game would load it twice, which is the
     // one outcome this move exists to prevent. Nothing can undo the copy safely at this
@@ -600,6 +606,27 @@ pub fn uninstall_mod_op(
         return Ok(());
     }
     let target = cfg.mod_target(&m);
+    if target.is_bundle() {
+        super::bundle::refuse_while_hidden(game_path, target, "uninstall it again")?;
+        let kept = super::bundle::remove(game_path, target, &m)?;
+        if kept.is_empty() {
+            state.mods.retain(|entry| entry.uid != uid);
+            return save_state(state_path, &state).map_err(save_error);
+        }
+        let names: Vec<String> = kept.iter().map(|file| file.path.clone()).collect();
+        state
+            .mods
+            .iter_mut()
+            .find(|entry| entry.uid == uid)
+            .expect("the mod was found above")
+            .bundle = Some(kept);
+        save_state(state_path, &state).map_err(save_error)?;
+        return Err(format!(
+            "{} was uninstalled except for files that changed since it was installed, which were left in place: {}",
+            m.name,
+            names.join(", ")
+        ));
+    }
     let rel = get_folder_path(&state.folders, m.folder_id.as_deref());
     let path = if m.enabled {
         active_mod_path(game_path, &m.filename, rel.as_deref(), target)
@@ -631,6 +658,7 @@ pub fn uninstall_mod_op(
                     log::warn!("uninstall: remove dir {}: {e}", log_name(&path));
                 }
             }
+            ModUnit::Bundle { .. } => unreachable!("bundle uninstalls return above"),
         }
     }
     state.mods.retain(|m| m.uid != uid);
@@ -659,6 +687,7 @@ fn holds_mod(target: &ScanTarget, path: &Path) -> bool {
     match &target.unit {
         ModUnit::File { .. } => path.is_file(),
         ModUnit::Directory { .. } => path.is_dir(),
+        ModUnit::Bundle { .. } => unreachable!("set_activation handles bundles before placement"),
     }
 }
 
@@ -680,6 +709,7 @@ fn move_mod_object(from: &Path, to: &Path, target: &ScanTarget) -> Result<(), St
         ModUnit::Directory { .. } => {
             fs::rename(from, to).map_err(|e| format!("could not move {}: {e}", log_name(from)))
         }
+        ModUnit::Bundle { .. } => unreachable!("set_activation handles bundles before moving"),
     }
 }
 
@@ -740,6 +770,26 @@ fn set_activation(
     }
 
     let target = cfg.mod_target(&m);
+    if target.is_bundle() {
+        super::bundle::set_enabled(game_path, target, &m, enable)?;
+        for entry in state.mods.iter_mut().filter(|entry| entry.uid == uid) {
+            entry.enabled = enable;
+        }
+        let Err(e) = save_state(state_path, &state) else {
+            return Ok(());
+        };
+        let failure = save_error(e);
+        let moved = InstalledMod {
+            enabled: enable,
+            ..m.clone()
+        };
+        return match super::bundle::set_enabled(game_path, target, &moved, !enable) {
+            Ok(()) => Err(failure),
+            Err(undo) => Err(format!(
+                "{failure}, and moving the files back also failed: {undo}"
+            )),
+        };
+    }
     if target.enabled_state == Activation::Ue4ssModsTxt {
         return set_activation_in_mods_txt(
             game_path, state_path, &mut state, &m, uid, target, enable,

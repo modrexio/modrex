@@ -145,6 +145,20 @@ pub struct InstalledMod {
     pub deployment: Option<ResourceDeployment>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub resource_status: Option<ResourceStatus>,
+    // Every file a bundle install placed, relative to the game folder (bundle.rs). Present
+    // only on records of a bundle target, where it is the whole of what the record owns.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bundle: Option<Vec<BundleFile>>,
+}
+
+/// One file a bundle placed, with the bytes it wrote, so uninstalling and updating can tell a
+/// file they may remove from one that changed since.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct BundleFile {
+    pub path: String,
+    pub size: u64,
+    pub sha256: String,
 }
 
 /// Which resource operation owns a row. Absent for every ordinary mod.
@@ -218,6 +232,7 @@ impl Default for InstalledMod {
             declared: None,
             deployment: None,
             resource_status: None,
+            bundle: None,
         }
     }
 }

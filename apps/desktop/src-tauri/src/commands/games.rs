@@ -135,6 +135,15 @@ fn scan_target(pkg: &'static GamePackage, target: &'static package::Target) -> S
                 priority_prefix: prefixes_filenames(target),
                 unreal_plugin: *discovery == package::Discovery::UnrealPlugin,
             },
+            package::Unit::Bundle {
+                roots,
+                placements,
+                flat,
+            } => ModUnit::Bundle {
+                roots,
+                placements,
+                flat,
+            },
         },
         companions: match &target.unit {
             package::Unit::File { family, .. } => text_slice(&family.companions),
@@ -142,9 +151,10 @@ fn scan_target(pkg: &'static GamePackage, target: &'static package::Target) -> S
                 .as_ref()
                 .map(|family| text_slice(&family.companions))
                 .unwrap_or_default(),
+            package::Unit::Bundle { .. } => &[],
         },
         contained_extension: match &target.unit {
-            package::Unit::File { .. } => None,
+            package::Unit::File { .. } | package::Unit::Bundle { .. } => None,
             package::Unit::Directory { contains, .. } => {
                 contains.as_ref().map(|family| family.extension.as_str())
             }

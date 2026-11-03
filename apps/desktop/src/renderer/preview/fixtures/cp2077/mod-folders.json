@@ -1,0 +1,27 @@
+[
+    {
+        "tag": "mods",
+        "labelKey": "mods",
+        "labelName": null
+    },
+    {
+        "tag": "archive_mods",
+        "labelKey": "archiveMods",
+        "labelName": null
+    },
+    {
+        "tag": "redmod_mods",
+        "labelKey": "redmodMods",
+        "labelName": null
+    },
+    {
+        "tag": "cet_mods",
+        "labelKey": "cetMods",
+        "labelName": null
+    },
+    {
+        "tag": "redscript_mods",
+        "labelKey": "redscriptMods",
+        "labelName": null
+    }
+]

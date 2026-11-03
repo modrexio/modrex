@@ -1,3 +1,4 @@
+mod bundle;
 mod cleanup;
 mod companions;
 mod crimeboss_settings;
@@ -44,6 +45,9 @@ pub(crate) mod unreal_plugin;
 mod zip;
 
 // Public API used by lib.rs, launchers/, and other modules
+pub(crate) use self::bundle::{
+    hide_for_launch as hide_bundles, restore_after_launch as restore_bundles,
+};
 pub use self::companions::LeftoverFiles;
 pub use self::engine::{
     backup_dir, engine_for_game, ModEngineConfig, ModUnit, ScanTarget, SharedPaks, StoreLayout,
@@ -432,6 +436,7 @@ pub async fn get_installed(app: AppHandle, game_id: String) -> Result<InstalledR
             };
             format!("{}:{}", m.location.as_deref().unwrap_or(""), rel_path)
         })
+        .chain(bundle::owned_scan_keys(cfg, &state.mods))
         .collect();
 
     let mut untracked = find_untracked_paks(&game_path, &known, cfg).await;
@@ -2220,7 +2225,11 @@ pub async fn install_dropped_file(
         commit_install(state_guard, move || {
             // Discovery-matching identity: filename drives the uid/id the untracked-scan would assign,
             // so a later manual refresh reconciles this entry instead of duplicating it.
-            let filename = if target.keeps_archive_filename() && loose_file {
+            // A loose file in a bundle keeps its whole name, so Foo.archive and Foo.reds dropped
+            // one after the other stay two mods rather than the second replacing the first.
+            let filename = if target.is_bundle() && loose_file {
+                dropped_file_name(&path).to_string()
+            } else if target.keeps_archive_filename() && loose_file {
                 decisions::loose_published_filename(target, dropped_file_name(&path))?
             } else {
                 decisions::install_filename_for_dropped(cfg, target, &display_stem)
@@ -3373,6 +3382,9 @@ pub fn open_mod_folder(app: AppHandle, game_id: String, tag: String) -> Result<(
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod bundle_tests;
 
 #[cfg(test)]
 mod shared_archive_tests;

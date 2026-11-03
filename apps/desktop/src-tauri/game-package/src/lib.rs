@@ -481,6 +481,36 @@ pub enum Discovery {
     UnrealPlugin,
 }
 
+/// Where a download that is not laid out from the game folder goes, decided by what one of its
+/// top level entries is.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[serde(tag = "match", rename_all = "snake_case", deny_unknown_fields)]
+pub enum Placement {
+    /// A loose file with this extension.
+    File {
+        extension: String,
+        into: Vec<String>,
+    },
+    /// A folder holding this file directly inside it. The folder keeps its own name.
+    Marker { file: String, into: Vec<String> },
+    /// A folder holding a file with this extension directly inside it. The folder keeps its
+    /// own name.
+    Contains {
+        extension: String,
+        into: Vec<String>,
+    },
+}
+
+impl Placement {
+    pub fn destination(&self) -> &[String] {
+        match self {
+            Placement::File { into, .. }
+            | Placement::Marker { into, .. }
+            | Placement::Contains { into, .. } => into,
+        }
+    }
+}
+
 /// What one mod looks like inside a target.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
@@ -499,6 +529,19 @@ pub enum Unit {
         /// rather than an author-supplied folder copied as-is.
         #[serde(default)]
         contains: Option<FileFamily>,
+    },
+    /// One mod is a set of files laid over the game folder, for games whose downloads write
+    /// into several of its folders at once. The record lists every file it placed, so nothing
+    /// on disk has to mark where one mod ends.
+    Bundle {
+        /// Folders directly in the game folder that a download laid out from the game folder
+        /// may write into.
+        roots: Vec<String>,
+        placements: Vec<Placement>,
+        /// Folders the game reads only at their top level, so a file in a subfolder of one
+        /// would never load.
+        #[serde(default)]
+        flat: Vec<Vec<String>>,
     },
 }
 
@@ -533,9 +576,44 @@ pub enum TargetLabel {
     Overrides,
     ModkitMods,
     LegacyPaks,
+    ArchiveMods,
+    RedmodMods,
+    CetMods,
+    RedscriptMods,
 }
 
 impl TargetLabel {
+    /// Every label. The reference, the generated renderer catalogue and the tests list labels
+    /// from here, so a new label is this list plus the two matches below.
+    pub const ALL: &'static [TargetLabel] = &[
+        TargetLabel::Mods,
+        TargetLabel::PakMods,
+        TargetLabel::LoaderMods,
+        TargetLabel::Overrides,
+        TargetLabel::ModkitMods,
+        TargetLabel::LegacyPaks,
+        TargetLabel::ArchiveMods,
+        TargetLabel::RedmodMods,
+        TargetLabel::CetMods,
+        TargetLabel::RedscriptMods,
+    ];
+
+    /// The value a manifest writes.
+    pub fn manifest_value(self) -> &'static str {
+        match self {
+            TargetLabel::Mods => "mods",
+            TargetLabel::PakMods => "pak_mods",
+            TargetLabel::LoaderMods => "loader_mods",
+            TargetLabel::ModkitMods => "modkit_mods",
+            TargetLabel::LegacyPaks => "legacy_paks",
+            TargetLabel::Overrides => "overrides",
+            TargetLabel::ArchiveMods => "archive_mods",
+            TargetLabel::RedmodMods => "redmod_mods",
+            TargetLabel::CetMods => "cet_mods",
+            TargetLabel::RedscriptMods => "redscript_mods",
+        }
+    }
+
     /// The key the renderer looks up under settings.folders.
     pub fn key(self) -> &'static str {
         match self {
@@ -545,6 +623,10 @@ impl TargetLabel {
             TargetLabel::ModkitMods => "modkitMods",
             TargetLabel::LegacyPaks => "legacyPaks",
             TargetLabel::Overrides => "overrides",
+            TargetLabel::ArchiveMods => "archiveMods",
+            TargetLabel::RedmodMods => "redmodMods",
+            TargetLabel::CetMods => "cetMods",
+            TargetLabel::RedscriptMods => "redscriptMods",
         }
     }
 }
@@ -568,6 +650,10 @@ pub struct Target {
     /// as Unreal does for plugins.
     #[serde(default)]
     pub disabled: Option<Vec<String>>,
+    /// Set when the game reads path recursively, so a mod left in a subfolder of it still
+    /// loads. Validation then requires disabled and backup to sit outside path.
+    #[serde(default)]
+    pub recursive_load: bool,
     /// Where launching without mods moves this target's contents. Not derived from path
     /// because PAYDAY 3 and Crime Boss must place it outside Paks/, which Unreal mounts
     /// recursively.

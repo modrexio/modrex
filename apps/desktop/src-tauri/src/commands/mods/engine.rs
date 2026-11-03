@@ -1,4 +1,4 @@
-pub use crate::game_package::{Activation, DecoderBinding, ModMetadata};
+pub use crate::game_package::{Activation, DecoderBinding, ModMetadata, Placement};
 use std::path::{Path, PathBuf};
 
 pub enum ModUnit {
@@ -29,6 +29,12 @@ pub enum ModUnit {
         priority_prefix: bool,
         /// Mods are Unreal plugins, recognised by descriptor (unreal_plugin.rs).
         unreal_plugin: bool,
+    },
+    /// Files laid over the game folder, listed per mod in its record (bundle.rs).
+    Bundle {
+        roots: &'static [String],
+        placements: &'static [Placement],
+        flat: &'static [Vec<String>],
     },
 }
 
@@ -109,12 +115,16 @@ impl ScanTarget {
         matches!(self.unit, ModUnit::Directory { .. })
     }
 
+    pub fn is_bundle(&self) -> bool {
+        matches!(self.unit, ModUnit::Bundle { .. })
+    }
+
     pub fn disabled_suffix(&self) -> &'static str {
         match &self.unit {
             ModUnit::File {
                 disabled_suffix, ..
             } => disabled_suffix,
-            ModUnit::Directory { .. } => "",
+            ModUnit::Directory { .. } | ModUnit::Bundle { .. } => "",
         }
     }
 
@@ -131,7 +141,7 @@ impl ScanTarget {
     pub fn excluded_names(&self) -> &'static [&'static str] {
         match &self.unit {
             ModUnit::Directory { excluded_names, .. } => excluded_names,
-            ModUnit::File { .. } => &[],
+            ModUnit::File { .. } | ModUnit::Bundle { .. } => &[],
         }
     }
 
@@ -145,6 +155,7 @@ impl ScanTarget {
                 ..
             } => Some(super::unreal_plugin::CONTAINER_EXTENSION),
             ModUnit::Directory { .. } => self.contained_extension,
+            ModUnit::Bundle { .. } => None,
         }
     }
 
@@ -156,7 +167,7 @@ impl ScanTarget {
                 keeps_archive_filename,
                 ..
             } => *keeps_archive_filename,
-            ModUnit::Directory { .. } => false,
+            ModUnit::Directory { .. } | ModUnit::Bundle { .. } => false,
         }
     }
 
@@ -168,6 +179,7 @@ impl ScanTarget {
             | ModUnit::Directory {
                 priority_prefix, ..
             } => *priority_prefix,
+            ModUnit::Bundle { .. } => false,
         }
     }
 }

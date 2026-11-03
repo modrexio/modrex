@@ -1,0 +1,81 @@
+---
+title: Cyberpunk 2077
+description: Steam and Epic Games Store setup, mods that span several game folders, frameworks, REDmod, and what Modrex refuses.
+sidebar:
+    order: 70
+---
+
+import GameFacts from '../../../../components/docs/GameFacts.astro'
+
+Cyberpunk 2077 support covers Steam and the Epic Games Store. Browse Nexus Mods after signing in
+and choose a Mod Manager download, or drop a local archive, `.archive`, `.xl` or `.reds` file into
+Modrex.
+
+<GameFacts game="cp2077" />
+
+## One download is one mod
+
+A Cyberpunk mod often places files in several game folders at once: an `.archive` in
+`archive/pc/mod`, scripts in `r6/scripts`, tweaks in `r6/tweaks`, a plugin in `red4ext/plugins`
+and a Lua mod for Cyber Engine Tweaks. Modrex installs the whole download as one mod and records
+every file it placed, so enabling, disabling, updating and uninstalling act on all of them
+together. Frameworks such as Cyber Engine Tweaks, RED4ext, redscript, ArchiveXL, TweakXL and
+Codeware install the same way, from their own pages.
+
+Modrex works out where each file goes before it writes anything:
+
+- A download laid out like the game folder, with `archive`, `bin`, `engine`, `mods`, `r6` or
+  `red4ext` at its top, installs exactly as laid out. A single folder around it is looked through.
+- A loose `.archive` or `.xl` file goes to `archive/pc/mod`, and a loose `.reds` file to
+  `r6/scripts`.
+- A folder holding `init.lua` goes to the Cyber Engine Tweaks mods folder, a folder holding
+  `info.json` is a REDmod and goes to `mods`, and a folder of `.reds` scripts goes to
+  `r6/scripts`.
+- Several folders side by side that each install on their own are offered as choices. Pick the
+  one the author tells you to use.
+
+Read-me files, licences and pictures next to the mod are skipped.
+
+## What Modrex refuses
+
+Modrex never drops part of a download and never overwrites a file it did not install. It refuses
+the whole install, names the files involved and changes nothing when a download:
+
+- holds files it cannot place, such as a loose `.yaml` tweak or an executable
+- uses a FOMOD installer
+- puts files in a subfolder of `archive/pc/mod`, which the game does not read
+- would replace a game file, a file another mod installed, or a file you added by hand
+- would write inside a mod that appears separately in the installed list
+
+Install such a mod by hand, or pick another file from its page.
+
+## Disabling, updating and uninstalling
+
+Disabling a mod moves its files into `.modrex/disabled` in the game folder, where the game never
+looks, and enabling moves them back. A newer release of a mod replaces the files of the one it
+updates and stays disabled when the old one was. Uninstalling removes the files the mod placed and
+keeps any you changed since, which Modrex then reports. Files a framework creates while the game
+runs, such as logs and settings, are not Modrex's and stay in place.
+
+App folders are not available for this game, because a mod's files are spread over the game
+folder rather than kept in one place.
+
+## Mods installed by hand
+
+Archives in `archive/pc/mod`, REDmods in `mods`, Cyber Engine Tweaks mod folders and redscript
+mod folders in `r6/scripts` that were installed without Modrex appear in the installed list under
+their own tabs and can be enabled, disabled and removed there. Loose `.reds` files placed by hand
+directly in `r6/scripts`, and anything else installed by hand, are not listed.
+
+## REDmod
+
+Modrex installs REDmods into `mods`. The game loads them after REDmod deploys them, which CDPR's
+launcher does when mods are enabled in it. If you launch with `--launcher-skip`, deploy REDmods
+yourself.
+
+## Launch without mods
+
+This action moves the files of every enabled mod Modrex installed out of the game folder for one
+session, and puts them back on the next normal launch. Mods installed by hand are set aside too
+when they are listed under their own tabs. Anything installed by hand that is not listed, such as
+loose `.reds` files or a framework copied in manually, stays in place and still loads.

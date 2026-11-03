@@ -25,6 +25,7 @@ import { t, getLocale, setLocale } from '../i18n'
 import { LOCALE_IDS, localeLabel, type LocaleId } from '../locales'
 import { ACCENT_COLORS, setAccentColor, useAccentColor, type AccentColor } from '../accentColor'
 import { Select } from './Select'
+import { CornerRadiusSetting } from './CornerRadiusSetting'
 import { Dialog, DialogHeader } from './Dialog'
 import { Toggle } from './Toggle'
 import { TelemetryConsentDialog } from './TelemetryConsentDialog'
@@ -278,6 +279,8 @@ export function SettingsPage({
                                         />
                                     </div>
                                 </Section>
+
+                                <CornerRadiusSetting />
 
                                 <Section title={t('settings.updates.title')}>
                                     <div className="flex items-center gap-3 mt-1">

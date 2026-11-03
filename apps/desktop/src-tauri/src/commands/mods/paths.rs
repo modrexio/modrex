@@ -168,7 +168,7 @@ pub fn disabled_mod_path(
         ModUnit::File {
             disabled_suffix, ..
         } => base.join(format!("{}{}", filename, disabled_suffix)),
-        ModUnit::Directory { .. } => base.join(filename),
+        ModUnit::Directory { .. } | ModUnit::Bundle { .. } => base.join(filename),
     }
 }
 
@@ -220,6 +220,10 @@ pub async fn find_untracked_paks(
 ) -> Vec<(String, bool, Option<String>)> {
     let mut out = Vec::new();
     for (i, target) in cfg.targets.iter().enumerate() {
+        // A bundle's files carry no mark of where one mod ends, so only its records know them.
+        if target.is_bundle() {
+            continue;
+        }
         if target.shared_paks.is_none() && engine_backup_dir(game_path, target).exists() {
             continue;
         }
@@ -233,16 +237,16 @@ pub async fn find_untracked_paks(
         // mods/base is the BLT loader's basemod, not a user mod. Tracking it would let
         // the user disable their mod loader from the installed list.
         let skip_base = i == 0 && matches!(target.unit, ModUnit::Directory { .. });
+        let mods = mods_dir(game_path, target);
+        // Only a disabled folder that really sits inside the target is skipped. Where it sits
+        // elsewhere, a child named disabled is a mod the game loads.
+        let skip_disabled = disabled_dir(game_path, target) == mods.join("disabled");
+        let skip = TopLevelSkip {
+            base: skip_base,
+            disabled: skip_disabled,
+        };
         let mut target_out: Vec<(String, bool)> = Vec::new();
-        scan_active(
-            &mods_dir(game_path, target),
-            "",
-            &target_known,
-            target,
-            skip_base,
-            &mut target_out,
-        )
-        .await;
+        scan_active(&mods, "", &target_known, target, skip, &mut target_out).await;
         scan_disabled(
             &disabled_dir(game_path, target),
             "",
@@ -258,12 +262,27 @@ pub async fn find_untracked_paks(
     out
 }
 
+/// Windows folders compare without case, and a bundle records the spelling its download used
+/// while the folder on disk keeps whichever spelling existed first, so there a lowercase key
+/// matches too. A case-sensitive filesystem holds two folders that differ only in case.
+fn is_known(known: &HashSet<String>, rel: &str) -> bool {
+    known.contains(rel) || (cfg!(windows) && known.contains(&rel.to_ascii_lowercase()))
+}
+
+/// Names the scan passes over at the top of a target, because they are not mods there.
+#[derive(Clone, Copy)]
+struct TopLevelSkip {
+    /// The BLT basemod.
+    base: bool,
+    disabled: bool,
+}
+
 async fn scan_active(
     dir: &Path,
     prefix: &str,
     known: &HashSet<String>,
     target: &ScanTarget,
-    skip_base: bool,
+    skip: TopLevelSkip,
     out: &mut Vec<(String, bool)>,
 ) {
     let mut rd = match tokio::fs::read_dir(dir).await {
@@ -273,10 +292,9 @@ async fn scan_active(
     let mut subdirs = Vec::new();
     while let Ok(Some(entry)) = rd.next_entry().await {
         let name = entry.file_name().to_string_lossy().into_owned();
-        // A plugin target disables outside its folder, so a child named disabled there is a
-        // folder Unreal still loads.
-        let disabled_here = name == "disabled" && !target.is_unreal_plugin_unit();
-        if prefix.is_empty() && (disabled_here || (skip_base && name == "base")) {
+        if prefix.is_empty()
+            && ((skip.disabled && name == "disabled") || (skip.base && name == "base"))
+        {
             continue;
         }
         // The mod.io SDK owns this subtree and its subscription metadata.
@@ -309,7 +327,7 @@ async fn scan_active(
                 };
                 if ft.is_dir() {
                     subdirs.push((entry.path(), rel));
-                } else if matches && !known.contains(&rel) {
+                } else if matches && !is_known(known, &rel) {
                     out.push((rel, true));
                 }
             }
@@ -335,15 +353,16 @@ async fn scan_active(
                     };
                     if !is_mod {
                         subdirs.push((entry.path(), rel));
-                    } else if !known.contains(&rel) {
+                    } else if !is_known(known, &rel) {
                         out.push((rel, true));
                     }
                 }
             }
+            ModUnit::Bundle { .. } => unreachable!("find_untracked_paks skips bundle targets"),
         }
     }
     for (path, sub) in subdirs {
-        Box::pin(scan_active(&path, &sub, known, target, skip_base, out)).await;
+        Box::pin(scan_active(&path, &sub, known, target, skip, out)).await;
     }
 }
 
@@ -397,7 +416,7 @@ async fn scan_disabled(
                     } else {
                         format!("{}/{}", prefix, active)
                     };
-                    if !known.contains(&rel) {
+                    if !is_known(known, &rel) {
                         out.push((rel, false));
                     }
                 }
@@ -424,11 +443,12 @@ async fn scan_disabled(
                     };
                     if !is_mod {
                         subdirs.push((entry.path(), sub));
-                    } else if !known.contains(&sub) {
+                    } else if !is_known(known, &sub) {
                         out.push((sub, false));
                     }
                 }
             }
+            ModUnit::Bundle { .. } => unreachable!("find_untracked_paks skips bundle targets"),
         }
     }
     for (path, sub) in subdirs {

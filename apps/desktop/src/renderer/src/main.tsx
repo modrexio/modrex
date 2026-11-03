@@ -3,9 +3,11 @@ import { error as logError } from '@tauri-apps/plugin-log'
 import App from './App'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { initAccentColor } from './accentColor'
+import { initCornerScale } from './cornerRadius'
 import './index.css'
 
 initAccentColor()
+initCornerScale()
 
 window.onerror = (_msg, _src, _line, _col, err) => {
     logError(`Uncaught error: ${err?.stack ?? err}`)

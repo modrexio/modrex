@@ -12,6 +12,7 @@ export const GAME_SPECS = {
         storageKey: 'cb',
         hasNews: false,
         supportsPackageViewer: true,
+        appFolders: true,
         movieReplacement: { extensions: ['bk2'], storefronts: ['steam', 'epic'] },
         configPresets: { filename: 'Engine.ini' },
         graphicsConfig: { filename: 'GameUserSettings.ini' },
@@ -20,6 +21,24 @@ export const GAME_SPECS = {
             { id: 'mods', path: 'CrimeBoss/Mods' },
             { id: 'paks', path: 'CrimeBoss/Content/Paks/~mods' },
             { id: 'ue4ss_mods', path: 'CrimeBoss/Binaries/Win64/Mods' },
+        ],
+    },
+    cp2077: {
+        name: 'Cyberpunk 2077',
+        shortName: 'CP2077',
+        modMetadata: 'none',
+        nexusDomain: 'cyberpunk2077',
+        storageKey: 'cp2077',
+        hasNews: false,
+        supportsPackageViewer: false,
+        appFolders: false,
+        launchers: ['Steam', 'Epic Games'],
+        modTargets: [
+            { id: 'mods', path: '' },
+            { id: 'archive_mods', path: 'archive/pc/mod' },
+            { id: 'redmod_mods', path: 'mods' },
+            { id: 'cet_mods', path: 'bin/x64/plugins/cyber_engine_tweaks/mods' },
+            { id: 'redscript_mods', path: 'r6/scripts' },
         ],
     },
     pd2: {
@@ -31,6 +50,7 @@ export const GAME_SPECS = {
         storageKey: 'pd2',
         hasNews: true,
         supportsPackageViewer: false,
+        appFolders: true,
         graphicsConfig: { filename: 'renderer_settings_dx11.xml' },
         launchers: ['Steam', 'Epic Games'],
         modTargets: [
@@ -47,6 +67,7 @@ export const GAME_SPECS = {
         storageKey: 'pd3',
         hasNews: true,
         supportsPackageViewer: true,
+        appFolders: true,
         movieReplacement: { extensions: ['bk2'], storefronts: ['steam', 'epic', 'xbox'] },
         configPresets: { filename: 'Engine.ini' },
         graphicsConfig: { filename: 'GameUserSettings.ini' },
@@ -66,6 +87,7 @@ export const GAME_SPECS = {
         storageKey: 'pdth',
         hasNews: true,
         supportsPackageViewer: false,
+        appFolders: true,
         graphicsConfig: { filename: 'renderer_settings.xml' },
         launchers: ['Steam'],
         modTargets: [
@@ -81,6 +103,7 @@ export const GAME_SPECS = {
         storageKey: 'raid',
         hasNews: false,
         supportsPackageViewer: false,
+        appFolders: true,
         graphicsConfig: { filename: 'renderer_settings_dx11.xml' },
         launchers: ['Steam'],
         modTargets: [
@@ -95,6 +118,7 @@ export const GAME_SPECS = {
         storageKey: 'ron',
         hasNews: false,
         supportsPackageViewer: true,
+        appFolders: true,
         movieReplacement: { extensions: ['mp4'], storefronts: ['steam'] },
         configPresets: { filename: 'Engine.ini' },
         graphicsConfig: { filename: 'GameUserSettings.ini' },
@@ -104,3 +128,9 @@ export const GAME_SPECS = {
         ],
     },
 } satisfies Record<string, GameSpec>
+
+export const TARGET_LABEL_KEYS = ['mods', 'pakMods', 'loaderMods', 'overrides', 'modkitMods', 'legacyPaks', 'archiveMods', 'redmodMods', 'cetMods', 'redscriptMods'] as const
+
+export type TargetLabelKey = (typeof TARGET_LABEL_KEYS)[number]
+
+export type ModTargetId = 'archive_mods' | 'cet_mods' | 'mod_overrides' | 'mods' | 'paks' | 'plugins' | 'redmod_mods' | 'redscript_mods' | 'ue4ss_mods'

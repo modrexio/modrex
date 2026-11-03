@@ -100,35 +100,21 @@ fn preset_rows() -> String {
 }
 
 fn label_rows() -> String {
-    [
-        TargetLabel::Mods,
-        TargetLabel::PakMods,
-        TargetLabel::LoaderMods,
-        TargetLabel::Overrides,
-        TargetLabel::ModkitMods,
-        TargetLabel::LegacyPaks,
-    ]
-    .iter()
-    .map(|label| {
-        format!(
-            "| `{}` | `settings.folders.{}`{} |\n",
-            match label {
-                TargetLabel::Mods => "mods",
-                TargetLabel::PakMods => "pak_mods",
-                TargetLabel::LoaderMods => "loader_mods",
-                TargetLabel::ModkitMods => "modkit_mods",
-                TargetLabel::LegacyPaks => "legacy_paks",
-                TargetLabel::Overrides => "overrides",
-            },
-            label.key(),
-            match label {
-                TargetLabel::LoaderMods => " with the loader display name substituted",
-                TargetLabel::Mods => ", only on a game's sole target",
-                _ => "",
-            }
-        )
-    })
-    .collect()
+    TargetLabel::ALL
+        .iter()
+        .map(|label| {
+            format!(
+                "| `{}` | `settings.folders.{}`{} |\n",
+                label.manifest_value(),
+                label.key(),
+                match label {
+                    TargetLabel::LoaderMods => " with the loader display name substituted",
+                    TargetLabel::Mods => ", only on a game's sole target or a bundle",
+                    _ => "",
+                }
+            )
+        })
+        .collect()
 }
 
 fn discovery_rows() -> String {
@@ -370,6 +356,7 @@ pub fn markdown(examples: &[(&str, &str)]) -> String {
          | `scope` | no | `mods` by default. `unreal_paks` shares native game files and requires the installed store record of every native path before mod changes: the Steam depot manifests or the Epic BuildPatch manifests. A Microsoft Store copy has no such record, so there only files Modrex installed and whose bytes are unchanged may change, and the target cannot declare companions. It supports archive-named Pak file units without filename ordering and never moves the whole target |\n\
          | `path` | yes | components below the game path |\n\
          | `disabled` | no | where disabled mods move; `path` plus `disabled` when omitted |\n\
+         | `recursive_load` | no | defaults to `false`; set when the game reads `path` recursively, so disabling and `backup` must sit outside it |\n\
          | `backup` | yes | where launching without mods moves the contents |\n\
          | `store_paths` | no | `path` and `backup` for a store build laid out differently |\n\
          | `activation` | yes | how a mod is enabled and disabled |\n\
@@ -377,7 +364,9 @@ pub fn markdown(examples: &[(&str, &str)]) -> String {
          | `unit` | yes | what one mod looks like |\n\n\
          The disabled folder defaults to `path` plus `disabled`. A target declares `disabled`\n\
          when whatever reads `path` would still find a mod in a subfolder of it: Unreal searches\n\
-         a plugin folder recursively, so a plugin target disables outside `path`. `backup`\n\
+         a plugin folder recursively, so a plugin target disables outside `path`. A target whose\n\
+         game reads the folder by its own recursion sets `recursive_load`, which enforces the\n\
+         same outside placement for both `disabled` and `backup`. `backup`\n\
          is declared because it does not follow a pattern: pak targets must place it outside\n\
          `Paks/`, which Unreal mounts recursively.\n\n\
          `store_paths` lists a `store`, a `path` and a `backup` for each store whose build keeps\n\
@@ -424,6 +413,38 @@ pub fn markdown(examples: &[(&str, &str)]) -> String {
          `ignore_preset` names a host list of folders that are never mods. `contains` is set when\n\
          Modrex synthesizes the folder around a file family rather than copying an author's\n\
          folder as-is.\n\n\
+         `kind = \"bundle\"` means one mod is a set of files laid over the game folder, for a game\n\
+         whose downloads write into several of its folders at once. The installed record lists\n\
+         every file it placed. A bundle target is the primary target, its `path` is empty, it\n\
+         declares `disabled` and `backup` outside every root, and it uses filesystem activation\n\
+         with no load order. Its other targets are still scanned for mods installed by hand, and\n\
+         a file a bundle placed is never listed there. App folders are unavailable, since nothing\n\
+         about a bundle's location on disk follows a folder.\n\n\
+         ```toml\n\
+         unit = {\n\
+         \x20   kind = \"bundle\",\n\
+         \x20   roots = [\"archive\", \"r6\"],\n\
+         \x20   flat = [[\"archive\", \"pc\", \"mod\"]],\n\
+         \x20   placements = [\n\
+         \x20       {\n\
+         \x20           match = \"file\",\n\
+         \x20           extension = \"archive\",\n\
+         \x20           into = [\"archive\", \"pc\", \"mod\"],\n\
+         \x20       },\n\
+         \x20   ],\n\
+         }\n\
+         ```\n\n\
+         A download whose top level holds only `roots` folders is installed exactly as laid out.\n\
+         Anything else goes through `placements`, matched against each top level entry: `file`\n\
+         places a loose file by `extension`, `marker` places a folder holding `file` directly\n\
+         inside it, and `contains` places a folder holding a file with `extension` directly inside\n\
+         it. A placed folder keeps its own name inside `into`. A single folder that is neither a\n\
+         root nor placed is a wrapper and is looked through. Several such folders that each place\n\
+         on their own are variants, offered for the user to pick. Documentation at a level that\n\
+         is not itself placed is skipped. Everything else refuses the install and names what\n\
+         could not be placed, as do a folder two placements both match, a file under a `flat`\n\
+         folder's subfolder, and a FOMOD installer. Nothing is overwritten that another bundle\n\
+         or no bundle owns.\n\n\
          ### `family` and `contains`\n\n\
          A file family is a primary `extension` plus the `companions` that travel with it\n\
          because they share its filename stem. Unreal splits one mod across a `pak` holding\n\

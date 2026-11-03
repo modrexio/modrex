@@ -587,7 +587,15 @@
             "green": "Grün",
             "blue": "Blau",
             "red": "Rot",
+            "pink": "! Pink",
             "gray": "Grau"
+        },
+        "cornerRadius": {
+            "title": "! Corners",
+            "description": "! How rounded buttons, cards and dialogs are. The middle of the bar is the default.",
+            "reset": "! Reset to default",
+            "default": "! Default",
+            "percent": "! {percent}% of the default"
         },
         "gamePath": {
             "title": "Spielpfad",
@@ -673,6 +681,10 @@
             "modkitMods": "ModKit-Mods",
             "legacyPaks": "Legacy-Paks",
             "overrides": "Asset-Überschreibungen",
+            "archiveMods": "! Archive mods",
+            "redmodMods": "! REDmod mods",
+            "cetMods": "! CET mods",
+            "redscriptMods": "! redscript mods",
             "ue4ssMods": "UE4SS-Mods"
         },
         "storage": {

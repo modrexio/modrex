@@ -22,6 +22,7 @@
     --modrex-success: #053d1c;
     --modrex-success-text: #00df72;
     --modrex-warning: #d4a017;
+    --modrex-radius-scale: 1;
 
     --color-surface: var(--modrex-surface);
     --color-surface-raised: var(--modrex-surface-raised);
@@ -45,10 +46,10 @@
 }
 
 :root[data-accent='purple'] {
-    --modrex-accent: #9770fa;
-    --modrex-accent-fill: #874cf9;
-    --modrex-accent-fill-hover: #8036f8;
-    --modrex-accent-bright: #a990fb;
+    --modrex-accent: #8d61f5;
+    --modrex-accent-fill: #6d28d9;
+    --modrex-accent-fill-hover: #5b21b6;
+    --modrex-accent-bright: #a78bfa;
 }
 
 :root[data-accent='green'] {
@@ -72,11 +73,29 @@
     --modrex-accent-bright: #fb766a;
 }
 
+:root[data-accent='pink'] {
+    --modrex-accent: #f04d97;
+    --modrex-accent-fill: #db2777;
+    --modrex-accent-fill-hover: #be185d;
+    --modrex-accent-bright: #f472b6;
+}
+
 :root[data-accent='gray'] {
     --modrex-accent: #8f8f8f;
     --modrex-accent-fill: #7b7b7b;
     --modrex-accent-fill-hover: #727272;
     --modrex-accent-bright: #a4a4a4;
+}
+
+/* Each radius is the design's own value times the corner radius setting, so a scale of 1
+   leaves the design unchanged. Bare rounded keeps growing until controls turn into pills,
+   while the larger radii stop at a ceiling so cards and dialogs keep their shape. Declaring
+   radius here, not inline, is what makes Tailwind compile bare rounded to a variable. */
+@theme {
+    --radius: calc(4px * var(--modrex-radius-scale));
+    --radius-md: min(calc(6px * var(--modrex-radius-scale)), 14px);
+    --radius-lg: min(calc(8px * var(--modrex-radius-scale)), 20px);
+    --radius-xl: min(calc(12px * var(--modrex-radius-scale)), 24px);
 }
 
 @theme inline {
@@ -213,7 +232,7 @@ body {
 
 .nexus-description code {
     background: var(--color-surface-hover);
-    border-radius: 0.25rem;
+    border-radius: var(--radius);
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     font-size: 0.85em;
     padding: 0.125rem 0.25rem;
@@ -248,5 +267,15 @@ input[type='checkbox'] {
 :focus-visible {
     outline: 2px solid var(--color-accent);
     outline-offset: 2px;
-    border-radius: 3px;
+    border-radius: calc(3px * var(--modrex-radius-scale));
+}
+
+/* The site shares the scrollbar theme, so the desktop scales its radii here instead. The
+   handle radius is half its hovered width, which keeps it a pill at the default like Toggle. */
+.os-theme-modrex {
+    --os-handle-border-radius: calc(4px * var(--modrex-radius-scale));
+}
+
+::-webkit-scrollbar-thumb {
+    border-radius: calc(3px * var(--modrex-radius-scale));
 }

@@ -2561,6 +2561,31 @@ async fn find_untracked_paks_primary_has_no_location() {
 }
 
 #[tokio::test]
+async fn a_recursive_target_scans_a_mod_named_disabled_because_it_disables_elsewhere() {
+    let tmp = TempDir::new().unwrap();
+    let scripts = tmp.path().join("r6").join("scripts");
+    make_dir_mod(&scripts, "disabled", "a.reds");
+    make_dir_mod(
+        &tmp.path().join("r6").join("scripts.disabled"),
+        "Off",
+        "b.reds",
+    );
+
+    let cfg = engine_for_game("cp2077").unwrap();
+    let mut results = find_untracked_paks(tmp.path().to_str().unwrap(), &HashSet::new(), cfg).await;
+    results.sort();
+
+    let tag = Some("redscript_mods".to_string());
+    assert_eq!(
+        results,
+        vec![
+            ("Off".to_string(), false, tag.clone()),
+            ("disabled".to_string(), true, tag),
+        ]
+    );
+}
+
+#[tokio::test]
 async fn find_untracked_paks_secondary_has_location_tag() {
     let tmp = TempDir::new().unwrap();
     let mo_dir = tmp.path().join("assets").join("mod_overrides");
