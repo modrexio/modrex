@@ -17,6 +17,7 @@ export function TelemetryConsentContent() {
                     <ul className="list-disc pl-4 mt-1.5 text-xs text-text-muted flex flex-col gap-1">
                         <li>{t('telemetry.collect1')}</li>
                         <li>{t('telemetry.collect2')}</li>
+                        <li>{t('telemetry.collect3')}</li>
                     </ul>
                 </div>
             </div>

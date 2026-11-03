@@ -15,8 +15,10 @@ import { TopBar } from './components/TopBar'
 import { ResizeHandles } from './components/ResizeHandles'
 import { SupportPromptBanner } from './components/SupportPromptBanner'
 import { NexusSessionBanner } from './components/NexusSessionBanner'
-import { api, type StartupPhase } from './api'
+import { api, type AnalyticsConsent, type StartupPhase } from './api'
+import { reportLanguage } from './lib/analytics/events'
 import { TelemetryConsentDialog } from './components/TelemetryConsentDialog'
+import { TelemetryPolicyDialog } from './components/TelemetryPolicyDialog'
 import { Dialog } from './components/Dialog'
 import { TooltipProvider } from './components/Tooltip'
 import { FileDropInstall } from './components/FileDropInstall'
@@ -86,17 +88,21 @@ export default function App() {
     // here rather than only on the pages that happen to make a request.
     const [nexusSessionExpired, setNexusSessionExpired] = useState(false)
 
-    // Analytics consent, owned here as the single source of truth so the first-run
-    // pop-up and the Settings toggle stay in sync. undefined = not loaded yet,
-    // null = loaded but undecided (prompt), boolean = the user's choice.
-    const [analyticsConsent, setAnalyticsConsent] = useState<boolean | null | undefined>(undefined)
+    // Analytics consent, owned here as the single source of truth so the consent pop-up
+    // and the Settings toggle stay in sync. undefined = not loaded yet.
+    const [analyticsConsent, setAnalyticsConsent] = useState<AnalyticsConsent | undefined>(
+        undefined
+    )
     useEffect(() => {
         api.getAnalyticsConsent().then(setAnalyticsConsent)
     }, [])
     const handleAnalyticsConsent = useCallback((enabled: boolean) => {
-        setAnalyticsConsent(enabled)
+        setAnalyticsConsent(enabled ? 'granted' : 'declined')
         void api.setAnalyticsConsent(enabled)
     }, [])
+    useEffect(() => {
+        reportLanguage(locale)
+    }, [locale])
 
     const [discordPresenceEnabled, setDiscordPresenceEnabled] = useState(true)
     const handleDiscordPresenceEnabled = useCallback((enabled: boolean) => {
@@ -209,7 +215,7 @@ export default function App() {
     }
 
     const settings = {
-        analyticsConsent: analyticsConsent ?? null,
+        analyticsConsent: analyticsConsent === 'granted' || analyticsConsent === 'outdated',
         onAnalyticsConsent: handleAnalyticsConsent,
         discordPresenceEnabled,
         onDiscordPresenceEnabled: handleDiscordPresenceEnabled,
@@ -402,7 +408,11 @@ export default function App() {
                     </Dialog>
 
                     <TelemetryConsentDialog
-                        open={analyticsConsent === null}
+                        open={analyticsConsent === 'unasked'}
+                        onChoice={handleAnalyticsConsent}
+                    />
+                    <TelemetryPolicyDialog
+                        open={analyticsConsent === 'outdated'}
                         onChoice={handleAnalyticsConsent}
                     />
                 </div>

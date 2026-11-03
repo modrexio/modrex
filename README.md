@@ -10,12 +10,12 @@ Modrex finds mods on ModWorkshop and Nexus Mods, installs them together with the
 need, keeps your load order where you put it, and launches the game modded or vanilla.
 Free and open source, for Windows and Linux.
 
-[Download](#download) - [Documentation](https://modrex.net/docs/) - [Discord](https://discord.gg/QM2rDgy43Y) - [Contributing](CONTRIBUTING.md)
+[Download](#download) - [Documentation](https://modrex.net/docs/) - [Discord](https://modrex.net/discord) - [Contributing](CONTRIBUTING.md)
 
 [![Latest release](https://img.shields.io/github/v/release/modrexio/modrex?style=flat-square&label=release)](https://github.com/modrexio/modrex/releases/latest)
 [![Downloads](https://img.shields.io/endpoint?url=https%3A%2F%2Fmodrex.net%2Fapi%2Fdownloads&style=flat-square)](https://github.com/modrexio/modrex/releases)
 [![Windows and Linux](https://img.shields.io/badge/Windows%20%7C%20Linux-informational?style=flat-square)](#download)
-[![Discord](https://img.shields.io/badge/Discord-Join%20Community-5865F2?style=flat-square&logo=discord&logoColor=white)](https://discord.gg/QM2rDgy43Y)
+[![Discord](https://img.shields.io/badge/Discord-Join%20Community-5865F2?style=flat-square&logo=discord&logoColor=white)](https://modrex.net/discord)
 
 <img src="assets/example.webp" width="900" alt="The Modrex mod library showing installed mods for a game, each with a switch to enable or disable it" />
 
@@ -106,14 +106,14 @@ your log. The log gives maintainers the details needed to diagnose the problem. 
 ## Community and support
 
 Ask questions, share mods and follow development in the
-[Modrex Discord](https://discord.gg/QM2rDgy43Y).
+[Modrex Discord](https://modrex.net/discord).
 
 - [Request a feature](https://github.com/modrexio/modrex/issues/new?template=feature_request.yml)
 - [Report a vulnerability](SECURITY.md), privately, never in an issue or in Discord
 - [Contribute code or documentation](CONTRIBUTING.md)
 - [Translate Modrex](docs/contributing/translating.md), which needs no development setup
 
-<a href="https://discord.gg/QM2rDgy43Y"><img src="https://discord.com/api/guilds/1508553766025170986/widget.png?style=banner3" alt="Modrex Discord server, member count and join link" /></a>
+<a href="https://modrex.net/discord"><img src="https://discord.com/api/guilds/1508553766025170986/widget.png?style=banner3" alt="Modrex Discord server, member count and join link" /></a>
 
 ## Translations
 
@@ -128,13 +128,13 @@ back to English in the app.
 <!-- prettier-ignore -->
 | Language | Translation | Contributors |
 | --- | --- | --- |
-| [English (en)](apps/desktop/src/renderer/src/i18n/en.json) | <img src="assets/i18n/status/en.svg" alt="English source: 643 valid strings."> Complete | - |
-| [Deutsch (de)](apps/desktop/src/renderer/src/i18n/de.json) | <img src="assets/i18n/status/de.svg" alt="Deutsch (de): 628 accepted, 1 review, 14 missing; 97.8%."> 97.8% | [ShulhaOleh](https://github.com/ShulhaOleh), [TarekLP](https://github.com/TarekLP) |
-| [Italiano (it)](apps/desktop/src/renderer/src/i18n/it.json) | <img src="assets/i18n/status/it.svg" alt="Italiano (it): 416 accepted, 0 review, 227 missing; 64.7%."> 64.7% | [Enderbox89](https://github.com/Enderbox89), [ShulhaOleh](https://github.com/ShulhaOleh) |
-| [Polski (pl)](apps/desktop/src/renderer/src/i18n/pl.json) | <img src="assets/i18n/status/pl.svg" alt="Polski (pl): 484 accepted, 0 review, 159 missing; 75.3%."> 75.3% | [djpersik](https://github.com/djpersik) |
-| [Русский (ru)](apps/desktop/src/renderer/src/i18n/ru.json) | <img src="assets/i18n/status/ru.svg" alt="Русский (ru): 633 accepted, 0 review, 10 missing; 98.4%."> 98.4% | [ShulhaOleh](https://github.com/ShulhaOleh) |
-| [Українська (uk)](apps/desktop/src/renderer/src/i18n/uk.json) | <img src="assets/i18n/status/uk.svg" alt="Українська (uk): 627 accepted, 2 review, 14 missing; 97.8%."> 97.8% | [ShevRuslan1](https://github.com/ShevRuslan1), [ShulhaOleh](https://github.com/ShulhaOleh), [illianezheviasov](https://github.com/illianezheviasov) |
-| [中文（中国） (zh-CN)](apps/desktop/src/renderer/src/i18n/zh-CN.json) | <img src="assets/i18n/status/zh-CN.svg" alt="中文（中国） (zh-CN): 627 accepted, 2 review, 14 missing; 97.8%."> 97.8% | [illianezheviasov](https://github.com/illianezheviasov) |
+| [English (en)](apps/desktop/src/renderer/src/i18n/en.json) | <img src="assets/i18n/status/en.svg" alt="English source: 649 valid strings."> Complete | - |
+| [Deutsch (de)](apps/desktop/src/renderer/src/i18n/de.json) | <img src="assets/i18n/status/de.svg" alt="Deutsch (de): 628 accepted, 1 review, 20 missing; 96.9%."> 96.9% | [ShulhaOleh](https://github.com/ShulhaOleh), [TarekLP](https://github.com/TarekLP) |
+| [Italiano (it)](apps/desktop/src/renderer/src/i18n/it.json) | <img src="assets/i18n/status/it.svg" alt="Italiano (it): 416 accepted, 0 review, 233 missing; 64.1%."> 64.1% | [Enderbox89](https://github.com/Enderbox89), [ShulhaOleh](https://github.com/ShulhaOleh) |
+| [Polski (pl)](apps/desktop/src/renderer/src/i18n/pl.json) | <img src="assets/i18n/status/pl.svg" alt="Polski (pl): 484 accepted, 0 review, 165 missing; 74.6%."> 74.6% | [djpersik](https://github.com/djpersik) |
+| [Русский (ru)](apps/desktop/src/renderer/src/i18n/ru.json) | <img src="assets/i18n/status/ru.svg" alt="Русский (ru): 633 accepted, 0 review, 16 missing; 97.5%."> 97.5% | [ShulhaOleh](https://github.com/ShulhaOleh) |
+| [Українська (uk)](apps/desktop/src/renderer/src/i18n/uk.json) | <img src="assets/i18n/status/uk.svg" alt="Українська (uk): 627 accepted, 2 review, 20 missing; 96.9%."> 96.9% | [ShevRuslan1](https://github.com/ShevRuslan1), [ShulhaOleh](https://github.com/ShulhaOleh), [illianezheviasov](https://github.com/illianezheviasov) |
+| [中文（中国） (zh-CN)](apps/desktop/src/renderer/src/i18n/zh-CN.json) | <img src="assets/i18n/status/zh-CN.svg" alt="中文（中国） (zh-CN): 627 accepted, 2 review, 20 missing; 96.9%."> 96.9% | [illianezheviasov](https://github.com/illianezheviasov) |
 
 <div class="i18n-status-legend"><img src="assets/i18n/status/legend/accepted.svg" alt=""> Accepted <img src="assets/i18n/status/legend/review.svg" alt=""> Review <img src="assets/i18n/status/legend/missing.svg" alt=""> Missing</div>
 

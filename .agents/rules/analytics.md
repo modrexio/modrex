@@ -18,6 +18,16 @@ the visitor IP for country attribution and logs upstream failures without creden
   again before sending. `set_analytics_consent` resets accumulated activity when consent
   changes and emits `consent_granted` on opt-in. Pre-consent time is discarded. The existing
   random per-install `analyticsId` remains the client ID.
+- `ANALYTICS_CONSENT_VERSION` is the privacy policy version a user must have accepted, and
+  opting in records it. Bump it whenever what the app sends changes, together with the
+  privacy policy. A user who accepted an earlier version sees `TelemetryPolicyDialog` once,
+  a generic notice linking to the policy, and nothing at all is sent until they accept.
+  Declining turns analytics off. The dialog never describes the change, so a bump needs no
+  new strings. Never derive the version from the policy date, which moves on any wording
+  change.
+- Language is checked by shape only (`language_tag`), never against the shipped locales, so
+  a new translation or an unshipped system language needs no change here. The renderer
+  reports it after startup, so `app_started` carries none.
 - Release builds embed `MODREX_GA_MEASUREMENT_ID`; builds without it send nothing. The
   GA4 API secret is a Cloudflare Pages secret (`MODREX_GA_API_SECRET`) read by the proxy
   and never ships in the binary. `MODREX_ANALYTICS_ENDPOINT` overrides the proxy URL for
@@ -39,11 +49,14 @@ Event-scoped custom definitions must match these parameters:
 | Game                    | `game`          |
 | Game launcher           | `launcher`      |
 | Mod format              | `format`        |
+| App language            | `app_locale`    |
 
 Version, OS and architecture accompany every event. Game, launcher and format only apply
 to events supplying them. The desktop also sends GA4's standard `device.category` and
 `device.operating_system`, enabling the built-in OS dimension in releases with this
-implementation. Keep the custom `os` dimension for older releases.
+implementation. Keep the custom `os` dimension for older releases. The system language goes
+in `device.language`, GA4's built-in Language dimension, lowercased as the website's tag
+reports it. App language keeps the locale file name (`zh-CN`).
 
 New custom definitions need processing time (typically 24-48 hours) and do not backfill
 older dates. Version means the version used during the selected period: an installation

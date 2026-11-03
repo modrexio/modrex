@@ -3,14 +3,14 @@
         {
             "id": 31915,
             "name": "Extra Heist Info",
-            "desc": "Do you want to just see codes and other info ? Download **Codes and Info** standalone [here](https://modworkshop.net/mod/59204).\n\n**Please do not run both EHI and standalone versions at the same time.\nMods share the same codebase and game may crash.\nTracking elements in standalone versions is already included in EHI.**\n\n**Minimum game version required: 1.0.0-158409 (Update 247)\nMinimum SuperBLT version required: v1.5.0 (Lua) and [4.0.1-beta](https://modworkshop.net/mod/58342) (DLL)\nMinimum EHI version to sync data to other EHI players: r427**\n**!!! Failing to meet the minimum requirements will cause crashes in-game !!!**\n\nShows trackers for various heist related gameplay elements\n- Waiting for a van/heli/boat\n- Waiting for a C4\n- Waiting for a thermite to finish\n- Achievements*\n- Achievements with progress (e.g.: \"Another Way Out\" achievement in Hell's Island)\n- A chance for something to happen (e.g.: teargas, cooking chance)\n- Mission XP Overview\n- Buffs (skill or perk) and color them based on their action in-game\n- Filter achievements tracked in EHI or for **The Secret** -> See progress filter in Achievements Page\n- Damage hit markers or Floating health bars\n- Hudlist\n- etc...\n\nSee screenshots in the \"Images\" tab for more info and how it looks in-game.\n\nEHI is using in-game panels and should be compatible with all HUD mods.\nYou can change x, y position in options to move it on the screen. The mod supports Ultra-Wide monitors.\n\n**Accuracy**\nAlways accurate on host.\nClients should stay accurate within 1-3s range. It is recommended to install (on both host and client side players) [Slowmotion Manager](https://modworkshop.net/mod/18128) mod and remove all slowmotion effects that slows down time calculation.\nDesync can also disallow some trackers to show up/update. There is nothing to prevent it.\nIf you drop-in to a heist, some trackers related to elements may not appear. This is because they are not synced when you drop-in. It can be improved, but it is unfixable.\n\n**Trackers**\nSome trackers are inaccurate and have orange color. These trackers can prematurely expire or expire late when an element (van, heli, ...) is interactable.\n\n**Supported heists**\nAll vanilla heists are supported (Under the Hammer Heist (Update 248) is the latest vanilla heist). Custom heists are not supported due to I have to look into the map scripts and find elements that can be tracked. However, support for them may come at later date.\n**Currently supported custom heists**:\n| Heist | Trackers | Overlapping Waypoints Removed | Achievements | Snipers | Loot Counter | XP Breakdown | Additional Notes:\n|--------|--------| -------- | -------- | -------- | -------- | -------- | -------- |\n| [Triad Takedown (Yacht Heist)](https://modworkshop.net/mod/31930) |✔|❌|✔ (No achievements)|❌|❌|❌| |\n| [Triad Takedown Remastered](https://modworkshop.net/mod/34781) |✔|❌|✔ (No achievements)|❌|❌|❌| |\n| [Scorched Earth](https://modworkshop.net/mod/32550) |✔|✔|✔ (No achievements)|✔ (No snipers) |❌|❌| |\n| [Cold Stones](https://modworkshop.net/mod/32670) |✔|✔|✔ (No achievements)|✔ (No snipers)|✔|❌| |\n| [Crime and Punishment](https://modworkshop.net/mod/33260) |✔|❌|❌|❌|❌|❌| |\n| [Yaeger - Rogue Company](https://modworkshop.net/mod/32301) 1.0.1 Day 1 Patch |✔|❌|❌|❌|❌|❌| |\n| [Harboring a Grudge](https://modworkshop.net/mod/35089) |✔|❌|❌|❌|❌|❌| |\n| [Constantine Scores](https://modworkshop.net/mod/37297) |||| ||| |\n| * Smackdown |✔|❌|❌|❌|❌|❌| |\n| * Truck Hustle |✔|✔|❌|❌|✔|❌| |\n| * On Display |✔|❌|❌|❌|✔|❌| |\n| * Concrete Jungle |✔|❌|❌|❌|❌|❌| |\n| * Butcher's Bay |✔|✔|✔ (No achievements)|✔|✔|✔| |\n| * Precinct Raid |✔|✔|✔ (No achievements)|✔(No snipers)|✔|✔| |\n| [Heat Street Rework](https://modworkshop.net/mod/22904) 2.3 |✔|✔|✔|✔|✔|✔| Loads and edits configuration for Vanilla **Heat Street** Heist |\n| [Office Strike](https://modworkshop.net/mod/21032) 1.7 |✔|✔|✔|✔|✔|✔| |\n| [Hard Cash](https://modworkshop.net/mod/41204) 1.1 |✔|✔|✔(No achievements)|✔(No snipers)|❌|✔| |\n| [Branch Bank Initiative](https://modworkshop.net/mod/42921) 1.3 |✔|✔|✔(No achievements)|✔(No snipers)|✔|✔| |\n| [GO Bank Remaster](https://modworkshop.net/mod/25495) 1.3 |✔|✔|✔|✔|✔|✔| Loads configuration for Vanilla **GO Bank** Heist |\n| [Cook Off (Daylight)](https://modworkshop.net/mod/27373) 1.1 |✔|✔|✔|✔|✔|✔| Loads configuration for Vanilla **Cook Off** Heist |\n| [Cook Off: Meth Slaves](https://modworkshop.net/mod/43335) 1.1 |✔|✔|✔|✔|✔|✔| Loads configuration for Vanilla **Cook Off** Heist |\n| [Crashing Capitol - Return to Shield Mall](https://modworkshop.net/mod/44630) 1.0.2.3 |✔|✔|✔|❌|❌|✔| |\n| [Henry's Rock (but Better Spawns & Cover)](https://modworkshop.net/mod/39781) 1.03 |✔|✔|✔|✔|✔|✔| Loads configuration for Vanilla **Henry's Rock** Heist |\n| [Shacklethorne Auction (Better Spawns + No Rain)](https://modworkshop.net/mod/24584) 2.1 |✔|✔|✔|✔|✔|✔| Loads configuration for Vanilla **Shacklethorne Auction** Heist |\n| [Buluc's Mansion (but Better Spawns)](https://modworkshop.net/mod/39875) 1.1 |✔|✔|✔|✔|✔|✔| Loads configuration for Vanilla **Buluc's Mansion** Heist |\n| [Slaughterhouse Edit](https://modworkshop.net/mod/49757) 1.0 |✔|✔|✔|✔|✔|✔| Loads configuration for Vanilla **Slaughterhouse** Heist |\n| [Scarface's Mansion Reimagined](https://modworkshop.net/mod/53614) 1.0 |✔|✔|✔|✔|✔|✔| Loads configuration for Vanilla **Scarface Mansion** Heist |\n\n**Not supported mods**\nIf you have mods that modifies vanilla heists by either:\n- adding more elements\n- modifying existing elements (for example: shortening wait etc...)\n\nEHI fails to recognize these changes and because of that, some trackers may not be accurate as they are in vanilla.\nExample mods:\n[Cook Faster](https://modworkshop.net/mod/16161)\n\n**Compatible mods**\n[Custom Name Color (HUD-compatible)](https://modworkshop.net/mod/22935) - your custom color shows up in trackers/waypoints/buffs that track peer related info (if enabled)\nAll HUD mods should be compatible\n-> Tested WolfHUD, VanillaHUD Plus, CS HUD, MUI, Void UI and PocoHud3\n[Any Day Any Heist](https://modworkshop.net/mod/43232)\n[Hostages Extend Break Time](https://modworkshop.net/mod/50420)\n[Classic Heisting](https://modworkshop.net/mod/33768)\n-> XP Tracker is not visible - XP worked a bit differently in Update 24\n-> Marshal tracker is not visible - Marshal groups did not exist in Update 24\n-> Gage Mod Courier tracker is not visible - Gage packages were added **after** Update 24; in Update 26 to be precise\n\n**Incompatible mods**\n[Tweakdata Fixed](https://modworkshop.net/mod/21098) - EHI won't show up in-game (Press **0** twice to force refresh) or may randomly crash in Berserker buff when this mod installed.\n[EHI Codes and Info Standalone](https://modworkshop.net/mod/59204) - Already included in this mod, game may crash if both mods are installed and active at the same time\n\n**Languages**\n- English\n- Czech (Has to be manually selected in the mod options)\n- French\n- Thai (Recommended mod: [PAYDAY 2 THAI LANGUAGE](https://modworkshop.net/mod/17176)); **Looking for translator**\n- Brazilian Portuguese\n- Simplified Chinese\n- Russian\n- Italian\n- Japanese\n\n**How to install**\nPlease see \"Dependencies & Instructions\" tab.\n\n**Important:**\nIf you are crashing, always post a crashlog. I'm not a psychic nor I can read your mind and posting similar comments like \"EHI is crashing my game, fix it asap\" is not helping either.\nWithout crashlog I cannot help you.\n\n**Feedback**\nIf the mod is crashing or you have an suggestion, please use the link to my Google Forms [here](https://docs.google.com/forms/d/e/1FAIpQLSdE2ciCKNroP0o_-SEZWNGhoZNQu8RNRnj45yq0d4a8dwVaDg/viewform)",
+            "desc": "{#FF5F1F}(**This mod has two versions - 64bit and 32bit version\nClicking on big button on the right downloads 64bit by default, this version will crash if you switched to Legacy branch on Steam\nIn that case, you need to download 32bit. Click on Downloads tab and download it there\nPlease note that 32bit version has no auto updates, therefore you need to reinstall EHI to keep receiving updates and fixes if you switch back to 64bit version (Diesel 3.0)\nYour settings will be kept intact**)\n\nDo you want to just see codes and other info ? Download **Codes and Info** standalone [here](https://modworkshop.net/mod/59204).\n\n**Please do not run both EHI and standalone versions at the same time.\nMods share the same codebase and game may crash.\nTracking elements in standalone versions is already included in EHI.**\n\n**Minimum game version required: 1.0.0-158409 (Update 247)\nMinimum SuperBLT version required: v1.5.0 (Lua) and [4.0.1-beta](https://modworkshop.net/mod/58342) (DLL)\nMinimum EHI version to sync data to other EHI players: r427**\n**!!! Failing to meet the minimum requirements will cause crashes in-game !!!**\n\nShows trackers for various heist related gameplay elements\n- Waiting for a van/heli/boat\n- Waiting for a C4\n- Waiting for a thermite to finish\n- Achievements*\n- Achievements with progress (e.g.: \"Another Way Out\" achievement in Hell's Island)\n- A chance for something to happen (e.g.: teargas, cooking chance)\n- Mission XP Overview\n- Buffs (skill or perk) and color them based on their action in-game\n- Filter achievements tracked in EHI or for **The Secret** -> See progress filter in Achievements Page\n- Damage hit markers or Floating health bars\n- Hudlist\n- etc...\n\nSee screenshots in the \"Images\" tab for more info and how it looks in-game.\n\nEHI is using in-game panels and should be compatible with all HUD mods.\nYou can change x, y position in options to move it on the screen. The mod supports Ultra-Wide monitors.\n\n**Accuracy**\nAlways accurate on host.\nClients should stay accurate within 1-3s range. It is recommended to install (on both host and client side players) [Slowmotion Manager](https://modworkshop.net/mod/18128) mod and remove all slowmotion effects that slows down time calculation.\nDesync can also disallow some trackers to show up/update. There is nothing to prevent it.\nIf you drop-in to a heist, some trackers related to elements may not appear. This is because they are not synced when you drop-in. It can be improved, but it is unfixable.\n\n**Trackers**\nSome trackers are inaccurate and have orange color. These trackers can prematurely expire or expire late when an element (van, heli, ...) is interactable.\n\n**Supported heists**\nAll vanilla heists are supported (Under the Hammer Heist (Update 248) is the latest vanilla heist). Custom heists are not supported due to I have to look into the map scripts and find elements that can be tracked. However, support for them may come at later date.\n**Currently supported custom heists**:\n| Heist | Trackers | Overlapping Waypoints Removed | Achievements | Snipers | Loot Counter | XP Breakdown | Additional Notes:\n|--------|--------| -------- | -------- | -------- | -------- | -------- | -------- |\n| [Triad Takedown (Yacht Heist)](https://modworkshop.net/mod/31930) |✔|❌|✔ (No achievements)|❌|❌|❌| |\n| [Triad Takedown Remastered](https://modworkshop.net/mod/34781) |✔|❌|✔ (No achievements)|❌|❌|❌| |\n| [Scorched Earth](https://modworkshop.net/mod/32550) |✔|✔|✔ (No achievements)|✔ (No snipers) |❌|❌| |\n| [Cold Stones](https://modworkshop.net/mod/32670) |✔|✔|✔ (No achievements)|✔ (No snipers)|✔|❌| |\n| [Crime and Punishment](https://modworkshop.net/mod/33260) |✔|❌|❌|❌|❌|❌| |\n| [Yaeger - Rogue Company](https://modworkshop.net/mod/32301) 1.0.1 Day 1 Patch |✔|❌|❌|❌|❌|❌| |\n| [Harboring a Grudge](https://modworkshop.net/mod/35089) |✔|❌|❌|❌|❌|❌| |\n| [Constantine Scores](https://modworkshop.net/mod/37297) |||| ||| |\n| * Smackdown |✔|❌|❌|❌|❌|❌| |\n| * Truck Hustle |✔|✔|❌|❌|✔|❌| |\n| * On Display |✔|❌|❌|❌|✔|❌| |\n| * Concrete Jungle |✔|❌|❌|❌|❌|❌| |\n| * Butcher's Bay |✔|✔|✔ (No achievements)|✔|✔|✔| |\n| * Precinct Raid |✔|✔|✔ (No achievements)|✔(No snipers)|✔|✔| |\n| [Heat Street Rework](https://modworkshop.net/mod/22904) 2.3 |✔|✔|✔|✔|✔|✔| Loads and edits configuration for Vanilla **Heat Street** Heist |\n| [Office Strike](https://modworkshop.net/mod/21032) 1.7 |✔|✔|✔|✔|✔|✔| |\n| [Hard Cash](https://modworkshop.net/mod/41204) 1.1 |✔|✔|✔(No achievements)|✔(No snipers)|❌|✔| |\n| [Branch Bank Initiative](https://modworkshop.net/mod/42921) 1.3 |✔|✔|✔(No achievements)|✔(No snipers)|✔|✔| |\n| [GO Bank Remaster](https://modworkshop.net/mod/25495) 1.3 |✔|✔|✔|✔|✔|✔| Loads configuration for Vanilla **GO Bank** Heist |\n| [Cook Off (Daylight)](https://modworkshop.net/mod/27373) 1.1 |✔|✔|✔|✔|✔|✔| Loads configuration for Vanilla **Cook Off** Heist |\n| [Cook Off: Meth Slaves](https://modworkshop.net/mod/43335) 1.1 |✔|✔|✔|✔|✔|✔| Loads configuration for Vanilla **Cook Off** Heist |\n| [Crashing Capitol - Return to Shield Mall](https://modworkshop.net/mod/44630) 1.0.2.3 |✔|✔|✔|❌|❌|✔| |\n| [Henry's Rock (but Better Spawns & Cover)](https://modworkshop.net/mod/39781) 1.03 |✔|✔|✔|✔|✔|✔| Loads configuration for Vanilla **Henry's Rock** Heist |\n| [Shacklethorne Auction (Better Spawns + No Rain)](https://modworkshop.net/mod/24584) 2.1 |✔|✔|✔|✔|✔|✔| Loads configuration for Vanilla **Shacklethorne Auction** Heist |\n| [Buluc's Mansion (but Better Spawns)](https://modworkshop.net/mod/39875) 1.1 |✔|✔|✔|✔|✔|✔| Loads configuration for Vanilla **Buluc's Mansion** Heist |\n| [Slaughterhouse Edit](https://modworkshop.net/mod/49757) 1.0 |✔|✔|✔|✔|✔|✔| Loads configuration for Vanilla **Slaughterhouse** Heist |\n| [Scarface's Mansion Reimagined](https://modworkshop.net/mod/53614) 1.0 |✔|✔|✔|✔|✔|✔| Loads configuration for Vanilla **Scarface Mansion** Heist |\n\n**Not supported mods**\nIf you have mods that modifies vanilla heists by either:\n- adding more elements\n- modifying existing elements (for example: shortening wait etc...)\n\nEHI fails to recognize these changes and because of that, some trackers may not be accurate as they are in vanilla.\nExample mods:\n[Cook Faster](https://modworkshop.net/mod/16161)\n\n**Compatible mods**\n[Custom Name Color (HUD-compatible)](https://modworkshop.net/mod/22935) - your custom color shows up in trackers/waypoints/buffs that track peer related info (if enabled)\nAll HUD mods should be compatible\n-> Tested WolfHUD, VanillaHUD Plus, CS HUD, MUI, Void UI and PocoHud3\n[Any Day Any Heist](https://modworkshop.net/mod/43232)\n[Hostages Extend Break Time](https://modworkshop.net/mod/50420)\n[Classic Heisting](https://modworkshop.net/mod/33768)\n-> XP Tracker is not visible - XP worked a bit differently in Update 24\n-> Marshal tracker is not visible - Marshal groups did not exist in Update 24\n-> Gage Mod Courier tracker is not visible - Gage packages were added **after** Update 24; in Update 26 to be precise\n\n**Incompatible mods**\n[Tweakdata Fixed](https://modworkshop.net/mod/21098) - EHI won't show up in-game (Press **0** twice to force refresh) or may randomly crash in Berserker buff when this mod installed.\n[EHI Codes and Info Standalone](https://modworkshop.net/mod/59204) - Already included in this mod, game may crash if both mods are installed and active at the same time\n\n**Languages**\n- English\n- Czech (Has to be manually selected in the mod options)\n- French\n- Thai (Recommended mod: [PAYDAY 2 THAI LANGUAGE](https://modworkshop.net/mod/17176)); **Looking for translator**\n- Brazilian Portuguese\n- Simplified Chinese\n- Russian\n- Italian\n- Japanese\n\n**How to install**\nPlease see \"Dependencies & Instructions\" tab.\n\n**Important:**\nIf you are crashing, always post a crashlog. I'm not a psychic nor I can read your mind and posting similar comments like \"EHI is crashing my game, fix it asap\" is not helping either.\nWithout crashlog I cannot help you.\n\n**Feedback**\nIf the mod is crashing or you have an suggestion, please use the link to my Google Forms [here](https://docs.google.com/forms/d/e/1FAIpQLSdE2ciCKNroP0o_-SEZWNGhoZNQu8RNRnj45yq0d4a8dwVaDg/viewform)",
             "short_desc": "A HUD mod with main focus on map script element tracking",
             "legacy_markup": false,
-            "downloads": 139571,
-            "likes": 912,
-            "views": 336288,
+            "downloads": 140003,
+            "likes": 914,
+            "views": 337143,
             "published_at": "2021-05-01T10:28:54.000000Z",
-            "bumped_at": "2026-10-26T10:10:04.000000Z",
+            "bumped_at": "2026-11-02T12:51:44.000000Z",
             "category_id": 4,
             "has_download": true,
             "disable_mod_managers": true,
@@ -28,22 +28,535 @@
             }
         },
         {
-            "id": 59743,
-            "name": "GTA IV Mission Stingers for Objective/Small Loot pickup SFX",
-            "desc": "as the title says, the stingers sound awesome and they would fit for a crime game i believe\n{#007bff}(---------------------------------------------------------------------------------------------------)\n**{#86ff6e}(different versions will be added soon or later)**\n\npreview:\n![](https://https://www.youtube.com/watch?v=x1aKpM95QBI)",
-            "short_desc": "basically the said sound effects will be replaced from the ones that plays in gta IV",
+            "id": 59843,
+            "name": "Perfect View Laser",
+            "desc": "# Perfect View Laser\n\nPerfect View Laser is based on the laser behavior of **Less Inaccurate Weapon Laser (LIWL) by TdlQ** and was created to provide precise, weapon-specific laser alignment.\n\nLIWL greatly improves weapon laser accuracy, but due to differences in weapon models, viewmodel positioning, and laser attachment positions, some weapons can still have lasers that are slightly misaligned.\n\nPerfect View Laser was created to compensate for these remaining inaccuracies by allowing you to manually fine-tune the laser direction for each weapon using **Yaw, Pitch, and Roll**.\n\nEach adjustment is saved separately for that weapon, so once you correct a misaligned laser, the correction will automatically be applied whenever you use that weapon again.\n\n## Features\n\n- Includes the improved laser behavior from Less Inaccurate Weapon Laser\n- Fine-tune laser direction using Yaw, Pitch, and Roll\n- Individual laser corrections for each weapon\n- Automatically saves and loads weapon-specific corrections\n- Reset the current weapon's laser rotation to its default state\n- In-game configuration menu\n- Configurable menu keybind\n- Supports the SuperBLT Mod Keybind system\n\n## Usage\n\n1. Enter a heist and equip the weapon you want to adjust.\n2. If necessary, use **Perfect Viewmodel (PVM)** to correct the weapon's viewmodel rotation first.\n3. Open the Perfect View Laser menu using the assigned key.\n4. Adjust **Yaw**, **Pitch**, and **Roll** under **Laser Rotation** until the laser is properly aligned.\n5. The correction is automatically saved for the currently equipped weapon.\n6. Use **Reset** to remove the correction and return that weapon's laser rotation to its default state.\n\nThe menu key can also be changed through SuperBLT's Mod Keybinds menu.\n\n## Perfect Viewmodel\n\nFor some weapons, adjusting the laser direction alone may not be enough to achieve perfect alignment.\n\nThis can happen when the weapon itself uses different viewmodel rotations depending on the player's stance.\n\nThe **Campbell 74** is one example. By default, PAYDAY 2 uses different **Yaw, Pitch, and Roll** values for the Campbell 74 when aiming down sights, standing, and crouching. Because of this, a single laser correction may not perfectly align the laser in every stance.\n\nFor weapons like this, you may need to use **Perfect Viewmodel (PVM)** first to correct the weapon's rotation between different stances, and then use **Perfect View Laser** to fine-tune the laser itself.\n\nIn other words:\n\n**Perfect Viewmodel → correct the weapon's rotation**\n\n**Perfect View Laser → fine-tune the laser**\n\nUsing both makes it possible to correct inconsistencies in the weapon's viewmodel rotation first and then precisely align the laser.\n\nPerfect Viewmodel is **not required** to use Perfect View Laser. It is only recommended for weapons that require additional viewmodel rotation adjustments.\n\n## Compatibility\n\nPerfect View Laser incorporates modified code from **Less Inaccurate Weapon Laser**.\n\nYou do **not** need to install LIWL separately.\n\nDo not use LIWL and Perfect View Laser at the same time, as both modify the same weapon laser functionality.\n\nPerfect Viewmodel can be used alongside Perfect View Laser and is recommended for weapons that require additional viewmodel rotation adjustments.\n\n## Requirements\n\n- SuperBLT\n- BeardLib\n\n## Installation\n\nExtract the **Perfect View Laser** folder into:\n\n`PAYDAY 2/mods/`\n\n## Credits\n\n### TdlQ — Less Inaccurate Weapon Laser\n\nPerfect View Laser is based on LIWL and uses modified LIWL code for its laser raycast and positioning behavior.\n\nOriginal mod:\n\nhttp://pd2mods.z77.fr/less_inaccurate_weapon_laser.html\n\n### Luffy — Perfect Viewmodel\n\nPerfect Viewmodel can be used alongside Perfect View Laser to correct weapon viewmodel rotation before fine-tuning the laser.\n\nThe in-game configuration menu and UI design of Perfect View Laser were also inspired by Perfect Viewmodel.\n\nPerfect Viewmodel:\n\nhttps://modworkshop.net/mod/17618",
+            "short_desc": "Fine-tune remaining weapon laser misalignment with per-weapon Yaw, Pitch, and Roll adjustments. Based on Less Inaccurate Weapon Laser.",
             "legacy_markup": false,
             "downloads": 3,
             "likes": 0,
-            "views": 66,
-            "published_at": "2026-10-25T21:36:51.000000Z",
-            "bumped_at": "2026-10-26T09:55:38.000000Z",
-            "category_id": 345,
+            "views": 24,
+            "published_at": "2026-11-02T12:28:34.000000Z",
+            "bumped_at": "2026-11-02T12:28:34.000000Z",
+            "category_id": 200,
             "has_download": true,
             "disable_mod_managers": false,
             "download_type": null,
             "thumbnail": {
-                "file": "iyiJILSKIow7Zbr3ciVDbfBiIOxU0Cc4t3YrPepN.webp",
+                "file": "YkNrUEHrTWnfrUgv1OdsNfWVROUMZLDdXG6ukNrW.webp",
+                "has_thumb": true
+            },
+            "user": {
+                "id": 194533,
+                "name": "a.k.a. t3F",
+                "donation_url": "",
+                "avatar": "",
+                "avatar_has_thumb": false
+            }
+        },
+        {
+            "id": 59530,
+            "name": "Consistent Weapon Renames (WIP)",
+            "desc": "Weapon renames to keep better internal consistency. Will likely come back to this, if any name feels wrong, go ahead and remove it in the lua file\n\nRenames:\n\nAK/AK.762 > AK74/AK47\n~~Gewehr 3 > Brenner-3~~\nChimano 88/Custom/Compact > STRYK 7/40/6\n\nContractor Pistol > Contractor 9mm\nSignature SMG > Signature Auto\nMosconi 12G > Mosconi 12G ~~SxS~~ *Classic*\n\nAK Gen-21 Tactical > AK21\nKang Arms Model 54 > Kang 54\nSG Versteckt 51D > Versteckt 51D\n\nKETCHNOV Byk-1 Assault Rifle > Ketchnov Byk-1 Rifle\nLittle Friend 7.62 Assault Rifle > Little Friend 7.62 Rifle\nCavity 9mm > Cavity 9mm Rifle\nCampbell 74 LMG > Campbell 74 Light Machine Gun\nWasp-DS SMG > Wasp-DS Submachine Gun\n*Baby Deagle > Baby Deagle Pistol*",
+            "short_desc": "Because it annoys me how inconsistent it is",
+            "legacy_markup": false,
+            "downloads": 19,
+            "likes": 0,
+            "views": 450,
+            "published_at": "2026-10-15T08:51:40.000000Z",
+            "bumped_at": "2026-11-02T11:59:59.000000Z",
+            "category_id": 291,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "download_type": null,
+            "thumbnail": {
+                "file": "98veLasPo88HQJDQjZvjXASUpkon8tLcDwGiWZOM.webp",
+                "has_thumb": true
+            },
+            "user": {
+                "id": 194858,
+                "name": "Tibithia",
+                "donation_url": "",
+                "avatar": "9SZoC23YEOO3F5czGwkktfR0ymTYuhNMNRQEFZdi.webp",
+                "avatar_has_thumb": true
+            }
+        },
+        {
+            "id": 55868,
+            "name": "Kasane Teto Menu Tracks",
+            "desc": "I have finally gotten around to it, a compilation of mostly Teto songs/covers [aside from one exception] I felt like putting together for menu music, though I may add more to this mod later on! Enjoy, and please go support all the creators behind these tracks, thank you~\n\nSongs used and source credit:\n\nNo Escape [Zeishi]\nhttps://www.youtube.com/watch?v=N3DBbqpdv8A\n\nNo Escape Instrumental [Zeishi]\nhttps://www.youtube.com/watch?v=nI643z_JHKU\n\nLike Chocolate Instrumental [Zeishi]\nhttps://www.youtube.com/watch?v=ZlMGDJefCuA\n\nLike Chocolate [Zeishi]\nhttps://www.youtube.com/watch?v=9KcA1X1ugiY\n\nApril First [archiebalt]\nhttps://www.youtube.com/watch?v=qSTkM6PTbrI\n\nLower Than Here [tunasandwich-p]\nhttps://www.youtube.com/watch?v=5fECpa2tuzE\n\nStormy Days [tunasandwich-p]\nhttps://www.youtube.com/watch?v=qp98zJUAtmY\n\nSnowflakes [Pixelated Quality]\nhttps://www.youtube.com/watch?v=YoMcPPUBV1g\n\nSprout [AzureMH]\nhttps://www.youtube.com/watch?v=2IS2O-4mMLQ\n\nIn My Room [Ferst]\nhttps://www.youtube.com/watch?v=QL-pGh-KLHE\n\nDear Future Self [TowTellLee]\nhttps://www.youtube.com/watch?v=TL-xEY_0E18\n\nA Way Of Life [Syst-M]\nhttps://www.youtube.com/watch?v=tpZ127xxmNs\n\nI'm Too Complicated [Nash Nougat]\nhttps://www.youtube.com/watch?v=oG4-Sa87tFQ\n\nPastel Pace [Milisen] [Instrumental version used was found in video description!]\nhttps://www.youtube.com/watch?v=Z7GatxEz-t4\n\nThe Song Of French Bread [world elec. official]\nhttps://www.youtube.com/watch?v=rqXpDlwbZqY\n\nHeaven [Optikaros]\nhttps://www.youtube.com/watch?v=Hu41qWKYCFM\n\nHeartbeat, Heartbreak [echtako]\nhttps://www.youtube.com/watch?v=X4Cb_xS6PVE\n\nMonitoring, but it's the 1920's [panipaji]\nhttps://www.youtube.com/watch?v=_Br8weX2KJs",
+            "short_desc": "",
+            "legacy_markup": false,
+            "downloads": 204,
+            "likes": 4,
+            "views": 1089,
+            "published_at": "2026-04-03T17:18:29.000000Z",
+            "bumped_at": "2026-11-02T11:54:36.000000Z",
+            "category_id": 462,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "download_type": null,
+            "thumbnail": {
+                "file": "gcZ6bp9WY5r58H70JcS6XXNCxX1YvCnUoE4YRnOc.webp",
+                "has_thumb": true
+            },
+            "user": {
+                "id": 57078,
+                "name": "Kasane Teto",
+                "donation_url": "",
+                "avatar": "ItPbdOX3XKHYBC6a4lZVYWnZHUaqyGYVhD7ziikX.webp",
+                "avatar_has_thumb": true
+            }
+        },
+        {
+            "id": 59755,
+            "name": "Piselake Difficulty Icons",
+            "desc": "adds piselake difficulty icons\n\n!!!mod_overrides!!!!!",
+            "short_desc": "adds piselake difficulty icons",
+            "legacy_markup": false,
+            "downloads": 2,
+            "likes": 0,
+            "views": 18,
+            "published_at": "2026-11-02T10:34:19.000000Z",
+            "bumped_at": "2026-11-02T10:34:19.000000Z",
+            "category_id": 253,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "download_type": null,
+            "thumbnail": {
+                "file": "aVJEZQ5CNzwcgHlvRt4tDapZro9YFRBYC9HJtglL.webp",
+                "has_thumb": true
+            },
+            "user": {
+                "id": 232645,
+                "name": "kirgiz0_0",
+                "donation_url": null,
+                "avatar": "mVHBtZXWXTeSxgwcUK9WhcR20d7uRWlfftgufvMK.webp",
+                "avatar_has_thumb": false
+            }
+        },
+        {
+            "id": 59841,
+            "name": "Milk NIKKE Battle Announcer",
+            "desc": "Have you ever met someone that for whatever reason always wanted to get in a fight or start a fight? If so, I'm willing to bet that they weren't a girl. Milk however is one. Completing the trifecta of Cafe Sweety (or the Scavengers), she's the one that'll try to convince you that Milk coffee is the best. Now, unlike Sugar and Frima where overdosing on sugar or coffee creamer may ruin your health, a bunch of milk mixed with coffee won't kill you (probably). Outside of the coffee business, she likes to spar a lot. In fact so much so, that she's willing to smack anyone who says that her coffee is the worst within earshot. Now I'm left wondering if her milkshakes bring the boys to the yard. She has 19 voicelines she can say, each having an equal chance of being played. Specifically,\n\n-----\nWhen an enemy is killed (10 sec cooldown):\n\"All right, let's do this!\"\n\"You're not going anywhere, you twerps!\"\n\"(No...) you're dead meat!\"\n\"Time to turn it up to 11!\"\n\"C'mon, give me all you've got!\" \n\"Nice!\"\n\"Hah hah!\"\n\"I almost feel sorry for you... but not quite!\" \n\"Right now!\"\n\"Try this one on for size!\"\n\"Go back to hell where you belong!\"\n\"Ha-ha, leave the fighting to me. I'll show them what for!\"\n\"Alright, who wants some of this?!\"\n\"I'm ready to rock!\"\n\n-----\nWhen a heist ends in success:\n\"Another victory for us, thanks to me!\"\n\"If anyone is giving you a hard time, just let me know and I'll set them straight.\"\n\"If you're the one drinking it, then the milk coffee is on me.\"\n\"I want to know everything about you, no matter how trivial it is.\"\n\n-----\nWhen a heist ends in failure:\n\"I didn't lose! This is a tactical withdrawal.\"\n\n-----\nIn game demo: ![](https://youtu.be/3PC7mVicttY)\n\nFail line (short): ![](https://youtu.be/2LdSYEYgINE)",
+            "short_desc": "",
+            "legacy_markup": false,
+            "downloads": 1,
+            "likes": 0,
+            "views": 14,
+            "published_at": "2026-11-02T05:36:19.000000Z",
+            "bumped_at": "2026-11-02T05:36:19.000000Z",
+            "category_id": 6,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "download_type": null,
+            "thumbnail": {
+                "file": "oXOJMAowkyosYPUrDUXc56bqQvxzeTIZ4a6wnXMd.webp",
+                "has_thumb": true
+            },
+            "user": {
+                "id": 226050,
+                "name": "FeaRLess",
+                "donation_url": "",
+                "avatar": "0rraLwFfEQ5KcTaszAIKoZ3mj1cY2mtKxcgCrUsB.webp",
+                "avatar_has_thumb": true
+            }
+        },
+        {
+            "id": 59473,
+            "name": "GhostForce",
+            "desc": "Combat Stealth Relay - displays real-time stealth messages",
+            "short_desc": "Combat Stealth Relay - displays real-time stealth messages",
+            "legacy_markup": false,
+            "downloads": 40,
+            "likes": 3,
+            "views": 1097,
+            "published_at": "2026-10-11T15:51:37.000000Z",
+            "bumped_at": "2026-11-02T04:56:19.000000Z",
+            "category_id": 253,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "download_type": null,
+            "thumbnail": {
+                "file": "5n5ILngBeRjYfW6XQviDXjmJnDcK8Wetgl1Bnuay.webp",
+                "has_thumb": true
+            },
+            "user": {
+                "id": 232326,
+                "name": "Chameleon",
+                "donation_url": "",
+                "avatar": "Jdo5wfKIcvl8TMhbpwVGi4Mk2uPkOtkAp3itWykl.webp",
+                "avatar_has_thumb": true
+            }
+        },
+        {
+            "id": 29905,
+            "name": "Proving Grounds",
+            "desc": "While the original Enemy Spawner was a handy utility for many people, over time it has grown outdated and hard to work on. Proving Grounds was created to bring the map more features to help more players!\n\n# **Returning Features**\n* You can spawn enemies! Didn't expect that, huh?\n* They don't shoot you! Wow!\n* The buttons are labeled and make a sound when you press them. How useful!\n* Don't want to waste bullets killing the enemies? Just hit the \"clear enemies\" button and they're gone!\n* Toggleable greenscreen! This is by far the best in-game greenscreen you'll find in any heist/mod out right now.\n\n# **What's New!**\n* Choose enemy faction for the spawner! Привет! Braaaaaaiiiiinnnnss! Hello(But in Murkywaterese)! ¡Hola!\n* An arena to fight police assaults! One hundred and seven men enter, one man leaves!\n* A shooting range! I've given up with extra flavour texts!\n* A bag showcase!\n* A weapon showcase!\n* Fun little games and easter eggs for you to discover!\n* And more!\n\n# **Installation**\n1. Install [Beardlib](https://modworkshop.net/mod/14924). Make sure you have the latest version!\n2. Create the maps folder in your PAYDAY 2 Install directory if it does not already exist\n3. Download the mod, extract the 'Proving Grounds' folder in the contained .zip archive and place said folder within the maps folder.",
+            "short_desc": "A newer enemy spawner for the modern age.",
+            "legacy_markup": false,
+            "downloads": 84119,
+            "likes": 570,
+            "views": 140213,
+            "published_at": "2020-11-19T15:13:10.000000Z",
+            "bumped_at": "2026-11-02T01:23:49.000000Z",
+            "category_id": 502,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "download_type": "file",
+            "thumbnail": {
+                "file": "37478_1605799606_f825cfee0fe6f2d3a062a8ec6d53a455.jpg",
+                "has_thumb": true
+            },
+            "user": {
+                "id": 32428,
+                "name": "Lawsfercapcake?",
+                "donation_url": "",
+                "avatar": "Nu4ZTuRpjQcDsh2PFshyAjPdjBfraLYqoAm2gyT4.webp",
+                "avatar_has_thumb": true
+            }
+        },
+        {
+            "id": 59555,
+            "name": "Interaction Animations",
+            "desc": "# Interaction Animations\nA **WIP** mod/framework that adds Payday 3-style animations to its prequel.\n\nThis version currently supports offhand and dual-arm animations. For now, it's got:\n- Keycard insertion\n- Grabbing loose loot\n- Fixing drills\n- Answering pagers\n- Lockpicking\n- Pressing buttons\n- *Other miscellaneous animations*\n\nBoth the keycard insertion and the radio answering animations were made by PlayBONK (they're the best animations in the pack, so give lots of praise to her!)\n\nTo control what animations are enabled, head over to the mod's option menu. The animation IDs should be self-explanatory towards their deactivation.\n\n# Animator Template\nFor other animators looking to add onto this framework, [here](https://github.com/Javgarag/pd2-interaction-animations/tree/main/template) is a handy template with everything that needs to be done to add an animation explained thoroughly. Read the `animator_docs.md` file to get started. Feel free to publish a standalone mod with your animation using the template, though you're more than welcome to make additions to this base mod as well (make a pull request on the repo).\n\nMods that use this framework:\n- [Pat Jokers](https://modworkshop.net/mod/59766) by Hoppip",
+            "short_desc": "",
+            "legacy_markup": false,
+            "downloads": 2129,
+            "likes": 101,
+            "views": 4732,
+            "published_at": "2026-10-16T18:32:37.000000Z",
+            "bumped_at": "2026-11-02T00:51:39.000000Z",
+            "category_id": 774,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "download_type": null,
+            "thumbnail": {
+                "file": "xIyUTUjWqnlJyB5wGuZNipJoboRI5Wf0AMiFwXqx.webp",
+                "has_thumb": true
+            },
+            "user": {
+                "id": 56979,
+                "name": "Javgarag",
+                "donation_url": "https://www.paypal.com/donate/?hosted_button_id=BXH6YZTZLPCQG",
+                "avatar": "https://avatars.steamstatic.com/8ddc13b6c451d9668e42b6a4d8cffc2e70b6a6ff_full.jpg",
+                "avatar_has_thumb": false
+            }
+        },
+        {
+            "id": 59830,
+            "name": "Mann VS Zombies Trailer Heist Track",
+            "desc": "Adds the song from the Mann versus Zombies trailer as a heist track\n\nThere are 2 versions. The only difference between them is how the assault track loops.\n\nThe main version has a 2 second bit at the end that gently slows down the track before the next loop, which in theory should make it less monotonous.\nWhile the alternative version doesn't have that bit, and therefore has little to no down time.\n\nBoth versions loop well. Which one is better is down to preference.\n\nMod's mix:\n![](https://youtu.be/BNdOZmIX0gY?si=6mMsX-HAN6-U8NCk)\n\nSources:\n\nSnippet of Stealth, Control, Anticipation, Assault:\n![](https://www.youtube.com/watch?v=lln253BWofo&list=LL&index=1)\n\nMost of Stealth:\n![](https://www.youtube.com/watch?v=WgO04Yjzfxo)",
+            "short_desc": "",
+            "legacy_markup": false,
+            "downloads": 3,
+            "likes": 1,
+            "views": 85,
+            "published_at": "2026-11-01T21:32:25.000000Z",
+            "bumped_at": "2026-11-01T21:32:25.000000Z",
+            "category_id": 470,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "download_type": "file",
+            "thumbnail": {
+                "file": "vRSaX5Kphd1V64HYj2Aw3A0CcpZ2dQk1jA6wImae.webp",
+                "has_thumb": true
+            },
+            "user": {
+                "id": 163740,
+                "name": "Rolnik_Gaming",
+                "donation_url": "",
+                "avatar": "DLcnopPcq5kZU8wbsl0rnbNQ3N3KmtKRSJxcDT2W.webp",
+                "avatar_has_thumb": false
+            }
+        },
+        {
+            "id": 59827,
+            "name": "Rob-erts",
+            "desc": "# Rob-erts\n\nA remaster of the original GO Bank heist. A small suburban bank with almost no security, but the café next door keeps it full of customers all day. The cash was delivered just recently, so the vault is stuffed.\n\n## Plan A\nFind the keycards, wait for the time lock to open, answer the phone call and be ready for what follows. Then find the vault code before the alarm goes off, throw the bags over the fence and escape in the van.\n\n## Plan B\nOpen the vault without tripping the alarm, move the bags to another spot and escape through the sewers. If the alarm goes off before the vault is open, Plan B is no longer possible.\n\n## Features\n- Reworked bank layout, a livelier and more traversable map, a local café\n- New random events: the phone call may bring lawyers or an accountant, the roof may be flooded with workers on it, the roof door may be locked\n- Random keycard locations: the first can be in the bank safe or on a smoking man behind the café, the second at the teller desk, on the drive-through employee or on the manager\n- Pedestrians walking around town. Scare one while wearing a mask and the panic spreads\n- Plan B with a sewer escape\n- Russian and English localization\n\nEvent chances and timers depend on the difficulty. The full tables are on GitHub: https://github.com/g0odhamq-cell/Rob-erts.git\n\n## Requirements\n- SuperBLT\n- BeardLib \n- Every player in the lobby needs the mod installed\n\n## Installation\nExtract the folder into your `Maps` directory.\n\n## Feedback\nThis is my first released heist, so bug reports and feedback are very welcome. Please include the difficulty, number of players and what happened (the BLT log helps a lot). Report issues here in the comments or on GitHub: https://github.com/g0odhamq-cell/Rob-erts.git\n\n## Changelog\nv1.0 - first release\n\n## Credits\nOriginal heist by Overkill Software. Remaster by Rivera.\n\n\n# Rob-erts\n\nРемастер оригинального ограбления GO Bank. Небольшой пригородный банк почти без охраны, но благодаря соседнему кафе здесь весь день полно посетителей. Наличные завезли совсем недавно, так что хранилище забито до отказа.\n\n## План «А»\nНайдите ключ-карты, дождитесь окончания временного замка, ответьте на звонок и будьте готовы к тому, что последует. Затем найдите код от хранилища, пока не сработала тревога, перебросьте сумки через забор и уезжайте на фургоне.\n\n## План «Б»\nВскройте хранилище, не поднимая тревоги, перенесите сумки в другое место и скройтесь через канализацию. Если тревога сработает до вскрытия хранилища, план «Б» станет невозможен.\n\n## Особенности\n- Перепланировка банка, более оживлённая и проходимая карта, местное кафе\n- Новые случайные события: после звонка могут приехать юристы или бухгалтер, крыша может оказаться затопленной (на ней будут рабочие), дверь на крышу может быть закрыта\n- Случайное расположение ключ-карт: первая может быть в сейфе банка или у курящего мужчины за кафе, вторая на столе за кассой, у сотрудницы у окна обслуживания автомобилей или у менеджера\n- Прохожие на улицах. Испугайте одного в маске, и паника может распространиться\n- План «Б» с отходом через канализацию\n- Локализация на русский и английский языки\n\nШансы событий и таймеры зависят от сложности. Полные таблицы на GitHub: https://github.com/g0odhamq-cell/Rob-erts.git\n\n## Требования\n- SuperBLT\n- BeardLib\n- Мод должен быть установлен у всех игроков в лобби\n\n## Установка\nРаспакуйте папку в директорию `Maps`.\n\n## Обратная связь\nЭто моё первое опубликованное ограбление, поэтому буду очень признателен за сообщения об ошибках и отзывы. Указывайте, пожалуйста, уровень сложности, количество игроков и подробности случившегося (лог BLT очень поможет). Писать можно здесь, в комментариях, или на GitHub: https://github.com/g0odhamq-cell/Rob-erts.git\n\n## История изменений\nv1.0 — первый релиз\n\n## Авторы\nОригинальное ограбление — Overkill Software. Ремастер: Rivera.",
+            "short_desc": "Custom Heist",
+            "legacy_markup": false,
+            "downloads": 22,
+            "likes": 2,
+            "views": 283,
+            "published_at": "2026-11-01T17:19:41.000000Z",
+            "bumped_at": "2026-11-01T17:19:41.000000Z",
+            "category_id": 768,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "download_type": null,
+            "thumbnail": {
+                "file": "j5Mx9AeYicFAP4r6EpY2TJYML6qQYFtgyiO9c0Ui.webp",
+                "has_thumb": true
+            },
+            "user": {
+                "id": 232961,
+                "name": "Rivera",
+                "donation_url": "",
+                "avatar": "iyHbelRiJUO0f7rjo7d2PADSliRPdAV0QESzaOwT.webp",
+                "avatar_has_thumb": true
+            }
+        },
+        {
+            "id": 59835,
+            "name": "Umamusume | Daiwa Scarlet (Gust of Wind - Deep Cornflower Blue) Character Mod",
+            "desc": "::::::\n# her bust size might be a problem...\n::::::\nAdd Daiwa Scarlet (Gust of Wind - Deep Cornflower Blue) to Payday 2 as Outfit\nModel/Textures by Cygames\nArt: https://x.com/JAZZ_JACK_/status/2114317908612624871?s=20",
+            "short_desc": "",
+            "legacy_markup": false,
+            "downloads": 9,
+            "likes": 2,
+            "views": 64,
+            "published_at": "2026-11-01T15:58:18.000000Z",
+            "bumped_at": "2026-11-01T15:58:18.000000Z",
+            "category_id": 688,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "download_type": null,
+            "thumbnail": {
+                "file": "Rd6vPMc2rGs9YZ8r539i4KHbOYAWn5PMPYTJJ39D.webp",
+                "has_thumb": true
+            },
+            "user": {
+                "id": 165450,
+                "name": "JamesR",
+                "donation_url": "https://ko-fi.com/notjamesr",
+                "avatar": "YX77YA6qkfw7uxC8efVcPWMCyCzkYnkW57nr7F3o.webp",
+                "avatar_has_thumb": true
+            }
+        },
+        {
+            "id": 59834,
+            "name": "Umamusume | Wonder Acute (Casual) Character Outfit",
+            "desc": "::::::\n# more granny energy\n::::::\n\nAdd Wonder Acute (Casual) to Payday 2 as Outfit\nModel/Textures by Cygames\nArt: https://twitter.com/172cmtese/status/1847841283655815647\n\n!!!\nFun Fact: \n- She knows the basics of boxing as her parents own a boxing gym\n!!!",
+            "short_desc": "",
+            "legacy_markup": false,
+            "downloads": 7,
+            "likes": 1,
+            "views": 73,
+            "published_at": "2026-11-01T15:54:15.000000Z",
+            "bumped_at": "2026-11-01T15:54:15.000000Z",
+            "category_id": 688,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "download_type": null,
+            "thumbnail": {
+                "file": "6lZScir84E9zt8NNDkW1zsthPuPTNFSVlvn6WUrI.webp",
+                "has_thumb": true
+            },
+            "user": {
+                "id": 165450,
+                "name": "JamesR",
+                "donation_url": "https://ko-fi.com/notjamesr",
+                "avatar": "YX77YA6qkfw7uxC8efVcPWMCyCzkYnkW57nr7F3o.webp",
+                "avatar_has_thumb": true
+            }
+        },
+        {
+            "id": 59833,
+            "name": "Umamusume | Curren Chan Character Mod",
+            "desc": "::::::\n# {#F86669}(\"New day, same adorable Curren! ☆ Spread the word with #CurrenChan! ♪\")\n::::::\n\nAdd Curren Chan to Payday 2 as Outfit\nModel/Textures by Cygames\n\n!!!\nFun Fact:\n- She has a black belt in aikido\n- She makes sure to always wear a mini-skirt in order to be at 100% cuteness.\n- This is also the 200th mod of my page :v\n- Also I tried to replace both h3h3 characters with Falco and Curren, though it's scrapped\n!!!",
+            "short_desc": "",
+            "legacy_markup": false,
+            "downloads": 15,
+            "likes": 3,
+            "views": 103,
+            "published_at": "2026-11-01T15:49:33.000000Z",
+            "bumped_at": "2026-11-01T15:49:33.000000Z",
+            "category_id": 688,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "download_type": null,
+            "thumbnail": {
+                "file": "o0UXO8b4MfxRDh5yCodvmBLc2RY4eeZEc2wWeKzv.webp",
+                "has_thumb": true
+            },
+            "user": {
+                "id": 165450,
+                "name": "JamesR",
+                "donation_url": "https://ko-fi.com/notjamesr",
+                "avatar": "YX77YA6qkfw7uxC8efVcPWMCyCzkYnkW57nr7F3o.webp",
+                "avatar_has_thumb": true
+            }
+        },
+        {
+            "id": 59831,
+            "name": "Umamusume | Smart Falcon Character Mod",
+            "desc": "::::::\n# {#F8587B}(\"Hi, I'm Falco! My dream is to be the best Umadol I can be! ☆\")\n::::::\n\nAdd Smart Falcon to Payday 2 as Outfit\nModel/Textures by Cygames\nArt: https://x.com/yonedatomomizu/status/1604304684906614785\n\n!!!\nFun Fact:\n- The Earth is only 10 Billion people\n!!!",
+            "short_desc": "",
+            "legacy_markup": false,
+            "downloads": 9,
+            "likes": 1,
+            "views": 68,
+            "published_at": "2026-11-01T15:49:30.000000Z",
+            "bumped_at": "2026-11-01T15:49:30.000000Z",
+            "category_id": 688,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "download_type": null,
+            "thumbnail": {
+                "file": "T0bPhgXGzTyZm4LoapPL5JY1vXg3eGI0CmcO322F.webp",
+                "has_thumb": true
+            },
+            "user": {
+                "id": 165450,
+                "name": "JamesR",
+                "donation_url": "https://ko-fi.com/notjamesr",
+                "avatar": "YX77YA6qkfw7uxC8efVcPWMCyCzkYnkW57nr7F3o.webp",
+                "avatar_has_thumb": true
+            }
+        },
+        {
+            "id": 50681,
+            "name": "具有车万风格的本地文本描述改变（目前仅限中文）",
+            "desc": "Touhou style robbery name and contract agent and description+skill name+talent deck name and throwing object and description\nDue to the heavy workload, currently only Chinese is available. We apologize for any inconvenience caused\nOf course, I would be delighted if someone could translate it into other languages",
+            "short_desc": "",
+            "legacy_markup": false,
+            "downloads": 123,
+            "likes": 3,
+            "views": 1333,
+            "published_at": "2024-12-31T06:52:24.000000Z",
+            "bumped_at": "2026-11-01T12:37:57.000000Z",
+            "category_id": 247,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "download_type": null,
+            "thumbnail": {
+                "file": "LwycPB6cbg93snnOBntGMjmhaz43NRxjFi2MfWjv.webp",
+                "has_thumb": true
+            },
+            "user": {
+                "id": 130544,
+                "name": "你的恋恋呀",
+                "donation_url": "",
+                "avatar": "sBDd8wfGFiSm58qNgLVZOszBsSG2P3sjVgvs9qAj.webp",
+                "avatar_has_thumb": false
+            }
+        },
+        {
+            "id": 58499,
+            "name": "Claire Redfield DLC - Resident Evil",
+            "desc": "# ***📖 About Claire Redfield***\n**Claire had been tracking an organization involved in the illegal trade of biological weapons. Unfortunately, the people behind it were out of reach through official channels.**\n\n**When she discovered that the Payday Gang was planning a job against one of their associates, Claire decided to use the opportunity to get closer to them.**\n\n**Rather than stopping the gang, she offered them a deal — she would help with the heist in exchange for the information she needed.**\n\n**With Clover stepping away from the gang, Claire took her place. What started as a single job quickly became something more.**\n\n🗣️ Dialogue Sources\nThe dialogues are taken from:\n- Resident Evil 2 Remake\n- Dead by Daylight\n- Resident Evil - Infinite Darkness Series\n- Resident Evil - Death Island Movie\n\n🔹 What’s included?\n✅ Claire Redfield Character model\n✅ Portrait icon \n✅ Character rename\n✅ Character description changed\n🛠 Claire contact_database video\n🔄 Voicelines - in progress\n🛠 PDTH HUD Portrait Addon - Planned\n🛠 All languages mod translation - Planned\n🛠Claire Redfield Skins - Planned",
+            "short_desc": "",
+            "legacy_markup": false,
+            "downloads": 312,
+            "likes": 13,
+            "views": 1542,
+            "published_at": "2026-08-26T06:44:16.000000Z",
+            "bumped_at": "2026-11-01T12:01:55.000000Z",
+            "category_id": 17,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "download_type": null,
+            "thumbnail": {
+                "file": "tR6FSwRlW8YTsZT4p3VkkoNNTCazLSlQ43TkAB8C.webp",
+                "has_thumb": true
+            },
+            "user": {
+                "id": 121062,
+                "name": "NeTheQ_",
+                "donation_url": "https://ko-fi.com/netheq",
+                "avatar": "LBGlR02VIHSuh6YCZciPBzsE4SfH5xX7pWaGNqiW.webp",
+                "avatar_has_thumb": true
+            }
+        },
+        {
+            "id": 59409,
+            "name": "Worthwhile Gage Packages",
+            "desc": "Tired of having the same couple weapon parts pile up as you keep collecting more of those packages Gage left for us to find? \nLooking to passively build up a good stock of all weapon parts?\n\nWorthwhile Gage Packages randomises which parts are earned from completing a set of Gage's packages. The more packages needed to complete a set the more parts you get.\n\nGreen Mantis → 2 weapon mods\nYellow Bull → 4 weapon mods\nRed Spider → 6 weapon mods\nBlue Eagle → 8 weapon mods\nPurple Snake → 10 weapon mods",
+            "short_desc": "Randomises gage package rewards.",
+            "legacy_markup": false,
+            "downloads": 274,
+            "likes": 9,
+            "views": 1271,
+            "published_at": "2026-10-06T17:10:10.000000Z",
+            "bumped_at": "2026-11-01T11:58:31.000000Z",
+            "category_id": 200,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "download_type": "file",
+            "thumbnail": {
+                "file": "gGW9c7SKoKqPPIP2D5LHVIz8rJ3G1XVTW5tG4cfZ.webp",
+                "has_thumb": true
+            },
+            "user": {
+                "id": 20837,
+                "name": "HONOUR AMONGST THIEVES",
+                "donation_url": "",
+                "avatar": "https://avatars.akamai.steamstatic.com/20624d261b27f8abbd3cd5b2634e1d680962af46_full.jpg",
+                "avatar_has_thumb": false
+            }
+        },
+        {
+            "id": 46681,
+            "name": "MUI Updated",
+            "desc": ":::\n*MUI was made by [Armithaig](https://gitlab.com/Armithaig)\nBased on this MUI version https://modworkshop.net/mod/41187*\n:::\n\n---\n:::\n\n### {#9effa0}(**Updated and maintained version of MUI**)\nThis version have fixed crashes or other issues related to MUI and is actively maintained by [**Freyah**](https://modworkshop.net/user/freyah) and [**Eightan**](https://modworkshop.net/user/eightan).\n\n:::\n\n---\n\n>{#9effa0}(**New features/addons:**)\n>* [Leech Patch](https://modworkshop.net/mod/42353) - Located in **MUI/Player** for enabling/disabling\n>* Show health and armor as numbers - Located in **MUI/Player & Team** for enabling/disabling\n            ![](https://i.imgur.com/iV9OhGI.png)\n>* Fire mode display\n>* Hud challenge notifications\n>* Updated down counter\n>* Added convert count to the stat screen\n>* Added achievement trackers to the stat screen\n\n---\n\n>{#9effa0}(**Extra features/addons:**)\n>* [Team Skill Display For MUI](https://modworkshop.net/mod/50612) - Adds a display for player skills/perkdeck to the tab menu\n>* [Enhanced Vanilla Hud](https://modworkshop.net/mod/43776) - Adds cooldown displays, a loot counter and many more bonus features to MUI\n>* [Better Assault Indicator](https://modworkshop.net/mod/22712) - Expands the assault text in the tab stats menu\n>* [Extra Heist Info](https://modworkshop.net/mod/31915) - Adds drill timers, buff/cooldown displays and much more to the hud\n>* [Down counter](https://modworkshop.net/mod/57392) - A numerical down counter addon\n---\n\n\n:::\n## {#9effa0}(Feel free to comment issues or features you would like to be added and we might add them) \n:::",
+            "short_desc": "",
+            "legacy_markup": false,
+            "downloads": 8462,
+            "likes": 87,
+            "views": 26830,
+            "published_at": "2024-01-29T18:24:30.000000Z",
+            "bumped_at": "2026-11-01T10:05:26.000000Z",
+            "category_id": 253,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "download_type": "file",
+            "thumbnail": {
+                "file": "pAwKIX56yyVjC7kfl37TWKoYcMK8pg773OfBmyEH.webp",
+                "has_thumb": true
+            },
+            "user": {
+                "id": 66984,
+                "name": "𝐹𝓇𝑒𝓎𝒶",
+                "donation_url": "",
+                "avatar": "fUCzJMXY7KjYKj6zNzMXjEgruSOjcFxEW1LkM93j.webp",
+                "avatar_has_thumb": true
+            }
+        },
+        {
+            "id": 43740,
+            "name": "More agressive and Cuban Scarface",
+            "desc": "This mod is a mix of Scarface's default dialogues and those from Scarface The World is Yours, which make it more of himself\n\nTony gains 1 special dialogue for all special units after killing them, such as the famous \"say hello to my little friend.\" And it has substituted all dialogues related to special units\n\nIt also has the phone answering changed to \"Montana phone service\" (the default dialogue sounds like drunk Tony xD) and some others\n\n\n**Special thanks to Spyper, CupertinoEffect, Wednesday Enthusiast, maisie and Federated [#N1] for his help with the mod**\n\n**Spyper's mod**\nhttps://modworkshop.net/mod/33047\n\n**Mod Trailer**\n![](https://www.youtube.com/watch?v=7B87DUrlIYg)",
+            "short_desc": "",
+            "legacy_markup": false,
+            "downloads": 2878,
+            "likes": 57,
+            "views": 13090,
+            "published_at": "2023-09-04T15:32:23.000000Z",
+            "bumped_at": "2026-11-01T08:54:16.000000Z",
+            "category_id": 17,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "download_type": null,
+            "thumbnail": {
+                "file": "aMzuBCFOXZpRvlUaegCx08YBPcwqKQJJvfc1KXP1.webp",
+                "has_thumb": true
+            },
+            "user": {
+                "id": 121062,
+                "name": "NeTheQ_",
+                "donation_url": "https://ko-fi.com/netheq",
+                "avatar": "LBGlR02VIHSuh6YCZciPBzsE4SfH5xX7pWaGNqiW.webp",
+                "avatar_has_thumb": true
+            }
+        },
+        {
+            "id": 57746,
+            "name": "No Big Deal soundtrack pack: \"Elite Version\"",
+            "desc": "you probably have the brief about \"No Big Deal\" game at this point or just check out the other mods i've made to learn about the game ****OR GOOGLE IT!!!!****!\n\n# {#ffbf00}(This mod *-currently-* features:)\n\n* **{#bbff00}(22 menu tracks)**\n* **{#947cfd}(9 heist tracks)**\n\nprobably going to be asked questions:\n>  Q: Hhmmmm... it doesnt seem its too much for meh, why is that so?\nA: {#83d7f8}(**31**) different tracks is not too much? Weird. Well i used everything i could've because not every track of the NBD game fits to PAYDAY 2 enoughly so, sorry if its not good enough -i believe- i've done my best :P\n\n> Q: WILL THIS MAKE MY GAME CRASH?!!?!?!??! 😨😨😨😨😨😨\nA: most likely not. IF YOU HAVE READ AND DONE THE INSTRUCTIONS!!!!\n\n> Q: Who was the original artist again?\nA: {#f70000}(**Check the lisence page**) 😡😡😡😡😡😡😡😡",
+            "short_desc": "",
+            "legacy_markup": false,
+            "downloads": 12,
+            "likes": 0,
+            "views": 130,
+            "published_at": "2026-06-29T15:58:30.000000Z",
+            "bumped_at": "2026-11-01T07:43:15.000000Z",
+            "category_id": 205,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "download_type": null,
+            "thumbnail": {
+                "file": "XrtllzFz4FKuBQUpTxX6kqGgYv14zjy4lUc5EDpF.webp",
                 "has_thumb": true
             },
             "user": {
@@ -55,604 +568,91 @@
             }
         },
         {
-            "id": 39301,
-            "name": "Lazy Youtube Menu Music Mod Generator",
-            "desc": "Download video from YouTube and convert to menu music mod.\n\n\n-----\n\n\nDownload fail? Probably get YouTube blocked.\n\n\n-----\n\n\nWindows Only, due to using `yt-dlp.exe` and `ffmpeg.exe`\n\n\n-----\n\n\n![](https://youtu.be/8_KSlgOtSik)\n( https://youtu.be/8_KSlgOtSik )\n\n\n-----\n\n\nHow to use :\n1. [Copy youtube video url](https://lmgtfy.com/?q=how+to+copy+youtube+video+url)\n2. Follow https://youtu.be/8_KSlgOtSik?t=10",
+            "id": 59826,
+            "name": "This Billboard is Hentai Free",
+            "desc": "Lookin' for it? Leave.",
             "short_desc": "",
             "legacy_markup": false,
-            "downloads": 955,
-            "likes": 37,
-            "views": 5263,
-            "published_at": "2022-08-28T10:01:05.000000Z",
-            "bumped_at": "2026-10-26T06:52:56.000000Z",
-            "category_id": 4,
-            "has_download": true,
-            "disable_mod_managers": false,
-            "download_type": "link",
-            "thumbnail": {
-                "file": "7573_1661680836_6da6c0834dba921feca3471f0e4a8d1c.webp",
-                "has_thumb": true
-            },
-            "user": {
-                "id": 7573,
-                "name": "Dr_Newbie",
-                "donation_url": "https://ko-fi.com/nonenull",
-                "avatar": "https://avatars.steamstatic.com/4af55df4bbf3cf9e2be3f49b8e4c8bae2588937c_full.jpg",
-                "avatar_has_thumb": false
-            }
-        },
-        {
-            "id": 59750,
-            "name": "Rapunzel NIKKE Battle Announcer",
-            "desc": "Many believe that there exists an afterlife once we inevitably die. Now, what faith is right is a whole different can of worms, but it is widely believed that there exists an omnipotent being (God) and worshiping him will allow your soul to travel to the good afterlife. The Church and specifically, Christianity have been around for a long time. Over that time, a hierarchy was established to list the order of the most faithful to God. While a nun sits outside the hierarchy of the church, she does have a life of prayer and faith. One of those nuns happens to be Rapunzel. Her story is that she was a candidate to be the next Pope for V.T.C. But after an encounter with a certain red wolf, a new path opened up for her. One that has some \"lustful\" implications to put it that way. Despite this, she is sincere and is looking and praying for those that died on the surface some peace. She has She has 25 voicelines she can say, each having an equal chance of being played. Specifically, \n\n-----\nWhen an enemy is killed (10 sec cooldown):\n\"No one will get hurt.\"\n\"I will look over everyone.\"\n\"May the Creator bless us.\"\n\"Eh?\"\n\"My goodness.\"\n\"Whoa!\"\n\"I'm ready.\"\n\"The garden of Shangri-La! No pain or despair!\"\n\"Please guide us all to the light!\"\n\"I'm always by your side.\"\n\"You want me to get on it? W-wait, that didn't come out right...\"\n\"Everybody get ready.\"\n\"Oh. You really don't hold back.\"\n\"It would be nice if I was a bit more... well-rounded in certain areas.\"\n\n-----\nWhen the player takes damage (15 sec cooldown):\n\"No! The power of my prayers are declining.\"\n\"Sorry, please wait a minute.\"\n\"May all of us remain standing.\"\n\"Ow!\"\n\"Errggh!\"\n\"*Gasp!*\"\n\n-----\nWhen a heist ends in success:\n\"We will also emerge victorious, so long as we never give up hope.\"\n\"All I want is to remember every moment spent with you. Is that too much to ask?\"\n\"Believer, tell me, when can we finally submit to our desire to do whatever we wish?\"\n\"Believer, you are virtuous. The sooner I tie you down, the better...! I mean... F-forget I said anything!\"\n\n-----\nWhen a heist ends in failure:\n\"I may have fallen... but so long as all of you are safe...\"\n\n-----\nIn game demo: ![](https://youtu.be/4UjNvrk1djQ)\n\nFail line (short): ![](https://youtu.be/OC0V3AVKS00)",
-            "short_desc": "",
-            "legacy_markup": false,
-            "downloads": 3,
+            "downloads": 11,
             "likes": 1,
-            "views": 19,
-            "published_at": "2026-10-26T05:25:30.000000Z",
-            "bumped_at": "2026-10-26T05:25:30.000000Z",
-            "category_id": 6,
+            "views": 169,
+            "published_at": "2026-11-01T04:26:03.000000Z",
+            "bumped_at": "2026-11-01T04:26:03.000000Z",
+            "category_id": 11,
             "has_download": true,
             "disable_mod_managers": false,
             "download_type": null,
             "thumbnail": {
-                "file": "N9p6iRajI23TM9fsGV4Z0NAeG0eKg2bWuj14KKrP.webp",
+                "file": "7jL2IiTFI9x3omUd0AFjhbvFvCE8gr4dlL5I8Bdr.webp",
                 "has_thumb": true
             },
             "user": {
-                "id": 226050,
-                "name": "FeaRLess",
-                "donation_url": "",
-                "avatar": "0rraLwFfEQ5KcTaszAIKoZ3mj1cY2mtKxcgCrUsB.webp",
-                "avatar_has_thumb": true
-            }
-        },
-        {
-            "id": 59751,
-            "name": "Noah NIKKE Battle Announcer",
-            "desc": "\"Your weakness is simply one of your many charms. This way, the only way I'll lose is if I let you win on purpose! Hehehe.\" - Noah. If you give a child too much power, there's a high chance that they may end up spoiled or worse, an absolute troll. If ragebaiting ain't your style, then Noah isn't for you. The catalyst that allows Noah so much room to talk and back it up are her shields. They hold up to any kind fire you throw at them whether it's a .50 cal bullet from a machine gun, a missile from a rocket launcher, or even a flamethrower. Nothing is getting past those shields. It's not all defense though, as the shields are built with cannons for a counter attack or simply let one of the other members of Inherit clean up after you. No wonder Noah acts so childish, she has everyone else do the dirty work around her. She has 17 voicelines she can say, each having an equal chance of being played. Specifically, \n\n-----\nWhen an enemy is killed (10 sec cooldown):\n\"Time to crush those weaklings. Hehehe.\"\n\"Like shooting fish in a barrel.\"\n\"You can't even leave a scratch on my shield.\"\n\"Weaklings.\"\n\"So easy.\"\n\"Anyone?\"\n\"Imposter, now!\"\n\"Those guys are dead meat.\"\n\"I am invincible! Hehehehe.\"\n\"Girls, teach them a lesson!\"\n\"Let's get started!\"\n\"Hehehehe.\"\n\n-----\nWhen a heist ends in success:\n\"If only a REAL commander could see this.\"\n\"Hypocrite, very well, you may caress my hair. Not everyone can earn this privilege.\"\n\"I normally don't allow Imposters to follow me, but I'll make an exception for you. Just keep it a secret, all right?\"\n\"Why are you so eager to have a closer relationship with me? Well, either way, I won't say no to it.\"\n\n-----\nWhen a heist ends in failure:\n\"No, impossible!\"\n\n-----\nIn game demo: ![](https://youtu.be/4XfLsIQESXc)\n\nFail line (short): ![](https://youtu.be/USCBJvqF4Yc)",
-            "short_desc": "",
-            "legacy_markup": false,
-            "downloads": 3,
-            "likes": 1,
-            "views": 30,
-            "published_at": "2026-10-26T05:25:28.000000Z",
-            "bumped_at": "2026-10-26T05:25:28.000000Z",
-            "category_id": 6,
-            "has_download": true,
-            "disable_mod_managers": false,
-            "download_type": null,
-            "thumbnail": {
-                "file": "ak6kWnyS68a1dmPkvwQBlok8LEmlj6MPv0pIVbDD.webp",
-                "has_thumb": true
-            },
-            "user": {
-                "id": 226050,
-                "name": "FeaRLess",
-                "donation_url": "",
-                "avatar": "0rraLwFfEQ5KcTaszAIKoZ3mj1cY2mtKxcgCrUsB.webp",
-                "avatar_has_thumb": true
-            }
-        },
-        {
-            "id": 59749,
-            "name": "Neptunia unlimited Rouge outfit",
-            "desc": "Adds an outfit for Rouge from Neptunia Unlimited.\n\nplace the \"[Neptunia]rouge\" folder into mod_overrides.",
-            "short_desc": "",
-            "legacy_markup": false,
-            "downloads": 7,
-            "likes": 1,
-            "views": 40,
-            "published_at": "2026-10-26T04:16:18.000000Z",
-            "bumped_at": "2026-10-26T04:16:18.000000Z",
-            "category_id": 688,
-            "has_download": true,
-            "disable_mod_managers": false,
-            "download_type": null,
-            "thumbnail": {
-                "file": "QrIfZEY1yWwsmgx1Fyb3Psqcy4Q0tHMRnBPDH9do.webp",
-                "has_thumb": true
-            },
-            "user": {
-                "id": 2750,
-                "name": "retishia",
-                "donation_url": "",
-                "avatar": "https://steamcdn-a.akamaihd.net/steamcommunity/public/images/avatars/a3/a3dd8d23911a07611e5fc1c53e51d6d30607956b_full.jpg",
-                "avatar_has_thumb": false
-            }
-        },
-        {
-            "id": 59670,
-            "name": "Pride of Rasonia / Sins theme [EXAMINATION OST]",
-            "desc": "**Sourced from the miraheze wiki;**\n>https://examination.miraheze.org/wiki/Sinitzyn\n\n**Music composed by Kresko;**\n>https://youtu.be/prDpEzyx_l4\n\n\n{#ff2b2b}(\nAll credits go to the development team of Examination.)\nhttps://www.roblox.com/games/10165583746/Examination",
-            "short_desc": "From the Roblox game \"EXAMINATION.\"",
-            "legacy_markup": false,
-            "downloads": 16,
-            "likes": 0,
-            "views": 56,
-            "published_at": "2026-10-22T22:19:11.000000Z",
-            "bumped_at": "2026-10-26T04:00:16.000000Z",
-            "category_id": 470,
-            "has_download": true,
-            "disable_mod_managers": false,
-            "download_type": "file",
-            "thumbnail": {
-                "file": "2ihvAxyURwDmSr5cxqPEAYXv05LPBZEokkSxHZKh.webp",
-                "has_thumb": true
-            },
-            "user": {
-                "id": 230850,
-                "name": "blvvd",
-                "donation_url": "",
-                "avatar": "CWxZqBN7zQN12HSmPEX09z9bXVaS1eqOHiHEPt1R.webp",
-                "avatar_has_thumb": true
-            }
-        },
-        {
-            "id": 59545,
-            "name": "Hunting Grounds / Chimera's theme [EXAMINATION OST]",
-            "desc": "**Sourced from the miraheze wiki;**\n>https://examination.miraheze.org/wiki/Chimera\n\n**Music composed by Kresko;**\n>https://youtu.be/BLbtnV3EpFY\n\n\n\n{#ff2b2b}(\nAll credits go to the development team of Examination.)\nhttps://www.roblox.com/games/10165583746/Examination",
-            "short_desc": "From the Roblox game \"EXAMINATION.\"",
-            "legacy_markup": false,
-            "downloads": 35,
-            "likes": 1,
-            "views": 148,
-            "published_at": "2026-10-15T23:49:03.000000Z",
-            "bumped_at": "2026-10-26T03:59:17.000000Z",
-            "category_id": 470,
-            "has_download": true,
-            "disable_mod_managers": false,
-            "download_type": "file",
-            "thumbnail": {
-                "file": "Bai46c8NGNGnTR2wJ7O7B6O0rblEBMvYxqzOWrYU.webp",
-                "has_thumb": true
-            },
-            "user": {
-                "id": 230850,
-                "name": "blvvd",
-                "donation_url": "",
-                "avatar": "CWxZqBN7zQN12HSmPEX09z9bXVaS1eqOHiHEPt1R.webp",
-                "avatar_has_thumb": true
-            }
-        },
-        {
-            "id": 59546,
-            "name": "Corpse Steel / Cerberus's theme [EXAMINATION OST]",
-            "desc": "**Sourced from the miraheze wiki;**\n>https://examination.miraheze.org/wiki/Cerberus\n\n**Music composed by Kresko;**\n>https://youtu.be/6eIfUMdil0g\n\n\n\n{#ff2b2b}(\nAll credits go to the development team of Examination.)\nhttps://www.roblox.com/games/10165583746/Examination",
-            "short_desc": "From the Roblox game \"EXAMINATION.\"",
-            "legacy_markup": false,
-            "downloads": 42,
-            "likes": 1,
-            "views": 116,
-            "published_at": "2026-10-16T00:01:53.000000Z",
-            "bumped_at": "2026-10-26T03:57:23.000000Z",
-            "category_id": 470,
-            "has_download": true,
-            "disable_mod_managers": false,
-            "download_type": "file",
-            "thumbnail": {
-                "file": "Z9HZrAGFbkswU7zTSqpRk3o0ByDVtpaVvgGVto2g.webp",
-                "has_thumb": true
-            },
-            "user": {
-                "id": 230850,
-                "name": "blvvd",
-                "donation_url": "",
-                "avatar": "CWxZqBN7zQN12HSmPEX09z9bXVaS1eqOHiHEPt1R.webp",
-                "avatar_has_thumb": true
-            }
-        },
-        {
-            "id": 59544,
-            "name": "Initial Entry / Gilbert's theme [EXAMINATION OST]",
-            "desc": "**Sourced from the miraheze wiki;**\n>https://examination.miraheze.org/wiki/Gilbert\n\n**Music composed by Kresko;**\n>https://youtu.be/oavzHhx8glo\n\n\n\n{#ff2b2b}(\nAll credits go to the development team of Examination.)\nhttps://www.roblox.com/games/10165583746/Examination",
-            "short_desc": "From the Roblox game \"EXAMINATION.\"",
-            "legacy_markup": false,
-            "downloads": 43,
-            "likes": 1,
-            "views": 129,
-            "published_at": "2026-10-15T23:49:05.000000Z",
-            "bumped_at": "2026-10-26T03:56:27.000000Z",
-            "category_id": 470,
-            "has_download": true,
-            "disable_mod_managers": false,
-            "download_type": "file",
-            "thumbnail": {
-                "file": "xbNhN8xAAlbaAFyp0uvxESo88D8wKn4nemv5spBt.webp",
-                "has_thumb": true
-            },
-            "user": {
-                "id": 230850,
-                "name": "blvvd",
-                "donation_url": "",
-                "avatar": "CWxZqBN7zQN12HSmPEX09z9bXVaS1eqOHiHEPt1R.webp",
-                "avatar_has_thumb": true
-            }
-        },
-        {
-            "id": 58517,
-            "name": "Seamless Input Switch",
-            "desc": "Seamless Input Switch lets the local player move freely between keyboard/mouse and gamepad while PAYDAY2 is running, in both offline and online heists without restarting your game. Hotswap.\n\n**The site lost 48 hours of data. I’ve fixed many bugs, and the mod is now much more stable and includes several new features. Check the changelog if you’re interested in what’s new!**\n\n# Seamless Input Switch - PAYDAY2 Mod (64-bit)\n\n> [!NOTE]\n> Seamless Input Switch is an unofficial, fan-made project created by Lukituki6. Neither Lukituki6 nor this project is affiliated with, endorsed by, sponsored by, or associated with STARBREEZE Studios, Sidetrack Games, Microsoft/Xbox, Sony Interactive Entertainment/PlayStation, Valve/Steam, or any of their subsidiaries. All trademarks, product names, and company names belong to their respective owners.   \n\n[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)\n\nVersion: **1.1.1**  \nAuthor: **Lukituki6**\n\nSeamless Input Switch lets the local player move freely between keyboard/mouse and gamepad while PAYDAY 2 is running, in both offline and online heists.\n\n~~This release has no automatic updater. Installation and future updates are manual.~~ **done**\n\nI only own a DualSense Edge, so I haven’t been able to test other controllers. **They should work too, though (hopefully)**.\n\n**AI-Assisted**\n\n**The mod is pure Lua. It contains no native DLL, hard-coded memory address, or old 32-bit data structure.**\n\n## Requirements\n\n* PAYDAY2 **Diesel 3.0 / 64-bit**;\n* a working **64-bit SuperBLT** installation;\n* a gamepad connected and detected **before launching the game**;\n* BeardLib is not required.\n\nFor DualSense Edge, Steam Input is recommended. PAYDAY 2 will normally receive it as an XInput (`xb1`) controller. Version 1.0.0 keeps the public UI type in PC mode, but displayed prompts can independently use PC labels, A/B/X/Y glyphs, or Cross/Triangle/Square/Circle text labels. Aim assist is also controlled independently of those labels.\n\n## Installation\n\n1. Close PAYDAY 2.\n2. Extract the archive into `PAYDAY 2/mods`.\n3. Confirm that the manifest is located at:\n`PAYDAY 2/mods/Seamless Input Switch/mod.txt`.\n4. Connect the gamepad, launch the game, and press a keyboard key or gamepad button at the title screen.\n\nSettings are available under `Options > Mod Options > Seamless Input Switch`.\n\nThe English interface is loaded by default. If PAYDAY2 is running in Polish, the mod automatically overlays the Polish localization.\n\n## Input modes\n\n* **Automatic** - keyboard, mouse, and gamepad are connected to one game-owned virtual controller; the most recently used device selects the appropriate camera look routine.\n* **Force keyboard/mouse semantics** - locks camera/detection behavior to PC without destroying the physical gamepad route.\n* **Force gamepad semantics** - locks camera/detection behavior to gamepad and falls back to PC semantics if the pad disconnects.\n\nThe gamepad switch threshold can be increased if stick drift changes the active device unexpectedly. Its default value is `0.18`. A separate axis-change threshold (`0.10`) controls how much an already displaced stick must change before it counts as new activity.\n\n## Controller vibration\n\nPAYDAY 2 controller vibration is restored by routing rumble effects to the physical gamepad. It can be enabled or disabled under `Options > Mod Options > Seamless Input Switch` and is enabled by default.\n\n## Displayed control prompts\n\n* **PC / current keyboard bindings** - the existing keyboard and mouse labels;\n* **A/B/X/Y** - glyphs from PAYDAY 2's built-in PC font, resolved from the live gamepad layout and the mod's custom bindings;\n* **CIRCLE, SQUARE, CROSS, TRIANGLE (text)** - short safe labels such as `[R1]`, `[L2]`, `[X]`, `[O]`, `[SQ]`, and `[TRI]`.\n\nThis setting is fixed and never changes `is pc controller()`, the wrapper type, or the controller id. It therefore cannot reactivate the native `MenuSceneGui` path that caused the earlier access violation game crash. Full graphical **CIRCLE, SQUARE, CROSS, TRIANGLE (text)** glyphs are not present in the stock PC button font and would require binary font-asset replacement, so this safe build uses text labels.\n\n## Gamepad camera settings\n\n* **Gamepad look sensitivity** - multiplies manual right-stick turn speed from `0.50–4.00`; the `2.00` default is twice the base-game speed.\n* **Gamepad ADS sensitivity** - an additional multiplier used only while aiming down sights, from `0.50–2.00`; the `1.00` default keeps the same proportion.\n* **Right-stick deadzone** - ignores small stick movement from `0.00–0.30`; the `0.05` default reduces drift without a large precision loss.\n* **Invert gamepad vertical look** - off by default, so pushing up looks up. Enable it for inverted flight-style control.\n* **Outer deadzone** for both sticks - reaches full input before the physical edge; `0.00` preserves vanilla behavior.\n* **Response curve** for both sticks - `1.00` keeps the linear post-deadzone response, values below `1.00` react faster near center, and values above `1.00` provide finer small corrections.\n* **Left-stick inner deadzone** - the `0.10` default matches PAYDAY 2's built-in movement cutoff; increase it only to suppress drift.\n\nAdvanced values are under `Advanced stick tuning`. They apply only while gamepad semantics are active and do not modify mouse sensitivity or the saved stock controller profile.\n\n## Aim-assist tuning\n\nThe `Always-on aim assist` master switch remains enabled by default. Its submenu can independently:\n\n* enable or disable continuous sticky aim;\n* scale sticky correction speed from `0.25` to `2.00`;\n* enable or disable attraction when entering ADS;\n* scale ADS attraction speed from `0.25` to `2.00`.\n\n`1.00` matches vanilla correction speed.\n\n## Gamepad layout and custom bindings\n\nWith `Enable custom gameplay bindings` off, the mod copies PAYDAY 2's live controller profile. The vanilla `xb1`/Steam Input defaults are:\n\n|Action|Xbox / DualSense through Steam Input|\n|-|-|\n|Fire / ADS|RT / R2 - LT / L2|\n|Interact and shout|RB / R1|\n|Deployable|LB / L1 - hold to deploy, tap to switch the primary/secondary item|\n|Jump / crouch / reload / switch weapon|A / Cross - B / Circle - X / Square - Y / Triangle|\n|Sprint / melee|L3 / R3|\n|Grenade / weapon gadget or bipod / fire mode|D-pad left / down / right|\n\nOpen `Options > Mod Options > Seamless Input Switch > Gamepad bindings` to enable a custom profile and remap thirteen gameplay actions. Changes apply after leaving the menu. `Restore vanilla bindings` disables the custom profile and restores the layout above. Duplicate assignments are allowed and deliberately trigger every action assigned to that button. Menu navigation, Start, and Back remain fixed to prevent an accidental menu lockout.\n\nThe editable profile targets `xb1`, including DualSense controllers translated by Steam Input. Other native gamepad types safely keep their live vanilla layout.\n\n## Online and offline compatibility\n\nThe mod operates entirely on the local player's input objects. It does not add network messages, alter heist synchronization, or modify input for other peers. The same local player controller is used while:\n\n* playing an offline heist;\n* hosting a private or public online session;\n* joining another host as a client;\n* moving through lobby, briefing, gameplay, and results screens.\n\nOther players and the host do not need the mod installed. This follows directly from the local-only implementation.\n\n\n\n## Known limitations\n\n* Connecting a completely new gamepad after the game has launched is not guaranteed. Connect it before startup.\n* One preferred gamepad is supported. Multiple simultaneous controllers are untested.\n* UI in Menu/Lobby after changing from PC to other, still uses PC/keyboard layout.\n\n## Diagnostics and safe removal\n\nIf one device becomes unavailable, first select a forced PC or gamepad mode under Mod Options. If the menu cannot be reached, close the game and delete:\n\n`PAYDAY 2/mods/saves/seamless-input-switch.json`\n\nTo disable the mod completely, move the `Seamless Input Switch` folder outside `PAYDAY 2/mods`.\n\nFor a useful bug report, keep:\n\n* the latest `PAYDAY 2/mods/logs/log.txt`;\n* `crash.txt`, if one was produced;\n* the screen or heist where the issue occurred;\n* whether you were offline, host, or client;\n* whether Steam Input was enabled and which button icon family appeared;\n* the last input sequence, for example `mouse → right stick → Escape`.",
-            "short_desc": "Seamless Input Switch lets the player move freely between keyboard/mouse and gamepad while PAYDAY2 is running without restarting your game, hotswap.",
-            "legacy_markup": false,
-            "downloads": 147,
-            "likes": 6,
-            "views": 755,
-            "published_at": "2026-08-20T22:35:51.000000Z",
-            "bumped_at": "2026-10-26T02:58:30.000000Z",
-            "category_id": 10,
-            "has_download": true,
-            "disable_mod_managers": false,
-            "download_type": null,
-            "thumbnail": {
-                "file": "IwAHVnOXwSxlJyH3xaomsI7ygU4JhbsYWpK3Ssup.webp",
-                "has_thumb": true
-            },
-            "user": {
-                "id": 219214,
-                "name": "Lukituki6",
-                "donation_url": "",
-                "avatar": "gVcb98HxIojpsUdpi7couZPFUzrElQEqVnIEOo3U.webp",
-                "avatar_has_thumb": true
-            }
-        },
-        {
-            "id": 19169,
-            "name": "Custom attachments for custom weapons",
-            "desc": "This mod adds data of installed custom attachments as sights/stocks/etc to installed custom weapons and fixes incompatibles between some custom attachments. Additionally mod provide support for adding new DLCs attachments.\n\n**Custom weapons and attachments supported by this mod must be kept up to date otherwise custom attachments could be missing from custom weapons or not work correctly.**\n\n**Extract archive content to \"mod_overrides\".**\n\n**[How to Install Super BLT and mod_overrides mods](https://www.youtube.com/watch?v=rin_sjSJIkg) tutorial by [Master Indigo](https://www.youtube.com/user/GamingIndigo)**\n\nFor adding support for own custom weapons refer to \"Custom attachments for custom weapons/hooks/template.lua\" file.",
-            "short_desc": "",
-            "legacy_markup": false,
-            "downloads": 58889,
-            "likes": 387,
-            "views": 127965,
-            "published_at": "2017-11-03T21:54:21.000000Z",
-            "bumped_at": "2026-10-26T02:35:00.000000Z",
-            "category_id": 314,
-            "has_download": true,
-            "disable_mod_managers": false,
-            "download_type": "file",
-            "thumbnail": {
-                "file": "965_1596023673_76fac5adb7821ee4e11fb8bcc1611cf7.jpg",
-                "has_thumb": true
-            },
-            "user": {
-                "id": 965,
-                "name": ">:3",
-                "donation_url": "https://ko-fi.com/pawcio1337",
-                "avatar": "https://avatars.steamstatic.com/978c7b3f1e1a890b3b125f593f45098aa861cb10_full.jpg",
-                "avatar_has_thumb": false
-            }
-        },
-        {
-            "id": 54625,
-            "name": "HK437 & HK433 (2025)",
-            "desc": "If I had a nickel for every time HK tried to sell a cheaper alternative to one of their popular designs only for the alternative to be ignored for the more expensive design, I'd have two nickels. Which isn't a lot, but it's weird it's happened twice.\n---\n\nThe HK437 is unlocked at level 40 and will appear to others as the AK5. The 437 is mostly a stat clone-ish of the vanilla M16/AMR16 but with the caveat of being semi auto only. \nThere is also a companion HK433, unlocked at level 25 and also appearing to others as the AK5. The 433 takes after the BF6 depiction and has a stat block similar to the F2000/Union 556 as a high fire rate low damage rifle.  \n\nThe two guns can share some parts thanks to the model creator's realism accurate proportions.\nThe A-Tec A-Flow A2 suppressors becomes available for all weapons because I don't see the point in putting it in Capitalism Muzzles.\n\nYes, this mod has been a few years in the making, such is the life of my personal Stoner derivatives.\n\n---\n\n**Known Issues:**\n\n* if you use the fnuxray ar15 animations, you are very likely to misalign the optic zero on the 437/433. \n* No, I am not adding Quadstacked magazines since the original M8A1 standard animation only was designed around 30 round mags. Use drum mags or magazines with baseplates at your own peril.\n* yes i think the vertical and angled grips look stupid with how I had to place them, but scoomt asked me very nicely to include them\n\n\n---\n\n**Probable Future Asked Questions**\n\nQ: Where 3rd position on 437?\nA: G39s from HK seem to only have semi auto, so I represented that by locking the 437 into semi. You can add it back in by editing the HK437's xml to make `CAN_TOGGLE_FIREMODE=\"true\"` (it is false by default to lock the weapon into semi).\n\nQ: Can we get the HKey handguard?\nA: I actually tried to fit the MW2019 handguard on, but the lack of the toprail on the MW2019 handguards makes it a play very poorly with the gadget positions\n\nQ: More AR15 stocks? \nA: No because I got tired of having to re-export the stock models every time I made an adjustment to AR15 stocks positions. Also I don't think I'm alone with being displeased with how the 2025 437 lost its scar-oid look. So the E1 stock with Riser is all you get.\n\nQ: wait I thought this had a paddle magazine release?\nA: The 433 actually has two lowers: one with the G36 style paddle mag near the trigger guard and bolt release near the trigger guard. The other one uses 416/AR style controls with a push button mag release and push down bolt release where most users expect the AR15 ping pong paddle.\n\nSince the M8A1 animation assumed push button animations, I went with the push button 433 lower. Also worth noting the model author (and HK/the KSK?) seems to be moving forwards with the push button lower as their preferred choice.\n\nQ: What do you mean by \"2025\"?\nA: Every time I look at Milpol, Shot Show, or browse HKPro, HK seems to be changing something about the HK433 platform, such as the 2026 HK437 sporting a conical shroud on its handguard to cover the suppressor. Why they bother is beyond me since everyone's just going to ask for the Hk416 anyways.",
-            "short_desc": "Forever condemned to be \"that MW2019 gun\".\n\nI guess there are worse games to be made famous by...",
-            "legacy_markup": false,
-            "downloads": 264,
-            "likes": 11,
-            "views": 823,
-            "published_at": "2026-06-12T19:10:51.000000Z",
-            "bumped_at": "2026-10-26T02:32:11.000000Z",
-            "category_id": 306,
-            "has_download": true,
-            "disable_mod_managers": false,
-            "download_type": "file",
-            "thumbnail": {
-                "file": "zclhU1IhxUmULhgfWvqHEJ03FKMRpQqDxMABogaN.webp",
-                "has_thumb": true
-            },
-            "user": {
-                "id": 56520,
-                "name": "RJC9000",
-                "donation_url": "",
-                "avatar": "A0WfvW6rGLFBKj9pT3K5FwDEdRz43N0n5bCWa52u.webp",
-                "avatar_has_thumb": true
-            }
-        },
-        {
-            "id": 59117,
-            "name": "Hawks's (awfully) Rebalanced",
-            "desc": "**{#007bff}(Jesus Christ, can you even imagine, how poorly little part of the huge weaponary can actually be seen used in any public lobby???)**\nWell, I guess I'ma here to fix this ~~shi~~stuff! Introducing - Hawks's ~~awfully~~ Rebalanced!\n~~Basically buffed those old and outdated weapons, without much change to the new one's.~~\nThat's what I thought it's gonna be, until... There became more and more fucntions and balances, its rather a total overhaul to the game, in my style.\n\n\n-----\n**EVERYTHING**, literally **EVERYTHING**, now have a swich. You can disable **{#007bff}(EVERY SINGLE FUNCTION)** that you don't like, and only use those you really wanted. **{#ffffff}(You don't like your favourite weapon being nerfed?) {#007bff}(Fine, turn it) {#FF0000}(off){#007bff}(.) {#ffffff}(You find some of the functions redicilous?) {#007bff}(Never mind!) {#FF0000}(Off){#007bff}( it goes!)** **{#ffffff}(You wanna use some other rebalance with this?)** **{#007bff}(Disable whatever you want) to make them compatitable.** Check **Mod Options**!\nMost of this mod uses Lua. Clearer player smoke also uses SuperBLT Wren scripts, and Soft White includes a color-grading texture. It can be **safely added** and **removed** anytime from your game.\nThis mod will neither break your savefile, nor mark you as a cheater. \nThe Shotguns Part are mainly from respectable content creater Sae's excellent mod {#007bff}(**[Sae's Shotgun Overhaul](https://modworkshop.net/mod/42087)**), I left the link here. Please do check out!\nSupported Languages: \n**English**\n**Simplified Chinese**\n\n-----\n**Here Comes the Changes**\n\n{#007bff}(**Special Functions**)\n!!!\n**{#007bff}(Import and Export Skill trees)**\nFiles will be Exported into Json files, inside the mod's folder. Check Mod Options!\nThis is for people who want to try each others' set-ups, and this saves some effort!\n!!!\n\n{#007bff}(**Skills**)\n!!!\n**Desperado** (Pistol Skills) **Ace**: \nYou still get the {#007bff}(50%) Pistol reload speed buff.\nBut additionally, **each successful shot** with a **Revolver** grants one stack for {#007bff}(10) seconds. Each stack additionally **increases Revolver reload speed** by {#007bff}(10%), up to {#007bff}(5) stacks. All stacks are **cleared** after reloading. This only works on **Revolvers**.\nFixed a recursive reload-speed hook that could cause stack-overflow crashes with other mods.\n\n**Berserker**:\nAdded a new throwable called {#007bff}(**\"Cocktail Ampule\"**). Enabling it will reduce your health to {#007bff}(10%), but also making you extremely weak for a short period. Berserker lives matter, but not to break balance.\n\n**Metal Fatigue** **Ace** (Originally **Shock and Awe**):\nNow, you can shoot though shields, when the original shock is triggered, for only **{#007bff}(1)** bullet. This won't make a big difference, but to make head-shotting shields rather possible.\n\n**Close By (Shotgun Skill)**:\n**Slam Fire**: When using a **Pump Shotgun**, holding mouse1 will make you **Slam Fire** the weapon, which is to shoot as fast as the weapon can. This either won't make a big difference, just a QoL change.\n\n**I HATE JOKERS**\nNow you won't need to capture SWATs and turn them into your pieces. The skill takes place without jokers, but you will receive a weaker buff. Off by default.\n!!!\n\n{#007bff}(**Perk Decks**)\n\n**Sicario**\n\n!!!\nNow, the **Smoke Screen** Lasts {#007bff}(15) seconds instead of {#007bff}(10).\nNow, enemies who try to shoot though the **Smoke Screen** will receive the same accuracy debuff. This means that you don't have to be inside the smoke, to be protected by the smoke.\nNow, you can use the **Police**'s **Smoke Screen** as well, receiving the **dodge buff**. However, shoot though protection will not work on **Police**'s **Smoke Screen**.\n\n**Smoke reserves and recharge**: Carry up to {#007bff}(2) smoke bombs; {#007bff}(90) seconds to recharge each, reduced by {#007bff}(2) seconds per kill. Charges recharge one at a time. A separate option.\n\n**Clearer player smoke**: Player smoke opacity reduced by {#007bff}(50%) locally, including teammates' smoke. Police smoke stays unchanged. A separate option.\n!!!\n\nTo be updated...\n\n{#007bff}(**Game Mechanics**)\n!!!\n**\"Perfect Recoil Control\"**:\nNow, any weapon with {#ff00ff}(100) recoil stats, will have **no spray pattern** but randomly slightly kicks in four directions.\n\n**Disarm**\nNow, you can literally equip nothing for main or secondary, or both weapon slots. Each unequipped weapon will count as {#007bff}(35) Concealment.\n\n**Use your deploybles!!!**\nWhen carrying loot on your back, facing the ground and hold G will first count as using deploybles. No more stuck holding G for nothing. Another QoL change.\n\n**Weld your melee**:\nPress E to shift to melee weapon and won't automatically swich back, as if it's a proper weapon instead of a one-click-use stuff. Disabled by default.\n\n**Single Fire Akimbo Pistols**:\nShoot only one gun at a time. Disabled as default.\n\n**Inspect Menu**\nDisable annoying weapon wobbling up and down when inspecting or customizing your weapons. QoL change.\n\n**Name Length Unlimited**\nNow you can rename your weapons and set-ups, using as many letters you want.\n\n**No Quotes**\nRemoved custom weapon names being quoted. Like, why?\n\n**Soft White**:\nAdded a color-grading option in the game's video settings to soften harsh highlights. Select another grading to turn it off.\n!!!\n**{#007bff}(Weapon Stats)**\n\nWeapon adjustments below follow the current Lua files, when their switches are enabled. Pickup ranges are before skills; Accuracy/Stability are displayed points. Reload stat indices are not seconds. Prices and unlock levels are excluded.\n\n**Pistols**\n\n!!!\n- Revolver suppressors: available for supported Bronco, Matever, Castigo, Kahn and RUS-21 configurations, with matching suppressed firing sounds. Fixed a recursive firing-sound hook that could cause stack-overflow crashes with other mods.\n\n- **M13 9mm & Akimbo**: Accuracy +20, Stability +20.\n- **Káng Arms Model 54**: Stability +16; pickup set to 2-3.\n- **Akimbo Káng Arms Model 54**: Stability +16; pickup set to 2-4.\n- **Matever & Akimbo**: base Concealment set to 25.\n- **Kahn .357 & Akimbo**:\n  - **Electric Dream Conversion Kit**: Concealment set to 0.\n  - **Hex Cylinder**: Concealment set to +1; Akimbo six-round-cylinder ammo override corrected.\n!!!\n\n**SMG's**\n\n!!!\n- **Micro Uzi**: Accuracy +8, including moving accuracy.\n- **Cobra / Skorpion**: base Damage set to 64.\n- **CMP / MP9**: base Damage set to 58; Accuracy +16, including moving accuracy.\n- **WASP-DS**: native base Damage retained (+0); Stability +4; Mark 10 recoil pattern; holster time set to 0.5s. Swap animations can finish after the switch timer ends, while player actions can still interrupt them.\n  - **+3 Concealment Boost**: optional compatibility.\n- **Chicago Typewriter**: base Damage set to 77; 775 RPM; Accuracy +8; pickup set to 2.5–7.5.\n- **Akimbo Chicago Typewriter**: base Damage set to 77; 775 RPM; Accuracy +8; Concealment +2; pickup set to 3.5–7.\n  - **Standard Stock**: +12 Stability, -4 Concealment; added compatibility and inventory icon.\n  - **Discrete Stock**: additional +12 Stability/-4 Concealment relative to its native bonuses; added compatibility and inventory icon.\n- **Swedish K**: Damage +5; 600 RPM; Accuracy -16; Stability stat index set to 15 (56 displayed); total ammo set to 120; pickup set to 1.5–4.5.\n- **Akimbo Swedish K**: Damage +5; 600 RPM; Accuracy -16; Stability stat index set to 15 (56 displayed); pickup set to 2–7. No total-ammo override in the current weapon script.\n- **Jacket's Piece**: base Damage set to 55; 1100 RPM; Accuracy and moving Accuracy set to 48; tactical/empty reload set to 2s/2.7s; Mark 10 recoil pattern and camera shake.\n  - **Mark 10 Extended Magazine**: added compatibility; +8 rounds, -4 Accuracy, +8 Stability, -2 Concealment.\n  - **Mark 10 Speed Pull Magazine**: added compatibility; +8 rounds, -4 Accuracy, -8 Stability, -1 Concealment, reload stat bonus 10.\n- **Akimbo Jacket's Piece**: base Damage set to 55; 1100 RPM; Accuracy and moving Accuracy set to 48.\n  - **Mark 10 Extended Magazine**: added compatibility; +16 rounds, -4 Accuracy, +8 Stability, -2 Concealment.\n  - **Mark 10 Speed Pull Magazine**: added compatibility; +16 rounds, -4 Accuracy, -8 Stability, -1 Concealment, reload stat bonus 10.\n- **Kobus 90 & Akimbo**: Accuracy +16, including moving accuracy; Stability +4. No base Damage increase.\n  - **Alamo Dallas Body Kit**: Damage +3, Accuracy +4, Stability +8, Concealment -3.\n- **Miyaka 10 Special & Akimbo**: Accuracy +12, including moving accuracy.\n- **Jackal & Akimbo**: Stability +8.\n- **Heather & Akimbo**: Damage +10, Concealment -2.\n- **Para**: base Damage set to 69; 775 RPM; pickup set to 3.5–7.\n- **Akimbo Para**: base Damage set to 69; 775 RPM; pickup set to 2.5–7.5.\n- **Kross Vertex & Akimbo**: Concealment +3.\n!!!\n\n**Assault Rifles**\n\n!!!\n- **Slavic Dragon Barrel**: Concealment set to +3.\n\n- **CAR-4**: Damage -2, Accuracy +8, 775 RPM.\n  - **Longbore Exclusive Set**: Accuracy set to +8, Concealment set to -3.\n- **Tempest-21**: Accuracy +8.\n- **AMR-16**: Accuracy +4, 727 RPM; pickup set to 3.5–4.5.\n  - **Astatoz Barrel**: Accuracy +8, Stability +12, Concealment -2. Optional integral suppressor behavior: native suppressor-skill compatibility, suppressed firing effects/sound, mutually exclusive with muzzle devices.\n  - **Astatoz Foregrip**: Damage +3, Accuracy +8, Stability +4, Concealment -1.\n  - **Astatoz Stock**: Damage +2, Accuracy +4, Stability +8, Concealment -1.\n- **Eagle Heavy**: Accuracy +12, Concealment +3.\n- **Lion's Roar**: Damage -9; pickup set to 4–7; STANAG magazine compatibility, including Speed Pull.\n- **AK 5.45**: Damage +14, Accuracy +12.\n  - **Vlad's Rodina Barrel**: Damage +5, Accuracy +4, Stability +8, Concealment -2.\n  - **Rodina Foregrip**: Accuracy +8, Stability +4, Concealment +1.\n  - **Rodina Grip**: Accuracy +12, Stability -12.\n  - **Rodina Stock**: Accuracy -4, Stability -4, Concealment +3.\n- **Union 5.56**: Damage +1.\n- **UAR**: Accuracy +4, Stability +4.\n  - **Raptor Polymer Receiver**: Accuracy set to +8, Stability set to +4.\n- **Valkyria**: Damage +5, Accuracy +16, Concealment -2.\n- **Bootleg**: Damage -6, Accuracy +40, 775 RPM; pickup set to 5.4–9.9.\n  - **Long Barrel**: Concealment set to -1.\n- **AK.762 & Golden AK.762**: Accuracy +8, Concealment +2, 632 RPM, total ammo +30; pickup set to 4–7.\n- **JP36 & Commando 553**: Damage +13, Accuracy +28, total ammo -60; pickup set to 5.4–9.9.\n- **Queen's Wrath**: Damage +4.\n- **AK5**: Accuracy +8.\n  - **CQB Barrel**: Accuracy set to -4.\n- **Falcon**: pickup set to 3–4.5.\n- **KS-12 Urban / ASh-12**: Damage +10, Accuracy +12, Stability +20, 600 RPM.\n- **Little Friend 7.62**: Damage -55, Accuracy +8, Concealment +7, total ammo +40; pickup set to 3.5–6.5.\n  - **M203 Grenade Launcher**: removable; Stability +8, Concealment -5, total-ammo stat modifier -4.\n  - **Rifle Stocks**: additional compatibility.\n  - Fixed a recursive weapon-pose hook that could cause stack-overflow crashes when entering a heist with other mods installed.\n- **Ketchnov Byk-1**: pickup set to 3.5–5.\n- **Rodion 3B**: Accuracy +8.\n- **AMCAR**: Damage +20, Accuracy +12, 648 RPM.\n- **Gewehr 3**:\n  - **Short Barrel**: Damage and total-ammo stat modifiers set to 0; pickup multipliers set to 1, removing its conversion bonuses/penalties in those fields.\n!!!\n\n**Shotguns**\n\n!!!\n- Shared profile for enabled shotguns: 12 pellets; legacy hidden falloff removed. New falloff fields: optimal distance 800, optimal range 700, near falloff 0, far falloff 1500, near multiplier 1, far multiplier 0.7. Distances here are engine units.\n- Other enabled shotguns: the shared pellet/falloff profile still applies even when no individual base-stat adjustment is listed above.\n\n- **Grimm & Brothers Grimm**: base Damage set to 38; Accuracy +16 including moving accuracy, Concealment -4; pickup set to 3.68–5.52. Stability uses Brothers VD-12's stat and recoil pattern, with per-shot kick adjusted for firing cadence. Native fire rate, magazine, total ammo and reload timings retained.\n- **Karussell**: Accuracy stat index set to 13 (48 displayed); reload stat index set to 14.\n- **Reinfeld 880**: Damage set to 120, Accuracy to 36, Concealment to 14; 110 RPM; magazine 8; pickup 0.77–1.88; reload stat index 13.\n- **Breaker 12G**: Damage set to 155, Accuracy to 40; 90 RPM; total ammo 48; pickup 0.6–1.52.\n- **Mosconi 12G Tactical**: Damage set to 120, Accuracy to 40, Concealment to 17; 120 RPM; pickup 0.69–1.84; reload stat index 12.\n- **M1014**: Damage set to 75; pickup 2.6–4.2.\n- **Raven**: Damage set to 140, Concealment to 16; total ammo 40; pickup 0.53–1.49; reload stat index 14.\n- **Reinfeld 88**: Damage set to 155; 100 RPM; total ammo 48; pickup 0.68–1.55; reload stat index 12.\n- **Steakout 12G**: Damage set to 60, Concealment to 13; pickup 2.8–4.2.\n- **Predator 12G**: Damage set to 75; pickup 2.66–4.32.\n- **Deimos**: Concealment set to 14; total ammo 50; pickup 1.1–1.75; reload stat index 13.\n- **Locomotive 12G**: Damage set to 105; total ammo 30; pickup 0.42–1.47.\n- **Street Sweeper**: Damage set to 90, Accuracy to 36, Stability to 36, Concealment to 23; total ammo 36; pickup 0.9–1.45. No reload-stat override remains.\n!!!\n\n**LMG's**\n\n!!!\n- **RPK**: Accuracy +20; sight and Zenit Dust Cover compatibility.\n- **Brenner 21**: Accuracy +16, Stability +8; sight compatibility.\n- **M60**: Damage +8, Accuracy +12, Stability +8, 600 RPM; working iron-sight alignment.\n- **Campbell 74**: Damage +12, Accuracy +8; total ammo set to 400; pickup 9–12.\n  - **Underbarrel Flamethrower**: pickup 1–2.5.\n  - **Moseley Sling**: Accuracy set to +8, Stability to +8, Concealment to -3.\n- **KSP 58**: Accuracy +8, Stability +4; sight compatibility. No base Damage increase.\n  - **Hungry Wolf Barrel**: Concealment set to -2; Stability reduced by 4 from the native part; integral suppressor behavior and muzzle-device incompatibility. No additional KSP 58 base Accuracy bonus from this option.\n- **KSP**: sight compatibility.\n- **Buzzsaw 42**: iron-sight alignment adjustment.\n- **Akron HC**: Accuracy -12, Stability +4; base pickup 3.6–8.4.\n  - **Exclusive Set**: Concealment set to -3; pickup multipliers 5.6/3.6 and 11.4/8.4, producing 5.6–11.4 with the adjusted base before skills.\n!!!\n\n**Sniper Rifles**\n\n!!!\n- Iron-sight optimization:\n  - **Iron Sight**: Concealment set to +3 for the qualifying plain Iron Sights that do not permit secondary sights.\n  - **Remove Sight**: model-free option for qualifying rifles without the ordinary Iron Sight part; +3 Concealment, -4 Stability and zoom stat index 1. Blocks secondary sights and removes the specified sight rails.\n\n- **Amaroq 900**: Accuracy +8.\n- **Aran G2**: Accuracy +8, 350 RPM.\n- **Bernetti Rangehitter**: Accuracy +8.\n- **Contractor .308**: Accuracy +8, 350 RPM.\n- **Don Pastrami**: Concealment +3; firing and lever-cycle time reduced to 75% of the original duration.\n  - **Don Pastrami Barrel**: compatible with the native Iron Sight.\n  - **Legendary Stock**: Accuracy set to -4 instead of +12.\n- **Grom**: Accuracy +8.\n- **Kang Arms X1**: Accuracy +8.\n- **Lebensauger .308**: Accuracy +8.\n- **Nagant**: Accuracy +8, Concealment +3.\n- **North Star**: Accuracy +8, 350 RPM.\n- **Platypus 70**: Accuracy +8.\n- **Pronghorn**: Accuracy +8.\n- **R700**: Damage +6, Accuracy +8.\n- **R93**: Accuracy +8, Concealment +3.\n- **Rattlesnake**: Damage +6, Accuracy +8.\n- **Repeater 1874**: Damage +4, Accuracy +8.\n- **Thanatos .50 cal**: Accuracy +8.\n!!!\n\n**Special Weapons**\n\n!!!\n- **Vulcan Minigun**: Damage +25, Accuracy +32, Stability -12, Concealment -5; base fire interval set to 0.03s (2000 RPM).\n  - **Aerial Assault Barrel**: Stability set to +8.\n  - **The Stump Barrel**: Stability set to -4, Concealment to +7.\n  - **The Gimp Tri-Barrel**: Damage bonus set to +25, Stability to +16, Concealment to -3; fire-rate and pickup multipliers set to 0.625 (1250 RPM on the adjusted 2000-RPM base). Optional ordinary-part unlock and +3 Concealment boost compatibility. Additional kit fire-mode behavior is listed separately in the feature checklist.\n!!!\n\n**Shared Attachments**\n\n!!!\n- **Military Laser Module**: Accuracy set to -8, Stability to +8; Concealment and moving-Accuracy modifiers removed.\n- **Tactical Laser Module & Assault Light**: additional +4 Stability.\n- **Angled Sight**: additional +4 Accuracy.\n- **I hate sec. sights**: model-free Canted Aim secondary-sight option, +1 Concealment, with no added rail model; native secondary-sight switching.\n!!!\n\nMore to come in the future. Will be updated!",
-            "short_desc": "Enhanced the whole game, from Menu to Weapons, in my own standard.",
-            "legacy_markup": false,
-            "downloads": 44,
-            "likes": 5,
-            "views": 674,
-            "published_at": "2026-09-22T20:21:21.000000Z",
-            "bumped_at": "2026-10-26T02:22:20.000000Z",
-            "category_id": 798,
-            "has_download": true,
-            "disable_mod_managers": false,
-            "download_type": null,
-            "thumbnail": {
-                "file": "imW0HPJpcFOfViFWX9nIIQ9WV1Gemf9UIsVJPDmo.webp",
-                "has_thumb": true
-            },
-            "user": {
-                "id": 231127,
-                "name": "Hawks",
-                "donation_url": "",
-                "avatar": "Stl29uARJVxJX6du3NFRKOChruH1JJclNpbpWA3p.webp",
-                "avatar_has_thumb": false
-            }
-        },
-        {
-            "id": 59748,
-            "name": "Chimera interaction circle",
-            "desc": "calm down no ones taking that from you\n\n{#ff2b2b}(\nAll credits go to the development team of Examination.)\nhttps://www.roblox.com/games/10165583746/Examination",
-            "short_desc": "From the Roblox game \"EXAMINATION.\"",
-            "legacy_markup": false,
-            "downloads": 0,
-            "likes": 1,
-            "views": 15,
-            "published_at": "2026-10-26T00:51:22.000000Z",
-            "bumped_at": "2026-10-26T00:51:22.000000Z",
-            "category_id": 5,
-            "has_download": true,
-            "disable_mod_managers": false,
-            "download_type": null,
-            "thumbnail": {
-                "file": "zUhxXUm5RfZen1syNVQNCb8musZrSyn9D5EswaaB.webp",
-                "has_thumb": true
-            },
-            "user": {
-                "id": 230850,
-                "name": "blvvd",
-                "donation_url": "",
-                "avatar": "CWxZqBN7zQN12HSmPEX09z9bXVaS1eqOHiHEPt1R.webp",
-                "avatar_has_thumb": true
-            }
-        },
-        {
-            "id": 58922,
-            "name": "MW2 Thermal Scope",
-            "desc": "PiP Scopes (v1.6 or later) is a HARD requirement, as is updating for the 64 bit engine. This is due to how the 64bit engine integrates VR code to hijack.\n---\nPreview:\n!!! Click to expand\n\n![](https://youtu.be/1wgV0r9a7UI)\n\n!!!\n\n---\n\nKnown Issues:\n\n* Due to how optic mounting positions vary across the guns, you'll vary between having too much or too little eye relief. \n* You can also see enemies' outlines outside of the thermal scope due to how the contours work.\n\n---\n\nCredit to Cpone for [the original Thermal Scope mod](https://modworkshop.net/mod/23613), including the color grading used in this mod\n\n\n---",
-            "short_desc": "After many years, the 64bit engine finally lets us do this.",
-            "legacy_markup": false,
-            "downloads": 128,
-            "likes": 9,
-            "views": 578,
-            "published_at": "2026-10-01T03:22:41.000000Z",
-            "bumped_at": "2026-10-25T23:01:44.000000Z",
-            "category_id": 701,
-            "has_download": true,
-            "disable_mod_managers": false,
-            "download_type": "file",
-            "thumbnail": {
-                "file": "iIoNL6JWuoMUFHQXZbiX59gRJWzKvVXJSwUNjPXG.webp",
-                "has_thumb": true
-            },
-            "user": {
-                "id": 56520,
-                "name": "RJC9000",
-                "donation_url": "",
-                "avatar": "A0WfvW6rGLFBKj9pT3K5FwDEdRz43N0n5bCWa52u.webp",
-                "avatar_has_thumb": true
-            }
-        },
-        {
-            "id": 59149,
-            "name": "Sidorovichs Weapon Overhaul :) 1.5 Recoil Update",
-            "desc": "****Sidorovichs Weapon Overhaul!****\n\nIn this Mod i aim to improve weapons i dont like, and think are either boring or bad or i simply dont enjoy.\nI touch stats like damage stablity etc, and change recoil patterns to make weapons feel like actual firearms and not just lasers.\nAnd i also removed the in game  re-centering aim assist function. It made weapons way too easy to use and was annoying.\nIf you have any suggestions feedback or wishes please write a comment. :)\nSorry for bad englisch :))\n\n\nIt is also based on a template i will link, Source : https://modworkshop.net/mod/51809\nShutout to @MrDemolid.\n\nAnd for the recoil update i used the Static Recoil script from @sub to remove re-centering aim assist.\n\nSource: https://modworkshop.net/mod/18803\n\nTo more easily test out the changes you can use this custom map: https://modworkshop.net/mod/29905\n\n--------------------------------------------------------------------------------------------------------------------------------------\n\n*******Weapons Changes* (Stats without skills or mods)******\n\n*--Rifles:*\n\n--Gehwer 3 (HK G3)\nMagazine = 30\nTotal Ammo = 120\nRate of Fire = 600 rpm\nBase Damage = 170\nAccuracy = 68\nStability = 28\n\n--Falcon Rifle (FN FAL)\nMagazine = 20\nTotal Ammo = 110\nRate of Fire = 650 rpm\nBase Damage = 165\nAccuracy = 68\nStability = 20\n\n*Designated Marksmen Rifles, DMRS:*\n(Best used in single fire mode)\n\n--Valkyria (ASVAL/VSS VINTOREZ)       Note: \"this gun is best used like the Vintar from staker. As a single shot DMR that you only set to full auto somtimes.\"\nMagazine = 30                                                                           \nTotal Ammo = 70\nAmmo pickup = { 0.5 , 2 }\nRate of Fire = 850 rpm\nCan shoot through shields\nBase Damage = 140\nAccuracy = 80\nStability = 40\n\n--Galant Rifle (M1 Garand)\nClip = 8\nTotal Ammo = 46\nAmmo pickup = { 0.4 , 1.5 }\nRate of Fire = 600 rpm\nCan shoot through shields\nCan shoot through walls\nBase Damage = 250\nAccuracy = 64\nStability = 12\n\n--M308 (M14 DMR)\nMagazine = 15\nTotal Ammo = 55\nAmmo pickup = { 1.4 , 2 }\nRate of Fire = 706 rpm\nCan shoot through shields\nBase Damage = 200\nAccuracy = 76\nStability = 4\n\n*Light Machine Guns & General Purpose Machine Guns:*\n\n--M60 GPMG     Note: \"The only MG that can shoot through shields, its a low fire rate high caliber weapon. Rambos choice.\"\nBox-mag = 100\nAmmo pickup = { 0.5 , 1.6 }\nTotal Ammo = 100\nRate of Fire = 500 rpm\nBase Damage = 160\nCan shoot through shields\nAccuracy = 48\nStability = 4\n\n\n\n*Shotguns Primary:*\n\n--Mosconi 12G\nBuffed the pathetic base damage to 280\nBase Damage = 280\nBarrels = 2\nTotal Ammo = 32\n\n--Joceline O/U 12G (Beretta DT11)\nDid the Same to this double Barrel\nBase Damage = 280\nBarrels = 2\nTotal Ammo = 32\n\n\n*SMGS & PDWS:*\n\n--Patchett L2A1 (Sterling)\nMagazine = 34\nTotal Ammo = 130\nRate of Fire = 630 rpm\nBase Damage = 90\nAccuracy = 68\nStability = 72\n\n--Cmp (B&T MP9)\nMagazine = 30\nTotal Ammo = 210\nRate of Fire = 1100 rpm\nBase Damage = 64\nAccuracy = 84\nStability = 44\nConcealment = 30\n\n--Kobus 90 (FN P90 5.7)                 Note: \"Its supposed to be the 5.7 PDW adaptation, perfoming like if the 5.7 pistol is a PDW.\"\nMagazine = 50\nTotal Ammo = 80\nAmmo pickup = { 1.8 , 2.8 }\nRate of Fire = 901 rpm              \nCan shoot through shields\nBase Damage = 70\nAccuracy = 68\nStability = 36\n\n\n*Pistols & Revolvers:*\n\n--Peacemaker .45 (Ruger New-Vaquero)  Note \"Its a nice hand canon, that shreds shields\"\nChambers = 6\nTotal Ammo = 32\nRate of Fire = 320 rpm              \nCan shoot through shields\nBase Damage = 230\nAccuracy = 84\nStability = 12\n\n--Castigo .44 (S&W M29) \nChambers = 6\nTotal Ammo = 32\nRate of Fire = 400 rpm              \nCan shoot through shields\nBase Damage = 255\nAccuracy = 76\nStability = 4\n\n--Deagle (Desert Eagle XIX) Note \".50 cal pistol go boooom\"\nMagazine = 7\nAmmo pickup = { 0.4 , 0.9 }\nTotal Ammo = 49\nRate of Fire = 400 rpm              \nCan shoot through shields\nBase Damage = 195\nAccuracy = 76\nStability = 4\n\n\n--STRYK 18c (Glock 18C)\nMagazine = 20\nTotal Ammo = 160\nRate of Fire = 1000 rpm              \nBase Damage = 60\nAccuracy = 56\nStability = 28",
-            "short_desc": "Sidorovichs Weapon Overhaul, ovehauling some weapons making them more unique and useful",
-            "legacy_markup": false,
-            "downloads": 17,
-            "likes": 2,
-            "views": 757,
-            "published_at": "2026-09-23T20:59:17.000000Z",
-            "bumped_at": "2026-10-25T21:38:47.000000Z",
-            "category_id": 3,
-            "has_download": true,
-            "disable_mod_managers": true,
-            "download_type": null,
-            "thumbnail": {
-                "file": "nQzdX8w3WKpboRSdtzijSQ1fg93zoQHg3rIj6LNq.webp",
-                "has_thumb": true
-            },
-            "user": {
-                "id": 231472,
-                "name": "sidorovich_1.1",
-                "donation_url": "",
-                "avatar": "IfJZ1psWC3dJuQRlxpODN6jO9JlRPRnH3EQaN5gR.webp",
-                "avatar_has_thumb": false
-            }
-        },
-        {
-            "id": 59745,
-            "name": "Trepang2 Black Ops over Cloaker",
-            "desc": "Replaces the cloakers voicelines with the black ops guys from trepang2\nand also adds some new lines for dropping smoke grenades and starting his charge\n\nshitty preview vid\n![](https://streamable.com/u2kc26)",
-            "short_desc": "lazy thumbnail",
-            "legacy_markup": false,
-            "downloads": 9,
-            "likes": 1,
-            "views": 63,
-            "published_at": "2026-10-25T21:28:25.000000Z",
-            "bumped_at": "2026-10-25T21:28:25.000000Z",
-            "category_id": 346,
-            "has_download": true,
-            "disable_mod_managers": false,
-            "download_type": null,
-            "thumbnail": {
-                "file": "nmrnuFJRSgHEOPt5JmnaVmBjLdli5Uq31L3HPfFT.webp",
-                "has_thumb": true
-            },
-            "user": {
-                "id": 232430,
-                "name": "Stinkyballs",
+                "id": 1230,
+                "name": "Rampy",
                 "donation_url": null,
-                "avatar": "GXVf45wP9bSn86rZXZovqUWXoqpJzvoQXgKfWcCJ.webp",
-                "avatar_has_thumb": true
+                "avatar": "https://avatars.akamai.steamstatic.com/241d1e4977d05d05caebff427bfc9a8e409bc11c_full.jpg",
+                "avatar_has_thumb": false
             }
         },
         {
-            "id": 59294,
-            "name": "ADDhud",
-            "desc": "# Attention Deficit Disorder Hud\n**The settings are in __Settings - Mods settings - ADDhud__**",
+            "id": 59825,
+            "name": "Wanted Deceased Or Breathing (Wanted Dead Or Alive Remix)",
+            "desc": "Not my best but at least it loops I guees.\n\nSource:\n\nhttps://youtu.be/_ur4DTPq_0E",
             "short_desc": "",
             "legacy_markup": false,
-            "downloads": 149,
-            "likes": 9,
-            "views": 1977,
-            "published_at": "2026-10-01T14:40:40.000000Z",
-            "bumped_at": "2026-10-25T19:22:27.000000Z",
-            "category_id": 253,
-            "has_download": true,
-            "disable_mod_managers": false,
-            "download_type": "file",
-            "thumbnail": {
-                "file": "HyDluBeT8R8FmN9ADU3spNMwE1gOlO3WVsFOULN7.webp",
-                "has_thumb": true
-            },
-            "user": {
-                "id": 231867,
-                "name": "ppp",
-                "donation_url": "",
-                "avatar": "0hJ4KDHoQgotFRFy0i4cdFsU2IfjjS9y5yVIPjgy.webp",
-                "avatar_has_thumb": true
-            }
-        },
-        {
-            "id": 59669,
-            "name": "[Battle Announcer] Don Quixote | Limbus Company",
-            "desc": "# **Limbus Company's hero of justice, Don Quixote, charges into PAYDAY 2 as a Battle Announcer!**\n\n[Yes, I know there's a Don Quixote Battle Announcer mod already on the site.](https://modworkshop.net/mod/51418) Pick your poison.\n\nThis mod adds a total of 18 voicelines for use in the [Battle Announcers mod,](https://modworkshop.net/mod/51185) consisting of 8 voicelines on kill, 9 voicelines upon taking damage, and 1 voiceline on dodging!\n\n![](https://www.youtube.com/watch?v=GhsiEJS5aqk)\n\n!!!\nThis mod was made for a friend.\n!!!",
-            "short_desc": "",
-            "legacy_markup": false,
-            "downloads": 9,
-            "likes": 3,
-            "views": 113,
-            "published_at": "2026-10-25T16:08:25.000000Z",
-            "bumped_at": "2026-10-25T16:08:25.000000Z",
-            "category_id": 6,
-            "has_download": true,
-            "disable_mod_managers": false,
-            "download_type": null,
-            "thumbnail": {
-                "file": "IPp5NxpZG1aybR2SCnBhlJZHMT325KeHxLpQdQ55.webp",
-                "has_thumb": true
-            },
-            "user": {
-                "id": 102594,
-                "name": "Marth from Fire Emblem",
-                "donation_url": "",
-                "avatar": "Nmys45saw1eXsRtP3UDbjV5wiS7vn7RoYnccqE7T.webp",
-                "avatar_has_thumb": true
-            }
-        },
-        {
-            "id": 59738,
-            "name": "Missing textures",
-            "desc": "every modders worst nightmare\n\n**Tutorial for how to make it work;**\n>https://youtu.be/Ac4ttjJVQ0k\n\n**If already installed;**\n>Drag & drop to PAYDAY 2 -> mods -> mental-breakdown-skins\n\n\n{#ff2b2b}(\nAll credits go Virkay, virtue, Paxiliqua and owofailure.)\nhttps://modworkshop.net/mod/59388",
-            "short_desc": "Animated skin from the \"Mental breakdown\" mod⁗",
-            "legacy_markup": false,
-            "downloads": 39,
+            "downloads": 2,
             "likes": 0,
-            "views": 170,
-            "published_at": "2026-10-25T10:55:55.000000Z",
-            "bumped_at": "2026-10-25T10:55:55.000000Z",
-            "category_id": 288,
+            "views": 26,
+            "published_at": "2026-11-01T01:48:31.000000Z",
+            "bumped_at": "2026-11-01T01:48:31.000000Z",
+            "category_id": 348,
             "has_download": true,
             "disable_mod_managers": false,
             "download_type": null,
             "thumbnail": {
-                "file": "aNfQ0jlNzJ3AHaWZR8Glae8rPqtADf6n0RSgA1nf.webp",
+                "file": "foCjegHEnBRhYnet33BnGT8O2idfdGbUQhtNmcyX.webp",
                 "has_thumb": true
             },
             "user": {
-                "id": 230850,
-                "name": "blvvd",
+                "id": 220131,
+                "name": "Adam",
                 "donation_url": "",
-                "avatar": "CWxZqBN7zQN12HSmPEX09z9bXVaS1eqOHiHEPt1R.webp",
+                "avatar": "oTecxmfo8R1ufReoNwDROICqwJl8CpVBEJMtaTiu.webp",
                 "avatar_has_thumb": true
             }
         },
         {
-            "id": 36672,
-            "name": "Scarface Holdout - Now in 64",
-            "desc": "A Holdout version of Scarface Mansion\r\n\r\nYou access the heist from the regular Holdout menu.",
-            "short_desc": "A Holdout version of Scarface Mansion",
+            "id": 59824,
+            "name": "Resident Evil 1 (Classic) Assets Pack",
+            "desc": "**A modification inspired by the original Resident Evil (1996), bringing its classic atmosphere and iconic elements into PAYDAY 2.**\n\n**This project goes beyond simple sound replacements, featuring original weapon sounds, weapon icons, menu graphics, intro elements and other assets based on the original game.**\n\n**The goal is to recreate the look, sound and overall feel of classic Resident Evil while preserving its distinctive identity**\n\n### {#ffff00}(Press any key)\n![](https://i.imgur.com/fBRn57A.jpeg)\n\n### {#ffff00}(Menu)\n![](https://i.imgur.com/ywADfsv.jpeg)\n\n### {#ffff00}(Weapon Icons and Renames)\n![](https://i.imgur.com/7UrVCCS.jpeg)\n![](https://i.imgur.com/MHyXp2T.jpeg)\n![](https://i.imgur.com/OcepuRM.png)\n\n### {#ffff00}(Deployable Icons and Renames)\n![](https://i.imgur.com/aDKNibD.jpeg)\n![](https://i.imgur.com/SWklHCn.jpeg)\n![](https://i.imgur.com/IXjDIzL.jpeg)\n\n### {#ffff00}(Crime.net)\n![](https://i.imgur.com/tqN0kYi.jpeg)\n\n### {#ffff00}(Loading Screen)\n![](https://i.imgur.com/QjfWTgV.jpeg)\n\n### Video Preview\n![](https://youtu.be/lpasAEJRmes)",
+            "short_desc": "RE1 OG Pack",
             "legacy_markup": false,
-            "downloads": 684,
-            "likes": 13,
-            "views": 4288,
-            "published_at": "2022-03-22T14:54:07.000000Z",
-            "bumped_at": "2026-10-25T10:44:15.000000Z",
-            "category_id": 502,
+            "downloads": 8,
+            "likes": 2,
+            "views": 216,
+            "published_at": "2026-10-31T21:25:14.000000Z",
+            "bumped_at": "2026-10-31T21:25:14.000000Z",
+            "category_id": 7,
             "has_download": true,
             "disable_mod_managers": false,
-            "download_type": "file",
+            "download_type": null,
             "thumbnail": {
-                "file": "4270_1647960866_8afa469e9cfd2a14d998c8637ed204f5.webp",
+                "file": "LVqaHJDwgE1Xkp54UHIdaeCSGToUCHIfotMImpuw.webp",
                 "has_thumb": true
             },
             "user": {
-                "id": 4270,
-                "name": "The Rant-man",
-                "donation_url": "https://ko-fi.com/therantman",
-                "avatar": "F6fz8mcIMxTwIrfvSoDeBIT06FZkDsJBAUWLfnE1.webp",
-                "avatar_has_thumb": true
-            }
-        },
-        {
-            "id": 45068,
-            "name": "FBI Office Holdout",
-            "desc": "You're returning to the FBI branch office from the job with Hector all those years ago. This time you're getting some reparations for Hox, you've got an FBI director as your hostage and you demand big bucks for his life!",
-            "short_desc": "Firestarter day 2 holdout",
-            "legacy_markup": false,
-            "downloads": 306,
-            "likes": 9,
-            "views": 1528,
-            "published_at": "2023-10-10T04:03:05.000000Z",
-            "bumped_at": "2026-10-25T10:42:10.000000Z",
-            "category_id": 502,
-            "has_download": true,
-            "disable_mod_managers": false,
-            "download_type": "file",
-            "thumbnail": {
-                "file": "VMx8o2bvxt2YUTYw0pu1FC2Q5i6ONQ5xamJT8Ifx.webp",
-                "has_thumb": true
-            },
-            "user": {
-                "id": 4270,
-                "name": "The Rant-man",
-                "donation_url": "https://ko-fi.com/therantman",
-                "avatar": "F6fz8mcIMxTwIrfvSoDeBIT06FZkDsJBAUWLfnE1.webp",
-                "avatar_has_thumb": true
-            }
-        },
-        {
-            "id": 27747,
-            "name": "No Mercy: Ranted NPC flashlights REMASTERED",
-            "desc": "Cops finally found their flashlights\n\nMy optimized / fixed version of No Mercy.\n\nNow you can experience this heist with less eyestrain and more frames!\n\nBroken features / scripts have also been fixed and the heist should feel much nicer to play now. Visual oversights have also been tended to, like being able to see cops spawn due to poor spawn placement.\n\nI plan on updating this map as I make more fixes to it!\n\nI hope you'll enjoy this rework, feel free to leave feedback! :3",
-            "short_desc": "No Mercy optimized for solid 60 fps experience. With other quality of life improvements!\r\nUpdates in the future, when I fix or improve more stuff.",
-            "legacy_markup": false,
-            "downloads": 1507,
-            "likes": 50,
-            "views": 11207,
-            "published_at": "2020-05-27T06:57:42.000000Z",
-            "bumped_at": "2026-10-25T10:39:46.000000Z",
-            "category_id": 768,
-            "has_download": true,
-            "disable_mod_managers": false,
-            "download_type": "file",
-            "thumbnail": {
-                "file": "4270_1596486213_e4e4c6cce6ee6083dec5808524cb7576.jpg",
-                "has_thumb": true
-            },
-            "user": {
-                "id": 4270,
-                "name": "The Rant-man",
-                "donation_url": "https://ko-fi.com/therantman",
-                "avatar": "F6fz8mcIMxTwIrfvSoDeBIT06FZkDsJBAUWLfnE1.webp",
+                "id": 121062,
+                "name": "NeTheQ_",
+                "donation_url": "https://ko-fi.com/netheq",
+                "avatar": "LBGlR02VIHSuh6YCZciPBzsE4SfH5xX7pWaGNqiW.webp",
                 "avatar_has_thumb": true
             }
         }
     ],
     "meta": {
         "current_page": 1,
-        "last_page": 1080,
+        "last_page": 1081,
         "per_page": 24,
-        "total": 25898
+        "total": 25930
     }
 }

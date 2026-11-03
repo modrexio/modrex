@@ -122,6 +122,26 @@ fn analytics_consent_defaults_to_not_asked() {
 }
 
 #[test]
+fn an_opt_in_from_before_consent_versioning_is_outdated() {
+    let mut f = NamedTempFile::new().unwrap();
+    write!(
+        f,
+        r#"{{"analyticsConsentAsked":true,"analyticsEnabled":true}}"#
+    )
+    .unwrap();
+    let mut s = read_from(f.path());
+    assert_eq!(s.analytics_consent_version, 0);
+    assert_eq!(analytics_consent(&s), AnalyticsConsent::Outdated);
+
+    s.analytics_consent_version = crate::commands::analytics::ANALYTICS_CONSENT_VERSION;
+    assert_eq!(analytics_consent(&s), AnalyticsConsent::Granted);
+    s.analytics_enabled = false;
+    assert_eq!(analytics_consent(&s), AnalyticsConsent::Declined);
+    s.analytics_consent_asked = false;
+    assert_eq!(analytics_consent(&s), AnalyticsConsent::Unasked);
+}
+
+#[test]
 fn missing_file_returns_default() {
     let loaded = read_from(std::path::Path::new("/nonexistent/settings.json"));
     assert_eq!(loaded.game_path, None);

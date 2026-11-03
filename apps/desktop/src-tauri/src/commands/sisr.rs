@@ -32,14 +32,15 @@ fn matches_sisr_process_name(name: &str) -> bool {
     name.eq_ignore_ascii_case("SISR") || name.eq_ignore_ascii_case("SISR.exe")
 }
 
-fn sisr_is_running() -> bool {
-    let mut system = sysinfo::System::new();
+fn sisr_is_running() -> Result<bool, String> {
+    let mut system = sysinfo::System::new()
+        .map_err(|error| format!("Could not check whether SISR is running: {error}"))?;
     let kind = sysinfo::ProcessRefreshKind::nothing();
     system.refresh_processes_specifics(sysinfo::ProcessesToUpdate::All, true, kind);
-    system
+    Ok(system
         .processes()
         .values()
-        .any(|process| matches_sisr_process_name(&process.name().to_string_lossy()))
+        .any(|process| matches_sisr_process_name(&process.name().to_string_lossy())))
 }
 
 #[cfg(any(windows, test))]
@@ -82,16 +83,16 @@ pub async fn get_sisr_status(app: AppHandle) -> Result<SisrStatus, String> {
 
     tauri::async_runtime::spawn_blocking(move || {
         let executable = sisr_executable();
-        SisrStatus {
+        Ok(SisrStatus {
             supported: true,
             installed: executable.is_some(),
-            running: sisr_is_running(),
+            running: sisr_is_running()?,
             setup_complete: executable.as_deref().is_some_and(sisr_setup_complete),
             auto_launch,
-        }
+        })
     })
     .await
-    .map_err(|error| error.to_string())
+    .map_err(|error| error.to_string())?
 }
 
 #[tauri::command]
@@ -131,7 +132,14 @@ pub(crate) async fn prepare_for_game_launch(enabled: bool) -> Option<SisrLaunchI
 }
 
 fn prepare_for_game_launch_blocking() -> Option<SisrLaunchIssue> {
-    if sisr_is_running() {
+    let running = match sisr_is_running() {
+        Ok(running) => running,
+        Err(error) => {
+            log::warn!("{error}");
+            return Some(SisrLaunchIssue::StartUnconfirmed);
+        }
+    };
+    if running {
         return sisr_executable()
             .as_deref()
             .filter(|executable| !sisr_setup_complete(executable))
