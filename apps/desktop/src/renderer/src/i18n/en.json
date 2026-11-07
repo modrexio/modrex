@@ -644,6 +644,7 @@
         },
         "updates": {
             "title": "Updates",
+            "description": "Choose which releases Modrex updates to.",
             "check": "Check for updates",
             "checking": "Checking...",
             "upToDate": "You're up to date",
@@ -651,7 +652,7 @@
             "channel": "Update channel",
             "channelStable": "Stable",
             "channelNightly": "Nightly",
-            "nightlyWarning": "Nightly builds are made automatically from the latest changes and are not tested before release. Expect bugs. A mod list changed by a nightly build may open read-only in an older version.",
+            "nightlyWarning": "Nightly is for people who want to help test Modrex, and it may not be as stable as the Stable version. A mod list saved by a nightly may open read-only in older versions.",
             "stableNote": "Switching back to Stable keeps this nightly build until a newer stable release is out."
         },
         "logs": {

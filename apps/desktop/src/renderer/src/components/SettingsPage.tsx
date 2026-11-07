@@ -295,9 +295,12 @@ export function SettingsPage({
 
                                 <CornerRadiusSetting />
 
-                                <Section title={t('settings.updates.title')}>
-                                    {updateChannel && (
-                                        <div className="flex flex-col gap-2 mt-1 mb-3">
+                                <Section
+                                    title={t('settings.updates.title')}
+                                    description={t('settings.updates.description')}
+                                >
+                                    <div className="flex flex-wrap items-center gap-3 mt-1">
+                                        {updateChannel && (
                                             <Select
                                                 ariaLabel={t('settings.updates.channel')}
                                                 value={updateChannel}
@@ -315,23 +318,11 @@ export function SettingsPage({
                                                     },
                                                 ]}
                                             />
-                                            {updateChannel === 'nightly' && (
-                                                <div className="flex gap-2 px-3 py-2 bg-warning/10 border border-warning/30 rounded text-xs text-warning">
-                                                    <TriangleAlert className="w-3.5 h-3.5 shrink-0" />
-                                                    {t('settings.updates.nightlyWarning')}
-                                                </div>
-                                            )}
-                                            {updateChannel === 'stable' && isNightlyBuild && (
-                                                <p className="text-xs text-text-subtle">
-                                                    {t('settings.updates.stableNote')}
-                                                </p>
-                                            )}
-                                        </div>
-                                    )}
-                                    <div className="flex items-center gap-3 mt-1">
+                                        )}
                                         <Button
                                             variant="secondary"
                                             size="md"
+                                            className="self-stretch"
                                             disabled={checkState === 'checking'}
                                             onClick={handleCheckForUpdates}
                                         >
@@ -353,6 +344,17 @@ export function SettingsPage({
                                             </span>
                                         )}
                                     </div>
+                                    {updateChannel === 'nightly' && (
+                                        <div className="flex gap-2 px-3 py-2 mt-1 bg-warning/10 border border-warning/30 rounded-lg text-xs text-warning">
+                                            <TriangleAlert className="w-3.5 h-3.5 shrink-0" />
+                                            {t('settings.updates.nightlyWarning')}
+                                        </div>
+                                    )}
+                                    {updateChannel === 'stable' && isNightlyBuild && (
+                                        <p className="text-xs text-text-subtle">
+                                            {t('settings.updates.stableNote')}
+                                        </p>
+                                    )}
                                 </Section>
 
                                 <Section title={t('telemetry.settingsTitle')}>
