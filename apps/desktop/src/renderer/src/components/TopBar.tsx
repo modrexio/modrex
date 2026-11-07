@@ -5,6 +5,13 @@ import { WindowControls } from './WindowControls'
 import { Tooltip } from './Tooltip'
 import { t } from '../i18n'
 import { api } from '../api'
+import { isNightlyBuild } from '../appVersion'
+
+function versionLabel() {
+    if (import.meta.env.DEV) return 'v-dev'
+    if (isNightlyBuild) return t('settings.updates.channelNightly')
+    return `v${import.meta.env.VITE_APP_VERSION}`
+}
 
 export interface TopBarProps {
     update?: { phase: 'downloading' | 'ready'; percent: number | null } | null
@@ -40,7 +47,7 @@ export function TopBar({
                             className="text-xs text-text-subtle"
                             style={{ marginBottom: '0.3rem' }}
                         >
-                            {import.meta.env.DEV ? 'v-dev' : `v${import.meta.env.VITE_APP_VERSION}`}
+                            {versionLabel()}
                         </span>
                     </div>
                     <div className="flex items-center gap-2 h-full">

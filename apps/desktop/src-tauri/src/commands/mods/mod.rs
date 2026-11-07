@@ -56,8 +56,8 @@ pub use self::identity::IdentityEvidence;
 pub use self::install::install_mod_from_path;
 pub use self::paths::{find_untracked_host_packs, find_untracked_paks, get_state_path, mods_base};
 pub use self::plugin_repair::PluginInstallReport;
-use self::state::save_error;
 pub use self::state::{get_folder_path, load_for_scan, read_state};
+use self::state::{hidden_state_path, save_error};
 pub use self::types::{
     InstalledMod, InstalledResponse, ModFolder, ModsState, TopLevelItem, UpdateStatus,
 };
@@ -310,6 +310,7 @@ pub async fn get_installed(app: AppHandle, game_id: String) -> Result<InstalledR
             folders: vec![],
             mods_hidden: false,
             state_unreadable: false,
+            state_newer: false,
             resource_error: None,
             resource_recovery_pending: false,
         });
@@ -405,7 +406,8 @@ pub async fn get_installed(app: AppHandle, game_id: String) -> Result<InstalledR
             index.as_ref(),
         );
         if any_upgraded || discovered_hosts || cb_resynced || identified {
-            writeback.save(&state_path, &state, "refreshed identities");
+            let hidden_path = hidden_state_path(&game_path, &state_path, cfg);
+            writeback.save(&hidden_path, &state, "refreshed identities");
         }
         let mut mods = state.mods;
         push_installed_loaders(cfg, &game_path, &settings, &mut mods);
@@ -418,6 +420,7 @@ pub async fn get_installed(app: AppHandle, game_id: String) -> Result<InstalledR
                 folders: state.folders,
                 mods_hidden: true,
                 state_unreadable: writeback.blocked(),
+                state_newer: writeback.newer(),
                 resource_error: None,
                 resource_recovery_pending: false,
             },
@@ -500,6 +503,7 @@ pub async fn get_installed(app: AppHandle, game_id: String) -> Result<InstalledR
                 folders: state.folders,
                 mods_hidden: false,
                 state_unreadable: writeback.blocked(),
+                state_newer: writeback.newer(),
                 resource_error: None,
                 resource_recovery_pending: false,
             },
@@ -551,6 +555,7 @@ pub async fn get_installed(app: AppHandle, game_id: String) -> Result<InstalledR
             folders,
             mods_hidden: false,
             state_unreadable: writeback.blocked(),
+            state_newer: writeback.newer(),
             resource_error: None,
             resource_recovery_pending: false,
         },

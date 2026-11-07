@@ -120,6 +120,7 @@ describe('resource review completion', () => {
             folders: [],
             modsHidden: false,
             stateUnreadable: false,
+            stateNewer: false,
             resourceRecoveryPending: false,
         })
         vi.mocked(api.installNexusReviewPak).mockResolvedValue(undefined)
@@ -160,6 +161,7 @@ describe('resource review completion', () => {
             folders: [],
             modsHidden: false,
             stateUnreadable: false,
+            stateNewer: false,
             resourceRecoveryPending: false,
         })
         vi.mocked(api.installNexusReviewPak)

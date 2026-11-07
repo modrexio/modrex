@@ -1,6 +1,28 @@
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 
+vi.mock('../src/components/Select', () => ({
+    Select: ({
+        ariaLabel,
+        value,
+        onChange,
+        options,
+    }: {
+        ariaLabel?: string
+        value: string
+        onChange: (value: string) => void
+        options: { value: string; label: string }[]
+    }) => (
+        <select aria-label={ariaLabel} value={value} onChange={(e) => onChange(e.target.value)}>
+            {options.map((option) => (
+                <option key={option.value} value={option.value}>
+                    {option.label}
+                </option>
+            ))}
+        </select>
+    ),
+}))
+
 beforeEach(() => {
     vi.resetModules()
     window.history.replaceState({}, '', '/')
@@ -149,3 +171,59 @@ test.each(['outside click', 'Escape', 'close button'])(
         expect(install).not.toHaveBeenCalled()
     }
 )
+
+async function mountSettings() {
+    const { api } = await import('../src/api')
+    const { emit } = await import('./tauri/event')
+    const { default: App } = await import('../src/App')
+    render(<App />)
+    await screen.findByRole('heading', { name: 'Games' })
+    fireEvent.click(screen.getByRole('button', { name: 'Settings' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Application' }))
+    return { api, emit, channel: await screen.findByRole('combobox', { name: 'Update channel' }) }
+}
+
+test('switching channel saves it and drops the pending update', async () => {
+    const { api, emit, channel } = await mountSettings()
+    const save = vi.spyOn(api, 'setUpdateChannel').mockResolvedValue()
+    await act(() =>
+        emit('updater:update-available', {
+            version: '0.15.1',
+            strategy: 'manual',
+            body: '',
+            releaseUrl: 'https://github.com/modrexio/modrex/releases/tag/v0.15.1',
+        })
+    )
+    expect(screen.getByRole('dialog')).toBeTruthy()
+    await act(async () => {
+        fireEvent.change(channel, { target: { value: 'nightly' } })
+    })
+    expect(save).toHaveBeenCalledWith('nightly')
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(screen.getByText(/Nightly is for people who want to help test Modrex/)).toBeTruthy()
+})
+
+test('says up to date only when the check finds nothing', async () => {
+    const { api } = await mountSettings()
+    const check = vi.spyOn(api, 'checkForUpdates').mockResolvedValue('0.15.1')
+    const button = screen.getByRole('button', { name: 'Check for updates' })
+    await act(async () => {
+        fireEvent.click(button)
+    })
+    expect(screen.queryByText("You're up to date")).toBeNull()
+    check.mockResolvedValue(null)
+    await act(async () => {
+        fireEvent.click(button)
+    })
+    expect(screen.getByText("You're up to date")).toBeTruthy()
+})
+
+test('shows an error when the check fails', async () => {
+    const { api } = await mountSettings()
+    vi.spyOn(api, 'checkForUpdates').mockRejectedValue(new Error('offline'))
+    await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: 'Check for updates' }))
+    })
+    expect(screen.getByText('Could not check for updates. Details are in the log.')).toBeTruthy()
+    expect(screen.queryByText("You're up to date")).toBeNull()
+})

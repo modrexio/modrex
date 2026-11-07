@@ -9,6 +9,7 @@ permissions:
 
 jobs:
     patch-notes:
+        if: ${{ !github.event.release.prerelease }}
         runs-on: ubuntu-latest
         steps:
             - name: Download latest.json from release

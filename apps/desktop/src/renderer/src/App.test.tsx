@@ -27,6 +27,7 @@ vi.mock('./api', () => ({
         reportStartupPhase: mocks.startup,
         updateDiscordPresence: vi.fn().mockResolvedValue(undefined),
         getAnalyticsConsent: mocks.consent,
+        getUpdateChannel: vi.fn().mockResolvedValue('stable'),
         setAnalyticsConsent: mocks.setConsent,
         setAnalyticsLanguage: mocks.language,
         getGameSettings: vi.fn().mockResolvedValue({ launchOptions: '', launcher: 'steam' }),

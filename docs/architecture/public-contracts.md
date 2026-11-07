@@ -14,6 +14,13 @@ compiled into the application. A tag scheme change, a repository move or a relea
 strands every client that cannot reach the new location, because the old one is the only address
 they have.
 
+**The tag `nightly` is reserved for one rolling pre-release, and its updater manifest stays
+reachable at `https://github.com/modrexio/modrex/releases/download/nightly/latest.json`.**
+
+Installed clients on the Nightly channel read that address. The release must stay a pre-release:
+GitHub's `releases/latest` skips pre-releases, and that is all that keeps a nightly away from
+stable clients and `install.sh`. The tag never starts with `v`, which belongs to stable releases.
+
 ## Desktop versions through 0.12.2
 
 **`modrexio/modrex-index` stays an independent producer of the `latest-index` release, with its

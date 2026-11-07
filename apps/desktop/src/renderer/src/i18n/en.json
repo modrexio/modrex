@@ -156,6 +156,7 @@
         "sourcesRetry": "Try again",
         "modsHidden": "Mods are hidden; the game was launched in vanilla mode and may still be running.",
         "stateUnreadable": "Modrex could not read its own mod list for this game, so the mods below were found by scanning the folder and no changes are being saved. Details are in the log.",
+        "stateNewer": "This game's mod list was saved by a newer version of Modrex, so it is shown read-only and no changes are saved. Update Modrex to make changes.",
         "restoreMods": "Restore mods",
         "updateAction": "Update",
         "updateInstall": "Restart & Install",
@@ -643,9 +644,16 @@
         },
         "updates": {
             "title": "Updates",
+            "description": "Choose which releases Modrex updates to.",
             "check": "Check for updates",
             "checking": "Checking...",
-            "upToDate": "You're up to date"
+            "upToDate": "You're up to date",
+            "checkFailed": "Could not check for updates. Details are in the log.",
+            "channel": "Update channel",
+            "channelStable": "Stable",
+            "channelNightly": "Nightly",
+            "nightlyWarning": "Nightly is for people who want to help test Modrex, and it may not be as stable as the Stable version. A mod list saved by a nightly may open read-only in older versions.",
+            "stableNote": "Switching back to Stable keeps this nightly build until a newer stable release is out."
         },
         "logs": {
             "title": "Logs",

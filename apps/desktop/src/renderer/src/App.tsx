@@ -15,7 +15,7 @@ import { TopBar } from './components/TopBar'
 import { ResizeHandles } from './components/ResizeHandles'
 import { SupportPromptBanner } from './components/SupportPromptBanner'
 import { NexusSessionBanner } from './components/NexusSessionBanner'
-import { api, type AnalyticsConsent, type StartupPhase } from './api'
+import { api, type AnalyticsConsent, type StartupPhase, type UpdateChannel } from './api'
 import { reportLanguage } from './lib/analytics/events'
 import { TelemetryConsentDialog } from './components/TelemetryConsentDialog'
 import { TelemetryPolicyDialog } from './components/TelemetryPolicyDialog'
@@ -33,6 +33,10 @@ function reportStartupPhase(phase: StartupPhase) {
     void api
         .reportStartupPhase(phase)
         .catch((error) => logError('Failed to report startup phase: ' + String(error)))
+}
+
+function logUpdateCheckFailure(error: unknown) {
+    void logError('Update check failed: ' + String(error))
 }
 
 export default function App() {
@@ -104,6 +108,19 @@ export default function App() {
         reportLanguage(locale)
     }, [locale])
 
+    const [updateChannel, setUpdateChannel] = useState<UpdateChannel | undefined>(undefined)
+    useEffect(() => {
+        api.getUpdateChannel().then(setUpdateChannel)
+    }, [])
+    const handleUpdateChannel = useCallback(async (channel: UpdateChannel) => {
+        setUpdateChannel(channel)
+        setUpdate(null)
+        setShowUpdateModal(false)
+        await api.setUpdateChannel(channel)
+        if (import.meta.env.DEV) return
+        api.checkForUpdates().catch(logUpdateCheckFailure)
+    }, [])
+
     const [discordPresenceEnabled, setDiscordPresenceEnabled] = useState(true)
     const handleDiscordPresenceEnabled = useCallback((enabled: boolean) => {
         setDiscordPresenceEnabled(enabled)
@@ -144,7 +161,7 @@ export default function App() {
         // Dev builds run whatever version the branch has and would nag about the
         // latest release on every launch, the check only makes sense for real installs.
         if (import.meta.env.DEV) return
-        api.checkForUpdates().catch(() => {})
+        api.checkForUpdates().catch(logUpdateCheckFailure)
     }, [])
 
     useEffect(
@@ -219,6 +236,8 @@ export default function App() {
         onAnalyticsConsent: handleAnalyticsConsent,
         discordPresenceEnabled,
         onDiscordPresenceEnabled: handleDiscordPresenceEnabled,
+        updateChannel,
+        onUpdateChannel: handleUpdateChannel,
     }
     const topBar = {
         update:
