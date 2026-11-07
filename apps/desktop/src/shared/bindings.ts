@@ -658,6 +658,8 @@ export type InstalledResponse_Deserialize = {
 	 *  the file is readable again.
 	 */
 	stateUnreadable: boolean,
+	/**  The mod list was saved by a newer version of Modrex. state_unreadable is also set. */
+	stateNewer: boolean,
 	/**
 	 *  Failures inspecting movie or Engine.ini records, including pending recovery.
 	 *  Ordinary mod rows remain available.
@@ -677,6 +679,8 @@ export type InstalledResponse_Serialize = {
 	 *  the file is readable again.
 	 */
 	stateUnreadable: boolean,
+	/**  The mod list was saved by a newer version of Modrex. state_unreadable is also set. */
+	stateNewer: boolean,
 	/**
 	 *  Failures inspecting movie or Engine.ini records, including pending recovery.
 	 *  Ordinary mod rows remain available.

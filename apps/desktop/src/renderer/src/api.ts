@@ -604,6 +604,7 @@ export const api = {
         folders: ModFolder[]
         modsHidden: boolean
         stateUnreadable: boolean
+        stateNewer: boolean
         resourceError?: string | null
         resourceRecoveryPending: boolean
     }> {
@@ -612,6 +613,7 @@ export const api = {
             folders: ModFolder[]
             modsHidden: boolean
             stateUnreadable: boolean
+            stateNewer: boolean
             resourceError?: string | null
             resourceRecoveryPending: boolean
         }>

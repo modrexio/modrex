@@ -36,6 +36,7 @@ export class Library {
             folders: this.folders,
             modsHidden: false,
             stateUnreadable: false,
+            stateNewer: false,
             resourceError: null,
             resourceRecoveryPending: false,
         }
