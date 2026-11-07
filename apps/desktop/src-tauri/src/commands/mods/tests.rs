@@ -6065,6 +6065,23 @@ fn save_state_writes_the_schema_version() {
 }
 
 #[test]
+fn hidden_state_path_follows_the_folder_a_file_unit_game_renamed() {
+    let cfg = engine_for_game("pd3").unwrap();
+    let state_path = get_state_path("/game", cfg);
+    assert_eq!(
+        hidden_state_path("/game", &state_path, cfg),
+        backup_dir("/game", cfg.primary()).join(STATE_FILENAME)
+    );
+}
+
+#[test]
+fn hidden_state_path_stays_put_for_a_directory_unit_game() {
+    let cfg = engine_for_game("pd2").unwrap();
+    let state_path = get_state_path("/game", cfg);
+    assert_eq!(hidden_state_path("/game", &state_path, cfg), state_path);
+}
+
+#[test]
 fn read_state_rejects_an_empty_file() {
     let (_dir, path) = state_file_with(b"");
     assert!(matches!(read_state(&path), Err(StateLoadError::Invalid(_))));

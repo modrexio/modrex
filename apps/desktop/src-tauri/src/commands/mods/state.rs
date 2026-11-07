@@ -816,6 +816,16 @@ pub(crate) fn superseded_records(mods: &[InstalledMod]) -> HashSet<String> {
         .collect()
 }
 
+/// Where the state file sits while mods are hidden for a launch.
+pub fn hidden_state_path(game_path: &str, state_path: &Path, cfg: &ModEngineConfig) -> PathBuf {
+    if cfg.primary().is_directory_unit() || cfg.primary().is_bundle() {
+        // BLT: state file stays in mods/ because only user mod dirs were moved to backup.
+        return state_path.to_path_buf();
+    }
+    // PD3: the entire mods folder was renamed, so the state file is inside the backup.
+    backup_dir(game_path, cfg.primary()).join(STATE_FILENAME)
+}
+
 pub fn reconcile_state(
     game_path: &str,
     state_path: &Path,
@@ -823,12 +833,11 @@ pub fn reconcile_state(
 ) -> Result<ModsState, StateLoadError> {
     let bak = backup_dir(game_path, cfg.primary());
     if cfg.primary().shared_paks.is_none() && bak.exists() {
-        if cfg.primary().is_directory_unit() || cfg.primary().is_bundle() {
-            // BLT: state file stays in mods/ because only user mod dirs were moved to backup.
-            return read_state_for_game(game_path, state_path, cfg);
-        }
-        // PD3: the entire mods folder was renamed, so the state file is inside the backup.
-        return read_state_for_game(game_path, &bak.join(STATE_FILENAME), cfg);
+        return read_state_for_game(
+            game_path,
+            &hidden_state_path(game_path, state_path, cfg),
+            cfg,
+        );
     }
 
     let legacy = state_path.with_file_name(".pd3mm.json");

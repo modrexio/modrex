@@ -57,7 +57,7 @@ pub use self::install::install_mod_from_path;
 pub use self::paths::{find_untracked_host_packs, find_untracked_paks, get_state_path, mods_base};
 pub use self::plugin_repair::PluginInstallReport;
 pub use self::state::{get_folder_path, load_for_scan, read_state};
-use self::state::save_error;
+use self::state::{hidden_state_path, save_error};
 pub use self::types::{
     InstalledMod, InstalledResponse, ModFolder, ModsState, TopLevelItem, UpdateStatus,
 };
@@ -406,7 +406,8 @@ pub async fn get_installed(app: AppHandle, game_id: String) -> Result<InstalledR
             index.as_ref(),
         );
         if any_upgraded || discovered_hosts || cb_resynced || identified {
-            writeback.save(&state_path, &state, "refreshed identities");
+            let hidden_path = hidden_state_path(&game_path, &state_path, cfg);
+            writeback.save(&hidden_path, &state, "refreshed identities");
         }
         let mut mods = state.mods;
         push_installed_loaders(cfg, &game_path, &settings, &mut mods);
