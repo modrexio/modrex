@@ -200,7 +200,7 @@ test('switching channel saves it and drops the pending update', async () => {
     })
     expect(save).toHaveBeenCalledWith('nightly')
     expect(screen.queryByRole('dialog')).toBeNull()
-    expect(screen.getByText(/Nightly builds are made automatically/)).toBeTruthy()
+    expect(screen.getByText(/Nightly is for people who want to help test Modrex/)).toBeTruthy()
 })
 
 test('says up to date only when the check finds nothing', async () => {
