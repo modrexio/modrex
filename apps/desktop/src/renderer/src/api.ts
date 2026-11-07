@@ -1048,6 +1048,9 @@ export const api = {
     setUpdateChannel(channel: UpdateChannel): Promise<void> {
         return commands.setUpdateChannel(channel)
     },
+    installNightly(): Promise<boolean> {
+        return commands.installNightly()
+    },
 
     // ── Window controls (custom title bar) ─────────────────────────────────────
     windowMinimize(): Promise<void> {

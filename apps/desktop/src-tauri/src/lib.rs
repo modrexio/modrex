@@ -142,6 +142,7 @@ fn ipc_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::settings::get_update_channel,
             commands::updater::download_update,
             commands::updater::install_update,
+            commands::updater::install_nightly,
             // thumbnails
             commands::thumbnails::get_thumbnail,
             // mod index

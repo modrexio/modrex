@@ -653,7 +653,15 @@
             "channelStable": "Stable",
             "channelNightly": "Nightly",
             "nightlyWarning": "Nightly is for people who want to help test Modrex, and it may not be as stable as the Stable version. A mod list saved by a nightly may open read-only in older versions.",
-            "stableNote": "Switching back to Stable keeps this nightly build until a newer stable release is out."
+            "stableNote": "Switching back to Stable keeps this nightly build until a newer stable release is out.",
+            "installNightlyTitle": "Install Nightly?",
+            "installNightlyIntro": "Nightly is for people who want to help test Modrex, and it may not be as stable as the Stable version.",
+            "installNightlyRisk": "Once a nightly is installed, switching back to Stable keeps it until a newer stable version comes out. A mod list saved by a nightly may open read-only in older versions.",
+            "installNightlyRestart": "Modrex will restart to finish.",
+            "installNightlyAction": "Install Nightly",
+            "installNightlyProgress": "Installing Nightly...",
+            "installNightlyNone": "There is no newer nightly yet, so Modrex stays on Stable.",
+            "installNightlyFailed": "Could not install Nightly, so Modrex stays on Stable. Details are in the log."
         },
         "logs": {
             "title": "Logs",

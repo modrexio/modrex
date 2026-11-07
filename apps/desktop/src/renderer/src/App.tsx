@@ -117,8 +117,6 @@ export default function App() {
         setUpdate(null)
         setShowUpdateModal(false)
         await api.setUpdateChannel(channel)
-        if (import.meta.env.DEV) return
-        api.checkForUpdates().catch(logUpdateCheckFailure)
     }, [])
 
     const [discordPresenceEnabled, setDiscordPresenceEnabled] = useState(true)

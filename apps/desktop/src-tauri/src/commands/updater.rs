@@ -4,7 +4,7 @@ use std::sync::{
     Arc,
 };
 use tauri::{AppHandle, Emitter, Manager};
-use tauri_plugin_updater::{Updater, UpdaterExt};
+use tauri_plugin_updater::{Update, Updater, UpdaterExt};
 use tokio::sync::Mutex;
 
 const RELEASES_URL: &str = "https://github.com/modrexio/modrex/releases";
@@ -78,6 +78,30 @@ pub async fn check_for_update(app: AppHandle) -> Result<Option<String>, String> 
     Ok(Some(version))
 }
 
+/// Moves a stable build to the newest nightly and restarts. Returns false when no nightly is newer.
+#[tauri::command]
+#[specta::specta]
+pub async fn install_nightly(app: AppHandle) -> Result<bool, String> {
+    let updater = updater_for(&app, UpdateChannel::Nightly)
+        .map_err(|e| format!("could not prepare the update check: {e}"))?;
+    let Some(update) = updater
+        .check()
+        .await
+        .map_err(|e| format!("the update check failed: {e}"))?
+    else {
+        return Ok(false);
+    };
+    let bytes = download(&app, &update).await?;
+
+    // Saved before installing because the Windows installer ends this process.
+    let previous = update_settings(&app, |s| s.update_channel.replace(UpdateChannel::Nightly));
+    if let Err(e) = update.install(bytes) {
+        update_settings(&app, |s| s.update_channel = previous);
+        return Err(e.to_string());
+    }
+    app.restart()
+}
+
 /// Saves the channel and forgets any update found on the previous one.
 #[tauri::command]
 #[specta::specta]
@@ -88,18 +112,12 @@ pub async fn set_update_channel(app: AppHandle, channel: UpdateChannel) {
     *state.bytes.lock().await = None;
 }
 
-#[tauri::command]
-#[specta::specta]
-pub async fn download_update(app: AppHandle) -> Result<(), String> {
-    let state = app.state::<UpdaterState>();
-    let guard = state.update.lock().await;
-    let update = guard.as_ref().ok_or("no pending update")?;
-
+async fn download(app: &AppHandle, update: &Update) -> Result<Vec<u8>, String> {
     let downloaded = Arc::new(AtomicUsize::new(0));
     let downloaded_clone = Arc::clone(&downloaded);
     let app_progress = app.clone();
 
-    let bytes = update
+    update
         .download(
             move |chunk, total| {
                 let so_far = downloaded_clone.fetch_add(chunk, Ordering::Relaxed) + chunk;
@@ -111,8 +129,16 @@ pub async fn download_update(app: AppHandle) -> Result<(), String> {
             || {},
         )
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| e.to_string())
+}
 
+#[tauri::command]
+#[specta::specta]
+pub async fn download_update(app: AppHandle) -> Result<(), String> {
+    let state = app.state::<UpdaterState>();
+    let guard = state.update.lock().await;
+    let update = guard.as_ref().ok_or("no pending update")?;
+    let bytes = download(&app, update).await?;
     drop(guard);
     *state.bytes.lock().await = Some(bytes);
     let _ = app.emit("updater:update-ready", ());

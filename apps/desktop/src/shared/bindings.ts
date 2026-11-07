@@ -237,6 +237,8 @@ export const commands = {
 	getUpdateChannel: () => __TAURI_INVOKE<UpdateChannel>("get_update_channel"),
 	downloadUpdate: () => __TAURI_INVOKE<null>("download_update"),
 	installUpdate: () => __TAURI_INVOKE<null>("install_update"),
+	/**  Moves a stable build to the newest nightly and restarts. Returns false when no nightly is newer. */
+	installNightly: () => __TAURI_INVOKE<boolean>("install_nightly"),
 	/**  Caches a small CDN thumbnail, a card image, or the original for detail views. */
 	getThumbnail: (filename: string, size: "small" | "card" | "full" | null) => __TAURI_INVOKE<string>("get_thumbnail", { filename, size }),
 	getIndexModFiles: (modId: number, gameId: string) => __TAURI_INVOKE<IndexModFile[]>("get_index_mod_files", { modId, gameId }),

@@ -274,6 +274,7 @@ const handlers = {
     checkForUpdate: async () => null,
     getUpdateChannel: async () => 'stable',
     setUpdateChannel: async () => {},
+    installNightly: async () => false,
     configureGamePath: async () => null,
     getGameSettings: async (gameId) => ({ ...settings(gameId), gamePath: gamePath(gameId) }),
     getSettings: async () => flatSettings,

@@ -31,6 +31,7 @@ import { Dialog, DialogHeader } from './Dialog'
 import { Toggle } from './Toggle'
 import { TelemetryConsentDialog } from './TelemetryConsentDialog'
 import { TranslationStatusDialog } from './TranslationStatusDialog'
+import { InstallNightlyDialog } from './InstallNightlyDialog'
 import { Tooltip } from './Tooltip'
 import { StorageSettings } from './StorageSettings'
 import { SisrSettings } from './SisrSettings'
@@ -79,7 +80,7 @@ export interface AppSettingsProps {
     discordPresenceEnabled: boolean
     onDiscordPresenceEnabled: (enabled: boolean) => void
     updateChannel: UpdateChannel | undefined
-    onUpdateChannel: (channel: UpdateChannel) => void
+    onUpdateChannel: (channel: UpdateChannel) => Promise<void>
 }
 
 export function SettingsPage({
@@ -104,6 +105,7 @@ export function SettingsPage({
     )
     const hasGameSettings = game !== undefined
     const [showAnalyticsDetails, setShowAnalyticsDetails] = useState(false)
+    const [showInstallNightly, setShowInstallNightly] = useState(false)
     const [showTranslationStatus, setShowTranslationStatus] = useState(false)
     const translationStatusTrigger = useRef<HTMLButtonElement>(null)
     const [activeTab, setActiveTabState] = useState<SettingsTab>(() =>
@@ -203,6 +205,16 @@ export function SettingsPage({
             void logError('Update check failed: ' + String(error))
             setCheckState('failed')
         }
+    }
+
+    async function handleChannelChange(channel: UpdateChannel) {
+        if (channel === 'nightly' && !isNightlyBuild) {
+            setShowInstallNightly(true)
+            return
+        }
+        await onUpdateChannel(channel)
+        if (import.meta.env.DEV) return
+        await handleCheckForUpdates()
     }
 
     async function handleNexusSignOut() {
@@ -305,7 +317,7 @@ export function SettingsPage({
                                                 ariaLabel={t('settings.updates.channel')}
                                                 value={updateChannel}
                                                 onChange={(value) =>
-                                                    onUpdateChannel(value as UpdateChannel)
+                                                    handleChannelChange(value as UpdateChannel)
                                                 }
                                                 options={[
                                                     {
@@ -665,6 +677,9 @@ export function SettingsPage({
                 </ScrollArea>
             </div>
 
+            {showInstallNightly && (
+                <InstallNightlyDialog onClose={() => setShowInstallNightly(false)} />
+            )}
             <TranslationStatusDialog
                 open={showTranslationStatus}
                 onClose={() => setShowTranslationStatus(false)}

@@ -38,6 +38,7 @@ afterEach(() => {
     cleanup()
     vi.restoreAllMocks()
     vi.unstubAllGlobals()
+    vi.unstubAllEnvs()
 })
 
 async function mountUpdate() {
@@ -172,9 +173,10 @@ test.each(['outside click', 'Escape', 'close button'])(
     }
 )
 
-async function mountSettings() {
+async function mountSettings(channel: 'stable' | 'nightly' = 'stable') {
     const { api } = await import('../src/api')
     const { emit } = await import('./tauri/event')
+    vi.spyOn(api, 'getUpdateChannel').mockResolvedValue(channel)
     const { default: App } = await import('../src/App')
     render(<App />)
     await screen.findByRole('heading', { name: 'Games' })
@@ -183,9 +185,18 @@ async function mountSettings() {
     return { api, emit, channel: await screen.findByRole('combobox', { name: 'Update channel' }) }
 }
 
-test('switching channel saves it and drops the pending update', async () => {
-    const { api, emit, channel } = await mountSettings()
+async function pick(channel: HTMLElement, value: string) {
+    await act(async () => {
+        fireEvent.change(channel, { target: { value } })
+    })
+}
+
+test('switching channel saves it, drops the pending update and checks again', async () => {
+    vi.stubEnv('DEV', false)
+    const { api, emit, channel } = await mountSettings('nightly')
+    expect(screen.getByText(/Nightly is for people who want to help test Modrex/)).toBeTruthy()
     const save = vi.spyOn(api, 'setUpdateChannel').mockResolvedValue()
+    const check = vi.spyOn(api, 'checkForUpdates').mockResolvedValue(null)
     await act(() =>
         emit('updater:update-available', {
             version: '0.15.1',
@@ -195,12 +206,82 @@ test('switching channel saves it and drops the pending update', async () => {
         })
     )
     expect(screen.getByRole('dialog')).toBeTruthy()
-    await act(async () => {
-        fireEvent.change(channel, { target: { value: 'nightly' } })
-    })
-    expect(save).toHaveBeenCalledWith('nightly')
+    await pick(channel, 'stable')
+    expect(save).toHaveBeenCalledWith('stable')
     expect(screen.queryByRole('dialog')).toBeNull()
-    expect(screen.getByText(/Nightly is for people who want to help test Modrex/)).toBeTruthy()
+    expect(check).toHaveBeenCalledTimes(1)
+    expect(screen.getByText("You're up to date")).toBeTruthy()
+})
+
+test('a stable build asks before moving to Nightly and saves nothing on cancel', async () => {
+    const { api, channel } = await mountSettings()
+    const save = vi.spyOn(api, 'setUpdateChannel').mockResolvedValue()
+    const install = vi.spyOn(api, 'installNightly').mockResolvedValue(true)
+    await pick(channel, 'nightly')
+    const dialog = screen.getByRole('dialog')
+    expect(within(dialog).getByText('Modrex will restart to finish.')).toBeTruthy()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect((channel as HTMLSelectElement).value).toBe('stable')
+    expect(save).not.toHaveBeenCalled()
+    expect(install).not.toHaveBeenCalled()
+})
+
+test('confirming installs in the dialog, which stays open and shows progress', async () => {
+    vi.stubEnv('DEV', false)
+    const { api, emit, channel } = await mountSettings()
+    const save = vi.spyOn(api, 'setUpdateChannel').mockResolvedValue()
+    const install = vi.spyOn(api, 'installNightly').mockReturnValue(new Promise(() => {}))
+    await pick(channel, 'nightly')
+    const dialog = screen.getByRole('dialog')
+    await act(async () => {
+        fireEvent.click(within(dialog).getByRole('button', { name: 'Install Nightly' }))
+    })
+    expect(install).toHaveBeenCalledTimes(1)
+    await act(() => emit('updater:update-progress', 42))
+    expect(within(dialog).getByRole('progressbar').getAttribute('aria-valuenow')).toBe('42')
+    expect(within(dialog).queryByRole('button', { name: 'Cancel' })).toBeNull()
+    fireEvent.keyDown(dialog, { key: 'Escape' })
+    expect(screen.getByRole('dialog')).toBe(dialog)
+    expect(save).not.toHaveBeenCalled()
+})
+
+test('stays on Stable and says so when no nightly is newer', async () => {
+    vi.stubEnv('DEV', false)
+    const { api, channel } = await mountSettings()
+    vi.spyOn(api, 'installNightly').mockResolvedValue(false)
+    await pick(channel, 'nightly')
+    const dialog = screen.getByRole('dialog')
+    await act(async () => {
+        fireEvent.click(within(dialog).getByRole('button', { name: 'Install Nightly' }))
+    })
+    expect(within(dialog).getByText(/There is no newer nightly yet/)).toBeTruthy()
+    expect(within(dialog).queryByRole('button', { name: 'Install Nightly' })).toBeNull()
+    expect((channel as HTMLSelectElement).value).toBe('stable')
+})
+
+test('a failed install stays on Stable and can be retried', async () => {
+    vi.stubEnv('DEV', false)
+    const { api, channel } = await mountSettings()
+    vi.spyOn(api, 'installNightly').mockRejectedValue(new Error('offline'))
+    await pick(channel, 'nightly')
+    const dialog = screen.getByRole('dialog')
+    await act(async () => {
+        fireEvent.click(within(dialog).getByRole('button', { name: 'Install Nightly' }))
+    })
+    expect(within(dialog).getByText(/Could not install Nightly/)).toBeTruthy()
+    expect(within(dialog).getByRole('button', { name: 'Install Nightly' })).toBeTruthy()
+    expect((channel as HTMLSelectElement).value).toBe('stable')
+})
+
+test('a dev build never runs the installer', async () => {
+    const { api, channel } = await mountSettings()
+    const install = vi.spyOn(api, 'installNightly').mockResolvedValue(true)
+    await pick(channel, 'nightly')
+    await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: 'Install Nightly' }))
+    })
+    expect(install).not.toHaveBeenCalled()
 })
 
 test('says up to date only when the check finds nothing', async () => {
