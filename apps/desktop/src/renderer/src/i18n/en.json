@@ -646,7 +646,13 @@
             "title": "Updates",
             "check": "Check for updates",
             "checking": "Checking...",
-            "upToDate": "You're up to date"
+            "upToDate": "You're up to date",
+            "checkFailed": "Could not check for updates. Details are in the log.",
+            "channel": "Update channel",
+            "channelStable": "Stable",
+            "channelNightly": "Nightly",
+            "nightlyWarning": "Nightly builds are made automatically from the latest changes and are not tested before release. Expect bugs. A mod list changed by a nightly build may open read-only in an older version.",
+            "stableNote": "Switching back to Stable keeps this nightly build until a newer stable release is out."
         },
         "logs": {
             "title": "Logs",

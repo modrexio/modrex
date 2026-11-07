@@ -101,8 +101,8 @@ import type {
 
 export type { StartupPhase } from '../../shared/bindings'
 import type { StartupPhase } from '../../shared/bindings'
-export type { AnalyticsConsent } from '../../shared/bindings'
-import type { AnalyticsConsent } from '../../shared/bindings'
+export type { AnalyticsConsent, UpdateChannel } from '../../shared/bindings'
+import type { AnalyticsConsent, UpdateChannel } from '../../shared/bindings'
 
 type Settings = {
     gamePath?: string
@@ -1039,8 +1039,14 @@ export const api = {
     async installUpdate(): Promise<void> {
         await commands.installUpdate()
     },
-    async checkForUpdates(): Promise<void> {
-        await commands.checkForUpdate()
+    checkForUpdates(): Promise<string | null> {
+        return commands.checkForUpdate()
+    },
+    getUpdateChannel(): Promise<UpdateChannel> {
+        return commands.getUpdateChannel()
+    },
+    setUpdateChannel(channel: UpdateChannel): Promise<void> {
+        return commands.setUpdateChannel(channel)
     },
 
     // ── Window controls (custom title bar) ─────────────────────────────────────

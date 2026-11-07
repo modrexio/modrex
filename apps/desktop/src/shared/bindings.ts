@@ -230,7 +230,11 @@ export const commands = {
 	openLogFile: () => __TAURI_INVOKE<void>("open_log_file"),
 	openDataFolder: () => __TAURI_INVOKE<void>("open_data_folder"),
 	openAppFolder: () => __TAURI_INVOKE<void>("open_app_folder"),
-	checkForUpdate: () => __TAURI_INVOKE<null>("check_for_update"),
+	/**  Returns the version found, or None when this build is up to date. */
+	checkForUpdate: () => __TAURI_INVOKE<string | null>("check_for_update"),
+	/**  Saves the channel and forgets any update found on the previous one. */
+	setUpdateChannel: (channel: UpdateChannel) => __TAURI_INVOKE<void>("set_update_channel", { channel }),
+	getUpdateChannel: () => __TAURI_INVOKE<UpdateChannel>("get_update_channel"),
 	downloadUpdate: () => __TAURI_INVOKE<null>("download_update"),
 	installUpdate: () => __TAURI_INVOKE<null>("install_update"),
 	/**  Caches a small CDN thumbnail, a card image, or the original for detail views. */
@@ -1330,6 +1334,9 @@ export type Ue4ssReplacePayload = {
 	/**  Mod folders the user added, which it keeps, along with their entries in mods.txt. */
 	preserved: string[],
 };
+
+/**  Which update file the app reads. An unknown value resets every setting in an older build. */
+export type UpdateChannel = "stable" | "nightly";
 
 /**
  *  Whether a mod's installed version can be compared against the remote one.

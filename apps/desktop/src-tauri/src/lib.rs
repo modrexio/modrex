@@ -138,6 +138,8 @@ fn ipc_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::launchers::open_app_folder,
             // updater
             commands::updater::check_for_update,
+            commands::updater::set_update_channel,
+            commands::settings::get_update_channel,
             commands::updater::download_update,
             commands::updater::install_update,
             // thumbnails
@@ -316,7 +318,9 @@ pub fn run() {
     {
         let handle = app.handle().clone();
         tauri::async_runtime::spawn(async move {
-            let _ = commands::updater::check_for_update(handle).await;
+            if let Err(e) = commands::updater::check_for_update(handle).await {
+                log::warn!("startup update check: {e}");
+            }
         });
     }
 

@@ -1,10 +1,15 @@
+use super::settings::{read_settings, update_channel, update_settings, UpdateChannel};
 use std::sync::{
     atomic::{AtomicUsize, Ordering},
     Arc,
 };
 use tauri::{AppHandle, Emitter, Manager};
-use tauri_plugin_updater::UpdaterExt;
+use tauri_plugin_updater::{Updater, UpdaterExt};
 use tokio::sync::Mutex;
+
+const RELEASES_URL: &str = "https://github.com/modrexio/modrex/releases";
+const NIGHTLY_ENDPOINT: &str =
+    "https://github.com/modrexio/modrex/releases/download/nightly/latest.json";
 
 pub struct UpdaterState {
     pub update: Mutex<Option<tauri_plugin_updater::Update>>,
@@ -20,22 +25,42 @@ impl UpdaterState {
     }
 }
 
+fn release_url(channel: UpdateChannel, version: &str) -> String {
+    match channel {
+        UpdateChannel::Stable => format!("{RELEASES_URL}/tag/v{version}"),
+        UpdateChannel::Nightly => format!("{RELEASES_URL}/tag/nightly"),
+    }
+}
+
+// Stable keeps the endpoint from tauri.conf.json, which check-updater.mts validates.
+fn updater_for(app: &AppHandle, channel: UpdateChannel) -> tauri_plugin_updater::Result<Updater> {
+    if channel == UpdateChannel::Stable {
+        return app.updater();
+    }
+    let endpoint =
+        tauri::Url::parse(NIGHTLY_ENDPOINT).expect("the nightly endpoint is a valid URL");
+    app.updater_builder().endpoints(vec![endpoint])?.build()
+}
+
+/// Returns the version found, or None when this build is up to date.
 #[tauri::command]
 #[specta::specta]
-pub async fn check_for_update(app: AppHandle) -> Result<(), String> {
-    let Ok(updater) = app.updater() else {
-        return Ok(());
-    };
-    let Ok(Some(update)) = updater.check().await else {
-        return Ok(());
+pub async fn check_for_update(app: AppHandle) -> Result<Option<String>, String> {
+    let app_version = app.package_info().version.to_string();
+    let channel = update_channel(&read_settings(&app), &app_version);
+    let updater = updater_for(&app, channel)
+        .map_err(|e| format!("could not prepare the update check: {e}"))?;
+    let Some(update) = updater
+        .check()
+        .await
+        .map_err(|e| format!("the update check failed: {e}"))?
+    else {
+        return Ok(None);
     };
 
     let version = update.version.clone();
     let body = update.body.clone().unwrap_or_default();
-    let release_url = format!(
-        "https://github.com/modrexio/modrex/releases/tag/v{}",
-        version
-    );
+    let release_url = release_url(channel, &version);
 
     let state = app.state::<UpdaterState>();
     *state.update.lock().await = Some(update);
@@ -50,7 +75,17 @@ pub async fn check_for_update(app: AppHandle) -> Result<(), String> {
         }),
     );
 
-    Ok(())
+    Ok(Some(version))
+}
+
+/// Saves the channel and forgets any update found on the previous one.
+#[tauri::command]
+#[specta::specta]
+pub async fn set_update_channel(app: AppHandle, channel: UpdateChannel) {
+    update_settings(&app, |s| s.update_channel = Some(channel));
+    let state = app.state::<UpdaterState>();
+    *state.update.lock().await = None;
+    *state.bytes.lock().await = None;
 }
 
 #[tauri::command]
@@ -102,4 +137,25 @@ pub async fn install_update(app: AppHandle) -> Result<(), String> {
         .ok_or("update not downloaded")?;
     update.install(bytes).map_err(|e| e.to_string())?;
     app.restart()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn stable_links_to_its_version_tag() {
+        assert_eq!(
+            release_url(UpdateChannel::Stable, "0.17.0"),
+            "https://github.com/modrexio/modrex/releases/tag/v0.17.0"
+        );
+    }
+
+    #[test]
+    fn nightly_links_to_the_rolling_release() {
+        assert_eq!(
+            release_url(UpdateChannel::Nightly, "0.17.0-nightly.20261107.1"),
+            "https://github.com/modrexio/modrex/releases/tag/nightly"
+        );
+    }
 }

@@ -1,5 +1,6 @@
 import { ScrollArea } from './ScrollArea'
 import { useState, useEffect, useMemo, useRef, type ReactNode } from 'react'
+import { error as logError } from '@tauri-apps/plugin-log'
 import { SettingsSection as Section } from './SettingsSection'
 import { BetaBadge } from './BetaBadge'
 import NexusIcon from '../../../../assets/icons/nexusmods.svg?react'
@@ -33,7 +34,8 @@ import { TranslationStatusDialog } from './TranslationStatusDialog'
 import { Tooltip } from './Tooltip'
 import { StorageSettings } from './StorageSettings'
 import { SisrSettings } from './SisrSettings'
-import { api } from '../api'
+import { api, type UpdateChannel } from '../api'
+import { isNightlyBuild } from '../appVersion'
 
 const iconClass = 'w-3.5 h-3.5 shrink-0 fill-current'
 
@@ -76,6 +78,8 @@ export interface AppSettingsProps {
     onAnalyticsConsent: (enabled: boolean) => void
     discordPresenceEnabled: boolean
     onDiscordPresenceEnabled: (enabled: boolean) => void
+    updateChannel: UpdateChannel | undefined
+    onUpdateChannel: (channel: UpdateChannel) => void
 }
 
 export function SettingsPage({
@@ -84,6 +88,8 @@ export function SettingsPage({
     onAnalyticsConsent,
     discordPresenceEnabled,
     onDiscordPresenceEnabled,
+    updateChannel,
+    onUpdateChannel,
     game,
 }: AppSettingsProps & {
     game?: {
@@ -93,7 +99,9 @@ export function SettingsPage({
         advanced?: (openGameSettings: () => void, isActive: boolean) => ReactNode
     }
 }) {
-    const [checkState, setCheckState] = useState<'idle' | 'checking' | 'upToDate'>('idle')
+    const [checkState, setCheckState] = useState<'idle' | 'checking' | 'upToDate' | 'failed'>(
+        'idle'
+    )
     const hasGameSettings = game !== undefined
     const [showAnalyticsDetails, setShowAnalyticsDetails] = useState(false)
     const [showTranslationStatus, setShowTranslationStatus] = useState(false)
@@ -184,11 +192,16 @@ export function SettingsPage({
     async function handleCheckForUpdates() {
         setCheckState('checking')
         try {
-            await api.checkForUpdates()
+            const version = await api.checkForUpdates()
+            if (version) {
+                setCheckState('idle')
+                return
+            }
             setCheckState('upToDate')
             setTimeout(() => setCheckState('idle'), 3000)
-        } catch {
-            setCheckState('idle')
+        } catch (error) {
+            void logError('Update check failed: ' + String(error))
+            setCheckState('failed')
         }
     }
 
@@ -283,6 +296,38 @@ export function SettingsPage({
                                 <CornerRadiusSetting />
 
                                 <Section title={t('settings.updates.title')}>
+                                    {updateChannel && (
+                                        <div className="flex flex-col gap-2 mt-1 mb-3">
+                                            <Select
+                                                ariaLabel={t('settings.updates.channel')}
+                                                value={updateChannel}
+                                                onChange={(value) =>
+                                                    onUpdateChannel(value as UpdateChannel)
+                                                }
+                                                options={[
+                                                    {
+                                                        value: 'stable',
+                                                        label: t('settings.updates.channelStable'),
+                                                    },
+                                                    {
+                                                        value: 'nightly',
+                                                        label: t('settings.updates.channelNightly'),
+                                                    },
+                                                ]}
+                                            />
+                                            {updateChannel === 'nightly' && (
+                                                <div className="flex gap-2 px-3 py-2 bg-warning/10 border border-warning/30 rounded text-xs text-warning">
+                                                    <TriangleAlert className="w-3.5 h-3.5 shrink-0" />
+                                                    {t('settings.updates.nightlyWarning')}
+                                                </div>
+                                            )}
+                                            {updateChannel === 'stable' && isNightlyBuild && (
+                                                <p className="text-xs text-text-subtle">
+                                                    {t('settings.updates.stableNote')}
+                                                </p>
+                                            )}
+                                        </div>
+                                    )}
                                     <div className="flex items-center gap-3 mt-1">
                                         <Button
                                             variant="secondary"
@@ -300,6 +345,11 @@ export function SettingsPage({
                                         {checkState === 'upToDate' && (
                                             <span className="text-xs text-success-text">
                                                 {t('settings.updates.upToDate')}
+                                            </span>
+                                        )}
+                                        {checkState === 'failed' && (
+                                            <span className="text-xs text-danger-text">
+                                                {t('settings.updates.checkFailed')}
                                             </span>
                                         )}
                                     </div>
