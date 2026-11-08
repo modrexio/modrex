@@ -327,10 +327,18 @@ jobs:
                     exit 1
                   fi
 
-                  # A patched binary holds its own marker twice and no placeholder. grep exits 1
-                  # when nothing matches, which pipefail would treat as a failure, so only a
-                  # status above 1 (an unreadable file) fails the count.
-                  rpm2cpio "$RPM" | cpio -i --quiet --to-stdout ./usr/bin/modrex > rpm-binary
+                  # A patched binary holds its own marker twice and no placeholder. The rpm2cpio
+                  # in rpm 4.18 exits 1 after writing the whole payload, so its status is not
+                  # used. The signature check above covers the file, and cpio fails on a
+                  # truncated payload. grep exits 1 when nothing matches, which pipefail would
+                  # treat as a failure, so only a status above 1 fails a count.
+                  rpm2cpio "$RPM" > payload.cpio || true
+                  cpio -i --quiet --to-stdout ./usr/bin/modrex < payload.cpio > rpm-binary
+                  rm -f payload.cpio
+                  if [ ! -s rpm-binary ]; then
+                    echo "No binary could be read from $RPM" >&2
+                    exit 1
+                  fi
                   count_marks() { { grep -a -o "$1" rpm-binary || [ $? -eq 1 ]; } | wc -l; }
                   RPM_MARKS=$(count_marks __TAURI_BUNDLE_TYPE_VAR_RPM)
                   UNSET_MARKS=$(count_marks __TAURI_BUNDLE_TYPE_VAR_UNK)
