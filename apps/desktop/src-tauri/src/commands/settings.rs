@@ -26,6 +26,25 @@ where
     Ok(Option::<bool>::deserialize(d)?.unwrap_or(true))
 }
 
+/// A channel this build does not know, such as one a newer build added, fails the whole file
+/// otherwise, and read_settings would reset every setting. It reads as no choice instead, so
+/// the build follows its own kind.
+fn known_update_channel<'de, D>(d: D) -> Result<Option<UpdateChannel>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let Some(value) = Option::<serde_json::Value>::deserialize(d)? else {
+        return Ok(None);
+    };
+    match serde_json::from_value(value.clone()) {
+        Ok(channel) => Ok(Some(channel)),
+        Err(_) => {
+            log::warn!("settings name an unknown update channel {value}, so this build follows its own kind");
+            Ok(None)
+        }
+    }
+}
+
 fn null_or_crimeboss_mode<'de, D>(d: D) -> Result<String, D::Error>
 where
     D: Deserializer<'de>,
@@ -167,7 +186,7 @@ pub struct Settings {
     #[serde(default = "default_true", deserialize_with = "null_or_true")]
     pub discord_rich_presence_enabled: bool,
     // Empty until the user picks a channel, so a build follows its own kind.
-    #[serde(default)]
+    #[serde(default, deserialize_with = "known_update_channel")]
     pub update_channel: Option<UpdateChannel>,
     #[serde(default, deserialize_with = "null_default")]
     pub auto_launch_sisr: bool,
@@ -445,7 +464,7 @@ pub fn set_skip_fileopenlog_warning(app: AppHandle, skip: bool) {
     update_settings(&app, |s| s.skip_file_open_log_warning = skip);
 }
 
-/// Which update file the app reads. An unknown value resets every setting in an older build.
+/// Which update file the app reads.
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, specta::Type)]
 #[serde(rename_all = "lowercase")]
 pub enum UpdateChannel {
