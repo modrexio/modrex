@@ -35,6 +35,7 @@ interface ReleaseAsset {
 }
 
 interface Release {
+    prerelease: boolean
     assets: ReleaseAsset[]
 }
 
@@ -84,6 +85,9 @@ export async function onRequestGet({ env }: { env: { GITHUB_TOKEN?: string } }):
         }
         const releases = (await res.json()) as Release[]
         for (const release of releases) {
+            // Every nightly install on open downloads the rolling nightly's installer again,
+            // and its files are replaced on each nightly, so it would inflate and then drop the count.
+            if (release.prerelease) continue
             for (const asset of release.assets) {
                 if (isInstaller(asset.name)) total += asset.download_count
             }
