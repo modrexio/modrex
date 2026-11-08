@@ -164,9 +164,10 @@ jobs:
                   set -euo pipefail
                   REPOSITORY_URL="https://github.com/$GITHUB_REPOSITORY"
                   {
+                    echo "Version $VERSION, built from [${COMMIT:0:8}]($REPOSITORY_URL/commit/$COMMIT)."
+                    echo
                     bun scripts/changelog-section.mts Unreleased
                     echo
-                    echo "Built from [${COMMIT:0:8}]($REPOSITORY_URL/commit/$COMMIT)."
                     if [ -n "$PREVIOUS" ]; then
                       echo "[Changes since the last nightly]($REPOSITORY_URL/compare/$PREVIOUS...$COMMIT)"
                     fi
@@ -248,7 +249,7 @@ jobs:
             - name: Create the nightly release
               run: |
                   if ! gh release view nightly > /dev/null 2>&1; then
-                    gh release create nightly --prerelease --latest=false --title Nightly \
+                    gh release create nightly --prerelease --latest=false --title "v$VERSION" \
                       --notes-file NOTES.md --target "$COMMIT"
                   fi
 
@@ -268,7 +269,7 @@ jobs:
                   gh api -X PATCH "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" \
                     -f tag_name=nightly \
                     -f target_commitish="$COMMIT" \
-                    -f name=Nightly \
+                    -f name="v$VERSION" \
                     -F body=@NOTES.md \
                     -F draft=false \
                     -F prerelease=true \
