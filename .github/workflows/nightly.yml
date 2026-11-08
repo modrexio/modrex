@@ -92,7 +92,8 @@ jobs:
               run: |
                   set -euo pipefail
                   LATEST_TAG=$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .tag_name)
-                  echo "version=$(bun scripts/nightly-version.mts "$LATEST_TAG")" >> "$GITHUB_OUTPUT"
+                  VERSION=$(bun scripts/nightly-version.mts "$LATEST_TAG")
+                  echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
     build:
         needs: plan
