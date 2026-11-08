@@ -60,27 +60,9 @@ const linuxFiles: DlFile[] = [
         : { name: 'modrex_x86_64.rpm', url: fallbackUrl },
 ]
 
-// Nightly file names carry the version and change with every nightly, so they are matched by
-// their ending, and the version shown is read back from the Windows installer's name.
+// Each nightly replaces the previous one's files under new names and the site is not rebuilt
+// for it, so the page links to the release rather than to files that will be gone.
 const nightlyUrl = 'https://github.com/modrexio/modrex/releases/tag/nightly'
-const nightlyAsset = (ending: string) =>
-    nightly?.assets.find((a) => a.name.endsWith(`_x86_64${ending}`))
-function nightlyFile(ending: string): DlFile {
-    const asset = nightlyAsset(ending)
-    if (!asset) return { name: `modrex_x86_64${ending}`, url: nightlyUrl }
-    return { name: asset.name, url: asset.browser_download_url, size: formatSize(asset.size) }
-}
-const nightlyWindowsFiles = [nightlyFile('.exe')]
-const nightlyLinuxFiles = ['.AppImage', '.deb', '.rpm'].map(nightlyFile)
-const nightlyExe = nightlyAsset('.exe')
-const nightlyVersion = nightlyExe?.name.match(/^modrex_(.+)_x86_64\.exe$/)?.[1]
-const nightlyBuilt = nightlyExe
-    ? new Date(nightlyExe.updated_at).toLocaleDateString('en-US', {
-          month: 'long',
-          day: 'numeric',
-          year: 'numeric',
-      })
-    : null
 
 const extension = (file: DlFile) => file.name.split('.').pop()
 ---
@@ -166,65 +148,29 @@ const extension = (file: DlFile) => file.name.split('.').pop()
             <a href={sitePath('/docs/getting-started')}>installation guide</a>.
         </p>
 
-        <details class="nightly">
-            <summary>
-                Nightly builds
-                {nightlyVersion && <span class="nightly-version">v{nightlyVersion}</span>}
-                <i data-lucide="chevron-down"></i>
-            </summary>
-            <div class="nightly-body">
-                <p class="nightly-warn">
-                    <i data-lucide="triangle-alert"></i>
-                    Nightly is for people who want to help test Modrex, and it may not be as stable
-                    as the Stable version.
-                </p>
-                <div class="dl-table">
-                    <div class="dl-row">
-                        <h3 class="os">
-                            <img
-                                src={sitePath('/icons/windows-white.svg')}
-                                alt=""
-                                width="20"
-                                height="20"
-                            />
-                            Windows
-                        </h3>
-                        <div class="files">
-                            {nightlyWindowsFiles.map((f) => (
-                                <a class="btn-lg secondary dl-btn" href={f.url}>
-                                    Download .{extension(f)}{' '}
-                                    {f.size && <span class="fsize">{f.size}</span>}
-                                </a>
-                            ))}
-                        </div>
-                    </div>
-                    <div class="dl-row">
-                        <h3 class="os">
-                            <img
-                                src={sitePath('/icons/linux-white.svg')}
-                                alt=""
-                                width="20"
-                                height="20"
-                            />
-                            Linux
-                        </h3>
-                        <div class="files">
-                            {nightlyLinuxFiles.map((f) => (
-                                <a class="btn-lg secondary dl-btn" href={f.url}>
-                                    Download .{extension(f)}{' '}
-                                    {f.size && <span class="fsize">{f.size}</span>}
-                                </a>
-                            ))}
-                        </div>
-                    </div>
+        {nightly && (
+            <details class="nightly">
+                <summary>
+                    Nightly builds
+                    <i data-lucide="chevron-down" />
+                </summary>
+                <div class="nightly-body">
+                    <p class="nightly-warn">
+                        <i data-lucide="triangle-alert" />
+                        Nightly is for people who want to help test Modrex, and it may not be as
+                        stable as the Stable version.
+                    </p>
+                    <a class="btn-lg secondary dl-btn" href={nightlyUrl}>
+                        Open the nightly release
+                    </a>
+                    <p class="dl-note">
+                        The release has installers for Windows and Linux. Already using Modrex? Pick
+                        Nightly in Settings under Updates instead. Read more about{' '}
+                        <a href={sitePath('/docs/nightly')}>nightly builds</a>.
+                    </p>
                 </div>
-                <p class="dl-note">
-                    {nightlyBuilt && <>Built {nightlyBuilt}. </>}
-                    Already using Modrex? Pick Nightly in Settings under Updates instead. Read more
-                    about <a href={sitePath('/docs/nightly')}>nightly builds</a>.
-                </p>
-            </div>
-        </details>
+            </details>
+        )}
     </div>
 </section>
 
@@ -422,13 +368,6 @@ const extension = (file: DlFile) => file.name.split('.').pop()
     .nightly summary:focus-visible {
         outline: 2px solid var(--color-accent);
         outline-offset: 4px;
-    }
-
-    .nightly-version {
-        font-family: var(--font-mono);
-        font-size: 13px;
-        font-weight: 400;
-        color: var(--text-tertiary);
     }
 
     .nightly summary i,
