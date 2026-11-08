@@ -9,7 +9,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - Added Cyberpunk 2077 support for Steam and the Epic Games Store.
 - Added a setting to make the interface's corners sharper or rounder.
 - Added pink as an accent color.
-- Added a Nightly update channel.
+- Added a Nightly update channel. Nightly builds install new nightlies when Modrex opens.
 
 ### Changed
 
@@ -22,6 +22,9 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - Fixed update checks saying you're up to date when they failed or found an update.
 - Fixed the mods folder being recreated while mods were set aside.
 - Fixed older versions removing mod list data saved by newer ones.
+- Fixed update checks and downloads waiting forever on a stalled connection.
+- Fixed a failed update install leaving Modrex running with no window and no message.
+- Fixed interface errors missing from the log file.
 
 ## 0.16.1
 
