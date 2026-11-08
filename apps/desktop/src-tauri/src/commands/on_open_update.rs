@@ -215,6 +215,11 @@ impl OnOpenUpdate {
     pub(crate) fn owns_update(&self) -> bool {
         *self.fallback.borrow() == Fallback::Pending
     }
+
+    /// Changes on every channel switch, so a check can tell its result belongs to an old one.
+    pub(crate) fn channel_epoch(&self) -> u64 {
+        self.epoch.load(Ordering::SeqCst)
+    }
 }
 
 // The step, the ready report, a background download and the exit handler can all write the

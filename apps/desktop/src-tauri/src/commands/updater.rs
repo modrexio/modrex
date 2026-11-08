@@ -85,6 +85,10 @@ pub(super) fn updater_for(
 #[tauri::command]
 #[specta::specta]
 pub async fn check_for_update(app: AppHandle) -> Result<Option<String>, String> {
+    let on_open = app.state::<OnOpenUpdate>();
+    // Read before the channel. A switch saves the channel and then changes the epoch, so a
+    // check that read the old channel always sees the epoch change below.
+    let epoch = on_open.channel_epoch();
     let app_version = app.package_info().version.to_string();
     let channel = update_channel(&read_settings(&app), &app_version);
     let updater = updater_for(&app, channel, &BACKGROUND_CHECK)
@@ -100,14 +104,21 @@ pub async fn check_for_update(app: AppHandle) -> Result<Option<String>, String> 
     let version = update.version.clone();
     // While the update on open owns the update, a pop-up would offer to install it during
     // the session.
-    if app.state::<OnOpenUpdate>().owns_update() {
+    if on_open.owns_update() {
         return Ok(Some(version));
     }
     let body = update.body.clone().unwrap_or_default();
     let release_url = release_url(channel, &version);
 
+    // Stored and announced under the lock a switch clears, so an update for a channel the user
+    // has left is never offered.
     let state = app.state::<UpdaterState>();
-    *state.update.lock().await = Some(update);
+    let mut pending = state.update.lock().await;
+    if on_open.channel_epoch() != epoch {
+        log::info!("the update check finished after a channel switch, so {version} is dropped");
+        return Ok(None);
+    }
+    *pending = Some(update);
 
     let _ = app.emit(
         "updater:update-available",
@@ -158,11 +169,13 @@ async fn move_to_nightly(app: &AppHandle) -> Result<bool, String> {
 #[tauri::command]
 #[specta::specta]
 pub async fn set_update_channel(app: AppHandle, channel: UpdateChannel) {
+    // The epoch changes after the channel is saved and before the pending update is cleared,
+    // the order check_for_update relies on.
     update_settings(&app, |s| s.update_channel = Some(channel));
+    forget_saved_updates(&app).await;
     let state = app.state::<UpdaterState>();
     *state.update.lock().await = None;
     *state.bytes.lock().await = None;
-    forget_saved_updates(&app).await;
 }
 
 async fn download(app: &AppHandle, update: &Update) -> Result<Vec<u8>, String> {
