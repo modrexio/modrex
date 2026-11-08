@@ -4,11 +4,9 @@ import { Button } from './ui/Button'
 import { WindowControls } from './WindowControls'
 import { Tooltip } from './Tooltip'
 import { t } from '../i18n'
-import { isNightlyBuild } from '../appVersion'
 
 function versionLabel() {
     if (import.meta.env.DEV) return 'v-dev'
-    if (isNightlyBuild) return t('settings.updates.channelNightly')
     return `v${import.meta.env.VITE_APP_VERSION}`
 }
 
