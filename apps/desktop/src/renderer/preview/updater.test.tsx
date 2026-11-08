@@ -39,6 +39,7 @@ afterEach(() => {
     vi.restoreAllMocks()
     vi.unstubAllGlobals()
     vi.unstubAllEnvs()
+    vi.doUnmock('../src/appVersion')
 })
 
 async function mountUpdate() {
@@ -338,4 +339,45 @@ test('a failed install from the title bar reopens the popup with the failure lin
     const reopened = screen.getByRole('dialog')
     expect(within(reopened).getByText(/Could not install the update/)).toBeTruthy()
     expect(install).toHaveBeenCalledTimes(1)
+})
+
+test('the notice after an update on open links to the changelog', async () => {
+    const { api } = await import('../src/api')
+    const open = vi.spyOn(api, 'openExternal').mockResolvedValue()
+    const { default: App } = await import('../src/App')
+    render(
+        <App
+            updated={{
+                version: '0.17.0-nightly.20261108.1',
+                releaseUrl: 'https://github.com/modrexio/modrex/releases/tag/nightly',
+            }}
+        />
+    )
+    await screen.findByRole('heading', { name: 'Games' })
+    fireEvent.click(screen.getByRole('button', { name: 'Settings' }))
+    expect(await screen.findByText('Updated to 0.17.0-nightly.20261108.1')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'View changelog' }))
+    expect(open).toHaveBeenCalledWith('https://github.com/modrexio/modrex/releases/tag/nightly')
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }))
+    expect(screen.queryByText('Updated to 0.17.0-nightly.20261108.1')).toBeNull()
+})
+
+test('a nightly build leaves the startup update check to Rust', async () => {
+    vi.stubEnv('DEV', false)
+    vi.doMock('../src/appVersion', () => ({ isNightlyBuild: true }))
+    const { api } = await import('../src/api')
+    const gate = vi.spyOn(api, 'checkAfterStartupGate').mockResolvedValue(null)
+    const check = vi.spyOn(api, 'checkForUpdates').mockResolvedValue(null)
+    const { default: App } = await import('../src/App')
+    render(<App />)
+    await screen.findByRole('heading', { name: 'Games' })
+    expect(gate).toHaveBeenCalledTimes(1)
+    expect(check).not.toHaveBeenCalled()
+})
+
+test('the Install Nightly dialog says when nightlies install', async () => {
+    const { channel } = await mountSettings()
+    await pick(channel, 'nightly')
+    const dialog = screen.getByRole('dialog')
+    expect(within(dialog).getByText(/New nightlies install when you open Modrex/)).toBeTruthy()
 })

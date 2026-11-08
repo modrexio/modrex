@@ -1,3 +1,4 @@
+use super::on_open_update::{forget_saved_updates, OnOpenUpdate};
 use super::settings::{read_settings, update_channel, update_settings, UpdateChannel};
 use std::sync::{
     atomic::{AtomicUsize, Ordering},
@@ -33,7 +34,7 @@ impl UpdaterState {
     }
 }
 
-fn release_url(channel: UpdateChannel, version: &str) -> String {
+pub(super) fn release_url(channel: UpdateChannel, version: &str) -> String {
     match channel {
         UpdateChannel::Stable => format!("{RELEASES_URL}/tag/v{version}"),
         UpdateChannel::Nightly => format!("{RELEASES_URL}/tag/nightly"),
@@ -42,7 +43,7 @@ fn release_url(channel: UpdateChannel, version: &str) -> String {
 
 // Every updater shares these limits, since the plugin sets none and a stalled request would
 // never end. Stable keeps the endpoint from tauri.conf.json, which check-updater.mts validates.
-fn updater_for(
+pub(super) fn updater_for(
     app: &AppHandle,
     channel: UpdateChannel,
 ) -> tauri_plugin_updater::Result<Updater> {
@@ -82,6 +83,11 @@ pub async fn check_for_update(app: AppHandle) -> Result<Option<String>, String> 
     };
 
     let version = update.version.clone();
+    // While the update on open owns the update, a pop-up would offer to install it during
+    // the session.
+    if app.state::<OnOpenUpdate>().owns_update() {
+        return Ok(Some(version));
+    }
     let body = update.body.clone().unwrap_or_default();
     let release_url = release_url(channel, &version);
 
@@ -141,6 +147,7 @@ pub async fn set_update_channel(app: AppHandle, channel: UpdateChannel) {
     let state = app.state::<UpdaterState>();
     *state.update.lock().await = None;
     *state.bytes.lock().await = None;
+    forget_saved_updates(&app).await;
 }
 
 async fn download(app: &AppHandle, update: &Update) -> Result<Vec<u8>, String> {

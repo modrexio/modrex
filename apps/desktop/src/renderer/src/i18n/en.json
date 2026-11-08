@@ -164,12 +164,15 @@
         "updateNotesTitle": "What's new in v{version}",
         "updateViewOnGithub": "View on GitHub",
         "updateLater": "Later",
-        "updateInstallFailed": "Could not install the update. Details are in the log."
+        "updateInstallFailed": "Could not install the update. Details are in the log.",
+        "updatedNotice": "Updated to {version}",
+        "updatedChangelog": "View changelog"
     },
     "splash": {
         "title": "Starting Modrex",
         "open": "Open Modrex",
         "prepare": "Preparing application data",
+        "updating": "Updating Modrex",
         "interface": "Loading interface",
         "game": "Detecting game installation",
         "mods": "Reading installed mods",
@@ -659,6 +662,7 @@
             "installNightlyIntro": "Nightly is for people who want to help test Modrex, and it may not be as stable as the Stable version.",
             "installNightlyRisk": "Once a nightly is installed, switching back to Stable keeps it until a newer stable version comes out. A mod list saved by a nightly may open read-only in older versions.",
             "installNightlyRestart": "Modrex will restart to finish.",
+            "installNightlyOnOpen": "New nightlies install when you open Modrex, except .deb and RPM installs, which ask first.",
             "installNightlyAction": "Install Nightly",
             "installNightlyProgress": "Installing Nightly...",
             "installNightlyNone": "There is no newer nightly yet, so Modrex stays on Stable.",

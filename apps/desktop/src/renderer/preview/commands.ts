@@ -261,6 +261,9 @@ const handlers = {
         return configPath
     },
     reportStartupPhase: async () => null,
+    waitForStartupGate: async () => null,
+    skipStartupUpdate: async () => {},
+    checkAfterStartupGate: async () => null,
     getAnalyticsConsent: async () => {
         if (previewState.onboarding === 'first-run') return 'unasked'
         if (previewState.onboarding === 'consent-updated') return 'outdated'

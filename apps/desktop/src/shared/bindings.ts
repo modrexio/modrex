@@ -7,6 +7,13 @@ export const commands = {
 	reportStartupPhase: (phase: StartupPhase) => __TAURI_INVOKE<null>("report_startup_phase", { phase }),
 	getStartupPhase: () => __TAURI_INVOKE<StartupPhase>("get_startup_phase"),
 	finishStartup: () => __TAURI_INVOKE<null>("finish_startup"),
+	/**  Resolves once the renderer may start, with the notice for an update that just applied. */
+	waitForStartupGate: () => __TAURI_INVOKE<{
+	version: string,
+	releaseUrl: string,
+} | null>("wait_for_startup_gate"),
+	/**  Backs the splash's skip button while an update on open downloads. */
+	skipStartupUpdate: () => __TAURI_INVOKE<void>("skip_startup_update"),
 	listMods: (gameId: number, params: {
 	query: string | null,
 	limit: number | null,
@@ -239,6 +246,11 @@ export const commands = {
 	installUpdate: () => __TAURI_INVOKE<null>("install_update"),
 	/**  Moves a stable build to the newest nightly and restarts. Returns false when no nightly is newer. */
 	installNightly: () => __TAURI_INVOKE<boolean>("install_nightly"),
+	/**
+	 *  The renderer's update check after the startup gate. Rust decides whether the pop-up
+	 *  runs, and the renderer asks after mount so the pop-up's listener is registered.
+	 */
+	checkAfterStartupGate: () => __TAURI_INVOKE<string | null>("check_after_startup_gate"),
 	/**  Caches a small CDN thumbnail, a card image, or the original for detail views. */
 	getThumbnail: (filename: string, size: "small" | "card" | "full" | null) => __TAURI_INVOKE<string>("get_thumbnail", { filename, size }),
 	getIndexModFiles: (modId: number, gameId: string) => __TAURI_INVOKE<IndexModFile[]>("get_index_mod_files", { modId, gameId }),
@@ -1298,7 +1310,7 @@ export type SourceInfo = {
 	games: SourceGameInfo[],
 };
 
-export type StartupPhase = "prepare" | "interface" | "game" | "mods" | "ready" | "error";
+export type StartupPhase = "prepare" | "updating" | "interface" | "game" | "mods" | "ready" | "error";
 
 /**
  *  Sizes in bytes of the app's regenerable on-disk caches, for the Settings
@@ -1363,6 +1375,12 @@ export type UpdateStatus =
  *  current file had already failed, so the installed bytes are known to differ.
  */
 "outdated";
+
+/**  Shown once after Modrex opens on the version an update on open installed. */
+export type UpdatedNotice = {
+	version: string,
+	releaseUrl: string,
+};
 
 /**
  *  Archive shapes that need a user decision before installing. Each variant carries the

@@ -19,6 +19,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@tauri-apps/plugin-log', () => ({ error: mocks.log }))
 vi.mock('./loaders', () => ({ loadLoaderRegistry: vi.fn().mockResolvedValue(undefined) }))
+vi.mock('./appVersion', () => ({ isNightlyBuild: false }))
 vi.mock('./api', () => ({
     api: {
         listSources: mocks.sources,
@@ -288,6 +289,18 @@ test('picker and global settings remain accessible while sources are loading', a
     expect(screen.getByRole('heading', { name: 'Global settings' })).toBeTruthy()
     expect(mocks.path).not.toHaveBeenCalled()
     expect(mocks.installed).not.toHaveBeenCalled()
+})
+
+test('the update notice shows on the picker without the other banners', async () => {
+    localStorage.setItem('modrex:scope', 'picker')
+    const { default: App } = await import('./App')
+    const { api } = await import('./api')
+    const { t } = await import('./i18n')
+    const version = '0.18.0-nightly.20261108.2'
+    render(<App updated={{ version, releaseUrl: 'https://example.invalid/nightly' }} />)
+    expect(await screen.findByText(t('app.updatedNotice', { version }))).toBeTruthy()
+    act(() => vi.mocked(api.onNexusSessionExpired).mock.calls[0]![0]())
+    expect(screen.queryByText(t('nexusSession.expired'))).toBeNull()
 })
 
 test('asks a user who opted in under an earlier policy to review it', async () => {

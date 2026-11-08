@@ -31,6 +31,7 @@ mod resources;
 mod staged;
 mod staging_tokens;
 pub use self::graphics_config::GraphicsConfigLocations;
+pub(crate) use self::resource_state::write_atomic;
 pub use self::resource_state::{PendingGameLaunch, ResourceLocks};
 pub(crate) use self::resources::ensure_not_running as require_resource_game_idle;
 pub(crate) use self::resources::launch_preflight as resource_launch_preflight;

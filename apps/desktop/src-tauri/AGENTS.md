@@ -2,7 +2,7 @@
 
 Paths are relative to `apps/desktop`.
 
-**App startup sequence** (`src-tauri/src/lib.rs` setup hook, fires before the window shows): `migrate_from_old_identifier` runs synchronously first, then fire-and-forget: `cleanup_thumbnail_cache` and the `mod_index` snapshot refresh (`ensure_index`).
+**App startup sequence**: see `run()` in `src-tauri/src/lib.rs`. Everything between `.build()` and `app.run()` runs before the setup hook and before any window exists, because Tauri creates the windows and runs the setup hook inside `app.run()`.
 
 **Logging**: `tauri_plugin_log` writes to `Modrex.log` in the app's log dir (`%LOCALAPPDATA%\Modrex\logs\` on Windows — note this differs from `app_data_dir()`'s `%APPDATA%\Modrex\` used for `settings.json`/`mod-index.db`), level `Warn` globally and `Info` for the `modrex_lib` crate, 5 MB with one rotated backup kept. Reachable in-app via Settings > Logs ("Open log file", which copies it to `%TEMP%\modrex_log.txt` first). `install_mod`/`install_file` log every error path via `log::warn!` (not just the final install/state-write phase) so a failed install/update is always diagnosable from the log — when adding a new `?`-early-return inside either function, route it through the same log-then-return pattern rather than a bare `?`.
 

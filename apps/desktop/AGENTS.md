@@ -113,7 +113,7 @@ The payload shapes are typed end to end by tauri-specta: renaming or retyping a 
 
 ### Startup: two hidden windows, phased splash
 
-`tauri.conf.json` defines two windows, both starting hidden: `main` (the app) and `splash` (`splash.html`, its own non-React entry `src/renderer/src/splash.ts`). `lib.rs`'s `on_page_load` hook shows the splash when its page finishes loading (skipped if startup already completed). The main renderer reports progress through `report_startup_phase` (`prepare → interface → game → mods → ready`, plus `error`; tracked in `commands/startup.rs` and re-emitted to the splash as `startup:progress`). On `ready` the splash calls `finish_startup`, which shows + focuses `main` and closes the splash; the splash's recovery button (surfaced on the `error` state) invokes the same command, so a failed startup still lets the user into the app.
+`tauri.conf.json` defines two windows, both starting hidden: `main` (the app) and `splash` (`splash.html`, its own non-React entry `src/renderer/src/splash.ts`). `lib.rs`'s `on_page_load` hook shows the splash when its page finishes loading (skipped if startup already completed). The main renderer reports progress through `report_startup_phase` (`prepare → interface → game → mods → ready`, plus `error`, tracked in `commands/startup.rs` and re-emitted to the splash as `startup:progress`). On a nightly build `main.tsx` first waits on `wait_for_startup_gate`, and Rust itself reports `updating` while an update installs on open (`commands/startup.rs`, `commands/on_open_update.rs`). On `ready` the splash calls `finish_startup`, which shows + focuses `main` and closes the splash; the splash's recovery button (surfaced on the `error` state) invokes the same command, so a failed startup still lets the user into the app.
 
 ## Key domain facts
 
@@ -196,4 +196,4 @@ and creates a draft GitHub Release named `vX.Y.Z`. Publishing that draft makes i
 timer and then rebuilds modrex.net, posts to Discord and submits to WinGet.
 
 `.github/workflows/nightly.yml` publishes the rolling `nightly` pre-release through the same
-`desktop-build.yml`. Its stamped version is never committed.
+`desktop-build.yml`. Its stamped version is never committed. To pause a broken nightly, replace the release's `latest.json` (`gh release upload nightly latest.json --clobber`) with a copy that keeps its `version` and has an empty `platforms` (see the check in `on_open_update.rs`). Keeping the version matters because `scripts/nightly-version.mts` numbers the next dispatch from it.

@@ -101,8 +101,8 @@ import type {
 
 export type { StartupPhase } from '../../shared/bindings'
 import type { StartupPhase } from '../../shared/bindings'
-export type { AnalyticsConsent, UpdateChannel } from '../../shared/bindings'
-import type { AnalyticsConsent, UpdateChannel } from '../../shared/bindings'
+export type { AnalyticsConsent, UpdateChannel, UpdatedNotice } from '../../shared/bindings'
+import type { AnalyticsConsent, UpdateChannel, UpdatedNotice } from '../../shared/bindings'
 
 type Settings = {
     gamePath?: string
@@ -421,8 +421,16 @@ export const api = {
     async finishStartup(): Promise<void> {
         await commands.finishStartup()
     },
-    onStartupProgress(callback: (phase: StartupPhase) => void): () => void {
-        return onEvent<StartupPhase>('startup:progress', callback)
+    waitForStartupGate(): Promise<UpdatedNotice | null> {
+        return commands.waitForStartupGate()
+    },
+    skipStartupUpdate(): Promise<void> {
+        return commands.skipStartupUpdate()
+    },
+    // Resolves once the listener is registered, so a snapshot requested afterwards can never
+    // be older than an event this listener misses.
+    listenStartupProgress(callback: (phase: StartupPhase) => void): Promise<() => void> {
+        return listen<StartupPhase>('startup:progress', (event) => callback(event.payload))
     },
 
     // ── Browse / API ───────────────────────────────────────────────────────────
@@ -1041,6 +1049,9 @@ export const api = {
     },
     checkForUpdates(): Promise<string | null> {
         return commands.checkForUpdate()
+    },
+    checkAfterStartupGate(): Promise<string | null> {
+        return commands.checkAfterStartupGate()
     },
     getUpdateChannel(): Promise<UpdateChannel> {
         return commands.getUpdateChannel()

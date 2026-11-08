@@ -15,7 +15,15 @@ import { TopBar } from './components/TopBar'
 import { ResizeHandles } from './components/ResizeHandles'
 import { SupportPromptBanner } from './components/SupportPromptBanner'
 import { NexusSessionBanner } from './components/NexusSessionBanner'
-import { api, type AnalyticsConsent, type StartupPhase, type UpdateChannel } from './api'
+import { UpdatedBanner } from './components/UpdatedBanner'
+import {
+    api,
+    type AnalyticsConsent,
+    type StartupPhase,
+    type UpdateChannel,
+    type UpdatedNotice,
+} from './api'
+import { isNightlyBuild } from './appVersion'
 import { reportLanguage } from './lib/analytics/events'
 import { TelemetryConsentDialog } from './components/TelemetryConsentDialog'
 import { TelemetryPolicyDialog } from './components/TelemetryPolicyDialog'
@@ -39,7 +47,7 @@ function logUpdateCheckFailure(error: unknown) {
     void logError('Update check failed: ' + String(error))
 }
 
-export default function App() {
+export default function App({ updated = null }: { updated?: UpdatedNotice | null }) {
     useEffect(() => api.observeInstalls(), [])
     const locale = useLocale()
     const [route, setRoute] = useState<AppRoute>(readAppRoute)
@@ -87,6 +95,7 @@ export default function App() {
     } | null>(null)
     const [showUpdateModal, setShowUpdateModal] = useState(false)
     const [installFailed, setInstallFailed] = useState(false)
+    const [updatedNotice, setUpdatedNotice] = useState(updated)
     const [showSupportPrompt, setShowSupportPrompt] = useState(false)
     // A discarded Nexus session is app-wide, not per page: it silently stops installed
     // metadata, update checks and background identification everywhere, so it is reported
@@ -160,7 +169,9 @@ export default function App() {
         // Dev builds run whatever version the branch has and would nag about the
         // latest release on every launch, the check only makes sense for real installs.
         if (import.meta.env.DEV) return
-        api.checkForUpdates().catch(logUpdateCheckFailure)
+        // A nightly build may own the update on open, so Rust decides whether the pop-up runs.
+        const check = isNightlyBuild ? api.checkAfterStartupGate() : api.checkForUpdates()
+        check.catch(logUpdateCheckFailure)
     }, [])
 
     useEffect(
@@ -258,6 +269,9 @@ export default function App() {
         onDismissUpdate: () => setUpdate(null),
         onInstallUpdate: handleInstallUpdate,
     }
+    const updatedBanner = updatedNotice && (
+        <UpdatedBanner notice={updatedNotice} onClose={() => setUpdatedNotice(null)} />
+    )
     const banners = (
         <>
             {nexusSessionExpired && (
@@ -266,6 +280,7 @@ export default function App() {
             {showSupportPrompt && (
                 <SupportPromptBanner onClose={() => setShowSupportPrompt(false)} />
             )}
+            {updatedBanner}
         </>
     )
 
@@ -291,6 +306,8 @@ export default function App() {
                         <div key={locale} className="contents">
                             <TopBar {...topBar} />
                             {route.kind === 'global-settings' && banners}
+                            {/* An update on open can relaunch onto the picker, so only its notice shows there. */}
+                            {route.kind === 'picker' && updatedBanner}
                             <div className="flex flex-1 overflow-hidden">
                                 <Sidebar
                                     navigation={{

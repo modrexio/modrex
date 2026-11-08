@@ -44,6 +44,7 @@ export function InstallNightlyDialog({ onClose }: { onClose: () => void }) {
                 <p>{t('settings.updates.installNightlyIntro')}</p>
                 <p>{t('settings.updates.installNightlyRisk')}</p>
                 <p>{t('settings.updates.installNightlyRestart')}</p>
+                <p>{t('settings.updates.installNightlyOnOpen')}</p>
                 {phase === 'none' && (
                     <p className="text-xs text-warning">
                         {t('settings.updates.installNightlyNone')}
