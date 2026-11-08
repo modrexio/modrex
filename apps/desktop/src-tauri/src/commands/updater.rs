@@ -13,12 +13,29 @@ const RELEASES_URL: &str = "https://github.com/modrexio/modrex/releases";
 const NIGHTLY_ENDPOINT: &str =
     "https://github.com/modrexio/modrex/releases/download/nightly/latest.json";
 
-// The whole check request, connecting included.
-const CHECK_LIMIT: Duration = Duration::from_secs(5);
-const CONNECT_LIMIT: Duration = Duration::from_secs(3);
-// The longest wait for the next bytes. A download has no total limit, so a slow link
-// still finishes while a stalled one fails.
-const READ_STALL_LIMIT: Duration = Duration::from_secs(8);
+/// Time limits for an updater's requests. The total covers the check only, since the plugin gives
+/// downloads none. The read stall is the longest wait for the next bytes, which includes the
+/// first bytes of a reply, so it has to cover a slow server as well as a stalled download.
+pub(super) struct CheckLimits {
+    total: Duration,
+    connect: Duration,
+    read_stall: Duration,
+}
+
+/// The updater whose check holds the splash, which a user waits on.
+pub(super) const OPEN_CHECK: CheckLimits = CheckLimits {
+    total: Duration::from_secs(5),
+    connect: Duration::from_secs(3),
+    read_stall: Duration::from_secs(8),
+};
+
+// Every other updater runs behind an open window, and a slow link to GitHub can take more than
+// 10 seconds to answer over its two redirects.
+const BACKGROUND_CHECK: CheckLimits = CheckLimits {
+    total: Duration::from_secs(30),
+    connect: Duration::from_secs(10),
+    read_stall: Duration::from_secs(30),
+};
 
 pub struct UpdaterState {
     pub update: Mutex<Option<tauri_plugin_updater::Update>>,
@@ -41,20 +58,18 @@ pub(super) fn release_url(channel: UpdateChannel, version: &str) -> String {
     }
 }
 
-// Every updater shares these limits, since the plugin sets none and a stalled request would
-// never end. Stable keeps the endpoint from tauri.conf.json, which check-updater.mts validates.
+// Every updater gets limits, since the plugin sets none and a stalled request would never end.
+// Stable keeps the endpoint from tauri.conf.json, which check-updater.mts validates.
 pub(super) fn updater_for(
     app: &AppHandle,
     channel: UpdateChannel,
+    limits: &CheckLimits,
 ) -> tauri_plugin_updater::Result<Updater> {
+    let (connect, read_stall) = (limits.connect, limits.read_stall);
     let builder = app
         .updater_builder()
-        .timeout(CHECK_LIMIT)
-        .configure_client(|client| {
-            client
-                .connect_timeout(CONNECT_LIMIT)
-                .read_timeout(READ_STALL_LIMIT)
-        })
+        .timeout(limits.total)
+        .configure_client(move |client| client.connect_timeout(connect).read_timeout(read_stall))
         // The default hook hides every window ahead of the installer launch, so a launch that
         // fails would leave Modrex running with nothing on screen.
         .on_before_exit(|| {});
@@ -72,7 +87,7 @@ pub(super) fn updater_for(
 pub async fn check_for_update(app: AppHandle) -> Result<Option<String>, String> {
     let app_version = app.package_info().version.to_string();
     let channel = update_channel(&read_settings(&app), &app_version);
-    let updater = updater_for(&app, channel)
+    let updater = updater_for(&app, channel, &BACKGROUND_CHECK)
         .map_err(|e| format!("could not prepare the update check: {e}"))?;
     let Some(update) = updater
         .check()
@@ -119,7 +134,7 @@ pub async fn install_nightly(app: AppHandle) -> Result<bool, String> {
 }
 
 async fn move_to_nightly(app: &AppHandle) -> Result<bool, String> {
-    let updater = updater_for(app, UpdateChannel::Nightly)
+    let updater = updater_for(app, UpdateChannel::Nightly, &BACKGROUND_CHECK)
         .map_err(|e| format!("could not prepare the update check: {e}"))?;
     let Some(update) = updater
         .check()

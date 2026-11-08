@@ -17,7 +17,7 @@ use super::launchers::try_shell_open_external;
 use super::mods::write_atomic;
 use super::settings::{read_settings, update_channel, UpdateChannel};
 use super::startup::{StartupState, UpdatedNotice};
-use super::updater::{check_for_update, release_url, updater_for};
+use super::updater::{check_for_update, release_url, updater_for, OPEN_CHECK};
 use futures::future::{select, Either};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
@@ -399,7 +399,7 @@ async fn step(app: &AppHandle, running: &str, record: Option<InstallRecord>) {
 // A failed or missing check opens Modrex and never counts as a failed install. A feed that
 // keeps its version but lists no platforms fails here, which is how a nightly is paused.
 async fn find_update(app: &AppHandle) -> Option<Update> {
-    let updater = updater_for(app, UpdateChannel::Nightly)
+    let updater = updater_for(app, UpdateChannel::Nightly, &OPEN_CHECK)
         .inspect_err(|e| log::warn!("could not prepare the update on open: {e}"))
         .ok()?;
     let found = updater
