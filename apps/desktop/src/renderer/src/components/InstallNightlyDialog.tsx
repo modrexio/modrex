@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { error as logError } from '@tauri-apps/plugin-log'
-import { Download } from 'lucide-react'
+import { Download, ExternalLink } from 'lucide-react'
 import { api } from '../api'
 import { t } from '../i18n'
 import { Dialog, DialogHeader } from './Dialog'
@@ -56,7 +56,7 @@ export function InstallNightlyDialog({ onClose }: { onClose: () => void }) {
                     </p>
                 )}
             </div>
-            <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border shrink-0">
+            <div className="flex items-center justify-between gap-2 px-5 py-4 border-t border-border shrink-0">
                 {installing ? (
                     <div className="flex flex-1 items-center gap-3">
                         <span className="text-xs text-text-muted shrink-0">
@@ -81,15 +81,26 @@ export function InstallNightlyDialog({ onClose }: { onClose: () => void }) {
                     </div>
                 ) : (
                     <>
-                        <Button variant="secondary" size="sm" onClick={onClose}>
-                            {phase === 'none' ? t('common.close') : t('common.cancel')}
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => api.openExternal('https://modrex.net/docs/nightly/')}
+                            className="-mx-2 px-2"
+                        >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                            {t('settings.updates.installNightlyAbout')}
                         </Button>
-                        {phase !== 'none' && (
-                            <Button variant="accent" size="sm" onClick={install}>
-                                <Download className="w-3.5 h-3.5" />
-                                {t('settings.updates.installNightlyAction')}
+                        <div className="flex items-center gap-2">
+                            <Button variant="secondary" size="sm" onClick={onClose}>
+                                {phase === 'none' ? t('common.close') : t('common.cancel')}
                             </Button>
-                        )}
+                            {phase !== 'none' && (
+                                <Button variant="accent" size="sm" onClick={install}>
+                                    <Download className="w-3.5 h-3.5" />
+                                    {t('settings.updates.installNightlyAction')}
+                                </Button>
+                            )}
+                        </div>
                     </>
                 )}
             </div>
