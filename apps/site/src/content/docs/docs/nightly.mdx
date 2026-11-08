@@ -34,7 +34,7 @@ You don't have to wait:
 - When a mod link from Nexus Mods opens Modrex, it skips the update so the mod installs right away.
 
 On Linux, the .deb and RPM packages ask for your password to install, so they keep the update
-pop-up and install only when you click **Update**. The AppImage updates on open like Windows.
+pop-up and install only after you confirm there. The AppImage updates on open like Windows.
 
 If an update fails to install twice in a row, Modrex stops installing it on open and offers it in
 the pop-up instead.
@@ -42,15 +42,16 @@ the pop-up instead.
 ## Go back to Stable
 
 Pick **Stable** in **Settings > Application > Updates**. Modrex keeps the nightly you have until a
-newer stable version comes out, then updates to it. To go back sooner, download Stable from
-the <a href={sitePath('/#download')}>download section</a> and install it over the nightly.
+newer stable version comes out, then offers it in the update pop-up. To go back sooner, download
+Stable from the <a href={sitePath('/#download')}>download section</a> and install it over the
+nightly. The .rpm package won't install over a newer version, so remove the nightly package first.
 
 A mod list saved by a nightly may open read-only in older versions.
 
 ## Report a problem
 
 Include the full version from the top-left corner of the app, for example
-`v0.18.0-nightly.20261108.2`, so we know which build you ran. Attach the log from **Settings >
+`v0.17.0-nightly.20261108.2`, so we know which build you ran. Attach the log from **Settings >
 Advanced > Logs**, then post in the
 [🛠️support](https://discord.com/channels/1508553766025170986/1516892414059610223) forum on
 Discord or open an issue on [GitHub](https://github.com/modrexio/modrex/issues).
