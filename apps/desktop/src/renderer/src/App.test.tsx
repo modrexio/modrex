@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import type { ReactNode } from 'react'
-import { afterEach, beforeEach, expect, test, vi } from 'vitest'
+import { afterEach, beforeAll, beforeEach, expect, test, vi } from 'vitest'
 import type { SourceInfo } from './api'
 
 const mocks = vi.hoisted(() => ({
@@ -156,6 +156,12 @@ afterEach(() => {
     cleanup()
     vi.restoreAllMocks()
 })
+
+// The first import transforms the whole App tree, which can outlast a test's time limit
+// when the full suite loads at once. Each test still imports a fresh copy.
+beforeAll(async () => {
+    await import('./App')
+}, 30_000)
 
 async function mount() {
     const { default: App } = await import('./App')
