@@ -1349,7 +1349,7 @@ export type Ue4ssReplacePayload = {
 	preserved: string[],
 };
 
-/**  Which update file the app reads. An unknown value resets every setting in an older build. */
+/**  Which update file the app reads. */
 export type UpdateChannel = "stable" | "nightly";
 
 /**
