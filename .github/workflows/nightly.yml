@@ -1,0 +1,299 @@
+name: Nightly
+
+on:
+    workflow_dispatch:
+        inputs:
+            force:
+                description: 'Build even when no desktop files changed'
+                type: boolean
+                default: false
+            publish:
+                description: 'Publish the build to the nightly release'
+                type: boolean
+                default: true
+
+cache-mode: none
+
+permissions:
+    actions: read
+    contents: write
+
+concurrency:
+    group: nightly
+    cancel-in-progress: false
+
+jobs:
+    plan:
+        runs-on: ubuntu-latest
+        outputs:
+            build: ${{ steps.decide.outputs.build }}
+            commit: ${{ steps.commit.outputs.commit }}
+            previous: ${{ steps.commit.outputs.previous }}
+            version: ${{ steps.version.outputs.version }}
+        steps:
+            - uses: actions/checkout@v7
+              with:
+                  ref: main
+                  fetch-depth: 0
+                  persist-credentials: false
+
+            - name: Find the newest commit that passed CI
+              id: commit
+              env:
+                  GH_TOKEN: ${{ github.token }}
+              run: |
+                  set -euo pipefail
+                  RUNS_URL="repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?branch=main&event=push&status=success&per_page=1"
+                  COMMIT=$(gh api "$RUNS_URL" --jq '.workflow_runs[0].head_sha // empty')
+                  if [ -z "$COMMIT" ]; then
+                    echo '::error::No passing CI run found on main'
+                    exit 1
+                  fi
+                  git checkout --detach "$COMMIT"
+                  echo "commit=$COMMIT" >> "$GITHUB_OUTPUT"
+                  echo "previous=$(git ls-remote origin refs/tags/nightly | cut -f1)" >> "$GITHUB_OUTPUT"
+
+            - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d
+              if: steps.commit.outputs.previous != ''
+              id: filter
+              with:
+                  base: ${{ steps.commit.outputs.previous }}
+                  ref: ${{ steps.commit.outputs.commit }}
+                  predicate-quantifier: some-with-excludes
+                  filters: .github/path-filters.yml
+
+            - name: Decide whether to build
+              id: decide
+              env:
+                  FORCE: ${{ inputs.force }}
+                  COMMIT: ${{ steps.commit.outputs.commit }}
+                  PREVIOUS: ${{ steps.commit.outputs.previous }}
+                  DESKTOP_CHANGED: ${{ steps.filter.outputs.rust == 'true' || steps.filter.outputs.renderer == 'true' || steps.filter.outputs.js == 'true' }}
+              run: |
+                  BUILD=$DESKTOP_CHANGED
+                  if [ "$FORCE" = 'true' ] || [ -z "$PREVIOUS" ]; then
+                    BUILD=true
+                  elif [ "$PREVIOUS" = "$COMMIT" ]; then
+                    BUILD=false
+                  fi
+                  echo "build=$BUILD" >> "$GITHUB_OUTPUT"
+
+            - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+              if: steps.decide.outputs.build == 'true'
+              with:
+                  bun-version-file: package.json
+
+            - name: Compute version
+              if: steps.decide.outputs.build == 'true'
+              id: version
+              working-directory: apps/desktop
+              env:
+                  GH_TOKEN: ${{ github.token }}
+              run: |
+                  set -euo pipefail
+                  LATEST_TAG=$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .tag_name)
+                  echo "version=$(bun scripts/nightly-version.mts "$LATEST_TAG")" >> "$GITHUB_OUTPUT"
+
+    build:
+        needs: plan
+        if: needs.plan.outputs.build == 'true'
+        uses: ./.github/workflows/desktop-build.yml
+        with:
+            ref: ${{ needs.plan.outputs.commit }}
+            version: ${{ needs.plan.outputs.version }}
+        secrets: inherit
+
+    publish:
+        needs: [plan, build]
+        if: github.event_name != 'workflow_dispatch' || inputs.publish
+        runs-on: ubuntu-24.04
+        env:
+            VERSION: ${{ needs.plan.outputs.version }}
+            COMMIT: ${{ needs.plan.outputs.commit }}
+            PREVIOUS: ${{ needs.plan.outputs.previous }}
+            GH_TOKEN: ${{ github.token }}
+            GH_REPO: ${{ github.repository }}
+            MANIFEST_URL: https://github.com/${{ github.repository }}/releases/download/nightly/latest.json
+        steps:
+            - uses: actions/checkout@v7
+              with:
+                  ref: ${{ needs.plan.outputs.commit }}
+                  persist-credentials: false
+
+            - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+              with:
+                  bun-version-file: package.json
+
+            - uses: actions/download-artifact@v8
+
+            - name: Install verification tools
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install -y minisign rpm
+
+            - name: Name artifacts after the version
+              run: |
+                  set -euo pipefail
+                  shopt -s nullglob
+                  WIN_FILES=(windows-nsis/*.exe)
+                  DEB_FILES=(linux-deb/*.deb)
+                  RPM_FILES=(linux-rpm/*.rpm)
+                  APPIMAGE_FILES=(linux-appimage/*.AppImage)
+
+                  for FILES in "${#WIN_FILES[@]}" "${#DEB_FILES[@]}" "${#RPM_FILES[@]}" "${#APPIMAGE_FILES[@]}"; do
+                    if [ "$FILES" != 1 ]; then
+                      echo '::error::Expected exactly one file of each package type'
+                      exit 1
+                    fi
+                  done
+
+                  mkdir assets
+                  move() {
+                    mv "$1" "assets/modrex_${VERSION}_x86_64.$2"
+                    mv "$1.sig" "assets/modrex_${VERSION}_x86_64.$2.sig"
+                  }
+                  move "${WIN_FILES[0]}" exe
+                  move "${DEB_FILES[0]}" deb
+                  move "${RPM_FILES[0]}" rpm
+                  move "${APPIMAGE_FILES[0]}" AppImage
+
+            - name: Write release notes
+              working-directory: apps/desktop
+              run: |
+                  set -euo pipefail
+                  REPOSITORY_URL="https://github.com/$GITHUB_REPOSITORY"
+                  {
+                    bun scripts/changelog-section.mts Unreleased
+                    echo
+                    echo "Built from [${COMMIT:0:8}]($REPOSITORY_URL/commit/$COMMIT)."
+                    if [ -n "$PREVIOUS" ]; then
+                      echo "[Changes since the last nightly]($REPOSITORY_URL/compare/$PREVIOUS...$COMMIT)"
+                    fi
+                  } > ../../NOTES.md
+
+            - name: Generate latest.json (tauri-plugin-updater)
+              run: |
+                  set -euo pipefail
+                  DOWNLOADS="https://github.com/modrexio/modrex/releases/download/nightly"
+                  ASSET="modrex_${VERSION}_x86_64"
+                  jq -n \
+                    --arg version "$VERSION" \
+                    --rawfile notes NOTES.md \
+                    --arg pub_date "$(date -u +%Y-%m-%dT%H:%M:%S.000Z)" \
+                    --arg win_sig "$(<"assets/$ASSET.exe.sig")" \
+                    --arg win_url "$DOWNLOADS/$ASSET.exe" \
+                    --arg deb_sig "$(<"assets/$ASSET.deb.sig")" \
+                    --arg deb_url "$DOWNLOADS/$ASSET.deb" \
+                    --arg rpm_sig "$(<"assets/$ASSET.rpm.sig")" \
+                    --arg rpm_url "$DOWNLOADS/$ASSET.rpm" \
+                    --arg appimage_sig "$(<"assets/$ASSET.AppImage.sig")" \
+                    --arg appimage_url "$DOWNLOADS/$ASSET.AppImage" \
+                    '{
+                      version: $version,
+                      notes: $notes,
+                      pub_date: $pub_date,
+                      platforms: {
+                        "windows-x86_64": {signature: $win_sig, url: $win_url},
+                        "linux-x86_64-deb": {signature: $deb_sig, url: $deb_url},
+                        "linux-x86_64-rpm": {signature: $rpm_sig, url: $rpm_url},
+                        "linux-x86_64-appimage": {signature: $appimage_sig, url: $appimage_url}
+                      }
+                    }' \
+                    > latest.json
+
+            - name: Validate updater artifacts
+              run: |
+                  set -euo pipefail
+                  jq -r '.plugins.updater.pubkey' apps/desktop/src-tauri/tauri.conf.json |
+                    base64 --decode > "$RUNNER_TEMP/updater.pub"
+
+                  ASSET="assets/modrex_${VERSION}_x86_64"
+                  for ARTIFACT in "$ASSET.exe" "$ASSET.deb" "$ASSET.rpm" "$ASSET.AppImage"; do
+                    DECODED_SIGNATURE="$RUNNER_TEMP/updater.minisig"
+                    base64 --decode < "$ARTIFACT.sig" > "$DECODED_SIGNATURE"
+                    minisign -V -p "$RUNNER_TEMP/updater.pub" -m "$ARTIFACT" -x "$DECODED_SIGNATURE"
+                    if ! grep -aq "version:$VERSION\$" "$DECODED_SIGNATURE"; then
+                      echo "::error::$ARTIFACT is not signed for $VERSION"
+                      exit 1
+                    fi
+                  done
+
+                  # The updater installs with rpm -U, which refuses anything RPM sorts lower.
+                  vercmp() {
+                    rpm --eval "%{lua: print(rpm.vercmp('$1', '$2'))}"
+                  }
+                  if [ "$(vercmp "$VERSION" "${VERSION%%-*}-1")" != -1 ]; then
+                    echo '::error::The RPM does not sort below its stable release'
+                    exit 1
+                  fi
+                  STATUS=$(curl -sSL -o live.json -w '%{http_code}' "$MANIFEST_URL")
+                  if [ "$STATUS" = 200 ] && [ "$(vercmp "$(jq -r .version live.json)" "$VERSION")" != -1 ]; then
+                    echo '::error::The RPM does not sort above the previous nightly'
+                    exit 1
+                  fi
+                  if [ "$STATUS" != 200 ] && [ "$STATUS" != 404 ]; then
+                    echo "::error::$MANIFEST_URL answered $STATUS"
+                    exit 1
+                  fi
+
+                  # dpkg -i leaves a half-configured package when a dependency is missing.
+                  curl -fsSL -o stable.deb \
+                    "https://github.com/$GITHUB_REPOSITORY/releases/latest/download/modrex_x86_64.deb"
+                  if [ "$(dpkg-deb -f "$ASSET.deb" Depends)" != "$(dpkg-deb -f stable.deb Depends)" ]; then
+                    echo '::error::The DEB depends on different packages than the last stable release'
+                    exit 1
+                  fi
+
+            - name: Create the nightly release
+              run: |
+                  if ! gh release view nightly > /dev/null 2>&1; then
+                    gh release create nightly --prerelease --latest=false --title Nightly \
+                      --notes-file NOTES.md --target "$COMMIT"
+                  fi
+
+            # latest.json goes last and old files after it, so each manifest's files stay available.
+            - name: Publish nightly
+              run: |
+                  set -euo pipefail
+                  OLD_ASSETS=$(gh release view nightly --json assets --jq '.assets[].name')
+                  ASSET="assets/modrex_${VERSION}_x86_64"
+                  gh release upload nightly "$ASSET.exe" "$ASSET.deb" "$ASSET.rpm" "$ASSET.AppImage"
+                  gh release upload nightly latest.json --clobber
+
+                  RELEASE_ID=$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/nightly" --jq .id)
+                  if [ -n "$PREVIOUS" ] && [ "$PREVIOUS" != "$COMMIT" ]; then
+                    gh api -X DELETE "repos/$GITHUB_REPOSITORY/git/refs/tags/nightly"
+                  fi
+                  gh api -X PATCH "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" \
+                    -f tag_name=nightly \
+                    -f target_commitish="$COMMIT" \
+                    -f name=Nightly \
+                    -F body=@NOTES.md \
+                    -F draft=false \
+                    -F prerelease=true \
+                    -f make_latest=false > /dev/null
+
+                  for NAME in $OLD_ASSETS; do
+                    case "$NAME" in
+                      latest.json|"modrex_${VERSION}_"*) ;;
+                      *) gh release delete-asset nightly "$NAME" --yes ;;
+                    esac
+                  done
+
+            - name: Confirm stable is untouched
+              run: |
+                  set -euo pipefail
+                  LATEST_TAG=$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .tag_name)
+                  if [[ "$LATEST_TAG" != v* ]]; then
+                    echo "::error::releases/latest points at $LATEST_TAG"
+                    exit 1
+                  fi
+                  STABLE_VERSION=$(curl -fsSL "https://github.com/$GITHUB_REPOSITORY/releases/latest/download/latest.json" | jq -r .version)
+                  if [[ "$STABLE_VERSION" == *-* ]]; then
+                    echo "::error::Stable latest.json offers $STABLE_VERSION"
+                    exit 1
+                  fi
+                  if [ "$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/nightly" --jq .prerelease)" != true ]; then
+                    echo '::error::The nightly release is not a pre-release'
+                    exit 1
+                  fi

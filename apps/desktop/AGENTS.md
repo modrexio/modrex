@@ -8,14 +8,14 @@ bun dev-preview  # Renderer in a browser against fixtures, no Rust backend; comp
 bun build-preview # Static build of the same into out/preview/
 bun test:preview # Mount the app through the preview backend in happy-dom and assert the browse grid renders
 bun run build        # Local production build, unsigned (tauri.local.conf.json disables updater artifacts) — exits 0, installer in src-tauri/target/release/bundle/nsis/
-bun build:signed # CI production build with updater artifacts and Authenticode signing — requires TAURI_SIGNING_PRIVATE_KEY and, on Windows, the AZURE_* secrets read by src-tauri/scripts/sign-windows.ps1 (release.yml only; exits 1 without them)
+bun build:signed # CI production build with Authenticode signing — on Windows it requires the AZURE_* secrets read by src-tauri/scripts/sign-windows.ps1 (desktop-build.yml only). Updater signatures are made afterwards in their own step, so the build never holds TAURI_SIGNING_PRIVATE_KEY
 bun dist:win     # Same as build but with explicit --target x86_64-pc-windows-msvc
 bun dist:linux   # Package Linux AppImage + .deb (unsigned, like build)
 bun typecheck    # Type-check the renderer, the Vite, Vitest and oxlint configs, and scripts/; the renderer config loads no Node or Bun types, so webview code cannot import them
 bun check-version # Verify package, Tauri, Cargo, and lockfile versions agree
 bun check-commands # Verify api.ts uses every command registered in collect_commands! in lib.rs, that the generated bindings are not stale, and that the invoke API stays api.ts-only (also runs in pre-commit and CI)
 bun check-csp    # Verify csp and devCsp in tauri.conf.json agree on all external origins (also runs in pre-commit and CI)
-bun check-updater # Verify release.yml's latest.json generation matches the updater config in tauri.conf.json (CI only)
+bun check-updater # Verify the release, nightly and shared build workflows match the updater config in tauri.conf.json (CI only)
 bun check-i18n   # Validate each locale's translated subset and {var} interpolation against en.json, and report coverage (pre-commit + CI)
 bun checks       # Run the full CI gate locally: all check-* scripts, format:check, lint, typecheck, tests
 bun format       # Format all files
@@ -113,7 +113,7 @@ The payload shapes are typed end to end by tauri-specta: renaming or retyping a 
 
 ### Startup: two hidden windows, phased splash
 
-`tauri.conf.json` defines two windows, both starting hidden: `main` (the app) and `splash` (`splash.html`, its own non-React entry `src/renderer/src/splash.ts`). `lib.rs`'s `on_page_load` hook shows the splash when its page finishes loading (skipped if startup already completed). The main renderer reports progress through `report_startup_phase` (`prepare → interface → game → mods → ready`, plus `error`; tracked in `commands/startup.rs` and re-emitted to the splash as `startup:progress`). On `ready` the splash calls `finish_startup`, which shows + focuses `main` and closes the splash; the splash's recovery button (surfaced on the `error` state) invokes the same command, so a failed startup still lets the user into the app.
+`tauri.conf.json` defines two windows, both starting hidden: `main` (the app) and `splash` (`splash.html`, its own non-React entry `src/renderer/src/splash.ts`). `lib.rs`'s `on_page_load` hook shows the splash when its page finishes loading (skipped if startup already completed). The main renderer reports progress through `report_startup_phase` (`prepare → interface → game → mods → ready`, plus `error`, tracked in `commands/startup.rs` and re-emitted to the splash as `startup:progress`). On a nightly build `main.tsx` first waits on `wait_for_startup_gate`, and Rust itself reports `updating` while an update on open downloads (`commands/startup.rs`, `commands/on_open_update.rs`). On `ready` the splash calls `finish_startup`, which shows + focuses `main` and closes the splash; the splash's recovery button invokes the same command on the `error` state, so a failed startup still lets the user into the app, and during `updating` it skips the update through `skip_startup_update`.
 
 ## Key domain facts
 
@@ -176,7 +176,7 @@ README block or to a status SVG are overwritten on the next run.
 ## Rules
 
 - **When adding or updating dependencies** (Cargo.toml or package.json), remind the user to run `bun generate-licenses` to update `THIRD_PARTY_LICENSES.md`. The pre-commit hook does this automatically when dep files are staged. CI enforces it via the `check-licenses` job in `ci.yml`.
-- **Never break the in-app update pipeline.** The updater endpoint is `https://github.com/modrexio/modrex/releases/latest/download/latest.json`. Any change to draft/publish behavior, `latest.json` generation, or the startup update check can silently stop all users on the current release from ever receiving future updates. Verify the full pipeline end-to-end when touching anything updater-related.
+- **Never break the in-app update pipeline.** The stable updater endpoint is `https://github.com/modrexio/modrex/releases/latest/download/latest.json`; the Nightly channel reads the rolling `nightly` release, chosen per check in `updater.rs`. Any change to draft/publish behavior, `latest.json` generation, or the startup update check can silently stop all users on the current release from ever receiving future updates. Verify the full pipeline end-to-end when touching anything updater-related.
 - **Content Security Policy** lives in `tauri.conf.json` as `csp` (production) + `devCsp` (dev, relaxed with `'unsafe-inline'`/`'unsafe-eval'` and localhost ws/http for Vite HMR). `img-src` and `media-src` allow any `https:` host because mod descriptions embed images and videos from arbitrary hosts (imgur, Discord, catbox). Any other external resource, an iframe/embed provider, web font, or a renderer `fetch`, needs its origin added to the matching directive in **both** `csp` and `devCsp`. `dangerousDisableAssetCspModification: ["style-src"]` stops Tauri injecting style hashes (which would void `'unsafe-inline'` and break Tailwind/Radix/`createDragImage` inline styles); scripts still get Tauri's nonce injection, so `script-src` stays `'self'`. Mod descriptions are parsed by markdown-it with raw HTML escaped, as ModWorkshop does (`markdown.ts`), then sanitized by `rehype-sanitize` (explicit schema in `MarkdownContentImpl.tsx`; hostile-payload tests in `MarkdownContent.test.tsx`), with the CSP as defense-in-depth behind it — keep both tight.
 - **External URL opening is gated.** Every renderer call site funnels through the `shell_open_external` command, which runs `sanitize_external_url` (allow `http`/`https`/`mailto` only; reject `cmd`-breakout chars) before shelling out. Mod-description links are attacker-controlled — never bypass this command or pass untrusted URLs to a shell directly. The markdown link handler in `MarkdownContent.tsx` mirrors the scheme allowlist so disallowed links render as plain text.
 
@@ -194,3 +194,6 @@ and creates a draft GitHub Release named `vX.Y.Z`. Publishing that draft makes i
 `latest.json` available to installed clients and triggers
 `.github/workflows/distribute-release.yml`, which waits out the `release` environment's
 timer and then rebuilds modrex.net, posts to Discord and submits to WinGet.
+
+`.github/workflows/nightly.yml` publishes the rolling `nightly` pre-release through the same
+`desktop-build.yml`. Its stamped version is never committed. To pause a broken nightly, replace the release's `latest.json` (`gh release upload nightly latest.json --clobber`) with a copy that keeps its `version` and has an empty `platforms` (see the check in `on_open_update.rs`). Keeping the version matters because `scripts/nightly-version.mts` numbers the next dispatch from it.

@@ -26,6 +26,25 @@ where
     Ok(Option::<bool>::deserialize(d)?.unwrap_or(true))
 }
 
+/// A channel this build does not know, such as one a newer build added, fails the whole file
+/// otherwise, and read_settings would reset every setting. It reads as no choice instead, so
+/// the build follows its own kind.
+fn known_update_channel<'de, D>(d: D) -> Result<Option<UpdateChannel>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let Some(value) = Option::<serde_json::Value>::deserialize(d)? else {
+        return Ok(None);
+    };
+    match serde_json::from_value(value.clone()) {
+        Ok(channel) => Ok(Some(channel)),
+        Err(_) => {
+            log::warn!("settings name an unknown update channel {value}, so this build follows its own kind");
+            Ok(None)
+        }
+    }
+}
+
 fn null_or_crimeboss_mode<'de, D>(d: D) -> Result<String, D::Error>
 where
     D: Deserializer<'de>,
@@ -166,6 +185,9 @@ pub struct Settings {
     pub analytics_id: Option<String>,
     #[serde(default = "default_true", deserialize_with = "null_or_true")]
     pub discord_rich_presence_enabled: bool,
+    // Empty until the user picks a channel, so a build follows its own kind.
+    #[serde(default, deserialize_with = "known_update_channel")]
+    pub update_channel: Option<UpdateChannel>,
     #[serde(default, deserialize_with = "null_default")]
     pub auto_launch_sisr: bool,
     // OAuth credentials are persisted only in local settings and sent only to
@@ -207,6 +229,7 @@ impl Default for Settings {
             analytics_consent_version: 0,
             analytics_id: None,
             discord_rich_presence_enabled: true,
+            update_channel: None,
             auto_launch_sisr: false,
             nexus_oauth: None,
             successful_installs: 0,
@@ -439,6 +462,32 @@ pub fn set_suppress_crash_reporter(app: AppHandle, game_id: String, suppress: bo
 #[specta::specta]
 pub fn set_skip_fileopenlog_warning(app: AppHandle, skip: bool) {
     update_settings(&app, |s| s.skip_file_open_log_warning = skip);
+}
+
+/// Which update file the app reads.
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, specta::Type)]
+#[serde(rename_all = "lowercase")]
+pub enum UpdateChannel {
+    Stable,
+    Nightly,
+}
+
+pub(crate) fn update_channel(s: &Settings, app_version: &str) -> UpdateChannel {
+    let default = if app_version.contains("-nightly.") {
+        UpdateChannel::Nightly
+    } else {
+        UpdateChannel::Stable
+    };
+    s.update_channel.unwrap_or(default)
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn get_update_channel(app: AppHandle) -> UpdateChannel {
+    update_channel(
+        &read_settings(&app),
+        &app.package_info().version.to_string(),
+    )
 }
 
 /// The analytics choice as the renderer needs it. Outdated means the user opted in under an

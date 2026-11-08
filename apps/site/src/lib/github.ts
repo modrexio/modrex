@@ -45,6 +45,17 @@ export async function getLatestRelease(): Promise<Release> {
     return (await res.json()) as Release
 }
 
+// The rolling nightly pre-release, or null before the first nightly is published. The download
+// section offers Nightly only once this exists.
+export async function getNightlyRelease(): Promise<Release | null> {
+    const res = await fetch(`https://api.github.com/repos/${REPO}/releases/tags/nightly`, {
+        headers: githubHeaders(),
+    })
+    if (res.status === 404) return null
+    if (!res.ok) throw await apiError(res)
+    return (await res.json()) as Release
+}
+
 export async function getRecentReleases(count: number): Promise<Release[]> {
     // The list endpoint interleaves drafts and prereleases with published releases,
     // so over-fetch and filter down to the requested count.

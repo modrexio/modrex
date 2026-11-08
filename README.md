@@ -44,7 +44,8 @@ Download the package for your system from the
 | Linux .rpm     | [modrex_x86_64.rpm](https://github.com/modrexio/modrex/releases/latest/download/modrex_x86_64.rpm)           |
 | Linux AppImage | [modrex_x86_64.AppImage](https://github.com/modrexio/modrex/releases/latest/download/modrex_x86_64.AppImage) |
 
-The Windows binary is signed.
+The Windows binary is signed. To try new features before they reach Stable, see
+[Nightly builds](https://modrex.net/docs/nightly/).
 
 Install from the command line:
 

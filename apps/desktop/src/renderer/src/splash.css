@@ -77,6 +77,10 @@ body {
     display: block;
 }
 
+.splash[data-status='updating'][data-skippable] .splash__recovery {
+    display: block;
+}
+
 .splash__footer {
     position: absolute;
     right: 24px;

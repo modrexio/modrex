@@ -18,7 +18,13 @@ test('a late installed response cannot replace a newer result for the same game'
             })
     )
     const old = data.refreshInstalled('pd3')
-    const current = { mods: [], folders: [], modsHidden: true, stateUnreadable: false }
+    const current = {
+        mods: [],
+        folders: [],
+        modsHidden: true,
+        stateUnreadable: false,
+        stateNewer: false,
+    }
     api.getInstalled.mockResolvedValueOnce(current)
     await data.refreshInstalled('pd3')
     finish({ ...current, modsHidden: false })
@@ -37,6 +43,7 @@ test('refreshes notify only the game they belong to', async () => {
         folders: [],
         modsHidden: false,
         stateUnreadable: false,
+        stateNewer: false,
     })
     await data.refreshInstalled('pd3')
     expect(pd3).toHaveBeenCalledOnce()
@@ -46,7 +53,13 @@ test('refreshes notify only the game they belong to', async () => {
 
 test('a failed refresh keeps cached data and rejects the error', async () => {
     const data = await import('./gameData')
-    const cached = { mods: [], folders: [], modsHidden: true, stateUnreadable: false }
+    const cached = {
+        mods: [],
+        folders: [],
+        modsHidden: true,
+        stateUnreadable: false,
+        stateNewer: false,
+    }
     api.getInstalled.mockResolvedValueOnce(cached)
     await data.refreshInstalled('pd3')
     api.getInstalled.mockRejectedValueOnce(new Error('Cannot read state'))

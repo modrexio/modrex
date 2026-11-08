@@ -416,7 +416,7 @@ fn remove_temporary(path: &Path) {
     }
 }
 
-fn write_atomic(path: &Path, bytes: &[u8]) -> Result<(), String> {
+pub(crate) fn write_atomic(path: &Path, bytes: &[u8]) -> Result<(), String> {
     let dir = path
         .parent()
         .ok_or_else(|| format!("{} has no parent directory", path.display()))?;

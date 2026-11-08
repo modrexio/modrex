@@ -141,6 +141,7 @@ export default defineConfig({
                         { slug: 'docs/installing-mods' },
                         { slug: 'docs/organizing' },
                         { slug: 'docs/launching' },
+                        { slug: 'docs/nightly' },
                     ],
                 },
                 {

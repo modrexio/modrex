@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import type { ReactNode } from 'react'
-import { afterEach, beforeEach, expect, test, vi } from 'vitest'
+import { afterEach, beforeAll, beforeEach, expect, test, vi } from 'vitest'
 import type { SourceInfo } from './api'
 
 const mocks = vi.hoisted(() => ({
@@ -19,6 +19,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@tauri-apps/plugin-log', () => ({ error: mocks.log }))
 vi.mock('./loaders', () => ({ loadLoaderRegistry: vi.fn().mockResolvedValue(undefined) }))
+vi.mock('./appVersion', () => ({ isNightlyBuild: false }))
 vi.mock('./api', () => ({
     api: {
         listSources: mocks.sources,
@@ -27,6 +28,7 @@ vi.mock('./api', () => ({
         reportStartupPhase: mocks.startup,
         updateDiscordPresence: vi.fn().mockResolvedValue(undefined),
         getAnalyticsConsent: mocks.consent,
+        getUpdateChannel: vi.fn().mockResolvedValue('stable'),
         setAnalyticsConsent: mocks.setConsent,
         setAnalyticsLanguage: mocks.language,
         getGameSettings: vi.fn().mockResolvedValue({ launchOptions: '', launcher: 'steam' }),
@@ -156,6 +158,12 @@ afterEach(() => {
     vi.restoreAllMocks()
 })
 
+// The first import transforms the whole App tree, which can outlast a test's time limit
+// when the full suite loads at once. Each test still imports a fresh copy.
+beforeAll(async () => {
+    await import('./App')
+}, 30_000)
+
 async function mount() {
     const { default: App } = await import('./App')
     return render(<App />)
@@ -281,6 +289,18 @@ test('picker and global settings remain accessible while sources are loading', a
     expect(screen.getByRole('heading', { name: 'Global settings' })).toBeTruthy()
     expect(mocks.path).not.toHaveBeenCalled()
     expect(mocks.installed).not.toHaveBeenCalled()
+})
+
+test('the update notice shows on the picker without the other banners', async () => {
+    localStorage.setItem('modrex:scope', 'picker')
+    const { default: App } = await import('./App')
+    const { api } = await import('./api')
+    const { t } = await import('./i18n')
+    const version = '0.18.0-nightly.20261108.2'
+    render(<App updated={{ version, releaseUrl: 'https://example.invalid/nightly' }} />)
+    expect(await screen.findByText(t('app.updatedNotice', { version }))).toBeTruthy()
+    act(() => vi.mocked(api.onNexusSessionExpired).mock.calls[0]![0]())
+    expect(screen.queryByText(t('nexusSession.expired'))).toBeNull()
 })
 
 test('asks a user who opted in under an earlier policy to review it', async () => {

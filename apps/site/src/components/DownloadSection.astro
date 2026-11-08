@@ -4,8 +4,9 @@ import type { Release } from '../lib/github'
 
 interface Props {
     release: Release | null
+    nightly: Release | null
 }
-const { release } = Astro.props
+const { release, nightly } = Astro.props
 
 function formatSize(bytes: number): string {
     const mb = bytes / (1024 * 1024)
@@ -58,6 +59,10 @@ const linuxFiles: DlFile[] = [
           }
         : { name: 'modrex_x86_64.rpm', url: fallbackUrl },
 ]
+
+// Each nightly replaces the previous one's files under new names and the site is not rebuilt
+// for it, so the page links to the release rather than to files that will be gone.
+const nightlyUrl = 'https://github.com/modrexio/modrex/releases/tag/nightly'
 
 const extension = (file: DlFile) => file.name.split('.').pop()
 ---
@@ -142,13 +147,37 @@ const extension = (file: DlFile) => file.name.split('.').pop()
             Works with Steam, Epic Games and the Xbox app on Windows, and Steam on Linux. See the{' '}
             <a href={sitePath('/docs/getting-started')}>installation guide</a>.
         </p>
+
+        {nightly && (
+            <details class="nightly">
+                <summary>
+                    Nightly builds
+                    <i data-lucide="chevron-down" />
+                </summary>
+                <div class="nightly-body">
+                    <p class="nightly-warn">
+                        <i data-lucide="triangle-alert" />
+                        Nightly is for people who want to help test Modrex, and it may not be as
+                        stable as the Stable version.
+                    </p>
+                    <a class="btn-lg secondary dl-btn" href={nightlyUrl}>
+                        Open the nightly release
+                    </a>
+                    <p class="dl-note">
+                        The release has installers for Windows and Linux. Already using Modrex? Pick
+                        Nightly in Settings under Updates instead. Read more about{' '}
+                        <a href={sitePath('/docs/nightly')}>nightly builds</a>.
+                    </p>
+                </div>
+            </details>
+        )}
     </div>
 </section>
 
 <script>
-    import { createIcons, Check, Copy } from 'lucide'
+    import { createIcons, Check, ChevronDown, Copy, TriangleAlert } from 'lucide'
     import { detectPlatform } from '../lib/os-detect'
-    createIcons({ icons: { Check, Copy } })
+    createIcons({ icons: { Check, ChevronDown, Copy, TriangleAlert } })
 
     document.querySelectorAll<HTMLElement>('.copy-btn').forEach((copyBtn) => {
         copyBtn.addEventListener('click', async () => {
@@ -311,6 +340,69 @@ const extension = (file: DlFile) => file.name.split('.').pop()
         margin: 20px 0 0;
         font-size: 14px;
         color: var(--text-tertiary);
+    }
+
+    /* A deliberate click away from the Stable rows, so nobody lands on a nightly by
+       accident. The rows inside reuse the Stable grid. */
+    .nightly {
+        margin-top: 32px;
+    }
+
+    .nightly summary {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        padding: 8px 0;
+        font-size: 15px;
+        font-weight: 500;
+        color: var(--color-text);
+        cursor: pointer;
+        list-style: none;
+        border-radius: var(--radius-sm);
+    }
+
+    .nightly summary::-webkit-details-marker {
+        display: none;
+    }
+
+    .nightly summary:focus-visible {
+        outline: 2px solid var(--color-accent);
+        outline-offset: 4px;
+    }
+
+    .nightly summary i,
+    .nightly summary svg {
+        display: block;
+        width: 16px;
+        height: 16px;
+        color: var(--text-tertiary);
+        transition: transform 150ms ease;
+    }
+
+    .nightly[open] summary svg {
+        transform: rotate(180deg);
+    }
+
+    .nightly-body {
+        margin-top: 16px;
+    }
+
+    .nightly-warn {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 0 0 20px;
+        font-size: 14px;
+        color: var(--text-tertiary);
+    }
+
+    .nightly-warn i,
+    .nightly-warn svg {
+        display: block;
+        flex-shrink: 0;
+        width: 16px;
+        height: 16px;
+        color: var(--color-warning);
     }
 
     @media (max-width: 640px) {

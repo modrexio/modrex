@@ -1,0 +1,63 @@
+---
+title: Nightly builds
+description: Get new Modrex features before they reach Stable, and help find what breaks.
+---
+
+import { sitePath } from '../../../lib/site-path'
+
+Nightly is for people who want to help test Modrex, and it may not be as stable as the Stable
+version. A nightly is built from the newest code, so it carries features and fixes that haven't
+shipped yet, along with bugs nobody has found yet.
+
+## Switch to Nightly
+
+Open **Settings > Application > Updates** and pick **Nightly**. Modrex asks you to confirm, then
+downloads the newest nightly, installs it and restarts. If there is no nightly newer than your
+version, Modrex stays on Stable.
+
+You can also download a nightly from the <a href={sitePath('/#download')}>download section</a>,
+under **Nightly builds**, and install it over your current version.
+
+## How nightlies update
+
+When Modrex opens, it looks for a newer nightly before the main window appears. If it finds one,
+the startup window shows **Updating Modrex** with a progress bar, installs the update and opens the
+new version. A short note at the top of the app then names the version you're on and links to its
+changelog.
+
+You don't have to wait:
+
+- After two seconds, **Open Modrex** in the startup window skips the update for this time.
+- If the download takes longer than 25 seconds, Modrex opens anyway and installs the update the
+  next time you open it.
+- If you're offline or the update server doesn't answer, Modrex opens as usual.
+- When a mod link from Nexus Mods opens Modrex, it skips the update so the mod installs right away.
+
+On Linux, the .deb and RPM packages ask for your password to install, so they keep the update
+pop-up and install only after you confirm there. The AppImage updates on open like Windows.
+
+If an update fails to install twice in a row, Modrex stops installing it on open and offers it in
+the pop-up instead.
+
+## Go back to Stable
+
+Pick **Stable** in **Settings > Application > Updates**. Modrex keeps the nightly you have until a
+newer stable version comes out, then offers it in the update pop-up. To go back sooner, download
+Stable from the <a href={sitePath('/#download')}>download section</a> and install it over the
+nightly. The .rpm package won't install over a newer version, so remove the nightly package first.
+
+A mod list saved by a nightly may open read-only in older versions.
+
+## Report a problem
+
+Include the full version from the top-left corner of the app, for example
+`v0.17.0-nightly.20261108.2`, so we know which build you ran. Attach the log from **Settings >
+Advanced > Logs**, then post in the
+[🛠️support](https://discord.com/channels/1508553766025170986/1516892414059610223) forum on
+Discord or open an issue on [GitHub](https://github.com/modrexio/modrex/issues).
+
+## If Modrex stops starting
+
+After three starts in a row that never reach the main window, Modrex shows a message with a link
+to the [nightly release](https://github.com/modrexio/modrex/releases/tag/nightly). Download the
+newest installer there and run it over your current version. Your settings and mods are kept.

@@ -1,10 +1,41 @@
+use super::on_open_update::{forget_saved_updates, OnOpenUpdate};
+use super::settings::{read_settings, update_channel, update_settings, UpdateChannel};
 use std::sync::{
     atomic::{AtomicUsize, Ordering},
     Arc,
 };
+use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager};
-use tauri_plugin_updater::UpdaterExt;
+use tauri_plugin_updater::{Update, Updater, UpdaterExt};
 use tokio::sync::Mutex;
+
+const RELEASES_URL: &str = "https://github.com/modrexio/modrex/releases";
+const NIGHTLY_ENDPOINT: &str =
+    "https://github.com/modrexio/modrex/releases/download/nightly/latest.json";
+
+/// Time limits for an updater's requests. The total covers the check only, since the plugin gives
+/// downloads none. The read stall is the longest wait for the next bytes, which includes the
+/// first bytes of a reply, so it has to cover a slow server as well as a stalled download.
+pub(super) struct CheckLimits {
+    total: Duration,
+    connect: Duration,
+    read_stall: Duration,
+}
+
+/// The updater whose check holds the splash, which a user waits on.
+pub(super) const OPEN_CHECK: CheckLimits = CheckLimits {
+    total: Duration::from_secs(5),
+    connect: Duration::from_secs(3),
+    read_stall: Duration::from_secs(8),
+};
+
+// Every other updater runs behind an open window, and a slow link to GitHub can take more than
+// 10 seconds to answer over its two redirects.
+const BACKGROUND_CHECK: CheckLimits = CheckLimits {
+    total: Duration::from_secs(30),
+    connect: Duration::from_secs(10),
+    read_stall: Duration::from_secs(30),
+};
 
 pub struct UpdaterState {
     pub update: Mutex<Option<tauri_plugin_updater::Update>>,
@@ -20,25 +51,74 @@ impl UpdaterState {
     }
 }
 
+pub(super) fn release_url(channel: UpdateChannel, version: &str) -> String {
+    match channel {
+        UpdateChannel::Stable => format!("{RELEASES_URL}/tag/v{version}"),
+        UpdateChannel::Nightly => format!("{RELEASES_URL}/tag/nightly"),
+    }
+}
+
+// Every updater gets limits, since the plugin sets none and a stalled request would never end.
+// Stable keeps the endpoint from tauri.conf.json, which check-updater.mts validates.
+pub(super) fn updater_for(
+    app: &AppHandle,
+    channel: UpdateChannel,
+    limits: &CheckLimits,
+) -> tauri_plugin_updater::Result<Updater> {
+    let (connect, read_stall) = (limits.connect, limits.read_stall);
+    let builder = app
+        .updater_builder()
+        .timeout(limits.total)
+        .configure_client(move |client| client.connect_timeout(connect).read_timeout(read_stall))
+        // The default hook hides every window ahead of the installer launch, so a launch that
+        // fails would leave Modrex running with nothing on screen.
+        .on_before_exit(|| {});
+    if channel == UpdateChannel::Stable {
+        return builder.build();
+    }
+    let endpoint =
+        tauri::Url::parse(NIGHTLY_ENDPOINT).expect("the nightly endpoint is a valid URL");
+    builder.endpoints(vec![endpoint])?.build()
+}
+
+/// Returns the version found, or None when this build is up to date.
 #[tauri::command]
 #[specta::specta]
-pub async fn check_for_update(app: AppHandle) -> Result<(), String> {
-    let Ok(updater) = app.updater() else {
-        return Ok(());
-    };
-    let Ok(Some(update)) = updater.check().await else {
-        return Ok(());
+pub async fn check_for_update(app: AppHandle) -> Result<Option<String>, String> {
+    let on_open = app.state::<OnOpenUpdate>();
+    // Read before the channel. A switch saves the channel and then changes the epoch, so a
+    // check that read the old channel always sees the epoch change below.
+    let epoch = on_open.channel_epoch();
+    let app_version = app.package_info().version.to_string();
+    let channel = update_channel(&read_settings(&app), &app_version);
+    let updater = updater_for(&app, channel, &BACKGROUND_CHECK)
+        .map_err(|e| format!("could not prepare the update check: {e}"))?;
+    let Some(update) = updater
+        .check()
+        .await
+        .map_err(|e| format!("the update check failed: {e}"))?
+    else {
+        return Ok(None);
     };
 
     let version = update.version.clone();
+    // While the update on open owns the update, a pop-up would offer to install it during
+    // the session.
+    if on_open.owns_update() {
+        return Ok(Some(version));
+    }
     let body = update.body.clone().unwrap_or_default();
-    let release_url = format!(
-        "https://github.com/modrexio/modrex/releases/tag/v{}",
-        version
-    );
+    let release_url = release_url(channel, &version);
 
+    // Stored and announced under the lock a switch clears, so an update for a channel the user
+    // has left is never offered.
     let state = app.state::<UpdaterState>();
-    *state.update.lock().await = Some(update);
+    let mut pending = state.update.lock().await;
+    if on_open.channel_epoch() != epoch {
+        log::info!("the update check finished after a channel switch, so {version} is dropped");
+        return Ok(None);
+    }
+    *pending = Some(update);
 
     let _ = app.emit(
         "updater:update-available",
@@ -50,21 +130,60 @@ pub async fn check_for_update(app: AppHandle) -> Result<(), String> {
         }),
     );
 
-    Ok(())
+    Ok(Some(version))
 }
 
+/// Moves a stable build to the newest nightly and restarts. Returns false when no nightly is newer.
 #[tauri::command]
 #[specta::specta]
-pub async fn download_update(app: AppHandle) -> Result<(), String> {
-    let state = app.state::<UpdaterState>();
-    let guard = state.update.lock().await;
-    let update = guard.as_ref().ok_or("no pending update")?;
+pub async fn install_nightly(app: AppHandle) -> Result<bool, String> {
+    let result = move_to_nightly(&app).await;
+    if let Err(e) = &result {
+        log::warn!("install_nightly: {e}");
+    }
+    result
+}
 
+async fn move_to_nightly(app: &AppHandle) -> Result<bool, String> {
+    let updater = updater_for(app, UpdateChannel::Nightly, &BACKGROUND_CHECK)
+        .map_err(|e| format!("could not prepare the update check: {e}"))?;
+    let Some(update) = updater
+        .check()
+        .await
+        .map_err(|e| format!("the update check failed: {e}"))?
+    else {
+        return Ok(false);
+    };
+    let bytes = download(app, &update).await?;
+
+    // Saved before installing because the Windows installer ends this process.
+    let previous = update_settings(app, |s| s.update_channel.replace(UpdateChannel::Nightly));
+    if let Err(e) = update.install(bytes) {
+        update_settings(app, |s| s.update_channel = previous);
+        return Err(e.to_string());
+    }
+    app.restart()
+}
+
+/// Saves the channel and forgets any update found on the previous one.
+#[tauri::command]
+#[specta::specta]
+pub async fn set_update_channel(app: AppHandle, channel: UpdateChannel) {
+    // The epoch changes after the channel is saved and before the pending update is cleared,
+    // the order check_for_update relies on.
+    update_settings(&app, |s| s.update_channel = Some(channel));
+    forget_saved_updates(&app).await;
+    let state = app.state::<UpdaterState>();
+    *state.update.lock().await = None;
+    *state.bytes.lock().await = None;
+}
+
+async fn download(app: &AppHandle, update: &Update) -> Result<Vec<u8>, String> {
     let downloaded = Arc::new(AtomicUsize::new(0));
     let downloaded_clone = Arc::clone(&downloaded);
     let app_progress = app.clone();
 
-    let bytes = update
+    update
         .download(
             move |chunk, total| {
                 let so_far = downloaded_clone.fetch_add(chunk, Ordering::Relaxed) + chunk;
@@ -76,8 +195,16 @@ pub async fn download_update(app: AppHandle) -> Result<(), String> {
             || {},
         )
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| e.to_string())
+}
 
+#[tauri::command]
+#[specta::specta]
+pub async fn download_update(app: AppHandle) -> Result<(), String> {
+    let state = app.state::<UpdaterState>();
+    let guard = state.update.lock().await;
+    let update = guard.as_ref().ok_or("no pending update")?;
+    let bytes = download(&app, update).await?;
     drop(guard);
     *state.bytes.lock().await = Some(bytes);
     let _ = app.emit("updater:update-ready", ());
@@ -87,12 +214,22 @@ pub async fn download_update(app: AppHandle) -> Result<(), String> {
 #[tauri::command]
 #[specta::specta]
 pub async fn install_update(app: AppHandle) -> Result<(), String> {
+    let result = install_downloaded(&app).await;
+    if let Err(e) = &result {
+        log::warn!("install_update: {e}");
+    }
+    result
+}
+
+// The update and its bytes stay in place when installing fails, so the next click retries.
+// Neither lock is held while installing, which can wait on a password prompt on Linux.
+async fn install_downloaded(app: &AppHandle) -> Result<(), String> {
     let state = app.state::<UpdaterState>();
     let update = state
         .update
         .lock()
         .await
-        .take()
+        .clone()
         .ok_or("no pending update")?;
     let bytes = state
         .bytes
@@ -100,6 +237,30 @@ pub async fn install_update(app: AppHandle) -> Result<(), String> {
         .await
         .take()
         .ok_or("update not downloaded")?;
-    update.install(bytes).map_err(|e| e.to_string())?;
+    if let Err(e) = update.install(&bytes) {
+        *state.bytes.lock().await = Some(bytes);
+        return Err(e.to_string());
+    }
     app.restart()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn stable_links_to_its_version_tag() {
+        assert_eq!(
+            release_url(UpdateChannel::Stable, "0.17.0"),
+            "https://github.com/modrexio/modrex/releases/tag/v0.17.0"
+        );
+    }
+
+    #[test]
+    fn nightly_links_to_the_rolling_release() {
+        assert_eq!(
+            release_url(UpdateChannel::Nightly, "0.17.0-nightly.20261107.1"),
+            "https://github.com/modrexio/modrex/releases/tag/nightly"
+        );
+    }
 }
