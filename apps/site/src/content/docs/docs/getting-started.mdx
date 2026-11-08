@@ -3,6 +3,7 @@ title: Installation
 description: Download and install Modrex on 64-bit Windows or Linux.
 ---
 
+import { sitePath } from '../../../lib/site-path'
 import OsIcon from '../../../components/docs/OsIcon.astro'
 
 ## <OsIcon os="Windows" />Windows
@@ -34,3 +35,13 @@ Or let the install script pick and install the right package:
 ```sh
 curl -fsSL https://modrex.net/install.sh | sh
 ```
+
+## Nightly builds
+
+Nightly gets new features first and may not be as stable. If Modrex is already installed, pick
+**Nightly** in **Settings > Application > Updates** and it installs right away. Otherwise, download
+it from the <a href={sitePath('/#download')}>download section</a> under **Nightly builds**. winget
+and the install script always install Stable.
+
+See <a href={sitePath('/docs/nightly')}>Nightly builds</a> for how nightlies update and how to go
+back to Stable.
