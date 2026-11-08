@@ -148,10 +148,10 @@ jobs:
                     fi
                   done
 
-                  mkdir assets
+                  mkdir nightly-assets
                   move() {
-                    mv "$1" "assets/modrex_${VERSION}_x86_64.$2"
-                    mv "$1.sig" "assets/modrex_${VERSION}_x86_64.$2.sig"
+                    mv "$1" "nightly-assets/modrex_${VERSION}_x86_64.$2"
+                    mv "$1.sig" "nightly-assets/modrex_${VERSION}_x86_64.$2.sig"
                   }
                   move "${WIN_FILES[0]}" exe
                   move "${DEB_FILES[0]}" deb
@@ -181,13 +181,13 @@ jobs:
                     --arg version "$VERSION" \
                     --rawfile notes NOTES.md \
                     --arg pub_date "$(date -u +%Y-%m-%dT%H:%M:%S.000Z)" \
-                    --arg win_sig "$(<"assets/$ASSET.exe.sig")" \
+                    --arg win_sig "$(<"nightly-assets/$ASSET.exe.sig")" \
                     --arg win_url "$DOWNLOADS/$ASSET.exe" \
-                    --arg deb_sig "$(<"assets/$ASSET.deb.sig")" \
+                    --arg deb_sig "$(<"nightly-assets/$ASSET.deb.sig")" \
                     --arg deb_url "$DOWNLOADS/$ASSET.deb" \
-                    --arg rpm_sig "$(<"assets/$ASSET.rpm.sig")" \
+                    --arg rpm_sig "$(<"nightly-assets/$ASSET.rpm.sig")" \
                     --arg rpm_url "$DOWNLOADS/$ASSET.rpm" \
-                    --arg appimage_sig "$(<"assets/$ASSET.AppImage.sig")" \
+                    --arg appimage_sig "$(<"nightly-assets/$ASSET.AppImage.sig")" \
                     --arg appimage_url "$DOWNLOADS/$ASSET.AppImage" \
                     '{
                       version: $version,
@@ -208,7 +208,7 @@ jobs:
                   jq -r '.plugins.updater.pubkey' apps/desktop/src-tauri/tauri.conf.json |
                     base64 --decode > "$RUNNER_TEMP/updater.pub"
 
-                  ASSET="assets/modrex_${VERSION}_x86_64"
+                  ASSET="nightly-assets/modrex_${VERSION}_x86_64"
                   for ARTIFACT in "$ASSET.exe" "$ASSET.deb" "$ASSET.rpm" "$ASSET.AppImage"; do
                     DECODED_SIGNATURE="$RUNNER_TEMP/updater.minisig"
                     base64 --decode < "$ARTIFACT.sig" > "$DECODED_SIGNATURE"
@@ -257,7 +257,7 @@ jobs:
               run: |
                   set -euo pipefail
                   OLD_ASSETS=$(gh release view nightly --json assets --jq '.assets[].name')
-                  ASSET="assets/modrex_${VERSION}_x86_64"
+                  ASSET="nightly-assets/modrex_${VERSION}_x86_64"
                   gh release upload nightly "$ASSET.exe" "$ASSET.deb" "$ASSET.rpm" "$ASSET.AppImage"
                   gh release upload nightly latest.json --clobber
 
