@@ -263,8 +263,11 @@ jobs:
                   gh release upload nightly latest.json --clobber
 
                   RELEASE_ID=$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/nightly" --jq .id)
+                  # Deleting the tag turns the release into a draft that its own update does not
+                  # publish again, so the tag moves in place.
                   if [ -n "$PREVIOUS" ] && [ "$PREVIOUS" != "$COMMIT" ]; then
-                    gh api -X DELETE "repos/$GITHUB_REPOSITORY/git/refs/tags/nightly"
+                    gh api -X PATCH "repos/$GITHUB_REPOSITORY/git/refs/tags/nightly" \
+                      -f sha="$COMMIT" -F force=true > /dev/null
                   fi
                   gh api -X PATCH "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" \
                     -f tag_name=nightly \
@@ -295,7 +298,12 @@ jobs:
                     echo "::error::Stable latest.json offers $STABLE_VERSION"
                     exit 1
                   fi
-                  if [ "$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/nightly" --jq .prerelease)" != true ]; then
-                    echo '::error::The nightly release is not a pre-release'
+                  if ! NIGHTLY=$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/nightly" \
+                    --jq '"draft=\(.draft) prerelease=\(.prerelease)"'); then
+                    echo '::error::The nightly release cannot be found by its tag, it may be a draft'
+                    exit 1
+                  fi
+                  if [ "$NIGHTLY" != "draft=false prerelease=true" ]; then
+                    echo "::error::The nightly release is not a published pre-release ($NIGHTLY)"
                     exit 1
                   fi
