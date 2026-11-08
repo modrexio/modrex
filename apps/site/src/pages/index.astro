@@ -8,14 +8,14 @@ import Compare from '../components/Compare.astro'
 import DownloadSection from '../components/DownloadSection.astro'
 import Changelog from '../components/Changelog.astro'
 import SiteFooter from '../components/SiteFooter.astro'
-import { getLatestRelease, getRecentReleases } from '../lib/github'
+import { getLatestRelease, getNightlyRelease, getRecentReleases } from '../lib/github'
 import type { Release } from '../lib/github'
 import { getModIndexStats } from '../lib/mod-index'
 import type { ModIndexStats } from '../lib/mod-index'
 import { getNexusModCounts } from '../lib/nexus-mod-count'
 import type { NexusModCounts } from '../lib/nexus-mod-count'
 
-// Both fetches degrade gracefully (generic download links, no changelog section),
+// The release fetches degrade gracefully (generic download links, no changelog section),
 // but log loudly: without GITHUB_TOKEN set, shared CI build IPs hit GitHub's
 // unauthenticated rate limit and the failure is otherwise invisible in the deploy.
 let release: Release | null = null
@@ -23,6 +23,13 @@ try {
     release = await getLatestRelease()
 } catch (error) {
     console.error('Failed to load latest release', error)
+}
+
+let nightly: Release | null = null
+try {
+    nightly = await getNightlyRelease()
+} catch (error) {
+    console.error('Failed to load the nightly release', error)
 }
 
 let recentReleases: Release[] = []
@@ -80,7 +87,7 @@ const jsonLd = {
     <Hero release={release} />
     <Features indexStats={indexStats} nexusModCounts={nexusModCounts} />
     <Compare />
-    <DownloadSection release={release} />
+    <DownloadSection release={release} nightly={nightly} />
     <Changelog releases={recentReleases} />
     <SiteFooter />
 </BaseLayout>

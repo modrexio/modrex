@@ -4,8 +4,9 @@ import type { Release } from '../lib/github'
 
 interface Props {
     release: Release | null
+    nightly: Release | null
 }
-const { release } = Astro.props
+const { release, nightly } = Astro.props
 
 function formatSize(bytes: number): string {
     const mb = bytes / (1024 * 1024)
@@ -58,6 +59,28 @@ const linuxFiles: DlFile[] = [
           }
         : { name: 'modrex_x86_64.rpm', url: fallbackUrl },
 ]
+
+// Nightly file names carry the version and change with every nightly, so they are matched by
+// their ending, and the version shown is read back from the Windows installer's name.
+const nightlyUrl = 'https://github.com/modrexio/modrex/releases/tag/nightly'
+const nightlyAsset = (ending: string) =>
+    nightly?.assets.find((a) => a.name.endsWith(`_x86_64${ending}`))
+function nightlyFile(ending: string): DlFile {
+    const asset = nightlyAsset(ending)
+    if (!asset) return { name: `modrex_x86_64${ending}`, url: nightlyUrl }
+    return { name: asset.name, url: asset.browser_download_url, size: formatSize(asset.size) }
+}
+const nightlyWindowsFiles = [nightlyFile('.exe')]
+const nightlyLinuxFiles = ['.AppImage', '.deb', '.rpm'].map(nightlyFile)
+const nightlyExe = nightlyAsset('.exe')
+const nightlyVersion = nightlyExe?.name.match(/^modrex_(.+)_x86_64\.exe$/)?.[1]
+const nightlyBuilt = nightlyExe
+    ? new Date(nightlyExe.updated_at).toLocaleDateString('en-US', {
+          month: 'long',
+          day: 'numeric',
+          year: 'numeric',
+      })
+    : null
 
 const extension = (file: DlFile) => file.name.split('.').pop()
 ---
@@ -142,13 +165,73 @@ const extension = (file: DlFile) => file.name.split('.').pop()
             Works with Steam, Epic Games and the Xbox app on Windows, and Steam on Linux. See the{' '}
             <a href={sitePath('/docs/getting-started')}>installation guide</a>.
         </p>
+
+        <details class="nightly">
+            <summary>
+                Nightly builds
+                {nightlyVersion && <span class="nightly-version">v{nightlyVersion}</span>}
+                <i data-lucide="chevron-down"></i>
+            </summary>
+            <div class="nightly-body">
+                <p class="nightly-warn">
+                    <i data-lucide="triangle-alert"></i>
+                    Nightly is for people who want to help test Modrex, and it may not be as stable
+                    as the Stable version.
+                </p>
+                <div class="dl-table">
+                    <div class="dl-row">
+                        <h3 class="os">
+                            <img
+                                src={sitePath('/icons/windows-white.svg')}
+                                alt=""
+                                width="20"
+                                height="20"
+                            />
+                            Windows
+                        </h3>
+                        <div class="files">
+                            {nightlyWindowsFiles.map((f) => (
+                                <a class="btn-lg secondary dl-btn" href={f.url}>
+                                    Download .{extension(f)}{' '}
+                                    {f.size && <span class="fsize">{f.size}</span>}
+                                </a>
+                            ))}
+                        </div>
+                    </div>
+                    <div class="dl-row">
+                        <h3 class="os">
+                            <img
+                                src={sitePath('/icons/linux-white.svg')}
+                                alt=""
+                                width="20"
+                                height="20"
+                            />
+                            Linux
+                        </h3>
+                        <div class="files">
+                            {nightlyLinuxFiles.map((f) => (
+                                <a class="btn-lg secondary dl-btn" href={f.url}>
+                                    Download .{extension(f)}{' '}
+                                    {f.size && <span class="fsize">{f.size}</span>}
+                                </a>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+                <p class="dl-note">
+                    {nightlyBuilt && <>Built {nightlyBuilt}. </>}
+                    Already using Modrex? Pick Nightly in Settings under Updates instead. Read more
+                    about <a href={sitePath('/docs/nightly')}>nightly builds</a>.
+                </p>
+            </div>
+        </details>
     </div>
 </section>
 
 <script>
-    import { createIcons, Check, Copy } from 'lucide'
+    import { createIcons, Check, ChevronDown, Copy, TriangleAlert } from 'lucide'
     import { detectPlatform } from '../lib/os-detect'
-    createIcons({ icons: { Check, Copy } })
+    createIcons({ icons: { Check, ChevronDown, Copy, TriangleAlert } })
 
     document.querySelectorAll<HTMLElement>('.copy-btn').forEach((copyBtn) => {
         copyBtn.addEventListener('click', async () => {
@@ -311,6 +394,76 @@ const extension = (file: DlFile) => file.name.split('.').pop()
         margin: 20px 0 0;
         font-size: 14px;
         color: var(--text-tertiary);
+    }
+
+    /* A deliberate click away from the Stable rows, so nobody lands on a nightly by
+       accident. The rows inside reuse the Stable grid. */
+    .nightly {
+        margin-top: 32px;
+    }
+
+    .nightly summary {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        padding: 8px 0;
+        font-size: 15px;
+        font-weight: 500;
+        color: var(--color-text);
+        cursor: pointer;
+        list-style: none;
+        border-radius: var(--radius-sm);
+    }
+
+    .nightly summary::-webkit-details-marker {
+        display: none;
+    }
+
+    .nightly summary:focus-visible {
+        outline: 2px solid var(--color-accent);
+        outline-offset: 4px;
+    }
+
+    .nightly-version {
+        font-family: var(--font-mono);
+        font-size: 13px;
+        font-weight: 400;
+        color: var(--text-tertiary);
+    }
+
+    .nightly summary i,
+    .nightly summary svg {
+        display: block;
+        width: 16px;
+        height: 16px;
+        color: var(--text-tertiary);
+        transition: transform 150ms ease;
+    }
+
+    .nightly[open] summary svg {
+        transform: rotate(180deg);
+    }
+
+    .nightly-body {
+        margin-top: 16px;
+    }
+
+    .nightly-warn {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 0 0 20px;
+        font-size: 14px;
+        color: var(--text-tertiary);
+    }
+
+    .nightly-warn i,
+    .nightly-warn svg {
+        display: block;
+        flex-shrink: 0;
+        width: 16px;
+        height: 16px;
+        color: var(--color-warning);
     }
 
     @media (max-width: 640px) {

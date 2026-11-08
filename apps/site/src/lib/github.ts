@@ -16,6 +16,7 @@ export interface ReleaseAsset {
     browser_download_url: string
     size: number
     download_count: number
+    updated_at: string
 }
 
 // Build-time only. The unauthenticated GitHub API allows 60 requests/hour per IP, which shared
@@ -41,6 +42,17 @@ export async function getLatestRelease(): Promise<Release> {
     const res = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, {
         headers: githubHeaders(),
     })
+    if (!res.ok) throw await apiError(res)
+    return (await res.json()) as Release
+}
+
+// The rolling nightly pre-release, or null before the first nightly is published. Its assets
+// are replaced on every nightly, so the page only shows a nightly as fresh as its last build.
+export async function getNightlyRelease(): Promise<Release | null> {
+    const res = await fetch(`https://api.github.com/repos/${REPO}/releases/tags/nightly`, {
+        headers: githubHeaders(),
+    })
+    if (res.status === 404) return null
     if (!res.ok) throw await apiError(res)
     return (await res.json()) as Release
 }
