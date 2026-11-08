@@ -3,6 +3,7 @@ use std::sync::{
     atomic::{AtomicUsize, Ordering},
     Arc,
 };
+use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_updater::{Update, Updater, UpdaterExt};
 use tokio::sync::Mutex;
@@ -10,6 +11,13 @@ use tokio::sync::Mutex;
 const RELEASES_URL: &str = "https://github.com/modrexio/modrex/releases";
 const NIGHTLY_ENDPOINT: &str =
     "https://github.com/modrexio/modrex/releases/download/nightly/latest.json";
+
+// The whole check request, connecting included.
+const CHECK_LIMIT: Duration = Duration::from_secs(5);
+const CONNECT_LIMIT: Duration = Duration::from_secs(3);
+// The longest wait for the next bytes. A download has no total limit, so a slow link
+// still finishes while a stalled one fails.
+const READ_STALL_LIMIT: Duration = Duration::from_secs(8);
 
 pub struct UpdaterState {
     pub update: Mutex<Option<tauri_plugin_updater::Update>>,
@@ -32,14 +40,29 @@ fn release_url(channel: UpdateChannel, version: &str) -> String {
     }
 }
 
-// Stable keeps the endpoint from tauri.conf.json, which check-updater.mts validates.
-fn updater_for(app: &AppHandle, channel: UpdateChannel) -> tauri_plugin_updater::Result<Updater> {
+// Every updater shares these limits, since the plugin sets none and a stalled request would
+// never end. Stable keeps the endpoint from tauri.conf.json, which check-updater.mts validates.
+fn updater_for(
+    app: &AppHandle,
+    channel: UpdateChannel,
+) -> tauri_plugin_updater::Result<Updater> {
+    let builder = app
+        .updater_builder()
+        .timeout(CHECK_LIMIT)
+        .configure_client(|client| {
+            client
+                .connect_timeout(CONNECT_LIMIT)
+                .read_timeout(READ_STALL_LIMIT)
+        })
+        // The default hook hides every window ahead of the installer launch, so a launch that
+        // fails would leave Modrex running with nothing on screen.
+        .on_before_exit(|| {});
     if channel == UpdateChannel::Stable {
-        return app.updater();
+        return builder.build();
     }
     let endpoint =
         tauri::Url::parse(NIGHTLY_ENDPOINT).expect("the nightly endpoint is a valid URL");
-    app.updater_builder().endpoints(vec![endpoint])?.build()
+    builder.endpoints(vec![endpoint])?.build()
 }
 
 /// Returns the version found, or None when this build is up to date.
@@ -82,7 +105,15 @@ pub async fn check_for_update(app: AppHandle) -> Result<Option<String>, String> 
 #[tauri::command]
 #[specta::specta]
 pub async fn install_nightly(app: AppHandle) -> Result<bool, String> {
-    let updater = updater_for(&app, UpdateChannel::Nightly)
+    let result = move_to_nightly(&app).await;
+    if let Err(e) = &result {
+        log::warn!("install_nightly: {e}");
+    }
+    result
+}
+
+async fn move_to_nightly(app: &AppHandle) -> Result<bool, String> {
+    let updater = updater_for(app, UpdateChannel::Nightly)
         .map_err(|e| format!("could not prepare the update check: {e}"))?;
     let Some(update) = updater
         .check()
@@ -91,12 +122,12 @@ pub async fn install_nightly(app: AppHandle) -> Result<bool, String> {
     else {
         return Ok(false);
     };
-    let bytes = download(&app, &update).await?;
+    let bytes = download(app, &update).await?;
 
     // Saved before installing because the Windows installer ends this process.
-    let previous = update_settings(&app, |s| s.update_channel.replace(UpdateChannel::Nightly));
+    let previous = update_settings(app, |s| s.update_channel.replace(UpdateChannel::Nightly));
     if let Err(e) = update.install(bytes) {
-        update_settings(&app, |s| s.update_channel = previous);
+        update_settings(app, |s| s.update_channel = previous);
         return Err(e.to_string());
     }
     app.restart()
@@ -148,12 +179,22 @@ pub async fn download_update(app: AppHandle) -> Result<(), String> {
 #[tauri::command]
 #[specta::specta]
 pub async fn install_update(app: AppHandle) -> Result<(), String> {
+    let result = install_downloaded(&app).await;
+    if let Err(e) = &result {
+        log::warn!("install_update: {e}");
+    }
+    result
+}
+
+// The update and its bytes stay in place when installing fails, so the next click retries.
+// Neither lock is held while installing, which can wait on a password prompt on Linux.
+async fn install_downloaded(app: &AppHandle) -> Result<(), String> {
     let state = app.state::<UpdaterState>();
     let update = state
         .update
         .lock()
         .await
-        .take()
+        .clone()
         .ok_or("no pending update")?;
     let bytes = state
         .bytes
@@ -161,7 +202,10 @@ pub async fn install_update(app: AppHandle) -> Result<(), String> {
         .await
         .take()
         .ok_or("update not downloaded")?;
-    update.install(bytes).map_err(|e| e.to_string())?;
+    if let Err(e) = update.install(&bytes) {
+        *state.bytes.lock().await = Some(bytes);
+        return Err(e.to_string());
+    }
     app.restart()
 }
 

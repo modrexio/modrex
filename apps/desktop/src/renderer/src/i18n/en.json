@@ -163,7 +163,8 @@
         "updateDownload": "Download",
         "updateNotesTitle": "What's new in v{version}",
         "updateViewOnGithub": "View on GitHub",
-        "updateLater": "Later"
+        "updateLater": "Later",
+        "updateInstallFailed": "Could not install the update. Details are in the log."
     },
     "splash": {
         "title": "Starting Modrex",

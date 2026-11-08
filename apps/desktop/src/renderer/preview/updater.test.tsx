@@ -308,3 +308,34 @@ test('shows an error when the check fails', async () => {
     expect(screen.getByText('Could not check for updates. Details are in the log.')).toBeTruthy()
     expect(screen.queryByText("You're up to date")).toBeNull()
 })
+
+test('a failed install keeps the popup open with a failure line and retries on the next click', async () => {
+    const { dialog, install, finishDownload } = await mountUpdate()
+    install.mockRejectedValueOnce(new Error('launch blocked'))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Update' }))
+    await finishDownload()
+    await act(async () => {
+        fireEvent.click(within(dialog).getByRole('button', { name: 'Restart & Install' }))
+    })
+    expect(within(dialog).getByText(/Could not install the update/)).toBeTruthy()
+    await act(async () => {
+        fireEvent.click(within(dialog).getByRole('button', { name: 'Restart & Install' }))
+    })
+    expect(install).toHaveBeenCalledTimes(2)
+    expect(within(dialog).queryByText(/Could not install the update/)).toBeNull()
+})
+
+test('a failed install from the title bar reopens the popup with the failure line', async () => {
+    const { dialog, install, finishDownload } = await mountUpdate()
+    install.mockRejectedValueOnce(new Error('launch blocked'))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Update' }))
+    await finishDownload()
+    fireEvent.click(within(dialog).getByRole('button', { name: '' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: 'Restart & Install' }))
+    })
+    const reopened = screen.getByRole('dialog')
+    expect(within(reopened).getByText(/Could not install the update/)).toBeTruthy()
+    expect(install).toHaveBeenCalledTimes(1)
+})

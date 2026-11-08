@@ -86,6 +86,7 @@ export default function App() {
         releaseUrl: string
     } | null>(null)
     const [showUpdateModal, setShowUpdateModal] = useState(false)
+    const [installFailed, setInstallFailed] = useState(false)
     const [showSupportPrompt, setShowSupportPrompt] = useState(false)
     // A discarded Nexus session is app-wide, not per page: it silently stops installed
     // metadata, update checks and background identification everywhere, so it is reported
@@ -188,6 +189,7 @@ export default function App() {
                 body,
                 releaseUrl,
             })
+            setInstallFailed(false)
             setShowUpdateModal(true)
         })
         const offProgress = api.onUpdateProgress((percent) =>
@@ -229,6 +231,17 @@ export default function App() {
         }
     }
 
+    async function handleInstallUpdate() {
+        setInstallFailed(false)
+        try {
+            await api.installUpdate()
+        } catch (error) {
+            void logError('Update install failed: ' + String(error))
+            setInstallFailed(true)
+            setShowUpdateModal(true)
+        }
+    }
+
     const settings = {
         analyticsConsent: analyticsConsent === 'granted' || analyticsConsent === 'outdated',
         onAnalyticsConsent: handleAnalyticsConsent,
@@ -243,6 +256,7 @@ export default function App() {
                 ? { phase: update.phase, percent: update.percent }
                 : null,
         onDismissUpdate: () => setUpdate(null),
+        onInstallUpdate: handleInstallUpdate,
     }
     const banners = (
         <>
@@ -350,6 +364,11 @@ export default function App() {
                                         <MarkdownContent text={update.body} />
                                     </ScrollArea>
                                 )}
+                                {installFailed && update.phase === 'ready' && (
+                                    <p className="px-5 pt-3 text-xs text-danger-text">
+                                        {t('app.updateInstallFailed')}
+                                    </p>
+                                )}
                                 <div className="px-5 py-4 border-t border-border shrink-0 flex items-center justify-between">
                                     <Button
                                         variant="ghost"
@@ -371,10 +390,7 @@ export default function App() {
                                             </Button>
                                         )}
                                         {update.phase === 'ready' && (
-                                            <Button
-                                                variant="accent"
-                                                onClick={() => api.installUpdate()}
-                                            >
+                                            <Button variant="accent" onClick={handleInstallUpdate}>
                                                 <RefreshCw className="w-3.5 h-3.5" />
                                                 {t('app.updateInstall')}
                                             </Button>
