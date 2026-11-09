@@ -1,259 +1,70 @@
 {
     "data": [
         {
-            "id": 53365,
-            "name": "GTA Online - Diamond Casino Heist Score (Custom Heist Track)",
-            "desc": "Adds the Diamond Casino Heist Original Score from GTA Online to the [Heist Jukebox](https://modworkshop.net/mod/48329) as a custom heist track.\nFiles extracted from the game using [OpenIV](https://www.gta5-mods.com/tools/openiv).\n\nStealth\n!!!\n![](https://youtu.be/1Fzmp34N4wk)\n![](https://youtu.be/gxgXkH2SgQ4)\n![](https://youtu.be/bPh7dRFMaeQ)\n![](https://youtu.be/Rznd4KWhKY8)\n!!!\n\nControl, Anticipation and Assault\n!!!\n![](https://youtu.be/q7q6ClIZCmA)\n!!!",
-            "short_desc": "\"oh boy oh boy oh boy i wonder what loot i'm gonna get this time!!\"\ni say excitedly as i pan the vault camera to the right with no trolleys in sight",
+            "id": 59874,
+            "name": "The Payday: Aces High Track Collection",
+            "desc": "A collection of music from PAYDAY: Aces High\n\nIncludes the following tracks\n\n###  Heist Tracks\n\n!!!\nPlans In Motion\n\nStealing Candy From A Billionaire \n\nThe Higher They Climb\n\nThe Harder They Fall\n\nThe Black Market Auction\n\nThe Europa Freeport Heist\n\n!!!\n\n### Menu Tracks\n\n!!!\nIntro Music\n\nPlans In Motion\n\nSafehouse\n\nStealing Candy From a Billionaire\n\nThe Higher They Climb\n\n!!!\nThis will be updated with more music if it comes\n\nReference Playlist: https://www.youtube.com/playlist?list=OLAK5uy_mM6GdYmz1ubhq3YaphwQq17G-_LLRLBpA)",
+            "short_desc": "A collection of Music from PAYDAY: Aces High",
             "legacy_markup": false,
-            "downloads": 191,
-            "likes": 8,
-            "views": 641,
-            "published_at": "2025-08-05T13:01:33.000000Z",
-            "bumped_at": "2026-11-02T04:56:15.000000Z",
-            "category_id": 878,
-            "has_download": true,
-            "disable_mod_managers": false,
-            "download_type": null,
-            "thumbnail": {
-                "file": "3dzM48sSQn5mxG1ymeX1Qgxgo946FUfTljWwKtH1.webp",
-                "has_thumb": true
-            },
-            "user": {
-                "id": 52395,
-                "name": "smiley",
-                "donation_url": "https://paypal.me/smileyflux",
-                "avatar": "iVLh0nxeV83CIxZHIZblUIamKaFwHSFaIgdM3HtQ.webp",
-                "avatar_has_thumb": true
-            }
-        },
-        {
-            "id": 53553,
-            "name": "GTA Online - Cayo Perico Heist Score (Custom Heist Track)",
-            "desc": "Adds the Cayo Perico Heist Original Score from GTA Online to the [Heist Jukebox](https://modworkshop.net/mod/48329) as a custom heist track.\nFiles extracted from the game using [OpenIV](https://www.gta5-mods.com/tools/openiv).\n\nStealth\n!!!\n![](https://youtu.be/gpSbrq1uHos)\n![](https://youtu.be/69m7tyoTdQ8)\n![](https://youtu.be/r7OEEELHFeo)\n![](https://youtu.be/ZMo4iITg0Vs)\n![](https://youtu.be/ERWNKTnbCzY)\n![](https://youtu.be/Drfoaq07Wfg)\n!!!\n\nControl, Anticipation and Assault\n!!!\n![](https://youtu.be/pMbNb2K9e6Y)\n![](https://youtu.be/DvUS0go51Kc)\n![](https://youtu.be/jJzkurq6wbQ)\n!!!",
-            "short_desc": "top tier money farm until rockstar took it out back, gutted it, chopped it, and left it to drown",
-            "legacy_markup": false,
-            "downloads": 129,
+            "downloads": 23,
             "likes": 2,
-            "views": 450,
-            "published_at": "2025-08-24T01:50:27.000000Z",
-            "bumped_at": "2026-11-02T04:54:41.000000Z",
-            "category_id": 878,
+            "views": 121,
+            "published_at": "2026-11-09T03:01:57.000000Z",
+            "bumped_at": "2026-11-09T03:01:57.000000Z",
+            "category_id": 872,
             "has_download": true,
             "disable_mod_managers": false,
             "download_type": null,
             "thumbnail": {
-                "file": "AyGvSneho9UhlLz5evxgpyR4dIqTYYY7ULmHAQ6H.webp",
-                "has_thumb": true
-            },
-            "user": {
-                "id": 52395,
-                "name": "smiley",
-                "donation_url": "https://paypal.me/smileyflux",
-                "avatar": "iVLh0nxeV83CIxZHIZblUIamKaFwHSFaIgdM3HtQ.webp",
-                "avatar_has_thumb": true
-            }
-        },
-        {
-            "id": 53552,
-            "name": "GTA Online - Doomsday Heist Score (Custom Heist Track)",
-            "desc": "Adds the Doomsday Heist Original Score from GTA Online to the [Heist Jukebox](https://modworkshop.net/mod/48329) as a custom heist track.\nFiles extracted from the game using [OpenIV](https://www.gta5-mods.com/tools/openiv).\n\nSource Playlist for Previews:\nhttps://www.youtube.com/playlist?list=PLrfot-IqI7vIZ67Vu_DMrjcl6yup6-DRN",
-            "short_desc": "i have genuinely never played the doomsday heist\nand i still don't want to",
-            "legacy_markup": false,
-            "downloads": 138,
-            "likes": 3,
-            "views": 462,
-            "published_at": "2025-08-24T01:50:29.000000Z",
-            "bumped_at": "2026-11-02T04:53:09.000000Z",
-            "category_id": 878,
-            "has_download": true,
-            "disable_mod_managers": false,
-            "download_type": null,
-            "thumbnail": {
-                "file": "ws2a2wVFfLUrdH0mmfUqmeJa74rw08l2OMyyGCxB.webp",
-                "has_thumb": true
-            },
-            "user": {
-                "id": 52395,
-                "name": "smiley",
-                "donation_url": "https://paypal.me/smileyflux",
-                "avatar": "iVLh0nxeV83CIxZHIZblUIamKaFwHSFaIgdM3HtQ.webp",
-                "avatar_has_thumb": true
-            }
-        },
-        {
-            "id": 54263,
-            "name": "GTA Online - Original Heists Score (Custom Heist Track)",
-            "desc": "Adds the Original Heists Score from GTA Online to the [Heist Jukebox](https://modworkshop.net/mod/48329) as a custom heist track.\nFiles extracted from the game using [OpenIV](https://www.gta5-mods.com/tools/openiv).\n\nSource Playlist for Previews:\nhttps://youtube.com/playlist?list=PLfWRTRxsXMSpRKTTcWVpjefdhUteG1Qg-",
-            "short_desc": "the only good ones were the fleeca job and pacific standard",
-            "legacy_markup": false,
-            "downloads": 143,
-            "likes": 3,
-            "views": 505,
-            "published_at": "2025-11-01T19:35:44.000000Z",
-            "bumped_at": "2026-11-02T04:51:36.000000Z",
-            "category_id": 878,
-            "has_download": true,
-            "disable_mod_managers": false,
-            "download_type": null,
-            "thumbnail": {
-                "file": "MyVOgJpaNzZFCGGjfTWjQmnXDgTLCevPKbTOwdSg.webp",
-                "has_thumb": true
-            },
-            "user": {
-                "id": 52395,
-                "name": "smiley",
-                "donation_url": "https://paypal.me/smileyflux",
-                "avatar": "iVLh0nxeV83CIxZHIZblUIamKaFwHSFaIgdM3HtQ.webp",
-                "avatar_has_thumb": true
-            }
-        },
-        {
-            "id": 54352,
-            "name": "GTA V - Prologue Mission Theme (Custom Heist Track)",
-            "desc": "Adds the Prologue Mission Theme from GTA V to the [Heist Jukebox](https://modworkshop.net/mod/48329) as a custom heist track.\nFiles extracted from the game using [OpenIV](https://www.gta5-mods.com/tools/openiv).\n\nPreview Video\n![](https://www.youtube.com/watch?v=BupUyKGdRGA)",
-            "short_desc": "ABABABABABABABABA",
-            "legacy_markup": false,
-            "downloads": 98,
-            "likes": 2,
-            "views": 400,
-            "published_at": "2025-11-10T08:40:18.000000Z",
-            "bumped_at": "2026-11-02T04:49:49.000000Z",
-            "category_id": 878,
-            "has_download": true,
-            "disable_mod_managers": false,
-            "download_type": null,
-            "thumbnail": {
-                "file": "bnTtDiKuyEpc1yaGvz3FseaJ9lDX2j6MtUTvldNG.webp",
-                "has_thumb": true
-            },
-            "user": {
-                "id": 52395,
-                "name": "smiley",
-                "donation_url": "https://paypal.me/smileyflux",
-                "avatar": "iVLh0nxeV83CIxZHIZblUIamKaFwHSFaIgdM3HtQ.webp",
-                "avatar_has_thumb": true
-            }
-        },
-        {
-            "id": 57553,
-            "name": "GTA V - Bury the Hatchet/No Happy Endings (Custom Heist Track)",
-            "desc": "Adds the Bury the Hatchet Mission Theme from GTA V to the [Heist Jukebox](https://modworkshop.net/mod/48329) as a custom heist track.\nFiles extracted from the game using [OpenIV](https://www.gta5-mods.com/tools/openiv).\n\nRequested by @mylo.\n\nPreview Video\n![](https://youtu.be/ArA3bkumvoI)",
-            "short_desc": "",
-            "legacy_markup": false,
-            "downloads": 74,
-            "likes": 3,
-            "views": 270,
-            "published_at": "2026-06-14T20:02:57.000000Z",
-            "bumped_at": "2026-11-02T04:47:59.000000Z",
-            "category_id": 878,
-            "has_download": true,
-            "disable_mod_managers": false,
-            "download_type": null,
-            "thumbnail": {
-                "file": "7oB4xyiHzDEUnIM1ukmr1qYSHY3AeFnBuIXwx5dN.webp",
-                "has_thumb": true
-            },
-            "user": {
-                "id": 52395,
-                "name": "smiley",
-                "donation_url": "https://paypal.me/smileyflux",
-                "avatar": "iVLh0nxeV83CIxZHIZblUIamKaFwHSFaIgdM3HtQ.webp",
-                "avatar_has_thumb": true
-            }
-        },
-        {
-            "id": 57577,
-            "name": "GTA V - The Long Stretch/We Were Set Up (Custom Heist Track)",
-            "desc": "Adds The Long Stretch Mission Theme from GTA V to the [Heist Jukebox](https://modworkshop.net/mod/48329) as a custom heist track.\nFiles extracted from the game using [OpenIV](https://www.gta5-mods.com/tools/openiv).\n\nRequested by @mylo.\n\nPreview Video\n![](https://youtu.be/aok_pGacAGw)",
-            "short_desc": "",
-            "legacy_markup": false,
-            "downloads": 84,
-            "likes": 3,
-            "views": 286,
-            "published_at": "2026-06-15T23:23:25.000000Z",
-            "bumped_at": "2026-11-02T04:46:07.000000Z",
-            "category_id": 878,
-            "has_download": true,
-            "disable_mod_managers": false,
-            "download_type": null,
-            "thumbnail": {
-                "file": "9VnELY082gI2uOoAqXXzjprNGfp6I5hKdOjl0xO0.webp",
-                "has_thumb": true
-            },
-            "user": {
-                "id": 52395,
-                "name": "smiley",
-                "donation_url": "https://paypal.me/smileyflux",
-                "avatar": "iVLh0nxeV83CIxZHIZblUIamKaFwHSFaIgdM3HtQ.webp",
-                "avatar_has_thumb": true
-            }
-        },
-        {
-            "id": 59840,
-            "name": ":3 cube as startup video",
-            "desc": "Makes this video as the Startup video\n\nhttps://x.com/stupidgayidjot/status/2116339038722425069\n\n![](https://youtu.be/xx7bXN1MHjA)",
-            "short_desc": "OHHHHHHHHH",
-            "legacy_markup": false,
-            "downloads": 1,
-            "likes": 1,
-            "views": 19,
-            "published_at": "2026-11-02T04:34:32.000000Z",
-            "bumped_at": "2026-11-02T04:34:32.000000Z",
-            "category_id": 857,
-            "has_download": true,
-            "disable_mod_managers": false,
-            "download_type": null,
-            "thumbnail": {
-                "file": "FCK5XamGY5iV7D8G1aO2RNLEzTYAFvdi0jQ4nFYY.webp",
+                "file": "hS6KG13wUu73wESdmziZ8sX7liPGdkYILr1zagCc.webp",
                 "has_thumb": true
             },
             "user": {
                 "id": 151900,
                 "name": "ZeroZM0",
                 "donation_url": "https://buymeacoffee.com/zerozm0",
-                "avatar": "W7oP8YRObiDmqYtBuf1d5NYUHlzYAlcsZmAI10A2.webp",
+                "avatar": "PpYC6lnEXnuUzSAhaoSO2WCusnBYiu6wHO9TAh32.webp",
                 "avatar_has_thumb": true
             }
         },
         {
-            "id": 59839,
-            "name": "killer7 Scaling Difficulty Music",
-            "desc": "Adds scaling difficulty music from killer7 to correspond with heist difficulty selection\n\n![https://modworkshop.net/mod/59255](https://storage.modworkshop.net/mods/images/rK0pqLunTm1MoxVCFX5wQFBygX7JUYOPADdZlxxZ.webp)\n\n# **[PDML](https://modworkshop.net/mod/59255)**\n\n\nMusic Used:\nhttps://www.youtube.com/watch?v=q4OaCt-bdr8",
-            "short_desc": "",
+            "id": 58444,
+            "name": "Carla Body Pillow/Dakimakura [MisterCarlos]",
+            "desc": "{#007bff}(Este mod fue creado únicamente como un meme.)\n{#007bff}(Desconozco quién es el autor original del arte utilizado, pero cuento con el permiso de MisterCarlos para usarlo en este mod.)\n\n# Agradecimientos especiales a pinki_ninja y Nadz, quienes crearon \"Dynamic Bodypillow\", el mod que sirve como dependencia para que este funcione: *https://modworkshop.net/mod/59579*\n\n**INSTRUCCIONES:**\n\n**1. Instale PDML y Dynamic Bodypillow. (https://modworkshop.net/mod/59255 y https://modworkshop.net/mod/59579)**\n\n**2. En la carpeta Multi_Pillow\\Resources\\Single_Multiple coloque la textura incluida en el .zip.**\n\n**3. OPCIONAL: Borre Miku.png y ZeroTwo.png para tener exclusivamente CarlaDakimakura como Body Pillow.**",
+            "short_desc": "Carlos, ¿me regalas un completo?",
             "legacy_markup": false,
-            "downloads": 2,
-            "likes": 0,
-            "views": 55,
-            "published_at": "2026-11-02T04:00:59.000000Z",
-            "bumped_at": "2026-11-02T04:00:59.000000Z",
-            "category_id": 882,
+            "downloads": 19,
+            "likes": 3,
+            "views": 701,
+            "published_at": "2026-08-16T07:48:08.000000Z",
+            "bumped_at": "2026-11-08T17:57:08.000000Z",
+            "category_id": 881,
             "has_download": true,
             "disable_mod_managers": false,
             "download_type": null,
             "thumbnail": {
-                "file": "VHftN6vplGq7kOG9dzUPNHYFtufx1mCYHmrK5aJO.webp",
+                "file": "80ctIVSzH264jQCaT0QqHynOpPnLn4jHjq4NrRMe.webp",
                 "has_thumb": true
             },
             "user": {
-                "id": 150394,
-                "name": "david warzon",
+                "id": 166982,
+                "name": "j0912x",
                 "donation_url": "",
-                "avatar": "aYpBuByS98u9hhvUiFfBAc71vpdgptdHGAxMDpx2.webp",
+                "avatar": "NWPrsUr0I1qEyId5vKDnpX5YZZohmJ6lUnzgfbgL.webp",
                 "avatar_has_thumb": true
             }
         },
         {
             "id": 59801,
             "name": "PAYDAY 3 THAI Localization เพย์เดย์ 3 ม็อดซับไทย",
-            "desc": "**PAYDAY 3 THAI Localization**\n\nม็อดแปลไทยสำหรับคนที่อยากเล่น PAYDAY 3 แล้วเข้าใจรายละเอียดในเกมได้ง่ายขึ้น ทั้งเมนู สกิล สัญญาจ้าง เป้าหมายภารกิจ คำอธิบายอุปกรณ์ และบทสนทนา\n\nยังมีคำแปลที่ต้องปรับปรุง โดยเฉพาะซับบทสนทนาบางส่วน หากพบคำผิด อ่านแล้วงง หรือข้อความล้นจอ สามารถส่งภาพพร้อมชื่อด่านหรือไอเท็มมาแจ้งได้ เพื่อช่วยกันพัฒนาภาษาไทยให้ดีขึ้นครับ\n\nขอบคุณ ม็อดฟอนต์ไทย โดย คอมมูไทย",
+            "desc": "**PAYDAY 3 THAI Localization**\n\nม็อดแปลไทยสำหรับคนที่อยากเล่น PAYDAY 3 แล้วเข้าใจรายละเอียดในเกมได้ง่ายขึ้น ทั้งเมนู สกิล สัญญาจ้าง เป้าหมายภารกิจ คำอธิบายอุปกรณ์ และบทสนทนา\n\nยังมีคำแปลที่ต้องปรับปรุง โดยเฉพาะซับบทสนทนาบางส่วน หากพบคำผิด อ่านแล้วงง หรือข้อความล้นจอ สามารถส่งภาพพร้อมชื่อด่านหรือไอเท็มมาแจ้งได้ เพื่อช่วยกันพัฒนาภาษาไทยให้ดีขึ้นครับ\n\nขอบคุณ ม็อดฟอนต์ไทย โดย คอมมูไทย\n\nแจ้งปัญหาได้ที่ \nSteam: Somtom_Fishy\nDiscord: 1baht.",
             "short_desc": "PAYDAY 3 THAI Localization",
             "legacy_markup": false,
-            "downloads": 4,
-            "likes": 0,
-            "views": 46,
+            "downloads": 82,
+            "likes": 1,
+            "views": 143,
             "published_at": "2026-10-30T08:58:04.000000Z",
-            "bumped_at": "2026-11-02T03:45:27.000000Z",
+            "bumped_at": "2026-11-08T03:46:06.000000Z",
             "category_id": 857,
             "has_download": true,
             "disable_mod_managers": false,
@@ -271,130 +82,49 @@
             }
         },
         {
-            "id": 51487,
-            "name": "\"PD:TH - Criminal Intent V1\" as Main Menu Music",
-            "desc": "Changes PD3's main menu music to be that of [PD:TH - Criminal Intent V1](https://www.youtube.com/watch?v=pNU1fVKZaTI)\n\nInspired by @shayox and [his mod that changes the main menu music to PD:TH - Preparations V1](https://modworkshop.net/mod/50097)\n\n> **With PDML update, there are now 2 files you can choose from: REPLACEMENT and ADDON**\n>*  **Replacement replaces base game's main theme.**\n>*  **Addon makes the track selectable in [Jukebox](https://modworkshop.net/mod/48329)'s Main Menu Jukebox without overwriting base game's theme.**\n\nThanks to @zerozm for [their guide on how to make main menu music](https://gamest23.github.io/PD3WwiseAudioModding/Misc/Main%20Menu%20Music%20Event/)!\n\nMusic Preview:\n![](https://www.youtube.com/watch?v=pNU1fVKZaTI)",
-            "short_desc": "PD:TH but good...",
+            "id": 59894,
+            "name": "[Main Menu Jukebox] Transport Fever Main Menu Tracks",
+            "desc": "# IMPORTANT: REQUIRES THE HEIST JUKEBOX & PDML\n\nThis adds a track to the Main Menu jukebox, taken from Transport Fever 2 & 3.\n## Be aware that these tracks dont fit the tone of PAYDAY 3 at all. So keep that in mind when using these.\n\n\n![TPF2 Main Menu Music](https://youtu.be/wrnnPV2o580?si=yMxm9-aGC-cMZy1l)\n\n![TPF3 Main Menu Music](https://youtu.be/vudhN8uUE-w?si=9CrxcjQgf26NG2S9)\n\n(Images taken from Presskit)",
+            "short_desc": "",
             "legacy_markup": false,
-            "downloads": 222,
-            "likes": 8,
-            "views": 1165,
-            "published_at": "2025-03-18T14:03:10.000000Z",
-            "bumped_at": "2026-11-02T02:37:18.000000Z",
-            "category_id": 873,
+            "downloads": 6,
+            "likes": 2,
+            "views": 103,
+            "published_at": "2026-11-07T21:55:16.000000Z",
+            "bumped_at": "2026-11-07T21:55:16.000000Z",
+            "category_id": 880,
             "has_download": true,
-            "disable_mod_managers": true,
+            "disable_mod_managers": false,
             "download_type": null,
             "thumbnail": {
-                "file": "AzqacAYYW2LEab97NVJ2OXuFYZFrvpamEvFG9EM7.webp",
+                "file": "J9QexlaHW0dEH3BeAA5tF6IeeHV0KTUDRrKOroe7.webp",
                 "has_thumb": true
             },
             "user": {
-                "id": 156898,
-                "name": "Koi Koi",
+                "id": 141769,
+                "name": "Gordon Greedman",
                 "donation_url": "",
-                "avatar": "36MRRQ37C2hf0zArTKKxYVHuon5ZlN8FGUi2Zzpe.webp",
+                "avatar": "HMQH5Ib5b2lkPiK0e8i3mLjmXDI2XA4D46pSKZer.webp",
                 "avatar_has_thumb": true
             }
         },
         {
-            "id": 59836,
-            "name": "Mod that crashes your game",
-            "desc": "inspired by this [quality of life mod](https://modworkshop.net/mod/58423)\n\nEver wondered how life is outside of the usual Payday 3 gameplay experience? \n\nYou may now experience that with the all new Quality Of Life modification to your product via the Mod that crashes your game.\n\nMod that crashes your game is a revolutionary library  — It fixes multiple issues that PAYDAY 3 can bring to the normal consumer via ending the product there.\n\nAccidentally opened it? Crash.\n\nWanted to play it? Also Crash.\n\nNow, you can sit with the fact you have 40~ gigs of storage wasted on your selected drive\n\nDownload Now!",
-            "short_desc": "Quality of life",
+            "id": 54654,
+            "name": "Simonov’s Art",
+            "desc": "The great paintings of Don Simon from his VK account. The paintings work on all maps, but there is some kind of issue with the artwork in Delivery Charge.",
+            "short_desc": "",
             "legacy_markup": false,
-            "downloads": 3,
-            "likes": 6,
-            "views": 309,
-            "published_at": "2026-11-01T19:18:12.000000Z",
-            "bumped_at": "2026-11-01T19:18:12.000000Z",
+            "downloads": 29,
+            "likes": 2,
+            "views": 229,
+            "published_at": "2025-12-17T21:37:04.000000Z",
+            "bumped_at": "2026-11-07T21:48:42.000000Z",
             "category_id": 861,
             "has_download": true,
             "disable_mod_managers": false,
-            "download_type": null,
-            "thumbnail": {
-                "file": "qoOUYhyLbIsTTHqOQ1oCJ5qKwpbhvtDHPfw3Z0ft.webp",
-                "has_thumb": true
-            },
-            "user": {
-                "id": 151900,
-                "name": "ZeroZM0",
-                "donation_url": "https://buymeacoffee.com/zerozm0",
-                "avatar": "W7oP8YRObiDmqYtBuf1d5NYUHlzYAlcsZmAI10A2.webp",
-                "avatar_has_thumb": true
-            }
-        },
-        {
-            "id": 59794,
-            "name": "Feeding Frenzy Jukebox Tweaks",
-            "desc": "# Adds a Double Time Variant to the jukebox with some tweaks to the base track\n\n## What did i tweak for the base track?\n\n- Control and Assault Loops have custom cue exits for smoother transitions between the two\n\n- Implemented Gold & Sharke's Suspense 1-5 for it so its not just nothing for those playing it outside the intended heist\n\n- Anticipation Phase can loop if the phase is longer than 30 secs as opposed to nothing\n\n- Control phases have custom exits for transitions to anticipation - assault\n\n- Double Time version added for Jukebox for those only wanting to hear the double time assault every assault\n\n\n### The Track (if you have somehow never played this game or booted it up)\n![](https://www.youtube.com/watch?v=E25HEg9cBF0)",
-            "short_desc": "I'm feeding a frenzy rn",
-            "legacy_markup": false,
-            "downloads": 91,
-            "likes": 1,
-            "views": 260,
-            "published_at": "2026-10-31T00:56:04.000000Z",
-            "bumped_at": "2026-11-01T17:31:12.000000Z",
-            "category_id": 878,
-            "has_download": true,
-            "disable_mod_managers": false,
             "download_type": "file",
             "thumbnail": {
-                "file": "X1nYAdjSXkJCkgGdj2zYrQ9YtXMf4A1PKuBZjy9T.webp",
-                "has_thumb": true
-            },
-            "user": {
-                "id": 151900,
-                "name": "ZeroZM0",
-                "donation_url": "https://buymeacoffee.com/zerozm0",
-                "avatar": "W7oP8YRObiDmqYtBuf1d5NYUHlzYAlcsZmAI10A2.webp",
-                "avatar_has_thumb": true
-            }
-        },
-        {
-            "id": 49466,
-            "name": "Payday 3 Weapon Bench",
-            "desc": "### Currently updated to Update 3.10.1! ૮ ・ﻌ・ა\n\n-----\n\nA supplementary tool for Payday 3's loadouts\n\nView weapon stats, attachment details, and damage breakpoints and visualise the impacts of skills and attachments\n\nLocalisations for:\n- **简体中文** (Thanks Price9317 and Lunar Pearl!)\n- **Türkçe** (Thanks Sydch!)\n- **Русский** (Thanks hydall!)\n- **Polski** (Thanks Katia!)\n- **Français** (Thanks YHO!)\n-----\n\nLots of love to Price9317 and Lunar Pearl for maintaining the bench and to Sydch for the [skill icons](https://modworkshop.net/mod/47200)!\n\n**notes:the new update may have calculation issue, if you find it tell me in Comments Please**\n\n૮˶• ﻌ •˶ა\n./づ~ ♡",
-            "short_desc": "A supplementary tool for Payday 3's loadouts",
-            "legacy_markup": false,
-            "downloads": 4044,
-            "likes": 64,
-            "views": 11850,
-            "published_at": "2024-09-17T15:17:12.000000Z",
-            "bumped_at": "2026-11-01T13:27:45.000000Z",
-            "category_id": 874,
-            "has_download": true,
-            "disable_mod_managers": true,
-            "download_type": null,
-            "thumbnail": {
-                "file": "7krfeUtKYKuhDlithT9YQ6iBSP02OzevTBf3mrYK.webp",
-                "has_thumb": true
-            },
-            "user": {
-                "id": 172132,
-                "name": "Jade ・:*・。*・",
-                "donation_url": "",
-                "avatar": "iC1nWnfPP1edJ1A6Wdwz2nm2BVYY5htY1vv4RK3a.webp",
-                "avatar_has_thumb": true
-            }
-        },
-        {
-            "id": 59300,
-            "name": "Enemy Old Textures UE5",
-            "desc": "# **[Original mod](https://modworkshop.net/mod/57715) - [Author's profile](https://modworkshop.net/user/ta0403)**\n\n__**I am not the author of this mod**__. I am only reuploading mods that I personally enjoyed.\n\n**__Please support the original author!__**\n\n\n\n# **Version 2.0.0_PDML BETA**\n\n**WARNING** This version is unstable. Large quantities of enemies may cause freezes.",
-            "short_desc": "",
-            "legacy_markup": false,
-            "downloads": 84,
-            "likes": 6,
-            "views": 648,
-            "published_at": "2026-10-01T21:36:14.000000Z",
-            "bumped_at": "2026-11-01T12:39:04.000000Z",
-            "category_id": 875,
-            "has_download": true,
-            "disable_mod_managers": false,
-            "download_type": "file",
-            "thumbnail": {
-                "file": "znrJzCTKRU8kuDthC1uKo4r1djenhyf5ty0yuloD.webp",
+                "file": "2lVHybYDHsWU5ZiZA1k16oMPIvK8hNzmWPnbKMGn.webp",
                 "has_thumb": true
             },
             "user": {
@@ -406,83 +136,296 @@
             }
         },
         {
-            "id": 50887,
-            "name": "Dead Game 3 logo change",
-            "desc": "how the turn tables\n\npeak comedy",
+            "id": 53372,
+            "name": "The AWESOME Sight Replacer Mod 2",
+            "desc": "# **THIS MOD IS SPECIFICALLY MADE FOR PDML v0.1.3 IT WON'T WORK WITHOUT IT**\n\n\n\nWith this **AWESOME**™ mod you will be able to change the color *and reticle* of **EVERY** sight.\n\nFeatures present\n\n* Reticle customization with size sliders\n* Custom colors with brightness adjustment\n* Customize scope overlays (for ones that use them) \n* Disable tint or glass \n* Each gun variant (outside of presets) can have a different reticle and color \n\nI also added a custom reticle based on [KURONEKO Waifu Scope](https://www.instagram.com/reels/DdmrhW5yuPT/). \nSome overlays were taken from the [War Thunder website](https://live.warthunder.com/feed/sights/), most were made by hand.\n\n\n-----\n\nSmol Disclamer\n\n\n**AI assistance was used**: \nCodex was used for code changes, menu and UI implementation, reticle and overlay handling, save logic. \nFeature decisions, reticle/overlay images, visual feedback and in-game testing were provided by me.\n!!!\nHonestly can't wait for sbz to make their own, better version of this next patch lol\n\nAlso I'll prob only update when either the mod loader or one of the payday updates bricks it :p\n\n!!!",
             "short_desc": "",
             "legacy_markup": false,
-            "downloads": 187,
-            "likes": 7,
-            "views": 759,
-            "published_at": "2025-01-28T23:24:48.000000Z",
-            "bumped_at": "2026-10-31T23:18:56.000000Z",
+            "downloads": 935,
+            "likes": 31,
+            "views": 2952,
+            "published_at": "2025-08-06T14:32:33.000000Z",
+            "bumped_at": "2026-11-07T18:53:46.000000Z",
+            "category_id": 883,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "download_type": "file",
+            "thumbnail": {
+                "file": "cF6Yw0cMIQrh7K8jqo3lgdwmwFB0pZfvSmwW7DUk.webp",
+                "has_thumb": true
+            },
+            "user": {
+                "id": 78980,
+                "name": "catlover56",
+                "donation_url": "",
+                "avatar": "fPOPVLbavz7mnMGAFmioaOUHIk83fkHu3P07A5kZ.webp",
+                "avatar_has_thumb": true
+            }
+        },
+        {
+            "id": 50445,
+            "name": "Separated Heister Arms",
+            "desc": "> This is mainly a modification made for other modders to use. Using this without any other mods will show no visual difference ingame\n\nDoes as the name suggests, separates the heisters arms.\nCurrently many of the heisters share arm meshes making customising them hard. This mod gives each heister their own arm mesh and material that can easily be modified. Also fixes Clovers and Pearls First person arm so that its using their FP arms rather than joys\n\n*Mod was initially made for [Japanese Tattoos For Heisters](https://modworkshop.net/mod/50436) but was uploaded separately as it can be useful for other mods too*\n\n-----\n\n# Information for modders\n\nEach heister now has their own arm texture which is placed in /Content/Characters/Arms/{HeisterName}/T_{HeisterName}_Arms_BCR.\nCurrently only the BCR textures have been seperated. \n-----",
+            "short_desc": "",
+            "legacy_markup": false,
+            "downloads": 935,
+            "likes": 23,
+            "views": 3712,
+            "published_at": "2024-12-02T17:36:20.000000Z",
+            "bumped_at": "2026-11-07T17:34:46.000000Z",
+            "category_id": 875,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "download_type": null,
+            "thumbnail": null,
+            "user": {
+                "id": 151327,
+                "name": "Nadz",
+                "donation_url": "https://www.buymeacoffee.com/nadzw",
+                "avatar": "RMJ4wyAKGC9MWHHnn4FBqSPah7Mj2yry7Ye4xx20.webp",
+                "avatar_has_thumb": true
+            }
+        },
+        {
+            "id": 43906,
+            "name": "Meme Cats Phone Screen",
+            "desc": "![](https://https://streamable.com/5h8gyh)",
+            "short_desc": "",
+            "legacy_markup": false,
+            "downloads": 908,
+            "likes": 11,
+            "views": 4218,
+            "published_at": "2023-09-20T21:37:42.000000Z",
+            "bumped_at": "2026-11-07T14:09:16.000000Z",
+            "category_id": 863,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "download_type": null,
+            "thumbnail": {
+                "file": "VASRJrL8P6HsHDcU1wLKU0mS27NPa5RTltZSfrVO.webp",
+                "has_thumb": true
+            },
+            "user": {
+                "id": 20837,
+                "name": "HONOUR AMONGST THIEVES",
+                "donation_url": "",
+                "avatar": "https://avatars.akamai.steamstatic.com/20624d261b27f8abbd3cd5b2634e1d680962af46_full.jpg",
+                "avatar_has_thumb": false
+            }
+        },
+        {
+            "id": 50404,
+            "name": "Kais Floral Fit",
+            "desc": "*An iconic outfit from a silver tongued serpent. This world is full of snakes, luckily he's one you can trust. Just be sure not to cross him though, those fangs aren't for show.*\n\nThis mod retextures the \"Island Slacker\" outfit to mimic the look of my snake character. Originally meant to be a personal mod. Figured others may wanna use this for fun as well!\n\n__Comes in 2 versions!__\n- Red Shirt + Black Pants\n- Black Shirt + Tan Pants\n\nThis was a commissioned mod. All credit goes to **HedyL**. They did a fantastic job with this!",
+            "short_desc": "This mod retextures the \"Island Slacker\" outfit to mimic the look of my snake character Kai. Comes in two variants!",
+            "legacy_markup": false,
+            "downloads": 104,
+            "likes": 8,
+            "views": 922,
+            "published_at": "2024-11-27T21:25:34.000000Z",
+            "bumped_at": "2026-11-06T21:29:34.000000Z",
+            "category_id": 868,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "download_type": "file",
+            "thumbnail": {
+                "file": "5JqgmdV1dMUtLfgPtDcOlija02ToiSmywSYmZPAP.webp",
+                "has_thumb": true
+            },
+            "user": {
+                "id": 183706,
+                "name": "Kai",
+                "donation_url": "",
+                "avatar": "OZrwtoWt3Hf76wweisIkH5dzDesa9KsWj26VgIDP.webp",
+                "avatar_has_thumb": true
+            }
+        },
+        {
+            "id": 59866,
+            "name": "Dead By Daylight Pallets Replace Pallets",
+            "desc": "**Tldr: Replaces the Pallet models scattered around the heists with the Pallet from Dead by Daylight**\nCredits: \nVogel HD: Ported the Model and setup the Material and also had the Idea\nNadz: Helped with Blueprint (as in wrote all the blueprint) and also slowly discovered unusual stuff with me related to getting the pallet to work (also probably questioned my intelligence)\nBHVR: for making this Asset\n\n*Pallet may Look wierd in dark Baked Lighting*\n\n**Read Down Below for a Real Description written with love**\n.\n.\n.\n\n\n\n{#9fb9c9}(HEY YOU!)\nEver wished To get reminded about Crouching, Blinding and Wood related traumas while Heisting?\nNo...? Your getting it anyways\n\n*\"Upgrade\"* Your Payday 3 Experience By Replacing Pallets Scattered around the World with the Pallet from the hit video game {#943c32}(Dead by Daylight) (lithe not included)\n\nEnjoy a heisting experience where you rob a jewerly store, go outside and notice the pallet from {#943c32}(DBD) and giggle to yourself while you get shot by a sniper and your bones broken by a cloaker\nGet Reminded of that one time where a P100 Nea Pallet stunned you 20 times, tbagged you and then insulted your entire family in endgame chat\nlet out your inner {#943c32}(dbd) related rage at these poor probably cloned cops thanks to a piece of wood\n\nMore importantly Experience the pallet model in a lighting enviroment that isnt literal Brain Damage glued together by hopes and Dreams! (no genuinely the model looks so good in pd3 liike wowzers)\ndoesnt matter if your robbing a bank, a jewerly store, sam altmans favorite place or making meth in a {#007bff}(House)\n\nAnd Maybe Just maybe you can enter the fog and experience playing as \"The Heister\" as you go crazy ~~(or yiik out)~~ thanks to the swf\nor you can actually enter the fog irl instead and get slimed out by art the fucking clown.\nwhat are you waiting for? Download the mod or buy another sable skin so the ceo of BHVR can buy another Helicopter for himself.",
+            "short_desc": "Replaces the Pallet models scattered around the heists with the Pallet from Dead by Daylight\nthats literally it",
+            "legacy_markup": false,
+            "downloads": 27,
+            "likes": 4,
+            "views": 345,
+            "published_at": "2026-11-05T01:53:54.000000Z",
+            "bumped_at": "2026-11-06T16:34:16.000000Z",
+            "category_id": 861,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "download_type": "file",
+            "thumbnail": {
+                "file": "lqxKo4W4iEsJnYyqB2NIObLwEEeR1T3WvdNCRdjT.webp",
+                "has_thumb": true
+            },
+            "user": {
+                "id": 147661,
+                "name": "Vogel HD",
+                "donation_url": "",
+                "avatar": "vN8nwNIeC31RyLePZ9BAfCOjWa7FayrHjI2fgp6Y.webp",
+                "avatar_has_thumb": true
+            }
+        },
+        {
+            "id": 48153,
+            "name": "NepDay Logo",
+            "desc": "Replaces the original PAYDAY 3 logo with \"NepDay\" one.\n\n> There's two files, one with and one without the outline.",
+            "short_desc": "",
+            "legacy_markup": false,
+            "downloads": 165,
+            "likes": 3,
+            "views": 731,
+            "published_at": "2024-06-15T20:30:33.000000Z",
+            "bumped_at": "2026-11-05T16:44:07.000000Z",
             "category_id": 859,
             "has_download": true,
             "disable_mod_managers": false,
             "download_type": null,
             "thumbnail": {
-                "file": "Fms2lSSdjNOYVUiHvk2zH0pVuI0hiOQi0rg6jPqc.webp",
+                "file": "rrT2yoFMEEk9obsTL9rKI3M4OigPL8iEwo1mxPXg.webp",
                 "has_thumb": true
             },
             "user": {
-                "id": 160904,
-                "name": "Rockbear",
+                "id": 151742,
+                "name": "Yolo",
                 "donation_url": "",
-                "avatar": "yASrhBi0wSeQ8kOzWyNABfkNmTc3qyM9FJNBRcbu.webp",
-                "avatar_has_thumb": false
-            }
-        },
-        {
-            "id": 45354,
-            "name": "Real Weapon Names",
-            "desc": "Renames the fake weapons names to their real counterparts.\nThe project is meant to be multi-language.\n\n-----\n\n**Game version**\n\nUsing this mod with different game versions might bring to untranslated text.\nBe patient for future game patch mod compatibility.\n\n-----\n\n**Known compatibility issues**\n\nThis mod might not be compatible alongside other mods that changes any text on the screen, making this mod or the other mod not fully working.\nCompatibility issues may raise if installed alongside Colored Buffs, Continental Coins, Useful Descriptions or any other mod that changes the Game.locres files.\nThe game loads the mods according to a PAK order logic.\nWhen more than one mod changes the same file, the file contained in the PAK with higher priority wins, discarding the changes on the same file made by lower priority PAKs.\n\n-----\n\n**Tools**\n\n* LocResUtility, available on GitHub [here](https://github.com/anubi47/LocResUtility).\n* repak, available on GitHub [here](https://github.com/trumank/repak).\n\n-----\n\n**Credits**\n\n* Internet Movie Firearms Database ([https://www.imfdb.org/wiki/Payday_3](https://www.imfdb.org/wiki/Payday_3)) for weapon names.\n* Superb Soap ([https://x.com/superb_soap](https://x.com/superb_soap)), for Syntax Error DLC, Boys in Blue DLC, Houston Breakout, Fear and Greed weapon names and all mod names.\n* korethis, for Syntax Error DLC, Houston Breakout weapon names.\n* azzoriff, for reviewing Boys in Blue DLC weapon names\n\nThis is an edit of:\n* [https://modworkshop.net/mod/44299](https://modworkshop.net/mod/44299) by Nelly\n* [https://modworkshop.net/mod/43896](https://modworkshop.net/mod/43896) by HW12Dev",
-            "short_desc": "",
-            "legacy_markup": false,
-            "downloads": 7890,
-            "likes": 111,
-            "views": 17853,
-            "published_at": "2023-10-19T21:51:30.000000Z",
-            "bumped_at": "2026-10-31T21:37:08.000000Z",
-            "category_id": 859,
-            "has_download": true,
-            "disable_mod_managers": false,
-            "download_type": "file",
-            "thumbnail": {
-                "file": "CELUJlc313FM2VoXNM0PmmSYVIBRHKn1LrsaSCSJ.webp",
-                "has_thumb": true
-            },
-            "user": {
-                "id": 152697,
-                "name": "anubi",
-                "donation_url": "",
-                "avatar": "PUHvtqAjeOFII9jxeQYhVvMBbp6LhxdsMvArt41Q.webp",
+                "avatar": "3njpNJtEvPH3mCs3OdenhvrHJ2cIm829vaDp0HhS.webp",
                 "avatar_has_thumb": true
             }
         },
         {
-            "id": 53717,
-            "name": "Legacy Soundpack",
-            "desc": "A Payday 2 soundpack that changes Payday 3's weapon sounds, throwable sounds, environment sounds, UI, enemy SFXs, radio music and more.\n># ↓↓↓ All changes ↓↓↓\n!!!\n># {#FF7063}(**Weapons and Throwables Audio changes**)\n>* Weapons and throwables now have **dynamic echo** sounds that change depending on the environment. (like launch Payday 2)\n>* All weapon firing and throwable sounds are replaced with Payday 2 sounds.\n-----\n># {#FF7063}(**Enemy Audio changes:**)\n>* Bulldozer footsteps, chestplate and visor.\n>* Cloaker spawning and idle audio\n>* Stealth and combat drones\n>* Shield dinks\n>* SWAT landing\n>* Guard radios\n>* Guard radio hacks\n-----\n># {#FF7063}(**UI Audio changes**)\n>* Ammo pickups\n>* Player damage (getting hit)\n>* Whizbys \n>* Menu (Contains chat notification, ping, button highlight, purchasing, opening Crime.net, creating / joining a lobby, skills, claiming contract reward, result screen, OVERKILL notification, detection and objective stinger)\n-----\n># {#FF7063}(**Environmental Audio changes:**)\n>* Touch The Sky alarm\n>* Camera switch, loop, routed ping and destroyed audio\n>* Car alarms\n>* Computer hack\n>* Moving crane\n>* Elevator audio\n>* Fire barrel , propanes , extinguisher and wall explosions\n>* Fear & Greed outdoors ambience\n>* First World Bank vault opening\n>* Broken glass\n>* Meth lab explosion and cooking\n>* Telephones\n>* Police station radio\n>* Sprinklers\n>* Thunders\n>* Vent breaking\n-----\n># {#FF7063}(**Gear Audio changes:**)\n>* ECMs\n>* Pocket drill\n>* Thermal lance\n>* Zipline placement\n-----\n># {#FF7063}(**Vehicle Audio changes:**)\n>* Enemy and friendly helicopters\n>* New radio system for police and SWAT vehicles\n-----\n># {#FF7063}(**Player interactions Audio changes:**)\n>* Car keys pickup\n>* Masking up\n>* Unlocking safes\n>* SSD pickup and placement\n>* Bag throwing\n>* Zipties\n-----\n># {#FF7063}(**Music changes:**)\n>* Rock The Cradle (Contains 6 songs from Diamond Heist and 1 from Nightclub)\n>* Lures (Contains 9 songs)\n>* Keycard radio emitter (Contains 18 songs)\n>* Touch The Sky radio (Contains 12 songs)\n!!!\n\n\n># Small Video Preview ![](https://youtu.be/LXKjtaA-dBQ)\n># Note: reload sounds are currently not done\n> If you would like to help me with the reload sounds, let me know\n\nfeel free to suggest anything",
-            "short_desc": "",
+            "id": 50908,
+            "name": "The Payday Heist Track Collection",
+            "desc": "[***__JUKEBOX MOD REQUIRED__***](https://modworkshop.net/mod/48329)\n\nHi! Welcome to the all in one place for downloading every PDTH/PD2 Heist Track for the PD3 Heist jukebox!\n\nThis mod page is to help condense and help users from having to search up every payday 2 track and instead just come here thanks to the contributions of mod makers!\n\nFor the initial creation of this page, smiley ( @smileyflux ) , Aim ( @aim ), Ershiozer ( @ershiozer ), and I( @ZeroZM ) collaborated to have our work be shared in one page!\n\nNow tracks are currently maintained by @ZeroZM (Thats me who is writing this xd) (so if any issues and feedback, its my fault smh)\n\nBelow is how we all contributed together!\n\n## Track List\n\n!!!\n| Track Name | Original Contributer | Current Maintainer |\n| -------- | -------- | -------- |\n| 8-Bits Are Scary  | Ershiozer | ZeroZM0  |\n| Alesso | Aim | ZeroZM0|\n| And Now We Run (Combines stealth only and loud ver.)   |  Smiley |  ZeroZM0  |                  \n| Armed To The Teeth  | Smiley  |  ZeroZM0  |  \n| Backlash Ink   | ZeroZM0  | ZeroZM0  |\n| Backstab | Smiley | ZeroZM0 |\n| Black Yellow Moebius | ZeroZM0 | ZeroZM0 |\n| Blastaway | Smiley | ZeroZM0 |  \n| Blast Our Way Out | ZeroZM0| ZeroZM0|\n| Bonebreaker | ZeroZM0 | ZeroZM0 |  \n| Breach Of Security | ZeroZM0 | ZeroZM0 |  \n| Breach 2015 | ZeroZM0 | ZeroZM0 |  \n| Break The Rules | ZeroZM0 | ZeroZM0 |  \n| Bullet Rain | ZeroZM0 | ZeroZM0 |  \n| Cakewish | ZeroZM0 | ZeroZM0 |\n| Calling All Units | ZeroZM0 | ZeroZM0 |  \n| Clowns Are Scary | ZeroZM0 | ZeroZM0 |  \n| Code Silver | ZeroZM0 | ZeroZM0 |  \n| Code Silver 2018 | ZeroZM0 | ZeroZM0 |  \n| Confirmed Thrills | ZeroZM0 | ZeroZM0 |  \n| Crime Wave| ZeroZM0 | ZeroZM0 |\n| Crimewave 2015 | ZeroZM0 | ZeroZM0 |  \n| Dark Light Strike | Smiley | ZeroZM0 |\n| Dead Mans Hand | ZeroZM0 | ZeroZM0 |  \n| Deadeye | ZeroZM0 | ZeroZM0 |  \n| Death Row | ZeroZM0 | ZeroZM0 |  \n| Death Wish |ZeroZM0 | ZeroZM0 |  \n| Dirt and Dust | ZeroZM0 | ZeroZM0 |  \n| Donacdum | ZeroZM0 | ZeroZM0 |  \n| Double Cross  | ZeroZM0 | ZeroZM0 |\n| Double Cross 2017 | ZeroZM0 | ZeroZM0 |  \n| Driveshaft | ZeroZM0 | ZeroZM0 |  \n| Drop Zone | ZeroZM0 | ZeroZM0 |  \n| Evil Eye | ZeroZM0 | ZeroZM0 |  \n| Full Force Forward | ZeroZM0 | ZeroZM0 |  \n| Fully Loaded Epic Win | Smiley | ZeroZM0 |  \n| Fuse Box | ZeroZM0 | ZeroZM0 |  \n| Gold Rush | Smiley | ZeroZM0 |\n| Gun Metal Grey | ZeroZM0 | ZeroZM0 |  \n| Gun Metal Grey 2015 | ZeroZM0 | ZeroZM0 |  \n| Ho Ho Ho | ZeroZM0 | ZeroZM0 |  \n| Home Invasion | ZeroZM0 | ZeroZM0 |  \n| Home Invasion 2016 | ZeroZM0 | ZeroZM0 |  \n| Hot Pursuit | ZeroZM0 | ZeroZM0 |  \n| I will give you my all 2017| ZeroZM0 | ZeroZM0 |\n| Infinite Ammo | ZeroZM0 | ZeroZM0 |  \n| Insane             | ZeroZM0| ZeroZM0|\n| Joke's On You | ZeroZM0 | ZeroZM0 |  \n| Kicking Ass and Taking Names | ZeroZM0 | ZeroZM0 |  \n| Left In The Cold | ZeroZM0 | ZeroZM0 |  \n| Lethal Force (Razormind Alpha) | ZeroZM0 | ZeroZM0 |  \n| Locke And Load | Smiley | ZeroZM0 |  \n| Mr. Purple | Ershiozer | ZeroZM0 | \n| Ode To Greed | Smiley | ZeroZM0 |\n| On The House | ZeroZM0 | ZeroZM0 |\n| On The Road | Ershiozer | ZeroZM0 |  \n| Operation Black Light | ZeroZM0 | ZeroZM0 |  \n| Overkill (Tick Tock Alpha) | ZeroZM0 | ZeroZM0 |  \n| Payback Roulette | ZeroZM0 | ZeroZM0 |  \n| Pimped Out Getaway | ZeroZM0 | ZeroZM0 |  \n| Pounce | Smiley | ZeroZM0 |  \n| Prime Attack | ZeroZM0 | ZeroZM0 |\n| Propulsive Force | Ershiozer | ZeroZM0 |  \n| Pulse | Ershiozer | ZeroZM0 |  \n| Razormind | ZeroZM0 | ZeroZM0 |  \n| Razormind (Beta) | ZeroZM0| ZeroZM0|\n| Screech | Smiley | ZeroZM0 |  \n| Searchlights  | ZeroZM0 | ZeroZM0 |  \n| Shadows and Trickery| ZeroZM0 | ZeroZM0|\n| Showdown Inferno | ZeroZM0 | ZeroZM0 |  \n| Shoutout | ZeroZM0 | ZeroZM0 |  \n| Sirens In The Distance | ZeroZM0 | ZeroZM0 |\n| Sly Gloves | ZeroZM0 | ZeroZM0 |  \n| Something Wicked This Way Comes | Smiley | ZeroZM0 |  \n| Steel Wrapped Gift | ZeroZM0 | ZeroZM0  |  \n| Stone Cold | ZeroZM0 | ZeroZM0 |  \n| Stone Cold 2017 | ZeroZM0 | ZeroZM0 |  \n| Storm Fuel Overlord  | Smiley | ZeroZM0 |  \n| Sucker Punch | ZeroZM0 | ZeroZM0 |\n| Supersledge | ZeroZM0 | ZeroZM0 |  \n| Sweat | Smiley | ZeroZM0 |  \n| The Gauntlet | ZeroZM0 | ZeroZM0 |  \n| The Mark  | ZeroZM0 | ZeroZM0 |  \n| The Take | ZeroZM0 | ZeroZM0 |  \n| The Take 2016 | ZeroZM0 | ZeroZM0 |  \n| Three Way Deal| ZeroZM0| ZeroZM0|\n| Three Way Deal 2016| ZeroZM0| ZeroZM0|\n| Tick Tock Alpha | ZeroZM0 | ZeroZM0 | \n| Tick Tock | ZeroZM0 | ZeroZM0 |\n| Time Window | ZeroZM0 | ZeroZM0 |  \n| Trailblazer | Ershiozer | ZeroZM0 |  \n| Trainwreck | ZeroZM0 | ZeroZM0 |  \n| Trick Of The Trade | Smiley | ZeroZM0 |  \n| Troubles Always Inbound | Ershiozer | ZeroZM0 |  \n| Underground Lockdown  | ZeroZM0 | ZeroZM0 |  \n| Use of Force | Smiley | ZeroZM0 |\n| Utter Chaos | Smiley  | ZeroZM0 |  \n| Wanted Dead Or Alive | Smiley  | ZeroZM0 |  \n| Wheres The Van | ZeroZM0 | ZeroZM0 |  \n| White Collar Crime | Smiley | ZeroZM0 |  \n!!!\n\nPayday The Heist Track Pack refrences: https://www.youtube.com/watch?v=VseUTmjYGuM&list=PLzLfeJEBVglIKqPmfth78oPQWtUPjIiZE\n\n\nWant to check out the source media files? \n\n[Check out this resource dump i help with](https://modworkshop.net/mod/49210)\n\nEnjoy!",
+            "short_desc": "Every Payday Heist Track port in one mod page!",
             "legacy_markup": false,
-            "downloads": 213,
-            "likes": 14,
-            "views": 955,
-            "published_at": "2025-09-10T10:30:55.000000Z",
-            "bumped_at": "2026-10-31T18:24:02.000000Z",
-            "category_id": 882,
+            "downloads": 2426,
+            "likes": 43,
+            "views": 5441,
+            "published_at": "2025-02-22T09:15:29.000000Z",
+            "bumped_at": "2026-11-05T02:03:09.000000Z",
+            "category_id": 878,
             "has_download": true,
             "disable_mod_managers": false,
             "download_type": "file",
             "thumbnail": {
-                "file": "YKHaTM7LxPywbbUsuhEKjlPrPkpQ3nzw2xyhiaMc.webp",
+                "file": "HmdIni0KRlDKlwV72Sijxtq9GxwEg4YINtS6Jjtl.webp",
                 "has_thumb": true
             },
             "user": {
-                "id": 175424,
-                "name": "OPTImystic",
+                "id": 151900,
+                "name": "ZeroZM0",
+                "donation_url": "https://buymeacoffee.com/zerozm0",
+                "avatar": "PpYC6lnEXnuUzSAhaoSO2WCusnBYiu6wHO9TAh32.webp",
+                "avatar_has_thumb": true
+            }
+        },
+        {
+            "id": 59311,
+            "name": "Centered Heist Timer",
+            "desc": "# **Moves the heist timer to the center of the screen. FINALLY!!!**\n\nIn vanilla PAYDAY 3, the timer is positioned slightly to the left instead of being properly centered at the top of the screen.\n{#007bff}(This mod fixes its position and centers it where it should be.)\n\n**Versions**\nThere are two PDML versions:\n\n**Centered Timer:** only centers the heist timer.\n**Improved Position:** centers the timer and also improves its position (see the images).\n\nThe older version, which doesn’t require PDML, is still available.\n\n{#FF0000}(SBZ, please fix it...)\n\nSorry for my bad English.",
+            "short_desc": "Moves the heist timer to the center of the screen.",
+            "legacy_markup": false,
+            "downloads": 249,
+            "likes": 10,
+            "views": 685,
+            "published_at": "2026-10-02T14:08:08.000000Z",
+            "bumped_at": "2026-11-05T00:36:12.000000Z",
+            "category_id": 858,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "download_type": "file",
+            "thumbnail": {
+                "file": "e6JFE9r8cikk7Rfmsx9zXxjYbExIwjWAD8nP6vkE.webp",
+                "has_thumb": true
+            },
+            "user": {
+                "id": 166982,
+                "name": "j0912x",
                 "donation_url": "",
-                "avatar": "Ay80aBuofCsu3kl1q3xYBK2Sec3wPtmqCbZRhLGe.webp",
+                "avatar": "NWPrsUr0I1qEyId5vKDnpX5YZZohmJ6lUnzgfbgL.webp",
+                "avatar_has_thumb": true
+            }
+        },
+        {
+            "id": 54182,
+            "name": "(Heist Track) Goofy Phonk",
+            "desc": "**Aria Math (for Goofy Phonk)**\nstart_stealth 0:00-0:03\nstealth 0:03-0:51\n\n**Goofy Phonk**\nstart_anticipation 1:15-1:21\nanticipation 1:22-1:44\ncontrol 0:00-0:09\nstart_assault 0:44\nassault 0:45-2:30\n\n**Sources:**\n![](https://soundcloud.com/gulli-fn/ariis-goofy-phonk-slowed)\n![](https://soundcloud.com/aris-parrein/c418-aria-math-ariis-phonk-remix)",
+            "short_desc": "",
+            "legacy_markup": false,
+            "downloads": 46,
+            "likes": 2,
+            "views": 398,
+            "published_at": "2025-10-20T22:28:38.000000Z",
+            "bumped_at": "2026-11-04T20:42:50.000000Z",
+            "category_id": 878,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "download_type": null,
+            "thumbnail": {
+                "file": "0TK1N8FIiXWR3GK57Kx21bhCVJ0rKZ8kbMYDes5a.webp",
+                "has_thumb": true
+            },
+            "user": {
+                "id": 73845,
+                "name": "BlackusPL",
+                "donation_url": "https://paypal.me/BlackusPL",
+                "avatar": "FGyyWHMgORwYPyVNsaxC2lCOozg13QcPmPcSTE3G.webp",
+                "avatar_has_thumb": true
+            }
+        },
+        {
+            "id": 52166,
+            "name": "Yolo's OVK Wp Skins V1",
+            "desc": "# **{#FF0000}(!)** Requires: \n\n# [{#00FFFF}(Custom Master Materials For PAYDAY 3) ](https://modworkshop.net/mod/53765?tab=description) ![](https://storage.modworkshop.net/mods/images/Ayumu2m4mJbNT8CY8AN9zcaECDkVUM8xlJK8ankq.webp)\n\n# {#FF4500}(Update V 1.7  ) :\n\n\n![](https://storage.modworkshop.net/mods/images/sAM5ptnZ7KNOfE10CJlPYCmmPfAvT6M8gXrZ4LUU.webp)\n![](https://storage.modworkshop.net/mods/images/zAc4NhUXCZ1wJRFot0AcQkLJC8cSjumHI2gb4KEp.webp)\n![](https://storage.modworkshop.net/mods/images/V0QSM4wbos8jY2L85KOTKjv0zZIva7UzyRum87h2.webp)\n![](https://storage.modworkshop.net/mods/images/FSDjspv8RNniol8lvQWNuhuWHp02nf7wphjTugK1.webp)",
+            "short_desc": "",
+            "legacy_markup": false,
+            "downloads": 1016,
+            "likes": 28,
+            "views": 4106,
+            "published_at": "2025-05-26T22:22:01.000000Z",
+            "bumped_at": "2026-11-04T18:36:30.000000Z",
+            "category_id": 862,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "download_type": null,
+            "thumbnail": {
+                "file": "y5dlaLq0lJHMA2zp0gE6YqN1obUqnYmLrrmdJq2a.webp",
+                "has_thumb": true
+            },
+            "user": {
+                "id": 151742,
+                "name": "Yolo",
+                "donation_url": "",
+                "avatar": "3njpNJtEvPH3mCs3OdenhvrHJ2cIm829vaDp0HhS.webp",
+                "avatar_has_thumb": true
+            }
+        },
+        {
+            "id": 50328,
+            "name": "Yolo's Colored UI",
+            "desc": "> # {#00FA9A}(Please follow this instruction for Version 1.9 and above):\n\n# 1. Remove the old version from {#9370DB}(~mods) (steamapps\\common\\PAYDAY3\\PAYDAY3\\Content\\Paks\\~mods)\n# 2. For updated mod [PDML (link)](https://modworkshop.net/mod/59255) is required . Install it.\n# 3. For use with RinoHUD, you must use the [ RinoHUD PDML (link)](https://www.nexusmods.com/payday3/mods/52?tab=files&file_id=752) version \n# 4. {#00FF7F}(Follow Dependencies & Instructions)\n\n\n\nAll changes log :\n!!!\nMenu changes:\n-Cash,C-Stacks,IP\n-Party leader\n-Social icon\n-Heister icon\n-Difficult Skulls\n-Security Modifiers \n-Crossplay\n-Renown icons\n-Utility icons (pc,xbox,playstation)\n-Preplanning assets \n\nBriefing & match results:\n-Base game favors\n-DLC favors\n-Results rewards\n\nIn-game ui changes:\n-Waypoints\n-Callouts\n-Defeat states\n-Down counter\n-Deployables\n-Throwables\n-Tools\n-Hit direction\n-Safe Cracking Mini game\n-Lockpick mini game\n-Detection Bar\n-Generic Carry Images\n-Objective Icons \n\n\nBase game ui fixes:\n-mostly sizes and positions\n!!!",
+            "short_desc": "Adds UI changes, redesigned & coloured icons to base game icons",
+            "legacy_markup": false,
+            "downloads": 7145,
+            "likes": 128,
+            "views": 19161,
+            "published_at": "2024-11-23T21:44:35.000000Z",
+            "bumped_at": "2026-11-04T17:34:26.000000Z",
+            "category_id": 857,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "download_type": null,
+            "thumbnail": {
+                "file": "mm3CGyOLOeHE1ZqPbVEELrs0L6wY5sJQnHdrXccZ.webp",
+                "has_thumb": true
+            },
+            "user": {
+                "id": 151742,
+                "name": "Yolo",
+                "donation_url": "",
+                "avatar": "3njpNJtEvPH3mCs3OdenhvrHJ2cIm829vaDp0HhS.webp",
                 "avatar_has_thumb": true
             }
         },
@@ -492,11 +435,11 @@
             "desc": ":::![](https://storage.modworkshop.net/mods/images/xAPnbzyccL7jA2giH4YHxQsnGDqik8t5J9Cih0Gd.webp):::\n----\n:::is a simple mod that tweaks **{#03A61C}(SKILLS)**, **{#FF0004}(OVERKILL WEAPONS)**, **{#007bff}(ARMORS)**, **{#FFD100}(MOVEMENT SPEED)**, {#00E5FF}(**WEAPONS**) {#D8FF00}(**PERKS**) and finaly the {#EB9500}(**CALL TO ARMS**).:::\n::: This rebalance most of the game for the better.:::\n----\n> ## [This is a old video showcasing G.M.T.P. at laugh ( V 1.0 ) :](https://)\n>\n> ![](https://www.youtube.com/watch?v=Dq-N1IxtGXI)\n\nDon't worry many of the change i made are most likely fair game in my opinions, because lets be honest some skills are left in the void. \nAnd if i left some to skills its because i either have no idea how to change them or probably because i am just lazy.... 🫠​\n![](https://)\n![](https://)\n### {#FF0004}(__{#FFFFFF}(If you want to download any standalone module or check what they change just clic on any of the links :)__) 👇\n![](https://)\n* ### [{#03A61C}(**SKILLS REWORK**){#FFFFFF}(.)](https://modworkshop.net/mod/59298)\n![](https://)\n* ### [{#FF0004}(**OVERKILL WEAPONS REWORK**){#FFFFFF}(.)](https://modworkshop.net/mod/59320)\n![](https://)\n* ### [{#007bff}(**ARMORS REWORK**) {#FFFFFF}(**and**) **{#FFD100}(MOVEMENT SPEED REWORK){#FFFFFF}(.)**](https://modworkshop.net/mod/59343)\n![](https://)\n* ### [{#00E5FF}(**WEAPONS**) {#D8FF00}(**PERKS REWORK**){#FFFFFF}(.)](https://modworkshop.net/mod/59531)\n\n![](https://)\n---\n# {#EB9500}(**CALL TO ARMS**) UPDATE IS BACK FOR UPDATE 3.10.1 !\n![](https://i.imgur.com/zeZ94TI.gif)\n---\n**It change the stats for all weapons, modifications, deployables, trowables, cops behavior, trade settings and so much more !**\n{#787878}((Check out the changelogs included in the downloaded file to see all of the changes in full details that whas made.))\n\n**Also there is a small bunch of optional addons that i have added with the {#EB9500}(**CALL TO ARMS**) update.**\n\nFirst is some remake of sound for the Sniper firing shots and the Armor plates you can find and listen them here : 👇\n![](https://)\n| Sound description : | Sound preview : |\n| -------- | -------- |\n| Sniper shooting at you with his rifle. | ![](https://files.catbox.moe/sl23sm.wav) |\n| Refilling / Regenerating all armor plates. | ![](https://files.catbox.moe/q671vm.wav) |\n| One armor layer breaking down. | ![](https://files.catbox.moe/smkwxj.wav) |\n| Last armor layer breaking down. | ![](https://files.catbox.moe/g8bxgg.wav) |\n| Refilling armor / Using a armor repair kit. | ![](https://files.catbox.moe/9zr89f.wav) |\n\nThe second type is a rework to convert most visors to a simple small dot and improve all sniper long scope you can see some example here: 👇\n![](https://)\n| ![](https://i.imgur.com/6C8saR2.png) | ![](https://i.imgur.com/eGCfPTX.png) | ![](https://i.imgur.com/bT1CX5P.png) |  ![](https://i.imgur.com/kntYwGs.jpeg) | ![](https://i.imgur.com/XJE6rx2.jpeg) | ![](https://i.imgur.com/uyxcaXV.png) |  ![](https://i.imgur.com/t3Cxb0H.jpeg) |\n| -------- | -------- | -------- | -------- | -------- | -------- | -------- |\n\n![](https://)\n> Tell me if you encounter any bug of some kind ! I will answer a soon as possible.\n> {#787878}(*(I tested everything, but you can never know what magic witchcraft can happen...)*)\n![](https://)\n### **{#00FF1C}(*SO...* *HAVE FUN FELLAS !* ( ^ v ^)/)**\n![](https://)",
             "short_desc": "This mod change SKILLS, OVERKILL WEAPONS, ARMORS, MOVEMENT SPEED, WEAPONS PERKS and so much more !",
             "legacy_markup": false,
-            "downloads": 481,
+            "downloads": 505,
             "likes": 11,
-            "views": 4072,
+            "views": 4380,
             "published_at": "2026-07-13T17:27:21.000000Z",
-            "bumped_at": "2026-10-31T16:57:06.000000Z",
+            "bumped_at": "2026-11-04T13:18:01.000000Z",
             "category_id": 877,
             "has_download": true,
             "disable_mod_managers": false,
@@ -514,97 +457,16 @@
             }
         },
         {
-            "id": 59816,
-            "name": "Portrait of Old Vlad",
-            "desc": "Replaces the new Vlad portrait with the old one",
-            "short_desc": "",
-            "legacy_markup": false,
-            "downloads": 49,
-            "likes": 5,
-            "views": 239,
-            "published_at": "2026-10-31T14:36:39.000000Z",
-            "bumped_at": "2026-10-31T14:36:39.000000Z",
-            "category_id": 859,
-            "has_download": true,
-            "disable_mod_managers": false,
-            "download_type": null,
-            "thumbnail": {
-                "file": "W9eoIwtp0EuvliSKLN5CQLJEBgUpuDa8WORxBGAt.webp",
-                "has_thumb": true
-            },
-            "user": {
-                "id": 232411,
-                "name": "Fox",
-                "donation_url": null,
-                "avatar": "3JlUjc9p8Lqy6V36fbxXENOwVMPEzhp6uKB3XrIq.webp",
-                "avatar_has_thumb": true
-            }
-        },
-        {
-            "id": 59812,
-            "name": "The Payday Menu Track Collection",
-            "desc": "# A collection of Payday Menu Music for the menu jukebox feature\n\nCurrently Contains The following from\n\n## Payday The Heist\n\n!!!\nBreaking News\nGun Metal Grey (theme from First World Bank)\nDouble Cross (theme from Heat Street)\nHome Invasion (theme from Counterfeit)\nBusted (heist failed)\nStone Cold (theme from Green Bridge)\nThree Way Deal (theme from Undercover)\nPhoney Money (theme from Panic Room part 1)\nThe Take (theme from Panic Room part 2)\nSee You at the Safe House (heist successful)\nCode Silver (theme from No Mercy)\nCrime Wave (theme from Slaughterhouse)\nBreach of Security (theme from Diamond Heist)\nCriminal Intent (theme from the main menu)\nPreparations (theme from the load-out menu)\nI Will Give You My All\nShawn Davis and band – Payday for You and Me\n\n[Reference Playlist](https://www.youtube.com/playlist?list=PL0SpkMXzIPMf7ejh4whvj-uM5KRKK9VQZ)\n!!!\n\n## PAYDAY 2 \n\n!!!\nMayhem Dressed In A Suit\nToday is Payday Too\nMaster Plan \nClean Getaway Ostinato \nHard Time \nClean Getaway \nBlueprints\nBlueprints (Old Version)\nCriminal's Ambition \nLet's Go Shopping\nThis Is Our Time\nCriminal's Ambition\nCriminal's Ambition (Instrumental)\nFreeze (Release Trailer Track)\nOde All'Avidità\nOde All'Avidità (Instrumental)\nDrifting\nI'm A Wild One\nThe Flames Of Love\nHalf Past Wicked\nDouble LMGs\nMeat And Machine Guns\nRule Britannia\nAn Unexpected Call\nBad Attittude\nThe Enforcer\nShowdown\nShootout\nSwat Attack\nThis Is Goodbye\nZagrebacka\nPilgrim\nCollide\nEnter The Hallway\nHur Jag Trivs\nI Will Give You My All\nBreaking News\nBreaking News (Instrumental)\nCriminal Intent\nBusted\nBusted (Instrumental)\nSee You At The Safe House\nPreparations\nA Merry PAYDAY Christmas\nA Heist Not Attempted Before\nIf It Has To Be Christmas\nI've Been A Bad Boy\nChristmas In Prison\nDeck The Safe House\nIf It Has To Be Christmas (American Version)\nA Merry PAYDAY Christmas (Instrumental)\nA Heist Not Attempted Before (Instrumental)\nIf It Has To Be Christmas (Instrumental)\nI've Been A Bad Boy (Instrumental)\nChristmas In Prison (Instrumental)\nDeck The Safe House (Instrumental)\nIt's PAYDAY\nOjos De Diamante\nOjos De Esmeralda \n\n[Reference Playlist](https://youtube.com/playlist?list=PLkcaCmIv1oS1lybDyZukGo4McMjmo8edR&si=fUmaJhggmWsPKqtq)\n\n!!!\n\n## PAYDAY 3\n\n!!!\n[Cut Loadout](https://youtu.be/cBQdZvwrJT0?si=QI2sYr51nADA-XjX)\n\n[Preplanning](https://youtu.be/5bwNzc-QQCA?si=tMQedX3yBciKClm_)\n!!!",
-            "short_desc": "a collection of menu tracks from the Payday Series",
-            "legacy_markup": false,
-            "downloads": 97,
-            "likes": 2,
-            "views": 245,
-            "published_at": "2026-10-31T13:38:37.000000Z",
-            "bumped_at": "2026-10-31T13:38:37.000000Z",
-            "category_id": 873,
-            "has_download": true,
-            "disable_mod_managers": false,
-            "download_type": null,
-            "thumbnail": {
-                "file": "DiwWDczhv4ouuug53tKbKYlP3OtNqm2kU4wBq9kf.webp",
-                "has_thumb": true
-            },
-            "user": {
-                "id": 151900,
-                "name": "ZeroZM0",
-                "donation_url": "https://buymeacoffee.com/zerozm0",
-                "avatar": "W7oP8YRObiDmqYtBuf1d5NYUHlzYAlcsZmAI10A2.webp",
-                "avatar_has_thumb": true
-            }
-        },
-        {
-            "id": 59763,
-            "name": "Ruble Banknote 1997 Series Pack",
-            "desc": "# Ruble Banknotes (1997 Series)\n\nThis mod replaces the standard dollar bill texture with banknotes from the Russian 1997 series. \n\n**Included denominations: 5, 10, 50, 100, 500, 1000 and 5000 rubles.**\n\nEach denomination is available as a separate variant, so you can pick the one you like best.\n\n\n\n-----\n\n# **Version 2.0.0_PDML**\n\n**Added banknote selection setting.**\n\nNow you can choose your preferred banknote in mod settings - no need to install separate mods for each banknote anymore. One mod, all banknotes!",
-            "short_desc": "",
-            "legacy_markup": false,
-            "downloads": 17,
-            "likes": 0,
-            "views": 76,
-            "published_at": "2026-10-27T13:17:38.000000Z",
-            "bumped_at": "2026-10-31T11:56:16.000000Z",
-            "category_id": 881,
-            "has_download": true,
-            "disable_mod_managers": false,
-            "download_type": "file",
-            "thumbnail": {
-                "file": "KKvUa75aPu5S6HwOhYuNANX6fE9bFNws23jHCbUX.webp",
-                "has_thumb": true
-            },
-            "user": {
-                "id": 214973,
-                "name": "Fanera404",
-                "donation_url": "",
-                "avatar": "Bjw3f2Adg6LAuwNyvHbtdfzZaPCrQ3SWCXhoSh32.webp",
-                "avatar_has_thumb": true
-            }
-        },
-        {
             "id": 48329,
             "name": "Jukebox Mod",
-            "desc": "# [ZeroZM0](https://modworkshop.net/user/151900) will be maintaining the mod from now on (this is kinda a lie because i keep updating it anyways xd)\n\n## an actually good custom heist track tutorial real https://modworkshop.net/mod/48830\n\n### these guys are pretty cool\n>[ZeroZM0](https://modworkshop.net/user/151900?game=853) (uses Wwise way too much also seems pretty helpful to people)\n[Lucious](https://modworkshop.net/user/156769?game=853) (makes cool songs)\n[ershiozer](https://modworkshop.net/user/53156?game=853) (made the custom heist track tutorial i didnt bother to make)\n\nmight add more people to this list if anyone else does anything cool\n\n### Optional Fixes for Jukebox Users\n\n\n[Cook Off Fix for Jukebox](https://modworkshop.net/mod/56580): Fixes the stealth music not playing past Suspense 1\n\n[Feeding Frenzy Tweaks](https://modworkshop.net/mod/59794): Adds Suspense music for stealth and adds double time only variant for assault",
+            "desc": "## updated custom track tutorial https://modworkshop.net/mod/59789\n\n### these guys are pretty cool\n>[ZeroZM0](https://modworkshop.net/user/151900?game=853) (uses Wwise way too much also seems pretty helpful to people)\n[Lucious](https://modworkshop.net/user/156769?game=853) (makes cool songs)\n[ershiozer](https://modworkshop.net/user/53156?game=853) (made the custom heist track tutorial i didnt bother to make)\n\nmight add more people to this list if anyone else does anything cool\n\n### Optional Fixes for Jukebox Users\n\n\n[Cook Off Fix for Jukebox](https://modworkshop.net/mod/56580): Fixes the stealth music not playing past Suspense 1\n\n[Feeding Frenzy Tweaks](https://modworkshop.net/mod/59794): Adds Suspense music for stealth and adds double time only variant for assault",
             "short_desc": "Adds a Jukebox feature for PD3",
             "legacy_markup": false,
-            "downloads": 11204,
-            "likes": 134,
-            "views": 22437,
+            "downloads": 11535,
+            "likes": 139,
+            "views": 23061,
             "published_at": "2024-06-29T14:54:53.000000Z",
-            "bumped_at": "2026-10-31T09:05:50.000000Z",
+            "bumped_at": "2026-11-04T05:54:01.000000Z",
             "category_id": 882,
             "has_download": true,
             "disable_mod_managers": false,
@@ -616,36 +478,168 @@
             "user": {
                 "id": 125495,
                 "name": "braidy08",
-                "donation_url": "",
+                "donation_url": "https://ko-fi.com/braidy08",
                 "avatar": "GQr7sCeiVUZPKBmW16Ec5prpVoHvSmzowMmb5huJ.webp",
                 "avatar_has_thumb": false
             }
         },
         {
-            "id": 59756,
-            "name": "Change Fire Mode",
-            "desc": "You can change fire mode for weapons, but you can't do it for OVK and Sniper Rifles.\nNow you can choose fire cycle for weapon (Full cycle,Semi/Auto,Semi/Burst,Burst/Auto)\n\nGithub - https://github.com/Mage3824/FireTypes-Payday-3",
-            "short_desc": "Now you can change fire mode for weapons",
+            "id": 59861,
+            "name": "Old Adaptive Color (UE5)",
+            "desc": "Updated version of this mod: https://modworkshop.net/mod/52242\n\nWILL 102% BREAK WITH GAME UPDATE, TRYING TO FIGURE OUT BETTER WAY TO DO THIS\nIF BREAKS, WILL UPDATE MOD AGAIN",
+            "short_desc": "",
             "legacy_markup": false,
-            "downloads": 169,
-            "likes": 8,
-            "views": 520,
-            "published_at": "2026-10-27T14:52:42.000000Z",
-            "bumped_at": "2026-10-31T06:58:15.000000Z",
-            "category_id": 862,
+            "downloads": 23,
+            "likes": 2,
+            "views": 389,
+            "published_at": "2026-11-04T00:40:06.000000Z",
+            "bumped_at": "2026-11-04T00:40:06.000000Z",
+            "category_id": 857,
             "has_download": true,
-            "disable_mod_managers": true,
-            "download_type": "file",
+            "disable_mod_managers": false,
+            "download_type": null,
+            "thumbnail": null,
+            "user": {
+                "id": 156898,
+                "name": "Koi Koi",
+                "donation_url": "",
+                "avatar": "ryEPzgxcgfclpKmmMGKOONVMwQAMB46GBlgTEV2P.webp",
+                "avatar_has_thumb": true
+            }
+        },
+        {
+            "id": 59579,
+            "name": "Dynamic Bodypillow",
+            "desc": "Credits:  Credit goes to [Nadz](https://modworkshop.net/user/shalashaska1) and his mod [Unique Loot 3](https://modworkshop.net/mod/47136) since thats where most of the logic was taken from.\n\n---\n\nWelp another shitty pillow mod i guess, altho this one is a bit fancy,\n\nnow whats special about this mod?\n\n# Proper description\n\nThis mod changes the model of the loot bags and equipment bags, the mod also gives the user the option to either apply one texture to all of them or for example give every single bag its separate texture.\n\n# How it really works:\n\nIn the mod there are 2 folders in the Resources folder, {#ff0000}(Separate) and {#00e4ff}(Single_Multiple).\nThe {#ff0000}(Separate) folder contains images for the \"Separate\" mode in the settings, this means when you select that mode all of those textures will be loaded once and applied to all the bags as they should be. \n(Plase note that loading that many images can frezee the game for few seconds depending on how good your PC is)\n\n{#00e4ff}(Single_Multiple) folder contains images that will get applied to all of the bags no matter that type they are. You can select what textureto apply by typing the image name into the string setting.\n\nThe \"multiple\" mode is really a WIP more or less, when you type in multiple names of images in the string setting it will cycle them in a timer that you can also adjust.\n**example: miku,zerotwo**\n\nThe mod comes with ZeroTwo and HatsuneMiku textures by default so feel free to test how the mod behaves before you blindly try to make a texture yourself.\n\n(the texture size is 1024x1024)\n\n# What this means for modders?\n\nnothing really... this mod was made in a way so that there shouldnt be a need for more bodypillow mods to be published since as long as you know how to edit pictures you should be able to make your own texture for the mod.\n\nI dont really see the need to update this mod with more textures since anyone can add their own so the only updates will be done to the model and material used on the model.\n\n\n# Future ideas\n\n- better model\n- better material so that it does more than just display a texture\n- possibly figure out more on the multiple mode\n-  MAYBE figure out how to allow the user to switch between bag models",
+            "short_desc": "",
+            "legacy_markup": false,
+            "downloads": 143,
+            "likes": 12,
+            "views": 796,
+            "published_at": "2026-10-18T13:16:06.000000Z",
+            "bumped_at": "2026-11-03T21:55:28.000000Z",
+            "category_id": 861,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "download_type": null,
             "thumbnail": {
-                "file": "CH0CHaOqADQtUvZp7wflVZarGZhYw7BzEziJFlhD.webp",
+                "file": "D2yhcOmIOX0cH09FxW7PSY2aj1jO1xRTtiSeoKz5.webp",
                 "has_thumb": true
             },
             "user": {
-                "id": 232750,
-                "name": "_Mage_",
-                "donation_url": null,
-                "avatar": "I9dC0Yeh2k2nMHAD8s5eJZnpWf2YgQ0icHQauhwq.webp",
-                "avatar_has_thumb": false
+                "id": 113369,
+                "name": "pinki_ninja",
+                "donation_url": "",
+                "avatar": "yoRryA909B5Z22wI0hVaSyNuSGPqdX2SZjaq6P1T.webp",
+                "avatar_has_thumb": true
+            }
+        },
+        {
+            "id": 59789,
+            "name": "Updated Custom Track Tutorial",
+            "desc": "# Make custom tracks for the [PD3 Jukebox Mod!](https://modworkshop.net/mod/48329)\n\nThis will cover how to make a Heist/Menu track and use the modkit to package it.\n\n**YOU WILL ALSO LEARN AUDIO CONVERSION SO YOUR TRACK ISNT 11GB ON EXPORT :D**\n\nGo to downloads, and open the link for the guide\n\nThis was seperated from a WIP update from the[ audio modding site](https://modworkshop.net/mod/51880) managed by me and gamest23 but since people keep asking, here it is in google dockey format.\n\n## Dependency\n\n- PDML Modkit\n \n- Wwise 2023.1.15 via the Audio Kinetic Launcher (https://www.audiokinetic.com/download/)\n\n- Music [(if for mws upload, please read the music rules so you save time for the both of us thx)](https://modworkshop.net/document/rules#music-rules)",
+            "short_desc": "a short-ish guide for those wanting to make a heist track and menu track",
+            "legacy_markup": false,
+            "downloads": 65,
+            "likes": 2,
+            "views": 286,
+            "published_at": "2026-11-03T07:47:51.000000Z",
+            "bumped_at": "2026-11-03T07:47:51.000000Z",
+            "category_id": 875,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "download_type": null,
+            "thumbnail": {
+                "file": "lpgBWNzAfRJ59IKQxuSV5lGX18vSeyNvopYFUAll.webp",
+                "has_thumb": true
+            },
+            "user": {
+                "id": 151900,
+                "name": "ZeroZM0",
+                "donation_url": "https://buymeacoffee.com/zerozm0",
+                "avatar": "PpYC6lnEXnuUzSAhaoSO2WCusnBYiu6wHO9TAh32.webp",
+                "avatar_has_thumb": true
+            }
+        },
+        {
+            "id": 53225,
+            "name": "OVERDOSE - Femtanyl Pack (Payday 3 version)",
+            "desc": "**Femtanyl music pack to listen to while a zapper and cloaker combos you to death! Originally was just a [Payday 2 mod pack](https://modworkshop.net/mod/51751) by PyroBoom but i ported the songs to Payday 3! Music might be a bit loud lol Lemme know if i should change/fix anything! REQUIRES PDML TO WORK**\nIncludes these songs:\n\n*  [ACT RIGHT](https://www.youtube.com/watch?v=f1iwhiebHLA)\n*  [ALL THE TIME](https://www.youtube.com/watch?v=ZlKSjeYIxr8)\n*  [AND I'M GONE](https://www.youtube.com/watch?v=MWdqIZvkv6Y)\n*  [AND I'M GONE [BUNGEX]](https://www.youtube.com/watch?v=va7Qh5VBlmU)\n*  [ATTACKING VERTICAL](https://www.youtube.com/watch?v=uKIFNfmYcFI)\n*  [BODY THE PISTOL](https://www.youtube.com/watch?v=rsaQsHxu4LU)\n*  [BOTHERED](https://www.youtube.com/watch?v=OZ04Q6nfLMg)\n*  [Bullet Train Plasterboard](https://www.youtube.com/watch?v=j0GF9gaB13U)\n*  [CITY](https://www.youtube.com/watch?v=IKzSQJk_AWA)\n*  [DOGMATICA](https://www.youtube.com/watch?v=PRXS2kDFVIY)\n*  [DINNER](https://www.youtube.com/watch?v=VA69HxJW23E)\n*  [GIRL HELL 1999](https://www.youtube.com/watch?v=BmmMfZR8C80)\n*  [HEAD UP](https://www.youtube.com/watch?v=iNU4XHSCaD4)\n*  [HELLTARGET](https://www.youtube.com/watch?v=Z8Md_6OKarQ&list=PLxA687tYuMWix9IB4QpITtfuIkSdSQFh8&index=6)\n*  [IT'S TIME](https://www.youtube.com/watch?v=olkgI3CPsk4)\n*  [IS THIS IT](https://www.youtube.com/watch?v=YYNg4khL6xs&list=PLxA687tYuMWix9IB4QpITtfuIkSdSQFh8&index=12)\n*  [KATAMARI](https://www.youtube.com/watch?v=YfXpNIQbdjo)\n*  [LOVESICK, CANNIBAL](https://www.youtube.com/watch?v=SEMVNUItKZc)\n*  [LOTTERY](https://www.youtube.com/watch?v=_lAyonVMuls)\n*  [M3 N MIN3](https://www.youtube.com/watch?v=qUcvfZ0ft-k)\n*  [MAGFEST](https://www.youtube.com/watch?v=aReRh87HlOc)\n*  [MAN BITES DOG](https://www.youtube.com/watch?v=o716PMVx0do&list=PLxA687tYuMWix9IB4QpITtfuIkSdSQFh8&index=11)\n*  [MURDER EVERY1 U KNOW [FEMTANYL]](https://www.youtube.com/watch?v=ZGCckws9SJI)\n*  [MURDER EVERY1 U KNOW [SALV]](https://www.youtube.com/watch?v=lDpUsJ3Gk-g)\n*  [NASTYWERKKKK](https://www.youtube.com/watch?v=CFVAE23tekc)\n*  [nice modems](https://www.youtube.com/watch?v=36auahN_Qxw)\n*  [P3T](https://www.youtube.com/watch?v=Ja2J2WkmjNg)\n*  [POCKETS](https://www.youtube.com/watch?v=gNwegG-eTck)\n*  [PUSH UR T3MPRR](https://www.youtube.com/watch?v=LdTIl4FS-58)\n*  [VIDEO NASTY](https://www.youtube.com/watch?v=hKLbYFynRWg&list=PLxA687tYuMWix9IB4QpITtfuIkSdSQFh8&index=4)\n*  [WAR GIRL](https://www.youtube.com/watch?v=vJTb2bQc_Qw)\n*  [WEIGHTLESS](https://www.youtube.com/watch?v=I1SNuS67Pb4)\n*  [WORLDWID3](https://www.youtube.com/watch?v=19Tx3LDpgRk)",
+            "short_desc": "Femtanyl music pack for Payday 3",
+            "legacy_markup": false,
+            "downloads": 245,
+            "likes": 4,
+            "views": 869,
+            "published_at": "2025-07-23T15:00:07.000000Z",
+            "bumped_at": "2026-11-03T06:32:27.000000Z",
+            "category_id": 878,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "download_type": null,
+            "thumbnail": {
+                "file": "I4zQtB3XwifbAx9010q40bfCsFurOPd6zOpROYRv.webp",
+                "has_thumb": true
+            },
+            "user": {
+                "id": 159107,
+                "name": "Moedefy",
+                "donation_url": "",
+                "avatar": "LHxNpyoycxNwis5EZU3eMPTdXnKXi3ctTjZ1R5hA.webp",
+                "avatar_has_thumb": true
+            }
+        },
+        {
+            "id": 58942,
+            "name": "On The House (Like Carpet) - Gustavo Continho",
+            "desc": "# Adds On The house (Like Carpet) as a heist track\n\nThumbnail by @Gamest23\n\n\n\n## Trailer:\n![](https://youtu.be/UCOUh_WH-h8)\n\nSnippet of the track\n\n![](https://files.catbox.moe/o1cs39.ogg)\n\nOriginal Track:\n\n![](https://https://www.youtube.com/watch?v=4YYdesDUow8)",
+            "short_desc": "Adds Gustavo's Alpha version of On The House",
+            "legacy_markup": false,
+            "downloads": 25,
+            "likes": 2,
+            "views": 196,
+            "published_at": "2026-11-03T02:53:04.000000Z",
+            "bumped_at": "2026-11-03T02:53:04.000000Z",
+            "category_id": 878,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "download_type": null,
+            "thumbnail": {
+                "file": "w5ZfWdYPeCFDl3gkSqwSC7qjU0JzHcrQO0AQaWId.webp",
+                "has_thumb": true
+            },
+            "user": {
+                "id": 151900,
+                "name": "ZeroZM0",
+                "donation_url": "https://buymeacoffee.com/zerozm0",
+                "avatar": "PpYC6lnEXnuUzSAhaoSO2WCusnBYiu6wHO9TAh32.webp",
+                "avatar_has_thumb": true
+            }
+        },
+        {
+            "id": 46399,
+            "name": "Beta HUD",
+            "desc": "> Mod requires [PDML](https://modworkshop.net/mod/59255) to work\n> **New modders: Check Dependencies & Instructions**\n\nReplaces the HUD widgets with Beta HUD Widgets.\nIts not a perfect 1to1 version of the Beta HUD as I have had to manually go through and recreate each UI element to make them look like the beta (to avoid crashes). Not everything has been recreated yet and there are still some visual improvements I want to make.",
+            "short_desc": "",
+            "legacy_markup": false,
+            "downloads": 3694,
+            "likes": 85,
+            "views": 18390,
+            "published_at": "2024-01-06T05:16:52.000000Z",
+            "bumped_at": "2026-11-02T21:17:04.000000Z",
+            "category_id": 858,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "download_type": "file",
+            "thumbnail": {
+                "file": "xouM1E31SABIrNFb366a5gCFnK7iFjrZTctCwzvQ.webp",
+                "has_thumb": true
+            },
+            "user": {
+                "id": 151327,
+                "name": "Nadz",
+                "donation_url": "https://www.buymeacoffee.com/nadzw",
+                "avatar": "RMJ4wyAKGC9MWHHnn4FBqSPah7Mj2yry7Ye4xx20.webp",
+                "avatar_has_thumb": true
             }
         }
     ],
