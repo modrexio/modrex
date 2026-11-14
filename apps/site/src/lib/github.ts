@@ -18,6 +18,18 @@ export interface ReleaseAsset {
     download_count: number
 }
 
+export function getDownloadUrls(release: Release | null) {
+    const fallback = 'https://github.com/modrexio/modrex/releases/latest'
+    return {
+        windows:
+            release?.assets.find((asset) => asset.name.endsWith('.exe'))?.browser_download_url ??
+            fallback,
+        linux:
+            release?.assets.find((asset) => asset.name.endsWith('.AppImage'))
+                ?.browser_download_url ?? fallback,
+    }
+}
+
 // Build-time only. The unauthenticated GitHub API allows 60 requests/hour per IP, which shared
 // CI build IPs can hit; setting a GITHUB_TOKEN env var raises it to 5000/hour. The token is
 // optional so local builds and forks still work without one.
