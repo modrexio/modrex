@@ -101,7 +101,7 @@ CORS rule on the R2 bucket (Cloudflare dashboard, not this repo) allowing `GET` 
 
 Client-side OS detection is shared: `detectPlatform()` in `src/lib/os-detect.ts` returns `'windows'`, `'linux'` or `null`, and is imported by the three components with download buttons — `Hero.astro`, `DownloadSection.astro`, `Nav.astro`.
 
-Principle: a build is proposed only once its platform is recognized, never by default. The markup proposes nothing: the hero's per-platform download buttons are hidden, the nav Download buttons link to the download section, and every download in that section is secondary. A recognized platform reveals its hero button, points the nav buttons at its build and fills its main download (the Linux install command is the one-liner served by `functions/install.sh.ts`). Change detection logic only in `os-detect.ts`.
+Principle: a build is proposed only once its platform is recognized, never by default. The markup proposes nothing: the hero's per-platform download buttons are hidden, the nav Download buttons link to the download section, and every download in that section is secondary. A recognized platform reveals its hero button linking to its build, points the nav buttons at the same build and fills its main download (the Linux install command is the one-liner served by `functions/install.sh.ts`). Hero and Nav share the build URLs from `getDownloadUrls()` in `src/lib/github.ts`. Change detection logic only in `os-detect.ts`.
 
 ### Analytics & consent
 

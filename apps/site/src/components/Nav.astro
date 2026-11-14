@@ -1,6 +1,6 @@
 ---
 import { sitePath } from '../lib/site-path'
-import type { Release } from '../lib/github'
+import { getDownloadUrls, type Release } from '../lib/github'
 
 interface Props {
     activePage?: string
@@ -8,11 +8,7 @@ interface Props {
 }
 const { activePage = '', release = null } = Astro.props
 
-const fallback = 'https://github.com/modrexio/modrex/releases/latest'
-const winUrl =
-    release?.assets.find((a) => a.name.endsWith('.exe'))?.browser_download_url ?? fallback
-const linUrl =
-    release?.assets.find((a) => a.name.endsWith('.AppImage'))?.browser_download_url ?? fallback
+const { windows: winUrl, linux: linUrl } = getDownloadUrls(release)
 ---
 
 <nav>
