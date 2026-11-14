@@ -12,7 +12,7 @@ const modrexCodeTheme = {
         'editor.foreground': '#f4f4f3', // --color-text
     },
     tokenColors: [
-        { scope: ['comment'], settings: { foreground: '#756f6b' } }, // --color-text-subtle
+        { scope: ['comment'], settings: { foreground: '#847e7a' } }, // --color-text-subtle
         {
             scope: [
                 'keyword',
