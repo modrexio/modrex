@@ -1,5 +1,6 @@
 ---
 import { Picture } from 'astro:assets'
+import { sitePath } from '../lib/site-path'
 import type { ModIndexStats } from '../lib/mod-index'
 import type { NexusModCounts } from '../lib/nexus-mod-count'
 import browseMods from '../assets/screenshots/browse-mods-window.webp'
@@ -59,10 +60,7 @@ const installedCrop = crop(300, 242, 1120, 600)
             <div class="row art">
                 <div class="row-text">
                     <h3>From mod page to game</h3>
-                    <p>
-                        Find a mod on ModWorkshop or Nexus Mods, install it, switch it on and start
-                        the game, modded or vanilla.
-                    </p>
+                    <p>Browse a mod page, install the mod, enable it, then play.</p>
                 </div>
                 <Sketch name="mod-route" />
             </div>
@@ -71,15 +69,14 @@ const installedCrop = crop(300, 242, 1120, 600)
                 <div class="row-text">
                     <h3>Launch modded or vanilla</h3>
                     <p>
-                        Launch with enabled mods or use Launch without mods. Ready or Not uses Safe
-                        Mode for Pak mods. Other games temporarily hide managed mods and restore
-                        them when the game exits.
+                        Start the game with your enabled mods, or use Launch without mods for{' '}
+                        <a href={sitePath('/docs/concepts/launch-modes')}>supported mod types</a>.
                     </p>
                 </div>
                 <div class="crop" style={launchCrop.frameStyle}>
                     <Picture
                         src={installedMods}
-                        alt="The Launch without mods and Launch modded buttons in the Modrex top bar"
+                        alt="The Launch without package mods and Launch modded buttons in the Modrex top bar"
                         widths={CROP_WIDTHS}
                         sizes={launchCrop.sizes}
                         formats={['avif']}
@@ -97,7 +94,10 @@ const installedCrop = crop(300, 242, 1120, 600)
                         Search both sites with categories, tags and sorting, read the mod page, and
                         install from the result.{' '}
                         {nexusModsAvailable && (
-                            <span>Nexus lists {nexusModsAvailable} mods for these games.</span>
+                            <span>
+                                Nexus lists {nexusModsAvailable} mods across{' '}
+                                <a href={sitePath('/docs/games/')}>supported games</a>.
+                            </span>
                         )}
                     </p>
                 </div>
