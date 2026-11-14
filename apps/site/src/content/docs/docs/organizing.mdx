@@ -10,12 +10,12 @@ import Callout from '../../../components/docs/Callout.astro'
 
 Create folders on the **Installed** tab to group related mods. Folders can be nested to any depth.
 
-- **Create a folder** - click **New Folder** in the toolbar, or **New Subfolder** on an existing
+- **Create a folder** with **New Folder** in the toolbar, or **New Subfolder** on an existing
   folder's row.
-- **Move a mod into a folder** - drag it from the list and drop it onto the folder name.
-- **Rename or delete** - use the pencil or trash button on the folder's row.
+- **Move a mod into a folder** by dragging it from the list onto the folder name.
+- **Rename or delete** a folder with the pencil or trash button on its row.
 
-Deleting a folder moves its contents to the parent level; the mod files are not removed from disk.
+Deleting a folder moves its contents to the parent level. The mod files are not removed from disk.
 
 ## Priority order
 
@@ -26,7 +26,7 @@ Keep higher-priority `.pak` mods higher in the list. Modrex writes the filenames
 them in the intended order.
 
 Drag mods up and down within the list to reorder them. Priority is scoped to siblings within the same
-folder - mods in different folders don't compete unless they reference the same game assets.
+folder. Mods in different folders don't compete unless they reference the same game assets.
 
 See <a href={sitePath('/docs/concepts/priority-and-state')}>Priority and state</a> for how visual order, filename prefixes,
 enabled state, and missing files work across game targets.
@@ -46,9 +46,7 @@ Missing files appear as ghost rows so you can repair a partially deleted mod wit
 everything.
 
 Open **Manage files** from the `⋮` options menu on any mod card or list row. The same menu also
-lets Crime Boss users move a mod between the ModKit and legacy install targets — see
-
-<a href={sitePath('/docs/games/crime-boss#choosing-an-install-target')}>Crime Boss</a>.
+lets Crime Boss users move a mod between the ModKit and legacy install targets. See <a href={sitePath('/docs/games/crime-boss#choosing-an-install-target')}>Crime Boss</a>.
 
 ## Bulk enable / disable
 
