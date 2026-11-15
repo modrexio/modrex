@@ -29,3 +29,13 @@ license = "MIT"
 [[miniz_oxide.clarify.files]]
 path = "LICENSE"
 checksum = "4108245a1f2df9d4e94df8abed5b4ba0759bb2f9b40a6b939f1be141077ae50b"
+
+# rfd ships two MIT texts with different copyright holders, its own LICENSE and one under
+# src/backend/xdg_desktop_portal/window_identifier. cargo-about reads whichever it finds
+# first, so without the pin two CI runs can disagree and check-licenses fails.
+[rfd.clarify]
+license = "MIT"
+
+[[rfd.clarify.files]]
+path = "LICENSE"
+checksum = "65fc947f4bac882a2cd104ef73c246b1b037059df9f2b3a58b7f77f0b9e56071"
