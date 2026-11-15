@@ -57,7 +57,7 @@ export function FileDropInstall({ children }: { children: ReactNode }) {
                     gameName={GAMES[displayTarget.activeGame].name}
                 />
             )}
-            {dropResult && <FileDropStatus result={dropResult} onDismiss={dismissResult} />}
+            <FileDropStatus result={dropResult} onDismiss={dismissResult} />
             {prompt?.sentinel.kind === 'zip' && (
                 <ZipPickerModal
                     payload={prompt.sentinel.payload}

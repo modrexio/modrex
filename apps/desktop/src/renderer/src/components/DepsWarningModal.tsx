@@ -91,10 +91,10 @@ function DependencyRow({
             )}
             {isInstalling && progress !== null && (
                 <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-surface-active">
-                    {progress.total > 0 ? (
+                    {progressPct !== null ? (
                         <div
-                            className="h-full bg-accent transition-[width] duration-100"
-                            style={{ width: `${progressPct}%` }}
+                            className="h-full w-full origin-left bg-accent transition-[scale] duration-feedback"
+                            style={{ scale: `${progressPct / 100} 1` }}
                         />
                     ) : (
                         <div className="h-full bg-accent animate-pulse w-full" />

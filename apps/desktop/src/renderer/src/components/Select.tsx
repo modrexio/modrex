@@ -65,7 +65,7 @@ export function Select({
                 <RadixSelect.Content
                     position="popper"
                     sideOffset={4}
-                    className="z-50 min-w-[var(--radix-select-trigger-width)] bg-surface-raised border border-border rounded shadow-lg overflow-hidden"
+                    className="z-50 min-w-[var(--radix-select-trigger-width)] bg-surface-raised border border-border rounded shadow-lg overflow-hidden origin-(--radix-select-content-transform-origin) data-[state=open]:animate-overlay-in data-[state=closed]:animate-overlay-out"
                 >
                     <div className="modrex-scrollbar-host max-h-60">
                         <RadixSelect.Viewport

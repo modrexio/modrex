@@ -132,7 +132,7 @@ export function WelcomeScreen({ onSelectGame }: Props) {
                                     key={g}
                                     onClick={() => onSelectGame(g)}
                                     aria-label={GAMES[g].name}
-                                    className="group relative transform-gpu aspect-[2/3] overflow-hidden rounded-lg border border-border bg-surface-raised transition-all duration-200 hover:scale-[1.03] hover:border-accent/60 focus-visible:outline-none focus-visible:border-accent/60"
+                                    className="group relative transform-gpu aspect-[2/3] overflow-hidden rounded-lg border border-border bg-surface-raised transition-[border-color,scale] duration-surface ease-standard hover:scale-[1.03] hover:border-accent/60 focus-visible:outline-none focus-visible:border-accent/60"
                                 >
                                     {showFallback ? (
                                         <div
@@ -162,7 +162,7 @@ export function WelcomeScreen({ onSelectGame }: Props) {
                                             }
                                         />
                                     )}
-                                    <div className="absolute inset-0 bg-black/0 transition-colors duration-200 group-hover:bg-black/10" />
+                                    <div className="absolute inset-0 bg-black/0 transition-colors duration-surface ease-standard group-hover:bg-black/10" />
                                 </button>
                             )
                         })}

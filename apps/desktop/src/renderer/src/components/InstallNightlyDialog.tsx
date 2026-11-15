@@ -71,8 +71,8 @@ export function InstallNightlyDialog({ onClose }: { onClose: () => void }) {
                             className="flex-1 h-1 rounded-full overflow-hidden bg-surface-active"
                         >
                             <div
-                                className="h-full bg-accent transition-[width] duration-100"
-                                style={{ width: `${percent}%` }}
+                                className="h-full w-full origin-left bg-accent transition-[scale] duration-feedback"
+                                style={{ scale: `${percent / 100} 1` }}
                             />
                         </div>
                         <span className="text-xs text-text-muted tabular-nums shrink-0">
