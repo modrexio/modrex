@@ -50,12 +50,12 @@ export function Dialog({
     return (
         <RadixDialog.Root open={open} onOpenChange={onOpenChange}>
             <RadixDialog.Portal>
-                <RadixDialog.Overlay className="fixed inset-0 z-50 bg-black/60" />
+                <RadixDialog.Overlay className="fixed inset-0 z-50 bg-black/60 data-[state=open]:animate-dialog-backdrop-in" />
                 <RadixDialog.Content
                     onOpenAutoFocus={onOpenAutoFocus}
                     onCloseAutoFocus={onCloseAutoFocus}
                     onPointerDownOutside={keepOpenOnWindowChrome}
-                    className={`fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2 bg-surface-raised border border-border rounded-xl shadow-xl flex flex-col overflow-hidden focus:outline-none text-text ${sizeClasses[size]} ${className ?? ''}`}
+                    className={`fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2 bg-surface-raised border border-border rounded-xl shadow-xl flex flex-col overflow-hidden focus:outline-none text-text data-[state=open]:animate-overlay-in ${sizeClasses[size]} ${className ?? ''}`}
                 >
                     <RadixDialog.Title className="sr-only">{title}</RadixDialog.Title>
                     {children}

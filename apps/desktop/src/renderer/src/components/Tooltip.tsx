@@ -17,7 +17,7 @@ export function Tooltip({ content, children, side = 'top', disabled = false }: P
                 <RadixTooltip.Content
                     side={side}
                     sideOffset={4}
-                    className="z-50 px-2 py-1 rounded bg-surface-active border border-border text-xs text-text shadow-lg select-none"
+                    className="z-50 px-2 py-1 rounded bg-surface-active border border-border text-xs text-text shadow-lg select-none origin-(--radix-tooltip-content-transform-origin) data-[state=delayed-open]:animate-overlay-in"
                 >
                     {content}
                 </RadixTooltip.Content>
