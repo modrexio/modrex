@@ -1,24 +1,27 @@
-import { useEffect, useState } from 'react'
+import { useLayoutEffect, useRef, useState, type AnimationEvent } from 'react'
 import { PackagePlus, CircleCheck, CircleAlert, Loader2, X } from 'lucide-react'
 import { t } from '../i18n'
 import type { DropResult } from '../hooks/useFileDropInstall'
 
-// Keeps children mounted through the exit transition: flips shown on the next frame
-// after mount (enter), and delays unmount by the transition duration on active=false.
-function useMountTransition(active: boolean, durationMs: number) {
+function useExitAnimation(active: boolean) {
     const [render, setRender] = useState(active)
-    const [shown, setShown] = useState(false)
-    useEffect(() => {
+    const ref = useRef<HTMLDivElement>(null)
+    useLayoutEffect(() => {
         if (active) {
             setRender(true)
-            const id = requestAnimationFrame(() => setShown(true))
-            return () => cancelAnimationFrame(id)
+            return
         }
-        setShown(false)
-        const timer = window.setTimeout(() => setRender(false), durationMs)
-        return () => window.clearTimeout(timer)
-    }, [active, durationMs])
-    return { render, shown }
+        // An element that runs no animation never fires the end event.
+        const animationName = ref.current && getComputedStyle(ref.current).animationName
+        if (!animationName || animationName === 'none') setRender(false)
+    }, [active])
+    function onAnimationEnd(event: AnimationEvent<HTMLDivElement>) {
+        if (active || event.target !== event.currentTarget) return
+        // Ignore queued enter events during exit, covered by FileDropOverlay.test.tsx.
+        if (event.animationName !== getComputedStyle(event.currentTarget).animationName) return
+        setRender(false)
+    }
+    return { render, ref, onAnimationEnd }
 }
 
 export function FileDropOverlay({
@@ -32,20 +35,22 @@ export function FileDropOverlay({
     progress: { current: number; total: number; name: string } | null
     gameName: string
 }) {
-    const { render, shown } = useMountTransition(active, 200)
+    const { render, ref, onAnimationEnd } = useExitAnimation(active)
     if (!render) return null
     const multi = installing && progress && progress.total > 1
     // Starts below the h-10 title bar so its drag region and window controls stay visible
     // and usable during a drop/install; pointer-events-none keeps the app clickable too.
     return (
         <div
-            className={`pointer-events-none fixed inset-x-0 bottom-0 top-10 z-[9998] bg-surface/70 backdrop-blur-sm transition-opacity duration-200 ${
-                shown ? 'opacity-100' : 'opacity-0'
+            ref={ref}
+            onAnimationEnd={onAnimationEnd}
+            className={`pointer-events-none fixed inset-x-0 bottom-0 top-10 z-[9998] bg-surface/70 backdrop-blur-sm ${
+                active ? 'animate-drop-overlay-in' : 'animate-drop-overlay-out'
             }`}
         >
             <div
-                className={`absolute inset-4 flex flex-col items-center justify-center gap-4 rounded-lg border-2 border-dashed border-accent bg-surface-raised/40 transition-transform duration-200 ${
-                    shown ? 'scale-100' : 'scale-[0.98]'
+                className={`absolute inset-4 flex flex-col items-center justify-center gap-4 rounded-lg border-2 border-dashed border-accent bg-surface-raised/40 ${
+                    active ? 'animate-drop-panel-in' : 'animate-drop-panel-out'
                 }`}
             >
                 {installing ? (
@@ -85,28 +90,30 @@ export function FileDropStatus({
     result,
     onDismiss,
 }: {
-    result: DropResult
+    result: DropResult | null
     onDismiss: () => void
 }) {
-    const [shown, setShown] = useState(false)
-    useEffect(() => {
-        const id = requestAnimationFrame(() => setShown(true))
-        return () => cancelAnimationFrame(id)
-    }, [])
-    const Icon = result.kind === 'done' ? CircleCheck : CircleAlert
+    const { render, ref, onAnimationEnd } = useExitAnimation(result !== null)
+    const [lastResult, setLastResult] = useState(result)
+    if (result && result !== lastResult) setLastResult(result)
+    const displayResult = result ?? lastResult
+    if (!render || !displayResult) return null
+    const Icon = displayResult.kind === 'done' ? CircleCheck : CircleAlert
     const tone =
-        result.kind === 'error'
+        displayResult.kind === 'error'
             ? 'border-danger/40 text-danger-text'
             : 'border-success/40 text-success-text'
     return (
         <div className="fixed bottom-4 left-1/2 z-[9997] -translate-x-1/2">
             <div
-                className={`flex items-center gap-2 rounded-lg border bg-surface-raised px-4 py-2 text-sm shadow-lg transition-all duration-200 ${tone} ${
-                    shown ? 'translate-y-0 opacity-100' : 'translate-y-2 opacity-0'
+                ref={ref}
+                onAnimationEnd={onAnimationEnd}
+                className={`flex items-center gap-2 rounded-lg border bg-surface-raised px-4 py-2 text-sm shadow-lg ${tone} ${
+                    result ? 'animate-drop-status-in' : 'animate-drop-status-out'
                 }`}
             >
                 <Icon className="h-4 w-4 shrink-0" />
-                <span>{result.message}</span>
+                <span>{displayResult.message}</span>
                 <button onClick={onDismiss} className="ml-1 text-text-subtle hover:text-text">
                     <X className="h-3.5 w-3.5" />
                 </button>
