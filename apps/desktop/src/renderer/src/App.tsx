@@ -447,8 +447,10 @@ export default function App({ updated = null }: { updated?: UpdatedNotice | null
                                             className="absolute bottom-0 left-0 right-0 h-0.5 bg-surface-active"
                                         >
                                             <div
-                                                className="h-full bg-accent transition-[width] duration-100"
-                                                style={{ width: `${update.percent ?? 0}%` }}
+                                                className="h-full w-full origin-left bg-accent transition-[scale] duration-feedback"
+                                                style={{
+                                                    scale: `${(update.percent ?? 0) / 100} 1`,
+                                                }}
                                             />
                                         </div>
                                     </div>

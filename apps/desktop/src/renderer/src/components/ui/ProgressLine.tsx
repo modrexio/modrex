@@ -11,9 +11,9 @@ export function ProgressLine({ progress, className }: Props) {
         <div className={cn('h-0.5 bg-surface-active', className)}>
             {progress.total > 0 ? (
                 <div
-                    className="h-full bg-accent transition-[width] duration-100"
+                    className="h-full w-full origin-left bg-accent transition-[scale] duration-feedback"
                     style={{
-                        width: `${Math.round((progress.downloaded / progress.total) * 100)}%`,
+                        scale: `${Math.round((progress.downloaded / progress.total) * 100) / 100} 1`,
                     }}
                 />
             ) : (
