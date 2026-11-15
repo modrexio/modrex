@@ -12,6 +12,7 @@ import { SkeletonCard } from './SkeletonCard'
 import { ModCard } from './ModCard'
 import { Select } from './Select'
 import { SourceSelect } from './SourceSelect'
+import { PaginationFooter } from './PaginationFooter'
 import { t } from '../i18n'
 import { api } from '../api'
 import {
@@ -94,23 +95,6 @@ const SORT_VALUES = ['updatedAt', 'downloads', 'endorsements', 'relevance']
 function getSavedSort(game: GameId): string {
     const saved = localStorage.getItem(`modrex:${GAMES[game].storageKey}:nexus-sort`)
     return SORT_VALUES.includes(saved as string) ? (saved as string) : 'updatedAt'
-}
-
-function buildPages(current: number, last: number): (number | '...')[] {
-    const pages: (number | '...')[] = []
-    const delta = 2
-    const left = current - delta
-    const right = current + delta
-
-    let prev: number | null = null
-    for (let p = 1; p <= last; p++) {
-        if (p === 1 || p === last || (p >= left && p <= right)) {
-            if (prev !== null && p - prev > 1) pages.push('...')
-            pages.push(p)
-            prev = p
-        }
-    }
-    return pages
 }
 
 export function NexusBrowsePage({
@@ -283,8 +267,6 @@ export function NexusBrowsePage({
 
     if (!domain) return null
 
-    const lastPage = result?.meta.last_page ?? 0
-
     return (
         <div className="h-full flex flex-col">
             <div className="px-6 py-4 border-b border-border shrink-0 flex flex-col gap-3">
@@ -375,36 +357,13 @@ export function NexusBrowsePage({
                 </ScrollArea>
             )}
 
-            {signedIn === true && result !== null && lastPage > 1 && (
-                <div className="px-6 py-3 border-t border-border flex items-center justify-between shrink-0">
-                    <span className="text-xs text-text-subtle">
-                        {t('nexus.modCount', { total: result.meta.total })}
-                    </span>
-                    <div className="flex gap-1">
-                        {buildPages(page, lastPage).map((p, i) =>
-                            p === '...' ? (
-                                <span
-                                    key={`ellipsis-${i}`}
-                                    className="text-xs px-2 py-1 text-text-subtle"
-                                >
-                                    …
-                                </span>
-                            ) : (
-                                <button
-                                    key={p}
-                                    onClick={() => setPage(p as number)}
-                                    className={`text-xs px-3 py-1 rounded transition-colors ${
-                                        p === page
-                                            ? 'bg-accent-fill text-white'
-                                            : 'bg-surface-hover hover:bg-surface-active'
-                                    }`}
-                                >
-                                    {p}
-                                </button>
-                            )
-                        )}
-                    </div>
-                </div>
+            {signedIn === true && (
+                <PaginationFooter
+                    page={page}
+                    lastPage={result?.meta.last_page ?? null}
+                    label={result && t('nexus.modCount', { total: result.meta.total })}
+                    onPageChange={setPage}
+                />
             )}
         </div>
     )
