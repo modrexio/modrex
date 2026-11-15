@@ -320,6 +320,7 @@ export function ModDetailPage({
               (m) => (!m.source || m.source === 'modworkshop') && m.remoteId === String(modId)
           )
     const installedMod = installedFiles[0]
+    const [installedAtMount] = useState(() => !!installedMod)
     // Not tracked in the installed list, so DLL presence drives its button state.
     // The loader this very mod page publishes, if any. Its button reflects DLL presence
     // rather than the installed-mods list. Loader mod pages are modworkshop-only. A
@@ -782,7 +783,9 @@ export function ModDetailPage({
                         </span>
                     )}
                     {mod && installedMod && !isLoaderMod && (
-                        <>
+                        <div
+                            className={`flex items-center gap-2 ${installedAtMount ? '' : 'animate-installed-in'}`}
+                        >
                             <Toggle
                                 checked={installedFiles.every((m) => m.enabled)}
                                 onChange={(v) => (v ? handleEnable() : handleDisable())}
@@ -798,7 +801,7 @@ export function ModDetailPage({
                                     <Trash2 className="w-3.5 h-3.5" />
                                 </Button>
                             </Tooltip>
-                        </>
+                        </div>
                     )}
                     {mod && isLoaderMod && loaderModInstalled && (
                         <>

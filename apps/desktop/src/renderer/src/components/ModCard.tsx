@@ -57,6 +57,7 @@ export function ModCard({
     const thumbSrc = useThumbnail(mod.thumbnail?.file, 'card')
     // Sources known at mount stay visible. Sources resolved later fade in on decode.
     const [thumbLoaded, setThumbLoaded] = useState(() => thumbSrc !== null)
+    const [installedAtMount] = useState(() => !!installed)
     const needsResourceReview =
         installed?.resourceStatus === 'diverged' || installed?.resourceStatus === 'blocked'
     const canAct = !!gamePath && !loading && !needsResourceReview
@@ -81,7 +82,7 @@ export function ModCard({
                             if (el?.complete) setThumbLoaded(true)
                         }}
                         onLoad={() => setThumbLoaded(true)}
-                        className={`w-full h-36 object-cover transition-opacity ${thumbLoaded ? '' : 'opacity-0'}${installed && !installed.enabled ? ' grayscale' : ''}`}
+                        className={`w-full h-36 object-cover transition-[filter,opacity] ${thumbLoaded ? '' : 'opacity-0'}${installed && !installed.enabled ? ' grayscale' : ''}`}
                     />
                 ) : (
                     <div className="w-full h-36 bg-surface-hover flex items-center justify-center">
@@ -181,7 +182,9 @@ export function ModCard({
                     </Button>
                 )}
                 {installed && (
-                    <div className="flex items-center gap-2">
+                    <div
+                        className={`flex items-center gap-2 ${installedAtMount ? '' : 'animate-installed-in'}`}
+                    >
                         {loading && loadingLabel && (
                             <span className="text-xs text-accent" role="status">
                                 {loadingLabel}
