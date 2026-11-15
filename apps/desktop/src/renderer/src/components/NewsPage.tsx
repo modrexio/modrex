@@ -8,6 +8,7 @@ import { EmptyState } from './ui/EmptyState'
 import { GAMES } from '../../../shared/types'
 import type { GameId, NewsItem } from '../../../shared/types'
 import { SkeletonCard } from './SkeletonCard'
+import { PaginationFooter } from './PaginationFooter'
 import { Tooltip } from './Tooltip'
 
 const SOURCE_URL = 'https://www.paydaythegame.com/'
@@ -19,25 +20,6 @@ const newsCache = new Map<GameId, { items: NewsItem[]; totalPages: number; page:
 interface Props {
     isActive: boolean
     activeGame: GameId
-}
-
-// Mirrors BrowsePage's buildPages: first, last, and a window around current,
-// with '...' filling the gaps.
-function buildPages(current: number, last: number): (number | '...')[] {
-    const pages: (number | '...')[] = []
-    const delta = 2
-    const left = current - delta
-    const right = current + delta
-
-    let prev: number | null = null
-    for (let p = 1; p <= last; p++) {
-        if (p === 1 || p === last || (p >= left && p <= right)) {
-            if (prev !== null && p - prev > 1) pages.push('...')
-            pages.push(p)
-            prev = p
-        }
-    }
-    return pages
 }
 
 function NewsCard({ item }: { item: NewsItem }) {
@@ -217,33 +199,12 @@ function NewsPageImpl({ isActive, activeGame }: Props) {
                 )}
             </ScrollArea>
 
-            {items && items.length > 0 && totalPages > 1 && (
-                <div className="px-6 py-3 border-t border-border flex items-center justify-end shrink-0">
-                    <div className="flex gap-1">
-                        {buildPages(page, totalPages).map((p, i) =>
-                            p === '...' ? (
-                                <span
-                                    key={`ellipsis-${i}`}
-                                    className="text-xs px-2 py-1 text-text-subtle"
-                                >
-                                    …
-                                </span>
-                            ) : (
-                                <button
-                                    key={p}
-                                    onClick={() => handlePageChange(p as number)}
-                                    className={`text-xs px-3 py-1 rounded transition-colors ${
-                                        p === page
-                                            ? 'bg-accent-fill text-white'
-                                            : 'bg-surface-hover hover:bg-surface-active'
-                                    }`}
-                                >
-                                    {p}
-                                </button>
-                            )
-                        )}
-                    </div>
-                </div>
+            {items && items.length > 0 && (
+                <PaginationFooter
+                    page={page}
+                    lastPage={totalPages}
+                    onPageChange={handlePageChange}
+                />
             )}
         </div>
     )
