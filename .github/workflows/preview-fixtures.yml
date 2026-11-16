@@ -6,7 +6,7 @@ on:
     workflow_dispatch:
 
 permissions:
-    contents: write
+    contents: read
 
 concurrency:
     group: preview-fixtures
@@ -15,15 +15,20 @@ concurrency:
 jobs:
     refresh:
         runs-on: ubuntu-latest
+        env:
+            AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+            AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+            AWS_DEFAULT_REGION: auto
+            R2_BUCKET: ${{ secrets.R2_BUCKET }}
+            R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         steps:
-            # The main ruleset exempts this deploy key, because it cannot exempt the workflow token.
-            - uses: actions/checkout@v7
+            - name: Check out main
+              uses: actions/checkout@v7
               with:
                   ref: main
-                  fetch-depth: 0
-                  ssh-key: ${{ secrets.MAIN_PUSH_KEY }}
 
-            - run: rustup install --no-self-update
+            - name: Install Rust
+              run: rustup install --no-self-update
 
             - name: Install system dependencies
               run: |
@@ -34,65 +39,65 @@ jobs:
                     librsvg2-dev \
                     patchelf
 
-            - uses: oven-sh/setup-bun@v2
+            - name: Install Bun
+              uses: oven-sh/setup-bun@v2
               with:
                   bun-version-file: package.json
-            - run: bun install --frozen-lockfile
 
-            - name: Snapshot, verify and publish
-              env:
-                  GITHUB_TOKEN: ${{ github.token }}
+            - name: Install dependencies
+              run: bun install --frozen-lockfile
+
+            - name: Install AWS CLI
+              run: |
+                  curl -fsSL https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o awscliv2.zip
+                  unzip -q awscliv2.zip
+                  sudo ./aws/install --update
+
+            # The exporter keeps the previous news file when the news site blocks the runner.
+            - name: Download current snapshot
               run: |
                   set -euo pipefail
+                  aws s3 sync "s3://${R2_BUCKET}/preview/" apps/desktop/src/renderer/preview/fixtures/ \
+                      --endpoint-url "${R2_ENDPOINT}" --exclude manifest.json
 
-                  git config user.name "github-actions[bot]"
-                  git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            - name: Export snapshot
+              working-directory: apps/desktop/src-tauri
+              env:
+                  PREVIEW_FIXTURES_DIR: ${{ github.workspace }}/apps/desktop/src/renderer/preview/fixtures
+              run: |
+                  set -euo pipefail
+                  # Live ModWorkshop data at the app's own rate limit: five games take a few minutes.
+                  cargo test --test export_preview_fixtures -- --ignored --nocapture
 
-                  must() {
-                    "$@" || { echo "::error::preview fixture step failed: $*"; exit 1; }
-                  }
+            # Publish only a snapshot that the browser preview can render.
+            - name: Verify snapshot
+              working-directory: apps/desktop
+              env:
+                  PREVIEW_FIXTURES_READY: '1'
+              run: |
+                  set -euo pipefail
+                  bun --bun run test:preview
 
-                  must_in() {
-                    local directory="$1"
-                    shift
-                    (cd "$directory" && "$@") ||
-                      { echo "::error::preview fixture step failed in $directory: $*"; exit 1; }
-                  }
+            - name: Write manifest
+              working-directory: apps/desktop/src/renderer/preview/fixtures
+              run: |
+                  set -euo pipefail
+                  find . -type f -name '*.json' | sed 's|^\./||' | sort | jq -R . | jq -s . > "$RUNNER_TEMP/manifest.json"
+                  [ "$(jq length "$RUNNER_TEMP/manifest.json")" -gt 0 ] || { echo "::error::snapshot is empty"; exit 1; }
 
-                  attempt_publish() {
-                    must git fetch origin main
-                    must git reset --hard origin/main
+            - name: Upload snapshot and manifest
+              run: |
+                  set -euo pipefail
+                  aws s3 cp apps/desktop/src/renderer/preview/fixtures/ "s3://${R2_BUCKET}/preview/" \
+                      --recursive --endpoint-url "${R2_ENDPOINT}" \
+                      --content-type application/json --cache-control 'no-cache'
+                  aws s3 cp "$RUNNER_TEMP/manifest.json" "s3://${R2_BUCKET}/preview/manifest.json" \
+                      --endpoint-url "${R2_ENDPOINT}" \
+                      --content-type application/json --cache-control 'no-cache'
 
-                    # Live ModWorkshop data at the app's own rate limit: five games take a few minutes.
-                    must_in apps/desktop/src-tauri cargo test --test export_preview_fixtures -- --ignored --nocapture
-
-                    # Publish only a snapshot that the browser preview can render.
-                    must_in apps/desktop bun --bun run test:preview
-
-                    must git add apps/desktop/src/renderer/preview/fixtures
-                    if git diff --cached --quiet; then
-                      echo "Fixtures are already current."
-                      return 0
-                    fi
-                    must git commit -m "chore(desktop): refresh preview fixtures"
-
-                    # Never force: a concurrent main update keeps its commit, and the next
-                    # attempt rebuilds the fixtures and tests them on that new revision.
-                    if git push origin HEAD:main; then
-                      return 0
-                    fi
-                    echo "main advanced during this run; recomputing from fresh main."
-                    return 1
-                  }
-
-                  for attempt in 1 2 3; do
-                    echo "::group::Attempt $attempt"
-                    if attempt_publish; then
-                      echo "::endgroup::"
-                      exit 0
-                    fi
-                    echo "::endgroup::"
-                  done
-
-                  echo "main kept advancing; leaving the next scheduled run to publish."
-                  exit 1
+            - name: Trigger preview rebuild
+              env:
+                  DEPLOY_HOOK_URL: ${{ secrets.CLOUDFLARE_APP_PREVIEW_DEPLOY_HOOK_URL }}
+              run: |
+                  set -euo pipefail
+                  curl -fsS -X POST "${DEPLOY_HOOK_URL}"

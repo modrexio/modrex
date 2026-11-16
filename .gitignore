@@ -156,3 +156,5 @@ out/
 apps/index/index.db*
 apps/index/builder-state.db*
 apps/index/index-stats.json
+
+apps/desktop/src/renderer/preview/fixtures/
