@@ -1,6 +1,26 @@
 {
     "items": [
         {
+            "title": "PAYDAY 3 X Tom Clancy’s Ghost Recon Crimebond Teaser",
+            "url": "https://www.paydaythegame.com/news/payday3/2026/11/ghostrecon-teaser/",
+            "date": "Nov 13, 2026",
+            "excerpt": "Legendary Tom Clancy’s Ghost Recon gear and weapons will infiltrate PAYDAY 3 in a brand new Crimebond, coming November 24.",
+            "image": "https://www.paydaythegame.com/ovk-media/2026/11/Ghost-recon_teaser_16x9_Thumbnail-700x394.jpg",
+            "categories": [
+                "PAYDAY 3"
+            ]
+        },
+        {
+            "title": "A message to our players from Starbreeze CEO Adolf Kristjansson (a.k.a. AK)",
+            "url": "https://www.paydaythegame.com/news/payday3/2026/11/thankyou/",
+            "date": "Nov 13, 2026",
+            "excerpt": "Last weekend, more than 320,000 of you jumped into PAYDAY 3, with 250,000 of you putting the mask on for the first time. The rest of you came back, and we couldn't be more delighted.",
+            "image": "https://www.paydaythegame.com/ovk-media/2026/11/pd3-fw-ty-700x394.jpg",
+            "categories": [
+                "PAYDAY 3"
+            ]
+        },
+        {
             "title": "PAYDAY 3: Double Infamy Event",
             "url": "https://www.paydaythegame.com/news/payday3/2026/11/doubleinfamy/",
             "date": "Nov 5, 2026",
@@ -11,7 +31,7 @@
             ]
         },
         {
-            "title": "PAYDAY 3 Free Weekend & Sale Event Now Live!",
+            "title": "PAYDAY 3 Free Weekend & Sale Event",
             "url": "https://t.paydaythegame.com/c/5mn612?utm_source=pdtgwebsite&utm_medium=webpage&ad_name=PDTGWebsite",
             "date": "Nov 3, 2026",
             "excerpt": "Between November 5th and November 9th, play PAYDAY 3 for FREE! Plus, buy the game & DLCs for a steal with sale discounts!",
@@ -66,26 +86,6 @@
             "date": "Oct 16, 2026",
             "excerpt": "As we approach the end of the year, Paul is back to share what’s coming in October, November, and December!",
             "image": "https://www.paydaythegame.com/ovk-media/2026/10/thumb_paul_ep_5-1-700x394.jpg",
-            "categories": [
-                "PAYDAY 3"
-            ]
-        },
-        {
-            "title": "PAYDAY 3: The Shrink Cinematic Trailer",
-            "url": "https://www.paydaythegame.com/news/payday3/2026/10/shrink-cinematic/",
-            "date": "Oct 9, 2026",
-            "excerpt": "New York has treated Dallas well, but lately, there’s been a lot on his mind. It’s time to reflect, talk it out, and make some changes for the better.",
-            "image": "https://www.paydaythegame.com/ovk-media/2026/10/pd3-shrink-x-700x394.jpg",
-            "categories": [
-                "PAYDAY 3"
-            ]
-        },
-        {
-            "title": "PAYDAY 3: Update 3.9.2 Changelog",
-            "url": "https://www.paydaythegame.com/news/payday3/2026/10/update-3-9-2/",
-            "date": "Oct 1, 2026",
-            "excerpt": "We are now rolling out a new Hotfix to address some of the issues that came up with the 3.9.1 Update.",
-            "image": "https://www.paydaythegame.com/ovk-media/2026/09/pd3-patch-hotfix-700x394.jpg",
             "categories": [
                 "PAYDAY 3"
             ]
