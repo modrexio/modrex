@@ -1,6 +1,26 @@
 {
     "items": [
         {
+            "title": "PAYDAY 2: Update 248.2 Changelog",
+            "url": "https://www.paydaythegame.com/news/payday2/2026/09/payday-2-update-248-2-changelog/",
+            "date": "Sep 25, 2026",
+            "excerpt": "Hello heisters!Got another round of level adjustments mainly targeting the newly released…",
+            "image": "https://clan.fastly.steamstatic.com/images/4458711/aeeca036626878d386475047561e08ffaf078442.png",
+            "categories": [
+                "PAYDAY 2"
+            ]
+        },
+        {
+            "title": "PAYDAY 2: Update 248.1 Changelog",
+            "url": "https://www.paydaythegame.com/news/payday2/2026/09/payday-2-update-248-1-changelog/",
+            "date": "Sep 17, 2026",
+            "excerpt": "Hello heisters!We saw performance issues for quite a few players since the engine upgrade…",
+            "image": "https://clan.fastly.steamstatic.com/images/4458711/aeeca036626878d386475047561e08ffaf078442.png",
+            "categories": [
+                "PAYDAY 2"
+            ]
+        },
+        {
             "title": "PAYDAY 2: Under The Hammer Heist",
             "url": "https://www.paydaythegame.com/news/payday2/2026/09/payday-2-under-the-hammer-heist/",
             "date": "Sep 15, 2026",
@@ -66,26 +86,6 @@
             "date": "Jul 31, 2026",
             "excerpt": "Hello HeistersThis is just a quick announcement to say the open-beta for the V3 engine…",
             "image": "https://clan.fastly.steamstatic.com/images/4458711/1c5671fef14905ec5122a747735b2070d9788ab2.png",
-            "categories": [
-                "PAYDAY 2"
-            ]
-        },
-        {
-            "title": "PAYDAY 2: Engine Upgrade Open-Beta – OUT NOW!",
-            "url": "https://www.paydaythegame.com/news/payday2/2026/06/payday-2-engine-upgrade-open-beta-out-now/",
-            "date": "Jun 30, 2026",
-            "excerpt": "Hello Heisters!The time has come to trial the upgrades coming to PAYDAY 2. The Diesel…",
-            "image": "https://clan.fastly.steamstatic.com/images/4458711/265103f88f64f2b80fb6651f4f1c0915e7593038.png",
-            "categories": [
-                "PAYDAY 2"
-            ]
-        },
-        {
-            "title": "PAYDAY 2: Engine Upgrade Open-Beta Announcement",
-            "url": "https://www.paydaythegame.com/news/payday2/2026/06/payday-2-engine-upgrade-open-beta-announcement/",
-            "date": "Jun 26, 2026",
-            "excerpt": "Hello Heisters!It is time to announce the next update coming for the game, and its quite…",
-            "image": "https://clan.fastly.steamstatic.com/images/4458711/237d659fb9e8a5eda5a0f781fa89f1ee7308833e.png",
             "categories": [
                 "PAYDAY 2"
             ]
