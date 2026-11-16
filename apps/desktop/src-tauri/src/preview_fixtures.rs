@@ -11,6 +11,12 @@ use crate::game_package::SourceBinding;
 const FIXTURES_DIR: &str = "../src/renderer/preview/fixtures";
 const LISTING_LIMIT: u32 = 24;
 
+fn fixtures_dir() -> std::path::PathBuf {
+    std::env::var_os("PREVIEW_FIXTURES_DIR")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| std::path::PathBuf::from(FIXTURES_DIR))
+}
+
 #[derive(Serialize)]
 struct ModRecord {
     detail: ModDetail,
@@ -26,7 +32,7 @@ async fn get(path: &str, query: &[(&str, &str)]) -> Value {
 }
 
 fn write<T: Serialize>(name: &str, value: &T) {
-    let path = std::path::PathBuf::from(format!("{FIXTURES_DIR}/{name}.json"));
+    let path = fixtures_dir().join(format!("{name}.json"));
     let dir = path.parent().expect("fixture path has a parent");
     std::fs::create_dir_all(dir).unwrap_or_else(|e| panic!("cannot create {}: {e}", dir.display()));
     let mut text = Vec::new();
@@ -73,16 +79,16 @@ pub fn export_preview_fixtures() {
             let folders = crate::commands::mods::list_mod_folders(game_id.to_string())
                 .unwrap_or_else(|e| panic!("{game_id} mod folders: {e}"));
             write(&format!("{game_id}/mod-folders"), &folders);
-            // The news site blocks datacenter runners, so a failed fetch keeps the committed
+            // The news site blocks datacenter runners, so a failed fetch keeps the existing
             // snapshot instead of failing the refresh of every other fixture.
             if !package.news.is_empty() {
                 match crate::commands::news::fetch_news_page(game_id.to_string(), 1).await {
                     Ok(news) => write(&format!("{game_id}/news"), &news),
                     Err(e) => {
-                        let kept = format!("{FIXTURES_DIR}/{game_id}/news.json");
+                        let kept = fixtures_dir().join(format!("{game_id}/news.json"));
                         assert!(
-                            std::path::Path::new(&kept).exists(),
-                            "{game_id} news: {e}, and no committed snapshot exists to keep"
+                            kept.exists(),
+                            "{game_id} news: {e}, and no previous snapshot exists to keep"
                         );
                         println!("::warning::{game_id} news kept from the last snapshot: {e}");
                     }
