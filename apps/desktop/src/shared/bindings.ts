@@ -1170,14 +1170,16 @@ export type ProfileList = {
 	active: string | null,
 	/**  The profile a switch was heading for when it stopped. Switching to it again finishes it. */
 	unfinishedSwitch: string | null,
+	/**  The installed loaders a new profile can keep, by name. */
+	loaders: string[],
 };
 
 /**  What a new profile starts as. */
 export type ProfileSource = 
 /**  The mods as they are installed right now. */
 { kind: "current" } | 
-/**  No mods, so switching to it parks every mod. */
-{ kind: "empty" } | 
+/**  No mods, so switching to it parks every mod, and the installed loaders too unless kept. */
+{ kind: "empty"; keepLoaders: boolean } | 
 /**  Another profile's members. */
 { kind: "copy"; profileId: string };
 

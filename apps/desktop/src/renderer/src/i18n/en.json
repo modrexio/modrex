@@ -294,6 +294,7 @@
             "noneActive": "No profile is active. Save the current setup as a profile before switching, so these mods have a profile to come back to.",
             "save": "Save",
             "saveCurrent": "Save current setup as a profile",
+            "keepLoaders": "Keep loaders: {names}",
             "new": "New profile",
             "duplicate": "Duplicate",
             "rename": "Rename",

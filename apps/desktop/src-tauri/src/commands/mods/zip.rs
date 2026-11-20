@@ -1022,6 +1022,16 @@ pub fn extract_archive_flat(archive_path: &Path, dest: &Path) -> Result<(), Stri
     extract_flat_under(archive_path, dest, "")
 }
 
+/// The files extract_archive_flat writes for this archive, as paths under dest. Entries the
+/// extractors refuse to place are left out here too.
+pub fn flat_files(archive_path: &Path, dest: &Path) -> Result<Vec<PathBuf>, String> {
+    Ok(list_entries(archive_path)?
+        .into_iter()
+        .filter(|entry| !entry.is_dir)
+        .filter_map(|entry| safe_dest(dest, &entry.name.replace('\\', "/")))
+        .collect())
+}
+
 /// Extracts a UE4SS loader package into dest, dropping the one wrapper directory when the
 /// archive has one. Releases differ on this: the UE4 packages are flat at the zip root while
 /// the UE5 rebuild wraps everything in a folder named after the build, and the proxy DLL has

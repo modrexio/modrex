@@ -103,6 +103,7 @@ const two: ProfileList = {
     ],
     active: 'p1',
     unfinishedSwitch: null,
+    loaders: [],
 }
 
 // A profile decides which mods a launch loads, so it is chosen right before the launch buttons.

@@ -187,16 +187,43 @@ export function ProfileSwitcher({ profiles }: Props) {
                             <ul className="p-1 max-h-72 overflow-y-auto">
                                 {list.profiles.map(rowAt)}
                                 {editing?.kind === 'create' && (
-                                    <li className="flex items-center gap-2 h-9 pl-2 pr-1 rounded border border-accent bg-accent/5">
-                                        <Layers
-                                            className="w-3.5 h-3.5 shrink-0 text-accent"
-                                            aria-hidden
-                                        />
-                                        <NameField
-                                            initial={editing.initial}
-                                            onSave={saveName}
-                                            onCancel={() => setEditing(null)}
-                                        />
+                                    <li className="flex flex-col pl-2 pr-1 rounded border border-accent bg-accent/5">
+                                        <div className="flex items-center gap-2 h-9">
+                                            <Layers
+                                                className="w-3.5 h-3.5 shrink-0 text-accent"
+                                                aria-hidden
+                                            />
+                                            <NameField
+                                                initial={editing.initial}
+                                                onSave={saveName}
+                                                onCancel={() => setEditing(null)}
+                                            />
+                                        </div>
+                                        {/* A new profile starts without loaders, and offers to keep
+                                            the ones installed only when there are some. */}
+                                        {editing.source.kind === 'empty' &&
+                                            list.loaders.length > 0 && (
+                                                <label className="flex items-center gap-2 pb-2 pl-5.5 cursor-pointer select-none">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={editing.source.keepLoaders}
+                                                        onChange={(e) =>
+                                                            setEditing({
+                                                                ...editing,
+                                                                source: {
+                                                                    kind: 'empty',
+                                                                    keepLoaders: e.target.checked,
+                                                                },
+                                                            })
+                                                        }
+                                                    />
+                                                    <span className="text-xs text-text-muted">
+                                                        {t('installed.profiles.keepLoaders', {
+                                                            names: list.loaders.join(', '),
+                                                        })}
+                                                    </span>
+                                                </label>
+                                            )}
                                     </li>
                                 )}
                             </ul>
@@ -209,7 +236,7 @@ export function ProfileSwitcher({ profiles }: Props) {
                                             ? {
                                                   kind: 'create',
                                                   // A new profile starts over. Duplicate copies one.
-                                                  source: { kind: 'empty' },
+                                                  source: { kind: 'empty', keepLoaders: false },
                                                   initial: '',
                                               }
                                             : {

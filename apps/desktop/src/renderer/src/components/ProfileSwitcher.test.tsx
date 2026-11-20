@@ -26,6 +26,7 @@ const two: ProfileList = {
     ],
     active: 'p1',
     unfinishedSwitch: null,
+    loaders: [],
 }
 
 function show(state: Profiles) {
@@ -69,7 +70,7 @@ describe('ProfileSwitcher', () => {
                 .getByText(/Each profile has its own mods/)
                 .closest('[aria-hidden]')!
                 .getAttribute('aria-hidden') === 'false'
-        show(profiles({ profiles: [], active: null, unfinishedSwitch: null }))
+        show(profiles({ profiles: [], active: null, unfinishedSwitch: null, loaders: [] }))
         openMenu()
         await screen.findByText(/Each profile has its own mods/)
         expect(shown()).toBe(true)
@@ -128,7 +129,7 @@ describe('ProfileSwitcher', () => {
     const escape = (field: HTMLElement) => fireEvent.keyDown(field, { key: 'Escape' })
 
     it('saves the current setup as the first profile in the menu itself', async () => {
-        const state = profiles({ profiles: [], active: null, unfinishedSwitch: null })
+        const state = profiles({ profiles: [], active: null, unfinishedSwitch: null, loaders: [] })
         show(state)
         expect(screen.getByText('No profile')).toBeTruthy()
 
@@ -158,7 +159,45 @@ describe('ProfileSwitcher', () => {
         fireEvent.change(name, { target: { value: ' Clean ' } })
         enter(name)
 
-        await waitFor(() => expect(state.create).toHaveBeenCalledWith('Clean', { kind: 'empty' }))
+        await waitFor(() =>
+            expect(state.create).toHaveBeenCalledWith('Clean', {
+                kind: 'empty',
+                keepLoaders: false,
+            })
+        )
+    })
+
+    it('offers to keep the installed loaders for a new profile, unchecked', async () => {
+        const state = profiles({ ...two, loaders: ['PDML', 'UE4SS'] })
+        show(state)
+
+        openMenu()
+        fireEvent.click(await screen.findByText('New profile'))
+        const keep = screen.getByRole('checkbox', {
+            name: 'Keep loaders: PDML, UE4SS',
+        }) as HTMLInputElement
+        expect(keep.checked).toBe(false)
+        fireEvent.click(keep)
+        fireEvent.change(screen.getByRole('textbox', { name: 'Name' }), {
+            target: { value: 'Modded' },
+        })
+        fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+        await waitFor(() =>
+            expect(state.create).toHaveBeenCalledWith('Modded', {
+                kind: 'empty',
+                keepLoaders: true,
+            })
+        )
+    })
+
+    it('asks nothing about loaders when none are installed', async () => {
+        show(profiles(two))
+
+        openMenu()
+        fireEvent.click(await screen.findByText('New profile'))
+
+        expect(screen.queryByRole('checkbox')).toBeNull()
     })
 
     it('duplicates a profile under a copy name the user can keep', async () => {

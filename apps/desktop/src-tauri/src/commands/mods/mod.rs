@@ -97,9 +97,9 @@ pub(crate) use self::reorder::{
 pub(crate) use self::state::{save_state, STATE_FILENAME};
 pub(crate) use self::zip::{
     extract_archive_flat, extract_entry, extract_entry_into_crimeboss_skeleton_at,
-    extract_loader_package, extract_staged_dir, extract_staged_entry_with_sidecars,
-    list_unit_entries, mark_archive_files, resolve_archive_download, InstallPrompt, ModContext,
-    ResolveError,
+    extract_loader_package, extract_staged_dir, extract_staged_entry_with_sidecars, flat_files,
+    list_unit_entries, mark_archive_files, resolve_archive_download, safe_dest, InstallPrompt,
+    ModContext, ResolveError,
 };
 
 // Re-exports needed only in test builds (suppressed in release to avoid unused-import warnings)
@@ -122,7 +122,7 @@ pub(crate) use self::ue4ss_modstxt::{
 #[cfg(test)]
 pub(crate) use self::zip::{
     classify_archive_dirs, copy_capped, detect_archive, extract_budget, has_ue4ss_loader_signature,
-    is_unplaceable_pack, is_zip, safe_dest, ArchiveFormat, MIN_EXTRACT_BUDGET,
+    is_unplaceable_pack, is_zip, ArchiveFormat, MIN_EXTRACT_BUDGET,
 };
 
 use crate::commands::api::{api_get, http_client, user_agent};
@@ -3073,7 +3073,20 @@ pub async fn list_profiles(
 ) -> Result<profiles::ProfileList, String> {
     let cfg = engine_for_game(&game_id)?;
     let _state_guard = lock_game_state(&app, cfg.game_id).await;
-    profiles::list(&profiles::ProfileStore::new(&game_path))
+    let state_path = get_state_path(&game_path, cfg);
+    let launcher = configured_launcher(&app, cfg);
+    let install = profiles::Install {
+        game_path: &game_path,
+        state_path: &state_path,
+        cfg,
+        launcher: launcher.as_deref(),
+    };
+    profiles::list(&profiles::ProfileStore::new(&game_path), &install)
+}
+
+/// The store copy the game is configured as, which decides where UE4SS sits.
+fn configured_launcher(app: &AppHandle, cfg: &ModEngineConfig) -> Option<String> {
+    game_settings(&read_settings(app), cfg.game_id).and_then(|gs| gs.launcher.clone())
 }
 
 #[tauri::command]
@@ -3088,11 +3101,12 @@ pub async fn create_profile(
     let cfg = engine_for_game(&game_id)?;
     let _state_guard = lock_game_state(&app, cfg.game_id).await;
     let state_path = get_state_path(&game_path, cfg);
+    let launcher = configured_launcher(&app, cfg);
     let install = profiles::Install {
         game_path: &game_path,
         state_path: &state_path,
         cfg,
-        launcher: None,
+        launcher: launcher.as_deref(),
     };
     profiles::create(
         &profiles::ProfileStore::new(&game_path),

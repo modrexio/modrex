@@ -6,10 +6,15 @@ use super::super::paths::mods_base;
 use super::*;
 use tempfile::TempDir;
 
+const EMPTY: ProfileSource = ProfileSource::Empty {
+    keep_loaders: false,
+};
+
 struct Game {
     dir: TempDir,
     staging: TempDir,
     cfg: &'static ModEngineConfig,
+    launcher: Option<&'static str>,
 }
 
 impl Game {
@@ -18,7 +23,37 @@ impl Game {
             dir: TempDir::new().unwrap(),
             staging: TempDir::new().unwrap(),
             cfg: engine_for_game(game_id).unwrap(),
+            launcher: None,
         }
+    }
+
+    /// A copy from one store, which decides where UE4SS sits.
+    fn on(game_id: &str, launcher: &'static str) -> Self {
+        Self {
+            launcher: Some(launcher),
+            ..Self::new(game_id)
+        }
+    }
+
+    fn list(&self) -> ProfileList {
+        self.with_install(|install| list(&self.store(), install))
+            .unwrap()
+    }
+
+    /// Writes a file under the game folder.
+    fn put(&self, rel: &str, body: &[u8]) -> PathBuf {
+        let path = self.dir.path().join(rel);
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(&path, body).unwrap();
+        path
+    }
+
+    fn parked_loader(&self, id: &str, rel: &str) -> PathBuf {
+        self.dir
+            .path()
+            .join(".modrex/parked/loaders")
+            .join(id)
+            .join(rel)
     }
 
     fn path(&self) -> &str {
@@ -39,7 +74,7 @@ impl Game {
             game_path: self.path(),
             state_path: &state_path,
             cfg: self.cfg,
-            launcher: None,
+            launcher: self.launcher,
         })
     }
 
@@ -226,7 +261,7 @@ fn a_new_profile_starts_with_no_mods_and_the_old_ones_wait_in_the_modrex_folder(
     }
     game.set("c", false);
     let main = game.create("Main", ProfileSource::Current);
-    let fresh = game.create("Fresh", ProfileSource::Empty);
+    let fresh = game.create("Fresh", EMPTY);
     let records: Vec<InstalledMod> = game.state().mods;
 
     game.switch(&fresh);
@@ -260,7 +295,7 @@ fn each_profile_keeps_the_mods_installed_in_it() {
     let paks = game.cfg.primary();
     game.install(paks, record("a"), None);
     let main = game.create("Main", ProfileSource::Current);
-    let fresh = game.create("Fresh", ProfileSource::Empty);
+    let fresh = game.create("Fresh", EMPTY);
     game.switch(&fresh);
     game.install(paks, record("x"), None);
     game.set("x", false);
@@ -283,7 +318,7 @@ fn a_mod_installed_again_in_another_profile_keeps_one_copy_per_profile() {
     let paks = game.cfg.primary();
     game.install(paks, record("a"), None);
     let main = game.create("Main", ProfileSource::Current);
-    let fresh = game.create("Fresh", ProfileSource::Empty);
+    let fresh = game.create("Fresh", EMPTY);
     let main_copy = game.record("a").install_id;
     game.switch(&fresh);
     game.install(paks, record("a"), None);
@@ -361,7 +396,7 @@ fn a_parked_mod_comes_back_to_its_folder() {
     )
     .unwrap();
     let main = game.create("Main", ProfileSource::Current);
-    let fresh = game.create("Fresh", ProfileSource::Empty);
+    let fresh = game.create("Fresh", EMPTY);
 
     game.switch(&fresh);
     game.switch(&main);
@@ -379,7 +414,7 @@ fn switching_folder_mods_moves_them_both_ways() {
     game.install(mods, dir_record("Alpha"), None);
     game.install(mods, dir_record("Beta"), None);
     let both = game.create("Both", ProfileSource::Current);
-    let fresh = game.create("Fresh", ProfileSource::Empty);
+    let fresh = game.create("Fresh", EMPTY);
     let beta = game.record("Beta");
 
     game.switch(&fresh);
@@ -401,7 +436,7 @@ fn switching_ue4ss_mods_writes_mods_txt_and_parks_the_folder() {
     let ue4ss = game.cfg.target_for(Some("ue4ss_mods"));
     game.install(ue4ss, dir_record("CoolMod"), None);
     let on = game.create("On", ProfileSource::Current);
-    let off = game.create("Off", ProfileSource::Empty);
+    let off = game.create("Off", EMPTY);
     let mods_txt = mods_base(game.path(), ue4ss).join("mods.txt");
     let folder = mods_base(game.path(), ue4ss).join("CoolMod");
     // The loader ships its own mods.txt, and Modrex only ever edits that one.
@@ -425,7 +460,7 @@ fn switching_crime_boss_mods_moves_them_both_ways() {
     let game = Game::new("cb");
     game.install(game.cfg.primary(), dir_record("Heist"), None);
     let on = game.create("On", ProfileSource::Current);
-    let off = game.create("Off", ProfileSource::Empty);
+    let off = game.create("Off", EMPTY);
 
     game.switch(&off);
     assert!(game.live().is_empty());
@@ -440,7 +475,7 @@ fn switching_bundle_mods_parks_their_files_and_brings_them_back() {
     let placed = game.dir.path().join("archive/pc/mod/lights.archive");
     assert!(placed.is_file());
     let on = game.create("On", ProfileSource::Current);
-    let off = game.create("Off", ProfileSource::Empty);
+    let off = game.create("Off", EMPTY);
 
     game.switch(&off);
     assert!(!placed.exists());
@@ -455,7 +490,7 @@ fn a_mod_installed_while_a_profile_is_active_joins_it() {
     let paks = game.cfg.primary();
     game.install(paks, record("a"), None);
     let main = game.create("Main", ProfileSource::Current);
-    let empty = game.create("Nothing", ProfileSource::Empty);
+    let empty = game.create("Nothing", EMPTY);
     game.install(paks, record("new"), None);
 
     game.switch(&empty);
@@ -469,7 +504,7 @@ fn a_profile_survives_an_update_of_its_mod() {
     let paks = game.cfg.primary();
     game.install(paks, record("11"), None);
     let main = game.create("Main", ProfileSource::Current);
-    let empty = game.create("Nothing", ProfileSource::Empty);
+    let empty = game.create("Nothing", EMPTY);
     game.switch(&empty);
     game.switch(&main);
 
@@ -577,7 +612,7 @@ fn a_switch_killed_at_any_step_finishes_when_switched_again() {
             }
         }
 
-        let listed = list(&store).unwrap();
+        let listed = game.list();
         assert_eq!(
             listed.unfinished_switch.as_deref(),
             Some(a_only.as_str()),
@@ -589,7 +624,7 @@ fn a_switch_killed_at_any_step_finishes_when_switched_again() {
         assert!(game.on_disk_enabled("a"), "{killed:?}");
         assert_eq!(game.parked(), ["b"], "{killed:?}");
         assert!(!store.journal_path().exists(), "{killed:?}");
-        let listed = list(&store).unwrap();
+        let listed = game.list();
         assert_eq!(
             listed.active.as_deref(),
             Some(a_only.as_str()),
@@ -619,7 +654,7 @@ fn a_parked_mod_brought_back_halfway_is_finished_when_switched_again() {
         let paks = game.cfg.primary();
         game.install(paks, record("a"), None);
         let main = game.create("Main", ProfileSource::Current);
-        let fresh = game.create("Fresh", ProfileSource::Empty);
+        let fresh = game.create("Fresh", EMPTY);
         game.switch(&fresh);
         let store = game.store();
         store
@@ -680,7 +715,7 @@ fn the_first_profile_from_the_current_setup_becomes_active_and_keeps_disabled_mo
 fn switching_without_an_active_profile_is_refused_while_mods_would_be_lost() {
     let game = Game::new("pd3");
     game.install(game.cfg.primary(), record("a"), None);
-    let empty = game.create("Nothing", ProfileSource::Empty);
+    let empty = game.create("Nothing", EMPTY);
 
     let switched = game.with_install(|install| switch(&game.store(), install, &empty));
 
@@ -713,12 +748,12 @@ fn deleting_a_profile_removes_the_parked_mods_only_it_had() {
             profile_id: main.clone(),
         },
     );
-    let fresh = game.create("Fresh", ProfileSource::Empty);
+    let fresh = game.create("Fresh", EMPTY);
     game.switch(&fresh);
     game.install(paks, record("own"), None);
     let own = game.record("own");
     game.switch(&main);
-    let empty = game.create("Nothing", ProfileSource::Empty);
+    let empty = game.create("Nothing", EMPTY);
     game.switch(&empty);
     assert_eq!(game.parked(), ["own", "shared"]);
 
@@ -752,13 +787,13 @@ fn profile_ids_and_names_are_checked_before_use() {
     let store = game.store();
     assert!(store.get("../../settings").is_err());
     assert!(rename(&store, "..\\x", "Name").is_err());
-    let created = game.with_install(|install| create(&store, install, "   ", ProfileSource::Empty));
+    let created = game.with_install(|install| create(&store, install, "   ", EMPTY));
     assert!(created.is_err());
     let long = "x".repeat(NAME_LIMIT + 1);
-    let created = game.with_install(|install| create(&store, install, &long, ProfileSource::Empty));
+    let created = game.with_install(|install| create(&store, install, &long, EMPTY));
     assert!(created.is_err());
 
-    let id = game.create("  Spaced  ", ProfileSource::Empty);
+    let id = game.create("  Spaced  ", EMPTY);
     assert_eq!(store.get(&id).unwrap().name, "Spaced");
     rename(&store, &id, "Renamed").unwrap();
     assert_eq!(store.get(&id).unwrap().name, "Renamed");
@@ -824,7 +859,7 @@ fn a_switch_that_cannot_finish_does_not_hold_back_a_switch_elsewhere_or_leak_int
     let failed = game.with_install(|install| switch(&game.store(), install, &other));
     assert!(failed.is_err());
     assert!(game.enabled().is_empty());
-    let listed = list(&game.store()).unwrap();
+    let listed = game.list();
     assert_eq!(listed.unfinished_switch.as_deref(), Some(other.as_str()));
 
     let created = game
@@ -838,7 +873,7 @@ fn a_switch_that_cannot_finish_does_not_hold_back_a_switch_elsewhere_or_leak_int
     assert_eq!(game.enabled(), ["a"]);
     assert!(!game.store().journal_path().exists());
     assert_eq!(game.store().get(&main).unwrap().members, main_members);
-    assert_eq!(list(&game.store()).unwrap().unfinished_switch, None);
+    assert_eq!(game.list().unfinished_switch, None);
 
     fs::remove_file(&stray).unwrap();
     game.switch(&other);
@@ -885,7 +920,7 @@ fn switching_to_the_profile_already_applied_changes_nothing_on_disk() {
     .unwrap();
     game.set("c", false);
     let main = game.create("Main", ProfileSource::Current);
-    let empty = game.create("Nothing", ProfileSource::Empty);
+    let empty = game.create("Nothing", EMPTY);
     game.switch(&empty);
     game.switch(&main);
     let before = disk(&game);
@@ -943,7 +978,7 @@ fn a_mod_whose_files_are_gone_does_not_stop_a_switch() {
     game.install(paks, record("a"), None);
     game.install(paks, record("b"), None);
     let main = game.create("Main", ProfileSource::Current);
-    let empty = game.create("Nothing", ProfileSource::Empty);
+    let empty = game.create("Nothing", EMPTY);
     let b = game.record("b");
     fs::remove_file(active_mod_path(game.path(), &b.filename, None, paks)).unwrap();
 
@@ -961,7 +996,7 @@ fn a_missing_mod_does_not_change_what_any_profile_wants() {
     game.install(paks, record("a"), None);
     game.install(paks, record("b"), None);
     let main = game.create("Main", ProfileSource::Current);
-    let empty = game.create("Nothing", ProfileSource::Empty);
+    let empty = game.create("Nothing", EMPTY);
     let b = game.record("b");
     let b_path = active_mod_path(game.path(), &b.filename, None, paks);
     let bytes = fs::read(&b_path).unwrap();
@@ -1031,7 +1066,7 @@ fn each_profile_has_its_own_folders_and_a_new_one_has_none() {
     .unwrap();
     let spare = create_folder_op(game.path(), &game.state_path(), "Spare", None, game.cfg).unwrap();
     let main = game.create("Main", ProfileSource::Current);
-    let fresh = game.create("Fresh", ProfileSource::Empty);
+    let fresh = game.create("Fresh", EMPTY);
     let in_paks = |disk_name: &str| mods_base(game.path(), paks).join(disk_name);
 
     game.switch(&fresh);
@@ -1054,37 +1089,38 @@ fn each_profile_has_its_own_folders_and_a_new_one_has_none() {
     assert!(in_paks(&maps.disk_name).is_dir());
 }
 
+// A new profile starts over, loaders included. Its mods need PDML installed in it again.
 #[test]
-fn a_loader_tracked_as_a_mod_stays_on_in_every_profile() {
+fn a_loader_tracked_as_a_mod_is_left_out_of_a_new_profile() {
     let game = Game::new("pd3");
     let paks = game.cfg.primary();
-    let pdml_page = "59255";
-    assert!(loader_pages(game.cfg).contains(pdml_page));
     game.install(
         paks,
         InstalledMod {
             source: "modworkshop".to_string(),
-            remote_id: Some(pdml_page.to_string()),
+            remote_id: Some("59255".to_string()),
             ..record("pdml")
         },
         None,
     );
     game.install(paks, record("a"), None);
-    game.create("Main", ProfileSource::Current);
-    let empty = game.create("Nothing", ProfileSource::Empty);
+    let main = game.create("Main", ProfileSource::Current);
+    let empty = game.create("Nothing", EMPTY);
 
     game.switch(&empty);
+    assert!(game.live().is_empty());
+    assert_eq!(game.parked(), ["a", "pdml"]);
 
-    assert_eq!(game.enabled(), ["pdml"]);
-    assert_eq!(game.parked(), ["a"]);
+    game.switch(&main);
+    assert_eq!(game.enabled(), ["a", "pdml"]);
 }
 
 #[test]
 fn a_profile_file_holding_another_profile_is_refused_rather_than_saved_over_it() {
     let game = Game::new("pd3");
     let store = game.store();
-    let a = game.create("A", ProfileSource::Empty);
-    let b = game.create("B", ProfileSource::Empty);
+    let a = game.create("A", EMPTY);
+    let b = game.create("B", EMPTY);
     let dir = game.dir.path().join(".modrex/profiles");
     let b_bytes = fs::read(dir.join(format!("{b}.json"))).unwrap();
     fs::write(dir.join(format!("{a}.json")), &b_bytes).unwrap();
@@ -1110,4 +1146,185 @@ fn a_disabled_folder_mod_found_on_disk_keeps_its_record_across_scans() {
     let kept = game.record("Hand placed");
     assert_eq!(kept.install_id, id);
     assert!(!kept.enabled);
+}
+
+const KEEP_LOADERS: ProfileSource = ProfileSource::Empty { keep_loaders: true };
+
+#[test]
+fn a_new_profile_leaves_superblt_out_unless_it_keeps_the_loaders() {
+    let game = Game::new("pd2");
+    let hook = game.put("WSOCK32.dll", b"superblt");
+    game.install(game.cfg.primary(), dir_record("Alpha"), None);
+    let main = game.create("Main", ProfileSource::Current);
+    assert_eq!(game.list().loaders, ["SuperBLT"]);
+    let fresh = game.create("Fresh", EMPTY);
+    let kept = game.create("With loaders", KEEP_LOADERS);
+
+    game.switch(&fresh);
+    assert!(!hook.exists());
+    assert_eq!(
+        fs::read(game.parked_loader("superblt", "WSOCK32.dll")).unwrap(),
+        b"superblt"
+    );
+    assert!(game.list().loaders.is_empty());
+
+    game.switch(&kept);
+    assert_eq!(fs::read(&hook).unwrap(), b"superblt");
+    assert!(game.live().is_empty());
+    assert!(!game.parked_loader("superblt", "WSOCK32.dll").exists());
+
+    game.switch(&fresh);
+    game.switch(&main);
+    assert!(hook.is_file());
+    assert_eq!(game.enabled(), ["Alpha"]);
+}
+
+// Only the proxy DLL hooks UE4SS in. Its engine and Mods folder, which holds mods that are
+// profile members of their own, stay where they are.
+#[test]
+fn a_new_profile_parks_only_the_ue4ss_proxy() {
+    let game = Game::on("pd3", "steam");
+    let proxy = game.put("PAYDAY3/Binaries/Win64/dwmapi.dll", b"proxy");
+    let engine = game.put("PAYDAY3/Binaries/Win64/UE4SS/UE4SS.dll", b"engine");
+    let installed =
+        |game: &Game| crate::commands::ue4ss::is_installed("pd3", game.path(), game.launcher);
+    assert!(installed(&game));
+    let main = game.create("Main", ProfileSource::Current);
+    let fresh = game.create("Fresh", EMPTY);
+
+    game.switch(&fresh);
+    assert!(!proxy.exists());
+    assert!(engine.is_file());
+    assert!(!installed(&game));
+
+    game.switch(&main);
+    assert_eq!(fs::read(&proxy).unwrap(), b"proxy");
+    assert!(installed(&game));
+}
+
+// DAHM's payload is loaded by a dinput8.dll proxy other loaders ship too, so without a record
+// of what DAHM installed nothing tells which files would turn it off.
+#[test]
+fn dahm_installed_without_a_record_stays_for_every_profile() {
+    let game = Game::new("pdth");
+    let payload = game.put("pdthhook.dll", b"dahm");
+    game.install(game.cfg.primary(), dir_record("Alpha"), None);
+    game.create("Main", ProfileSource::Current);
+    let fresh = game.create("Fresh", EMPTY);
+    assert!(game.list().loaders.is_empty());
+
+    game.switch(&fresh);
+
+    assert!(payload.is_file());
+}
+
+#[test]
+fn dahm_installed_by_modrex_parks_every_file_its_install_created() {
+    let game = Game::new("pdth");
+    let payload = game.put("pdthhook.dll", b"dahm");
+    let proxy = game.put("dinput8.dll", b"proxy");
+    let module = game.put("mods/DAHM Core/base.lua", b"-- core");
+    let record = game.dir.path().join(".modrex/loaders/dahm.json");
+    fs::create_dir_all(record.parent().unwrap()).unwrap();
+    fs::write(
+        &record,
+        r#"{"files":["pdthhook.dll","dinput8.dll","mods/DAHM Core/base.lua"]}"#,
+    )
+    .unwrap();
+    game.install(game.cfg.primary(), dir_record("Alpha"), None);
+    let main = game.create("Main", ProfileSource::Current);
+    assert_eq!(game.list().loaders, ["DAHM"]);
+    let fresh = game.create("Fresh", EMPTY);
+
+    game.switch(&fresh);
+    assert!(!payload.exists() && !proxy.exists() && !module.exists());
+    assert!(!game.dir.path().join("mods/DAHM Core").exists());
+
+    game.switch(&main);
+    assert_eq!(fs::read(&payload).unwrap(), b"dahm");
+    assert_eq!(fs::read(&proxy).unwrap(), b"proxy");
+    assert_eq!(fs::read(&module).unwrap(), b"-- core");
+}
+
+#[test]
+fn keeping_the_loaders_keeps_a_loader_tracked_as_a_mod() {
+    let game = Game::new("pd3");
+    let paks = game.cfg.primary();
+    game.install(
+        paks,
+        InstalledMod {
+            source: "modworkshop".to_string(),
+            remote_id: Some("59255".to_string()),
+            ..record("pdml")
+        },
+        None,
+    );
+    game.install(paks, record("a"), None);
+    game.create("Main", ProfileSource::Current);
+    assert_eq!(game.list().loaders, ["PDML"]);
+    let kept = game.create("With loaders", KEEP_LOADERS);
+
+    game.switch(&kept);
+
+    assert_eq!(game.enabled(), ["pdml"]);
+    assert_eq!(game.parked(), ["a"]);
+}
+
+#[test]
+fn a_profile_saved_before_profiles_held_loaders_leaves_them_as_they_are() {
+    let game = Game::new("pd2");
+    let hook = game.put("WSOCK32.dll", b"superblt");
+    game.create("Main", ProfileSource::Current);
+    let old = game.create("Old", ProfileSource::Current);
+    let store = game.store();
+    let mut profile = store.get(&old).unwrap();
+    profile.loaders = None;
+    store.save(&profile).unwrap();
+
+    game.switch(&old);
+
+    assert!(hook.is_file());
+}
+
+#[test]
+fn switching_without_an_active_profile_is_refused_while_a_loader_would_be_lost() {
+    let game = Game::new("pd2");
+    let hook = game.put("WSOCK32.dll", b"superblt");
+    let fresh = game.create("Fresh", EMPTY);
+
+    let switched = game.with_install(|install| switch(&game.store(), install, &fresh));
+
+    assert!(switched.unwrap_err().contains("Save the current setup"));
+    assert!(hook.is_file());
+}
+
+#[test]
+fn deleting_the_only_profile_with_a_parked_loader_removes_its_files() {
+    let game = Game::new("pd2");
+    game.put("WSOCK32.dll", b"superblt");
+    let main = game.create("Main", ProfileSource::Current);
+    let fresh = game.create("Fresh", EMPTY);
+    game.switch(&fresh);
+    assert!(game.parked_loader("superblt", "WSOCK32.dll").is_file());
+
+    delete(&game.store(), &main).unwrap();
+
+    assert!(!game.parked_loader("superblt", "").exists());
+}
+
+// A loader installed again while it was parked is the copy in use, so bringing the parked one
+// back must not overwrite it.
+#[test]
+fn a_loader_installed_again_while_parked_keeps_the_new_copy() {
+    let game = Game::new("pd2");
+    let hook = game.put("WSOCK32.dll", b"old");
+    let main = game.create("Main", ProfileSource::Current);
+    let fresh = game.create("Fresh", EMPTY);
+    game.switch(&fresh);
+    fs::write(&hook, b"new").unwrap();
+
+    game.switch(&main);
+
+    assert_eq!(fs::read(&hook).unwrap(), b"new");
+    assert!(!game.parked_loader("superblt", "").exists());
 }

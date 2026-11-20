@@ -46,6 +46,7 @@ export class Library {
             profiles: this.profiles.map(({ id, name }) => ({ id, name })),
             active: this.activeProfile,
             unfinishedSwitch: null,
+            loaders: [],
         }
     }
 

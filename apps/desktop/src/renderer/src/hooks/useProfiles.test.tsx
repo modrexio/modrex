@@ -16,6 +16,7 @@ const list = {
     profiles: [{ id: 'p1', name: 'Heists' }],
     active: null,
     unfinishedSwitch: null,
+    loaders: [],
 }
 
 describe('useProfiles', () => {
@@ -54,7 +55,7 @@ describe('useProfiles', () => {
 
         let created = true
         await act(async () => {
-            created = await result.current.create('', { kind: 'empty' })
+            created = await result.current.create('', { kind: 'empty', keepLoaders: false })
         })
 
         expect(created).toBe(false)

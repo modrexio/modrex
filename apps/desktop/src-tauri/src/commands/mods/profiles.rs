@@ -10,11 +10,14 @@
 //! A profile lists installations by install_id, with the enabled flag, folder and order each
 //! had. The live profile is never read back from its file. The file is a snapshot taken when
 //! the user switches away, and every live mod is a member, so a new install joins the active
-//! profile without any install path knowing about profiles. Two kinds of live record belong to
-//! no profile: one whose files are missing keeps what each profile already said about it, and
-//! a loader tracked as a mod (PDML) stays live in every profile, because the mods of every
-//! profile need it. Ready or Not's mods share Paks with the game's own files and Modrex moves
-//! nothing out of Paks, so a mod outside the active profile stays there, disabled and listed.
+//! profile without any install path knowing about profiles. A live record whose files are
+//! missing belongs to no profile and keeps what each profile already said about it. A loader
+//! tracked as a mod (PDML) is a member like any other. A loader Modrex installs as loose files
+//! (UE4SS, SuperBLT, DAHM, RAID-SuperBLT) is listed by id, and leaving it out parks only the
+//! files that hook it into the game, which loaders.rs names. A new profile starts without
+//! loaders unless the user keeps the installed ones.
+//! Ready or Not's mods share Paks with the game's own files and Modrex moves nothing out of
+//! Paks, so a mod outside the active profile stays there, disabled and listed.
 //!
 //! A switch turns mods off and on through the operations the Installed page uses, so each
 //! loader keeps its own way of doing it (file moves, mods.txt, Crime Boss's settings file),
@@ -42,6 +45,8 @@ use super::reorder::{move_mod_to_folder_op, reorder_mods_in_folder_op};
 use super::resource_state::write_atomic;
 use super::state::{get_folder_path, read_state_for_game, reconcile_state, save_state};
 use super::types::{InstalledMod, ModFolder, ModsState};
+use super::zip::safe_dest;
+use crate::commands::loaders::{hook_files, loader_spec, scoped_bindings, LoaderSpec};
 
 /// Bump when a profile, journal or parked record holds data an older build would drop or
 /// misread.
@@ -79,6 +84,10 @@ pub struct Profile {
     pub members: Vec<ProfileMember>,
     #[serde(default)]
     pub folders: Vec<ModFolder>,
+    /// The loose-file loaders this profile has, by loader id. None in a profile saved before
+    /// profiles held loaders, and switching to it then leaves loaders as they are.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub loaders: Option<Vec<String>>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -107,6 +116,16 @@ struct InstallMarker {
 #[serde(rename_all = "camelCase")]
 struct Parked {
     mods: Vec<InstalledMod>,
+    #[serde(default)]
+    loaders: Vec<ParkedLoader>,
+}
+
+/// A loader left out of the active profile: the files moved away, relative to the game folder.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ParkedLoader {
+    id: String,
+    files: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, specta::Type)]
@@ -123,6 +142,8 @@ pub struct ProfileList {
     pub active: Option<String>,
     /// The profile a switch was heading for when it stopped. Switching to it again finishes it.
     pub unfinished_switch: Option<String>,
+    /// The installed loaders a new profile can keep, by name.
+    pub loaders: Vec<String>,
 }
 
 /// What a new profile starts as.
@@ -131,8 +152,9 @@ pub struct ProfileList {
 pub enum ProfileSource {
     /// The mods as they are installed right now.
     Current,
-    /// No mods, so switching to it parks every mod.
-    Empty,
+    /// No mods, so switching to it parks every mod, and the installed loaders too unless kept.
+    #[serde(rename_all = "camelCase")]
+    Empty { keep_loaders: bool },
     /// Another profile's members.
     #[serde(rename_all = "camelCase")]
     Copy { profile_id: String },
@@ -304,16 +326,36 @@ impl ProfileStore {
         )
     }
 
-    fn parked(&self) -> Result<Vec<InstalledMod>, String> {
+    fn parked_all(&self) -> Result<Parked, String> {
         let path = self.root.join("parked.json");
         if !exists(&path)? {
-            return Ok(Vec::new());
+            return Ok(Parked::default());
         }
-        Ok(read_versioned::<Parked>(&path)?.mods)
+        read_versioned(&path)
+    }
+
+    fn parked(&self) -> Result<Vec<InstalledMod>, String> {
+        Ok(self.parked_all()?.mods)
     }
 
     fn save_parked(&self, mods: Vec<InstalledMod>) -> Result<(), String> {
-        write_versioned(&self.root.join("parked.json"), &Parked { mods })
+        let loaders = self.parked_all()?.loaders;
+        write_versioned(&self.root.join("parked.json"), &Parked { mods, loaders })
+    }
+
+    fn parked_loaders(&self) -> Result<Vec<ParkedLoader>, String> {
+        Ok(self.parked_all()?.loaders)
+    }
+
+    fn save_parked_loaders(&self, loaders: Vec<ParkedLoader>) -> Result<(), String> {
+        let mods = self.parked_all()?.mods;
+        write_versioned(&self.root.join("parked.json"), &Parked { mods, loaders })
+    }
+
+    /// Where a parked loader's files sit. The id names a folder, so it has to be a known loader.
+    fn parked_loader_dir(&self, id: &str) -> Result<PathBuf, String> {
+        loader_spec(id).ok_or_else(|| format!("'{id}' is not a loader Modrex knows"))?;
+        Ok(self.root.join("parked").join("loaders").join(id))
     }
 
     /// Where a parked mod's files sit. The install id names a folder, so it is checked first.
@@ -392,25 +434,10 @@ impl Install<'_> {
     }
 }
 
-/// The modworkshop pages this game publishes a loader under. A record installed from one is a
-/// loader tracked as a mod.
-fn loader_pages(cfg: &ModEngineConfig) -> HashSet<String> {
-    crate::commands::loaders::scoped_bindings()
-        .into_iter()
-        .filter(|(game_id, _, _)| *game_id == cfg.game_id)
-        .flat_map(|(_, _, ids)| ids)
-        .map(|id| id.to_string())
-        .collect()
-}
-
 /// The live records profiles decide, see the module comment.
-fn decided(cfg: &ModEngineConfig, mods: &[InstalledMod]) -> Vec<InstalledMod> {
-    let loaders = loader_pages(cfg);
-    let is_loader = |m: &InstalledMod| {
-        m.source == "modworkshop" && m.remote_id.as_ref().is_some_and(|id| loaders.contains(id))
-    };
+fn decided(mods: &[InstalledMod]) -> Vec<InstalledMod> {
     mods.iter()
-        .filter(|m| m.missing != Some(true) && !is_loader(m))
+        .filter(|m| m.missing != Some(true))
         .cloned()
         .collect()
 }
@@ -444,6 +471,40 @@ fn snapshot(
         .collect()
 }
 
+/// The loose-file loaders installed in this copy that a profile can leave out, each with the
+/// files that hook it into the game.
+fn live_loaders(install: &Install) -> Result<Vec<(&'static LoaderSpec, Vec<PathBuf>)>, String> {
+    let mut live: Vec<(&'static LoaderSpec, Vec<PathBuf>)> = Vec::new();
+    for (game_id, spec, _) in scoped_bindings() {
+        if game_id != install.cfg.game_id || live.iter().any(|(seen, _)| seen.id == spec.id) {
+            continue;
+        }
+        if let Some(files) = hook_files(spec, game_id, install.game_path, install.launcher)? {
+            live.push((spec, files));
+        }
+    }
+    Ok(live)
+}
+
+fn live_loader_ids(install: &Install) -> Result<Vec<String>, String> {
+    Ok(live_loaders(install)?
+        .into_iter()
+        .map(|(spec, _)| spec.id.to_string())
+        .collect())
+}
+
+/// The name of the loader a record was installed from, when it is one (PDML).
+fn loader_record_name(cfg: &ModEngineConfig, m: &InstalledMod) -> Option<&'static str> {
+    if m.source != "modworkshop" {
+        return None;
+    }
+    let remote_id: i64 = m.remote_id.as_deref()?.parse().ok()?;
+    scoped_bindings()
+        .into_iter()
+        .find(|(game_id, _, ids)| *game_id == cfg.game_id && ids.contains(&remote_id))
+        .map(|(_, spec, _)| spec.name)
+}
+
 /// Writes the live setup back into the active profile before it is left.
 fn save_active(
     store: &ProfileStore,
@@ -457,12 +518,9 @@ fn save_active(
     let Some(mut profile) = store.find(&id)? else {
         return Ok(None);
     };
-    profile.members = snapshot(
-        install.cfg,
-        &profile.members,
-        &decided(install.cfg, &live.mods),
-    );
+    profile.members = snapshot(install.cfg, &profile.members, &decided(&live.mods));
     profile.folders = live.folders.clone();
+    profile.loaders = Some(live_loader_ids(install)?);
     store.save(&profile)?;
     Ok(Some(id))
 }
@@ -541,6 +599,121 @@ fn unpark(store: &ProfileStore, install: &Install, record: &InstalledMod) -> Res
             .filter(|p| p.install_id != m.install_id)
             .collect(),
     )
+}
+
+/// Moves a loader's hook files out of the game: the record goes to parked.json first, then each
+/// file moves, so a stop leaves the loader recorded with some files still in place, which the
+/// next switch moves on.
+fn park_loader(
+    store: &ProfileStore,
+    install: &Install,
+    id: &str,
+    files: &[PathBuf],
+) -> Result<(), String> {
+    let root = Path::new(install.game_path);
+    let rel: Vec<String> = files
+        .iter()
+        .map(|file| {
+            file.strip_prefix(root)
+                .expect("hook files sit inside the game folder")
+                .to_string_lossy()
+                .replace('\\', "/")
+        })
+        .collect();
+    let mut parked = store.parked_loaders()?;
+    if !parked.iter().any(|p| p.id == id) {
+        parked.push(ParkedLoader {
+            id: id.to_string(),
+            files: rel.clone(),
+        });
+        store.save_parked_loaders(parked)?;
+    }
+    let dir = store.parked_loader_dir(id)?;
+    for rel in &rel {
+        let from = root.join(rel);
+        let to = dir.join(rel);
+        if !exists(&from)? || exists(&to)? {
+            continue;
+        }
+        let parent = to.parent().expect("a parked file has a folder");
+        fs::create_dir_all(parent)
+            .map_err(|e| format!("could not prepare {}: {e}", parent.display()))?;
+        fs::rename(&from, &to).map_err(|e| format!("could not park {rel}: {e}"))?;
+        remove_empty_folders(from.parent(), root);
+    }
+    Ok(())
+}
+
+/// Puts a parked loader's files back. A file the loader has again in the game, installed
+/// while it was parked, wins over the parked copy, which is then dropped.
+fn unpark_loader(
+    store: &ProfileStore,
+    install: &Install,
+    parked: &ParkedLoader,
+) -> Result<(), String> {
+    let root = Path::new(install.game_path);
+    let dir = store.parked_loader_dir(&parked.id)?;
+    for rel in &parked.files {
+        let outside = || format!("the parked {} names a path outside the game", parked.id);
+        let to = safe_dest(root, rel).ok_or_else(outside)?;
+        let from = safe_dest(&dir, rel).ok_or_else(outside)?;
+        if !exists(&from)? {
+            continue;
+        }
+        if exists(&to)? {
+            fs::remove_file(&from).map_err(|e| format!("could not drop the parked {rel}: {e}"))?;
+            continue;
+        }
+        let parent = to.parent().expect("a loader file has a folder");
+        fs::create_dir_all(parent)
+            .map_err(|e| format!("could not prepare {}: {e}", parent.display()))?;
+        fs::rename(&from, &to).map_err(|e| format!("could not bring back {rel}: {e}"))?;
+    }
+    match fs::remove_dir_all(&dir) {
+        Ok(()) => {}
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+        Err(e) => return Err(format!("could not tidy {}: {e}", dir.display())),
+    }
+    let rest = store
+        .parked_loaders()?
+        .into_iter()
+        .filter(|p| p.id != parked.id)
+        .collect();
+    store.save_parked_loaders(rest)
+}
+
+/// Removes the folders a moved file leaves empty, up to the game folder. remove_dir refuses a
+/// folder that still holds something, which ends the walk there.
+fn remove_empty_folders(mut dir: Option<&Path>, root: &Path) {
+    while let Some(current) = dir.filter(|d| *d != root && d.starts_with(root)) {
+        if fs::remove_dir(current).is_err() {
+            return;
+        }
+        dir = current.parent();
+    }
+}
+
+/// Leaves out the loaders a profile does not have and brings back the ones it has. A profile
+/// with no loader list leaves loaders as they are.
+fn settle_loaders(
+    store: &ProfileStore,
+    install: &Install,
+    wanted: Option<&[String]>,
+) -> Result<(), String> {
+    let Some(wanted) = wanted else {
+        return Ok(());
+    };
+    for (spec, files) in live_loaders(install)? {
+        if !wanted.iter().any(|id| id == spec.id) {
+            park_loader(store, install, spec.id, &files)?;
+        }
+    }
+    for parked in store.parked_loaders()? {
+        if wanted.contains(&parked.id) {
+            unpark_loader(store, install, &parked)?;
+        }
+    }
+    Ok(())
 }
 
 /// Takes away the folders the profile does not have and puts back the ones it has. A folder a
@@ -631,7 +804,7 @@ fn apply(store: &ProfileStore, install: &Install, target: &Profile) -> Result<()
         |m: &InstalledMod| wanted.get(m.install_id.as_str()).is_some_and(|w| w.enabled);
 
     let scanned = install.scan()?.mods;
-    let leaving = decided(install.cfg, &scanned);
+    let leaving = decided(&scanned);
     for m in &leaving {
         if m.enabled && !enabled_in_profile(m) {
             disable_mod_op(
@@ -652,6 +825,7 @@ fn apply(store: &ProfileStore, install: &Install, target: &Profile) -> Result<()
             park(store, install, &m.uid)?;
         }
     }
+    settle_loaders(store, install, target.loaders.as_deref())?;
     settle_folders(install, &target.folders)?;
     for record in store.parked()? {
         if wanted.contains_key(record.install_id.as_str()) {
@@ -659,7 +833,7 @@ fn apply(store: &ProfileStore, install: &Install, target: &Profile) -> Result<()
         }
     }
 
-    let switchable: HashSet<String> = decided(install.cfg, &install.scan()?.mods)
+    let switchable: HashSet<String> = decided(&install.scan()?.mods)
         .into_iter()
         .map(|m| m.uid)
         .collect();
@@ -789,11 +963,10 @@ pub(crate) fn switch(
     if !unfinished {
         let live = install.scan()?;
         if save_active(store, install, &live)?.is_none()
-            && decided(install.cfg, &live.mods)
-                .iter()
-                .any(|m| parkable(install.cfg, m))
+            && (decided(&live.mods).iter().any(|m| parkable(install.cfg, m))
+                || !live_loaders(install)?.is_empty())
         {
-            // Parked mods are only ever brought back by a profile that lists them.
+            // Parked mods and loaders are only ever brought back by a profile that lists them.
             return Err(
                 "No profile is active. Save the current setup as a profile first, so its mods are not lost."
                     .to_string(),
@@ -814,8 +987,20 @@ pub(crate) fn switch(
     store.finish()
 }
 
-pub(crate) fn list(store: &ProfileStore) -> Result<ProfileList, String> {
+pub(crate) fn list(store: &ProfileStore, install: &Install) -> Result<ProfileList, String> {
     let profiles = store.list()?;
+    let live = install.read()?;
+    let mut loaders: Vec<String> = decided(&live.mods)
+        .iter()
+        .filter_map(|m| loader_record_name(install.cfg, m))
+        .chain(
+            live_loaders(install)?
+                .into_iter()
+                .map(|(spec, _)| spec.name),
+        )
+        .map(str::to_string)
+        .collect();
+    loaders.dedup();
     let active = store
         .active()?
         .filter(|id| profiles.iter().any(|p| &p.id == id));
@@ -829,6 +1014,7 @@ pub(crate) fn list(store: &ProfileStore) -> Result<ProfileList, String> {
             .collect(),
         active,
         unfinished_switch: store.pending()?.map(|j| j.profile_id),
+        loaders,
     })
 }
 
@@ -847,21 +1033,37 @@ pub(crate) fn create(
     refuse_while_unfinished(store, "create the profile")?;
     let live = install.scan()?;
     let active = save_active(store, install, &live)?;
-    let (members, folders) = match &source {
+    let (members, folders, loaders) = match &source {
         ProfileSource::Current => match &active {
             Some(id) => {
                 let active = store.get(id)?;
-                (active.members, active.folders)
+                (active.members, active.folders, active.loaders)
             }
             None => (
-                snapshot(install.cfg, &[], &decided(install.cfg, &live.mods)),
+                snapshot(install.cfg, &[], &decided(&live.mods)),
                 live.folders,
+                Some(live_loader_ids(install)?),
             ),
         },
-        ProfileSource::Empty => (Vec::new(), Vec::new()),
+        ProfileSource::Empty {
+            keep_loaders: false,
+        } => (Vec::new(), Vec::new(), Some(Vec::new())),
+        // Kept loaders join as they are installed now, loose files and loader mods alike.
+        ProfileSource::Empty { keep_loaders: true } => (
+            decided(&live.mods)
+                .iter()
+                .filter(|m| loader_record_name(install.cfg, m).is_some())
+                .map(|m| ProfileMember {
+                    folder_id: None,
+                    ..ProfileMember::of(m)
+                })
+                .collect(),
+            Vec::new(),
+            Some(live_loader_ids(install)?),
+        ),
         ProfileSource::Copy { profile_id } => {
             let copied = store.get(profile_id)?;
-            (copied.members, copied.folders)
+            (copied.members, copied.folders, copied.loaders)
         }
     };
     let profile = Profile {
@@ -869,6 +1071,7 @@ pub(crate) fn create(
         name,
         members,
         folders,
+        loaders,
     };
     store.save(&profile)?;
     if matches!(source, ProfileSource::Current) && active.is_none() {
@@ -923,6 +1126,26 @@ pub(crate) fn delete(store: &ProfileStore, profile_id: &str) -> Result<(), Strin
     }
     if !orphans.is_empty() {
         store.save_parked(stays)?;
+    }
+
+    let wanted_loaders: HashSet<String> = store
+        .list()?
+        .into_iter()
+        .flat_map(|p| p.loaders.unwrap_or_default())
+        .collect();
+    let (kept_loaders, orphan_loaders): (Vec<ParkedLoader>, Vec<ParkedLoader>) = store
+        .parked_loaders()?
+        .into_iter()
+        .partition(|l| wanted_loaders.contains(&l.id));
+    for loader in &orphan_loaders {
+        match fs::remove_dir_all(store.parked_loader_dir(&loader.id)?) {
+            Ok(()) => {}
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+            Err(e) => return Err(format!("could not remove the files of {}: {e}", loader.id)),
+        }
+    }
+    if !orphan_loaders.is_empty() {
+        store.save_parked_loaders(kept_loaders)?;
     }
     Ok(())
 }
