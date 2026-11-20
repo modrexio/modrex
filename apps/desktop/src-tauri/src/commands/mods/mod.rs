@@ -674,6 +674,12 @@ fn mark_containers(
     companions::mark_container_missing(game_path, cfg, folders, mods, aes_key)
 }
 
+/// Whether a record was installed from this ModWorkshop mod. Another source can use the same
+/// number for an unrelated mod.
+fn is_modworkshop_record(m: &InstalledMod, remote_id: &str) -> bool {
+    m.source == "modworkshop" && m.remote_id.as_deref() == Some(remote_id)
+}
+
 /// The record a ModWorkshop file install continues: the same file, or the mod's only record.
 /// A mod with several records has them in different folders on purpose, and none of them is
 /// the one a new file replaces.
@@ -691,7 +697,7 @@ fn catalog_predecessor<'a>(
     let remote_id = remote_id.to_string();
     match mods
         .iter()
-        .filter(|m| m.remote_id.as_deref() == Some(remote_id.as_str()))
+        .filter(|m| is_modworkshop_record(m, &remote_id))
         .collect::<Vec<_>>()
         .as_slice()
     {
@@ -878,7 +884,7 @@ pub async fn install_mod(
                     && saved
                         .mods
                         .iter()
-                        .filter(|m| m.remote_id.as_deref() == Some(remote_id_str.as_str()))
+                        .filter(|m| is_modworkshop_record(m, &remote_id_str))
                         .count()
                         > 1
                 {
@@ -921,7 +927,7 @@ pub async fn install_mod(
                 let same: Vec<_> = saved
                     .mods
                     .iter()
-                    .filter(|m| m.remote_id.as_deref() == Some(remote_id_str.as_str()))
+                    .filter(|m| is_modworkshop_record(m, &remote_id_str))
                     .collect();
                 if same.len() == 1 {
                     uninstall_mod_op(&game_path, &sp, &same[0].uid.clone(), cfg)?;
@@ -1112,7 +1118,7 @@ pub async fn install_file(
                 && saved
                     .mods
                     .iter()
-                    .filter(|m| m.remote_id.as_deref() == Some(mod_id_str.as_str()))
+                    .filter(|m| is_modworkshop_record(m, &mod_id_str))
                     .count()
                     > 1
             {
@@ -2324,7 +2330,7 @@ fn stale_entries_for_zip_install<'a>(
     let stem = uid.strip_prefix(&sibling);
     let same: Vec<_> = mods
         .iter()
-        .filter(|m| m.remote_id.as_deref() == Some(mod_id_str.as_str()))
+        .filter(|m| is_modworkshop_record(m, &mod_id_str))
         .collect();
     let stale: Vec<_> = same
         .iter()

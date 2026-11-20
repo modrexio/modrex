@@ -9798,3 +9798,20 @@ fn a_repeated_install_id_is_kept_only_by_the_first_record() {
         mods[1].install_id
     );
 }
+
+#[test]
+fn a_modworkshop_install_never_continues_another_sources_mod_with_the_same_number() {
+    let nexus = InstalledMod {
+        uid: "nexus-7".to_string(),
+        name: "Other".to_string(),
+        filename: "Other.pak".to_string(),
+        enabled: true,
+        ..InstalledMod::from_catalog(
+            "nexus",
+            "7".to_string(),
+            IdentityEvidence::InstallProvenance,
+        )
+    };
+
+    assert!(catalog_predecessor(&[nexus], "12", 7).is_none());
+}

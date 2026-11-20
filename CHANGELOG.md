@@ -28,6 +28,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - Fixed interface errors missing from the log.
 - Fixed the page selector flickering on Nexus Mods.
 - Fixed reinstalls moving a mod's files into one folder.
+- Fixed ModWorkshop installs removing Nexus mods with the same id.
 
 ## 0.16.1
 
