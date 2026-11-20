@@ -205,8 +205,52 @@ pub fn read_state(state_path: &Path) -> Result<ModsState, StateLoadError> {
         }
         migrate_version_sentinels(m);
     }
+    assign_legacy_install_ids(&mut mods);
 
     Ok(ModsState { folders, mods })
+}
+
+/// Gives every record written before install_id existed an id derived from its uid.
+///
+/// Derived rather than random, so the same file reads with the same ids every time even when
+/// nothing saves it in between. Two rows can share a uid in a file that old, and the later
+/// ones also take their position, or they would share an id. A record repeating an id an
+/// earlier record holds gets a derived one as well, because a profile names a record by it.
+fn assign_legacy_install_ids(mods: &mut [InstalledMod]) {
+    let mut taken = HashSet::new();
+    let keeps: Vec<bool> = mods
+        .iter()
+        .map(|m| !m.install_id.is_empty() && taken.insert(m.install_id.clone()))
+        .collect();
+    for (position, m) in mods.iter_mut().enumerate() {
+        if keeps[position] {
+            continue;
+        }
+        let mut id = legacy_install_id(&m.uid);
+        if taken.contains(&id) {
+            id = legacy_install_id(&format!("{}\0{position}", m.uid));
+        }
+        taken.insert(id.clone());
+        m.install_id = id;
+    }
+}
+
+// The namespace keeps these ids apart from any other value hashed the same way. Changing it
+// gives every record from an older state file a new id on its next read.
+const LEGACY_INSTALL_ID_NAMESPACE: &str = "modrex.install-id.v1";
+
+fn legacy_install_id(uid: &str) -> String {
+    use sha2::Digest;
+    let digest = sha2::Sha256::new()
+        .chain_update(LEGACY_INSTALL_ID_NAMESPACE)
+        .chain_update([0])
+        .chain_update(uid)
+        .finalize();
+    let mut bytes = [0u8; 16];
+    bytes.copy_from_slice(&digest[..16]);
+    uuid::Builder::from_custom_bytes(bytes)
+        .into_uuid()
+        .to_string()
 }
 
 pub(super) fn read_state_for_game(
@@ -805,22 +849,51 @@ pub(crate) fn superseded_records(mods: &[InstalledMod]) -> HashSet<String> {
     mods.iter()
         .filter(|m| m.bundle.is_none())
         .filter(|m| {
-            let (Some(remote_id), Some(file_id)) = (m.remote_id.as_deref(), m.file_id) else {
+            let (Some(_), Some(file_id)) = (m.remote_id.as_deref(), m.file_id) else {
                 return false;
             };
             file_id > 0
                 && mods.iter().any(|o| {
-                    o.source == m.source
-                        && o.remote_id.as_deref() == Some(remote_id)
-                        && o.file_id.is_some_and(|newer| newer > file_id)
-                        && o.filename == m.filename
-                        && o.location == m.location
-                        && o.folder_id == m.folder_id
-                        && o.enabled == m.enabled
+                    o.file_id.is_some_and(|newer| newer > file_id) && same_release_slot(m, o)
                 })
         })
         .map(|m| m.uid.clone())
         .collect()
+}
+
+fn same_release_slot(a: &InstalledMod, b: &InstalledMod) -> bool {
+    a.source == b.source
+        && a.remote_id == b.remote_id
+        && a.filename == b.filename
+        && a.location == b.location
+        && a.folder_id == b.folder_id
+        && a.enabled == b.enabled
+}
+
+/// Gives the record that survives superseded_records the install_id of the oldest record it
+/// supersedes. They are one installation recorded at several releases.
+fn inherit_superseded_install_ids(mods: &mut [InstalledMod], superseded: &HashSet<String>) {
+    let mut oldest: HashMap<usize, (i64, String)> = HashMap::new();
+    for old in mods.iter().filter(|m| superseded.contains(&m.uid)) {
+        let Some(heir) = mods
+            .iter()
+            .position(|m| !superseded.contains(&m.uid) && same_release_slot(old, m))
+        else {
+            continue;
+        };
+        let file_id = old
+            .file_id
+            .expect("superseded_records only returns records with a file id");
+        let entry = oldest
+            .entry(heir)
+            .or_insert_with(|| (file_id, old.install_id.clone()));
+        if file_id < entry.0 {
+            *entry = (file_id, old.install_id.clone());
+        }
+    }
+    for (heir, (_, install_id)) in oldest {
+        mods[heir].install_id = install_id;
+    }
 }
 
 /// Where the state file sits while mods are hidden for a launch. set_aside is the primary
@@ -945,6 +1018,7 @@ pub fn reconcile_state(
         }
     }
     let superseded = superseded_records(&state.mods);
+    inherit_superseded_install_ids(&mut state.mods, &superseded);
     state.mods.retain(|m| !superseded.contains(&m.uid));
     let state = state;
 

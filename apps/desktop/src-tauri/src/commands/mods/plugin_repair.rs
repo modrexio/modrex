@@ -251,6 +251,15 @@ pub(crate) fn set_aside_superseded_paks(
 }
 
 impl SupersededPaks {
+    /// The one loose pak record the plugin replaces, which the plugin carries on as. Several
+    /// paks folding into one plugin leave no single installation to continue.
+    pub(crate) fn sole_record(&self) -> Option<&InstalledMod> {
+        match self.records.as_slice() {
+            [one] => Some(one),
+            _ => None,
+        }
+    }
+
     /// Deletes the set-aside paks and the app folders their records leave empty.
     pub(crate) fn commit(mut self) {
         if let Some(quarantine) = self.quarantine.take() {

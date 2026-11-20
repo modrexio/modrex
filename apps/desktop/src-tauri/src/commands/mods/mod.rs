@@ -674,6 +674,32 @@ fn mark_containers(
     companions::mark_container_missing(game_path, cfg, folders, mods, aes_key)
 }
 
+/// The record a ModWorkshop file install continues: the same file, or the mod's only record.
+/// A mod with several records has them in different folders on purpose, and none of them is
+/// the one a new file replaces.
+fn catalog_predecessor<'a>(
+    mods: &'a [InstalledMod],
+    uid: &str,
+    remote_id: i64,
+) -> Option<&'a InstalledMod> {
+    if let Some(same_file) = mods.iter().find(|m| m.uid == uid) {
+        return Some(same_file);
+    }
+    if remote_id <= 0 {
+        return None;
+    }
+    let remote_id = remote_id.to_string();
+    match mods
+        .iter()
+        .filter(|m| m.remote_id.as_deref() == Some(remote_id.as_str()))
+        .collect::<Vec<_>>()
+        .as_slice()
+    {
+        [one] => Some(one),
+        _ => None,
+    }
+}
+
 #[tauri::command]
 #[specta::specta]
 pub async fn install_mod(
@@ -845,22 +871,7 @@ pub async fn install_mod(
             let paks_disabled = superseded.all_disabled;
             let saved =
                 state::read_state_for_game(&game_path, &sp, cfg).map_err(|e| e.to_string())?;
-            let existing_entry = saved.mods.iter().find(|m| m.uid == uid).or_else(|| {
-                if remote_id <= 0 {
-                    return None;
-                }
-                let same: Vec<_> = saved
-                    .mods
-                    .iter()
-                    .filter(|m| m.remote_id.as_deref() == Some(remote_id_str.as_str()))
-                    .collect();
-                // Only inherit for single-entry mods; multi-pak entries span different folders.
-                if same.len() == 1 {
-                    same.into_iter().next()
-                } else {
-                    None
-                }
-            });
+            let existing_entry = catalog_predecessor(&saved.mods, &uid, remote_id);
             // Don't inherit folder when same-id already has multiple files; each pak is placed deliberately.
             let effective_folder_id = folder_id.or_else(|| {
                 if remote_id > 0
@@ -917,25 +928,29 @@ pub async fn install_mod(
                 }
             }
 
+            let mut record = InstalledMod {
+                uid: uid.clone(),
+                name: mod_name,
+                version: mod_version,
+                filename,
+                enabled: true,
+                installed_at: Utc::now().to_rfc3339(),
+                file_id: Some(file_id),
+                file_type: Some(file_type),
+                sha256: Some(sha256),
+                ..InstalledMod::from_catalog(
+                    "modworkshop",
+                    remote_id_str.clone(),
+                    IdentityEvidence::InstallProvenance,
+                )
+            };
+            if let Some(predecessor) = existing_entry.or(superseded.sole_record()) {
+                record.inherit_install_id(predecessor);
+            }
             install_mod_from_path(
                 &game_path,
                 &sp,
-                InstalledMod {
-                    uid: uid.clone(),
-                    name: mod_name,
-                    version: mod_version,
-                    filename,
-                    enabled: true,
-                    installed_at: Utc::now().to_rfc3339(),
-                    file_id: Some(file_id),
-                    file_type: Some(file_type),
-                    sha256: Some(sha256),
-                    ..InstalledMod::from_catalog(
-                        "modworkshop",
-                        remote_id_str.clone(),
-                        IdentityEvidence::InstallProvenance,
-                    )
-                },
+                record,
                 &tmp,
                 effective_folder_id,
                 cfg,
@@ -1091,21 +1106,7 @@ pub async fn install_file(
             let paks_disabled = superseded.all_disabled;
             let saved =
                 state::read_state_for_game(&game_path, &sp, cfg).map_err(|e| e.to_string())?;
-            let existing_entry = saved.mods.iter().find(|m| m.uid == uid).or_else(|| {
-                if mod_id <= 0 {
-                    return None;
-                }
-                let same: Vec<_> = saved
-                    .mods
-                    .iter()
-                    .filter(|m| m.remote_id.as_deref() == Some(mod_id_str.as_str()))
-                    .collect();
-                if same.len() == 1 {
-                    same.into_iter().next()
-                } else {
-                    None
-                }
-            });
+            let existing_entry = catalog_predecessor(&saved.mods, &uid, mod_id);
             // Never inherit folder when this mod_id already has multiple installed files.
             let effective_folder_id = if mod_id > 0
                 && saved
@@ -1149,25 +1150,31 @@ pub async fn install_file(
                 ),
             };
 
+            let mut record = InstalledMod {
+                uid: uid.clone(),
+                name: mod_name,
+                version: mod_version,
+                filename,
+                enabled: true,
+                installed_at: Utc::now().to_rfc3339(),
+                file_id: Some(file_id),
+                file_type: Some(file_type),
+                sha256: Some(sha256),
+                ..InstalledMod::from_catalog(
+                    "modworkshop",
+                    mod_id_str.clone(),
+                    IdentityEvidence::InstallProvenance,
+                )
+            };
+            // Another file of the mod stays installed beside this one, so only a plugin taking
+            // over a loose pak continues an installation here.
+            if let Some(predecessor) = superseded.sole_record() {
+                record.inherit_install_id(predecessor);
+            }
             install_mod_from_path(
                 &game_path,
                 &sp,
-                InstalledMod {
-                    uid: uid.clone(),
-                    name: mod_name,
-                    version: mod_version,
-                    filename,
-                    enabled: true,
-                    installed_at: Utc::now().to_rfc3339(),
-                    file_id: Some(file_id),
-                    file_type: Some(file_type),
-                    sha256: Some(sha256),
-                    ..InstalledMod::from_catalog(
-                        "modworkshop",
-                        mod_id_str.clone(),
-                        IdentityEvidence::InstallProvenance,
-                    )
-                },
+                record,
                 &tmp,
                 effective_folder_id,
                 cfg,
@@ -1559,6 +1566,8 @@ fn push_installed_loaders(
         };
         let entry = InstalledMod {
             uid: format!("loader:{}", spec.id),
+            // Rebuilt on every read and never saved, so only its uid stays the same.
+            install_id: format!("loader:{}", spec.id),
             name: spec.id.to_uppercase(),
             version: found
                 .version
@@ -2343,6 +2352,24 @@ fn stale_entries_for_zip_install<'a>(
     same
 }
 
+/// Which of the records an archive entry install removes it continues as: the one installed
+/// from the same member, or the only one when none says which member it came from.
+fn zip_entry_predecessor<'a>(
+    stale: &[&'a InstalledMod],
+    incoming: &InstalledMod,
+) -> Option<&'a InstalledMod> {
+    if let Some(same) = stale
+        .iter()
+        .find(|m| m.archive_member.is_some() && m.archive_member == incoming.archive_member)
+    {
+        return Some(same);
+    }
+    match stale {
+        [one] if one.archive_member.is_none() => Some(one),
+        _ => None,
+    }
+}
+
 /// A Crime Boss mod's entries share one folder, so a shared path only loses its record.
 fn remove_stale_zip_entry(
     game_path: &str,
@@ -2492,6 +2519,23 @@ pub async fn install_from_zip_entry(
                 (!primary).then_some(target.tag),
                 folder_id.as_deref().filter(|_| primary),
             );
+            let mut record = InstalledMod {
+                uid: uid.clone(),
+                name: mod_name,
+                version: mod_version,
+                filename: install_filename,
+                enabled: true,
+                installed_at: Utc::now().to_rfc3339(),
+                file_type: Some(file_type),
+                sha256: Some(sha256),
+                archive_member: Some(entry_name.replace('\\', "/")),
+                ..identity
+            };
+            if let Some(predecessor) =
+                zip_entry_predecessor(&stale, &record).or(superseded.sole_record())
+            {
+                record.inherit_install_id(predecessor);
+            }
             for stale in stale {
                 remove_stale_zip_entry(&game_path, &sp, cfg, &saved.mods, stale)?;
             }
@@ -2502,17 +2546,7 @@ pub async fn install_from_zip_entry(
             install_mod_from_path(
                 &game_path,
                 &sp,
-                InstalledMod {
-                    uid: uid.clone(),
-                    name: mod_name,
-                    version: mod_version,
-                    filename: install_filename,
-                    enabled: true,
-                    installed_at: Utc::now().to_rfc3339(),
-                    file_type: Some(file_type),
-                    sha256: Some(sha256),
-                    ..identity
-                },
+                record,
                 &ext,
                 effective_folder_id,
                 cfg,
@@ -2736,6 +2770,7 @@ async fn install_nexus_review_entry(
                     file_id: Some(choice.file_id),
                     file_type: Some(choice.file_type.clone()),
                     sha256: Some(sha256),
+                    archive_member: Some(entry.display_name.replace('\\', "/")),
                     ..InstalledMod::from_catalog(
                         "nexus",
                         choice.mod_id.to_string(),

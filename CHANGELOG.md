@@ -27,6 +27,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - Fixed a failed update install leaving Modrex with no window.
 - Fixed interface errors missing from the log.
 - Fixed the page selector flickering on Nexus Mods.
+- Fixed reinstalls moving a mod's files into one folder.
 
 ## 0.16.1
 

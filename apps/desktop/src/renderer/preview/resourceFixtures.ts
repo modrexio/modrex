@@ -19,6 +19,7 @@ export function seedResourceLibrary(gameId: GameId) {
         entries.push(
             {
                 uid: 'resource:movie:intro',
+                installId: 'resource:movie:intro',
                 id: -9001,
                 source: 'local',
                 name: 'Skip startup movies',
@@ -31,6 +32,7 @@ export function seedResourceLibrary(gameId: GameId) {
             },
             {
                 uid: 'resource:movie:changed',
+                installId: 'resource:movie:changed',
                 id: -9003,
                 source: 'local',
                 name: 'Custom intro movie',
@@ -46,6 +48,7 @@ export function seedResourceLibrary(gameId: GameId) {
     if (game.configPresets)
         entries.push({
             uid: 'resource:ini:scale',
+            installId: 'resource:ini:scale',
             id: -9002,
             source: 'local',
             name: 'Small UI',
@@ -160,6 +163,7 @@ export function installResources(handle: string, selection: ResourceSelection[])
     for (const entry of review.entries.filter((entry) => entry.entryId in selected)) {
         lib.install({
             uid: `resource:preview:${entry.kind}`,
+            installId: `resource:preview:${entry.kind}`,
             id: entry.kind === 'movie' ? -9010 : -9011,
             source: 'local',
             name:

@@ -177,6 +177,7 @@ export class Library {
             names.forEach((name, index) => {
                 this.install({
                     uid: `preview-${tag}-${index + 1}`,
+                    installId: `preview-${tag}-${index + 1}`,
                     id: -(7000 + this.mods.length),
                     source: 'local',
                     name,
@@ -193,6 +194,7 @@ export class Library {
         for (const id of loaderIds) {
             this.mods.push({
                 uid: `loader:${id}`,
+                installId: `loader:${id}`,
                 source: 'local',
                 author: 'Preview',
                 id: -(8000 + this.mods.length),
@@ -280,6 +282,7 @@ export function installedFromWorkshop(
     const fileType = file.type ?? 'pak'
     return {
         uid: String(file.id),
+        installId: String(file.id),
         id: -detail.id,
         name: detail.name,
         version: file.version || detail.version,

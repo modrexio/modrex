@@ -7,6 +7,7 @@ import { isNoNewerVersion, updatableMods, resolveUpdateTarget } from './updatePo
 const installed: InstalledMod = {
     id: 1,
     uid: 'one',
+    installId: 'one',
     name: 'Mod',
     remoteId: '1',
     version: 'first',

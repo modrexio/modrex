@@ -2327,6 +2327,9 @@ fn row(d: &Deployment, status: ResourceStatus) -> InstalledMod {
     };
     let mut m = InstalledMod {
         uid: format!("{RESOURCE_UID_PREFIX}{}", d.id),
+        // Rebuilt from the resource manifest on every read and never saved, so the
+        // deployment's own id is what stays the same across reads.
+        install_id: d.id.clone(),
         id: hash_filename(&d.id),
         name: d.name.clone(),
         version: d.version.clone(),

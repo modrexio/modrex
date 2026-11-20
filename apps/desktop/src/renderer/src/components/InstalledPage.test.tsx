@@ -146,6 +146,7 @@ describe('InstalledPage header', () => {
         const installed: InstalledMod[] = [
             {
                 uid: 'legacy',
+                installId: 'legacy',
                 id: 1,
                 name: 'Legacy',
                 filename: 'legacy.pak',
@@ -156,6 +157,7 @@ describe('InstalledPage header', () => {
             },
             {
                 uid: 'modkit',
+                installId: 'modkit',
                 id: 2,
                 name: 'ModKit',
                 filename: 'modkit.pak',
@@ -189,6 +191,7 @@ describe('InstalledPage header', () => {
             'cb',
             ['paks', 'ue4ss_mods'].map((location, id) => ({
                 uid: location,
+                installId: location,
                 id,
                 name: location,
                 filename: location,

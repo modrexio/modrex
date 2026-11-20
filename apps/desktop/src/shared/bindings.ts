@@ -601,6 +601,7 @@ export type InstalledMod = InstalledMod_Serialize | InstalledMod_Deserialize;
 
 export type InstalledMod_Deserialize = {
 	uid?: string,
+	installId?: string,
 	id: number,
 	name: string,
 	version: string,
@@ -629,10 +630,12 @@ export type InstalledMod_Deserialize = {
 	deployment?: ResourceDeployment | null,
 	resourceStatus?: ResourceStatus | null,
 	bundle?: BundleFile[] | null,
+	archiveMember?: string | null,
 };
 
 export type InstalledMod_Serialize = {
 	uid: string,
+	installId: string,
 	id: number,
 	name: string,
 	version: string,
@@ -661,6 +664,7 @@ export type InstalledMod_Serialize = {
 	deployment?: ResourceDeployment | null,
 	resourceStatus?: ResourceStatus | null,
 	bundle?: BundleFile[] | null,
+	archiveMember?: string | null,
 };
 
 export type InstalledResponse = InstalledResponse_Serialize | InstalledResponse_Deserialize;

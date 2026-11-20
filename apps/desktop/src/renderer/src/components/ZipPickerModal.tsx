@@ -288,6 +288,36 @@ export async function installZipPickerEntries(
     await api.discardStagedArchive(payload.archiveHandle)
 }
 
+// Reinstalls entries over the files they replace, each into the folder its file is in. The
+// backend replaces each file in place, which keeps its install id. No folders are created
+// from the archive layout, because the files already have theirs.
+export async function reinstallZipEntries(
+    payload: ZipMultiPakPayload,
+    folders: Map<number, string | null>,
+    gamePath: string,
+    gameId: string,
+    onRefreshInstalled: () => Promise<void>
+): Promise<void> {
+    for (const [pos, folderId] of folders) {
+        await api.installFromZipEntry(
+            payload.archiveHandle,
+            payload.entryIds[pos]!,
+            payload.modId,
+            payload.modName,
+            payload.fileId,
+            payload.fileType,
+            payload.modVersion,
+            gamePath,
+            gameId,
+            folderId,
+            payload.entryTags ? (payload.entryTags[pos] ?? undefined) : payload.targetTag,
+            payload.entryKind
+        )
+        await onRefreshInstalled()
+    }
+    await api.discardStagedArchive(payload.archiveHandle)
+}
+
 interface Props {
     visible?: boolean
     payload: ZipMultiPakPayload

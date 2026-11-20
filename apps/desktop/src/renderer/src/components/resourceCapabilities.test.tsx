@@ -80,6 +80,7 @@ it('keeps config-only recovery available without a movie scan', () => {
     GAMES.pd2 = { ...original, configPresets: { filename: 'Engine.ini' } }
     const mod: InstalledMod = {
         uid: 'resource:config',
+        installId: 'resource:config',
         id: -1,
         name: 'UI preset',
         filename: 'Engine.ini',
@@ -111,6 +112,7 @@ it('keeps existing deployments recoverable after install support is removed', ()
     health([
         {
             uid: 'resource:movie',
+            installId: 'resource:movie',
             id: -1,
             name: 'Old intro',
             filename: 'Intro.bk2',
@@ -131,6 +133,7 @@ it('keeps recovery visible on an unsupported store without offering its movie sc
         [
             {
                 uid: 'resource:movie',
+                installId: 'resource:movie',
                 id: -1,
                 name: 'Old intro',
                 filename: 'Intro.bk2',

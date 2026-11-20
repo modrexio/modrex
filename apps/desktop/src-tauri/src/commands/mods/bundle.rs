@@ -616,6 +616,9 @@ pub(crate) fn install(
         installed_at: chrono::Utc::now().to_rfc3339(),
         ..mod_data
     };
+    if let Some(old) = &placed.replaced {
+        record.inherit_install_id(old);
+    }
     let stays_disabled = placed.replaced.as_ref().is_some_and(|old| !old.enabled);
     if stays_disabled {
         if let Err(error) = set_enabled(game_path, target, &record, false) {

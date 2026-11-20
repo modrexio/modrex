@@ -25,6 +25,29 @@ export function entryFilename(entry: string): string {
     return entry.split('/').pop() ?? entry
 }
 
+// Which installed file each entry of a new archive replaces. A record that kept its member
+// path matches that member only, since two members can share a file name. An older record
+// matches the first unclaimed entry with its file name.
+export function matchReinstallEntries(
+    entries: string[],
+    prior: InstalledMod[]
+): Map<number, InstalledMod> {
+    const matched = new Map<number, InstalledMod>()
+    const byMember = prior.filter((m) => m.archiveMember !== undefined)
+    for (const m of byMember) {
+        const pos = entries.indexOf(m.archiveMember!)
+        if (pos !== -1 && !matched.has(pos)) matched.set(pos, m)
+    }
+    for (const m of prior.filter((m) => m.archiveMember === undefined)) {
+        const pos = entries.findIndex(
+            (entry, i) =>
+                !matched.has(i) && entryFilename(entry) === stripPriorityPrefix(m.filename)
+        )
+        if (pos !== -1) matched.set(pos, m)
+    }
+    return matched
+}
+
 // Filenames on disk carry a NNN_ priority prefix and .pak extension, which are disk-level
 // noise for display purposes. Falls back to the raw name if stripping empties it.
 export function displayFilename(filename: string): string {

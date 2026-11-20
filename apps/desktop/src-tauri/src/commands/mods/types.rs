@@ -78,6 +78,12 @@ impl UpdateStatus {
 pub struct InstalledMod {
     #[serde(default)]
     pub uid: String,
+    // One installation for its whole life. uid is derived from file ids and names and changes
+    // when the mod is updated, so anything that must still find this install afterwards keys
+    // off this instead. A replacement inherits it from the record it replaces, and a record
+    // from a state file written before it existed gets one from read_state.
+    #[serde(default)]
+    pub install_id: String,
     pub id: i64,
     pub name: String,
     pub version: String,
@@ -149,6 +155,10 @@ pub struct InstalledMod {
     // only on records of a bundle target, where it is the whole of what the record owns.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub bundle: Option<Vec<BundleFile>>,
+    // The full path of the archive member this was installed from. Two members can share a
+    // file name, and only this tells a reinstall of one from a reinstall of the other.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub archive_member: Option<String>,
 }
 
 /// One file a bundle placed, with the bytes it wrote, so uninstalling and updating can tell a
@@ -192,6 +202,20 @@ impl InstalledMod {
         self.source = source.to_string();
     }
 
+    /// Makes this record the same installation as the one it replaces. A record installed
+    /// from a different member of an archive stays a separate installation, since two
+    /// members with one file name can be replaced through the same uid.
+    pub fn inherit_install_id(&mut self, predecessor: &InstalledMod) {
+        let other_member = match (&self.archive_member, &predecessor.archive_member) {
+            (Some(new), Some(old)) => new != old,
+            _ => false,
+        };
+        if other_member {
+            return;
+        }
+        self.install_id = predecessor.install_id.clone();
+    }
+
     /// A default entry already carrying a catalog association, for the install and discovery
     /// paths that build their record with struct-update syntax.
     pub fn from_catalog(source: &str, remote_id: String, evidence: IdentityEvidence) -> Self {
@@ -201,10 +225,13 @@ impl InstalledMod {
     }
 }
 
+// A record built from nothing is a new installation, so it gets a new install_id. Every path
+// that replaces an existing record copies the old one over it.
 impl Default for InstalledMod {
     fn default() -> Self {
         Self {
             uid: String::new(),
+            install_id: uuid::Uuid::new_v4().to_string(),
             id: 0,
             name: String::new(),
             version: String::new(),
@@ -233,6 +260,7 @@ impl Default for InstalledMod {
             deployment: None,
             resource_status: None,
             bundle: None,
+            archive_member: None,
         }
     }
 }

@@ -9392,3 +9392,409 @@ fn primary_folder_relocation_leaves_host_packs_outside_scan_targets() {
         b"video"
     );
 }
+
+// ── install_id ────────────────────────────────────────────────────────────────
+// A profile names installed mods by install_id, so each operation below must leave it alone
+// or hand it to the record that replaces it.
+
+fn install_id_of(sp: &Path, uid: &str) -> String {
+    read_state(sp)
+        .unwrap()
+        .mods
+        .into_iter()
+        .find(|m| m.uid == uid)
+        .unwrap_or_else(|| panic!("{uid} is not in the state file"))
+        .install_id
+}
+
+fn install_pd3_pak(game: &str, sp: &Path, record: InstalledMod, folder: Option<String>) {
+    let cfg = engine_for_game("pd3").unwrap();
+    let source = Path::new(game).join(format!("staged-{}.pak", record.uid.replace(':', "_")));
+    fs::write(&source, record.uid.as_bytes()).unwrap();
+    install_mod_from_path(game, sp, record, &source, folder, cfg, cfg.primary()).unwrap();
+}
+
+fn catalog_pak(uid: &str, filename: &str, file_id: i64) -> InstalledMod {
+    InstalledMod {
+        uid: uid.to_string(),
+        name: "Foo".to_string(),
+        filename: filename.to_string(),
+        enabled: true,
+        file_id: Some(file_id),
+        ..InstalledMod::from_catalog(
+            "modworkshop",
+            "7".to_string(),
+            IdentityEvidence::InstallProvenance,
+        )
+    }
+}
+
+#[test]
+fn a_state_file_without_install_ids_reads_with_the_same_ids_every_time() {
+    let tmp = TempDir::new().unwrap();
+    let sp = tmp.path().join(".modrex.json");
+    fs::write(
+        &sp,
+        r#"{"folders":[],"mods":[
+            {"uid":"11","id":1,"name":"A","version":"","filename":"A.pak","enabled":true,"installedAt":""},
+            {"uid":"12","id":2,"name":"B","version":"","filename":"B.pak","enabled":true,"installedAt":""}
+        ]}"#,
+    )
+    .unwrap();
+
+    let first: Vec<String> = read_state(&sp)
+        .unwrap()
+        .mods
+        .into_iter()
+        .map(|m| m.install_id)
+        .collect();
+    let second: Vec<String> = read_state(&sp)
+        .unwrap()
+        .mods
+        .into_iter()
+        .map(|m| m.install_id)
+        .collect();
+
+    assert_eq!(first, second);
+    assert!(first.iter().all(|id| uuid::Uuid::parse_str(id).is_ok()));
+    assert_ne!(first[0], first[1]);
+}
+
+#[test]
+fn two_old_rows_with_one_uid_get_different_install_ids() {
+    let tmp = TempDir::new().unwrap();
+    let sp = tmp.path().join(".modrex.json");
+    fs::write(
+        &sp,
+        r#"{"mods":[
+            {"uid":"Foo.pak","id":1,"name":"A","version":"","filename":"Foo.pak","enabled":true,"installedAt":"","folderId":"left"},
+            {"uid":"Foo.pak","id":1,"name":"B","version":"","filename":"Foo.pak","enabled":true,"installedAt":"","folderId":"right"}
+        ]}"#,
+    )
+    .unwrap();
+
+    let mods = read_state(&sp).unwrap().mods;
+
+    assert_ne!(mods[0].install_id, mods[1].install_id);
+    let again = read_state(&sp).unwrap().mods;
+    assert_eq!(mods[1].install_id, again[1].install_id);
+}
+
+#[test]
+fn a_saved_install_id_is_read_back_as_written() {
+    let tmp = TempDir::new().unwrap();
+    let sp = tmp.path().join(".modrex.json");
+    let record = catalog_pak("11", "Foo.pak", 11);
+    let id = record.install_id.clone();
+    save_state(
+        &sp,
+        &ModsState {
+            folders: vec![],
+            mods: vec![record],
+        },
+    )
+    .unwrap();
+
+    assert_eq!(install_id_of(&sp, "11"), id);
+}
+
+#[test]
+fn reordering_and_moving_to_a_folder_keep_install_ids() {
+    let cfg = engine_for_game("pd3").unwrap();
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let sp = get_state_path(game, cfg);
+    install_pd3_pak(game, &sp, catalog_pak("a", "A_P.pak", 1), None);
+    install_pd3_pak(game, &sp, catalog_pak("b", "B_P.pak", 2), None);
+    let (a, b) = (install_id_of(&sp, "a"), install_id_of(&sp, "b"));
+
+    reorder_mods_in_folder_op(game, &sp, None, &["b".to_string(), "a".to_string()], cfg).unwrap();
+    let folder = create_folder_op(game, &sp, "HUD", None, cfg).unwrap();
+    move_mod_to_folder_op(game, &sp, "a", Some(folder.id.clone()), 0, cfg).unwrap();
+
+    let state = read_state(&sp).unwrap();
+    let moved = state.mods.iter().find(|m| m.uid == "a").unwrap();
+    assert_eq!(moved.folder_id.as_deref(), Some(folder.id.as_str()));
+    assert_eq!(moved.install_id, a);
+    assert_eq!(install_id_of(&sp, "b"), b);
+}
+
+#[test]
+fn disabling_and_enabling_keep_the_install_id() {
+    let cfg = engine_for_game("pd3").unwrap();
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let sp = get_state_path(game, cfg);
+    install_pd3_pak(game, &sp, catalog_pak("a", "A_P.pak", 1), None);
+    let id = install_id_of(&sp, "a");
+
+    disable_mod_op(game, &sp, "a", cfg, None).unwrap();
+    assert_eq!(install_id_of(&sp, "a"), id);
+    enable_mod_op(game, &sp, "a", cfg, None).unwrap();
+    assert_eq!(install_id_of(&sp, "a"), id);
+}
+
+#[test]
+fn a_crime_boss_target_move_keeps_the_install_id() {
+    let cfg = engine_for_game("cb").unwrap();
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let sp = get_state_path(game, cfg);
+    let skeleton = tmp.path().join("src-skeleton");
+    write_skeleton_pak(&skeleton, "FooCrimeBoss-WindowsNoEditor.pak", b"pak bytes");
+    install_mod_from_path(
+        game,
+        &sp,
+        InstalledMod {
+            uid: "a".to_string(),
+            name: "Foo".to_string(),
+            filename: mod_folder_name("Foo"),
+            enabled: true,
+            file_id: Some(1),
+            ..InstalledMod::default()
+        },
+        &skeleton,
+        None,
+        cfg,
+        cfg.primary(),
+    )
+    .unwrap();
+    let id = install_id_of(&sp, "a");
+
+    move_crimeboss_mod_target_op(game, &sp, "a", cfg, None).unwrap();
+    assert_eq!(install_id_of(&sp, "a"), id);
+    move_crimeboss_mod_target_op(game, &sp, "a", cfg, None).unwrap();
+    assert_eq!(install_id_of(&sp, "a"), id);
+}
+
+#[test]
+fn identification_never_changes_the_install_id() {
+    let conn = setup_identify_index();
+    let unidentified = |name: &str, sha: &str| InstalledMod {
+        uid: format!("{name}.pak"),
+        id: -1,
+        name: name.to_string(),
+        filename: format!("{name}.pak"),
+        enabled: true,
+        sha256: Some(sha.to_string()),
+        ..InstalledMod::default()
+    };
+    let mut mods = vec![
+        unidentified("by_hash", "crosspostedsha"),
+        unidentified("Alternative RinoHUD Icons", "no-longer-the-current-file"),
+    ];
+    let before: Vec<String> = mods.iter().map(|m| m.install_id.clone()).collect();
+
+    let changed = super::identify::upgrade_negative_ids_with_conn(
+        &conn,
+        "",
+        engine_for_game("pd3").unwrap(),
+        &[],
+        &mut mods,
+    );
+
+    assert!(changed);
+    assert_eq!(
+        mods[0].identity.as_ref().unwrap().evidence,
+        IdentityEvidence::CatalogHash
+    );
+    assert_eq!(
+        mods[1].identity.as_ref().unwrap().evidence,
+        IdentityEvidence::CatalogName
+    );
+    let after: Vec<String> = mods.iter().map(|m| m.install_id.clone()).collect();
+    assert_eq!(after, before);
+}
+
+#[test]
+fn a_catalog_update_continues_the_installation_it_replaces() {
+    let cfg = engine_for_game("pd3").unwrap();
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let sp = get_state_path(game, cfg);
+    let folder = create_folder_op(game, &sp, "HUD", None, cfg).unwrap();
+    install_pd3_pak(
+        game,
+        &sp,
+        catalog_pak("11", "Foo_P.pak", 11),
+        Some(folder.id.clone()),
+    );
+    let id = install_id_of(&sp, "11");
+
+    // install_mod's own sequence for a newer file of a mod with one record.
+    let saved = read_state(&sp).unwrap();
+    let predecessor = catalog_predecessor(&saved.mods, "12", 7).cloned().unwrap();
+    uninstall_mod_op(game, &sp, &predecessor.uid, cfg).unwrap();
+    let mut update = catalog_pak("12", "Foo_P.pak", 12);
+    update.inherit_install_id(&predecessor);
+    install_pd3_pak(game, &sp, update, predecessor.folder_id.clone());
+
+    let mods = read_state(&sp).unwrap().mods;
+    assert_eq!(mods.len(), 1);
+    assert_eq!(mods[0].uid, "12");
+    assert_eq!(mods[0].install_id, id);
+}
+
+#[test]
+fn an_archive_reinstall_of_the_same_entry_continues_the_installation() {
+    let cfg = engine_for_game("pd3").unwrap();
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let sp = get_state_path(game, cfg);
+    install_pd3_pak(
+        game,
+        &sp,
+        InstalledMod {
+            archive_member: Some("Variants/Foo_P.pak".to_string()),
+            ..catalog_pak("11_Foo_P", "Foo_P.pak", 11)
+        },
+        None,
+    );
+    let id = install_id_of(&sp, "11_Foo_P");
+
+    // install_from_zip_entry's own sequence for the same entry in a newer file.
+    let saved = read_state(&sp).unwrap();
+    let mut update = InstalledMod {
+        archive_member: Some("Variants/Foo_P.pak".to_string()),
+        ..catalog_pak("12_Foo_P", "Foo_P.pak", 12)
+    };
+    let stale =
+        stale_entries_for_zip_install(&saved.mods, &update.uid, 7, 12, "Foo_P.pak", None, None);
+    update.inherit_install_id(zip_entry_predecessor(&stale, &update).unwrap());
+    for stale in stale {
+        remove_stale_zip_entry(game, &sp, cfg, &saved.mods, stale).unwrap();
+    }
+    install_pd3_pak(game, &sp, update, None);
+
+    let mods = read_state(&sp).unwrap().mods;
+    assert_eq!(mods.len(), 1);
+    assert_eq!(mods[0].uid, "12_Foo_P");
+    assert_eq!(mods[0].install_id, id);
+}
+
+#[test]
+fn two_members_with_one_file_name_keep_their_own_install_ids() {
+    let cfg = engine_for_game("pd3").unwrap();
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let sp = get_state_path(game, cfg);
+    let left = create_folder_op(game, &sp, "Left", None, cfg).unwrap();
+    let right = create_folder_op(game, &sp, "Right", None, cfg).unwrap();
+    let member = |uid: &str, path: &str, file_id: i64| InstalledMod {
+        archive_member: Some(path.to_string()),
+        ..catalog_pak(uid, "Foo_P.pak", file_id)
+    };
+    install_pd3_pak(
+        game,
+        &sp,
+        member("11:A", "A/Foo_P.pak", 11),
+        Some(left.id.clone()),
+    );
+    install_pd3_pak(
+        game,
+        &sp,
+        member("11:B", "B/Foo_P.pak", 11),
+        Some(right.id.clone()),
+    );
+    let (a, b) = (install_id_of(&sp, "11:A"), install_id_of(&sp, "11:B"));
+    assert_ne!(a, b);
+
+    // A newer file's B member, offered both installed members as candidates, continues B.
+    let saved = read_state(&sp).unwrap();
+    let candidates: Vec<&InstalledMod> = saved.mods.iter().collect();
+    let incoming = member("12:B", "B/Foo_P.pak", 12);
+    assert_eq!(
+        zip_entry_predecessor(&candidates, &incoming)
+            .unwrap()
+            .install_id,
+        b
+    );
+
+    // A member installed through the other member's uid replaces that row but is not it.
+    install_pd3_pak(
+        game,
+        &sp,
+        member("11:A", "B/Foo_P.pak", 11),
+        Some(left.id.clone()),
+    );
+    let replaced = install_id_of(&sp, "11:A");
+    assert_ne!(replaced, a);
+    assert_ne!(replaced, b);
+}
+
+#[test]
+fn a_record_superseded_on_load_hands_its_install_id_to_the_newer_one() {
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let cfg = engine_for_game("cb").unwrap();
+    let sp = get_state_path(game, cfg);
+    fs::create_dir_all(active_mod_path(game, "Roguelite", None, cfg.primary())).unwrap();
+    let entry = |uid: &str, file_id: i64| InstalledMod {
+        filename: "Roguelite".into(),
+        ..zip_install_entry(uid, 54961, file_id)
+    };
+    let oldest = entry("99000", 99000);
+    let id = oldest.install_id.clone();
+    save_state(
+        &sp,
+        &ModsState {
+            folders: vec![],
+            mods: vec![entry("99742", 99742), oldest, entry("102936_Rogue", 102936)],
+        },
+    )
+    .unwrap();
+
+    let state = super::state::reconcile_state(game, &sp, cfg).unwrap();
+
+    assert_eq!(state.mods.len(), 1);
+    assert_eq!(state.mods[0].install_id, id);
+    assert_eq!(install_id_of(&sp, "102936_Rogue"), id);
+}
+
+#[tokio::test]
+async fn a_mod_renamed_by_hand_keeps_its_install_id() {
+    let tmp = TempDir::new().unwrap();
+    let cfg = engine_for_game("pd2").unwrap();
+    let game = tmp.path().to_str().unwrap().to_string();
+    let dir = tmp.path().join("mods/Renamed By Hand");
+    fs::create_dir_all(&dir).unwrap();
+    fs::write(dir.join("mod.txt"), b"{\"name\":\"m\"}").unwrap();
+    let sha = own_sha(&dir.join("mod.txt")).await;
+    let tracked = own_tracked("a", "Original Name", &sha);
+    let id = tracked.install_id.clone();
+
+    let mut state = ModsState {
+        folders: vec![],
+        mods: vec![tracked],
+    };
+    let mods = own_scan(&game, cfg, &mut state).await;
+
+    assert_eq!(own_filename(&mods, "a"), "Renamed By Hand");
+    assert_eq!(mods[0].install_id, id);
+}
+
+#[test]
+fn a_repeated_install_id_is_kept_only_by_the_first_record() {
+    let tmp = TempDir::new().unwrap();
+    let sp = tmp.path().join(".modrex.json");
+    let shared = "6f2a8f0e-0000-4000-8000-000000000001";
+    fs::write(
+        &sp,
+        format!(
+            r#"{{"mods":[
+            {{"uid":"A.pak","installId":"{shared}","id":1,"name":"A","version":"","filename":"A.pak","enabled":true,"installedAt":""}},
+            {{"uid":"B.pak","installId":"{shared}","id":2,"name":"B","version":"","filename":"B.pak","enabled":true,"installedAt":""}}
+        ]}}"#
+        ),
+    )
+    .unwrap();
+
+    let mods = read_state(&sp).unwrap().mods;
+
+    assert_eq!(mods[0].install_id, shared);
+    assert_ne!(mods[1].install_id, shared);
+    assert_eq!(
+        read_state(&sp).unwrap().mods[1].install_id,
+        mods[1].install_id
+    );
+}
