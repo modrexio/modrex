@@ -1,4 +1,6 @@
-use super::engine::{backup_dir, join_subpath, ModEngineConfig, ModUnit, ScanTarget};
+use super::engine::{
+    backup_dir, join_subpath, set_aside_dir, ModEngineConfig, ModUnit, ScanTarget,
+};
 use super::moves::{folder_targets, Moves};
 use super::naming::log_name;
 use super::naming::{apply_priority_prefix, hash_filename, make_uid, strip_priority_prefix};
@@ -816,14 +818,15 @@ pub(crate) fn superseded_records(mods: &[InstalledMod]) -> HashSet<String> {
         .collect()
 }
 
-/// Where the state file sits while mods are hidden for a launch.
-pub fn hidden_state_path(game_path: &str, state_path: &Path, cfg: &ModEngineConfig) -> PathBuf {
+/// Where the state file sits while mods are hidden for a launch. set_aside is the primary
+/// target's folder from set_aside_dir.
+pub fn hidden_state_path(set_aside: &Path, state_path: &Path, cfg: &ModEngineConfig) -> PathBuf {
     if cfg.primary().is_directory_unit() || cfg.primary().is_bundle() {
         // BLT: state file stays in mods/ because only user mod dirs were moved to backup.
         return state_path.to_path_buf();
     }
     // PD3: the entire mods folder was renamed, so the state file is inside the backup.
-    backup_dir(game_path, cfg.primary()).join(STATE_FILENAME)
+    set_aside.join(STATE_FILENAME)
 }
 
 pub fn reconcile_state(
@@ -831,11 +834,16 @@ pub fn reconcile_state(
     state_path: &Path,
     cfg: &ModEngineConfig,
 ) -> Result<ModsState, StateLoadError> {
-    let bak = backup_dir(game_path, cfg.primary());
-    if cfg.primary().shared_paks.is_none() && bak.exists() {
+    let set_aside = cfg
+        .primary()
+        .shared_paks
+        .is_none()
+        .then(|| set_aside_dir(game_path, cfg.primary()))
+        .flatten();
+    if let Some(set_aside) = set_aside {
         return read_state_for_game(
             game_path,
-            &hidden_state_path(game_path, state_path, cfg),
+            &hidden_state_path(&set_aside, state_path, cfg),
             cfg,
         );
     }

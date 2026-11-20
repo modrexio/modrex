@@ -50,8 +50,11 @@ pub(crate) use self::bundle::{
     hide_for_launch as hide_bundles, restore_after_launch as restore_bundles,
 };
 pub use self::companions::LeftoverFiles;
+#[cfg(test)]
+pub(crate) use self::engine::vanilla_dir;
 pub use self::engine::{
-    backup_dir, engine_for_game, ModEngineConfig, ModUnit, ScanTarget, SharedPaks, StoreLayout,
+    backup_dir, engine_for_game, set_aside_dir, set_aside_locations, ModEngineConfig, ModUnit,
+    ScanTarget, SharedPaks, StoreLayout,
 };
 pub use self::identity::IdentityEvidence;
 pub use self::install::install_mod_from_path;
@@ -323,8 +326,13 @@ pub async fn get_installed(app: AppHandle, game_id: String) -> Result<InstalledR
     let native_guard = native_files::NativeGuard::load_for_scan(&game_path, cfg)?;
     let state_path = get_state_path(&game_path, cfg);
     native_guard.check_state_path(&state_path)?;
-    let mods_hidden =
-        cfg.primary().shared_paks.is_none() && backup_dir(&game_path, cfg.primary()).exists();
+    let set_aside = cfg
+        .primary()
+        .shared_paks
+        .is_none()
+        .then(|| set_aside_dir(&game_path, cfg.primary()))
+        .flatten();
+    let mods_hidden = set_aside.is_some();
 
     let (mut state, writeback) = load_for_scan(&game_path, &state_path, cfg);
     let repaired = !mods_hidden && repair_installs(&app, &game_path, cfg, &mut state);
@@ -397,7 +405,7 @@ pub async fn get_installed(app: AppHandle, game_id: String) -> Result<InstalledR
         discovered_hosts = true;
     }
 
-    if mods_hidden {
+    if let Some(set_aside) = &set_aside {
         let index = mod_index::open_index(&app, cfg.game_id);
         let identified = identity::ensure_identities(
             &game_path,
@@ -407,7 +415,7 @@ pub async fn get_installed(app: AppHandle, game_id: String) -> Result<InstalledR
             index.as_ref(),
         );
         if any_upgraded || discovered_hosts || cb_resynced || identified {
-            let hidden_path = hidden_state_path(&game_path, &state_path, cfg);
+            let hidden_path = hidden_state_path(set_aside, &state_path, cfg);
             writeback.save(&hidden_path, &state, "refreshed identities");
         }
         let mut mods = state.mods;
@@ -1213,7 +1221,7 @@ pub async fn check_plugin_installs(
     if cfg
         .targets
         .iter()
-        .any(|t| backup_dir(&game_path, t).exists())
+        .any(|t| set_aside_dir(&game_path, t).is_some())
     {
         return Ok(PluginInstallReport::default());
     }

@@ -274,6 +274,33 @@ pub fn backup_dir(game_path: &str, target: &ScanTarget) -> PathBuf {
     join_subpath(game_path, declared(game_path, target)[2])
 }
 
+/// Where launching without mods sets a target's mods aside under the game's own .modrex
+/// folder. It must not be .modrex/hidden: a bundle restore moves every file below that folder
+/// back into the game, so another target's backup there would land in the wrong place.
+pub fn vanilla_dir(game_path: &str, target: &ScanTarget) -> PathBuf {
+    Path::new(game_path)
+        .join(".modrex")
+        .join("vanilla")
+        .join(target.tag)
+}
+
+/// Every folder a target's mods can be set aside in for a launch without mods. This release
+/// writes the declared backup, but a newer one writes the .modrex layout, and a user who goes
+/// back to this release still needs those mods restored.
+pub fn set_aside_locations(game_path: &str, target: &ScanTarget) -> [PathBuf; 2] {
+    [
+        vanilla_dir(game_path, target),
+        backup_dir(game_path, target),
+    ]
+}
+
+/// The folder holding a target's mods while they are set aside, if any.
+pub fn set_aside_dir(game_path: &str, target: &ScanTarget) -> Option<PathBuf> {
+    set_aside_locations(game_path, target)
+        .into_iter()
+        .find(|dir| dir.exists())
+}
+
 pub fn state_path(game_path: &str, cfg: &ModEngineConfig) -> PathBuf {
     mods_dir(game_path, cfg.primary()).join(super::state::STATE_FILENAME)
 }

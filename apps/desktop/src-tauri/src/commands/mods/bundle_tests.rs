@@ -3,7 +3,7 @@
 //! folder.
 
 use super::bundle::{self, Layout, Plan, PlannedFile};
-use super::engine::{backup_dir, engine_for_game, ModEngineConfig, ScanTarget};
+use super::engine::{backup_dir, engine_for_game, vanilla_dir, ModEngineConfig, ScanTarget};
 use super::paths::{find_untracked_paks, get_state_path};
 use super::state::read_state_for_game;
 use super::types::InstalledMod;
@@ -685,6 +685,28 @@ fn installing_while_mods_are_hidden_is_refused() {
         .install(record("m", None), &[("archive/pc/mod/a.archive", "A")])
         .unwrap_err();
     assert!(error.contains("launch without mods"), "{error}");
+}
+
+#[test]
+fn a_bundle_set_aside_in_the_modrex_folder_is_restored() {
+    let game = Game::new();
+    game.install(record("on", None), &[("archive/pc/mod/on.archive", "A")])
+        .unwrap();
+    bundle::hide(game.path(), target(), &game.mods()).unwrap();
+    let vanilla = vanilla_dir(game.path(), target());
+    fs::create_dir_all(vanilla.parent().unwrap()).unwrap();
+    fs::rename(backup_dir(game.path(), target()), &vanilla).unwrap();
+
+    let on = find(&game.mods(), "on").clone();
+    let error = bundle::set_enabled(game.path(), target(), &on, false).unwrap_err();
+    assert!(error.contains("launch without mods"), "{error}");
+
+    bundle::restore(game.path(), target()).unwrap();
+    assert_eq!(
+        fs::read_to_string(game.file("archive/pc/mod/on.archive")).unwrap(),
+        "A"
+    );
+    assert!(!vanilla.exists());
 }
 
 // Resolution of real archives

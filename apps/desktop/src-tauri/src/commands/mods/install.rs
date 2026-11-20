@@ -1,5 +1,5 @@
 use super::crimeboss_settings;
-use super::engine::{backup_dir, Activation, ModEngineConfig, ModUnit, ScanTarget};
+use super::engine::{set_aside_dir, Activation, ModEngineConfig, ModUnit, ScanTarget};
 use super::host_mods::{host_target_by_id, parse_host_location};
 use super::moves::put_back;
 use super::naming::log_name;
@@ -123,7 +123,7 @@ pub fn install_mod_from_path(
         None
     };
     // Restoring the folder launching without mods set aside would collide with this install.
-    if target.shared_paks.is_none() && backup_dir(game_path, target).exists() {
+    if target.shared_paks.is_none() && set_aside_dir(game_path, target).is_some() {
         return Err(
             "Mods are set aside for a launch without mods. Start the game normally once to restore them, then install again."
                 .to_string(),

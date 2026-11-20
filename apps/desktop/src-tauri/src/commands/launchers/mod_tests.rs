@@ -1,5 +1,6 @@
 use super::steam::steam_libraries;
 use super::*;
+use crate::commands::mods::vanilla_dir;
 use tempfile::TempDir;
 
 #[test]
@@ -1396,4 +1397,84 @@ fn open_game_folder_only_resolves_real_directories() {
         super::resolve_under(root.path(), root.path(), super::OpenKind::Directory),
         Some(root.path().canonicalize().unwrap())
     );
+}
+
+#[test]
+fn pick_counts_mods_set_aside_in_the_modrex_folder() {
+    use crate::commands::mods::{save_state, InstalledMod, ModsState};
+    let steam = TempDir::new().unwrap();
+    let xbox = TempDir::new().unwrap();
+    let steam_path = make_pd3_copy(steam.path(), 0);
+    let xbox_path = make_bare_pd3_copy(xbox.path());
+    let state =
+        vanilla_dir(&xbox_path, pd3_engine().primary()).join(crate::commands::mods::STATE_FILENAME);
+    std::fs::create_dir_all(state.parent().unwrap()).unwrap();
+    save_state(
+        &state,
+        &ModsState {
+            mods: vec![InstalledMod::default()],
+            folders: vec![],
+        },
+    )
+    .unwrap();
+
+    let installs = vec![install("steam", &steam_path), install("xbox", &xbox_path)];
+    let picked = pick_install(&installs, pd3_engine(), None)
+        .chosen()
+        .unwrap();
+    assert_eq!(picked.launcher, "xbox");
+}
+
+#[test]
+fn a_file_target_set_aside_in_the_modrex_folder_is_restored() {
+    let temp = TempDir::new().unwrap();
+    let path = temp.path().to_str().unwrap();
+    let cfg = pd3_engine();
+    let set_aside = vanilla_dir(path, cfg.primary());
+    let mods = mods_base(path, cfg.primary());
+    fs::create_dir_all(&set_aside).unwrap();
+    fs::create_dir_all(mods.parent().unwrap()).unwrap();
+    fs::write(set_aside.join("old.pak"), b"hidden mod").unwrap();
+
+    restore_pending_packages(path, cfg).unwrap();
+
+    assert_eq!(fs::read(mods.join("old.pak")).unwrap(), b"hidden mod");
+    assert!(!set_aside.exists());
+}
+
+#[test]
+fn a_directory_target_set_aside_in_the_modrex_folder_is_restored() {
+    let temp = TempDir::new().unwrap();
+    let path = temp.path().to_str().unwrap();
+    let cfg = engine_for_game("pd2").unwrap();
+    let saved = vanilla_dir(path, cfg.primary()).join("UserMod");
+    fs::create_dir_all(&saved).unwrap();
+    fs::write(saved.join("mod.txt"), b"hidden mod").unwrap();
+
+    restore_pending_packages(path, cfg).unwrap();
+
+    let restored = mods_base(path, cfg.primary()).join("UserMod");
+    assert_eq!(fs::read(restored.join("mod.txt")).unwrap(), b"hidden mod");
+    assert!(!vanilla_dir(path, cfg.primary()).exists());
+}
+
+#[test]
+fn hiding_leaves_a_target_already_set_aside_in_the_modrex_folder_alone() {
+    let temp = TempDir::new().unwrap();
+    let path = temp.path().to_str().unwrap();
+    let cfg = pd3_engine();
+    let set_aside = vanilla_dir(path, cfg.primary());
+    let mods = mods_base(path, cfg.primary());
+    fs::create_dir_all(&set_aside).unwrap();
+    fs::create_dir_all(&mods).unwrap();
+    fs::write(set_aside.join("old.pak"), b"hidden mod").unwrap();
+    fs::write(mods.join("new.pak"), b"added while hidden").unwrap();
+
+    hide_package_mods(path, cfg).unwrap();
+
+    assert_eq!(
+        fs::read(mods.join("new.pak")).unwrap(),
+        b"added while hidden"
+    );
+    assert!(!backup_dir(path, cfg.primary()).exists());
 }

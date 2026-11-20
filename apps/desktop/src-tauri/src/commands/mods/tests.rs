@@ -6068,9 +6068,10 @@ fn save_state_writes_the_schema_version() {
 fn hidden_state_path_follows_the_folder_a_file_unit_game_renamed() {
     let cfg = engine_for_game("pd3").unwrap();
     let state_path = get_state_path("/game", cfg);
+    let set_aside = Path::new("/game/.modrex/vanilla/paks");
     assert_eq!(
-        hidden_state_path("/game", &state_path, cfg),
-        backup_dir("/game", cfg.primary()).join(STATE_FILENAME)
+        hidden_state_path(set_aside, &state_path, cfg),
+        set_aside.join(STATE_FILENAME)
     );
 }
 
@@ -6078,7 +6079,8 @@ fn hidden_state_path_follows_the_folder_a_file_unit_game_renamed() {
 fn hidden_state_path_stays_put_for_a_directory_unit_game() {
     let cfg = engine_for_game("pd2").unwrap();
     let state_path = get_state_path("/game", cfg);
-    assert_eq!(hidden_state_path("/game", &state_path, cfg), state_path);
+    let set_aside = Path::new("/game/.modrex/vanilla/mods");
+    assert_eq!(hidden_state_path(set_aside, &state_path, cfg), state_path);
 }
 
 #[test]
