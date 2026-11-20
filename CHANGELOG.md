@@ -29,6 +29,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - Fixed the page selector flickering on Nexus Mods.
 - Fixed reinstalls moving a mod's files into one folder.
 - Fixed ModWorkshop installs removing Nexus mods with the same id.
+- Fixed disabled hand-installed Diesel mods reappearing as new mods.
 
 ## 0.16.1
 

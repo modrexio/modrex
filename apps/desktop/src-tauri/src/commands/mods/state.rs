@@ -1050,9 +1050,16 @@ pub fn reconcile_state(
             if scan_markers.is_empty() {
                 return false;
             }
+            // A disabled mod keeps its marker in the disabled folder, and dropping its record
+            // there would bring it back as a new installation that no profile lists.
             let rel = get_folder_path(&state.folders, m.folder_id.as_deref());
-            let dir = active_mod_path(game_path, &m.filename, rel.as_deref(), target);
-            !scan_markers.iter().any(|marker| dir.join(marker).exists())
+            let dirs = [
+                active_mod_path(game_path, &m.filename, rel.as_deref(), target),
+                disabled_mod_path(game_path, &m.filename, rel.as_deref(), target),
+            ];
+            !dirs
+                .iter()
+                .any(|dir| scan_markers.iter().any(|marker| dir.join(marker).exists()))
         })
         .map(|m| m.uid.clone())
         .collect();
