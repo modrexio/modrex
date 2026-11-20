@@ -3570,7 +3570,7 @@ const fn companion_target(companions: &'static [&'static str]) -> ScanTarget {
         enabled_state: Activation::Filesystem,
         mods_subpath: &["Paks"],
         disabled_subpath: &["Paks", "disabled"],
-        backup_subpath: &["Paks.bak"],
+        legacy_backup_subpath: Some(&["Paks.bak"]),
         store_layouts: &[],
     }
 }
@@ -3611,7 +3611,7 @@ const VPK_TARGETS: [ScanTarget; 1] = [ScanTarget {
     enabled_state: Activation::Filesystem,
     mods_subpath: &["Paks"],
     disabled_subpath: &["Paks", "disabled"],
-    backup_subpath: &["Paks.bak"],
+    legacy_backup_subpath: Some(&["Paks.bak"]),
     store_layouts: &[],
 }];
 
@@ -4391,7 +4391,7 @@ const fn overrides_target() -> ScanTarget {
         enabled_state: Activation::Filesystem,
         mods_subpath: &["assets", "mod_overrides"],
         disabled_subpath: &["assets", "mod_overrides", "disabled"],
-        backup_subpath: &["assets", "mod_overrides.bak"],
+        legacy_backup_subpath: Some(&["assets", "mod_overrides.bak"]),
         store_layouts: &[],
     }
 }
@@ -4525,7 +4525,7 @@ const fn crossed_target(tag: &'static str, enabled_state: Activation) -> ScanTar
         enabled_state,
         mods_subpath: &["Binaries", "Win64", "Mods"],
         disabled_subpath: &["Binaries", "Win64", "Mods", "disabled"],
-        backup_subpath: &["Binaries", "Win64", "Mods.bak"],
+        legacy_backup_subpath: Some(&["Binaries", "Win64", "Mods.bak"]),
         store_layouts: &[],
     }
 }

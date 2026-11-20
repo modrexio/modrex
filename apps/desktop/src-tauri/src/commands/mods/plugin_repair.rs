@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 
 use uuid::Uuid;
 
-use super::engine::{backup_dir, ModEngineConfig, ModUnit, ScanTarget};
+use super::engine::{modrex_dir, ModEngineConfig, ModUnit, ScanTarget};
 use super::folders::delete_folder_op;
 use super::naming::{log_name, sidecar_path};
 use super::paths::installed_mod_path;
@@ -217,14 +217,10 @@ pub(crate) fn set_aside_superseded_paks(
         if !pak.exists() {
             continue;
         }
-        // Beside the pak target's own backup, outside Content/Paks where Unreal mounts.
+        // Outside Content/Paks, where Unreal mounts, and on the game's drive so the move is a
+        // rename.
         let quarantine = aside.quarantine.get_or_insert_with(|| {
-            let backup = backup_dir(game_path, pak_target);
-            backup.with_file_name(format!(
-                "{}.superseded-{}",
-                log_name(&backup),
-                Uuid::new_v4()
-            ))
+            modrex_dir(game_path).join(format!("superseded-{}", Uuid::new_v4()))
         });
         let family = std::iter::once(pak.clone()).chain(
             pak_target

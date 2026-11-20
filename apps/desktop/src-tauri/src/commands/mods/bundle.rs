@@ -16,7 +16,7 @@
 //! match what was placed, and keeps and reports any that changed since.
 
 use super::engine::{
-    backup_dir, disabled_dir, set_aside_dir, set_aside_locations, ModEngineConfig, ModUnit,
+    disabled_dir, set_aside_dir, set_aside_locations, vanilla_dir, ModEngineConfig, ModUnit,
     Placement, ScanTarget,
 };
 use super::naming::log_name;
@@ -1114,7 +1114,7 @@ pub(crate) fn hide(
     target: &ScanTarget,
     mods: &[InstalledMod],
 ) -> Result<(), String> {
-    let backup = backup_dir(game_path, target);
+    let backup = vanilla_dir(game_path, target);
     let layout = Layout::of(target).expect("hide is only called for bundle targets");
     let game = Path::new(game_path);
     let mut moves = Vec::new();

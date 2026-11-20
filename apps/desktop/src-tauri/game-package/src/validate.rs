@@ -371,9 +371,11 @@ fn check_store_paths(target: &Target, package: &GamePackage) -> Result<(), Strin
                 "declares a store path for the '{store}' store, whose binding names no executable of its own to recognise its build by"
             ));
         }
-        if store_path.path.is_empty() || store_path.backup.is_empty() {
+        if store_path.path.is_empty()
+            || store_path.legacy_backup.as_ref().is_some_and(Vec::is_empty)
+        {
             return Err(format!(
-                "has an empty path or backup for the '{store}' store"
+                "has an empty path or legacy_backup for the '{store}' store"
             ));
         }
     }
@@ -408,8 +410,8 @@ fn check_target(target: &Target) -> Result<(), String> {
     if target.path.is_empty() {
         return Err("has an empty path".to_string());
     }
-    if target.backup.is_empty() {
-        return Err("has an empty backup path".to_string());
+    if target.legacy_backup.as_ref().is_some_and(Vec::is_empty) {
+        return Err("has an empty legacy_backup path".to_string());
     }
     let ends_in_mods = |path: &Vec<String>| path.last().is_some_and(|last| last == "Mods");
     if target.activation == Activation::Ue4ssModsTxt
@@ -491,7 +493,7 @@ fn check_target(target: &Target) -> Result<(), String> {
 }
 
 /// A bundle's files sit anywhere under its roots, so it is laid over the game folder itself and
-/// keeps its disabled files and its launch-without-mods backup outside every root.
+/// keeps its disabled files and any legacy launch-without-mods backup outside every root.
 fn check_bundle_target(
     target: &Target,
     roots: &[String],
@@ -530,7 +532,11 @@ fn check_bundle_target(
     let Some(disabled) = &target.disabled else {
         return Err("is a bundle without a disabled path. Disabled files need a folder of their own outside every root".to_string());
     };
-    for (path, label) in [(disabled, "disabled path"), (&target.backup, "backup path")] {
+    let legacy_backup = target
+        .legacy_backup
+        .iter()
+        .map(|path| (path, "legacy_backup path"));
+    for (path, label) in std::iter::once((disabled, "disabled path")).chain(legacy_backup) {
         check_resource_path(path, label)?;
         if inside_root(path) {
             return Err(format!(
@@ -538,8 +544,10 @@ fn check_bundle_target(
             ));
         }
     }
-    if within(disabled, &target.backup) || within(&target.backup, disabled) {
-        return Err("is a bundle whose disabled and backup paths overlap".to_string());
+    if let Some(backup) = &target.legacy_backup {
+        if within(disabled, backup) || within(backup, disabled) {
+            return Err("is a bundle whose disabled and legacy_backup paths overlap".to_string());
+        }
     }
     if placements.is_empty() {
         return Err("is a bundle with no placements".to_string());
@@ -591,8 +599,8 @@ fn check_bundle_target(
     Ok(())
 }
 
-/// Unreal loads a plugin from anywhere below the folder, so disabled mods and the backup must
-/// sit outside it.
+/// Unreal loads a plugin from anywhere below the folder, so disabled mods and any legacy backup
+/// must sit outside it.
 fn check_plugin_target(target: &Target, synthesizes: bool) -> Result<(), String> {
     if synthesizes {
         return Err(
@@ -622,9 +630,13 @@ fn check_outside_recursive_path(target: &Target, rule: &str) -> Result<(), Strin
             "{rule} with a disabled path inside path, where the game still loads it"
         ));
     }
-    if within(&target.backup, &target.path) {
+    if target
+        .legacy_backup
+        .as_ref()
+        .is_some_and(|backup| within(backup, &target.path))
+    {
         return Err(format!(
-            "{rule} with a backup inside path, where the game still loads it"
+            "{rule} with a legacy_backup inside path, where the game still loads it"
         ));
     }
     Ok(())

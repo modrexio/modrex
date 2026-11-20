@@ -16,6 +16,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 - Usage analytics now include your language.
 - The purple accent color is now deeper.
+- Launching without mods now uses the game's .modrex folder.
 
 ### Fixed
 

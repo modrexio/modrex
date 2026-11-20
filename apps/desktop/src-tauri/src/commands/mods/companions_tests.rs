@@ -1,5 +1,5 @@
 use super::*;
-use crate::commands::mods::{backup_dir, disabled_dir, engine_for_game, mods_dir};
+use crate::commands::mods::{disabled_dir, engine_for_game, mods_dir, vanilla_dir};
 use tempfile::TempDir;
 
 struct Game {
@@ -249,7 +249,7 @@ fn nothing_moves_while_the_mods_folder_is_set_aside() {
     let game = Game::pd3();
     put(&game.active(), "048_Judge_P.pak", "stub");
     companions(&game.active(), "054_Judge_P", "", "judge");
-    fs::create_dir_all(backup_dir(&game.path, game.cfg.primary())).unwrap();
+    fs::create_dir_all(vanilla_dir(&game.path, game.cfg.primary())).unwrap();
 
     assert_eq!(game.rejoin(&[], &[record("1", "048_Judge_P.pak", true)]), 0);
     assert!(game.active().join("054_Judge_P.ucas").exists());
@@ -499,7 +499,7 @@ fn the_files_to_delete_come_from_the_scan_not_the_request() {
 #[test]
 fn no_leftovers_are_listed_while_the_mods_folder_is_set_aside() {
     let game = leftovers_fixture();
-    fs::create_dir_all(backup_dir(&game.path, game.cfg.primary())).unwrap();
+    fs::create_dir_all(vanilla_dir(&game.path, game.cfg.primary())).unwrap();
 
     assert!(leftover_sets(&game.path, game.cfg).unwrap().is_empty());
 }

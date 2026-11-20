@@ -51,10 +51,10 @@ pub(crate) use self::bundle::{
 };
 pub use self::companions::LeftoverFiles;
 #[cfg(test)]
-pub(crate) use self::engine::vanilla_dir;
+pub(crate) use self::engine::legacy_backup_dir;
 pub use self::engine::{
-    backup_dir, engine_for_game, set_aside_dir, set_aside_locations, ModEngineConfig, ModUnit,
-    ScanTarget, SharedPaks, StoreLayout,
+    engine_for_game, modrex_dir, set_aside_dir, set_aside_locations, vanilla_dir, ModEngineConfig,
+    ModUnit, ScanTarget, SharedPaks, StoreLayout,
 };
 pub use self::identity::IdentityEvidence;
 pub use self::install::install_mod_from_path;

@@ -14,8 +14,8 @@ pub(crate) use types::{EpicDef, GameDef, SteamDef, XboxDef};
 use xbox::Xbox;
 
 use crate::commands::mods::{
-    backup_dir, engine_for_game, get_state_path, mods_base, read_state, set_aside_dir,
-    set_aside_locations, ModEngineConfig, ScanTarget,
+    engine_for_game, get_state_path, modrex_dir, mods_base, read_state, set_aside_dir,
+    set_aside_locations, vanilla_dir, ModEngineConfig, ScanTarget,
 };
 use crate::commands::settings::{game_settings, read_settings, update_settings, GameSettings};
 use serde::Serialize;
@@ -585,6 +585,10 @@ fn do_restore(game_path: &str, cfg: &crate::commands::mods::ModEngineConfig) -> 
         }
     }
     crate::commands::mods::restore_bundles(game_path, cfg)?;
+    // remove_dir no-ops when non-empty, so a backup kept for review stays with its parents.
+    let modrex = modrex_dir(game_path);
+    fs::remove_dir(modrex.join("vanilla")).ok();
+    fs::remove_dir(&modrex).ok();
     if recreated {
         return Err("A mods folder was recreated while its backup was hidden. Review both folders before restoring".into());
     }
@@ -648,10 +652,16 @@ fn hide_package_mods(game_path: &str, cfg: &ModEngineConfig) -> Result<(), Strin
             continue;
         }
         let mods_dir = mods_base(game_path, target);
-        let mods_bak = backup_dir(game_path, target);
+        let mods_bak = vanilla_dir(game_path, target);
         if set_aside_dir(game_path, target).is_some() || !mods_dir.exists() {
             continue;
         }
+        fs::create_dir_all(
+            mods_bak
+                .parent()
+                .expect("vanilla_dir is below the game path"),
+        )
+        .map_err(|error| format!("Could not create the mods backup folder: {error}"))?;
         if !target.is_directory_unit() {
             fs::rename(&mods_dir, &mods_bak).map_err(|error| {
                 format!("Could not hide the mods folder. Close the game and try again: {error}")

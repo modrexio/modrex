@@ -1,5 +1,5 @@
 use super::engine::{
-    backup_dir, join_subpath, set_aside_dir, ModEngineConfig, ModUnit, ScanTarget,
+    join_subpath, legacy_backup_dir, set_aside_dir, ModEngineConfig, ModUnit, ScanTarget,
 };
 use super::moves::{folder_targets, Moves};
 use super::naming::log_name;
@@ -674,11 +674,16 @@ fn migrate_to_live_ue4ss_mods(game_path: &str, cfg: &ModEngineConfig) {
     if !old_mods.is_dir() || same_dir(&old_mods, &live) {
         return;
     }
-    let old_backup = join_subpath(game_path, target.backup_subpath);
     move_sub_mod_dirs(&old_mods, &live);
-    move_sub_mod_dirs(&old_backup, &backup_dir(game_path, target));
-
-    remove_if_empty(&old_backup);
+    if let (Some(old_backup), Some(live_backup)) = (
+        target
+            .legacy_backup_subpath
+            .map(|subpath| join_subpath(game_path, subpath)),
+        legacy_backup_dir(game_path, target),
+    ) {
+        move_sub_mod_dirs(&old_backup, &live_backup);
+        remove_if_empty(&old_backup);
+    }
     if let Some(legacy) = legacy_ue4ss_mods_dir(game_path, target) {
         if !same_dir(&legacy, &live) {
             remove_if_empty(&legacy);

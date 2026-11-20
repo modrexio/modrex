@@ -76,7 +76,7 @@ targets = [
         label = "modkit_mods",
         primary = true,
         path = ["CrimeBoss", "Mods"],
-        backup = ["CrimeBoss", "Mods.bak"],
+        legacy_backup = ["CrimeBoss", "Mods.bak"],
         activation = "filesystem",
         load_order = "none",
 
@@ -97,7 +97,7 @@ targets = [
         tag = "paks",
         label = "legacy_paks",
         path = ["CrimeBoss", "Content", "Paks", "~mods"],
-        backup = ["CrimeBoss", "Content", "~mods.bak"],
+        legacy_backup = ["CrimeBoss", "Content", "~mods.bak"],
         activation = "filesystem",
         load_order = "filename_prefix",
 
@@ -117,7 +117,7 @@ targets = [
         label = "loader_mods",
         loader = "ue4ss",
         path = ["CrimeBoss", "Binaries", "Win64", "Mods"],
-        backup = ["CrimeBoss", "Binaries", "Win64", "Mods.bak"],
+        legacy_backup = ["CrimeBoss", "Binaries", "Win64", "Mods.bak"],
         activation = "ue4ss_mods_txt",
         load_order = "none",
 

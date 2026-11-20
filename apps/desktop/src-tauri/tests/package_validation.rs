@@ -29,7 +29,7 @@ tag = "mods"
 label = "pak_mods"
 primary = true
 path = ["mods"]
-backup = ["mods.bak"]
+legacy_backup = ["mods.bak"]
 activation = "filesystem"
 load_order = "none"
 
@@ -430,7 +430,7 @@ fn the_generic_mods_label_is_only_valid_on_a_sole_target() {
 
 fn second_target(tag: &str, primary: bool) -> String {
     format!(
-        "[[targets]]\ntag = \"{tag}\"\nlabel = \"overrides\"\nprimary = {primary}\npath = [\"other\"]\nbackup = [\"other.bak\"]\nactivation = \"filesystem\"\nload_order = \"none\"\n\n[targets.unit]\nkind = \"directory\"\n\n[targets.unit.discovery]\npolicy = \"all_directories\"\n"
+        "[[targets]]\ntag = \"{tag}\"\nlabel = \"overrides\"\nprimary = {primary}\npath = [\"other\"]\nlegacy_backup = [\"other.bak\"]\nactivation = \"filesystem\"\nload_order = \"none\"\n\n[targets.unit]\nkind = \"directory\"\n\n[targets.unit.discovery]\npolicy = \"all_directories\"\n"
     )
 }
 
@@ -510,7 +510,7 @@ targets = [
         label = "pak_mods",
         primary = true,
         path = ["Paks"],
-        backup = ["Paks.bak"],
+        legacy_backup = ["Paks.bak"],
         activation = "filesystem",
         load_order = "filename_prefix",
 
@@ -529,7 +529,7 @@ targets = [
         tag = "mods",
         label = "modkit_mods",
         path = ["Mods"],
-        backup = ["Mods.bak"],
+        legacy_backup = ["Mods.bak"],
         activation = "filesystem",
         load_order = "none",
 
@@ -829,13 +829,13 @@ fn with_store_paths(stores: &str, primary: bool, store_paths: &str) -> String {
         &format!("    {{ provider = \"steam\", app_id = 1, folder = \"Fixture\" }},\n{stores}\n"),
     );
     let target = second_target("ue4ss_mods", primary).replace(
-        "backup = [\"other.bak\"]\n",
-        &format!("backup = [\"other.bak\"]\nstore_paths = [{store_paths}]\n"),
+        "legacy_backup = [\"other.bak\"]\n",
+        &format!("legacy_backup = [\"other.bak\"]\nstore_paths = [{store_paths}]\n"),
     );
     format!("{base}\n{target}")
 }
 
-const XBOX_PATH: &str = "{ store = \"xbox\", path = [\"gdk\"], backup = [\"gdk.bak\"] }";
+const XBOX_PATH: &str = "{ store = \"xbox\", path = [\"gdk\"], legacy_backup = [\"gdk.bak\"] }";
 
 #[test]
 fn a_store_path_for_a_store_with_its_own_executable_is_accepted() {
@@ -856,7 +856,7 @@ fn a_store_path_for_a_store_without_its_own_executable_is_rejected() {
         &with_store_paths(
             XBOX_STORE,
             false,
-            "{ store = \"steam\", path = [\"a\"], backup = [\"b\"] }",
+            "{ store = \"steam\", path = [\"a\"], legacy_backup = [\"b\"] }",
         ),
         "names no executable of its own",
     );
@@ -942,7 +942,7 @@ modworkshop_ids = [59255]
 #[test]
 fn a_plugin_target_disabling_outside_its_path_is_accepted() {
     let text = with_plugin_target(
-        "disabled = [\"Game\", \"Mods.disabled\"]\nbackup = [\"Game\", \"Mods.bak\"]",
+        "disabled = [\"Game\", \"Mods.disabled\"]\nlegacy_backup = [\"Game\", \"Mods.bak\"]",
     );
     let parsed: GamePackage = toml::from_str(&text).expect("parses");
     validate::check("fixture", &parsed).expect("passes the checks");
@@ -951,7 +951,7 @@ fn a_plugin_target_disabling_outside_its_path_is_accepted() {
 #[test]
 fn a_plugin_target_must_declare_where_disabled_plugins_go() {
     assert_rejected(
-        &with_plugin_target("backup = [\"Game\", \"Mods.bak\"]"),
+        &with_plugin_target("legacy_backup = [\"Game\", \"Mods.bak\"]"),
         "without a disabled path",
     );
 }
@@ -960,7 +960,7 @@ fn a_plugin_target_must_declare_where_disabled_plugins_go() {
 fn a_plugin_target_cannot_disable_inside_the_folder_unreal_searches() {
     assert_rejected(
         &with_plugin_target(
-            "disabled = [\"Game\", \"Mods\", \"disabled\"]\nbackup = [\"Game\", \"Mods.bak\"]",
+            "disabled = [\"Game\", \"Mods\", \"disabled\"]\nlegacy_backup = [\"Game\", \"Mods.bak\"]",
         ),
         "disabled path inside path",
     );
@@ -970,14 +970,14 @@ fn a_plugin_target_cannot_disable_inside_the_folder_unreal_searches() {
 fn a_plugin_target_cannot_back_up_inside_the_folder_unreal_searches() {
     assert_rejected(
         &with_plugin_target(
-            "disabled = [\"Game\", \"Mods.disabled\"]\nbackup = [\"Game\", \"mods\", \"bak\"]",
+            "disabled = [\"Game\", \"Mods.disabled\"]\nlegacy_backup = [\"Game\", \"mods\", \"bak\"]",
         )
         .replace("path = [\"Game\", \"Mods\"]", "path = [\"Game\", \"mods\"]")
         .replace(
             "disabled = [\"Game\", \"Mods.disabled\"]",
             "disabled = [\"Game\", \"mods.disabled\"]",
         ),
-        "backup inside path",
+        "legacy_backup inside path",
     );
 }
 
@@ -985,8 +985,8 @@ fn a_plugin_target_cannot_back_up_inside_the_folder_unreal_searches() {
 fn a_disabled_path_equal_to_the_target_path_is_rejected() {
     assert_rejected(
         &BASE.replace(
-            "backup = [\"mods.bak\"]",
-            "disabled = [\"MODS\"]\nbackup = [\"mods.bak\"]",
+            "legacy_backup = [\"mods.bak\"]",
+            "disabled = [\"MODS\"]\nlegacy_backup = [\"mods.bak\"]",
         ),
         "equal to its path",
     );
@@ -995,8 +995,8 @@ fn a_disabled_path_equal_to_the_target_path_is_rejected() {
 #[test]
 fn a_recursive_load_target_disabling_outside_its_path_is_accepted() {
     let text = BASE.replace(
-        "backup = [\"mods.bak\"]",
-        "recursive_load = true\ndisabled = [\"mods.disabled\"]\nbackup = [\"mods.bak\"]",
+        "legacy_backup = [\"mods.bak\"]",
+        "recursive_load = true\ndisabled = [\"mods.disabled\"]\nlegacy_backup = [\"mods.bak\"]",
     );
     let parsed: GamePackage = toml::from_str(&text).expect("parses");
     validate::check("fixture", &parsed).expect("passes the checks");
@@ -1006,8 +1006,8 @@ fn a_recursive_load_target_disabling_outside_its_path_is_accepted() {
 fn a_recursive_load_target_must_declare_where_disabled_mods_go() {
     assert_rejected(
         &BASE.replace(
-            "backup = [\"mods.bak\"]",
-            "recursive_load = true\nbackup = [\"mods.bak\"]",
+            "legacy_backup = [\"mods.bak\"]",
+            "recursive_load = true\nlegacy_backup = [\"mods.bak\"]",
         ),
         "sets recursive_load without a disabled path",
     );
@@ -1017,8 +1017,8 @@ fn a_recursive_load_target_must_declare_where_disabled_mods_go() {
 fn a_recursive_load_target_cannot_disable_inside_the_folder_the_game_reads() {
     assert_rejected(
         &BASE.replace(
-            "backup = [\"mods.bak\"]",
-            "recursive_load = true\ndisabled = [\"mods\", \"disabled\"]\nbackup = [\"mods.bak\"]",
+            "legacy_backup = [\"mods.bak\"]",
+            "recursive_load = true\ndisabled = [\"mods\", \"disabled\"]\nlegacy_backup = [\"mods.bak\"]",
         ),
         "disabled path inside path",
     );
@@ -1028,10 +1028,10 @@ fn a_recursive_load_target_cannot_disable_inside_the_folder_the_game_reads() {
 fn a_recursive_load_target_cannot_back_up_inside_the_folder_the_game_reads() {
     assert_rejected(
         &BASE.replace(
-            "backup = [\"mods.bak\"]",
-            "recursive_load = true\ndisabled = [\"mods.disabled\"]\nbackup = [\"MODS\", \"bak\"]",
+            "legacy_backup = [\"mods.bak\"]",
+            "recursive_load = true\ndisabled = [\"mods.disabled\"]\nlegacy_backup = [\"MODS\", \"bak\"]",
         ),
-        "sets recursive_load with a backup inside path",
+        "sets recursive_load with a legacy_backup inside path",
     );
 }
 
@@ -1039,7 +1039,7 @@ fn a_recursive_load_target_cannot_back_up_inside_the_folder_the_game_reads() {
 fn recursive_load_cannot_be_set_on_a_plugin_target() {
     assert_rejected(
         &with_plugin_target(
-            "recursive_load = true\ndisabled = [\"Game\", \"Mods.disabled\"]\nbackup = [\"Game\", \"Mods.bak\"]",
+            "recursive_load = true\ndisabled = [\"Game\", \"Mods.disabled\"]\nlegacy_backup = [\"Game\", \"Mods.bak\"]",
         ),
         "recursive_load on an unreal_plugin target",
     );
@@ -1084,7 +1084,7 @@ label = "pak_mods"
 primary = true
 scope = "unreal_paks"
 path = ["Fixture", "Content", "Paks"]
-backup = ["Fixture", "Content", "Paks.mods.bak"]
+legacy_backup = ["Fixture", "Content", "Paks.mods.bak"]
 activation = "filesystem"
 load_order = "none"
 
@@ -1158,7 +1158,7 @@ roots = ["archive", "r6"]
 tag = "scripts"
 label = "overrides"
 path = ["r6", "scripts"]
-backup = ["r6", "scripts.bak"]
+legacy_backup = ["r6", "scripts.bak"]
 activation = "filesystem"
 load_order = "none"
 
@@ -1172,7 +1172,7 @@ policy = "all_directories"
 }
 
 const BUNDLE_TARGET: &str =
-    "path = []\ndisabled = [\".modrex\", \"disabled\"]\nbackup = [\".modrex\", \"hidden\"]";
+    "path = []\ndisabled = [\".modrex\", \"disabled\"]\nlegacy_backup = [\".modrex\", \"hidden\"]";
 const BUNDLE_UNIT: &str = "placements = [\n    { match = \"file\", extension = \"archive\", into = [\"archive\", \"pc\", \"mod\"] },\n]\nflat = [[\"archive\", \"pc\", \"mod\"]]";
 
 #[test]
@@ -1219,7 +1219,7 @@ fn a_bundle_keeps_its_backup_outside_every_root() {
             &BUNDLE_TARGET.replace("[\".modrex\", \"hidden\"]", "[\"archive\", \"bak\"]"),
             BUNDLE_UNIT,
         ),
-        "backup path sits inside a root",
+        "legacy_backup path sits inside a root",
     );
 }
 

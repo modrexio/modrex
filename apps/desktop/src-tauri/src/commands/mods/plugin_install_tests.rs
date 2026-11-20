@@ -385,7 +385,7 @@ fn nothing_installs_into_a_plugin_folder_set_aside_for_a_vanilla_launch() {
     let plugins = cfg.target_for(Some("plugins"));
     let tmp = TempDir::new().unwrap();
     let game = tmp.path().to_str().unwrap();
-    fs::create_dir_all(backup_dir(game, plugins)).unwrap();
+    fs::create_dir_all(vanilla_dir(game, plugins)).unwrap();
     let v1 = staged_plugin(tmp.path(), "Foo", b"v1");
     let err = install_mod_from_path(
         game,
