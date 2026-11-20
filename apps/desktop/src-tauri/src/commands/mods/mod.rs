@@ -25,6 +25,7 @@ mod owned_files;
 mod paths;
 mod pdmod;
 mod plugin_repair;
+mod profiles;
 mod reorder;
 mod resource_state;
 mod resources;
@@ -3042,13 +3043,127 @@ pub async fn uninstall_mod(
     }
     let _state_guard = lock_game_state(&app, game_id.as_str()).await;
     let cfg = engine_for_game(game_id.as_str())?;
-    uninstall_mod_op(&game_path, &get_state_path(&game_path, cfg), &uid, cfg)?;
+    let state_path = get_state_path(&game_path, cfg);
+    let install_id = state::read_state_for_game(&game_path, &state_path, cfg)
+        .map_err(|e| e.to_string())?
+        .mods
+        .into_iter()
+        .find(|m| m.uid == uid)
+        .map(|m| m.install_id);
+    uninstall_mod_op(&game_path, &state_path, &uid, cfg)?;
     crate::commands::analytics::track(
         &app,
         "mod_uninstalled",
         serde_json::json!({ "game": game_id.as_str() }),
     );
-    Ok(())
+    let Some(install_id) = install_id else {
+        return Ok(());
+    };
+    profiles::forget(&profiles::ProfileStore::new(&game_path), &install_id).map_err(|e| {
+        format!("The mod was uninstalled, but it could not be taken out of your profiles: {e}")
+    })
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn list_profiles(
+    app: AppHandle,
+    game_id: String,
+    game_path: String,
+) -> Result<profiles::ProfileList, String> {
+    let cfg = engine_for_game(&game_id)?;
+    let _state_guard = lock_game_state(&app, cfg.game_id).await;
+    profiles::list(&profiles::ProfileStore::new(&game_path))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn create_profile(
+    app: AppHandle,
+    game_id: String,
+    game_path: String,
+    name: String,
+    source: profiles::ProfileSource,
+) -> Result<profiles::ProfileSummary, String> {
+    let cfg = engine_for_game(&game_id)?;
+    let _state_guard = lock_game_state(&app, cfg.game_id).await;
+    let state_path = get_state_path(&game_path, cfg);
+    let install = profiles::Install {
+        game_path: &game_path,
+        state_path: &state_path,
+        cfg,
+        launcher: None,
+    };
+    profiles::create(
+        &profiles::ProfileStore::new(&game_path),
+        &install,
+        &name,
+        source,
+    )
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn rename_profile(
+    app: AppHandle,
+    game_id: String,
+    game_path: String,
+    profile_id: String,
+    name: String,
+) -> Result<(), String> {
+    let cfg = engine_for_game(&game_id)?;
+    let _state_guard = lock_game_state(&app, cfg.game_id).await;
+    profiles::rename(&profiles::ProfileStore::new(&game_path), &profile_id, &name)
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn delete_profile(
+    app: AppHandle,
+    game_id: String,
+    game_path: String,
+    profile_id: String,
+) -> Result<(), String> {
+    let cfg = engine_for_game(&game_id)?;
+    let _state_guard = lock_game_state(&app, cfg.game_id).await;
+    profiles::delete(&profiles::ProfileStore::new(&game_path), &profile_id)
+}
+
+/// Switches a game's installed mods to a profile, or finishes a switch that stopped part way.
+#[tauri::command]
+#[specta::specta]
+pub async fn switch_profile(
+    app: AppHandle,
+    game_id: String,
+    game_path: String,
+    profile_id: String,
+) -> Result<(), String> {
+    let cfg = engine_for_game(&game_id)?;
+    let state_guard = lock_game_state(&app, cfg.game_id).await;
+    let store = profiles::ProfileStore::new(&game_path);
+    // The launcher decides where Crime Boss keeps its mod settings, so it has to be the one of
+    // the copy being switched, and a page left open on the other copy must not switch this one.
+    let context = resources::current_context(&app, cfg.game_id)?;
+    if context.game_path != game_path {
+        return Err("The game folder changed since this page loaded. Nothing was switched.".into());
+    }
+    // A running game holds its mod files open, and a switch that stops on a locked file
+    // halfway leaves a mix of both profiles. A launch cannot start while the state lock is held.
+    resources::ensure_not_running(&app, cfg.game_id).await?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let _state_guard = state_guard;
+        let state_path = get_state_path(&game_path, cfg);
+        let install = profiles::Install {
+            game_path: &game_path,
+            state_path: &state_path,
+            cfg,
+            launcher: context.launcher.as_deref(),
+        };
+        profiles::switch(&store, &install, &profile_id)
+            .inspect_err(|e| log::warn!("switch_profile {}: {e}", cfg.game_id))
+    })
+    .await
+    .map_err(|e| format!("Profile switch worker failed: {e}"))?
 }
 
 #[tauri::command]

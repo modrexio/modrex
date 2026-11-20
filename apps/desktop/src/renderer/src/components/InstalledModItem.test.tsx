@@ -98,6 +98,7 @@ function renderItem(
         dropTarget: null,
         onModPointerDown: vi.fn(),
         onFolderPointerDown: vi.fn(),
+        removeLabel: 'Remove',
         ...handlers,
     } satisfies InstalledContextValue
     render(

@@ -151,6 +151,12 @@ export const commands = {
 	pickGraphicsConfig: (gameId: string, title: string) => __TAURI_INVOKE<string | null>("pick_graphics_config", { gameId, title }),
 	openGraphicsConfig: (gameId: string) => __TAURI_INVOKE<null>("open_graphics_config", { gameId }),
 	uninstallMod: (gamePath: string, uid: string, gameId: string) => __TAURI_INVOKE<null>("uninstall_mod", { gamePath, uid, gameId }),
+	listProfiles: (gameId: string, gamePath: string) => __TAURI_INVOKE<ProfileList>("list_profiles", { gameId, gamePath }),
+	createProfile: (gameId: string, gamePath: string, name: string, source: ProfileSource) => __TAURI_INVOKE<ProfileSummary>("create_profile", { gameId, gamePath, name, source }),
+	renameProfile: (gameId: string, gamePath: string, profileId: string, name: string) => __TAURI_INVOKE<null>("rename_profile", { gameId, gamePath, profileId, name }),
+	deleteProfile: (gameId: string, gamePath: string, profileId: string) => __TAURI_INVOKE<null>("delete_profile", { gameId, gamePath, profileId }),
+	/**  Switches a game's installed mods to a profile, or finishes a switch that stopped part way. */
+	switchProfile: (gameId: string, gamePath: string, profileId: string) => __TAURI_INVOKE<null>("switch_profile", { gameId, gamePath, profileId }),
 	enableMod: (gamePath: string, uid: string, gameId: string) => __TAURI_INVOKE<null>("enable_mod", { gamePath, uid, gameId }),
 	disableMod: (gamePath: string, uid: string, gameId: string) => __TAURI_INVOKE<null>("disable_mod", { gamePath, uid, gameId }),
 	moveCrimebossModTarget: (gamePath: string, uid: string) => __TAURI_INVOKE<null>("move_crimeboss_mod_target", { gamePath, uid }),
@@ -1157,6 +1163,27 @@ export type PluginInstallReport = {
 	misplaced: MisplacedPlugin[],
 	/**  A descriptor's file name in the plugin folder itself, which hides every plugin below it. */
 	rootDescriptor: string | null,
+};
+
+export type ProfileList = {
+	profiles: ProfileSummary[],
+	active: string | null,
+	/**  The profile a switch was heading for when it stopped. Switching to it again finishes it. */
+	unfinishedSwitch: string | null,
+};
+
+/**  What a new profile starts as. */
+export type ProfileSource = 
+/**  The mods as they are installed right now. */
+{ kind: "current" } | 
+/**  No mods, so switching to it parks every mod. */
+{ kind: "empty" } | 
+/**  Another profile's members. */
+{ kind: "copy"; profileId: string };
+
+export type ProfileSummary = {
+	id: string,
+	name: string,
 };
 
 /**

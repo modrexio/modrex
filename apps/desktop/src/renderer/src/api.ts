@@ -100,6 +100,8 @@ import type {
 } from '../../shared/types'
 
 export type { StartupPhase } from '../../shared/bindings'
+export type { ProfileList, ProfileSource, ProfileSummary } from '../../shared/bindings'
+import type { ProfileList, ProfileSource, ProfileSummary } from '../../shared/bindings'
 import type { StartupPhase } from '../../shared/bindings'
 export type { AnalyticsConsent, UpdateChannel, UpdatedNotice } from '../../shared/bindings'
 import type { AnalyticsConsent, UpdateChannel, UpdatedNotice } from '../../shared/bindings'
@@ -866,6 +868,32 @@ export const api = {
     },
     async deleteFolder(folderId: string, gamePath: string, gameId: string): Promise<void> {
         await commands.deleteFolder(gamePath, folderId, gameId)
+    },
+
+    listProfiles(gameId: string, gamePath: string): Promise<ProfileList> {
+        return commands.listProfiles(gameId, gamePath)
+    },
+    createProfile(
+        gameId: string,
+        gamePath: string,
+        name: string,
+        source: ProfileSource
+    ): Promise<ProfileSummary> {
+        return commands.createProfile(gameId, gamePath, name, source)
+    },
+    async renameProfile(
+        gameId: string,
+        gamePath: string,
+        profileId: string,
+        name: string
+    ): Promise<void> {
+        await commands.renameProfile(gameId, gamePath, profileId, name)
+    },
+    async deleteProfile(gameId: string, gamePath: string, profileId: string): Promise<void> {
+        await commands.deleteProfile(gameId, gamePath, profileId)
+    },
+    async switchProfile(gameId: string, gamePath: string, profileId: string): Promise<void> {
+        await commands.switchProfile(gameId, gamePath, profileId)
     },
 
     listLeftoverFiles(gameId: string): Promise<LeftoverFiles[]> {

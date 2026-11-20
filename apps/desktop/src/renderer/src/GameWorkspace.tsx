@@ -27,6 +27,7 @@ import { useModIdentificationTracking } from './lib/analytics/useModIdentificati
 import { Button } from './components/ui/Button'
 import { Sidebar } from './components/Sidebar'
 import { GameTopBar } from './components/GameTopBar'
+import { useProfiles } from './hooks/useProfiles'
 import type { TopBarProps } from './components/TopBar'
 import { BrowsePage } from './components/BrowsePage'
 import { NexusBrowsePage } from './components/NexusBrowsePage'
@@ -124,6 +125,9 @@ export function GameWorkspace({
         onRefreshInstalled: refreshInstalled,
     })
     useModIdentificationTracking(installed, activeGame)
+    // Profiles span every page: the menu sits beside the launch buttons, and a switch started
+    // anywhere reloads the installed list.
+    const profiles = useProfiles(activeGame, gamePath, refreshInstalled)
     useFileDropTarget({ activeGame, gamePath, installed })
 
     useEffect(() => {
@@ -263,7 +267,12 @@ export function GameWorkspace({
     const sidebarView = view === 'detail' ? prevView : view
     return (
         <div key={locale} className="contents">
-            <GameTopBar {...topBar} activeGame={activeGame} gamePath={gamePath} />
+            <GameTopBar
+                {...topBar}
+                activeGame={activeGame}
+                gamePath={gamePath}
+                profiles={profiles}
+            />
             {loadError && (
                 <div role="alert" className="shrink-0 px-4 py-2 bg-danger text-xs text-danger-text">
                     {loadError}
@@ -402,6 +411,7 @@ export function GameWorkspace({
                                 isActive={view === 'installed'}
                                 onRefreshInstalled={refreshInstalled}
                                 onOpenDetail={openDetailFromInstalled}
+                                hasProfiles={(profiles.list?.profiles.length ?? 0) > 0}
                             />
                         )}
                     </div>

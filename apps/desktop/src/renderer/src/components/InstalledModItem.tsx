@@ -35,6 +35,7 @@ export function InstalledModItem({ mods }: { mods: ModGroup }) {
         dropTarget,
         onOpenDetail,
         handleUninstall,
+        removeLabel,
         handleEnable,
         handleDisable,
         handleReinstall,
@@ -290,6 +291,7 @@ export function InstalledModItem({ mods }: { mods: ModGroup }) {
                     isDragging={isDragging}
                     onOpen={handleOpen}
                     onUninstall={() => handleUninstall(fileSet)}
+                    removeLabel={removeLabel}
                     onEnable={() => handleEnable(fileSet)}
                     onDisable={() => handleDisable(fileSet)}
                     onReinstall={() => handleReinstall(fileSet)}
@@ -340,6 +342,7 @@ export function InstalledModItem({ mods }: { mods: ModGroup }) {
                 onOpen={handleOpen}
                 onInstall={() => {}}
                 onUninstall={() => handleUninstall(fileSet)}
+                removeLabel={removeLabel}
                 onEnable={() => handleEnable(fileSet)}
                 onDisable={() => handleDisable(fileSet)}
                 onReinstall={() => handleReinstall(fileSet)}

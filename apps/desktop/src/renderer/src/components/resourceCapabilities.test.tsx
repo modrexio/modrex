@@ -38,7 +38,19 @@ vi.mock('../gameLaunch', () => {
 
 import { HealthCheckModal } from './HealthCheckModal'
 import { GameTopBar } from './GameTopBar'
+import type { Profiles } from '../hooks/useProfiles'
 import { isUnsupportedFormat } from '../formatCheck'
+
+const noProfiles: Profiles = {
+    list: null,
+    switching: null,
+    error: null,
+    clearError: vi.fn(),
+    switchTo: vi.fn(),
+    create: vi.fn(),
+    rename: vi.fn(),
+    remove: vi.fn(),
+}
 
 const original = GAMES.pd2
 afterEach(() => {
@@ -193,7 +205,7 @@ it('keeps graphics-file access separate from resource installation, health tools
     expect(isUnsupportedFormat(GAMES.pd2, 'xml')).toBe(true)
     expect(isUnsupportedFormat(GAMES.pd2, 'bk2')).toBe(true)
     expect(isUnsupportedFormat(GAMES.pd2, 'ini', 'https://example.com/Engine.ini')).toBe(true)
-    render(<GameTopBar activeGame="pd2" gamePath="C:/game" />)
+    render(<GameTopBar activeGame="pd2" gamePath="C:/game" profiles={noProfiles} />)
     expect(screen.getByRole('button', { name: 'Launch without mods' })).toBeTruthy()
 })
 
@@ -204,7 +216,7 @@ it.each(['movies', 'config'] as const)(
             kind === 'movies'
                 ? { ...original, movieReplacement: { extensions: ['bk2'], storefronts: ['steam'] } }
                 : { ...original, configPresets: { filename: 'Engine.ini' } }
-        render(<GameTopBar activeGame="pd2" gamePath="C:/game" />)
+        render(<GameTopBar activeGame="pd2" gamePath="C:/game" profiles={noProfiles} />)
         const button = screen.getByRole('button', { name: 'Launch without package mods' })
         expect(button.parentElement?.getAttribute('data-description')).toBe(
             kind === 'movies' ? 'Movie replacements are unchanged.' : 'INI settings are unchanged.'
@@ -213,6 +225,6 @@ it.each(['movies', 'config'] as const)(
 )
 
 it('retains the ordinary launch label for a game with no resources', () => {
-    render(<GameTopBar activeGame="pd2" gamePath="C:/game" />)
+    render(<GameTopBar activeGame="pd2" gamePath="C:/game" profiles={noProfiles} />)
     expect(screen.getByRole('button', { name: 'Launch without mods' })).toBeTruthy()
 })

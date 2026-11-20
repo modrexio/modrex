@@ -103,6 +103,7 @@ function renderPage(activeGame: GameId = 'raid', installed: InstalledMod[] = [])
             isActive
             onRefreshInstalled={vi.fn(async () => {})}
             onOpenDetail={vi.fn()}
+            hasProfiles={false}
         />
     )
 }

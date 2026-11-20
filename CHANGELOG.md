@@ -11,6 +11,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - Added pink as an accent color.
 - Added a Nightly update channel for testing new features early.
 - Added short animations to dialogs, menus, tooltips and buttons.
+- Added mod profiles for each game.
 
 ### Changed
 

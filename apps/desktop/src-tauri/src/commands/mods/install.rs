@@ -33,7 +33,7 @@ fn loader_refusal(uid: &str) -> String {
     )
 }
 
-fn is_host_pack(m: &InstalledMod) -> bool {
+pub(super) fn is_host_pack(m: &InstalledMod) -> bool {
     m.location
         .as_deref()
         .is_some_and(|l| l.starts_with("host:"))

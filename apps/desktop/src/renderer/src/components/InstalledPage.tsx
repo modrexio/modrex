@@ -95,6 +95,8 @@ interface Props {
     isActive: boolean
     onRefreshInstalled: () => Promise<void>
     onOpenDetail: (modId: number, source?: 'nexus') => void
+    // Uninstall takes a mod out of every profile, which its label says once there are any.
+    hasProfiles: boolean
 }
 
 export function InstalledPage({
@@ -106,6 +108,7 @@ export function InstalledPage({
     isActive,
     onRefreshInstalled,
     onOpenDetail,
+    hasProfiles,
 }: Props) {
     // Applied once here so search, grouping and every row agree on what a mod is called.
     const installed = useMemo(() => tracked.map(withDeclaredMetadata), [tracked])
@@ -480,6 +483,7 @@ export function InstalledPage({
         reinstallError,
         clearReinstallError,
         handleUninstall,
+        removeLabel: hasProfiles ? t('installed.profiles.removeFromAll') : t('common.remove'),
         handleEnable,
         handleDisable,
         handleReinstall,

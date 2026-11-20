@@ -1,5 +1,7 @@
 import { useCallback, useState, useSyncExternalStore } from 'react'
 import { Play, Square, X, Loader } from 'lucide-react'
+import type { Profiles } from '../hooks/useProfiles'
+import { ProfileSwitcher } from './ProfileSwitcher'
 import { TopBar, type TopBarProps } from './TopBar'
 import { Button } from './ui/Button'
 import { Tooltip } from './Tooltip'
@@ -19,8 +21,9 @@ import {
 export function GameTopBar({
     activeGame,
     gamePath,
+    profiles,
     ...topBar
-}: TopBarProps & { activeGame: GameId; gamePath: string | null }) {
+}: TopBarProps & { activeGame: GameId; gamePath: string | null; profiles: Profiles }) {
     const game = GAMES[activeGame]
     const [resetOpen, setResetOpen] = useState(false)
     const [resetting, setResetting] = useState(false)
@@ -38,6 +41,9 @@ export function GameTopBar({
         [activeGame]
     )
     const snapshot = useCallback(() => getLaunchState(activeGame), [activeGame])
+    const unfinishedSwitch = profiles.list?.profiles.find(
+        (p) => p.id === profiles.list?.unfinishedSwitch
+    )
     const {
         running: gameRunning,
         launching,
@@ -61,6 +67,7 @@ export function GameTopBar({
     return (
         <>
             <TopBar {...topBar}>
+                {gamePath && <ProfileSwitcher profiles={profiles} />}
                 {gameRunning ? (
                     <Button variant="danger" size="sm" onClick={() => stopGame(activeGame)}>
                         <Square className="w-3.5 h-3.5" fill="currentColor" />
@@ -183,6 +190,36 @@ export function GameTopBar({
                             size="icon"
                             onClick={() => dismissLaunchWarning(activeGame)}
                             className="shrink-0 p-0 text-warning hover:bg-transparent"
+                        >
+                            <X className="w-3.5 h-3.5" />
+                        </Button>
+                    </Tooltip>
+                </div>
+            )}
+            {unfinishedSwitch && profiles.switching === null && (
+                <div className="shrink-0 flex items-center justify-between gap-3 px-4 py-2 bg-warning/10 border-b border-warning/30 text-xs text-warning">
+                    <span>
+                        {t('installed.profiles.unfinished', { name: unfinishedSwitch.name })}
+                    </span>
+                    <Button
+                        variant="warning"
+                        size="sm"
+                        className="shrink-0"
+                        onClick={() => void profiles.switchTo(unfinishedSwitch.id)}
+                    >
+                        {t('installed.profiles.finish')}
+                    </Button>
+                </div>
+            )}
+            {profiles.error && (
+                <div className="shrink-0 flex items-center justify-between gap-3 px-4 py-2 bg-danger border-b border-danger-hover text-xs text-danger-text">
+                    <span>{profiles.error}</span>
+                    <Tooltip content={t('common.close')}>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={profiles.clearError}
+                            className="shrink-0 p-0 text-danger-text hover:bg-transparent"
                         >
                             <X className="w-3.5 h-3.5" />
                         </Button>
