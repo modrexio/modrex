@@ -103,6 +103,7 @@ export type { StartupPhase } from '../../shared/bindings'
 export type {
     ExportedProfileShare,
     PendingShareMember,
+    PreviewFile,
     ProfileList,
     ProfileShare,
     ProfileSharePreview,
@@ -112,6 +113,9 @@ export type {
 } from '../../shared/bindings'
 import type {
     ExportedProfileShare,
+    MemberOutcome,
+    PendingShareMember,
+    PreviewFile,
     ProfileList,
     ProfileShare,
     ProfileSharePreview,
@@ -943,6 +947,28 @@ export const api = {
     },
     openProfileShareFile(title: string): Promise<string | null> {
         return commands.openProfileShareFile(title)
+    },
+    pendingShareMemberFiles(
+        gameId: string,
+        gamePath: string,
+        memberKey: number
+    ): Promise<PreviewFile[]> {
+        return commands.pendingShareMemberFiles(gameId, gamePath, memberKey)
+    },
+    choosePendingShareFile(
+        gameId: string,
+        gamePath: string,
+        memberKey: number,
+        fileId: number
+    ): Promise<PendingShareMember> {
+        return commands.choosePendingShareFile(gameId, gamePath, memberKey, fileId)
+    },
+    installPendingShareMember(
+        gameId: string,
+        gamePath: string,
+        memberKey: number
+    ): Promise<MemberOutcome> {
+        return commands.installPendingShareMember(gameId, gamePath, memberKey)
     },
     async dismissPendingShareMember(
         gameId: string,

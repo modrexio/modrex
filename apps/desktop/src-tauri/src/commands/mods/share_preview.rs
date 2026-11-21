@@ -13,10 +13,11 @@ use crate::commands::settings::{game_settings, read_settings};
 
 #[path = "share_fetch.rs"]
 mod fetch;
+pub(super) use fetch::member_files;
 
 #[derive(Debug, Clone, Serialize, Type)]
 #[serde(rename_all = "camelCase")]
-pub(super) struct PreviewFile {
+pub struct PreviewFile {
     pub(super) id: u32,
     pub(super) name: String,
     pub(super) label: Option<String>,

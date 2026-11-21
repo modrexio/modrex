@@ -33,15 +33,14 @@ interface Props {
     gameId: string
     gamePath: string
     profiles: Profiles
+    onOpenMod: (modId: number) => void
 }
 
-// Sharing, importing and the list of shared mods still waiting each open in a dialog.
-type ShareDialog =
-    | { kind: 'share'; profile: ProfileSummary }
-    | { kind: 'import' }
-    | { kind: 'pending' }
+// Sharing and importing each open in a dialog. Not downloaded opens through profiles, since
+// the Installed page opens it too.
+type ShareDialog = { kind: 'share'; profile: ProfileSummary } | { kind: 'import' }
 
-export function ProfileSwitcher({ gameId, gamePath, profiles }: Props) {
+export function ProfileSwitcher({ gameId, gamePath, profiles, onOpenMod }: Props) {
     const [open, setOpen] = useState(false)
     const [editing, setEditing] = useState<Editing | null>(null)
     const [explained, setExplained] = useState(false)
@@ -251,7 +250,11 @@ export function ProfileSwitcher({ gameId, gamePath, profiles }: Props) {
                         {list.pending.length > 0 && (
                             <div className="p-1 border-t border-border">
                                 <button
-                                    onClick={() => openDialog({ kind: 'pending' })}
+                                    onClick={() => {
+                                        setOpen(false)
+                                        setEditing(null)
+                                        profiles.showPending(true)
+                                    }}
                                     className="w-full flex items-center gap-2 px-2 h-8 rounded text-sm text-left text-warning hover:bg-surface-hover transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
                                 >
                                     <Download className="w-4 h-4 shrink-0" />
@@ -314,11 +317,13 @@ export function ProfileSwitcher({ gameId, gamePath, profiles }: Props) {
                     onClose={() => setDialog(null)}
                 />
             )}
-            {dialog?.kind === 'pending' && (
+            {profiles.pendingShown && (
                 <PendingSharedDialog
                     gameId={gameId}
+                    gamePath={gamePath}
                     profiles={profiles}
-                    onClose={() => setDialog(null)}
+                    onOpenMod={onOpenMod}
+                    onClose={() => profiles.showPending(false)}
                 />
             )}
             {deleting && (

@@ -24,6 +24,7 @@ const list: ProfileList = {
     pending: [
         {
             memberKey: 2,
+            action: 'nexusDownload',
             source: 'nexus',
             modId: 27,
             fileId: 89,
@@ -33,12 +34,33 @@ const list: ProfileList = {
         },
         {
             memberKey: 3,
+            action: 'openMod',
             source: 'modworkshop',
             modId: 42,
-            fileId: null,
+            fileId: 70,
             installedName: 'Skins',
-            reason: 'Choose an archive entry',
+            reason: 'Choose a file from the archive',
             url: 'https://modworkshop.net/mod/42',
+        },
+        {
+            memberKey: 4,
+            action: 'tryAgain',
+            source: 'modworkshop',
+            modId: 43,
+            fileId: 71,
+            installedName: 'Stopped.pak',
+            reason: 'The import stopped before this mod was installed',
+            url: 'https://modworkshop.net/mod/43',
+        },
+        {
+            memberKey: 5,
+            action: 'chooseFile',
+            source: 'nexus',
+            modId: 28,
+            fileId: null,
+            installedName: 'Page only.pak',
+            reason: 'Choose a file',
+            url: 'https://www.nexusmods.com/payday3/mods/28?tab=files',
         },
     ],
 }
@@ -54,7 +76,9 @@ function profiles(overrides: Partial<Profiles> = {}): Profiles {
         rename: vi.fn(),
         remove: vi.fn(),
         dismissPending: vi.fn().mockResolvedValue(undefined),
-        imported: vi.fn().mockResolvedValue(undefined),
+        refresh: vi.fn().mockResolvedValue(undefined),
+        pendingShown: false,
+        showPending: vi.fn(),
         ...overrides,
     }
 }
@@ -238,7 +262,7 @@ describe('ImportProfileDialog', () => {
             'Friend',
             {}
         )
-        expect(state.imported).toHaveBeenCalled()
+        expect(state.refresh).toHaveBeenCalled()
         expect(screen.getByText(/1 of these mods has a newer version/)).toBeTruthy()
         // The Nexus mods are included, so the first waiting one opens on nexusmods.com.
         await waitFor(() =>
@@ -253,9 +277,24 @@ describe('ImportProfileDialog', () => {
 })
 
 describe('PendingSharedDialog', () => {
-    it('opens each waiting mod at its source and dismisses one', async () => {
+    it('offers each waiting mod the action it needs', async () => {
+        vi.mocked(api.installPendingShareMember).mockResolvedValue({
+            status: 'installed',
+            installId: 'x',
+        })
+        vi.mocked(api.pendingShareMemberFiles).mockResolvedValue([file(91, 'Main')])
         const state = profiles()
-        wrap(<PendingSharedDialog gameId="pd3" profiles={state} onClose={vi.fn()} />)
+        const onOpenMod = vi.fn()
+        const onClose = vi.fn()
+        wrap(
+            <PendingSharedDialog
+                gameId="pd3"
+                gamePath="C:/game"
+                profiles={state}
+                onOpenMod={onOpenMod}
+                onClose={onClose}
+            />
+        )
         fireEvent.click(screen.getByRole('button', { name: 'Open on Nexus' }))
         await waitFor(() =>
             expect(api.requestNexusDownload).toHaveBeenCalledWith(
@@ -265,9 +304,17 @@ describe('PendingSharedDialog', () => {
                 89
             )
         )
-        fireEvent.click(screen.getByRole('button', { name: 'Open mod page' }))
-        await waitFor(() => expect(api.openExternal).toHaveBeenCalledWith(list.pending[1]!.url))
+        fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+        await waitFor(() =>
+            expect(api.installPendingShareMember).toHaveBeenCalledWith('pd3', 'C:/game', 4)
+        )
+        await waitFor(() => expect(state.refresh).toHaveBeenCalled())
+        // A mod whose file still has to be chosen loads its files for the picker.
+        expect(api.pendingShareMemberFiles).toHaveBeenCalledWith('pd3', 'C:/game', 5)
         fireEvent.click(screen.getByRole('button', { name: 'Dismiss Skins' }))
         expect(state.dismissPending).toHaveBeenCalledWith(3)
+        fireEvent.click(screen.getByRole('button', { name: 'Open mod page' }))
+        expect(onClose).toHaveBeenCalled()
+        expect(onOpenMod).toHaveBeenCalledWith(42)
     })
 })

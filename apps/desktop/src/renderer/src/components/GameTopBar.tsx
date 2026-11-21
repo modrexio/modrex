@@ -22,8 +22,14 @@ export function GameTopBar({
     activeGame,
     gamePath,
     profiles,
+    onOpenMod,
     ...topBar
-}: TopBarProps & { activeGame: GameId; gamePath: string | null; profiles: Profiles }) {
+}: TopBarProps & {
+    activeGame: GameId
+    gamePath: string | null
+    profiles: Profiles
+    onOpenMod: (modId: number) => void
+}) {
     const game = GAMES[activeGame]
     const [resetOpen, setResetOpen] = useState(false)
     const [resetting, setResetting] = useState(false)
@@ -68,7 +74,12 @@ export function GameTopBar({
         <>
             <TopBar {...topBar}>
                 {gamePath && (
-                    <ProfileSwitcher gameId={activeGame} gamePath={gamePath} profiles={profiles} />
+                    <ProfileSwitcher
+                        gameId={activeGame}
+                        gamePath={gamePath}
+                        profiles={profiles}
+                        onOpenMod={onOpenMod}
+                    />
                 )}
                 {gameRunning ? (
                     <Button variant="danger" size="sm" onClick={() => stopGame(activeGame)}>

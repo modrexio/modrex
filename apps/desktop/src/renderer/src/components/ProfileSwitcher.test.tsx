@@ -17,7 +17,9 @@ function profiles(list: ProfileList): Profiles {
         rename: vi.fn().mockResolvedValue(true),
         remove: vi.fn().mockResolvedValue(undefined),
         dismissPending: vi.fn().mockResolvedValue(undefined),
-        imported: vi.fn().mockResolvedValue(undefined),
+        refresh: vi.fn().mockResolvedValue(undefined),
+        pendingShown: false,
+        showPending: vi.fn(),
     }
 }
 
@@ -35,7 +37,7 @@ const two: ProfileList = {
 function show(state: Profiles) {
     render(
         <TooltipProvider>
-            <ProfileSwitcher gameId="pd3" gamePath="C:/game" profiles={state} />
+            <ProfileSwitcher gameId="pd3" gamePath="C:/game" onOpenMod={vi.fn()} profiles={state} />
         </TooltipProvider>
     )
 }
@@ -50,6 +52,7 @@ describe('ProfileSwitcher', () => {
     it('offers sharing on each row, importing, and the shared mods still waiting', async () => {
         const waiting = {
             memberKey: 1,
+            action: 'nexusDownload' as const,
             source: 'nexus' as const,
             modId: 27,
             fileId: 89,
@@ -121,7 +124,12 @@ describe('ProfileSwitcher', () => {
         const state = profiles(two)
         const view = render(
             <TooltipProvider>
-                <ProfileSwitcher gameId="pd3" gamePath="C:/game" profiles={state} />
+                <ProfileSwitcher
+                    gameId="pd3"
+                    gamePath="C:/game"
+                    onOpenMod={vi.fn()}
+                    profiles={state}
+                />
             </TooltipProvider>
         )
         openMenu()
@@ -133,6 +141,7 @@ describe('ProfileSwitcher', () => {
                 <ProfileSwitcher
                     gameId="pd3"
                     gamePath="C:/game"
+                    onOpenMod={vi.fn()}
                     profiles={{ ...state, switching: 'p2' }}
                 />
             </TooltipProvider>

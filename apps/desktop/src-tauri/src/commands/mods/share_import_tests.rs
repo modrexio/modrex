@@ -71,6 +71,7 @@ fn setup(
                     install_id: uuid::Uuid::new_v4().to_string(),
                     file_id,
                     folder_id: None,
+                    needs_install_flow: false,
                 },
             }
         })
@@ -448,4 +449,133 @@ fn pending_members_link_their_source_and_can_be_dismissed() {
     assert!(dismiss(&game.store(), 2)
         .unwrap_err()
         .contains("no longer waiting"));
+}
+
+#[test]
+fn waiting_entries_offer_the_action_their_state_needs() {
+    let game = Game::new("pd3");
+    let nexus = json!({"file":{"source":"nexus","modId":27,"fileId":89},"enabled":true,"installedName":"N.pak"});
+    let page_only =
+        json!({"file":{"source":"nexus","modId":28},"enabled":true,"installedName":"P.pak"});
+    let (id, _) = setup(
+        &game,
+        vec![
+            workshop(42, 11, "A.pak"),
+            workshop(43, 12, "B.pak"),
+            nexus,
+            page_only,
+        ],
+        json!([]),
+        json!([{"mod":1},{"mod":2},{"mod":3},{"mod":4}]),
+    );
+    let store = game.store();
+    let failed = MemberOutcome::Failed {
+        error: "Download failed".into(),
+    };
+    record_outcome(&store, &id, 1, &failed).unwrap();
+    let asks = MemberOutcome::Pending {
+        reason: "Choose a file from the archive".into(),
+    };
+    record_outcome(&store, &id, 2, &asks).unwrap();
+    let actions: Vec<_> = pending_members(&store.get(&id).unwrap())
+        .into_iter()
+        .map(|p| serde_json::to_value(p).unwrap()["action"].clone())
+        .collect();
+    assert_eq!(
+        actions,
+        [
+            json!("tryAgain"),
+            json!("openMod"),
+            json!("nexusDownload"),
+            json!("chooseFile")
+        ]
+    );
+}
+
+#[test]
+fn a_normal_workshop_install_takes_the_place_its_entry_waited_for() {
+    let game = Game::new("pd3");
+    let mut member = workshop(42, 11, "HUD.pak");
+    member["enabled"] = json!(false);
+    member["folder"] = json!(1);
+    member["priority"] = json!(5);
+    let (id, _) = setup(
+        &game,
+        vec![member],
+        json!([{"name":"HUD","children":[{"mod":1}]}]),
+        json!([{"folder":1}]),
+    );
+    let staged = game.root.path().join("staged.pak");
+    fs::write(&staged, b"chosen through the normal flow").unwrap();
+    let record = mods::InstalledMod {
+        uid: "99".into(),
+        name: "HUD".into(),
+        filename: "HUD.pak".into(),
+        file_id: Some(99),
+        ..mods::InstalledMod::from_catalog(
+            "modworkshop",
+            "42".into(),
+            mods::IdentityEvidence::InstallProvenance,
+        )
+    };
+    let install = game.install();
+    mods::install_mod_from_path(
+        install.game_path,
+        install.state_path,
+        record,
+        &staged,
+        None,
+        game.cfg,
+        game.cfg.primary(),
+    )
+    .unwrap();
+    adopt_workshop(&install, "99").unwrap();
+    let live = install.read().unwrap();
+    let hud = live
+        .folders
+        .iter()
+        .find(|f| f.display_name == "HUD")
+        .unwrap();
+    let placed = live.mods.iter().find(|m| m.uid == "99").unwrap();
+    assert_eq!(placed.folder_id.as_deref(), Some(hud.id.as_str()));
+    assert_eq!(placed.priority, Some(5));
+    assert!(!placed.enabled);
+    assert!(game.store().get(&id).unwrap().pending.is_empty());
+}
+
+#[test]
+fn an_install_of_another_mod_leaves_waiting_entries_alone() {
+    let game = Game::new("pd3");
+    let (id, _) = setup(
+        &game,
+        vec![workshop(42, 11, "HUD.pak")],
+        json!([]),
+        json!([{"mod":1}]),
+    );
+    let staged = game.root.path().join("staged.pak");
+    fs::write(&staged, b"unrelated").unwrap();
+    let record = mods::InstalledMod {
+        uid: "7".into(),
+        name: "Other".into(),
+        filename: "Other.pak".into(),
+        file_id: Some(7),
+        ..mods::InstalledMod::from_catalog(
+            "modworkshop",
+            "77".into(),
+            mods::IdentityEvidence::InstallProvenance,
+        )
+    };
+    let install = game.install();
+    mods::install_mod_from_path(
+        install.game_path,
+        install.state_path,
+        record,
+        &staged,
+        None,
+        game.cfg,
+        game.cfg.primary(),
+    )
+    .unwrap();
+    adopt_workshop(&install, "7").unwrap();
+    assert_eq!(game.store().get(&id).unwrap().pending.len(), 1);
 }

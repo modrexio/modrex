@@ -97,6 +97,9 @@ interface Props {
     onOpenDetail: (modId: number, source?: 'nexus') => void
     // Uninstall takes a mod out of every profile, which its label says once there are any.
     hasProfiles: boolean
+    // Shared mods the active profile is still waiting for, listed by the profile menu.
+    pendingShared: number
+    onShowPendingShared: () => void
 }
 
 export function InstalledPage({
@@ -109,6 +112,8 @@ export function InstalledPage({
     onRefreshInstalled,
     onOpenDetail,
     hasProfiles,
+    pendingShared,
+    onShowPendingShared,
 }: Props) {
     // Applied once here so search, grouping and every row agree on what a mod is called.
     const installed = useMemo(() => tracked.map(withDeclaredMetadata), [tracked])
@@ -780,6 +785,22 @@ export function InstalledPage({
                         activeTab === null ? undefined : installedTabId(tabBaseId, activeTab)
                     }
                 >
+                    {/* Above the list and its empty state, since a fresh import can install nothing yet. */}
+                    {pendingShared > 0 && (
+                        <div className="flex items-center justify-between px-4 py-3 rounded-lg bg-accent/10 border border-accent/30">
+                            <span className="text-sm font-medium text-accent">
+                                {t(
+                                    pendingShared === 1
+                                        ? 'installed.pendingSharedSingle'
+                                        : 'installed.pendingShared',
+                                    { count: pendingShared }
+                                )}
+                            </span>
+                            <Button variant="accent" size="sm" onClick={onShowPendingShared}>
+                                {t('installed.showPendingShared')}
+                            </Button>
+                        </div>
+                    )}
                     {!installedReady && scanPhase?.phase === 'hashing' ? (
                         <div className="flex items-center justify-center h-full text-text-subtle text-sm">
                             {t('installed.identifyingNew', { count: scanPhase.total })}

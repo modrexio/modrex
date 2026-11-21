@@ -164,6 +164,9 @@ export const commands = {
 	/**  Reads a share file the user picks. None when the dialog was cancelled. */
 	openProfileShareFile: (title: string) => __TAURI_INVOKE<string | null>("open_profile_share_file", { title }),
 	dismissPendingShareMember: (gameId: string, gamePath: string, memberKey: number) => __TAURI_INVOKE<null>("dismiss_pending_share_member", { gameId, gamePath, memberKey }),
+	pendingShareMemberFiles: (gameId: string, gamePath: string, memberKey: number) => __TAURI_INVOKE<PreviewFile[]>("pending_share_member_files", { gameId, gamePath, memberKey }),
+	choosePendingShareFile: (gameId: string, gamePath: string, memberKey: number, fileId: number) => __TAURI_INVOKE<PendingShareMember>("choose_pending_share_file", { gameId, gamePath, memberKey, fileId }),
+	installPendingShareMember: (gameId: string, gamePath: string, memberKey: number) => __TAURI_INVOKE<MemberOutcome>("install_pending_share_member", { gameId, gamePath, memberKey }),
 	createProfile: (gameId: string, gamePath: string, name: string, source: ProfileSource) => __TAURI_INVOKE<ProfileSummary>("create_profile", { gameId, gamePath, name, source }),
 	renameProfile: (gameId: string, gamePath: string, profileId: string, name: string) => __TAURI_INVOKE<null>("rename_profile", { gameId, gamePath, profileId, name }),
 	deleteProfile: (gameId: string, gamePath: string, profileId: string) => __TAURI_INVOKE<null>("delete_profile", { gameId, gamePath, profileId }),
@@ -1186,11 +1189,15 @@ export type PakAsset = {
 	path: string,
 };
 
+/**  What the profile menu offers for a shared mod the active profile is waiting for. */
+export type PendingAction = "nexusDownload" | "chooseFile" | "tryAgain" | "openMod";
+
 export type PendingGameLaunch = "preparing" | "handedOff";
 
 /**  A shared mod the active profile is still waiting for, as the profile menu lists it. */
 export type PendingShareMember = {
 	memberKey: number,
+	action: PendingAction,
 	source: ShareSource,
 	modId: number,
 	fileId: number | null,

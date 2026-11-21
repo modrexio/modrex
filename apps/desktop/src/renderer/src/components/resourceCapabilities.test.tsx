@@ -51,7 +51,9 @@ const noProfiles: Profiles = {
     rename: vi.fn(),
     remove: vi.fn(),
     dismissPending: vi.fn(),
-    imported: vi.fn(),
+    refresh: vi.fn(),
+    pendingShown: false,
+    showPending: vi.fn(),
 }
 
 const original = GAMES.pd2
@@ -207,7 +209,9 @@ it('keeps graphics-file access separate from resource installation, health tools
     expect(isUnsupportedFormat(GAMES.pd2, 'xml')).toBe(true)
     expect(isUnsupportedFormat(GAMES.pd2, 'bk2')).toBe(true)
     expect(isUnsupportedFormat(GAMES.pd2, 'ini', 'https://example.com/Engine.ini')).toBe(true)
-    render(<GameTopBar activeGame="pd2" gamePath="C:/game" profiles={noProfiles} />)
+    render(
+        <GameTopBar activeGame="pd2" gamePath="C:/game" profiles={noProfiles} onOpenMod={vi.fn()} />
+    )
     expect(screen.getByRole('button', { name: 'Launch without mods' })).toBeTruthy()
 })
 
@@ -218,7 +222,14 @@ it.each(['movies', 'config'] as const)(
             kind === 'movies'
                 ? { ...original, movieReplacement: { extensions: ['bk2'], storefronts: ['steam'] } }
                 : { ...original, configPresets: { filename: 'Engine.ini' } }
-        render(<GameTopBar activeGame="pd2" gamePath="C:/game" profiles={noProfiles} />)
+        render(
+            <GameTopBar
+                activeGame="pd2"
+                gamePath="C:/game"
+                profiles={noProfiles}
+                onOpenMod={vi.fn()}
+            />
+        )
         const button = screen.getByRole('button', { name: 'Launch without package mods' })
         expect(button.parentElement?.getAttribute('data-description')).toBe(
             kind === 'movies' ? 'Movie replacements are unchanged.' : 'INI settings are unchanged.'
@@ -227,6 +238,8 @@ it.each(['movies', 'config'] as const)(
 )
 
 it('retains the ordinary launch label for a game with no resources', () => {
-    render(<GameTopBar activeGame="pd2" gamePath="C:/game" profiles={noProfiles} />)
+    render(
+        <GameTopBar activeGame="pd2" gamePath="C:/game" profiles={noProfiles} onOpenMod={vi.fn()} />
+    )
     expect(screen.getByRole('button', { name: 'Launch without mods' })).toBeTruthy()
 })

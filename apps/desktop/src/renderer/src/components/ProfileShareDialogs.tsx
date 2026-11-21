@@ -3,6 +3,7 @@ import { X } from 'lucide-react'
 import {
     api,
     type PendingShareMember,
+    type PreviewFile,
     type ProfileImportResult,
     type ProfileSharePreview,
     type ProfileSummary,
@@ -237,7 +238,7 @@ export function ImportProfileDialog({ gameId, gamePath, profiles, onClose }: Imp
                 name.trim(),
                 choices
             )
-            await profiles.imported()
+            await profiles.refresh()
             setStage({ kind: 'done', preview, result })
         } catch (e) {
             setError(t('installed.profiles.import.failed', { error: String(e) }))
@@ -601,26 +602,50 @@ function NexusQueue({ gameId, pending }: { gameId: string; pending: PendingShare
 
 interface PendingProps {
     gameId: string
+    gamePath: string
     profiles: Profiles
+    onOpenMod: (modId: number) => void
     onClose: () => void
 }
 
-export function PendingSharedDialog({ gameId, profiles, onClose }: PendingProps) {
+export function PendingSharedDialog({
+    gameId,
+    gamePath,
+    profiles,
+    onOpenMod,
+    onClose,
+}: PendingProps) {
     const pending = profiles.list?.pending ?? []
     const title = t('installed.profiles.pending.title')
     const [error, setError] = useState<string | null>(null)
+    const [busy, setBusy] = useState<number | null>(null)
 
-    async function open(member: PendingShareMember) {
+    // Runs one entry's action, then reads both lists again, since an install changed them.
+    async function run(member: PendingShareMember, action: () => Promise<void>) {
         setError(null)
+        setBusy(member.memberKey)
         try {
-            if (member.source === 'nexus' && member.fileId !== null) {
-                await api.requestNexusDownload(gameId, member.modId, member.url, member.fileId)
-                return
-            }
-            await api.openExternal(member.url)
+            await action()
+            await profiles.refresh()
         } catch (e) {
             setError(String(e))
+        } finally {
+            setBusy(null)
         }
+    }
+
+    async function install(member: PendingShareMember) {
+        const outcome = await api.installPendingShareMember(gameId, gamePath, member.memberKey)
+        if (outcome.status === 'failed') throw new Error(outcome.error)
+    }
+
+    async function choose(member: PendingShareMember, fileId: number) {
+        const chosen = await api.choosePendingShareFile(gameId, gamePath, member.memberKey, fileId)
+        if (chosen.source === 'nexus') {
+            await api.requestNexusDownload(gameId, chosen.modId, chosen.url, fileId)
+            return
+        }
+        await install(chosen)
     }
 
     return (
@@ -636,32 +661,157 @@ export function PendingSharedDialog({ gameId, profiles, onClose }: PendingProps)
                 {pending.map((member) => (
                     <div
                         key={member.memberKey}
-                        className="flex items-center gap-2 px-3 py-2 rounded-lg bg-surface-hover text-sm"
+                        className="flex flex-col gap-1.5 px-3 py-2 rounded-lg bg-surface-hover text-sm"
                     >
-                        <div className="flex-1 min-w-0 flex flex-col">
-                            <span className="truncate">{member.installedName}</span>
-                            <span className="text-xs text-text-subtle">{member.reason}</span>
+                        <div className="flex items-center gap-2">
+                            <div className="flex-1 min-w-0 flex flex-col">
+                                <span className="truncate">{member.installedName}</span>
+                                <span className="text-xs text-text-subtle">{member.reason}</span>
+                            </div>
+                            <PendingAction
+                                member={member}
+                                disabled={busy !== null}
+                                onNexus={() =>
+                                    run(member, () =>
+                                        api.requestNexusDownload(
+                                            gameId,
+                                            member.modId,
+                                            member.url,
+                                            member.fileId!
+                                        )
+                                    )
+                                }
+                                onTryAgain={() => run(member, () => install(member))}
+                                onOpenMod={() => {
+                                    onClose()
+                                    onOpenMod(member.modId)
+                                }}
+                            />
+                            <Tooltip content={t('installed.profiles.pending.dismiss')}>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    disabled={busy !== null}
+                                    aria-label={t('installed.profiles.pending.dismissLabel', {
+                                        name: member.installedName,
+                                    })}
+                                    onClick={() => void profiles.dismissPending(member.memberKey)}
+                                >
+                                    <X className="w-3.5 h-3.5" aria-hidden />
+                                </Button>
+                            </Tooltip>
                         </div>
-                        <Button variant="secondary" size="sm" onClick={() => void open(member)}>
-                            {member.source === 'nexus'
-                                ? t('installed.profiles.pending.openNexus')
-                                : t('installed.profiles.pending.open')}
-                        </Button>
-                        <Tooltip content={t('installed.profiles.pending.dismiss')}>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                aria-label={t('installed.profiles.pending.dismissLabel', {
-                                    name: member.installedName,
-                                })}
-                                onClick={() => void profiles.dismissPending(member.memberKey)}
-                            >
-                                <X className="w-3.5 h-3.5" aria-hidden />
-                            </Button>
-                        </Tooltip>
+                        {member.action === 'chooseFile' && (
+                            <PendingFileChoice
+                                gameId={gameId}
+                                gamePath={gamePath}
+                                member={member}
+                                disabled={busy !== null}
+                                onChoose={(fileId) => run(member, () => choose(member, fileId))}
+                            />
+                        )}
                     </div>
                 ))}
             </div>
         </Dialog>
+    )
+}
+
+function PendingAction({
+    member,
+    disabled,
+    onNexus,
+    onTryAgain,
+    onOpenMod,
+}: {
+    member: PendingShareMember
+    disabled: boolean
+    onNexus: () => Promise<void>
+    onTryAgain: () => Promise<void>
+    onOpenMod: () => void
+}) {
+    switch (member.action) {
+        case 'nexusDownload':
+            return (
+                <Button
+                    variant="secondary"
+                    size="sm"
+                    disabled={disabled}
+                    onClick={() => void onNexus()}
+                >
+                    {t('installed.profiles.pending.openNexus')}
+                </Button>
+            )
+        case 'tryAgain':
+            return (
+                <Button
+                    variant="secondary"
+                    size="sm"
+                    disabled={disabled}
+                    onClick={() => void onTryAgain()}
+                >
+                    {t('installed.profiles.pending.tryAgain')}
+                </Button>
+            )
+        case 'openMod':
+            return (
+                <Button variant="secondary" size="sm" disabled={disabled} onClick={onOpenMod}>
+                    {t('installed.profiles.pending.open')}
+                </Button>
+            )
+        case 'chooseFile':
+            return null
+    }
+}
+
+/** The file picker for a waiting mod whose file has to be chosen, as in the import preview. */
+function PendingFileChoice({
+    gameId,
+    gamePath,
+    member,
+    disabled,
+    onChoose,
+}: {
+    gameId: string
+    gamePath: string
+    member: PendingShareMember
+    disabled: boolean
+    onChoose: (fileId: number) => Promise<void>
+}) {
+    const [files, setFiles] = useState<PreviewFile[] | null>(null)
+    const [error, setError] = useState<string | null>(null)
+
+    useEffect(() => {
+        let current = true
+        api.pendingShareMemberFiles(gameId, gamePath, member.memberKey).then(
+            (list) => {
+                if (current) setFiles(list)
+            },
+            (e) => {
+                if (current) setError(String(e))
+            }
+        )
+        return () => {
+            current = false
+        }
+    }, [gameId, gamePath, member.memberKey])
+
+    if (error) return <span className="text-xs text-danger-text">{error}</span>
+    return (
+        <Select
+            value=""
+            onChange={(value) => void onChoose(Number(value))}
+            disabled={disabled || files === null}
+            placeholder={
+                files === null
+                    ? t('installed.profiles.pending.loadingFiles')
+                    : t('installed.profiles.import.choose')
+            }
+            ariaLabel={t('installed.profiles.import.choose')}
+            options={(files ?? []).map((file) => ({
+                value: String(file.id),
+                label: file.version ? `${file.name} ${file.version}` : file.name,
+            }))}
+        />
     )
 }

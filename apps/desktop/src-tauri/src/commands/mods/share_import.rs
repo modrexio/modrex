@@ -27,6 +27,10 @@ pub(in crate::commands::mods) struct PendingReference {
     folder_id: Option<String>,
     priority: Option<i64>,
     reason: String,
+    // Set when the import stopped at a question only the normal install flow can ask, such
+    // as which archive entry or add-on to install.
+    #[serde(default)]
+    needs_install_flow: bool,
 }
 
 #[derive(Clone, Debug, Serialize, Type)]
@@ -136,13 +140,10 @@ pub(super) fn resolve_rows(
         );
         let file_id = file.map(|f| f.id);
         let (workshop, pin, waiting) = match member.file {
-            ShareFile::ModWorkshop {
-                mod_id,
-                file_id: pin,
-                ..
-            } => (
+            // A ModWorkshop file that did not resolve is gone, so the entry waits for a choice.
+            ShareFile::ModWorkshop { mod_id, .. } => (
                 file_id.map(|id| (mod_id, id)),
-                pin,
+                None,
                 "The import stopped before this mod was installed",
             ),
             ShareFile::Nexus { file_id: pin, .. } => (None, pin, "Waiting for a Nexus download"),
@@ -157,6 +158,7 @@ pub(super) fn resolve_rows(
                 folder_id: None,
                 priority: member.priority,
                 reason: reason.unwrap_or_else(|| waiting.into()),
+                needs_install_flow: false,
             },
             workshop,
             newer,
@@ -282,8 +284,14 @@ fn record_outcome(
                 folder_id: pending.folder_id,
             });
         }
-        MemberOutcome::Pending { reason } => profile.pending[index].reason.clone_from(reason),
-        MemberOutcome::Failed { error } => profile.pending[index].reason.clone_from(error),
+        MemberOutcome::Pending { reason } => {
+            profile.pending[index].reason.clone_from(reason);
+            profile.pending[index].needs_install_flow = true;
+        }
+        MemberOutcome::Failed { error } => {
+            profile.pending[index].reason.clone_from(error);
+            profile.pending[index].needs_install_flow = false;
+        }
     }
     store.save(&profile)
 }
@@ -600,11 +608,22 @@ async fn install_nexus_member(
     ))
 }
 
+/// What the profile menu offers for a shared mod the active profile is waiting for.
+#[derive(Debug, Clone, Copy, Serialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub enum PendingAction {
+    NexusDownload,
+    ChooseFile,
+    TryAgain,
+    OpenMod,
+}
+
 /// A shared mod the active profile is still waiting for, as the profile menu lists it.
 #[derive(Debug, Clone, Serialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct PendingShareMember {
     member_key: usize,
+    action: PendingAction,
     source: preview::ShareSource,
     mod_id: u32,
     file_id: Option<u32>,
@@ -639,8 +658,17 @@ pub(in crate::commands::mods) fn pending_members(
                     (preview::ShareSource::Nexus, mod_id, url)
                 }
             };
+            let action = match (&p.member.file, p.file_id) {
+                (_, None) => PendingAction::ChooseFile,
+                (ShareFile::Nexus { .. }, Some(_)) => PendingAction::NexusDownload,
+                (ShareFile::ModWorkshop { .. }, Some(_)) if p.needs_install_flow => {
+                    PendingAction::OpenMod
+                }
+                (ShareFile::ModWorkshop { .. }, Some(_)) => PendingAction::TryAgain,
+            };
             PendingShareMember {
                 member_key: p.member_key,
+                action,
                 source,
                 mod_id,
                 file_id: p.file_id,
@@ -650,6 +678,157 @@ pub(in crate::commands::mods) fn pending_members(
             }
         })
         .collect()
+}
+
+fn active_pending(store: &ProfileStore, key: usize) -> Result<(profiles::Profile, usize), String> {
+    let id = store.active()?.ok_or("No profile is active")?;
+    let profile = store.get(&id)?;
+    let index = profile
+        .pending
+        .iter()
+        .position(|p| p.member_key == key)
+        .ok_or("That shared mod is no longer waiting to be installed")?;
+    Ok((profile, index))
+}
+
+/// The files a waiting shared mod can be installed from.
+pub(in crate::commands::mods) async fn member_files(
+    app: &AppHandle,
+    cfg: &'static mods::ModEngineConfig,
+    path: &str,
+    key: usize,
+) -> Result<Vec<preview::PreviewFile>, String> {
+    let reference = {
+        let _guard = mods::lock_game_state(app, cfg.game_id).await;
+        let (profile, index) = active_pending(&ProfileStore::new(path), key)?;
+        profile.pending[index].clone()
+    };
+    preview::member_files(app, &reference.game_id, &reference.member.file).await
+}
+
+/// Records the file the user picked for a waiting shared mod. A Nexus pick then waits for its
+/// Mod Manager Download, which the completion matches by this file.
+pub(in crate::commands::mods) async fn choose_file(
+    app: &AppHandle,
+    cfg: &'static mods::ModEngineConfig,
+    path: &str,
+    key: usize,
+    file_id: u32,
+) -> Result<PendingShareMember, String> {
+    let files = member_files(app, cfg, path, key).await?;
+    if !files.iter().any(|f| f.id == file_id) {
+        return Err(format!("File {file_id} is not one of this mod's files"));
+    }
+    let _guard = mods::lock_game_state(app, cfg.game_id).await;
+    let store = ProfileStore::new(path);
+    let (mut profile, index) = active_pending(&store, key)?;
+    let pending = &mut profile.pending[index];
+    pending.file_id = Some(file_id);
+    pending.needs_install_flow = false;
+    pending.reason = match pending.member.file {
+        ShareFile::Nexus { .. } => "Waiting for a Nexus download".into(),
+        ShareFile::ModWorkshop { .. } => "Waiting for installation".into(),
+    };
+    store.save(&profile)?;
+    Ok(pending_members(&profile).swap_remove(index))
+}
+
+/// Installs a waiting ModWorkshop mod through the import's own installer, into the place the
+/// shared profile had it.
+pub(in crate::commands::mods) async fn install_member(
+    app: &AppHandle,
+    cfg: &'static mods::ModEngineConfig,
+    path: String,
+    key: usize,
+) -> Result<MemberOutcome, String> {
+    let store = ProfileStore::new(&path);
+    let (profile_id, reference) = {
+        let _guard = mods::lock_game_state(app, cfg.game_id).await;
+        let (profile, index) = active_pending(&store, key)?;
+        (profile.id.clone(), profile.pending[index].clone())
+    };
+    let ShareFile::ModWorkshop { mod_id, .. } = reference.member.file else {
+        return Err("A Nexus mod installs through its Nexus download".into());
+    };
+    let file_id = reference.file_id.ok_or("Choose a file first")?;
+    let launcher = mods::configured_launcher(app, cfg);
+    let state_path = mods::get_state_path(&path, cfg);
+    let install = Install {
+        game_path: &path,
+        state_path: &state_path,
+        cfg,
+        launcher: launcher.as_deref(),
+    };
+    let row = ImportRow {
+        pending: reference,
+        workshop: Some((mod_id, file_id)),
+        newer: false,
+        lookup_failed: false,
+    };
+    Ok(workshop_member(app, &install, &store, &profile_id, &row, mod_id, file_id).await)
+}
+
+/// Places a ModWorkshop mod the user installed through the normal flow where the shared profile
+/// had it, when the active profile is waiting for that mod, the way a Nexus completion does.
+/// Runs inside the install's own state lock.
+pub(in crate::commands::mods) fn adopt_workshop(
+    install: &Install,
+    uid: &str,
+) -> Result<(), String> {
+    let store = ProfileStore::new(install.game_path);
+    let Some(id) = store.active()? else {
+        return Ok(());
+    };
+    let Some(profile) = store.find(&id)? else {
+        return Ok(());
+    };
+    let state = install.read()?;
+    let record = state
+        .mods
+        .iter()
+        .find(|m| m.uid == uid)
+        .ok_or("The installed record is missing")?;
+    let Some(remote) = record
+        .remote_id
+        .as_deref()
+        .filter(|_| record.source == "modworkshop")
+    else {
+        return Ok(());
+    };
+    let waiting: Vec<_> = profile
+        .pending
+        .iter()
+        .filter(|p| {
+            matches!(p.member.file, ShareFile::ModWorkshop { mod_id, .. } if mod_id.to_string() == remote)
+        })
+        .collect();
+    // Of several waiting files of one mod, the one installed under the same name is this one.
+    let name = super::installed_name(install.cfg, record);
+    let Some(reference) = waiting
+        .iter()
+        .find(|p| p.member.installed_name.eq_ignore_ascii_case(&name))
+        .or(waiting.first())
+        .map(|p| (*p).clone())
+    else {
+        return Ok(());
+    };
+    // A shared folder the user has since deleted leaves the mod where it was installed.
+    let folder_exists = reference
+        .folder_id
+        .as_ref()
+        .is_none_or(|f| state.folders.iter().any(|folder| &folder.id == f));
+    if folder_exists && record.folder_id != reference.folder_id {
+        mods::reorder::move_mod_to_folder_op(
+            install.game_path,
+            install.state_path,
+            uid,
+            reference.folder_id.clone(),
+            0,
+            install.cfg,
+        )?;
+    }
+    let outcome = replay::finish(install, &reference, uid)?;
+    record_outcome(&store, &id, reference.member_key, &outcome)
 }
 
 /// Stops the active profile waiting for a shared mod the user will not install.

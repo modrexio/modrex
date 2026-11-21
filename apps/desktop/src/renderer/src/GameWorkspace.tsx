@@ -272,6 +272,7 @@ export function GameWorkspace({
                 activeGame={activeGame}
                 gamePath={gamePath}
                 profiles={profiles}
+                onOpenMod={(modId) => openDetailFromInstalled(modId)}
             />
             {loadError && (
                 <div role="alert" className="shrink-0 px-4 py-2 bg-danger text-xs text-danger-text">
@@ -412,6 +413,8 @@ export function GameWorkspace({
                                 onRefreshInstalled={refreshInstalled}
                                 onOpenDetail={openDetailFromInstalled}
                                 hasProfiles={(profiles.list?.profiles.length ?? 0) > 0}
+                                pendingShared={profiles.list?.pending.length ?? 0}
+                                onShowPendingShared={() => profiles.showPending(true)}
                             />
                         )}
                     </div>

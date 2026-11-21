@@ -51,7 +51,7 @@ fn selected(entries: &[String], recorded: Option<&str>, name: &str) -> Option<us
     )
 }
 
-fn finish(
+pub(super) fn finish(
     install: &Install,
     reference: &PendingReference,
     uid: &str,

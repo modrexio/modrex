@@ -145,6 +145,20 @@ fn catalog_file(game_id: &str, record: &InstalledMod) -> Option<ShareFile> {
     }
 }
 
+/// A record's file or folder name without the load-order prefix or the disabled suffix, which
+/// is what an archive entry or a reinstalled copy is matched against.
+pub(super) fn installed_name(cfg: &ModEngineConfig, record: &InstalledMod) -> String {
+    let target = cfg.mod_target(record);
+    let name = record
+        .filename
+        .strip_suffix(target.disabled_suffix())
+        .unwrap_or(&record.filename);
+    if target.priority_prefix_enabled() {
+        return strip_priority_prefix(name).to_string();
+    }
+    name.to_string()
+}
+
 pub(super) fn export(
     cfg: &ModEngineConfig,
     profile: &Profile,
@@ -186,15 +200,6 @@ pub(super) fn export(
             .as_deref()
             .and_then(parse_host_location)
             .map(|_| record.filename.clone());
-        let name = record
-            .filename
-            .strip_suffix(target.disabled_suffix())
-            .unwrap_or(&record.filename);
-        let installed_name = if target.priority_prefix_enabled() {
-            strip_priority_prefix(name)
-        } else {
-            name
-        };
         let folder = folder_key(m.folder_id.as_deref())?;
         members.push(ShareMember {
             file,
@@ -204,7 +209,7 @@ pub(super) fn export(
             archive_member: record.archive_member.clone(),
             host_pack_set,
             target: (cfg.targets.len() > 1).then(|| target.tag.to_string()),
-            installed_name: installed_name.to_string(),
+            installed_name: installed_name(cfg, record),
         });
         children[folder.unwrap_or(0)]
             .push((m.priority.unwrap_or(0), ShareChild::Mod(members.len())));

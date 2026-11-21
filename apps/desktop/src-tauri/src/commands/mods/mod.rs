@@ -1011,6 +1011,7 @@ pub async fn install_mod(
                     game_settings(&settings, cfg.game_id).and_then(|gs| gs.launcher.clone());
                 disable_mod_op(&game_path, &sp, &uid, cfg, launcher_str.as_deref())?;
             }
+            adopt_shared_install(&app, &game_path, &sp, cfg, &uid)?;
 
             Ok::<(), String>(())
         })
@@ -1235,6 +1236,7 @@ pub async fn install_file(
                     game_settings(&settings, cfg.game_id).and_then(|gs| gs.launcher.clone());
                 disable_mod_op(&game_path, &sp, &uid, cfg, launcher_str.as_deref())?;
             }
+            adopt_shared_install(&app, &game_path, &sp, cfg, &uid)?;
 
             Ok::<(), String>(())
         })
@@ -2614,6 +2616,7 @@ pub async fn install_from_zip_entry(
                     game_settings(&settings, cfg.game_id).and_then(|gs| gs.launcher.clone());
                 disable_mod_op(&game_path, &sp, &uid, cfg, launcher.as_deref())?;
             }
+            adopt_shared_install(&app, &game_path, &sp, cfg, &uid)?;
 
             Ok::<(), String>(())
         })
@@ -3131,6 +3134,26 @@ pub async fn list_profiles(
     profiles::list(&profiles::ProfileStore::new(&game_path), &install)
 }
 
+/// Places a ModWorkshop install where an imported profile waits for it. The install has
+/// already happened when this fails, so the error says so.
+fn adopt_shared_install(
+    app: &AppHandle,
+    game_path: &str,
+    state_path: &Path,
+    cfg: &'static ModEngineConfig,
+    uid: &str,
+) -> Result<(), String> {
+    let launcher = configured_launcher(app, cfg);
+    let install = profiles::Install {
+        game_path,
+        state_path,
+        cfg,
+        launcher: launcher.as_deref(),
+    };
+    share::import::adopt_workshop(&install, uid)
+        .map_err(|e| format!("Installed, but not placed where the shared profile had it: {e}"))
+}
+
 /// The store copy the game is configured as, which decides where UE4SS sits.
 fn configured_launcher(app: &AppHandle, cfg: &ModEngineConfig) -> Option<String> {
     game_settings(&read_settings(app), cfg.game_id).and_then(|gs| gs.launcher.clone())
@@ -3265,6 +3288,43 @@ pub async fn open_profile_share_file(
     })
     .await
     .map_err(|e| format!("Profile open worker failed: {e}"))?
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn pending_share_member_files(
+    app: AppHandle,
+    game_id: String,
+    game_path: String,
+    member_key: usize,
+) -> Result<Vec<share::preview::PreviewFile>, String> {
+    let cfg = engine_for_game(&game_id)?;
+    share::import::member_files(&app, cfg, &game_path, member_key).await
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn choose_pending_share_file(
+    app: AppHandle,
+    game_id: String,
+    game_path: String,
+    member_key: usize,
+    file_id: u32,
+) -> Result<share::import::PendingShareMember, String> {
+    let cfg = engine_for_game(&game_id)?;
+    share::import::choose_file(&app, cfg, &game_path, member_key, file_id).await
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn install_pending_share_member(
+    app: AppHandle,
+    game_id: String,
+    game_path: String,
+    member_key: usize,
+) -> Result<share::import::MemberOutcome, String> {
+    let cfg = engine_for_game(&game_id)?;
+    share::import::install_member(&app, cfg, game_path, member_key).await
 }
 
 #[tauri::command]

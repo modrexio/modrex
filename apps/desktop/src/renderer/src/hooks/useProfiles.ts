@@ -13,8 +13,11 @@ export interface Profiles {
     rename: (profileId: string, name: string) => Promise<boolean>
     remove: (profileId: string) => Promise<void>
     dismissPending: (memberKey: number) => Promise<void>
-    // An import created and switched to a profile, so both lists are out of date.
-    imported: () => Promise<void>
+    // An import or a shared mod installed from Not downloaded changed both lists.
+    refresh: () => Promise<void>
+    // The Not downloaded dialog opens from the profile menu and from the Installed page.
+    pendingShown: boolean
+    showPending: (shown: boolean) => void
 }
 
 export function useProfiles(
@@ -25,6 +28,7 @@ export function useProfiles(
     const [list, setList] = useState<ProfileList | null>(null)
     const [switching, setSwitching] = useState<string | null>(null)
     const [error, setError] = useState<string | null>(null)
+    const [pendingShown, setPendingShown] = useState(false)
     // A list requested for a copy of the game the page has since left must not replace the
     // list of the copy it shows now.
     const latest = useRef(0)
@@ -101,6 +105,8 @@ export function useProfiles(
 
     return {
         list,
+        pendingShown,
+        showPending: setPendingShown,
         switching,
         error,
         clearError: () => setError(null),
@@ -114,7 +120,7 @@ export function useProfiles(
         dismissPending: async (memberKey) => {
             await change(() => api.dismissPendingShareMember(gameId, gamePath!, memberKey))
         },
-        imported: async () => {
+        refresh: async () => {
             try {
                 await reload()
                 await onRefreshInstalled()

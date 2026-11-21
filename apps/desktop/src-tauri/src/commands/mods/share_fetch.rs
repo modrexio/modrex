@@ -115,6 +115,34 @@ async fn nexus_choices(app: &AppHandle, domain: &str, mod_id: u32) -> Files {
     )
 }
 
+/// The files a waiting shared mod can be installed from, for the user to pick one.
+pub(in crate::commands::mods) async fn member_files(
+    app: &AppHandle,
+    game_id: &str,
+    file: &ShareFile,
+) -> Result<Vec<PreviewFile>, String> {
+    let files = match *file {
+        ShareFile::ModWorkshop { mod_id, .. } => {
+            let page = api::mod_file_pages(app, mod_id)
+                .await
+                .map_err(String::from)?;
+            preview_files(page.data)
+        }
+        ShareFile::Nexus { mod_id, .. } if nexus_oauth::nexus_oauth_signed_in(app.clone()) => {
+            let domain = sources::native_id("nexus", game_id)
+                .expect("the share parser checked the Nexus binding");
+            nexus_choices(app, &domain, mod_id).await
+        }
+        ShareFile::Nexus { .. } => Err(LookupIssue::NexusSignInRequired),
+    };
+    files.map_err(|issue| match issue {
+        LookupIssue::Unavailable(reason) | LookupIssue::Failed(reason) => reason,
+        LookupIssue::NexusSignInRequired => {
+            "Sign in to Nexus Mods in Settings to choose a file".into()
+        }
+    })
+}
+
 pub(super) async fn catalog(app: &AppHandle, share: &ProfileShare) -> Catalog {
     let mut workshop = BTreeSet::new();
     let mut nexus = BTreeMap::<u32, BTreeSet<Option<u32>>>::new();

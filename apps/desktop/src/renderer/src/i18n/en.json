@@ -370,7 +370,9 @@
                 "open": "Open mod page",
                 "openNexus": "Open on Nexus",
                 "dismiss": "Dismiss",
-                "dismissLabel": "Dismiss {name}"
+                "dismissLabel": "Dismiss {name}",
+                "tryAgain": "Try again",
+                "loadingFiles": "Loading files"
             }
         },
         "misplacedPlugins": {
@@ -387,6 +389,9 @@
         "updatesAvailable": "{count} mods can be updated",
         "updatesAvailableSingle": "{count} mod can be updated",
         "reviewUpdates": "Review updates",
+        "pendingShared": "{count} shared mods are not downloaded yet",
+        "pendingSharedSingle": "{count} shared mod is not downloaded yet",
+        "showPendingShared": "Show",
         "gridView": "Grid view",
         "listView": "List view",
         "newFolder": "New Folder",

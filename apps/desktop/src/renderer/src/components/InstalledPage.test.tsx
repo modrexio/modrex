@@ -92,7 +92,12 @@ afterEach(() => {
     vi.clearAllMocks()
 })
 
-function renderPage(activeGame: GameId = 'raid', installed: InstalledMod[] = []) {
+function renderPage(
+    activeGame: GameId = 'raid',
+    installed: InstalledMod[] = [],
+    pendingShared = 0,
+    onShowPendingShared = vi.fn()
+) {
     return render(
         <InstalledPage
             activeGame={activeGame}
@@ -104,9 +109,23 @@ function renderPage(activeGame: GameId = 'raid', installed: InstalledMod[] = [])
             onRefreshInstalled={vi.fn(async () => {})}
             onOpenDetail={vi.fn()}
             hasProfiles={false}
+            pendingShared={pendingShared}
+            onShowPendingShared={onShowPendingShared}
         />
     )
 }
+
+describe('InstalledPage shared mods', () => {
+    // A fresh import can install nothing yet, so the line shows above the empty state too.
+    it('says how many shared mods are not downloaded and opens them', async () => {
+        const show = vi.fn()
+        renderPage('raid', [], 2, show)
+        await waitFor(() => expect(api.listModFolders).toHaveBeenCalledWith('raid'))
+        expect(screen.getByText('2 shared mods are not downloaded yet')).toBeTruthy()
+        screen.getByRole('button', { name: 'Show' }).click()
+        expect(show).toHaveBeenCalled()
+    })
+})
 
 describe('InstalledPage header', () => {
     it('gives New Folder an accessible name and only an icon on a single-location page', async () => {
