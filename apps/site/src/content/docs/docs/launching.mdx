@@ -8,20 +8,21 @@ import LauncherMatrix from '../../../components/docs/LauncherMatrix.astro'
 
 ## Launch modded
 
-Click **Launch** in the top bar to start the active game with all enabled mods active. Modrex passes
+Click **Launch modded** in the top bar to start the active game with all enabled mods active. Modrex passes
 your configured launch options to the game and hands off to your launcher.
 
 For PAYDAY 3, pak mods load only when UE4SS is installed. See <a href={sitePath('/docs/games/payday-3#ue4ss')}>PAYDAY 3</a>.
 
 ## Launch without mods
 
-Click the dropdown arrow next to **Launch** and select **Launch without mods**. For Ready or Not,
+Click **Launch without mods** in the top bar. Where Modrex also manages movie replacements or INI
+settings, the button reads **Launch without package mods**, and those stay applied. For Ready or Not,
 Modrex uses the game's Safe Mode for Pak mods. It leaves the shared Paks folder in place and
 keeps movie replacements and INI settings applied. It does not disable manually installed DLLs or scripts.
 
-For other games, Modrex temporarily backs up the managed mod folders.
+For other games, Modrex moves the managed mods into the game's `.modrex` folder for the session.
 
-When a backup-based session closes, Modrex automatically detects this and restores your mods. While a vanilla
+When that session closes, Modrex automatically detects this and restores your mods. While a vanilla
 session may still be running, a banner across the top reminds you mods are hidden and offers a
 **Restore mods** button. Use it if Modrex closed before it could restore automatically (for example,
 if the app itself was closed mid-session).

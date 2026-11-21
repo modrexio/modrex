@@ -14,7 +14,8 @@ pub(crate) use types::{EpicDef, GameDef, SteamDef, XboxDef};
 use xbox::Xbox;
 
 use crate::commands::mods::{
-    backup_dir, engine_for_game, get_state_path, mods_base, read_state, ModEngineConfig,
+    engine_for_game, get_state_path, modrex_dir, mods_base, read_state, set_aside_dir,
+    set_aside_locations, vanilla_dir, ModEngineConfig, ScanTarget,
 };
 use crate::commands::settings::{game_settings, read_settings, update_settings, GameSettings};
 use serde::Serialize;
@@ -91,7 +92,10 @@ fn tracked_mod_count(game_path: &str, cfg: &ModEngineConfig) -> Option<usize> {
     }
     // Launching without mods renames the whole folder for pak games, so until the next
     // launch restores it the list lives inside the backup instead.
-    count(backup_dir(game_path, cfg.primary()).join(crate::commands::mods::STATE_FILENAME))
+    match set_aside_dir(game_path, cfg.primary()) {
+        Some(set_aside) => count(set_aside.join(crate::commands::mods::STATE_FILENAME)),
+        None => Some(0),
+    }
 }
 
 /// What the tracked-mod comparison could conclude about which copy to settle on.
@@ -574,56 +578,64 @@ fn do_restore(game_path: &str, cfg: &crate::commands::mods::ModEngineConfig) -> 
             continue;
         }
         let mods_dir = mods_base(game_path, target);
-        let mods_bak = backup_dir(game_path, target);
-
-        if !mods_bak.exists() {
-            continue;
-        }
-
-        if target.is_directory_unit() {
-            let _ = fs::create_dir_all(&mods_dir);
-            if let Ok(entries) = fs::read_dir(&mods_bak) {
-                for entry in entries.flatten() {
-                    let name = entry.file_name();
-                    let dest = mods_dir.join(&name);
-                    // A disposable runtime dir (BLT's logs/downloads) backed up and then
-                    // recreated in mods/ while the game ran cannot rename back over the
-                    // fresh copy, stranding mods.bak and pinning the "mods hidden" banner.
-                    // These are regenerated caches, so dropping the stale backup clears it.
-                    // saves/ and base/ are excluded: user data is never auto-deleted.
-                    let name_str = name.to_string_lossy();
-                    if dest.exists()
-                        && target.excluded_names().contains(&name_str.as_ref())
-                        && DISPOSABLE_BACKUP_DIRS.contains(&name_str.as_ref())
-                    {
-                        fs::remove_dir_all(mods_bak.join(&name)).ok();
-                        continue;
-                    }
-                    let _ = fs::rename(mods_bak.join(&name), dest);
-                }
+        for mods_bak in set_aside_locations(game_path, target) {
+            if mods_bak.exists() {
+                recreated |= restore_target(target, &mods_dir, &mods_bak)?;
             }
-            // remove_dir no-ops when non-empty, so any entry that failed to rename is never deleted.
-            fs::remove_dir(&mods_bak).ok();
-        } else {
-            // A folder recreated empty while the mods were set aside is only in the way. One
-            // holding anything is kept beside the backup, which is never deleted for it.
-            if mods_dir.exists() && fs::remove_dir(&mods_dir).is_err() {
-                recreated = true;
-                continue;
-            }
-            fs::rename(&mods_bak, &mods_dir).map_err(|e| {
-                format!(
-                    "Could not restore mods folder. You may need to manually rename the backup folder. ({})",
-                    e.kind()
-                )
-            })?;
         }
     }
     crate::commands::mods::restore_bundles(game_path, cfg)?;
+    // remove_dir no-ops when non-empty, so a backup kept for review stays with its parents.
+    let modrex = modrex_dir(game_path);
+    fs::remove_dir(modrex.join("vanilla")).ok();
+    fs::remove_dir(&modrex).ok();
     if recreated {
         return Err("A mods folder was recreated while its backup was hidden. Review both folders before restoring".into());
     }
     Ok(())
+}
+
+/// Returns true when a file target's folder was recreated while it was set aside, which leaves
+/// the backup in place for the user to review.
+fn restore_target(target: &ScanTarget, mods_dir: &Path, mods_bak: &Path) -> Result<bool, String> {
+    if !target.is_directory_unit() {
+        // A folder recreated empty while the mods were set aside is only in the way. One
+        // holding anything is kept beside the backup, which is never deleted for it.
+        if mods_dir.exists() && fs::remove_dir(mods_dir).is_err() {
+            return Ok(true);
+        }
+        fs::rename(mods_bak, mods_dir).map_err(|e| {
+            format!(
+                "Could not restore mods folder. You may need to manually rename the backup folder. ({})",
+                e.kind()
+            )
+        })?;
+        return Ok(false);
+    }
+    let _ = fs::create_dir_all(mods_dir);
+    if let Ok(entries) = fs::read_dir(mods_bak) {
+        for entry in entries.flatten() {
+            let name = entry.file_name();
+            let dest = mods_dir.join(&name);
+            // A disposable runtime dir (BLT's logs/downloads) backed up and then
+            // recreated in mods/ while the game ran cannot rename back over the
+            // fresh copy, stranding mods.bak and pinning the "mods hidden" banner.
+            // These are regenerated caches, so dropping the stale backup clears it.
+            // saves/ and base/ are excluded: user data is never auto-deleted.
+            let name_str = name.to_string_lossy();
+            if dest.exists()
+                && target.excluded_names().contains(&name_str.as_ref())
+                && DISPOSABLE_BACKUP_DIRS.contains(&name_str.as_ref())
+            {
+                fs::remove_dir_all(mods_bak.join(&name)).ok();
+                continue;
+            }
+            let _ = fs::rename(mods_bak.join(&name), dest);
+        }
+    }
+    // remove_dir no-ops when non-empty, so any entry that failed to rename is never deleted.
+    fs::remove_dir(mods_bak).ok();
+    Ok(false)
 }
 
 fn hide_package_mods(game_path: &str, cfg: &ModEngineConfig) -> Result<(), String> {
@@ -640,10 +652,16 @@ fn hide_package_mods(game_path: &str, cfg: &ModEngineConfig) -> Result<(), Strin
             continue;
         }
         let mods_dir = mods_base(game_path, target);
-        let mods_bak = backup_dir(game_path, target);
-        if mods_bak.exists() || !mods_dir.exists() {
+        let mods_bak = vanilla_dir(game_path, target);
+        if set_aside_dir(game_path, target).is_some() || !mods_dir.exists() {
             continue;
         }
+        fs::create_dir_all(
+            mods_bak
+                .parent()
+                .expect("vanilla_dir is below the game path"),
+        )
+        .map_err(|error| format!("Could not create the mods backup folder: {error}"))?;
         if !target.is_directory_unit() {
             fs::rename(&mods_dir, &mods_bak).map_err(|error| {
                 format!("Could not hide the mods folder. Close the game and try again: {error}")
@@ -684,7 +702,7 @@ fn restore_pending_packages(game_path: &str, cfg: &ModEngineConfig) -> Result<()
         }
         if !target.is_directory_unit()
             && !target.is_bundle()
-            && backup_dir(game_path, target).exists()
+            && set_aside_dir(game_path, target).is_some()
             && mods_base(game_path, target).exists()
         {
             return Err("A mods folder was recreated while its backup was hidden. Review both folders before restoring".into());
@@ -694,7 +712,7 @@ fn restore_pending_packages(game_path: &str, cfg: &ModEngineConfig) -> Result<()
     if cfg
         .targets
         .iter()
-        .any(|target| target.shared_paks.is_none() && backup_dir(game_path, target).exists())
+        .any(|target| target.shared_paks.is_none() && set_aside_dir(game_path, target).is_some())
     {
         return Err("Some mod folders could not be restored. Their backup folders were kept for manual recovery".into());
     }

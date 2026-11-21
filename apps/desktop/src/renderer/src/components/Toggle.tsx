@@ -3,16 +3,19 @@ interface Props {
     onChange: (checked: boolean) => void
     disabled?: boolean
     title?: string
+    // The accessible name, for a switch with no visible label of its own.
+    label?: string
 }
 
 // Each radius is half the part's height times the corner scale. That is a pill at the default,
 // stays one above it because a radius past half the height still draws a pill, and squares off
 // toward the sharp end of the corner setting.
-export function Toggle({ checked, onChange, disabled, title }: Props) {
+export function Toggle({ checked, onChange, disabled, title, label }: Props) {
     return (
         <button
             role="switch"
             aria-checked={checked}
+            aria-label={label}
             disabled={disabled}
             title={title}
             onClick={() => onChange(!checked)}

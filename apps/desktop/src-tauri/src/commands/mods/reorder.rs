@@ -171,7 +171,7 @@ pub fn reorder_children_op(
     items: &[TopLevelItem],
     cfg: &ModEngineConfig,
 ) -> Result<(), String> {
-    let mut state = read_state_for_game(game_path, state_path, cfg).map_err(|e| e.to_string())?;
+    let state = read_state_for_game(game_path, state_path, cfg).map_err(|e| e.to_string())?;
     let locations: Vec<_> = items
         .iter()
         .map(|item| match item {
@@ -183,14 +183,27 @@ pub fn reorder_children_op(
                 .map(|m| cfg.mod_target(m).tag.to_string()),
         })
         .collect();
-    let folders_before = state.folders.clone();
-    let mut moves = Moves::for_game(game_path, cfg)?;
-
-    for (pos, item) in items.iter().enumerate() {
+    let ranked = items.iter().enumerate().map(|(pos, item)| {
         let priority = locations[pos..]
             .iter()
-            .filter(|tag| tag.as_deref() == Some(cfg.primary().tag))
+            .filter(|tag| tag.is_some() && *tag == &locations[pos])
             .count() as i64;
+        (item, priority)
+    });
+    apply_child_priorities(game_path, state_path, parent_id, state, ranked, cfg)
+}
+
+pub(super) fn apply_child_priorities<'a>(
+    game_path: &str,
+    state_path: &Path,
+    parent_id: Option<&str>,
+    mut state: super::ModsState,
+    ranked: impl IntoIterator<Item = (&'a TopLevelItem, i64)>,
+    cfg: &ModEngineConfig,
+) -> Result<(), String> {
+    let folders_before = state.folders.clone();
+    let mut moves = Moves::for_game(game_path, cfg)?;
+    for (item, priority) in ranked {
         match item {
             TopLevelItem::Folder { id } => {
                 let Some(f) = state
@@ -225,11 +238,6 @@ pub fn reorder_children_op(
                 else {
                     continue;
                 };
-                let location = cfg.mod_target(m).tag;
-                let priority = locations[pos..]
-                    .iter()
-                    .filter(|tag| tag.as_deref() == Some(location))
-                    .count() as i64;
                 m.priority = Some(priority);
                 let target = cfg.mod_target(m);
                 if !target.priority_prefix_enabled() {

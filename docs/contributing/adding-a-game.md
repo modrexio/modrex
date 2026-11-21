@@ -106,7 +106,7 @@ runs. The validator then rejects the things serde cannot see:
 - no stores at all
 - no targets, two targets with the same tag, or a number of primary targets other than one
 - a decoder routed to a target the manifest does not declare
-- a target with an empty path or an empty backup path
+- a target with an empty path, or a `legacy_backup` that is declared but empty
 - a file unit with an empty `disabled_suffix`
 - an extension or companion extension that is not bare alphanumeric, repeats the primary
   extension, or is listed twice

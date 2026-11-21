@@ -3,7 +3,7 @@
 //! folder.
 
 use super::bundle::{self, Layout, Plan, PlannedFile};
-use super::engine::{backup_dir, engine_for_game, ModEngineConfig, ScanTarget};
+use super::engine::{engine_for_game, legacy_backup_dir, vanilla_dir, ModEngineConfig, ScanTarget};
 use super::paths::{find_untracked_paks, get_state_path};
 use super::state::read_state_for_game;
 use super::types::InstalledMod;
@@ -612,13 +612,13 @@ fn launching_without_mods_hides_enabled_bundles_and_restores_them() {
 
     bundle::hide(game.path(), target(), &game.mods()).unwrap();
     assert!(!game.file("archive/pc/mod/on.archive").exists());
-    assert!(backup_dir(game.path(), target())
+    assert!(vanilla_dir(game.path(), target())
         .join("archive/pc/mod/on.archive")
         .is_file());
 
     bundle::restore(game.path(), target()).unwrap();
     assert!(game.file("archive/pc/mod/on.archive").is_file());
-    assert!(!backup_dir(game.path(), target()).exists());
+    assert!(!vanilla_dir(game.path(), target()).exists());
     assert!(
         !game.file("r6/scripts/off").exists(),
         "a disabled bundle stays disabled"
@@ -648,7 +648,7 @@ fn restoring_keeps_a_hidden_file_whose_place_was_taken() {
     fs::write(game.file("archive/pc/mod/on.archive"), "newer").unwrap();
 
     assert!(bundle::restore(game.path(), target()).is_err());
-    let hidden = backup_dir(game.path(), target()).join("archive/pc/mod/on.archive");
+    let hidden = vanilla_dir(game.path(), target()).join("archive/pc/mod/on.archive");
     assert_eq!(fs::read_to_string(hidden).unwrap(), "A");
     assert_eq!(
         fs::read_to_string(game.file("archive/pc/mod/on.archive")).unwrap(),
@@ -680,11 +680,32 @@ fn a_loose_download_is_named_after_the_mod() {
 #[test]
 fn installing_while_mods_are_hidden_is_refused() {
     let game = Game::new();
-    fs::create_dir_all(backup_dir(game.path(), target())).unwrap();
+    fs::create_dir_all(vanilla_dir(game.path(), target())).unwrap();
     let error = game
         .install(record("m", None), &[("archive/pc/mod/a.archive", "A")])
         .unwrap_err();
     assert!(error.contains("launch without mods"), "{error}");
+}
+
+#[test]
+fn a_bundle_an_older_release_hid_is_restored() {
+    let game = Game::new();
+    game.install(record("on", None), &[("archive/pc/mod/on.archive", "A")])
+        .unwrap();
+    bundle::hide(game.path(), target(), &game.mods()).unwrap();
+    let legacy = legacy_backup_dir(game.path(), target()).unwrap();
+    fs::rename(vanilla_dir(game.path(), target()), &legacy).unwrap();
+
+    let on = find(&game.mods(), "on").clone();
+    let error = bundle::set_enabled(game.path(), target(), &on, false).unwrap_err();
+    assert!(error.contains("launch without mods"), "{error}");
+
+    bundle::restore(game.path(), target()).unwrap();
+    assert_eq!(
+        fs::read_to_string(game.file("archive/pc/mod/on.archive")).unwrap(),
+        "A"
+    );
+    assert!(!legacy.exists());
 }
 
 // Resolution of real archives
@@ -1035,7 +1056,7 @@ fn restoring_never_follows_a_folder_link_out_of_the_game() {
 
     assert!(bundle::restore(game.path(), target()).is_err());
     assert!(!outside.path().join("M").exists());
-    assert!(backup_dir(game.path(), target())
+    assert!(vanilla_dir(game.path(), target())
         .join("r6/scripts/M/a.reds")
         .is_file());
     fs::remove_dir(&scripts).unwrap();

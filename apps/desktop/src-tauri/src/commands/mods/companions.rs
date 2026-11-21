@@ -1,4 +1,4 @@
-use super::engine::{backup_dir, ModEngineConfig, ModUnit, ScanTarget};
+use super::engine::{set_aside_dir, ModEngineConfig, ModUnit, ScanTarget};
 use super::identify::hash_file;
 use super::moves::Moves;
 use super::naming::{install_file_id, log_name, sidecar_path, strip_priority_prefix};
@@ -262,7 +262,7 @@ fn companion_targets<'a>(
     cfg.targets.iter().filter(move |target| {
         matches!(target.unit, ModUnit::File { .. })
             && !target.companions.is_empty()
-            && !backup_dir(game_path, target).exists()
+            && set_aside_dir(game_path, target).is_none()
     })
 }
 

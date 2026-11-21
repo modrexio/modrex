@@ -166,6 +166,8 @@ import type { IdentityConfidence, IdentityEvidence } from './bindings'
 
 export interface InstalledMod {
     uid: string // unique per installed file, stable identity across renames
+    // One installation for its whole life. uid changes when the mod is updated, this does not.
+    installId: string
     // The installed record's own key, for React keys, drag and drop and command targets.
     // What the mod *is* lives in `identity`; where to get it lives in source/remoteId.
     id: number
@@ -207,6 +209,8 @@ export interface InstalledMod {
     }
     // What the mod's own files declare, used for display when no catalog describes the mod.
     declared?: { name?: string; author?: string; version?: string }
+    // Full path of the archive member this was installed from, when it came from one.
+    archiveMember?: string
 }
 
 export interface ModsState {

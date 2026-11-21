@@ -214,20 +214,20 @@ fn target(value: &Target) -> String {
         path,
         disabled,
         recursive_load,
-        backup,
+        legacy_backup,
         store_paths,
         activation: how,
         load_order: order,
         unit: shape,
     } = value;
     format!(
-        "{PATH}::Target {{ tag: {}, label: {}, loader: {}, primary: {primary}, scope: {PATH}::TargetScope::{scope:?}, path: {}, disabled: {}, recursive_load: {recursive_load}, backup: {}, store_paths: {}, activation: {}, load_order: {}, unit: {} }}",
+        "{PATH}::Target {{ tag: {}, label: {}, loader: {}, primary: {primary}, scope: {PATH}::TargetScope::{scope:?}, path: {}, disabled: {}, recursive_load: {recursive_load}, legacy_backup: {}, store_paths: {}, activation: {}, load_order: {}, unit: {} }}",
         text(tag),
         target_label(*label),
         optional(loader.as_deref().map(text)),
         texts(path),
         optional(disabled.as_deref().map(texts)),
-        texts(backup),
+        optional(legacy_backup.as_deref().map(texts)),
         list(store_paths.iter().map(store_path).collect()),
         activation(*how),
         load_order(*order),
@@ -239,13 +239,13 @@ fn store_path(value: &StorePath) -> String {
     let StorePath {
         store,
         path,
-        backup,
+        legacy_backup,
     } = value;
     format!(
-        "{PATH}::StorePath {{ store: {}, path: {}, backup: {} }}",
+        "{PATH}::StorePath {{ store: {}, path: {}, legacy_backup: {} }}",
         storefront(*store),
         texts(path),
-        texts(backup),
+        optional(legacy_backup.as_deref().map(texts)),
     )
 }
 

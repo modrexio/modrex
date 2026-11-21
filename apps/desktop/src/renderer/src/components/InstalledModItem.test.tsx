@@ -41,6 +41,7 @@ afterEach(cleanup)
 function makeMod(overrides: Partial<InstalledMod>): InstalledMod {
     return {
         uid: 'mod',
+        installId: 'mod',
         id: -7,
         name: 'Split mod',
         version: '1',

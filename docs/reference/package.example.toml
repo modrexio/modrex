@@ -32,7 +32,6 @@ targets = [
         label = "mods",
         primary = true,
         path = ["mods"],
-        backup = ["mods.bak"],
         activation = "filesystem",
         load_order = "none",
 

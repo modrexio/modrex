@@ -4,6 +4,9 @@ import type {
     InstalledResponse_Serialize,
     ModDetail,
     ModFolder,
+    ProfileList,
+    ProfileSource,
+    ProfileSummary,
     TopLevelItem,
 } from '../../shared/bindings'
 import { emit } from './tauri/event'
@@ -24,11 +27,88 @@ const LOCATION_MOD_NAMES: Record<string, string[]> = {
     paks: ['Legacy Outfits', 'Retro HUD Colors'],
 }
 
+// A profile here keeps its members, whether each is on, and its own folders.
+type ModProfile = ProfileSummary & { members: Map<string, boolean>; folders: ModFolder[] }
+
 export class Library {
     mods: Mod[] = []
     folders: ModFolder[] = []
     seeded = false
     private nextFolder = 1
+    private profiles: ModProfile[] = []
+    private activeProfile: string | null = null
+    private nextProfile = 1
+    // The mods of profiles other than the active one, which the Installed page never lists.
+    private parked: Mod[] = []
+
+    profileList(): ProfileList {
+        return {
+            profiles: this.profiles.map(({ id, name }) => ({ id, name })),
+            active: this.activeProfile,
+            unfinishedSwitch: null,
+            loaders: [],
+            pending: [],
+        }
+    }
+
+    private membersNow(): Map<string, boolean> {
+        return new Map(this.mods.map((m) => [m.installId, m.enabled]))
+    }
+
+    private saveActiveProfile() {
+        const active = this.profiles.find((p) => p.id === this.activeProfile)
+        if (!active) return
+        active.members = this.membersNow()
+        active.folders = [...this.folders]
+    }
+
+    createProfile(name: string, source: ProfileSource): ProfileSummary {
+        this.saveActiveProfile()
+        const copied =
+            source.kind === 'copy' ? this.profiles.find((p) => p.id === source.profileId)! : null
+        const members =
+            source.kind === 'empty'
+                ? new Map<string, boolean>()
+                : copied
+                  ? new Map(copied.members)
+                  : this.membersNow()
+        const folders =
+            source.kind === 'empty' ? [] : copied ? [...copied.folders] : [...this.folders]
+        const profile = {
+            id: `profile-${this.nextProfile++}`,
+            name: name.trim(),
+            members,
+            folders,
+        }
+        this.profiles.push(profile)
+        if (source.kind === 'current' && this.activeProfile === null) {
+            this.activeProfile = profile.id
+        }
+        return { id: profile.id, name: profile.name }
+    }
+
+    renameProfile(id: string, name: string) {
+        this.profiles.find((p) => p.id === id)!.name = name.trim()
+    }
+
+    deleteProfile(id: string) {
+        this.profiles = this.profiles.filter((p) => p.id !== id)
+        if (this.activeProfile === id) this.activeProfile = null
+        this.parked = this.parked.filter((m) =>
+            this.profiles.some((p) => p.members.has(m.installId))
+        )
+    }
+
+    switchProfile(id: string) {
+        this.saveActiveProfile()
+        const target = this.profiles.find((p) => p.id === id)!
+        const all = [...this.mods, ...this.parked]
+        this.mods = all.filter((m) => target.members.has(m.installId))
+        this.parked = all.filter((m) => !target.members.has(m.installId))
+        for (const m of this.mods) m.enabled = target.members.get(m.installId)!
+        this.folders = [...target.folders]
+        this.activeProfile = id
+    }
 
     response(): InstalledResponse_Serialize {
         return {
@@ -177,6 +257,7 @@ export class Library {
             names.forEach((name, index) => {
                 this.install({
                     uid: `preview-${tag}-${index + 1}`,
+                    installId: `preview-${tag}-${index + 1}`,
                     id: -(7000 + this.mods.length),
                     source: 'local',
                     name,
@@ -193,6 +274,7 @@ export class Library {
         for (const id of loaderIds) {
             this.mods.push({
                 uid: `loader:${id}`,
+                installId: `loader:${id}`,
                 source: 'local',
                 author: 'Preview',
                 id: -(8000 + this.mods.length),
@@ -280,6 +362,7 @@ export function installedFromWorkshop(
     const fileType = file.type ?? 'pak'
     return {
         uid: String(file.id),
+        installId: String(file.id),
         id: -detail.id,
         name: detail.name,
         version: file.version || detail.version,

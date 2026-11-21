@@ -7,6 +7,7 @@ function makeInstalled(overrides: Partial<InstalledMod> = {}): InstalledMod {
     const id = overrides.id ?? 100
     return {
         uid: 'uid',
+        installId: 'uid',
         id,
         // InstalledMod.id is an opaque local key; payload.modId (what
         // computeAutoUpdateSelection actually matches against) is always real, so these

@@ -15,6 +15,7 @@ afterEach(() => {
 
 const installed: InstalledMod = {
     uid: 'mod',
+    installId: 'mod',
     id: -1,
     name: 'List mod',
     version: '1',

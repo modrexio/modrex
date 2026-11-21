@@ -1,4 +1,6 @@
-use super::engine::{backup_dir, join_subpath, ModEngineConfig, ModUnit, ScanTarget};
+use super::engine::{
+    join_subpath, legacy_backup_dir, set_aside_dir, ModEngineConfig, ModUnit, ScanTarget,
+};
 use super::moves::{folder_targets, Moves};
 use super::naming::log_name;
 use super::naming::{apply_priority_prefix, hash_filename, make_uid, strip_priority_prefix};
@@ -203,8 +205,52 @@ pub fn read_state(state_path: &Path) -> Result<ModsState, StateLoadError> {
         }
         migrate_version_sentinels(m);
     }
+    assign_legacy_install_ids(&mut mods);
 
     Ok(ModsState { folders, mods })
+}
+
+/// Gives every record written before install_id existed an id derived from its uid.
+///
+/// Derived rather than random, so the same file reads with the same ids every time even when
+/// nothing saves it in between. Two rows can share a uid in a file that old, and the later
+/// ones also take their position, or they would share an id. A record repeating an id an
+/// earlier record holds gets a derived one as well, because a profile names a record by it.
+fn assign_legacy_install_ids(mods: &mut [InstalledMod]) {
+    let mut taken = HashSet::new();
+    let keeps: Vec<bool> = mods
+        .iter()
+        .map(|m| !m.install_id.is_empty() && taken.insert(m.install_id.clone()))
+        .collect();
+    for (position, m) in mods.iter_mut().enumerate() {
+        if keeps[position] {
+            continue;
+        }
+        let mut id = legacy_install_id(&m.uid);
+        if taken.contains(&id) {
+            id = legacy_install_id(&format!("{}\0{position}", m.uid));
+        }
+        taken.insert(id.clone());
+        m.install_id = id;
+    }
+}
+
+// The namespace keeps these ids apart from any other value hashed the same way. Changing it
+// gives every record from an older state file a new id on its next read.
+const LEGACY_INSTALL_ID_NAMESPACE: &str = "modrex.install-id.v1";
+
+fn legacy_install_id(uid: &str) -> String {
+    use sha2::Digest;
+    let digest = sha2::Sha256::new()
+        .chain_update(LEGACY_INSTALL_ID_NAMESPACE)
+        .chain_update([0])
+        .chain_update(uid)
+        .finalize();
+    let mut bytes = [0u8; 16];
+    bytes.copy_from_slice(&digest[..16]);
+    uuid::Builder::from_custom_bytes(bytes)
+        .into_uuid()
+        .to_string()
 }
 
 pub(super) fn read_state_for_game(
@@ -672,11 +718,16 @@ fn migrate_to_live_ue4ss_mods(game_path: &str, cfg: &ModEngineConfig) {
     if !old_mods.is_dir() || same_dir(&old_mods, &live) {
         return;
     }
-    let old_backup = join_subpath(game_path, target.backup_subpath);
     move_sub_mod_dirs(&old_mods, &live);
-    move_sub_mod_dirs(&old_backup, &backup_dir(game_path, target));
-
-    remove_if_empty(&old_backup);
+    if let (Some(old_backup), Some(live_backup)) = (
+        target
+            .legacy_backup_subpath
+            .map(|subpath| join_subpath(game_path, subpath)),
+        legacy_backup_dir(game_path, target),
+    ) {
+        move_sub_mod_dirs(&old_backup, &live_backup);
+        remove_if_empty(&old_backup);
+    }
     if let Some(legacy) = legacy_ue4ss_mods_dir(game_path, target) {
         if !same_dir(&legacy, &live) {
             remove_if_empty(&legacy);
@@ -798,32 +849,91 @@ pub(crate) fn superseded_records(mods: &[InstalledMod]) -> HashSet<String> {
     mods.iter()
         .filter(|m| m.bundle.is_none())
         .filter(|m| {
-            let (Some(remote_id), Some(file_id)) = (m.remote_id.as_deref(), m.file_id) else {
+            let (Some(_), Some(file_id)) = (m.remote_id.as_deref(), m.file_id) else {
                 return false;
             };
             file_id > 0
                 && mods.iter().any(|o| {
-                    o.source == m.source
-                        && o.remote_id.as_deref() == Some(remote_id)
-                        && o.file_id.is_some_and(|newer| newer > file_id)
-                        && o.filename == m.filename
-                        && o.location == m.location
-                        && o.folder_id == m.folder_id
-                        && o.enabled == m.enabled
+                    o.file_id.is_some_and(|newer| newer > file_id) && same_release_slot(m, o)
                 })
         })
         .map(|m| m.uid.clone())
         .collect()
 }
 
-/// Where the state file sits while mods are hidden for a launch.
-pub fn hidden_state_path(game_path: &str, state_path: &Path, cfg: &ModEngineConfig) -> PathBuf {
+fn same_release_slot(a: &InstalledMod, b: &InstalledMod) -> bool {
+    a.source == b.source
+        && a.remote_id == b.remote_id
+        && a.filename == b.filename
+        && a.location == b.location
+        && a.folder_id == b.folder_id
+        && a.enabled == b.enabled
+}
+
+/// Gives the record that survives superseded_records the install_id of the oldest record it
+/// supersedes. They are one installation recorded at several releases.
+fn inherit_superseded_install_ids(mods: &mut [InstalledMod], superseded: &HashSet<String>) {
+    let mut oldest: HashMap<usize, (i64, String)> = HashMap::new();
+    for old in mods.iter().filter(|m| superseded.contains(&m.uid)) {
+        let Some(heir) = mods
+            .iter()
+            .position(|m| !superseded.contains(&m.uid) && same_release_slot(old, m))
+        else {
+            continue;
+        };
+        let file_id = old
+            .file_id
+            .expect("superseded_records only returns records with a file id");
+        let entry = oldest
+            .entry(heir)
+            .or_insert_with(|| (file_id, old.install_id.clone()));
+        if file_id < entry.0 {
+            *entry = (file_id, old.install_id.clone());
+        }
+    }
+    for (heir, (_, install_id)) in oldest {
+        mods[heir].install_id = install_id;
+    }
+}
+
+/// Where the state file sits while mods are hidden for a launch. set_aside is the primary
+/// target's folder from set_aside_dir.
+pub fn hidden_state_path(set_aside: &Path, state_path: &Path, cfg: &ModEngineConfig) -> PathBuf {
     if cfg.primary().is_directory_unit() || cfg.primary().is_bundle() {
         // BLT: state file stays in mods/ because only user mod dirs were moved to backup.
         return state_path.to_path_buf();
     }
     // PD3: the entire mods folder was renamed, so the state file is inside the backup.
-    backup_dir(game_path, cfg.primary()).join(STATE_FILENAME)
+    set_aside.join(STATE_FILENAME)
+}
+
+// Nexus install UIDs carry both catalog IDs. A local shared package's uid has the same
+// shape with a placeholder in it, so only Nexus uids are read. A positive Workshop record
+// ID is the mod page ID. Other local keys cannot identify a download.
+pub(super) fn restore_legacy_catalog_ids(m: &mut InstalledMod) -> bool {
+    if m.remote_id.is_some() {
+        return false;
+    }
+    if m.source == "modworkshop" && m.id > 0 {
+        m.remote_id = Some(m.id.to_string());
+        return true;
+    }
+    if m.source != "nexus" {
+        return false;
+    }
+    let Some((mod_id, file_id)) = m
+        .uid
+        .strip_prefix("nexus:")
+        .and_then(|ids| ids.split_once(':'))
+    else {
+        return false;
+    };
+    if mod_id.is_empty() || file_id.is_empty() {
+        return false;
+    }
+    m.remote_id = Some(mod_id.to_string());
+    m.file_remote_id = Some(file_id.to_string());
+    true
 }
 
 pub fn reconcile_state(
@@ -831,11 +941,16 @@ pub fn reconcile_state(
     state_path: &Path,
     cfg: &ModEngineConfig,
 ) -> Result<ModsState, StateLoadError> {
-    let bak = backup_dir(game_path, cfg.primary());
-    if cfg.primary().shared_paks.is_none() && bak.exists() {
+    let set_aside = cfg
+        .primary()
+        .shared_paks
+        .is_none()
+        .then(|| set_aside_dir(game_path, cfg.primary()))
+        .flatten();
+    if let Some(set_aside) = set_aside {
         return read_state_for_game(
             game_path,
-            &hidden_state_path(game_path, state_path, cfg),
+            &hidden_state_path(&set_aside, state_path, cfg),
             cfg,
         );
     }
@@ -879,40 +994,10 @@ pub fn reconcile_state(
     }
     state.mods.retain(|entry| !protected.contains(&entry.uid));
 
-    // Recover source-native identity for entries written before remote_id existed:
-    // their uid already encodes it as {source}:{mod_id}:{file_id} (the nexus install
-    // convention), so migration is a pure parse. A local shared package's uid has the same
-    // shape with a placeholder in it, so only Nexus uids are read.
+    // Identification by name can mark a mod outdated, so recover recorded IDs first.
     let mut identity_migrated = false;
     for m in state.mods.iter_mut() {
-        if m.source != "nexus" || m.remote_id.is_some() {
-            continue;
-        }
-        let mut parts = m.uid.splitn(3, ':');
-        if parts.next() != Some(m.source.as_str()) {
-            continue;
-        }
-        let (Some(mod_id), Some(file_id)) = (parts.next(), parts.next()) else {
-            continue;
-        };
-        if mod_id.is_empty() || file_id.is_empty() {
-            continue;
-        }
-        m.remote_id = Some(mod_id.to_string());
-        m.file_remote_id = Some(file_id.to_string());
-        identity_migrated = true;
-    }
-
-    // A positive id on a modworkshop entry already IS the real modworkshop id, so this is a
-    // plain fill-in, never a re-derivation. Must run before upgrade_negative_ids: it cannot
-    // tell "never identified" from "identified before remote_id existed", and its name
-    // fallback would mass-mark pre-existing installs Outdated during a plain data migration.
-    for m in state.mods.iter_mut() {
-        if m.remote_id.is_some() || m.id <= 0 || m.source != "modworkshop" {
-            continue;
-        }
-        m.remote_id = Some(m.id.to_string());
-        identity_migrated = true;
+        identity_migrated |= restore_legacy_catalog_ids(m);
     }
 
     // A source-native entry's id must always be source_native_local_id(source, remote_id),
@@ -932,6 +1017,7 @@ pub fn reconcile_state(
         }
     }
     let superseded = superseded_records(&state.mods);
+    inherit_superseded_install_ids(&mut state.mods, &superseded);
     state.mods.retain(|m| !superseded.contains(&m.uid));
     let state = state;
 
@@ -963,9 +1049,16 @@ pub fn reconcile_state(
             if scan_markers.is_empty() {
                 return false;
             }
+            // A disabled mod keeps its marker in the disabled folder, and dropping its record
+            // there would bring it back as a new installation that no profile lists.
             let rel = get_folder_path(&state.folders, m.folder_id.as_deref());
-            let dir = active_mod_path(game_path, &m.filename, rel.as_deref(), target);
-            !scan_markers.iter().any(|marker| dir.join(marker).exists())
+            let dirs = [
+                active_mod_path(game_path, &m.filename, rel.as_deref(), target),
+                disabled_mod_path(game_path, &m.filename, rel.as_deref(), target),
+            ];
+            !dirs
+                .iter()
+                .any(|dir| scan_markers.iter().any(|marker| dir.join(marker).exists()))
         })
         .map(|m| m.uid.clone())
         .collect();

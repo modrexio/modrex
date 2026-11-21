@@ -385,7 +385,7 @@ fn nothing_installs_into_a_plugin_folder_set_aside_for_a_vanilla_launch() {
     let plugins = cfg.target_for(Some("plugins"));
     let tmp = TempDir::new().unwrap();
     let game = tmp.path().to_str().unwrap();
-    fs::create_dir_all(backup_dir(game, plugins)).unwrap();
+    fs::create_dir_all(vanilla_dir(game, plugins)).unwrap();
     let v1 = staged_plugin(tmp.path(), "Foo", b"v1");
     let err = install_mod_from_path(
         game,
@@ -585,4 +585,48 @@ fn an_update_keeps_files_the_user_added_to_the_plugin() {
     assert!(installed.join("Textures/Custom.png").is_file());
     assert!(!installed.join("Content/Paks/Windows/Old_P.pak").exists());
     assert!(!disabled_base(game, plugins).join("Pillow").exists());
+}
+
+#[test]
+fn a_plugin_taking_over_one_loose_pak_keeps_its_install_id() {
+    let cfg = engine_for_game("pd3").unwrap();
+    let plugins = cfg.target_for(Some("plugins"));
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let sp = get_state_path(game, cfg);
+    let source = tmp.path().join("staged.pak");
+    fs::write(&source, b"pak").unwrap();
+    install_mod_from_path(
+        game,
+        &sp,
+        misplaced_pak("104639", "CustomPing_P.pak", None),
+        &source,
+        None,
+        cfg,
+        cfg.primary(),
+    )
+    .unwrap();
+    let id = read_state(&sp).unwrap().mods[0].install_id.clone();
+
+    // install_mod's own sequence when a plugin release replaces a mod's loose pak.
+    let aside =
+        plugin_repair::set_aside_superseded_paks(game, &sp, cfg, plugins, Some("59527")).unwrap();
+    let mut plugin = plugin_record("104640", "CustomPing");
+    plugin.inherit_install_id(aside.sole_record().unwrap());
+    install_mod_from_path(
+        game,
+        &sp,
+        plugin,
+        &staged_plugin(tmp.path(), "CustomPing", b"v2"),
+        None,
+        cfg,
+        plugins,
+    )
+    .unwrap();
+    aside.commit();
+
+    let mods = read_state(&sp).unwrap().mods;
+    assert_eq!(mods.len(), 1);
+    assert_eq!(mods[0].uid, "104640");
+    assert_eq!(mods[0].install_id, id);
 }

@@ -11,11 +11,15 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - Added pink as an accent color.
 - Added a Nightly update channel for testing new features early.
 - Added short animations to dialogs, menus, tooltips and buttons.
+- Added mod profiles for each game.
+- Added sharing and importing profiles.
 
 ### Changed
 
 - Usage analytics now include your language.
 - The purple accent color is now deeper.
+- Launching without mods now uses the game's .modrex folder.
+- Folder names being edited no longer show a focus outline.
 
 ### Fixed
 
@@ -26,6 +30,10 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - Fixed a failed update install leaving Modrex with no window.
 - Fixed interface errors missing from the log.
 - Fixed the page selector flickering on Nexus Mods.
+- Fixed reinstalls moving a mod's files into one folder.
+- Fixed ModWorkshop installs removing Nexus mods with the same id.
+- Fixed disabled hand-installed Diesel mods reappearing as new mods.
+- Fixed bursts of requests running into ModWorkshop's rate limit.
 
 ## 0.16.1
 

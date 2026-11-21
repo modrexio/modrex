@@ -285,7 +285,9 @@ pub struct StoreInstallInto {
 pub struct StorePath {
     pub store: Storefront,
     pub path: Vec<String>,
-    pub backup: Vec<String>,
+    /// Where releases before the .modrex layout set this store build's mods aside.
+    #[serde(default)]
+    pub legacy_backup: Option<Vec<String>>,
 }
 
 /// A container format whose contents must be decoded before the generic archive readers see
@@ -651,13 +653,14 @@ pub struct Target {
     #[serde(default)]
     pub disabled: Option<Vec<String>>,
     /// Set when the game reads path recursively, so a mod left in a subfolder of it still
-    /// loads. Validation then requires disabled and backup to sit outside path.
+    /// loads. Validation then requires disabled and legacy_backup to sit outside path.
     #[serde(default)]
     pub recursive_load: bool,
-    /// Where launching without mods moves this target's contents. Not derived from path
-    /// because PAYDAY 3 and Crime Boss must place it outside Paks/, which Unreal mounts
-    /// recursively.
-    pub backup: Vec<String>,
+    /// Where releases before the .modrex layout set this target's contents aside for a launch
+    /// without mods. A backup left there is still restored, so only a game those releases
+    /// supported declares it. Launching without mods now uses .modrex/vanilla/<tag>.
+    #[serde(default)]
+    pub legacy_backup: Option<Vec<String>>,
     /// Not allowed on the primary target: the state file must sit at one path in every
     /// store's copy.
     #[serde(default)]

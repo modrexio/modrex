@@ -1,0 +1,174 @@
+---
+title: Profiles
+description: Keep separate sets of mods for one game and switch between them from the top bar.
+---
+
+import { sitePath } from '../../../lib/site-path'
+import Callout from '../../../components/docs/Callout.astro'
+
+A profile is one setup of a game: its mods, whether each is on, its folders and its load order.
+Each profile has its own mods, and no two profiles share one. When you switch, the mods of the
+profile you leave move into its own folder under the game's `.modrex` folder, where the game
+doesn't load them, and Modrex's installed list shows only the profile you switched to.
+
+The profile menu sits in the top bar, left of **Launch without mods** and **Launch modded**. It
+shows the active profile's name, or **No profile** before you have one. Profiles are per game and
+per copy of a game, so a Steam and an Xbox install of the same game each keep their own.
+
+## Your first profile
+
+Open the menu and choose **Save current setup as a profile**. The name starts as Main. Save it
+with the check button or Enter. It describes exactly what is installed, so it becomes the active
+profile straight away.
+
+Do this before trying anything else. Switching while no profile is active is refused, because the
+mods it would put away would belong to no profile.
+
+## Creating more
+
+**New profile** adds a row to the menu where you type a name. A new profile starts over: no mods,
+no folders. If loaders are installed, the row also offers **Keep loaders**, which lists them by
+name. It's unchecked, so a new profile starts without loaders too. Check it when the mods you plan
+to install need them. See [Loaders](#loaders) for what that means for each one.
+
+**Duplicate**, on a profile's row, copies its mods, folders, load order and loaders under the name
+"_profile_ copy". The copy has its own files, so updating or removing a mod in one profile leaves
+the other as it was. Nothing is downloaded, but the mods take their disk space twice. A mod
+whose files are missing is left out of the copy.
+
+A name is only kept when you press the check button or Enter. The cross button or Escape drops
+it. Clicking outside the menu closes it and saves nothing.
+
+## Switching
+
+Turn on the switch next to a profile. The menu stays open while Modrex works, and the button in
+the top bar reads **Switching to** _name_ until it's done. Mods you left on are on again, in the
+folders and order you left them.
+
+A switch is refused while:
+
+- the game is running, or a launch from Modrex is still waiting for the game to start
+- mods are set aside for a launch without mods. Start the game normally once to bring them back,
+  then switch.
+
+## Mods and profiles
+
+A mod you install goes into the active profile only. Installing a mod in one profile that another
+profile already has gives each profile its own copy.
+
+Turning a mod off keeps it in the profile, off. Removing it takes it out of the active profile only.
+Other profiles keep their own copies.
+
+A mod whose files are missing stays in the list whichever profile is active, until you reinstall
+or remove it.
+
+## Loaders
+
+A loader such as PDML or UE4SS belongs to profiles like a mod does. To leave one out, Modrex moves
+only the files that hook it into the game, and the loader is back as soon as you switch to a
+profile that has it.
+
+| Loader                   | What a profile without it puts away                            |
+| ------------------------ | -------------------------------------------------------------- |
+| PDML                     | The whole plugin, like any mod                                 |
+| UE4SS                    | Its proxy DLL. The UE4SS folder and the mods in it stay        |
+| SuperBLT (PAYDAY 2)      | `WSOCK32.dll`                                                  |
+| SuperBLT (RAID: WWII)    | The files its install created, or its DLL for an older install |
+| DAHM (PAYDAY: The Heist) | The files its install created                                  |
+
+<Callout type="warning">
+    Modrex can only tell which files belong to DAHM when Modrex installed it. A DAHM installed by
+    hand, or by a version of Modrex older than profiles, stays in every profile. Reinstall it from
+    Modrex to let profiles leave it out.
+</Callout>
+
+If you install a loader again while a profile has it put away, the new copy is the one you keep.
+
+## Renaming and deleting
+
+Hover a profile's row for its rename, duplicate and delete buttons.
+
+Deleting asks first. It removes the profile together with its mods. Deleting
+the active profile leaves its mods installed, with no profile active.
+
+## Sharing a profile
+
+Hover a profile's row and click **Share**. The dialog shows the profile code. **Copy code** copies
+it to paste into a message, and **Save file** saves it as a `.modrexprofile` file to send instead.
+
+A share lists your mods by their ModWorkshop and Nexus pages, never the files, so it stays small
+and whoever imports it downloads each mod from its page. It keeps folders, load order, which mods
+are off, the file you picked from an archive, and the loaders the profile has. Mods installed by
+hand have no page to download from, so they're left out, and the share says how many.
+
+## Importing a profile
+
+Open the menu and choose **Import profile**. Paste a code or click **Open file**, then **Check
+mods**. Modrex looks every mod up without downloading anything and lists what it found:
+
+- **Ready to download**: the mod is on ModWorkshop. ModWorkshop keeps no old versions, so you get
+  the current upload of the same file the profile used.
+- **Download from Nexus**: the exact file the profile used.
+- **Choose a file**: the shared file is gone and nothing matches it by name. Pick one from the
+  list, or leave it for later.
+- **Not available**: the mod was removed or hidden, only links to another site, or its author
+  closed it to mod managers.
+
+Nexus mods are only looked up while you're signed in to Nexus Mods in Settings.
+
+Name the new profile and click **Download all mods**. The import always creates a new profile and
+switches to it, so the profile you had stays as it was. It's refused in the same cases as a
+switch, and when mods are installed but no profile is active. Save one first.
+
+<Callout>
+    A free Nexus account needs a click on **Mod Manager Download** for each file. With **Include
+    Nexus mods** checked, Modrex opens the Nexus files one at a time and moves on as each one
+    installs. Leave it unchecked to get the ModWorkshop mods now and the Nexus ones later.
+</Callout>
+
+Anything the import couldn't finish waits under **Not downloaded** in the profile menu, and the
+Installed page says how many, with a **Show** button. Each mod offers what it needs:
+
+- **Open on Nexus** starts that file's download, and the mod lands in its folder and place once it
+  installs.
+- **Choose a file** lists the mod's files. A ModWorkshop file installs straight away, a Nexus file
+  starts its download.
+- **Try again** retries an install that stopped or failed.
+- **Open mod page** opens the mod in Modrex when its archive asks you something. Install it there
+  as usual, and it takes the shared mod's folder and place.
+
+**Dismiss** stops waiting for a mod.
+
+Missing loaders install with the profile, except UE4SS, which installs from its mod page. A loader
+you already have is never replaced. When some of the imported mods have newer versions than the
+shared ones, the result says so, and **Review updates** on the Installed page gets them.
+
+## If a switch stops
+
+A switch that is interrupted, for example by Modrex closing or a file being locked, leaves a banner:
+"The switch to _name_ did not finish". Click **Finish switch** to complete it, or switch to any
+other profile instead. Until then Modrex won't create profiles, and won't delete the one the switch
+was heading for.
+
+## Where profiles are stored
+
+Everything lives in the game folder, in `.modrex`:
+
+- `profiles\<name>\` is one folder per profile. It holds `profile.json`, with the profile's
+  mods, folders and order, and, while another profile is active, that profile's mod files under
+  their plain names. The active profile's folder holds only `profile.json`, since its mods are
+  in the game's own mod folders.
+- `loaders\` holds the loader files a profile left out.
+- `install.json` names the active profile.
+
+You can look at and copy files there, but moving or renaming them leaves the profile without
+them. Two folders holding the same profile, for example after copying one by hand, stop Modrex
+using either until one is removed.
+
+<Callout type="warning">
+    Uninstalling the game in its store, or a cleanup that deletes everything that isn't part of the
+    game, removes `.modrex` too, and with it your profiles and the mods they put away. Keep that
+    folder if you move or reinstall the game.
+</Callout>
+
+See <a href={sitePath('/docs/organizing')}>Organizing mods</a> for folders and load order inside a profile.

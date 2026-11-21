@@ -399,6 +399,13 @@ input[type='checkbox'] {
     border-radius: calc(3px * var(--modrex-radius-scale));
 }
 
+/* A name typed in place already shows focus with its accent underline or bordered row, so the
+   outline would draw a second box around it. Unlayered like the rule above, which a utility
+   class cannot override. */
+.name-field:focus-visible {
+    outline: none;
+}
+
 /* The site shares the scrollbar theme, so the desktop scales its radii here instead. The
    handle radius is half its hovered width, which keeps it a pill at the default like Toggle. */
 .os-theme-modrex {

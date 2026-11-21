@@ -25,6 +25,7 @@ function installed(id: number): InstalledMod {
     return {
         id,
         uid: String(id),
+        installId: String(id),
         remoteId: String(id),
         fileId: id * 10,
         name: 'Mod ' + id,
