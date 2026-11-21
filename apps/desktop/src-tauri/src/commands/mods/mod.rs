@@ -3200,6 +3200,86 @@ pub async fn import_profile_share(
     .await
 }
 
+/// Saves a profile as a share file where the user picks. None when the dialog was cancelled,
+/// otherwise how many local mods the share leaves out.
+#[tauri::command]
+#[specta::specta]
+pub async fn save_profile_share_file(
+    app: AppHandle,
+    game_id: String,
+    game_path: String,
+    profile_id: String,
+    title: String,
+) -> Result<Option<usize>, String> {
+    let name = profiles::ProfileStore::new(&game_path)
+        .get(&profile_id)?
+        .name;
+    let (text, left_out) = export_profile_share(app.clone(), game_id, game_path, profile_id)
+        .await?
+        .into_file();
+    // Profile names may hold characters a file name cannot.
+    let file_name: String = name
+        .chars()
+        .map(|c| if r#"\/:*?"<>|"#.contains(c) { '_' } else { c })
+        .collect();
+    tauri::async_runtime::spawn_blocking(move || {
+        use tauri_plugin_dialog::DialogExt;
+        let Some(picked) = app
+            .dialog()
+            .file()
+            .set_title(title)
+            .set_file_name(format!("{file_name}.modrexprofile"))
+            .add_filter("Modrex profile", &["modrexprofile"])
+            .blocking_save_file()
+        else {
+            return Ok(None);
+        };
+        let path = picked.into_path().map_err(|e| e.to_string())?;
+        std::fs::write(&path, text).map_err(|e| format!("Could not save the profile file: {e}"))?;
+        Ok(Some(left_out))
+    })
+    .await
+    .map_err(|e| format!("Profile save worker failed: {e}"))?
+}
+
+/// Reads a share file the user picks. None when the dialog was cancelled.
+#[tauri::command]
+#[specta::specta]
+pub async fn open_profile_share_file(
+    app: AppHandle,
+    title: String,
+) -> Result<Option<String>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        use tauri_plugin_dialog::DialogExt;
+        let Some(picked) = app
+            .dialog()
+            .file()
+            .set_title(title)
+            .add_filter("Modrex profile", &["modrexprofile"])
+            .blocking_pick_file()
+        else {
+            return Ok(None);
+        };
+        let path = picked.into_path().map_err(|e| e.to_string())?;
+        share::read_file(&path).map(Some)
+    })
+    .await
+    .map_err(|e| format!("Profile open worker failed: {e}"))?
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn dismiss_pending_share_member(
+    app: AppHandle,
+    game_id: String,
+    game_path: String,
+    member_key: usize,
+) -> Result<(), String> {
+    let cfg = engine_for_game(&game_id)?;
+    let _state_guard = lock_game_state(&app, cfg.game_id).await;
+    share::import::dismiss(&profiles::ProfileStore::new(&game_path), member_key)
+}
+
 #[tauri::command]
 #[specta::specta]
 pub async fn create_profile(

@@ -37,6 +37,7 @@ vi.mock('./api', () => ({
         windowStartResizeDragging: vi.fn().mockResolvedValue(undefined),
         onWindowResized: vi.fn(() => () => {}),
         onNxmInstallComplete: vi.fn(() => () => {}),
+        onNexusInstallComplete: vi.fn(() => () => {}),
         observeInstalls: vi.fn(() => () => {}),
         onNxmResourceReview: vi.fn(() => () => {}),
         onUpdateAvailable: vi.fn(() => () => {}),

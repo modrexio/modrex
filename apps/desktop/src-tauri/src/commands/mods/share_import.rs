@@ -601,6 +601,73 @@ async fn install_nexus_member(
     ))
 }
 
+/// A shared mod the active profile is still waiting for, as the profile menu lists it.
+#[derive(Debug, Clone, Serialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct PendingShareMember {
+    member_key: usize,
+    source: preview::ShareSource,
+    mod_id: u32,
+    file_id: Option<u32>,
+    installed_name: String,
+    reason: String,
+    // The Nexus link starts that file's Mod Manager Download, which the completion matches.
+    url: String,
+}
+
+pub(in crate::commands::mods) fn pending_members(
+    profile: &profiles::Profile,
+) -> Vec<PendingShareMember> {
+    profile
+        .pending
+        .iter()
+        .map(|p| {
+            let (source, mod_id, url) = match p.member.file {
+                ShareFile::ModWorkshop { mod_id, .. } => (
+                    preview::ShareSource::ModWorkshop,
+                    mod_id,
+                    format!("https://modworkshop.net/mod/{mod_id}"),
+                ),
+                ShareFile::Nexus { mod_id, .. } => {
+                    let domain = crate::commands::sources::native_id("nexus", &p.game_id)
+                        .expect("the share parser checked the Nexus binding");
+                    let url = match p.file_id {
+                        Some(file) => format!(
+                            "https://www.nexusmods.com/{domain}/mods/{mod_id}?tab=files&file_id={file}&nmm=1"
+                        ),
+                        None => format!("https://www.nexusmods.com/{domain}/mods/{mod_id}?tab=files"),
+                    };
+                    (preview::ShareSource::Nexus, mod_id, url)
+                }
+            };
+            PendingShareMember {
+                member_key: p.member_key,
+                source,
+                mod_id,
+                file_id: p.file_id,
+                installed_name: p.member.installed_name.clone(),
+                reason: p.reason.clone(),
+                url,
+            }
+        })
+        .collect()
+}
+
+/// Stops the active profile waiting for a shared mod the user will not install.
+pub(in crate::commands::mods) fn dismiss(
+    store: &ProfileStore,
+    member_key: usize,
+) -> Result<(), String> {
+    let id = store.active()?.ok_or("No profile is active")?;
+    let mut profile = store.get(&id)?;
+    let before = profile.pending.len();
+    profile.pending.retain(|p| p.member_key != member_key);
+    if profile.pending.len() == before {
+        return Err("That shared mod is no longer waiting to be installed".into());
+    }
+    store.save(&profile)
+}
+
 #[cfg(test)]
 #[path = "share_import_tests.rs"]
 mod tests;

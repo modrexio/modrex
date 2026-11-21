@@ -48,6 +48,8 @@ function profilesOf(list: ProfileList | null, overrides: Partial<Profiles> = {})
         create: vi.fn().mockResolvedValue(true),
         rename: vi.fn().mockResolvedValue(true),
         remove: vi.fn().mockResolvedValue(undefined),
+        dismissPending: vi.fn().mockResolvedValue(undefined),
+        imported: vi.fn().mockResolvedValue(undefined),
         ...overrides,
     }
 }
@@ -104,6 +106,7 @@ const two: ProfileList = {
     active: 'p1',
     unfinishedSwitch: null,
     loaders: [],
+    pending: [],
 }
 
 // A profile decides which mods a launch loads, so it is chosen right before the launch buttons.

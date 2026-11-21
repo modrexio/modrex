@@ -47,6 +47,7 @@ export class Library {
             active: this.activeProfile,
             unfinishedSwitch: null,
             loaders: [],
+            pending: [],
         }
     }
 

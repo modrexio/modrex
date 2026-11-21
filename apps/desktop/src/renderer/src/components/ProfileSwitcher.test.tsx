@@ -16,6 +16,8 @@ function profiles(list: ProfileList): Profiles {
         create: vi.fn().mockResolvedValue(true),
         rename: vi.fn().mockResolvedValue(true),
         remove: vi.fn().mockResolvedValue(undefined),
+        dismissPending: vi.fn().mockResolvedValue(undefined),
+        imported: vi.fn().mockResolvedValue(undefined),
     }
 }
 
@@ -27,12 +29,13 @@ const two: ProfileList = {
     active: 'p1',
     unfinishedSwitch: null,
     loaders: [],
+    pending: [],
 }
 
 function show(state: Profiles) {
     render(
         <TooltipProvider>
-            <ProfileSwitcher profiles={state} />
+            <ProfileSwitcher gameId="pd3" gamePath="C:/game" profiles={state} />
         </TooltipProvider>
     )
 }
@@ -44,6 +47,23 @@ function openMenu() {
 afterEach(cleanup)
 
 describe('ProfileSwitcher', () => {
+    it('offers sharing on each row, importing, and the shared mods still waiting', async () => {
+        const waiting = {
+            memberKey: 1,
+            source: 'nexus' as const,
+            modId: 27,
+            fileId: 89,
+            installedName: 'HUD.pak',
+            reason: 'Waiting for a Nexus download',
+            url: 'https://www.nexusmods.com/payday3/mods/27?tab=files&file_id=89&nmm=1',
+        }
+        show(profiles({ ...two, pending: [waiting] }))
+        openMenu()
+        expect(await screen.findByRole('button', { name: 'Share Heists' })).toBeTruthy()
+        expect(screen.getByRole('button', { name: 'Import profile' })).toBeTruthy()
+        expect(screen.getByRole('button', { name: 'Not downloaded: 1' })).toBeTruthy()
+    })
+
     it('switches when another profile is picked and not when the active one is', async () => {
         const state = profiles(two)
         show(state)
@@ -70,7 +90,15 @@ describe('ProfileSwitcher', () => {
                 .getByText(/Each profile has its own mods/)
                 .closest('[aria-hidden]')!
                 .getAttribute('aria-hidden') === 'false'
-        show(profiles({ profiles: [], active: null, unfinishedSwitch: null, loaders: [] }))
+        show(
+            profiles({
+                profiles: [],
+                active: null,
+                unfinishedSwitch: null,
+                loaders: [],
+                pending: [],
+            })
+        )
         openMenu()
         await screen.findByText(/Each profile has its own mods/)
         expect(shown()).toBe(true)
@@ -93,7 +121,7 @@ describe('ProfileSwitcher', () => {
         const state = profiles(two)
         const view = render(
             <TooltipProvider>
-                <ProfileSwitcher profiles={state} />
+                <ProfileSwitcher gameId="pd3" gamePath="C:/game" profiles={state} />
             </TooltipProvider>
         )
         openMenu()
@@ -102,7 +130,11 @@ describe('ProfileSwitcher', () => {
 
         view.rerender(
             <TooltipProvider>
-                <ProfileSwitcher profiles={{ ...state, switching: 'p2' }} />
+                <ProfileSwitcher
+                    gameId="pd3"
+                    gamePath="C:/game"
+                    profiles={{ ...state, switching: 'p2' }}
+                />
             </TooltipProvider>
         )
         const target = screen.getByRole('switch', { name: 'Switch to Vanilla plus' })
@@ -129,7 +161,13 @@ describe('ProfileSwitcher', () => {
     const escape = (field: HTMLElement) => fireEvent.keyDown(field, { key: 'Escape' })
 
     it('saves the current setup as the first profile in the menu itself', async () => {
-        const state = profiles({ profiles: [], active: null, unfinishedSwitch: null, loaders: [] })
+        const state = profiles({
+            profiles: [],
+            active: null,
+            unfinishedSwitch: null,
+            loaders: [],
+            pending: [],
+        })
         show(state)
         expect(screen.getByText('No profile')).toBeTruthy()
 

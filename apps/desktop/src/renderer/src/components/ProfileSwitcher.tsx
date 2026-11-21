@@ -4,11 +4,14 @@ import {
     Check,
     ChevronDown,
     Copy,
+    Download,
+    FileDown,
     Info,
     Layers,
     Pencil,
     Plus,
     RefreshCw,
+    Share2,
     Trash2,
     X,
 } from 'lucide-react'
@@ -16,6 +19,7 @@ import type { ProfileSource, ProfileSummary } from '../api'
 import type { Profiles } from '../hooks/useProfiles'
 import { t } from '../i18n'
 import { Dialog, DialogHeader } from './Dialog'
+import { ImportProfileDialog, PendingSharedDialog, ShareProfileDialog } from './ProfileShareDialogs'
 import { Toggle } from './Toggle'
 import { Tooltip } from './Tooltip'
 import { Button } from './ui/Button'
@@ -26,14 +30,23 @@ type Editing =
     | { kind: 'create'; source: ProfileSource; initial: string }
 
 interface Props {
+    gameId: string
+    gamePath: string
     profiles: Profiles
 }
 
-export function ProfileSwitcher({ profiles }: Props) {
+// Sharing, importing and the list of shared mods still waiting each open in a dialog.
+type ShareDialog =
+    | { kind: 'share'; profile: ProfileSummary }
+    | { kind: 'import' }
+    | { kind: 'pending' }
+
+export function ProfileSwitcher({ gameId, gamePath, profiles }: Props) {
     const [open, setOpen] = useState(false)
     const [editing, setEditing] = useState<Editing | null>(null)
     const [explained, setExplained] = useState(false)
     const [deleting, setDeleting] = useState<ProfileSummary | null>(null)
+    const [dialog, setDialog] = useState<ShareDialog | null>(null)
     const { list, switching } = profiles
     if (!list) return null
     // The profile being switched to shows as on while the switch runs, so the menu can stay
@@ -65,6 +78,12 @@ export function ProfileSwitcher({ profiles }: Props) {
         return true
     }
 
+    function openDialog(next: ShareDialog) {
+        setOpen(false)
+        setEditing(null)
+        setDialog(next)
+    }
+
     const rowAt = (profile: ProfileSummary) => {
         return (
             <ProfileRow
@@ -89,6 +108,7 @@ export function ProfileSwitcher({ profiles }: Props) {
                         initial: t('installed.profiles.copyName', { name: profile.name }),
                     })
                 }
+                onShare={() => openDialog({ kind: 'share', profile })}
                 onDelete={() => {
                     setOpen(false)
                     setEditing(null)
@@ -228,6 +248,19 @@ export function ProfileSwitcher({ profiles }: Props) {
                                 )}
                             </ul>
                         )}
+                        {list.pending.length > 0 && (
+                            <div className="p-1 border-t border-border">
+                                <button
+                                    onClick={() => openDialog({ kind: 'pending' })}
+                                    className="w-full flex items-center gap-2 px-2 h-8 rounded text-sm text-left text-warning hover:bg-surface-hover transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+                                >
+                                    <Download className="w-4 h-4 shrink-0" />
+                                    {t('installed.profiles.pending.entry', {
+                                        count: list.pending.length,
+                                    })}
+                                </button>
+                            </div>
+                        )}
                         <div className="p-1 border-t border-border">
                             <button
                                 onClick={() =>
@@ -254,10 +287,40 @@ export function ProfileSwitcher({ profiles }: Props) {
                                     ? t('installed.profiles.new')
                                     : t('installed.profiles.saveCurrent')}
                             </button>
+                            <button
+                                onClick={() => openDialog({ kind: 'import' })}
+                                className="w-full flex items-center gap-2 px-2 h-8 rounded text-sm text-left text-text-muted hover:text-text hover:bg-surface-hover transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+                            >
+                                <FileDown className="w-4 h-4 shrink-0 text-text-subtle" />
+                                {t('installed.profiles.import.action')}
+                            </button>
                         </div>
                     </Popover.Content>
                 </Popover.Portal>
             </Popover.Root>
+            {dialog?.kind === 'share' && (
+                <ShareProfileDialog
+                    gameId={gameId}
+                    gamePath={gamePath}
+                    profile={dialog.profile}
+                    onClose={() => setDialog(null)}
+                />
+            )}
+            {dialog?.kind === 'import' && (
+                <ImportProfileDialog
+                    gameId={gameId}
+                    gamePath={gamePath}
+                    profiles={profiles}
+                    onClose={() => setDialog(null)}
+                />
+            )}
+            {dialog?.kind === 'pending' && (
+                <PendingSharedDialog
+                    gameId={gameId}
+                    profiles={profiles}
+                    onClose={() => setDialog(null)}
+                />
+            )}
             {deleting && (
                 <DeleteProfileDialog
                     profile={deleting}
@@ -352,6 +415,7 @@ interface RowProps {
     onSwitch: () => void
     onRename: () => void
     onDuplicate: () => void
+    onShare: () => void
     onDelete: () => void
 }
 
@@ -365,11 +429,13 @@ function ProfileRow({
     onSwitch,
     onRename,
     onDuplicate,
+    onShare,
     onDelete,
 }: RowProps) {
     const actions = [
         { label: t('installed.profiles.rename'), icon: Pencil, run: onRename },
         { label: t('installed.profiles.duplicate'), icon: Copy, run: onDuplicate },
+        { label: t('installed.profiles.share.action'), icon: Share2, run: onShare },
         { label: t('installed.profiles.delete'), icon: Trash2, run: onDelete },
     ]
     return (

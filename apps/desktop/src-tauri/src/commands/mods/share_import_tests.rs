@@ -410,3 +410,42 @@ fn newer_versions_follow_the_catalog_update_policy() {
     assert!(!newer_version(Some("1.2"), Some("1.3")));
     assert!(!newer_version(None, Some("1.3")));
 }
+
+#[test]
+fn pending_members_link_their_source_and_can_be_dismissed() {
+    let game = Game::new("pd3");
+    let nexus = json!({"file":{"source":"nexus","modId":27,"fileId":89},"enabled":true,"installedName":"N.pak"});
+    let page_only =
+        json!({"file":{"source":"nexus","modId":28},"enabled":true,"installedName":"P.pak"});
+    let (id, _) = setup(
+        &game,
+        vec![workshop(42, 11, "A.pak"), nexus, page_only],
+        json!([]),
+        json!([{"mod":1},{"mod":2},{"mod":3}]),
+    );
+    let urls: Vec<_> = pending_members(&game.store().get(&id).unwrap())
+        .into_iter()
+        .map(|p| serde_json::to_value(p).unwrap()["url"].clone())
+        .collect();
+    assert_eq!(
+        urls,
+        [
+            json!("https://modworkshop.net/mod/42"),
+            json!("https://www.nexusmods.com/payday3/mods/27?tab=files&file_id=89&nmm=1"),
+            json!("https://www.nexusmods.com/payday3/mods/28?tab=files"),
+        ]
+    );
+    dismiss(&game.store(), 2).unwrap();
+    let keys: Vec<_> = game
+        .store()
+        .get(&id)
+        .unwrap()
+        .pending
+        .iter()
+        .map(|p| p.member_key)
+        .collect();
+    assert_eq!(keys, [1, 3]);
+    assert!(dismiss(&game.store(), 2)
+        .unwrap_err()
+        .contains("no longer waiting"));
+}

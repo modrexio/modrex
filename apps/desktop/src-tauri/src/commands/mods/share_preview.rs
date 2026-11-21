@@ -102,7 +102,7 @@ impl From<&LookupIssue> for ShareResolution {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Type)]
 #[serde(rename_all = "lowercase")]
-enum ShareSource {
+pub(super) enum ShareSource {
     ModWorkshop,
     Nexus,
 }

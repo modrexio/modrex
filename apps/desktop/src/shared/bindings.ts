@@ -156,6 +156,14 @@ export const commands = {
 	parseProfileShare: (input: string) => __TAURI_INVOKE<ProfileShare_Serialize>("parse_profile_share", { input }),
 	previewProfileShare: (input: string, gameId: string, gamePath: string) => __TAURI_INVOKE<ProfileSharePreview>("preview_profile_share", { input, gameId, gamePath }),
 	importProfileShare: (input: string, gameId: string, gamePath: string, name: string, choices: { [key in string]: number }) => __TAURI_INVOKE<ProfileImportResult>("import_profile_share", { input, gameId, gamePath, name, choices }),
+	/**
+	 *  Saves a profile as a share file where the user picks. None when the dialog was cancelled,
+	 *  otherwise how many local mods the share leaves out.
+	 */
+	saveProfileShareFile: (gameId: string, gamePath: string, profileId: string, title: string) => __TAURI_INVOKE<number | null>("save_profile_share_file", { gameId, gamePath, profileId, title }),
+	/**  Reads a share file the user picks. None when the dialog was cancelled. */
+	openProfileShareFile: (title: string) => __TAURI_INVOKE<string | null>("open_profile_share_file", { title }),
+	dismissPendingShareMember: (gameId: string, gamePath: string, memberKey: number) => __TAURI_INVOKE<null>("dismiss_pending_share_member", { gameId, gamePath, memberKey }),
 	createProfile: (gameId: string, gamePath: string, name: string, source: ProfileSource) => __TAURI_INVOKE<ProfileSummary>("create_profile", { gameId, gamePath, name, source }),
 	renameProfile: (gameId: string, gamePath: string, profileId: string, name: string) => __TAURI_INVOKE<null>("rename_profile", { gameId, gamePath, profileId, name }),
 	deleteProfile: (gameId: string, gamePath: string, profileId: string) => __TAURI_INVOKE<null>("delete_profile", { gameId, gamePath, profileId }),
@@ -1180,6 +1188,17 @@ export type PakAsset = {
 
 export type PendingGameLaunch = "preparing" | "handedOff";
 
+/**  A shared mod the active profile is still waiting for, as the profile menu lists it. */
+export type PendingShareMember = {
+	memberKey: number,
+	source: ShareSource,
+	modId: number,
+	fileId: number | null,
+	installedName: string,
+	reason: string,
+	url: string,
+};
+
 export type PluginInstallReport = {
 	/**  The plugin target's tag, None for a game without one. */
 	target: string | null,
@@ -1210,6 +1229,8 @@ export type ProfileList = {
 	unfinishedSwitch: string | null,
 	/**  The installed loaders a new profile can keep, by name. */
 	loaders: string[],
+	/**  The shared mods the active profile is still waiting for. */
+	pending: PendingShareMember[],
 };
 
 export type ProfileShare = ProfileShare_Serialize | ProfileShare_Deserialize;

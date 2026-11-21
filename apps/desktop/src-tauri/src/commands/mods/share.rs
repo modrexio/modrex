@@ -437,6 +437,23 @@ fn inflate(input: &[u8]) -> Result<Vec<u8>, String> {
     }
 }
 
+impl ExportedProfileShare {
+    pub(super) fn into_file(self) -> (String, usize) {
+        (self.file_text, self.left_out)
+    }
+}
+
+/// Reads a share file the user picked, refusing one too large to be a share before reading it.
+pub(super) fn read_file(path: &std::path::Path) -> Result<String, String> {
+    let size = std::fs::metadata(path)
+        .map_err(|e| format!("Could not read the profile file: {e}"))?
+        .len();
+    if size > MAX_JSON_BYTES as u64 {
+        return Err("Profile JSON exceeds the byte limit".into());
+    }
+    std::fs::read_to_string(path).map_err(|e| format!("Could not read the profile file: {e}"))
+}
+
 pub(super) fn parse(input: &str) -> Result<ProfileShare, String> {
     let inflated;
     let json = if let Some(code) = input.strip_prefix(CODE_PREFIX) {

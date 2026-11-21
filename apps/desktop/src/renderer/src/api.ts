@@ -102,6 +102,7 @@ import type {
 export type { StartupPhase } from '../../shared/bindings'
 export type {
     ExportedProfileShare,
+    PendingShareMember,
     ProfileList,
     ProfileShare,
     ProfileSharePreview,
@@ -926,6 +927,29 @@ export const api = {
         callback: (progress: { done: number; total: number }) => void
     ): () => void {
         return onEvent('profile-share:progress', callback)
+    },
+    onNexusInstallComplete(
+        callback: (installed: { gameId: string; modId: number; fileId: number }) => void
+    ): () => void {
+        return onEvent('nxm:install-complete', callback)
+    },
+    saveProfileShareFile(
+        gameId: string,
+        gamePath: string,
+        profileId: string,
+        title: string
+    ): Promise<number | null> {
+        return commands.saveProfileShareFile(gameId, gamePath, profileId, title)
+    },
+    openProfileShareFile(title: string): Promise<string | null> {
+        return commands.openProfileShareFile(title)
+    },
+    async dismissPendingShareMember(
+        gameId: string,
+        gamePath: string,
+        memberKey: number
+    ): Promise<void> {
+        await commands.dismissPendingShareMember(gameId, gamePath, memberKey)
     },
     createProfile(
         gameId: string,

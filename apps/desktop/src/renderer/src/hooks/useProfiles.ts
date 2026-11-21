@@ -12,6 +12,9 @@ export interface Profiles {
     create: (name: string, source: ProfileSource) => Promise<boolean>
     rename: (profileId: string, name: string) => Promise<boolean>
     remove: (profileId: string) => Promise<void>
+    dismissPending: (memberKey: number) => Promise<void>
+    // An import created and switched to a profile, so both lists are out of date.
+    imported: () => Promise<void>
 }
 
 export function useProfiles(
@@ -43,6 +46,15 @@ export function useProfiles(
         setList(null)
         void reload()
     }, [reload])
+
+    // A Nexus download can complete a shared mod the active profile was waiting for.
+    useEffect(
+        () =>
+            api.onNexusInstallComplete((installed) => {
+                if (installed.gameId === gameId) void reload()
+            }),
+        [gameId, reload]
+    )
 
     const nameOf = (profileId: string) => list?.profiles.find((p) => p.id === profileId)?.name ?? ''
 
@@ -98,6 +110,17 @@ export function useProfiles(
             change(() => api.renameProfile(gameId, gamePath!, profileId, name)),
         remove: async (profileId) => {
             await change(() => api.deleteProfile(gameId, gamePath!, profileId))
+        },
+        dismissPending: async (memberKey) => {
+            await change(() => api.dismissPendingShareMember(gameId, gamePath!, memberKey))
+        },
+        imported: async () => {
+            try {
+                await reload()
+                await onRefreshInstalled()
+            } catch (e) {
+                setError(t('installed.refreshFailed', { error: String(e) }))
+            }
         },
     }
 }

@@ -146,6 +146,8 @@ pub struct ProfileList {
     pub unfinished_switch: Option<String>,
     /// The installed loaders a new profile can keep, by name.
     pub loaders: Vec<String>,
+    /// The shared mods the active profile is still waiting for.
+    pub pending: Vec<super::share::import::PendingShareMember>,
 }
 
 /// What a new profile starts as.
@@ -1095,6 +1097,11 @@ pub(crate) fn list(store: &ProfileStore, install: &Install) -> Result<ProfileLis
     let active = store
         .active()?
         .filter(|id| profiles.iter().any(|p| &p.id == id));
+    let pending = profiles
+        .iter()
+        .find(|p| Some(&p.id) == active.as_ref())
+        .map(super::share::import::pending_members)
+        .unwrap_or_default();
     Ok(ProfileList {
         profiles: profiles
             .into_iter()
@@ -1106,6 +1113,7 @@ pub(crate) fn list(store: &ProfileStore, install: &Install) -> Result<ProfileLis
         active,
         unfinished_switch: store.pending()?.map(|j| j.profile_id),
         loaders,
+        pending,
     })
 }
 

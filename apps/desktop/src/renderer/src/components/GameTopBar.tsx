@@ -67,7 +67,9 @@ export function GameTopBar({
     return (
         <>
             <TopBar {...topBar}>
-                {gamePath && <ProfileSwitcher profiles={profiles} />}
+                {gamePath && (
+                    <ProfileSwitcher gameId={activeGame} gamePath={gamePath} profiles={profiles} />
+                )}
                 {gameRunning ? (
                     <Button variant="danger" size="sm" onClick={() => stopGame(activeGame)}>
                         <Square className="w-3.5 h-3.5" fill="currentColor" />

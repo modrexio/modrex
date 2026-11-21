@@ -8,7 +8,14 @@ const createProfile = vi.fn()
 
 async function loadHook() {
     vi.resetModules()
-    vi.doMock('../api', () => ({ api: { listProfiles, switchProfile, createProfile } }))
+    vi.doMock('../api', () => ({
+        api: {
+            listProfiles,
+            switchProfile,
+            createProfile,
+            onNexusInstallComplete: () => () => {},
+        },
+    }))
     return (await import('./useProfiles')).useProfiles
 }
 

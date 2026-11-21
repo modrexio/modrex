@@ -50,6 +50,8 @@ const noProfiles: Profiles = {
     create: vi.fn(),
     rename: vi.fn(),
     remove: vi.fn(),
+    dismissPending: vi.fn(),
+    imported: vi.fn(),
 }
 
 const original = GAMES.pd2
