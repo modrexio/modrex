@@ -3145,6 +3145,20 @@ pub async fn parse_profile_share(input: String) -> Result<share::ProfileShare, S
 
 #[tauri::command]
 #[specta::specta]
+pub async fn preview_profile_share(
+    app: AppHandle,
+    input: String,
+    game_id: String,
+    game_path: String,
+) -> Result<share::preview::ProfileSharePreview, String> {
+    share::preview::from_text(input, game_id, async move |share| {
+        share::preview::for_install(app, share, game_path).await
+    })
+    .await
+}
+
+#[tauri::command]
+#[specta::specta]
 pub async fn create_profile(
     app: AppHandle,
     game_id: String,

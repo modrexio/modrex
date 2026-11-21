@@ -15,6 +15,9 @@ use super::types::InstalledMod;
 use crate::commands::loaders::{scoped_bindings, DetectStrategy};
 use crate::commands::sources;
 
+#[path = "share_preview.rs"]
+pub(super) mod preview;
+
 const FORMAT: &str = "modrex-profile";
 const SCHEMA_VERSION: u32 = 1;
 const CODE_PREFIX: &str = "MRX:";

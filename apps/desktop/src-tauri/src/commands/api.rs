@@ -153,6 +153,35 @@ pub(crate) async fn api_get_as(
     path: &str,
     params: Vec<(&str, String)>,
 ) -> Result<Value, String> {
+    get_json(ua, path, params).await.map_err(String::from)
+}
+
+pub(crate) enum WorkshopLookupError {
+    Unavailable(String),
+    Failed(String),
+}
+
+impl From<String> for WorkshopLookupError {
+    fn from(error: String) -> Self {
+        Self::Failed(error)
+    }
+}
+
+impl From<WorkshopLookupError> for String {
+    fn from(error: WorkshopLookupError) -> Self {
+        match error {
+            WorkshopLookupError::Unavailable(message) | WorkshopLookupError::Failed(message) => {
+                message
+            }
+        }
+    }
+}
+
+async fn get_json(
+    ua: &str,
+    path: &str,
+    params: Vec<(&str, String)>,
+) -> Result<Value, WorkshopLookupError> {
     let mut url = reqwest::Url::parse(&format!("{}{}", BASE, path)).map_err(|e| e.to_string())?;
     {
         let mut pairs = url.query_pairs_mut();
@@ -197,7 +226,7 @@ pub(crate) async fn api_get_as(
                 tokio::time::sleep(retry_delay(&HeaderMap::new(), attempt)).await;
                 continue;
             }
-            Err(error) => return Err(describe_request_error(&error)),
+            Err(error) => return Err(describe_request_error(&error).into()),
         };
 
         if let Some(remaining) = parse_rate_limit_remaining(res.headers()) {
@@ -206,7 +235,7 @@ pub(crate) async fn api_get_as(
 
         if retryable_status(res.status()) {
             if attempt == 2 {
-                return Err(format!("modworkshop API {}: {}", res.status(), path));
+                return Err(format!("modworkshop API {}: {}", res.status(), path).into());
             }
             let delay = retry_delay(res.headers(), attempt);
             drop(_permit);
@@ -215,12 +244,16 @@ pub(crate) async fn api_get_as(
         }
 
         if !res.status().is_success() {
-            return Err(format!("modworkshop API {}: {}", res.status(), path));
+            let reason = format!("modworkshop API {}: {}", res.status(), path);
+            return Err(match res.status().as_u16() {
+                403 | 404 | 410 => WorkshopLookupError::Unavailable(reason),
+                _ => WorkshopLookupError::Failed(reason),
+            });
         }
-        return res.json().await.map_err(|e| e.to_string());
+        return res.json().await.map_err(|e| e.to_string().into());
     }
 
-    Err(format!("modworkshop API retry limit reached: {}", path))
+    Err(format!("modworkshop API retry limit reached: {}", path).into())
 }
 
 #[derive(Debug, Deserialize, specta::Type)]
@@ -378,11 +411,27 @@ pub async fn list_mod_files(
     app: AppHandle,
     mod_id: u32,
 ) -> Result<crate::commands::domain::FilePage, String> {
-    use crate::commands::domain::parse_file_page;
+    mod_file_pages(&app, mod_id).await.map_err(String::from)
+}
+
+pub(crate) async fn mod_file_pages(
+    app: &AppHandle,
+    mod_id: u32,
+) -> Result<crate::commands::domain::FilePage, WorkshopLookupError> {
     let path = format!("/mods/{}/files", mod_id);
-    let mut files = parse_file_page(api_get(&app, &path, vec![]).await?)?;
+    let ua = user_agent(app);
+    let get_page = async |params| {
+        let value = get_json(&ua, &path, params).await?;
+        if !value["data"].is_array() {
+            return Err(WorkshopLookupError::Failed(
+                "ModWorkshop file listing is missing its data array".into(),
+            ));
+        }
+        crate::commands::domain::parse_file_page(value).map_err(WorkshopLookupError::Failed)
+    };
+    let mut files = get_page(vec![]).await?;
     for page in 2..=files.meta.last_page {
-        let next = parse_file_page(api_get(&app, &path, vec![("page", page.to_string())]).await?)?;
+        let next = get_page(vec![("page", page.to_string())]).await?;
         files.data.extend(next.data);
     }
     Ok(files)

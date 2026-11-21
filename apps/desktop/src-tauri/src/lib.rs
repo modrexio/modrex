@@ -101,6 +101,7 @@ fn ipc_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::mods::list_profiles,
             commands::mods::export_profile_share,
             commands::mods::parse_profile_share,
+            commands::mods::preview_profile_share,
             commands::mods::create_profile,
             commands::mods::rename_profile,
             commands::mods::delete_profile,

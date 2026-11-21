@@ -154,6 +154,7 @@ export const commands = {
 	listProfiles: (gameId: string, gamePath: string) => __TAURI_INVOKE<ProfileList>("list_profiles", { gameId, gamePath }),
 	exportProfileShare: (gameId: string, gamePath: string, profileId: string) => __TAURI_INVOKE<ExportedProfileShare>("export_profile_share", { gameId, gamePath, profileId }),
 	parseProfileShare: (input: string) => __TAURI_INVOKE<ProfileShare_Serialize>("parse_profile_share", { input }),
+	previewProfileShare: (input: string, gameId: string, gamePath: string) => __TAURI_INVOKE<ProfileSharePreview>("preview_profile_share", { input, gameId, gamePath }),
 	createProfile: (gameId: string, gamePath: string, name: string, source: ProfileSource) => __TAURI_INVOKE<ProfileSummary>("create_profile", { gameId, gamePath, name, source }),
 	renameProfile: (gameId: string, gamePath: string, profileId: string, name: string) => __TAURI_INVOKE<null>("rename_profile", { gameId, gamePath, profileId, name }),
 	deleteProfile: (gameId: string, gamePath: string, profileId: string) => __TAURI_INVOKE<null>("delete_profile", { gameId, gamePath, profileId }),
@@ -1177,6 +1178,14 @@ export type PluginInstallReport = {
 	rootDescriptor: string | null,
 };
 
+export type PreviewFile = {
+	id: number,
+	name: string,
+	label: string | null,
+	version: string | null,
+	size: number | null,
+};
+
 export type ProfileList = {
 	profiles: ProfileSummary[],
 	active: string | null,
@@ -1187,6 +1196,14 @@ export type ProfileList = {
 };
 
 export type ProfileShare = ProfileShare_Serialize | ProfileShare_Deserialize;
+
+export type ProfileSharePreview = {
+	profileName: string,
+	rows: SharePreviewRow[],
+	loaders: SharePreviewLoader[],
+	totals: SharePreviewTotals,
+	failedSources: ShareSource[],
+};
 
 export type ProfileShare_Deserialize = {
 	format: string,
@@ -1388,6 +1405,36 @@ export type ShareMember_Serialize = {
 	target?: string | null,
 	installedName: string,
 };
+
+export type SharePreviewLoader = {
+	id: string,
+	alreadyPresent: boolean,
+};
+
+export type SharePreviewRow = {
+	memberKey: number,
+	source: ShareSource,
+	modId: number,
+	installedName: string,
+	sharedVersion: string | null,
+	installVersion: string | null,
+	resolution: ShareResolution,
+};
+
+export type SharePreviewTotals = {
+	ready: number,
+	nexusDownload: number,
+	needsChoice: number,
+	unavailable: number,
+	lookupFailed: number,
+	nexusSignInRequired: number,
+	knownDownloadBytes: number,
+	nexusDownloadsNeeded: number,
+};
+
+export type ShareResolution = { status: "ready"; file: PreviewFile; foundByName: boolean } | { status: "nexusDownload"; file: PreviewFile } | { status: "needsChoice"; candidates: PreviewFile[] } | { status: "unavailable"; reason: string } | { status: "lookupFailed"; reason: string } | { status: "nexusSignInRequired" };
+
+export type ShareSource = "modworkshop" | "nexus";
 
 export type SisrLaunchIssue = "unsupported" | "notInstalled" | "setupRequired" | "startFailed" | "startUnconfirmed";
 

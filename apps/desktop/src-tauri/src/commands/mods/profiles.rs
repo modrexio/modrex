@@ -347,6 +347,21 @@ impl ProfileStore {
         Ok(self.parked_all()?.loaders)
     }
 
+    pub(super) fn has_parked_loader(&self, id: &str) -> Result<bool, String> {
+        let Some(loader) = self.parked_loaders()?.into_iter().find(|p| p.id == id) else {
+            return Ok(false);
+        };
+        let dir = self.parked_loader_dir(id)?;
+        for rel in &loader.files {
+            let path = safe_dest(&dir, rel)
+                .ok_or_else(|| format!("the parked {id} names a path outside the game"))?;
+            if !exists(&path)? {
+                return Ok(false);
+            }
+        }
+        Ok(!loader.files.is_empty())
+    }
+
     fn save_parked_loaders(&self, loaders: Vec<ParkedLoader>) -> Result<(), String> {
         let mods = self.parked_all()?.mods;
         write_versioned(&self.root.join("parked.json"), &Parked { mods, loaders })
