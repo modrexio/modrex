@@ -55,7 +55,7 @@ fn parse_rate_limit_remaining(headers: &HeaderMap) -> Option<i64> {
 pub(crate) struct TokenBucket {
     tokens: f64,
     max: f64,
-    refill_per_ms: f64,
+    per_second: f64,
     last_refill: Instant,
 }
 
@@ -64,23 +64,18 @@ impl TokenBucket {
         Self {
             tokens: max,
             max,
-            refill_per_ms: per_second / 1000.0,
+            per_second,
             last_refill: Instant::now(),
         }
     }
 
     pub(crate) fn consume(&mut self) -> Duration {
         let now = Instant::now();
-        let elapsed_ms = now.duration_since(self.last_refill).as_secs_f64() * 1000.0;
-        self.tokens = (self.tokens + elapsed_ms * self.refill_per_ms).min(self.max);
+        let elapsed = now.duration_since(self.last_refill).as_secs_f64();
+        // A negative balance reserves the next refill for a caller that is already waiting.
+        self.tokens = (self.tokens + elapsed * self.per_second).min(self.max) - 1.0;
         self.last_refill = now;
-        if self.tokens >= 1.0 {
-            self.tokens -= 1.0;
-            Duration::ZERO
-        } else {
-            let wait_ms = ((1.0 - self.tokens) / self.refill_per_ms) as u64;
-            Duration::from_millis(wait_ms)
-        }
+        Duration::from_secs_f64((-self.tokens).max(0.0) / self.per_second)
     }
 }
 
