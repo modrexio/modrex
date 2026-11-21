@@ -7,9 +7,9 @@ import { sitePath } from '../../../lib/site-path'
 import Callout from '../../../components/docs/Callout.astro'
 
 A profile is one setup of a game: its mods, whether each is on, its folders and its load order.
-Each profile has its own mods. When you switch, the mods of the profile you leave are put away in
-the game's `.modrex` folder, where the game doesn't load them, and Modrex's installed list shows
-only the profile you switched to.
+Each profile has its own mods, and no two profiles share one. When you switch, the mods of the
+profile you leave move into its own folder under the game's `.modrex` folder, where the game
+doesn't load them, and Modrex's installed list shows only the profile you switched to.
 
 The profile menu sits in the top bar, left of **Launch without mods** and **Launch modded**. It
 shows the active profile's name, or **No profile** before you have one. Profiles are per game and
@@ -32,8 +32,9 @@ name. It's unchecked, so a new profile starts without loaders too. Check it when
 to install need them. See [Loaders](#loaders) for what that means for each one.
 
 **Duplicate**, on a profile's row, copies its mods, folders, load order and loaders under the name
-"_profile_ copy". Both profiles then share the same installed files, so nothing is downloaded
-again.
+"_profile_ copy". The copy has its own files, so updating or removing a mod in one profile leaves
+the other as it was. Nothing is downloaded, but the mods take their disk space twice. A mod
+whose files are missing is left out of the copy.
 
 A name is only kept when you press the check button or Enter. The cross button or Escape drops
 it. Clicking outside the menu closes it and saves nothing.
@@ -55,8 +56,8 @@ A switch is refused while:
 A mod you install goes into the active profile only. Installing a mod in one profile that another
 profile already has gives each profile its own copy.
 
-Turning a mod off keeps it in the profile, off. Removing it takes it out of every profile, which is
-why the remove button reads **Remove from every profile** once a game has profiles.
+Turning a mod off keeps it in the profile, off. Removing it takes it out of the active profile only.
+Other profiles keep their own copies.
 
 A mod whose files are missing stays in the list whichever profile is active, until you reinstall
 or remove it.
@@ -92,7 +93,7 @@ If you install a loader again while a profile has it put away, the new copy is t
 
 Hover a profile's row for its rename, duplicate and delete buttons.
 
-Deleting asks first. It removes the profile together with the mods no other profile has. Deleting
+Deleting asks first. It removes the profile together with its mods. Deleting
 the active profile leaves its mods installed, with no profile active.
 
 ## Sharing a profile
@@ -156,8 +157,18 @@ was heading for.
 
 ## Where profiles are stored
 
-Everything lives in the game folder, in `.modrex`: the profiles themselves, the mods and loaders
-other profiles put away, and the record of the active profile.
+Everything lives in the game folder, in `.modrex`:
+
+- `profiles\<name>\` is one folder per profile. It holds `profile.json`, with the profile's
+  mods, folders and order, and, while another profile is active, that profile's mod files under
+  their plain names. The active profile's folder holds only `profile.json`, since its mods are
+  in the game's own mod folders.
+- `loaders\` holds the loader files a profile left out.
+- `install.json` names the active profile.
+
+You can look at and copy files there, but moving or renaming them leaves the profile without
+them. Two folders holding the same profile, for example after copying one by hand, stop Modrex
+using either until one is removed.
 
 <Callout type="warning">
     Uninstalling the game in its store, or a cleanup that deletes everything that isn't part of the
