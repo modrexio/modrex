@@ -56,7 +56,7 @@ fn vanilla_launch_restores_hidden_packages_when_the_launcher_reports_failure() {
     .unwrap_err();
     assert_eq!(error, "launcher spawn failed");
     assert_eq!(fs::read(mods.join("movie-menu.pak")).unwrap(), b"package");
-    assert!(!backup_dir(path, cfg.primary()).exists());
+    assert!(!vanilla_dir(path, cfg.primary()).exists());
 }
 
 #[tokio::test]
@@ -87,7 +87,7 @@ async fn pending_vanilla_reset_restores_the_original_install_and_retains_failed_
     assert!(error.contains("recreated"));
     assert!(locks.pending_launch("pd3").is_some());
     assert_eq!(
-        fs::read(backup_dir(original, cfg.primary()).join("old.pak")).unwrap(),
+        fs::read(vanilla_dir(original, cfg.primary()).join("old.pak")).unwrap(),
         b"original"
     );
     fs::remove_dir(&mods).unwrap();
@@ -107,7 +107,7 @@ fn incomplete_directory_restore_reports_failure_and_preserves_both_mod_copies() 
     let path = temp.path().to_str().unwrap();
     let cfg = engine_for_game("pd2").unwrap();
     let current = mods_base(path, cfg.primary()).join("UserMod");
-    let saved = backup_dir(path, cfg.primary()).join("UserMod");
+    let saved = vanilla_dir(path, cfg.primary()).join("UserMod");
     fs::create_dir_all(&current).unwrap();
     fs::create_dir_all(&saved).unwrap();
     fs::write(current.join("mod.txt"), b"recreated mod").unwrap();
@@ -124,7 +124,7 @@ fn a_launch_restore_never_deletes_a_backup_whose_folder_was_recreated() {
     let path = temp.path().to_str().unwrap();
     let cfg = engine_for_game("pd3").unwrap();
     let mods = mods_base(path, cfg.primary());
-    let backup = backup_dir(path, cfg.primary());
+    let backup = vanilla_dir(path, cfg.primary());
     fs::create_dir_all(&mods).unwrap();
     fs::create_dir_all(&backup).unwrap();
     fs::write(mods.join("new.pak"), b"added while hidden").unwrap();
@@ -144,7 +144,7 @@ fn a_launch_restore_replaces_a_folder_recreated_empty() {
     let path = temp.path().to_str().unwrap();
     let cfg = engine_for_game("pd3").unwrap();
     let mods = mods_base(path, cfg.primary());
-    let backup = backup_dir(path, cfg.primary());
+    let backup = vanilla_dir(path, cfg.primary());
     fs::create_dir_all(&mods).unwrap();
     fs::create_dir_all(&backup).unwrap();
     fs::write(backup.join("old.pak"), b"hidden mod").unwrap();
@@ -187,7 +187,7 @@ async fn an_observed_vanilla_session_retains_its_original_install_until_restore_
         .is_err());
     assert_eq!(fs::read(changed_mods.join("new.pak")).unwrap(), b"changed");
     assert_eq!(
-        fs::read(backup_dir(original, cfg.primary()).join("old.pak")).unwrap(),
+        fs::read(vanilla_dir(original, cfg.primary()).join("old.pak")).unwrap(),
         b"original"
     );
     assert!(locks.reserve_launch(locks.acquire().await, "pd3").is_err());
@@ -261,7 +261,7 @@ async fn a_failed_vanilla_handoff_keeps_its_original_restore_target_even_after_s
             .unwrap());
         assert_eq!(fs::read(mods.join("old.pak")).unwrap(), b"original");
         assert_eq!(fs::read(changed_mods.join("new.pak")).unwrap(), b"changed");
-        assert!(!backup_dir(original, cfg.primary()).exists());
+        assert!(!vanilla_dir(original, cfg.primary()).exists());
         locks
             .reserve_launch(locks.acquire().await, "pd3")
             .unwrap()
@@ -829,14 +829,15 @@ fn pick_ignores_a_mod_list_left_behind_by_a_copy_that_was_only_pointed_at() {
 // Mods hidden by "launch without mods" are in the backup, not the mods folder, and that
 // copy is still the one being modded.
 #[test]
-fn pick_counts_mods_hidden_in_a_backup() {
+fn pick_counts_mods_an_older_release_hid_in_its_backup() {
     use crate::commands::mods::{save_state, InstalledMod, ModsState};
     let steam = TempDir::new().unwrap();
     let xbox = TempDir::new().unwrap();
     let steam_path = make_pd3_copy(steam.path(), 0);
     let xbox_path = make_bare_pd3_copy(xbox.path());
-    let backup =
-        backup_dir(&xbox_path, pd3_engine().primary()).join(crate::commands::mods::STATE_FILENAME);
+    let backup = crate::commands::mods::legacy_backup_dir(&xbox_path, pd3_engine().primary())
+        .unwrap()
+        .join(crate::commands::mods::STATE_FILENAME);
     std::fs::create_dir_all(backup.parent().unwrap()).unwrap();
     save_state(
         &backup,
@@ -1002,7 +1003,7 @@ fn shared_unreal_target_never_hides_or_restores_the_native_directory() {
     let temp = tempfile::TempDir::new().unwrap();
     let cfg = engine_for_game("ron").unwrap();
     let paks = mods_base(temp.path().to_str().unwrap(), cfg.primary());
-    let backup = backup_dir(temp.path().to_str().unwrap(), cfg.primary());
+    let backup = vanilla_dir(temp.path().to_str().unwrap(), cfg.primary());
     fs::create_dir_all(&paks).unwrap();
     fs::create_dir_all(&backup).unwrap();
     fs::write(paks.join("native.pak"), b"native").unwrap();
@@ -1396,4 +1397,84 @@ fn open_game_folder_only_resolves_real_directories() {
         super::resolve_under(root.path(), root.path(), super::OpenKind::Directory),
         Some(root.path().canonicalize().unwrap())
     );
+}
+
+#[test]
+fn pick_counts_mods_set_aside_in_the_modrex_folder() {
+    use crate::commands::mods::{save_state, InstalledMod, ModsState};
+    let steam = TempDir::new().unwrap();
+    let xbox = TempDir::new().unwrap();
+    let steam_path = make_pd3_copy(steam.path(), 0);
+    let xbox_path = make_bare_pd3_copy(xbox.path());
+    let state =
+        vanilla_dir(&xbox_path, pd3_engine().primary()).join(crate::commands::mods::STATE_FILENAME);
+    std::fs::create_dir_all(state.parent().unwrap()).unwrap();
+    save_state(
+        &state,
+        &ModsState {
+            mods: vec![InstalledMod::default()],
+            folders: vec![],
+        },
+    )
+    .unwrap();
+
+    let installs = vec![install("steam", &steam_path), install("xbox", &xbox_path)];
+    let picked = pick_install(&installs, pd3_engine(), None)
+        .chosen()
+        .unwrap();
+    assert_eq!(picked.launcher, "xbox");
+}
+
+#[test]
+fn a_file_target_set_aside_in_the_modrex_folder_is_restored() {
+    let temp = TempDir::new().unwrap();
+    let path = temp.path().to_str().unwrap();
+    let cfg = pd3_engine();
+    let set_aside = vanilla_dir(path, cfg.primary());
+    let mods = mods_base(path, cfg.primary());
+    fs::create_dir_all(&set_aside).unwrap();
+    fs::create_dir_all(mods.parent().unwrap()).unwrap();
+    fs::write(set_aside.join("old.pak"), b"hidden mod").unwrap();
+
+    restore_pending_packages(path, cfg).unwrap();
+
+    assert_eq!(fs::read(mods.join("old.pak")).unwrap(), b"hidden mod");
+    assert!(!set_aside.exists());
+}
+
+#[test]
+fn a_directory_target_set_aside_in_the_modrex_folder_is_restored() {
+    let temp = TempDir::new().unwrap();
+    let path = temp.path().to_str().unwrap();
+    let cfg = engine_for_game("pd2").unwrap();
+    let saved = vanilla_dir(path, cfg.primary()).join("UserMod");
+    fs::create_dir_all(&saved).unwrap();
+    fs::write(saved.join("mod.txt"), b"hidden mod").unwrap();
+
+    restore_pending_packages(path, cfg).unwrap();
+
+    let restored = mods_base(path, cfg.primary()).join("UserMod");
+    assert_eq!(fs::read(restored.join("mod.txt")).unwrap(), b"hidden mod");
+    assert!(!vanilla_dir(path, cfg.primary()).exists());
+}
+
+#[test]
+fn hiding_leaves_a_target_an_older_release_set_aside_alone() {
+    let temp = TempDir::new().unwrap();
+    let path = temp.path().to_str().unwrap();
+    let cfg = pd3_engine();
+    let legacy = crate::commands::mods::legacy_backup_dir(path, cfg.primary()).unwrap();
+    let mods = mods_base(path, cfg.primary());
+    fs::create_dir_all(&legacy).unwrap();
+    fs::create_dir_all(&mods).unwrap();
+    fs::write(legacy.join("old.pak"), b"hidden mod").unwrap();
+    fs::write(mods.join("new.pak"), b"added while hidden").unwrap();
+
+    hide_package_mods(path, cfg).unwrap();
+
+    assert_eq!(
+        fs::read(mods.join("new.pak")).unwrap(),
+        b"added while hidden"
+    );
+    assert!(!vanilla_dir(path, cfg.primary()).exists());
 }

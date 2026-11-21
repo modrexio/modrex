@@ -301,7 +301,7 @@ fn the_raid_package_has_one_blanket_accept_target() {
     assert_eq!(target.activation, Activation::Filesystem);
     assert_eq!(target.load_order, LoadOrder::None);
     assert_eq!(target.path, ["mods"]);
-    assert_eq!(target.backup, ["mods.bak"]);
+    assert_eq!(target.legacy_backup, Some(vec!["mods.bak".to_string()]));
 
     let Unit::Directory {
         discovery,

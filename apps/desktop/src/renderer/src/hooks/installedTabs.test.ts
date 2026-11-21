@@ -14,6 +14,7 @@ import {
 function makeMod(overrides: Partial<InstalledMod> = {}): InstalledMod {
     return {
         uid: 'mod-file',
+        installId: 'mod-file',
         id: -100,
         name: 'Mod',
         version: '1',

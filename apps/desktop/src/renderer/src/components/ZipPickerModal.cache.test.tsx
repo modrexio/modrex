@@ -94,6 +94,7 @@ test('reopening a local shared archive keeps same-basename variants distinct', a
             installedFiles={[
                 {
                     uid: 'local:-123:entry:Hard/Payload_P.pak',
+                    installId: 'local:-123:entry:Hard/Payload_P.pak',
                     id: -456,
                     name: 'Package mod',
                     source: 'local',

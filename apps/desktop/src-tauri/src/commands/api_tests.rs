@@ -1,6 +1,21 @@
 use super::*;
 
 #[test]
+fn waiting_requests_reserve_separate_rate_limit_tokens() {
+    let mut bucket = TokenBucket::new(RATE_BURST, RATE_PER_SEC);
+    let start = Instant::now();
+    for _ in 0..4 {
+        assert_eq!(bucket.consume(), Duration::ZERO);
+    }
+    let mut wait = Duration::ZERO;
+    for _ in 4..51 {
+        wait = bucket.consume();
+    }
+    assert!(wait + start.elapsed() >= Duration::from_secs(36));
+    assert!(wait <= Duration::from_secs(37));
+}
+
+#[test]
 fn version_requests_are_bounded_and_deduplicated() {
     assert!(version_batches(vec![]).unwrap().is_empty());
     assert_eq!(version_batches(vec![2, 1, 2]).unwrap(), vec![vec![1, 2]]);

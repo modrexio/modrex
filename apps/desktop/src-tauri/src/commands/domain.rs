@@ -928,6 +928,7 @@ struct WireNexusFile {
     category_id: Option<u32>,
     #[serde(deserialize_with = "null_default")]
     size_kb: i64,
+    size_in_bytes: Option<i64>,
     category_name: Option<String>,
     description: Option<String>,
     #[serde(deserialize_with = "null_default")]
@@ -1077,7 +1078,9 @@ fn nexus_file_to_mod_file(w: WireNexusFile, domain: &str, mod_id: u32) -> ModFil
         } else {
             w.version
         },
-        size: w.size_kb.saturating_mul(1024),
+        size: w
+            .size_in_bytes
+            .unwrap_or_else(|| w.size_kb.saturating_mul(1024)),
         kind,
         download_url: String::new(),
         // nmm=1 is Nexus's own mod-manager-download deep link param (verified against
@@ -1094,6 +1097,40 @@ fn nexus_file_to_mod_file(w: WireNexusFile, domain: &str, mod_id: u32) -> ModFil
         downloads: None,
         created_at: w.uploaded_time,
     }
+}
+
+pub(crate) fn parse_nexus_share_pin(
+    value: serde_json::Value,
+    domain: &str,
+    mod_id: u32,
+    file_id: u32,
+) -> Result<Option<ModFile>, String> {
+    let file: WireNexusFile = serde_json::from_value(value)
+        .map_err(|e| format!("Nexus file metadata did not parse: {e}"))?;
+    if file.file_id != i64::from(file_id) {
+        return Err(format!("Nexus returned a different file for pin {file_id}"));
+    }
+    // A deleted file cannot be fetched. An archived file can still be requested by ID.
+    Ok((file.category_id != Some(6)).then(|| nexus_file_to_mod_file(file, domain, mod_id)))
+}
+
+pub(crate) fn parse_nexus_share_choices(
+    value: serde_json::Value,
+    domain: &str,
+    mod_id: u32,
+) -> Result<Vec<ModFile>, String> {
+    #[derive(Deserialize)]
+    struct Listing {
+        files: Vec<WireNexusFile>,
+    }
+    let listing: Listing = serde_json::from_value(value)
+        .map_err(|e| format!("Nexus file listing did not parse: {e}"))?;
+    Ok(listing
+        .files
+        .into_iter()
+        .filter(|f| !matches!(f.category_id, Some(4 | 6 | 7)))
+        .map(|f| nexus_file_to_mod_file(f, domain, mod_id))
+        .collect())
 }
 
 /// Parses a Nexus mod's file listing into the neutral file-page shape. Nexus files carry no

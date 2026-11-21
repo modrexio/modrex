@@ -165,7 +165,7 @@ fn scan_target(pkg: &'static GamePackage, target: &'static package::Target) -> S
             Some(declared) => text_slice(declared),
             None => disabled_subpath(&target.path),
         },
-        backup_subpath: text_slice(&target.backup),
+        legacy_backup_subpath: target.legacy_backup.as_deref().map(text_slice),
         store_layouts: own_slice(
             target
                 .store_paths
@@ -180,7 +180,7 @@ fn scan_target(pkg: &'static GamePackage, target: &'static package::Target) -> S
                         ),
                     mods_subpath: text_slice(&store_path.path),
                     disabled_subpath: disabled_subpath(&store_path.path),
-                    backup_subpath: text_slice(&store_path.backup),
+                    legacy_backup_subpath: store_path.legacy_backup.as_deref().map(text_slice),
                 })
                 .collect(),
         ),

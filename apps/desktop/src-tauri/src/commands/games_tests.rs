@@ -1,5 +1,5 @@
 use super::*;
-use crate::commands::mods::{backup_dir, disabled_dir, get_state_path, mods_dir, ModUnit};
+use crate::commands::mods::{disabled_dir, get_state_path, legacy_backup_dir, mods_dir, ModUnit};
 use crate::game_package::{Activation, ModMetadata, DIESEL_INFRA_FOLDERS, UE4SS_BUNDLED_SUBMODS};
 use std::path::PathBuf;
 use tempfile::TempDir;
@@ -158,7 +158,10 @@ fn a_discovered_spec_resolves_its_package() {
             assert_eq!(target.label_key, declared.label.key());
             assert_eq!(target.enabled_state, declared.activation);
             assert_eq!(owned(target.mods_subpath), declared.path);
-            assert_eq!(owned(target.backup_subpath), declared.backup);
+            assert_eq!(
+                target.legacy_backup_subpath.map(owned),
+                declared.legacy_backup
+            );
 
             // The disabled folder is the declared one, else the target plus one component.
             let expected_disabled = declared.disabled.clone().unwrap_or_else(|| {
@@ -176,7 +179,10 @@ fn a_discovered_spec_resolves_its_package() {
                     .and_then(|store| store.own_executable());
                 assert_eq!(Some(layout.executable), executable);
                 assert_eq!(owned(layout.mods_subpath), store_path.path);
-                assert_eq!(owned(layout.backup_subpath), store_path.backup);
+                assert_eq!(
+                    layout.legacy_backup_subpath.map(owned),
+                    store_path.legacy_backup
+                );
                 let mut expected_disabled = store_path.path.clone();
                 expected_disabled.push("disabled".to_string());
                 assert_eq!(owned(layout.disabled_subpath), expected_disabled);
@@ -415,13 +421,16 @@ fn cb_resolves_all_three_of_its_mod_targets() {
         disabled_dir(game, modkit),
         root.join("CrimeBoss/Mods/disabled")
     );
-    assert_eq!(backup_dir(game, modkit), root.join("CrimeBoss/Mods.bak"));
+    assert_eq!(
+        legacy_backup_dir(game, modkit).unwrap(),
+        root.join("CrimeBoss/Mods.bak")
+    );
     assert_eq!(
         mods_dir(game, paks),
         root.join("CrimeBoss/Content/Paks/~mods")
     );
     assert_eq!(
-        backup_dir(game, paks),
+        legacy_backup_dir(game, paks).unwrap(),
         root.join("CrimeBoss/Content/~mods.bak")
     );
     assert_eq!(
@@ -429,7 +438,7 @@ fn cb_resolves_all_three_of_its_mod_targets() {
         root.join("CrimeBoss/Binaries/Win64/Mods")
     );
     assert_eq!(
-        backup_dir(game, ue4ss),
+        legacy_backup_dir(game, ue4ss).unwrap(),
         root.join("CrimeBoss/Binaries/Win64/Mods.bak")
     );
     assert_eq!(
@@ -488,14 +497,17 @@ fn pd2_resolves_both_of_its_mod_targets() {
     let root = PathBuf::from(game);
     assert_eq!(mods_dir(game, mods), root.join("mods"));
     assert_eq!(disabled_dir(game, mods), root.join("mods/disabled"));
-    assert_eq!(backup_dir(game, mods), root.join("mods.bak"));
+    assert_eq!(
+        legacy_backup_dir(game, mods).unwrap(),
+        root.join("mods.bak")
+    );
     assert_eq!(mods_dir(game, overrides), root.join("assets/mod_overrides"));
     assert_eq!(
         disabled_dir(game, overrides),
         root.join("assets/mod_overrides/disabled")
     );
     assert_eq!(
-        backup_dir(game, overrides),
+        legacy_backup_dir(game, overrides).unwrap(),
         root.join("assets/mod_overrides.bak")
     );
     assert_eq!(get_state_path(game, cfg), root.join("mods/.modrex.json"));
@@ -567,10 +579,13 @@ fn pdth_resolves_both_of_its_mod_targets() {
     let root = PathBuf::from(game);
     assert_eq!(mods_dir(game, mods), root.join("mods"));
     assert_eq!(disabled_dir(game, mods), root.join("mods/disabled"));
-    assert_eq!(backup_dir(game, mods), root.join("mods.bak"));
+    assert_eq!(
+        legacy_backup_dir(game, mods).unwrap(),
+        root.join("mods.bak")
+    );
     assert_eq!(mods_dir(game, overrides), root.join("assets/mod_overrides"));
     assert_eq!(
-        backup_dir(game, overrides),
+        legacy_backup_dir(game, overrides).unwrap(),
         root.join("assets/mod_overrides.bak")
     );
     assert_eq!(get_state_path(game, cfg), root.join("mods/.modrex.json"));
@@ -640,7 +655,10 @@ fn pd3_resolves_each_of_its_mod_targets() {
         disabled_dir(game, plugins),
         root.join("PAYDAY3/Mods.disabled")
     );
-    assert_eq!(backup_dir(game, plugins), root.join("PAYDAY3/Mods.bak"));
+    assert_eq!(
+        legacy_backup_dir(game, plugins).unwrap(),
+        root.join("PAYDAY3/Mods.bak")
+    );
     assert_eq!(
         mods_dir(game, paks),
         root.join("PAYDAY3/Content/Paks/~mods")
@@ -650,7 +668,7 @@ fn pd3_resolves_each_of_its_mod_targets() {
         root.join("PAYDAY3/Content/Paks/~mods/disabled")
     );
     assert_eq!(
-        backup_dir(game, paks),
+        legacy_backup_dir(game, paks).unwrap(),
         root.join("PAYDAY3/Content/~mods.bak")
     );
     assert_eq!(
@@ -662,7 +680,7 @@ fn pd3_resolves_each_of_its_mod_targets() {
         root.join("PAYDAY3/Binaries/Win64/UE4SS/Mods/disabled")
     );
     assert_eq!(
-        backup_dir(game, ue4ss),
+        legacy_backup_dir(game, ue4ss).unwrap(),
         root.join("PAYDAY3/Binaries/Win64/UE4SS/Mods.bak")
     );
     assert_eq!(
@@ -740,7 +758,7 @@ fn pd3_store_build_resolves_ue4ss_mods_under_wingdk() {
         root.join("PAYDAY3/Binaries/WinGDK/UE4SS/Mods/disabled")
     );
     assert_eq!(
-        backup_dir(game, ue4ss),
+        legacy_backup_dir(game, ue4ss).unwrap(),
         root.join("PAYDAY3/Binaries/WinGDK/UE4SS/Mods.bak")
     );
     assert_eq!(
@@ -765,7 +783,10 @@ fn pd3_flat_ue4ss_resolves_mods_beside_its_dll() {
 
     assert_eq!(mods_dir(game, ue4ss), bin.join("Mods"));
     assert_eq!(disabled_dir(game, ue4ss), bin.join("Mods/disabled"));
-    assert_eq!(backup_dir(game, ue4ss), bin.join("Mods.bak"));
+    assert_eq!(
+        legacy_backup_dir(game, ue4ss).unwrap(),
+        bin.join("Mods.bak")
+    );
 }
 
 #[test]
@@ -785,7 +806,10 @@ fn raid_resolves_the_paths_its_loader_reads() {
         disabled_dir(game, target),
         root.join("mods").join("disabled")
     );
-    assert_eq!(backup_dir(game, target), root.join("mods.bak"));
+    assert_eq!(
+        legacy_backup_dir(game, target).unwrap(),
+        root.join("mods.bak")
+    );
     assert_eq!(
         get_state_path(game, cfg),
         root.join("mods").join(".modrex.json")

@@ -5,6 +5,8 @@ sidebar:
     order: 30
 ---
 
+import { sitePath } from '../../../../lib/site-path'
+
 Order and enable mods in the Installed tab. Modrex changes files on disk only in ways each game target supports.
 
 ## Visual order
@@ -51,3 +53,6 @@ Use **Reinstall** to restore the files when Modrex can identify the original dow
 Modrex stores managed mod state in `.modrex.json` inside the active game's primary mods folder. Keeping the state near the managed files helps the setup travel with the game folder across dual-boot or portable installs.
 
 Older `.pd3mm.json` state files are migrated automatically.
+
+<a href={sitePath('/docs/profiles')}>Profiles</a> keep their own files in the game's `.modrex`
+folder. Deleting that folder deletes your profiles and the mods they put away.

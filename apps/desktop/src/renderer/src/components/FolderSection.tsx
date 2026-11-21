@@ -34,7 +34,7 @@ export function NewFolderInput() {
                 }}
                 onBlur={handleCreateFolder}
                 placeholder={t('installed.folder.renamePlaceholder')}
-                className="flex-1 min-w-0 bg-transparent text-sm outline-none"
+                className="name-field flex-1 min-w-0 bg-transparent text-sm outline-none"
             />
             <button
                 onClick={handleCreateFolder}
@@ -139,7 +139,7 @@ export function FolderSection({ folder }: Props) {
                             }}
                             onBlur={() => commitRename(folder.id)}
                             placeholder={t('installed.folder.renamePlaceholder')}
-                            className="flex-1 min-w-0 bg-transparent text-sm font-medium outline-none border-b border-accent"
+                            className="name-field flex-1 min-w-0 bg-transparent text-sm font-medium outline-none border-b border-accent"
                         />
                         <button
                             onClick={() => commitRename(folder.id)}

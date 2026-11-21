@@ -1,7 +1,7 @@
 use super::crimeboss_settings::content_path_for_mod;
 use super::engine::{
-    backup_dir as engine_backup_dir, disabled_dir, mods_dir, state_path as engine_state_path,
-    ModEngineConfig, ModUnit, ScanTarget,
+    disabled_dir, mods_dir, set_aside_dir, state_path as engine_state_path, ModEngineConfig,
+    ModUnit, ScanTarget,
 };
 use super::host_mods::{host_target_by_id, parse_host_location, HOST_TARGETS};
 use super::state::get_folder_path;
@@ -224,7 +224,7 @@ pub async fn find_untracked_paks(
         if target.is_bundle() {
             continue;
         }
-        if target.shared_paks.is_none() && engine_backup_dir(game_path, target).exists() {
+        if target.shared_paks.is_none() && set_aside_dir(game_path, target).is_some() {
             continue;
         }
         let tag = if i == 0 { "" } else { target.tag };

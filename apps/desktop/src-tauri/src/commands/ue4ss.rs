@@ -211,6 +211,18 @@ pub(crate) fn is_installed(game_id: &str, game_path: &str, launcher: Option<&str
     presence(game_id, game_path, launcher).installed
 }
 
+/// The proxy DLLs that hook UE4SS into the game, which is all a profile moves to leave it out.
+/// The engine and its Mods folder stay where they are, inert without the proxy, and the mods
+/// in that folder are profile members of their own.
+pub(crate) fn hook_files(game_id: &str, game_path: &str, launcher: Option<&str>) -> Vec<PathBuf> {
+    let Some(descriptor) = descriptor_for(game_id, launcher) else {
+        return Vec::new();
+    };
+    let dir = binaries_dir(game_path, &descriptor);
+    let roots = [dir.clone(), dir.join("UE4SS")];
+    claimed_proxies(&dir, descriptor.proxy_dlls, &roots)
+}
+
 /// Everything the installed release owns, as paths under the Binaries directory.
 ///
 /// Only files a release is known to place are listed, so an overlay or injector sharing the

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import type { InstalledMod, ModFolder } from '../../../shared/types'
 import {
     identityKey,
+    matchReinstallEntries,
     displayFilename,
     entryFilename,
     stripPriorityPrefix,
@@ -72,6 +73,7 @@ function makeMod(
 ): InstalledMod {
     return {
         uid,
+        installId: uid,
         id,
         name,
         version: '1.0',
@@ -852,5 +854,28 @@ describe('groupChildren', () => {
         ]
         const result = groupChildren(entries)
         expect(result.map((g) => g.type)).toEqual(['root-group', 'folder', 'folder', 'root-group'])
+    })
+})
+
+describe('matchReinstallEntries', () => {
+    const file = (uid: string, filename: string, archiveMember?: string) =>
+        ({ uid, filename, archiveMember }) as InstalledMod
+
+    it('matches a recorded member path only, so two members of one name stay apart', () => {
+        const a = file('a', '001_Foo.pak', 'A/Foo.pak')
+        const b = file('b', '002_Foo.pak', 'B/Foo.pak')
+        const matched = matchReinstallEntries(['B/Foo.pak', 'C/Foo.pak', 'A/Foo.pak'], [a, b])
+        expect([...matched]).toEqual([
+            [2, a],
+            [0, b],
+        ])
+    })
+
+    it('matches an older record by file name to the first entry nothing else claimed', () => {
+        const a = file('a', '001_Foo.pak', 'A/Foo.pak')
+        const legacy = file('legacy', '002_Foo.pak')
+        const matched = matchReinstallEntries(['A/Foo.pak', 'B/Foo.pak'], [legacy, a])
+        expect(matched.get(0)).toBe(a)
+        expect(matched.get(1)).toBe(legacy)
     })
 })

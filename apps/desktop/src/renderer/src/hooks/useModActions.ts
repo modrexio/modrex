@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import type { GameId, InstalledMod, Mod, ModFile } from '../../../shared/types'
 import type { ZipMultiPakPayload } from '../components/ZipPickerModal'
-import { installZipPickerEntries } from '../components/ZipPickerModal'
+import { reinstallZipEntries } from '../components/ZipPickerModal'
 import { isLoader, type ModGroup } from './installedUtils'
 import { requestInstallChoice } from '../installChoices'
 import { archiveHandleForOutcome } from '../installState'
-import { entryFilename, stripPriorityPrefix } from './installedUtils'
+import { matchReinstallEntries } from './installedUtils'
 import { t } from '../i18n'
 import { api, type InstallOutcome } from '../api'
 import { runBulkAction } from '../bulkAction'
@@ -207,7 +207,9 @@ export function useModActions(
         if (!gamePath) return null
         let failure: string | null = null
         let archiveOutcome: Exclude<InstallOutcome, string> | null = null
-        const missingMods = mods.filter((m) => m.missing && !m.deployment)
+        // install_mod replaces a lone record itself and keeps its install id. Among several, a
+        // missing one has no file left to match against and would stay listed.
+        const missingMods = mods.length > 1 ? mods.filter((m) => m.missing && !m.deployment) : []
 
         setLoadingMod(mods[0].uid)
         setReinstallError(null)
@@ -221,30 +223,32 @@ export function useModActions(
             if (typeof outcome === 'object') archiveOutcome = outcome
             if (typeof outcome !== 'string' && 'needsPicker' in outcome) {
                 const zipPayload = outcome.needsPicker as unknown as ZipMultiPakPayload
-                // Archive installation keeps unselected entries, so remove the prior
-                // files before restoring the matching variants.
-                const priorMods = mods.filter((m) => !m.missing)
-                for (const m of priorMods) {
-                    await api.uninstallMod(m.uid, gamePath, activeGame)
-                }
-                const toReinstall = zipPayload.entries
-                    .map((entry, pos) => ({ entry, pos }))
-                    .filter(({ entry }) =>
-                        priorMods.some(
-                            (m) => stripPriorityPrefix(m.filename) === entryFilename(entry)
-                        )
+                const priorMods = mods.filter((m) => !missingMods.includes(m))
+                const matched = matchReinstallEntries(zipPayload.entries, priorMods)
+                if (matched.size > 0) {
+                    // Archive installation keeps unselected entries, so a prior file the new
+                    // archive no longer ships is removed, once the rest are replaced in place. A
+                    // replacement writes only where the record it replaces lives, and removing
+                    // first would lose the file if a replacement failed.
+                    const folders = new Map(
+                        [...matched].map(([pos, m]) => [pos, m.folderId ?? null] as const)
                     )
-                    .map(({ pos }) => pos)
-                if (toReinstall.length > 0) {
-                    await installZipPickerEntries(
+                    await reinstallZipEntries(
                         zipPayload,
-                        toReinstall,
+                        folders,
                         gamePath,
                         activeGame,
-                        mods[0].folderId ?? null,
                         onRefreshInstalled
                     )
+                    const replaced = new Set(matched.values())
+                    for (const m of priorMods.filter((m) => !replaced.has(m))) {
+                        await api.uninstallMod(m.uid, gamePath, activeGame)
+                    }
                 } else {
+                    // Nothing in the new archive matches, so the choice replaces every prior file.
+                    for (const m of priorMods) {
+                        await api.uninstallMod(m.uid, gamePath, activeGame)
+                    }
                     await requestInstallChoice(
                         outcome,
                         activeGame,

@@ -6,10 +6,14 @@
 //! list_loaders hands it to the renderer, so a new game's loader is one entry here and
 //! nothing else.
 
+use std::path::{Path, PathBuf};
+
 use tauri::AppHandle;
 
 use crate::commands::download::download_file;
-use crate::commands::mods::{extract_archive_flat, extract_entry};
+use crate::commands::mods::{
+    extract_archive_flat, extract_entry, flat_files, modrex_dir, safe_dest, write_atomic,
+};
 
 /// How a loader's presence is detected. A loader is never recorded in state.json, so a
 /// disk variant's files are the sole install signal.
@@ -51,6 +55,9 @@ pub struct LoaderSpec {
     pub name: &'static str,
     pub detect: DetectStrategy,
     pub install: InstallStrategy,
+    /// Whether moving the root files detect lists turns the loader off. False when they are
+    /// a payload some other file loads, which would then be left looking for it.
+    pub detect_files_are_hook: bool,
 }
 
 /// The registry as the renderer sees it, so loader ids and their games live in one
@@ -88,12 +95,14 @@ pub static LOADER_REGISTRY: &[LoaderSpec] = &[
             url: "https://sblt-update.znix.xyz/pd2update/download/get.php?src=modrex&id=payday2bltwsockdll",
             entries: &["WSOCK32.dll"],
         },
+        detect_files_are_hook: true,
     },
     LoaderSpec {
         id: "built_in",
         name: "Built-in",
         detect: DetectStrategy::BuiltIn,
         install: InstallStrategy::BuiltIn,
+        detect_files_are_hook: false,
     },
     LoaderSpec {
         id: "dahm",
@@ -105,6 +114,7 @@ pub static LOADER_REGISTRY: &[LoaderSpec] = &[
         install: InstallStrategy::ExtractAllFlat {
             url: "https://dahm.neonsynth.de/main.php",
         },
+        detect_files_are_hook: false,
     },
     LoaderSpec {
         id: "raid_superblt",
@@ -119,12 +129,14 @@ pub static LOADER_REGISTRY: &[LoaderSpec] = &[
         install: InstallStrategy::ExtractAllFlat {
             url: "https://api.modworkshop.net/mods/49744/download",
         },
+        detect_files_are_hook: true,
     },
     LoaderSpec {
         id: "ue4ss",
         name: "UE4SS",
         detect: DetectStrategy::Ue4ssProxy,
         install: InstallStrategy::ViaModFlow,
+        detect_files_are_hook: false,
     },
     LoaderSpec {
         id: "pdml",
@@ -132,6 +144,7 @@ pub static LOADER_REGISTRY: &[LoaderSpec] = &[
         // Every PDML mod lists PDML.uplugin as a required plugin.
         detect: DetectStrategy::UnrealPlugin("PDML"),
         install: InstallStrategy::ViaModFlow,
+        detect_files_are_hook: false,
     },
 ];
 
@@ -338,6 +351,93 @@ fn loader_target(
         .find(|target| target.tag == tag)
 }
 
+/// The files a loader install created in one copy of the game, kept in that copy so a moved
+/// game folder keeps it. Files that were already there are never listed, so parking a loader
+/// can never take away a file the game had before it.
+#[derive(Default, serde::Serialize, serde::Deserialize)]
+struct InstalledFiles {
+    files: Vec<String>,
+}
+
+fn record_path(game_path: &str, loader_id: &str) -> PathBuf {
+    modrex_dir(game_path)
+        .join("loaders")
+        .join(format!("{loader_id}.json"))
+}
+
+/// The files Modrex recorded installing for a loader, under the game folder. None when it
+/// has no record, as for a loader installed by hand or by a release before recording.
+pub(crate) fn recorded_files(
+    game_path: &str,
+    loader_id: &str,
+) -> Result<Option<Vec<PathBuf>>, String> {
+    let path = record_path(game_path, loader_id);
+    let text = match std::fs::read_to_string(&path) {
+        Ok(text) => text,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(e) => return Err(format!("could not read {}: {e}", path.display())),
+    };
+    let record: InstalledFiles =
+        serde_json::from_str(&text).map_err(|e| format!("{} is not valid: {e}", path.display()))?;
+    // The record names paths that get moved, so each one has to stay inside the game folder.
+    record
+        .files
+        .iter()
+        .map(|rel| {
+            safe_dest(Path::new(game_path), rel)
+                .ok_or_else(|| format!("{} names a path outside the game", path.display()))
+        })
+        .collect::<Result<Vec<_>, _>>()
+        .map(Some)
+}
+
+/// Adds the files an install created to the loader's record.
+fn record_created(game_path: &str, loader_id: &str, created: &[PathBuf]) -> Result<(), String> {
+    let root = Path::new(game_path);
+    let mut files: Vec<String> = recorded_files(game_path, loader_id)?
+        .unwrap_or_default()
+        .iter()
+        .chain(created)
+        .filter_map(|path| path.strip_prefix(root).ok())
+        .map(|rel| rel.to_string_lossy().replace('\\', "/"))
+        .collect();
+    files.sort();
+    files.dedup();
+    let bytes = serde_json::to_vec_pretty(&InstalledFiles { files }).map_err(|e| e.to_string())?;
+    write_atomic(&record_path(game_path, loader_id), &bytes)
+}
+
+/// The files that make a loader active in this copy of the game, which a profile moves away
+/// to leave the loader out. None when Modrex cannot tell which files those are, and the
+/// loader then stays for every profile.
+pub(crate) fn hook_files(
+    spec: &LoaderSpec,
+    game_id: &str,
+    game_path: &str,
+    launcher: Option<&str>,
+) -> Result<Option<Vec<PathBuf>>, String> {
+    let present = |files: Vec<PathBuf>| {
+        let files: Vec<PathBuf> = files.into_iter().filter(|f| f.is_file()).collect();
+        (!files.is_empty()).then_some(files)
+    };
+    match spec.detect {
+        DetectStrategy::RootFiles(names) => {
+            if let Some(recorded) = recorded_files(game_path, spec.id)? {
+                return Ok(present(recorded));
+            }
+            if !spec.detect_files_are_hook {
+                return Ok(None);
+            }
+            let root = Path::new(game_path);
+            Ok(present(names.iter().map(|name| root.join(name)).collect()))
+        }
+        DetectStrategy::Ue4ssProxy => Ok(present(crate::commands::ue4ss::hook_files(
+            game_id, game_path, launcher,
+        ))),
+        DetectStrategy::BuiltIn | DetectStrategy::UnrealPlugin(_) => Ok(None),
+    }
+}
+
 /// Downloads a loader package and lays it out per its install strategy. ViaModFlow
 /// and BuiltIn loaders never reach this path.
 pub async fn install_loader_package(
@@ -345,6 +445,16 @@ pub async fn install_loader_package(
     app: &AppHandle,
     game_path: &str,
 ) -> Result<(), String> {
+    let (zip, entries) = download_loader(spec, app).await?;
+    let result = place_loader(spec, game_path, &zip, entries).await;
+    crate::commands::mods::remove_download(zip).await;
+    result
+}
+
+pub(crate) async fn download_loader(
+    spec: &'static LoaderSpec,
+    app: &AppHandle,
+) -> Result<(PathBuf, Option<&'static [&'static str]>), String> {
     let (url, entries) = match spec.install {
         InstallStrategy::ExtractEntries { url, entries } => (url, Some(entries)),
         InstallStrategy::ExtractAllFlat { url } => (url, None),
@@ -364,7 +474,22 @@ pub async fn install_loader_package(
 
     let download_id = format!("loader:{}", spec.id);
     let zip_path = download_file(app, url, "zip", &download_id, None).await?;
+    Ok((zip_path, entries))
+}
+
+pub(crate) async fn place_loader(
+    spec: &'static LoaderSpec,
+    game_path: &str,
+    zip: &std::path::Path,
+    entries: Option<&'static [&'static str]>,
+) -> Result<(), String> {
+    let zip_path = zip.to_path_buf();
     let dest_dir = std::path::Path::new(game_path).to_path_buf();
+    let destinations: Vec<PathBuf> = match entries {
+        Some(entries) => entries.iter().map(|name| dest_dir.join(name)).collect(),
+        None => flat_files(&zip_path, &dest_dir)?,
+    };
+    let created: Vec<PathBuf> = destinations.into_iter().filter(|p| !p.exists()).collect();
 
     let result = match entries {
         Some(entries) => {
@@ -390,8 +515,8 @@ pub async fn install_loader_package(
         }
     };
 
-    let _ = tokio::fs::remove_file(&zip_path).await;
-    result
+    result?;
+    record_created(game_path, spec.id, &created)
 }
 
 #[cfg(test)]
@@ -660,5 +785,36 @@ mod tests {
             "Z:/does/not/exist",
             None
         ));
+    }
+
+    // A file the game already had is never recorded, so parking the loader cannot take it away.
+    #[test]
+    fn an_install_record_lists_only_the_files_the_install_created() {
+        let game = TempDir::new().unwrap();
+        let root = game.path().to_str().unwrap();
+        record_created(root, "dahm", &[game.path().join("pdthhook.dll")]).unwrap();
+        record_created(root, "dahm", &[game.path().join("mods/DAHM Core/base.lua")]).unwrap();
+
+        let files = recorded_files(root, "dahm").unwrap().unwrap();
+
+        assert_eq!(
+            files,
+            [
+                game.path().join("mods/DAHM Core/base.lua"),
+                game.path().join("pdthhook.dll"),
+            ]
+        );
+        assert!(recorded_files(root, "raid_superblt").unwrap().is_none());
+    }
+
+    #[test]
+    fn a_record_naming_a_path_outside_the_game_is_refused() {
+        let game = TempDir::new().unwrap();
+        let root = game.path().to_str().unwrap();
+        let record = record_path(root, "dahm");
+        fs::create_dir_all(record.parent().unwrap()).unwrap();
+        fs::write(&record, r#"{"files":["../outside.dll"]}"#).unwrap();
+
+        assert!(recorded_files(root, "dahm").is_err());
     }
 }

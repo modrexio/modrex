@@ -10,8 +10,8 @@ use tempfile::TempDir;
 
 use crate::commands::games::GAME_REGISTRY;
 use crate::commands::mods::{
-    backup_dir, disabled_dir, get_state_path, mods_dir, read_state, save_state, InstalledMod,
-    ModsState,
+    disabled_dir, get_state_path, mods_dir, read_state, save_state, set_aside_locations,
+    InstalledMod, ModsState,
 };
 
 #[test]
@@ -189,16 +189,17 @@ fn backup_dir_lives_outside_its_own_mods_dir() {
                 continue;
             }
             let mods = mods_dir(game_path, target);
-            let backup = backup_dir(game_path, target);
-            assert!(
-                !backup.starts_with(&mods),
-                "{}:{} backup dir {:?} sits inside {:?}; launch_without_mods moves the mods \
-                 dir into the backup, so nesting it makes the move recursive",
-                spec.id,
-                target.tag,
-                backup,
-                mods
-            );
+            for backup in set_aside_locations(game_path, target) {
+                assert!(
+                    !backup.starts_with(&mods),
+                    "{}:{} backup dir {:?} sits inside {:?}; launch_without_mods moves the mods \
+                     dir into the backup, so nesting it makes the move recursive",
+                    spec.id,
+                    target.tag,
+                    backup,
+                    mods
+                );
+            }
         }
     }
 }
@@ -216,13 +217,15 @@ fn targets_never_share_a_mods_or_backup_dir() {
                 spec.id,
                 target.tag
             );
-            assert!(
-                backups.insert(backup_dir(game_path, target)),
-                "{}:{} shares its backup dir with another target, so restoring one target \
-                 would clobber the other",
-                spec.id,
-                target.tag
-            );
+            for backup in set_aside_locations(game_path, target) {
+                assert!(
+                    backups.insert(backup),
+                    "{}:{} shares a backup dir with another target, so restoring one target \
+                     would clobber the other",
+                    spec.id,
+                    target.tag
+                );
+            }
         }
     }
 }

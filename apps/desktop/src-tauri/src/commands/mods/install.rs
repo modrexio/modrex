@@ -1,5 +1,5 @@
 use super::crimeboss_settings;
-use super::engine::{backup_dir, Activation, ModEngineConfig, ModUnit, ScanTarget};
+use super::engine::{set_aside_dir, Activation, ModEngineConfig, ModUnit, ScanTarget};
 use super::host_mods::{host_target_by_id, parse_host_location};
 use super::moves::put_back;
 use super::naming::log_name;
@@ -33,7 +33,7 @@ fn loader_refusal(uid: &str) -> String {
     )
 }
 
-fn is_host_pack(m: &InstalledMod) -> bool {
+pub(super) fn is_host_pack(m: &InstalledMod) -> bool {
     m.location
         .as_deref()
         .is_some_and(|l| l.starts_with("host:"))
@@ -84,15 +84,26 @@ pub fn install_host_pack_op(
     extract_dir_entry(zip, entry_name, &dest)?;
 
     let uid = format!("{}_{}", mod_data.file_id.unwrap_or(0), set_name);
-    state.mods.retain(|x| x.uid != uid);
-    state.mods.push(InstalledMod {
+    // The folder was just replaced, so a record of the same set in the same host is the
+    // installation this one replaces, whatever release its uid names.
+    let replaced: Vec<InstalledMod> = state
+        .mods
+        .extract_if(.., |x| {
+            x.uid == uid || (x.location == mod_data.location && x.filename == set_name)
+        })
+        .collect();
+    let mut record = InstalledMod {
         uid,
         filename: set_name,
         enabled: true,
         folder_id: None,
         installed_at: Utc::now().to_rfc3339(),
         ..mod_data
-    });
+    };
+    if let Some(predecessor) = replaced.first() {
+        record.inherit_install_id(predecessor);
+    }
+    state.mods.push(record);
     save_state(
         state_path,
         &ModsState {
@@ -123,7 +134,7 @@ pub fn install_mod_from_path(
         None
     };
     // Restoring the folder launching without mods set aside would collide with this install.
-    if target.shared_paks.is_none() && backup_dir(game_path, target).exists() {
+    if target.shared_paks.is_none() && set_aside_dir(game_path, target).is_some() {
         return Err(
             "Mods are set aside for a launch without mods. Start the game normally once to restore them, then install again."
                 .to_string(),
@@ -170,7 +181,7 @@ pub fn install_mod_from_path(
     } else {
         mod_data.filename.clone()
     };
-    let mod_data = InstalledMod {
+    let mut mod_data = InstalledMod {
         filename,
         priority: Some(priority),
         folder_id,
@@ -178,6 +189,9 @@ pub fn install_mod_from_path(
         location: (!std::ptr::eq(target, cfg.primary())).then(|| target.tag.to_string()),
         ..mod_data
     };
+    if let Some(ex) = &existing {
+        mod_data.inherit_install_id(ex);
+    }
 
     if target.shared_paks.is_some() {
         let native = NativeGuard::load(game_path, cfg)?;
@@ -1196,7 +1210,7 @@ pub(super) fn remove_file_with_sidecars(
     Err(problems.join("; "))
 }
 
-fn copy_dir_all(src: &Path, dst: &Path) -> Result<(), String> {
+pub(super) fn copy_dir_all(src: &Path, dst: &Path) -> Result<(), String> {
     fs::create_dir_all(dst).map_err(|e| e.to_string())?;
     for entry in fs::read_dir(src).map_err(|e| e.to_string())? {
         let entry = entry.map_err(|e| e.to_string())?;

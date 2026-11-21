@@ -151,6 +151,27 @@ export const commands = {
 	pickGraphicsConfig: (gameId: string, title: string) => __TAURI_INVOKE<string | null>("pick_graphics_config", { gameId, title }),
 	openGraphicsConfig: (gameId: string) => __TAURI_INVOKE<null>("open_graphics_config", { gameId }),
 	uninstallMod: (gamePath: string, uid: string, gameId: string) => __TAURI_INVOKE<null>("uninstall_mod", { gamePath, uid, gameId }),
+	listProfiles: (gameId: string, gamePath: string) => __TAURI_INVOKE<ProfileList>("list_profiles", { gameId, gamePath }),
+	exportProfileShare: (gameId: string, gamePath: string, profileId: string) => __TAURI_INVOKE<ExportedProfileShare>("export_profile_share", { gameId, gamePath, profileId }),
+	parseProfileShare: (input: string) => __TAURI_INVOKE<ProfileShare_Serialize>("parse_profile_share", { input }),
+	previewProfileShare: (input: string, gameId: string, gamePath: string) => __TAURI_INVOKE<ProfileSharePreview>("preview_profile_share", { input, gameId, gamePath }),
+	importProfileShare: (input: string, gameId: string, gamePath: string, name: string, choices: { [key in string]: number }) => __TAURI_INVOKE<ProfileImportResult>("import_profile_share", { input, gameId, gamePath, name, choices }),
+	/**
+	 *  Saves a profile as a share file where the user picks. None when the dialog was cancelled,
+	 *  otherwise how many local mods the share leaves out.
+	 */
+	saveProfileShareFile: (gameId: string, gamePath: string, profileId: string, title: string) => __TAURI_INVOKE<number | null>("save_profile_share_file", { gameId, gamePath, profileId, title }),
+	/**  Reads a share file the user picks. None when the dialog was cancelled. */
+	openProfileShareFile: (title: string) => __TAURI_INVOKE<string | null>("open_profile_share_file", { title }),
+	dismissPendingShareMember: (gameId: string, gamePath: string, memberKey: number) => __TAURI_INVOKE<null>("dismiss_pending_share_member", { gameId, gamePath, memberKey }),
+	pendingShareMemberFiles: (gameId: string, gamePath: string, memberKey: number) => __TAURI_INVOKE<PreviewFile[]>("pending_share_member_files", { gameId, gamePath, memberKey }),
+	choosePendingShareFile: (gameId: string, gamePath: string, memberKey: number, fileId: number) => __TAURI_INVOKE<PendingShareMember>("choose_pending_share_file", { gameId, gamePath, memberKey, fileId }),
+	installPendingShareMember: (gameId: string, gamePath: string, memberKey: number) => __TAURI_INVOKE<MemberOutcome>("install_pending_share_member", { gameId, gamePath, memberKey }),
+	createProfile: (gameId: string, gamePath: string, name: string, source: ProfileSource) => __TAURI_INVOKE<ProfileSummary>("create_profile", { gameId, gamePath, name, source }),
+	renameProfile: (gameId: string, gamePath: string, profileId: string, name: string) => __TAURI_INVOKE<null>("rename_profile", { gameId, gamePath, profileId, name }),
+	deleteProfile: (gameId: string, gamePath: string, profileId: string) => __TAURI_INVOKE<null>("delete_profile", { gameId, gamePath, profileId }),
+	/**  Switches a game's installed mods to a profile, or finishes a switch that stopped part way. */
+	switchProfile: (gameId: string, gamePath: string, profileId: string) => __TAURI_INVOKE<null>("switch_profile", { gameId, gamePath, profileId }),
 	enableMod: (gamePath: string, uid: string, gameId: string) => __TAURI_INVOKE<null>("enable_mod", { gamePath, uid, gameId }),
 	disableMod: (gamePath: string, uid: string, gameId: string) => __TAURI_INVOKE<null>("disable_mod", { gamePath, uid, gameId }),
 	moveCrimebossModTarget: (gamePath: string, uid: string) => __TAURI_INVOKE<null>("move_crimeboss_mod_target", { gamePath, uid }),
@@ -391,6 +412,12 @@ export type DetectedInstall = {
 	gamePath: string,
 };
 
+export type ExportedProfileShare = {
+	fileText: string,
+	pasteCode: string,
+	leftOut: number,
+};
+
 export type FilePage = {
 	data: ModFile[],
 	meta: PageMeta,
@@ -521,6 +548,11 @@ export type IdentityEvidence =
 /**  Declared name and author only. */
 "nameAuthor";
 
+export type ImportMemberResult = {
+	memberKey: number,
+	outcome: MemberOutcome,
+};
+
 export type IndexModFile = {
 	fileRemoteId: number,
 	entryName: string,
@@ -601,6 +633,7 @@ export type InstalledMod = InstalledMod_Serialize | InstalledMod_Deserialize;
 
 export type InstalledMod_Deserialize = {
 	uid?: string,
+	installId?: string,
 	id: number,
 	name: string,
 	version: string,
@@ -614,6 +647,8 @@ export type InstalledMod_Deserialize = {
 	thumbnailUrl?: string | null,
 	fileId: number | null,
 	fileType: string | null,
+	workshopFileName?: string | null,
+	workshopFileLabel?: string | null,
 	sha256: string | null,
 	placedSha256?: string | null,
 	priority: number | null,
@@ -629,10 +664,12 @@ export type InstalledMod_Deserialize = {
 	deployment?: ResourceDeployment | null,
 	resourceStatus?: ResourceStatus | null,
 	bundle?: BundleFile[] | null,
+	archiveMember?: string | null,
 };
 
 export type InstalledMod_Serialize = {
 	uid: string,
+	installId: string,
 	id: number,
 	name: string,
 	version: string,
@@ -646,6 +683,8 @@ export type InstalledMod_Serialize = {
 	thumbnailUrl?: string | null,
 	fileId?: number | null,
 	fileType?: string | null,
+	workshopFileName?: string | null,
+	workshopFileLabel?: string | null,
 	sha256?: string | null,
 	placedSha256?: string | null,
 	priority?: number | null,
@@ -661,6 +700,7 @@ export type InstalledMod_Serialize = {
 	deployment?: ResourceDeployment | null,
 	resourceStatus?: ResourceStatus | null,
 	bundle?: BundleFile[] | null,
+	archiveMember?: string | null,
 };
 
 export type InstalledResponse = InstalledResponse_Serialize | InstalledResponse_Deserialize;
@@ -812,6 +852,8 @@ export type LoaderInstall_Serialize = {
 	installedAt: string,
 };
 
+export type LoaderOutcome = { status: "alreadyPresent" } | { status: "viaModFlow" } | { status: "installed" } | { status: "failed"; error: string };
+
 /**
  *  The mod page a loader package came from. Absent for a dropped file, which has no page
  *  behind it, and the loader is then recorded as having none rather than as coming from
@@ -837,6 +879,8 @@ export type LoaderPresence = {
 	 */
 	unrecognized: string[],
 };
+
+export type MemberOutcome = { status: "installed"; installId: string } | { status: "pending"; reason: string } | { status: "failed"; error: string };
 
 export type MisplacedPlugin = {
 	/**  ModWorkshop ids. file_id is the plugin release to install. */
@@ -1145,7 +1189,22 @@ export type PakAsset = {
 	path: string,
 };
 
+/**  What the profile menu offers for a shared mod the active profile is waiting for. */
+export type PendingAction = "nexusDownload" | "chooseFile" | "tryAgain" | "openMod";
+
 export type PendingGameLaunch = "preparing" | "handedOff";
+
+/**  A shared mod the active profile is still waiting for, as the profile menu lists it. */
+export type PendingShareMember = {
+	memberKey: number,
+	action: PendingAction,
+	source: ShareSource,
+	modId: number,
+	fileId: number | null,
+	installedName: string,
+	reason: string,
+	url: string,
+};
 
 export type PluginInstallReport = {
 	/**  The plugin target's tag, None for a game without one. */
@@ -1153,6 +1212,78 @@ export type PluginInstallReport = {
 	misplaced: MisplacedPlugin[],
 	/**  A descriptor's file name in the plugin folder itself, which hides every plugin below it. */
 	rootDescriptor: string | null,
+};
+
+export type PreviewFile = {
+	id: number,
+	name: string,
+	label: string | null,
+	version: string | null,
+	size: number | null,
+};
+
+export type ProfileImportResult = {
+	profileId: string,
+	members: ImportMemberResult[],
+	loaders: { [key in string]: LoaderOutcome },
+	newerVersions: number,
+};
+
+export type ProfileList = {
+	profiles: ProfileSummary[],
+	active: string | null,
+	/**  The profile a switch was heading for when it stopped. Switching to it again finishes it. */
+	unfinishedSwitch: string | null,
+	/**  The installed loaders a new profile can keep, by name. */
+	loaders: string[],
+	/**  The shared mods the active profile is still waiting for. */
+	pending: PendingShareMember[],
+};
+
+export type ProfileShare = ProfileShare_Serialize | ProfileShare_Deserialize;
+
+export type ProfileSharePreview = {
+	profileName: string,
+	rows: SharePreviewRow[],
+	loaders: SharePreviewLoader[],
+	totals: SharePreviewTotals,
+	failedSources: ShareSource[],
+};
+
+export type ProfileShare_Deserialize = {
+	format: string,
+	schemaVersion: number,
+	gameId: string,
+	profileName: string,
+	root: ShareChild[],
+	folders: ShareFolder[],
+	members: ShareMember_Deserialize[],
+	loaders: string[] | null,
+};
+
+export type ProfileShare_Serialize = {
+	format: string,
+	schemaVersion: number,
+	gameId: string,
+	profileName: string,
+	root: ShareChild[],
+	folders: ShareFolder[],
+	members: ShareMember_Serialize[],
+	loaders: string[] | null,
+};
+
+/**  What a new profile starts as. */
+export type ProfileSource = 
+/**  The mods as they are installed right now. */
+{ kind: "current" } | 
+/**  No mods, so switching to it parks every mod, and the installed loaders too unless kept. */
+{ kind: "empty"; keepLoaders: boolean } | 
+/**  A copy of another profile's mods, files and all. */
+{ kind: "copy"; profileId: string };
+
+export type ProfileSummary = {
+	id: string,
+	name: string,
 };
 
 /**
@@ -1281,6 +1412,75 @@ export type ResourceSelection = {
 };
 
 export type ResourceStatus = "applied" | "disabled" | "diverged" | "blocked";
+
+/**  Each key is the one-based position in the share's folders or members array. */
+export type ShareChild = ({ folder: number }) & { mod?: never } | ({ mod: number }) & { folder?: never };
+
+export type ShareFile = ShareFile_Serialize | ShareFile_Deserialize;
+
+export type ShareFile_Deserialize = { source: "modworkshop"; modId: number; fileId?: number | null; fileName?: string | null; label?: string | null; version?: string | null } | ({ source: "nexus"; modId: number; fileId?: number | null }) & { fileName?: never; label?: never; version?: never };
+
+export type ShareFile_Serialize = { source: "modworkshop"; modId: number; fileId?: number | null; fileName?: string | null; label?: string | null; version?: string | null } | ({ source: "nexus"; modId: number; fileId?: number | null }) & { fileName?: never; label?: never; version?: never };
+
+export type ShareFolder = {
+	name: string,
+	children: ShareChild[],
+};
+
+export type ShareMember = ShareMember_Serialize | ShareMember_Deserialize;
+
+export type ShareMember_Deserialize = {
+	file: ShareFile_Deserialize,
+	enabled: boolean,
+	folder: number | null,
+	priority: number | null,
+	archiveMember?: string | null,
+	hostPackSet?: string | null,
+	target?: string | null,
+	installedName: string,
+};
+
+export type ShareMember_Serialize = {
+	file: ShareFile_Serialize,
+	enabled: boolean,
+	folder: number | null,
+	priority: number | null,
+	archiveMember?: string | null,
+	hostPackSet?: string | null,
+	target?: string | null,
+	installedName: string,
+};
+
+export type SharePreviewLoader = {
+	id: string,
+	name: string,
+	alreadyPresent: boolean,
+};
+
+export type SharePreviewRow = {
+	memberKey: number,
+	source: ShareSource,
+	modId: number,
+	installedName: string,
+	sharedVersion: string | null,
+	installVersion: string | null,
+	resolution: ShareResolution,
+};
+
+export type SharePreviewTotals = {
+	ready: number,
+	nexusDownload: number,
+	needsChoice: number,
+	unavailable: number,
+	lookupFailed: number,
+	nexusSignInRequired: number,
+	knownDownloadBytes: number,
+	nexusDownloadsNeeded: number,
+};
+
+export type ShareResolution = { status: "ready"; file: PreviewFile; foundByName: boolean } | { status: "nexusDownload"; file: PreviewFile } | { status: "needsChoice"; candidates: PreviewFile[] } | { status: "unavailable"; reason: string } | { status: "lookupFailed"; reason: string } | { status: "nexusSignInRequired" };
+
+export type ShareSource = "modworkshop" | "nexus";
 
 export type SisrLaunchIssue = "unsupported" | "notInstalled" | "setupRequired" | "startFailed" | "startUnconfirmed";
 

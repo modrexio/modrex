@@ -2,7 +2,8 @@
 import type { ReactNode } from 'react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import type { PendingGameLaunch } from '../api'
+import type { PendingGameLaunch, ProfileList } from '../api'
+import type { Profiles } from '../hooks/useProfiles'
 import { GameTopBar } from './GameTopBar'
 
 const launch = vi.hoisted(() => ({
@@ -37,11 +38,36 @@ beforeEach(() => {
 })
 afterEach(cleanup)
 
+function profilesOf(list: ProfileList | null, overrides: Partial<Profiles> = {}): Profiles {
+    return {
+        list,
+        switching: null,
+        error: null,
+        clearError: vi.fn(),
+        switchTo: vi.fn().mockResolvedValue(undefined),
+        create: vi.fn().mockResolvedValue(true),
+        rename: vi.fn().mockResolvedValue(true),
+        remove: vi.fn().mockResolvedValue(undefined),
+        dismissPending: vi.fn().mockResolvedValue(undefined),
+        refresh: vi.fn().mockResolvedValue(undefined),
+        pendingShown: false,
+        showPending: vi.fn(),
+        ...overrides,
+    }
+}
+
 test.each(['preparing', 'handedOff'] as const)(
     'offers reset only after %s reaches handoff',
     (pending) => {
         launch.state = { ...launch.state, pending }
-        render(<GameTopBar activeGame="pd3" gamePath="G:/Games" />)
+        render(
+            <GameTopBar
+                activeGame="pd3"
+                gamePath="G:/Games"
+                profiles={profilesOf(null)}
+                onOpenMod={vi.fn()}
+            />
+        )
         expect(screen.getByRole('button', { name: 'Launch modded' }).hasAttribute('disabled')).toBe(
             true
         )
@@ -52,7 +78,14 @@ test.each(['preparing', 'handedOff'] as const)(
 
 test('explains external cancellation and hidden package restoration before a confirmed reset', async () => {
     launch.state = { ...launch.state, pending: 'handedOff' }
-    render(<GameTopBar activeGame="pd3" gamePath="G:/Games" />)
+    render(
+        <GameTopBar
+            activeGame="pd3"
+            gamePath="G:/Games"
+            profiles={profilesOf(null)}
+            onOpenMod={vi.fn()}
+        />
+    )
     fireEvent.click(screen.getByRole('button', { name: 'Reset launch status' }))
     const dialog = screen.getByRole('dialog')
     expect(
@@ -71,7 +104,14 @@ test('explains external cancellation and hidden package restoration before a con
 test('keeps the dialog open with the native error when reset fails', async () => {
     launch.state = { ...launch.state, pending: 'handedOff' }
     launch.reset.mockRejectedValue(new Error('Close the game before resetting its pending launch'))
-    render(<GameTopBar activeGame="pd3" gamePath="G:/Games" />)
+    render(
+        <GameTopBar
+            activeGame="pd3"
+            gamePath="G:/Games"
+            profiles={profilesOf(null)}
+            onOpenMod={vi.fn()}
+        />
+    )
     fireEvent.click(screen.getByRole('button', { name: 'Reset launch status' }))
     const dialog = screen.getByRole('dialog')
     fireEvent.click(within(dialog).getByRole('button', { name: 'Reset launch status' }))
@@ -79,4 +119,48 @@ test('keeps the dialog open with the native error when reset fails', async () =>
     expect(
         within(dialog).getByRole('button', { name: 'Reset launch status' }).hasAttribute('disabled')
     ).toBe(false)
+})
+
+const two: ProfileList = {
+    profiles: [
+        { id: 'p1', name: 'Heists' },
+        { id: 'p2', name: 'Stealth' },
+    ],
+    active: 'p1',
+    unfinishedSwitch: null,
+    loaders: [],
+    pending: [],
+}
+
+// A profile decides which mods a launch loads, so it is chosen right before the launch buttons.
+test('puts the profile menu ahead of the launch buttons', () => {
+    render(
+        <GameTopBar
+            activeGame="pd3"
+            gamePath="G:/Games"
+            profiles={profilesOf(two)}
+            onOpenMod={vi.fn()}
+        />
+    )
+
+    const buttons = screen
+        .getAllByRole('button')
+        .map((b) => b.getAttribute('aria-label') ?? b.textContent)
+    expect(buttons.indexOf('Profiles: Heists')).toBe(0)
+    expect(buttons.indexOf('Profiles: Heists')).toBeLessThan(buttons.indexOf('Launch modded'))
+})
+
+// The menu works from every page, so what a switch left behind has to show on every page too.
+test('offers to finish a switch that stopped and shows why a switch failed', () => {
+    const profiles = profilesOf(
+        { ...two, unfinishedSwitch: 'p2' },
+        { error: 'Could not switch to Stealth: Close the game before switching profiles.' }
+    )
+    render(
+        <GameTopBar activeGame="pd3" gamePath="G:/Games" profiles={profiles} onOpenMod={vi.fn()} />
+    )
+
+    expect(screen.getByText(/Close the game before switching profiles/)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Finish switch' }))
+    expect(profiles.switchTo).toHaveBeenCalledWith('p2')
 })
