@@ -95,6 +95,46 @@ Hover a profile's row for its rename, duplicate and delete buttons.
 Deleting asks first. It removes the profile together with the mods no other profile has. Deleting
 the active profile leaves its mods installed, with no profile active.
 
+## Sharing a profile
+
+Hover a profile's row and click **Share**. Choose **Copy code** to paste the profile into a message,
+or **Save file** to send it as a `.modrexprofile` file.
+
+A share lists your mods by their ModWorkshop and Nexus pages, never the files, so it stays small
+and whoever imports it downloads each mod from its page. It keeps folders, load order, which mods
+are off, the file you picked from an archive, and the loaders the profile has. Mods installed by
+hand have no page to download from, so they're left out, and the share says how many.
+
+## Importing a profile
+
+Open the menu and choose **Import profile**. Paste a code or click **Open file**, then **Check
+mods**. Modrex looks every mod up without downloading anything and lists what it found:
+
+- **Ready to download**: the mod is on ModWorkshop. ModWorkshop keeps no old versions, so you get
+  the current upload of the same file the profile used.
+- **Download from Nexus**: the exact file the profile used.
+- **Choose a file**: the shared file is gone and nothing matches it by name. Pick one from the
+  list, or leave it for later.
+- **Not available**: the mod was removed, hidden, or only links to another site.
+
+Name the new profile and click **Download all mods**. The import always creates a new profile and
+switches to it, so the profile you had stays as it was. It's refused in the same cases as a
+switch, and when mods are installed but no profile is active. Save one first.
+
+<Callout>
+    A free Nexus account needs a click on **Mod Manager Download** for each file. With **Include
+    Nexus mods** checked, Modrex opens the Nexus files one at a time and moves on as each one
+    installs. Leave it unchecked to get the ModWorkshop mods now and the Nexus ones later.
+</Callout>
+
+Anything the import couldn't finish waits under **Not downloaded** in the profile menu: Nexus mods
+you haven't fetched yet, files to choose, and archives that would normally ask you something.
+**Open on Nexus** or **Open mod page** gets one, and **Dismiss** stops waiting for it.
+
+Missing loaders install with the profile, except UE4SS, which installs from its mod page. A loader
+you already have is never replaced. When some of the imported mods have newer versions than the
+shared ones, the result says so, and **Review updates** on the Installed page gets them.
+
 ## If a switch stops
 
 A switch that is interrupted, for example by Modrex closing or a file being locked, leaves a banner:

@@ -12,6 +12,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - Added a Nightly update channel for testing new features early.
 - Added short animations to dialogs, menus, tooltips and buttons.
 - Added mod profiles for each game.
+- Added sharing and importing profiles.
 
 ### Changed
 
@@ -32,6 +33,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - Fixed reinstalls moving a mod's files into one folder.
 - Fixed ModWorkshop installs removing Nexus mods with the same id.
 - Fixed disabled hand-installed Diesel mods reappearing as new mods.
+- Fixed bursts of requests running into ModWorkshop's rate limit.
 
 ## 0.16.1
 
