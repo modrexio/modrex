@@ -97,8 +97,8 @@ the active profile leaves its mods installed, with no profile active.
 
 ## Sharing a profile
 
-Hover a profile's row and click **Share**. Choose **Copy code** to paste the profile into a message,
-or **Save file** to send it as a `.modrexprofile` file.
+Hover a profile's row and click **Share**. The dialog shows the profile code. **Copy code** copies
+it to paste into a message, and **Save file** saves it as a `.modrexprofile` file to send instead.
 
 A share lists your mods by their ModWorkshop and Nexus pages, never the files, so it stays small
 and whoever imports it downloads each mod from its page. It keeps folders, load order, which mods
@@ -115,7 +115,10 @@ mods**. Modrex looks every mod up without downloading anything and lists what it
 - **Download from Nexus**: the exact file the profile used.
 - **Choose a file**: the shared file is gone and nothing matches it by name. Pick one from the
   list, or leave it for later.
-- **Not available**: the mod was removed, hidden, or only links to another site.
+- **Not available**: the mod was removed or hidden, only links to another site, or its author
+  closed it to mod managers.
+
+Nexus mods are only looked up while you're signed in to Nexus Mods in Settings.
 
 Name the new profile and click **Download all mods**. The import always creates a new profile and
 switches to it, so the profile you had stays as it was. It's refused in the same cases as a
@@ -129,7 +132,9 @@ switch, and when mods are installed but no profile is active. Save one first.
 
 Anything the import couldn't finish waits under **Not downloaded** in the profile menu: Nexus mods
 you haven't fetched yet, files to choose, and archives that would normally ask you something.
-**Open on Nexus** or **Open mod page** gets one, and **Dismiss** stops waiting for it.
+**Open on Nexus** starts that file's download, and the mod lands in its folder and place once it
+installs. **Open mod page** opens a ModWorkshop mod's page on modworkshop.net. **Dismiss** stops
+waiting for a mod.
 
 Missing loaders install with the profile, except UE4SS, which installs from its mod page. A loader
 you already have is never replaced. When some of the imported mods have newer versions than the

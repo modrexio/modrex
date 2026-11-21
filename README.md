@@ -29,8 +29,8 @@ Free and open source, for Windows and Linux.
   SuperBLT or UE4SS.
 - **Control your load order.** Sort mods into folders, drag them into order, and switch one off
   without deleting it.
-- **Keep separate setups.** Each profile has its own mods, folders and load order, and you switch
-  between them from the top bar.
+- **Keep separate setups.** Each profile has its own mods, folders and load order. Switch between
+  them from the top bar, or share one with a code or a file.
 - **Keep your library healthy.** Mods you added by hand are recognized, and Health Check finds
   and fixes missing files, outdated mods and missing dependencies.
 
