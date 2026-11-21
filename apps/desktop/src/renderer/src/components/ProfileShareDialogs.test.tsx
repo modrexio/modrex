@@ -149,8 +149,10 @@ describe('ShareProfileDialog', () => {
             />
         )
         await screen.findByText(/2 mods installed by hand are left out/)
+        // The code is shown, so the user sees what they copy.
+        expect(screen.getByDisplayValue('MRX:abc')).toBeTruthy()
         fireEvent.click(screen.getByRole('button', { name: 'Copy code' }))
-        await screen.findByText('Code copied')
+        await screen.findByRole('button', { name: 'Code copied' })
         expect(writeText).toHaveBeenCalledWith('MRX:abc')
     })
 })

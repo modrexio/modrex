@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Check, X } from 'lucide-react'
+import { X } from 'lucide-react'
 import {
     api,
     type PendingShareMember,
@@ -95,29 +95,29 @@ export function ShareProfileDialog({ gameId, gamePath, profile, onClose }: Share
                 onClose={onClose}
                 wrapSubtitle
             />
-            {(error || leftOut > 0 || done) && (
-                <div className="px-5 py-4 flex flex-col gap-3">
-                    {error && <div className={errorBox}>{error}</div>}
-                    {leftOut > 0 && (
-                        <p className="text-sm text-text-muted">
-                            {t(
-                                leftOut === 1
-                                    ? 'installed.profiles.share.leftOutSingle'
-                                    : 'installed.profiles.share.leftOut',
-                                { count: leftOut }
-                            )}
-                        </p>
-                    )}
-                    {done && (
-                        <p className="flex items-center gap-2 text-sm text-success-text">
-                            <Check className="w-4 h-4 shrink-0" aria-hidden />
-                            {done === 'copied'
-                                ? t('installed.profiles.share.copied')
-                                : t('installed.profiles.share.saved')}
-                        </p>
-                    )}
-                </div>
-            )}
+            <div className="px-5 py-4 flex flex-col gap-3">
+                {error && <div className={errorBox}>{error}</div>}
+                {/* The code itself, so what gets copied is never hidden. */}
+                <textarea
+                    readOnly
+                    value={code ?? ''}
+                    rows={4}
+                    spellCheck={false}
+                    onFocus={(e) => e.currentTarget.select()}
+                    aria-label={t('installed.profiles.import.code')}
+                    className={`${fieldClass} font-mono resize-none`}
+                />
+                {leftOut > 0 && (
+                    <p className="text-sm text-text-muted">
+                        {t(
+                            leftOut === 1
+                                ? 'installed.profiles.share.leftOutSingle'
+                                : 'installed.profiles.share.leftOut',
+                            { count: leftOut }
+                        )}
+                    </p>
+                )}
+            </div>
             <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border shrink-0">
                 <Button
                     variant="secondary"
@@ -125,7 +125,9 @@ export function ShareProfileDialog({ gameId, gamePath, profile, onClose }: Share
                     disabled={code === null}
                     onClick={() => void save()}
                 >
-                    {t('installed.profiles.share.save')}
+                    {done === 'saved'
+                        ? t('installed.profiles.share.saved')
+                        : t('installed.profiles.share.save')}
                 </Button>
                 <Button
                     variant="accent"
@@ -133,7 +135,9 @@ export function ShareProfileDialog({ gameId, gamePath, profile, onClose }: Share
                     disabled={code === null}
                     onClick={() => void copy()}
                 >
-                    {t('installed.profiles.share.copy')}
+                    {done === 'copied'
+                        ? t('installed.profiles.share.copied')
+                        : t('installed.profiles.share.copy')}
                 </Button>
             </div>
         </Dialog>
