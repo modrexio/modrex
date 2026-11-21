@@ -1446,6 +1446,7 @@ export type ShareMember_Serialize = {
 
 export type SharePreviewLoader = {
 	id: string,
+	name: string,
 	alreadyPresent: boolean,
 };
 

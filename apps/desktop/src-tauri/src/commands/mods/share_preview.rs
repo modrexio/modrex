@@ -136,6 +136,7 @@ struct SharePreviewTotals {
 #[serde(rename_all = "camelCase")]
 pub(super) struct SharePreviewLoader {
     id: String,
+    name: &'static str,
     already_present: bool,
 }
 
@@ -168,7 +169,7 @@ fn workshop_resolution(
 ) -> ShareResolution {
     if files.is_empty() {
         return ShareResolution::Unavailable {
-            reason: "This mod has no hosted files".into(),
+            reason: "This mod has no files to download".into(),
         };
     }
     let ready = |file: &PreviewFile, found_by_name| ShareResolution::Ready {
@@ -223,7 +224,7 @@ fn nexus_resolution(catalog: &Catalog, mod_id: u32, file_id: Option<u32>) -> Sha
     }
     match &catalog.nexus_choices[&mod_id] {
         Ok(files) if files.is_empty() => ShareResolution::Unavailable {
-            reason: "The Nexus mod has no current files to choose from".into(),
+            reason: "The Nexus mod has no files to choose from".into(),
         },
         Ok(files) => ShareResolution::NeedsChoice {
             candidates: files.clone(),
@@ -359,6 +360,7 @@ fn preview_loaders(
                 || store.has_parked_loader(id)?;
             Ok(SharePreviewLoader {
                 id: id.clone(),
+                name: spec.name,
                 already_present,
             })
         })

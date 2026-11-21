@@ -121,9 +121,7 @@ pub(super) fn resolve_rows(
                 ShareResolution::Ready { file, .. } | ShareResolution::NexusDownload { file },
                 None,
             ) => (Some(file), None),
-            (ShareResolution::NeedsChoice { .. }, None) => {
-                (None, Some("Choose a catalog file".into()))
-            }
+            (ShareResolution::NeedsChoice { .. }, None) => (None, Some("Choose a file".into())),
             (
                 ShareResolution::Unavailable { reason } | ShareResolution::LookupFailed { reason },
                 None,
@@ -145,7 +143,7 @@ pub(super) fn resolve_rows(
             } => (
                 file_id.map(|id| (mod_id, id)),
                 pin,
-                "Waiting for installation",
+                "The import stopped before this mod was installed",
             ),
             ShareFile::Nexus { file_id: pin, .. } => (None, pin, "Waiting for a Nexus download"),
         };
@@ -462,7 +460,8 @@ pub(in crate::commands::mods) async fn run(
                 Err(error) => LoaderOutcome::Failed { error },
             }
         };
-        loader_results.insert(id.clone(), outcome);
+        // Keyed by name, since the result is only ever shown.
+        loader_results.insert(spec.name.to_string(), outcome);
     }
     let mut members = Vec::with_capacity(rows.len());
     let mut newer_versions = 0;

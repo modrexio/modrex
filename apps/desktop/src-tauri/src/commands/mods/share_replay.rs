@@ -117,10 +117,14 @@ async fn place(
         .is_some_and(|tag| tag != target.tag)
         && !legacy
     {
-        return Ok(pending("The archive now installs into a different target"));
+        return Ok(pending(
+            "The current upload installs into a different location than the shared one",
+        ));
     }
     if reference.folder_id.is_some() && target.tag != cfg.primary().tag {
-        return Ok(pending("This install target cannot use the shared folder"));
+        return Ok(pending(
+            "This mod installs where app folders are not available",
+        ));
     }
     disk_name(&record.filename)?;
     let state = install.read()?;
@@ -165,14 +169,14 @@ fn host_pack(
     pack: zip::HostPackPayload,
 ) -> Result<MemberOutcome, String> {
     let Some(set) = reference.member.host_pack_set.as_deref() else {
-        return Ok(pending("Choose a host-pack set"));
+        return Ok(pending("Choose which add-on to install"));
     };
     let Some(index) = selected(
         &pack.entries,
         reference.member.archive_member.as_deref(),
         set,
     ) else {
-        return Ok(pending("Choose a host-pack set"));
+        return Ok(pending("Choose which add-on to install"));
     };
     let entry = &pack.entries[index];
     let (_, name) = mods::entry_names(entry);
@@ -195,9 +199,7 @@ fn host_pack(
             .try_exists()
             .map_err(|e| e.to_string())?
     {
-        return Ok(pending(
-            "Another installation already uses this host-pack set",
-        ));
+        return Ok(pending("This add-on is already installed"));
     }
     record.location = Some(format!("host:{}:{}", pack.host_mod_id, pack.host_subpath));
     record.archive_member = Some(entry.clone());
@@ -245,7 +247,7 @@ async fn replay(
             {
                 cleanup::run_staged(&staged.cleanup, staged.original_archive).await;
                 return Ok(pending(
-                    "The recorded archive choice is no longer available",
+                    "The file picked from this archive is no longer in it",
                 ));
             }
             record.filename = decisions::install_filename_for_source_file(
@@ -262,14 +264,14 @@ async fn replay(
         Err(ResolveError::Prompt(prompt)) => match *prompt {
             InstallPrompt::ZipMultiPak(picker) => {
                 if reference.member.host_pack_set.is_some() {
-                    return Ok(pending("The recorded host-pack set is no longer available"));
+                    return Ok(pending("The shared add-on is no longer in this archive"));
                 }
                 let Some(i) = selected(
                     &picker.entries,
                     reference.member.archive_member.as_deref(),
                     &reference.member.installed_name,
                 ) else {
-                    return Ok(pending("Choose an archive entry"));
+                    return Ok(pending("Choose a file from the archive"));
                 };
                 let entry = registry
                     .entry(
@@ -310,7 +312,7 @@ async fn replay(
                 return host_pack(install, reference, path, record, pack)
             }
             InstallPrompt::CbFlatArchive(_) => {
-                return Ok(pending("Confirm the flat Crime Boss archive"))
+                return Ok(pending("Confirm installing this archive as a mod folder"))
             }
             InstallPrompt::UnrecognizedArchive => {
                 return Ok(pending(
@@ -319,13 +321,9 @@ async fn replay(
             }
         },
         Err(ResolveError::Resources(_)) => {
-            return Ok(pending("Review the resources before installing"))
+            return Ok(pending("Review what this mod changes before installing it"))
         }
-        Err(ResolveError::Ue4ssLoader(_)) => {
-            return Ok(pending(
-                "Install or review the UE4SS loader through its mod page",
-            ))
-        }
+        Err(ResolveError::Ue4ssLoader(_)) => return Ok(pending("Install UE4SS from its mod page")),
         Err(ResolveError::Failure(error)) => return Err(error),
     };
     let result = place(install, reference, record, &staged).await;

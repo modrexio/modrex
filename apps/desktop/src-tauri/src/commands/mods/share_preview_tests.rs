@@ -156,7 +156,7 @@ fn missing_hidden_link_only_and_manager_disabled_mods_are_unavailable() {
     let result = preview(vec![member], &workshop(json!([])));
     assert_eq!(
         result["rows"][0]["resolution"],
-        json!({"status":"unavailable","reason":"This mod has no hosted files"})
+        json!({"status":"unavailable","reason":"This mod has no files to download"})
     );
 }
 

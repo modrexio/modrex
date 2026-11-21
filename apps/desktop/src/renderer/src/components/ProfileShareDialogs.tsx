@@ -387,8 +387,8 @@ function PreviewBody({
             STATUS_ORDER.indexOf(a.resolution.status) - STATUS_ORDER.indexOf(b.resolution.status)
     )
     const nexusCount = preview.totals.nexusDownloadsNeeded
-    const toInstall = preview.loaders.filter((l) => !l.alreadyPresent).map((l) => l.id)
-    const present = preview.loaders.filter((l) => l.alreadyPresent).map((l) => l.id)
+    const toInstall = preview.loaders.filter((l) => !l.alreadyPresent).map((l) => l.name)
+    const present = preview.loaders.filter((l) => l.alreadyPresent).map((l) => l.name)
     return (
         <>
             <label className="flex flex-col gap-1">
