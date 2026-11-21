@@ -31,6 +31,7 @@ import { SkeletonCard } from './SkeletonCard'
 import { Select } from './Select'
 import { TagFilter } from './TagFilter'
 import { SourceSelect } from './SourceSelect'
+import { PaginationFooter } from './PaginationFooter'
 import { DepsWarningModal } from './DepsWarningModal'
 import { FileSelectModal } from './FileSelectModal'
 import { NonPakConfirmModal } from './NonPakConfirmModal'
@@ -61,23 +62,6 @@ interface Props {
     onSourceChange: (next: string) => void
     onOpenDetail: (modId: number, initialMod?: ModSummary) => void
     onGoToSettings?: () => void
-}
-
-function buildPages(current: number, last: number): (number | '...')[] {
-    const pages: (number | '...')[] = []
-    const delta = 2
-    const left = current - delta
-    const right = current + delta
-
-    let prev: number | null = null
-    for (let p = 1; p <= last; p++) {
-        if (p === 1 || p === last || (p >= left && p <= right)) {
-            if (prev !== null && p - prev > 1) pages.push('...')
-            pages.push(p)
-            prev = p
-        }
-    }
-    return pages
 }
 
 // api.rs's api_get formats a rate-limit failure as "modworkshop API 429: <path>"
@@ -255,7 +239,6 @@ export function BrowsePage({
     const prefetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const scrollRef = useRef<HTMLDivElement>(null)
     const fetchIdRef = useRef(0)
-    const [lastMeta, setLastMeta] = useState<{ last_page: number; total: number } | null>(null)
     const {
         loaderState,
         setLoaderFlag,
@@ -374,9 +357,6 @@ export function BrowsePage({
     // debounce window. On isActive re-entry with unchanged params we deliberately
     // keep showing the cached result during the background refresh (SWR behaviour).
     const lastFiltersRef = useRef<string | null>(null)
-    useEffect(() => {
-        if (result) setLastMeta({ last_page: result.meta.last_page, total: result.meta.total })
-    }, [result])
     useEffect(() => {
         if (!isActive) return
         const filters = JSON.stringify([page, query, categoryId, sort, includeTags, excludeTags])
@@ -852,42 +832,16 @@ export function BrowsePage({
                 />
             </ScrollArea>
 
-            {(() => {
-                const footerMeta = result?.meta ?? lastMeta
-                if (!footerMeta || footerMeta.last_page <= 1) return null
-                return (
-                    <div className="px-6 py-3 border-t border-border flex items-center justify-between shrink-0">
-                        <span className="text-xs text-text-subtle">
-                            {footerMeta.total > 0 &&
-                                t('browse.modCount', { total: footerMeta.total })}
-                        </span>
-                        <div className="flex gap-1">
-                            {buildPages(page, footerMeta.last_page).map((p, i) =>
-                                p === '...' ? (
-                                    <span
-                                        key={`ellipsis-${i}`}
-                                        className="text-xs px-2 py-1 text-text-subtle"
-                                    >
-                                        …
-                                    </span>
-                                ) : (
-                                    <button
-                                        key={p}
-                                        onClick={() => setPage(p as number)}
-                                        className={`text-xs px-3 py-1 rounded transition-colors ${
-                                            p === page
-                                                ? 'bg-accent-fill text-white'
-                                                : 'bg-surface-hover hover:bg-surface-active'
-                                        }`}
-                                    >
-                                        {p}
-                                    </button>
-                                )
-                            )}
-                        </div>
-                    </div>
-                )
-            })()}
+            <PaginationFooter
+                page={page}
+                lastPage={result?.meta.last_page ?? null}
+                label={
+                    result && result.meta.total > 0
+                        ? t('browse.modCount', { total: result.meta.total })
+                        : null
+                }
+                onPageChange={setPage}
+            />
         </div>
     )
 }

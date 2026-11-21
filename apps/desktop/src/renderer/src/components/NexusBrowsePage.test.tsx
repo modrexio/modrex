@@ -87,6 +87,28 @@ describe('Nexus browse sign-in', () => {
         expect(screen.queryByText(t('nexus.sessionExpiredHint'))).toBeNull()
     })
 
+    it('keeps the pagination footer mounted while the next page loads', async () => {
+        await renderPage()
+        const meta = { total: 5151, current_page: 1, last_page: 215, per_page: 24 }
+        vi.mocked(api.nexusSearchMods).mockResolvedValueOnce({ data: [], meta })
+        act(() => {
+            for (const [onSignedIn] of vi.mocked(api.onNexusOAuthSignedIn).mock.calls) onSignedIn()
+        })
+        const pageTwo = await screen.findByRole('button', { name: '2' })
+        let resolveNext!: () => void
+        vi.mocked(api.nexusSearchMods).mockReturnValueOnce(
+            new Promise((resolve) => {
+                resolveNext = () => resolve({ data: [], meta: { ...meta, current_page: 2 } })
+            })
+        )
+        fireEvent.click(pageTwo)
+        await waitFor(() => expect(api.nexusSearchMods).toHaveBeenCalledTimes(2))
+        expect(screen.getByRole('button', { name: '215' })).toBeTruthy()
+        expect(screen.getByText(t('nexus.modCount', { total: 5151 }))).toBeTruthy()
+        await act(async () => resolveNext())
+        expect(screen.getByRole('button', { name: '215' })).toBeTruthy()
+    })
+
     it.each(['ron', 'pd3'] as const)(
         'offers direct sign-in for %s and disables filters',
         async (game) => {

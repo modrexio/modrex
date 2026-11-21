@@ -8,6 +8,7 @@ jobs:
     # The release environment's wait timer is the last chance to stop a bad
     # release. Cancelling this run during the wait stops every target below.
     hold:
+        if: ${{ !github.event.release.prerelease }}
         runs-on: ubuntu-latest
         environment:
             name: release

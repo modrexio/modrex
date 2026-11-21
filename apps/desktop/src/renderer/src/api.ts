@@ -101,8 +101,8 @@ import type {
 
 export type { StartupPhase } from '../../shared/bindings'
 import type { StartupPhase } from '../../shared/bindings'
-export type { AnalyticsConsent } from '../../shared/bindings'
-import type { AnalyticsConsent } from '../../shared/bindings'
+export type { AnalyticsConsent, UpdateChannel, UpdatedNotice } from '../../shared/bindings'
+import type { AnalyticsConsent, UpdateChannel, UpdatedNotice } from '../../shared/bindings'
 
 type Settings = {
     gamePath?: string
@@ -421,8 +421,16 @@ export const api = {
     async finishStartup(): Promise<void> {
         await commands.finishStartup()
     },
-    onStartupProgress(callback: (phase: StartupPhase) => void): () => void {
-        return onEvent<StartupPhase>('startup:progress', callback)
+    waitForStartupGate(): Promise<UpdatedNotice | null> {
+        return commands.waitForStartupGate()
+    },
+    skipStartupUpdate(): Promise<void> {
+        return commands.skipStartupUpdate()
+    },
+    // Resolves once the listener is registered, so a snapshot requested afterwards can never
+    // be older than an event this listener misses.
+    listenStartupProgress(callback: (phase: StartupPhase) => void): Promise<() => void> {
+        return listen<StartupPhase>('startup:progress', (event) => callback(event.payload))
     },
 
     // ── Browse / API ───────────────────────────────────────────────────────────
@@ -604,6 +612,7 @@ export const api = {
         folders: ModFolder[]
         modsHidden: boolean
         stateUnreadable: boolean
+        stateNewer: boolean
         resourceError?: string | null
         resourceRecoveryPending: boolean
     }> {
@@ -612,6 +621,7 @@ export const api = {
             folders: ModFolder[]
             modsHidden: boolean
             stateUnreadable: boolean
+            stateNewer: boolean
             resourceError?: string | null
             resourceRecoveryPending: boolean
         }>
@@ -1037,8 +1047,20 @@ export const api = {
     async installUpdate(): Promise<void> {
         await commands.installUpdate()
     },
-    async checkForUpdates(): Promise<void> {
-        await commands.checkForUpdate()
+    checkForUpdates(): Promise<string | null> {
+        return commands.checkForUpdate()
+    },
+    checkAfterStartupGate(): Promise<string | null> {
+        return commands.checkAfterStartupGate()
+    },
+    getUpdateChannel(): Promise<UpdateChannel> {
+        return commands.getUpdateChannel()
+    },
+    setUpdateChannel(channel: UpdateChannel): Promise<void> {
+        return commands.setUpdateChannel(channel)
+    },
+    installNightly(): Promise<boolean> {
+        return commands.installNightly()
     },
 
     // ── Window controls (custom title bar) ─────────────────────────────────────

@@ -10,6 +10,8 @@ use tauri::{webview::PageLoadEvent, Manager, WindowEvent};
 use tauri_plugin_deep_link::DeepLinkExt;
 
 fn route_deep_link(app: &tauri::AppHandle, url: &tauri::Url) {
+    // A link starts its own install, so it must revoke an update on open before any work.
+    app.state::<commands::startup::StartupState>().release(app);
     match url.scheme() {
         "modrex" => commands::nexus_oauth::spawn_handle_oauth_callback(app, url.to_string()),
         _ => commands::nxm::spawn_handle_nxm_url(app, url.to_string()),
@@ -29,6 +31,8 @@ fn ipc_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::startup::report_startup_phase,
             commands::startup::get_startup_phase,
             commands::startup::finish_startup,
+            commands::startup::wait_for_startup_gate,
+            commands::startup::skip_startup_update,
             // api
             commands::api::list_mods,
             commands::api::get_mod_versions,
@@ -138,8 +142,12 @@ fn ipc_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::launchers::open_app_folder,
             // updater
             commands::updater::check_for_update,
+            commands::updater::set_update_channel,
+            commands::settings::get_update_channel,
             commands::updater::download_update,
             commands::updater::install_update,
+            commands::updater::install_nightly,
+            commands::on_open_update::check_after_startup_gate,
             // thumbnails
             commands::thumbnails::get_thumbnail,
             // mod index
@@ -180,6 +188,7 @@ pub fn run() {
         .expect("install rustls crypto provider");
 
     let (discord_state, discord_rx) = commands::discord::DiscordState::new(true);
+    let holding = commands::on_open_update::holding_build();
 
     let mut builder = tauri::Builder::default();
     #[cfg(desktop)]
@@ -188,7 +197,10 @@ pub fn run() {
             // Not argv itself, it can carry an nxm:// URL with a real download token.
             log::info!("second instance launched with {} arg(s)", argv.len());
             // A second launch is the user asking for the app, so surface the existing window.
-            if let Some(window) = app.get_webview_window("main") {
+            // Until startup shows main, main may still be empty and the splash is the app.
+            let presented = app.state::<commands::startup::StartupState>().presented();
+            let label = if presented { "main" } else { "splash" };
+            if let Some(window) = app.get_webview_window(label) {
                 let _ = window.unminimize();
                 let _ = window.show();
                 let _ = window.set_focus();
@@ -203,19 +215,29 @@ pub fn run() {
         .manage(commands::mods::ResourceReviews::default())
         .manage(commands::mods::IniLocations::default())
         .manage(commands::mods::GraphicsConfigLocations::default())
-        .manage(commands::startup::StartupState::default())
+        .manage(commands::startup::StartupState::new(holding))
+        .manage(commands::on_open_update::OnOpenUpdate::new(holding))
         .manage(discord_state)
         .register_uri_scheme_protocol("thumb", |ctx, request| {
             commands::thumbnails::handle_thumb_protocol(ctx.app_handle(), request)
         })
-        .on_window_event(|window, event| {
-            if let WindowEvent::Focused(focused) = event {
-                commands::analytics::window_focus_changed(
-                    window.app_handle(),
-                    window.label(),
-                    *focused,
-                );
+        .on_window_event(|window, event| match event {
+            WindowEvent::Focused(focused) => commands::analytics::window_focus_changed(
+                window.app_handle(),
+                window.label(),
+                *focused,
+            ),
+            // Closing the splash before main is shown would leave a running app with no
+            // window at all. It skips an update on open instead, and the splash stays until
+            // startup finishes or its recovery button opens main.
+            WindowEvent::CloseRequested { api, .. } if window.label() == "splash" => {
+                let startup = window.state::<commands::startup::StartupState>();
+                if !startup.presented() {
+                    api.prevent_close();
+                    startup.release(window.app_handle());
+                }
             }
+            _ => {}
         })
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
@@ -228,7 +250,7 @@ pub fn run() {
                 .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepOne)
                 .build(),
         )
-        .setup(|app| {
+        .setup(move |app| {
             log::info!("Modrex started");
             // The one staged-archive registry this application owns. Commands reach it
             // through managed state, so nothing has to consult a process global.
@@ -256,10 +278,23 @@ pub fn run() {
 
             // A link that launched this very process isn't replayed through
             // on_open_url on Windows/Linux, it only surfaces via get_current.
+            let mut launched_by_link = false;
             if let Ok(Some(urls)) = app.deep_link().get_current() {
+                launched_by_link = !urls.is_empty();
                 for url in urls {
                     route_deep_link(app.handle(), &url);
                 }
+            }
+
+            // Started last, after the staging registry the exit handler reads is managed.
+            if holding {
+                tauri::async_runtime::spawn(commands::on_open_update::run(
+                    app.handle().clone(),
+                    launched_by_link,
+                ));
+                tauri::async_runtime::spawn(commands::on_open_update::watchdog(
+                    app.handle().clone(),
+                ));
             }
 
             Ok(())
@@ -312,21 +347,28 @@ pub fn run() {
     let handle = app.handle().clone();
     tauri::async_runtime::spawn(commands::thumbnails::cleanup_thumbnail_cache(handle));
 
+    // A holding build's renderer asks after its startup gate instead, so this check cannot
+    // raise the pop-up during an update on open.
     #[cfg(not(debug_assertions))]
-    {
+    if !holding {
         let handle = app.handle().clone();
         tauri::async_runtime::spawn(async move {
-            let _ = commands::updater::check_for_update(handle).await;
+            if let Err(e) = commands::updater::check_for_update(handle).await {
+                log::warn!("startup update check: {e}");
+            }
         });
     }
 
     // Archives still waiting on a prompt when the app exits are removed through the plans
     // the registry holds for them, so a closed window does not leave them behind. Nothing is
     // recovered after a crash: an artifact whose ownership cannot be proven is left alone.
-    app.run(|app_handle, event| {
+    app.run(move |app_handle, event| {
         if matches!(event, tauri::RunEvent::Exit) {
             commands::mods::discard_all_staged_archives(app_handle);
             commands::mods::discard_all_resource_reviews(app_handle);
+            if holding {
+                commands::on_open_update::clear_step_mark(app_handle);
+            }
         }
     });
 }

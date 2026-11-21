@@ -14,6 +14,7 @@ pub mod news;
 pub mod nexus;
 pub mod nexus_oauth;
 pub mod nxm;
+pub mod on_open_update;
 pub mod pak_viewer;
 mod path_display;
 pub mod secrets;

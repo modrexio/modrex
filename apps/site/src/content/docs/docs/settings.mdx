@@ -6,7 +6,7 @@ description: Reference for all configurable options in Modrex.
 import { sitePath } from '../../../lib/site-path'
 
 Settings is organized into four tabs: **Game**, **Application**, **Advanced**, and **About**. The Game tab
-holds per-game configuration; the other tabs hold global options and project information.
+holds per-game configuration. The other tabs hold global options and project information.
 
 ## Game
 
@@ -20,9 +20,7 @@ you save.
 
 ### Launcher
 
-Override the auto-detected launcher. Launcher support is game-specific; see
-
-<a href={sitePath('/docs/games/')}>Supported games</a> for the current matrix. Modrex uses this
+Override the auto-detected launcher. Launcher support is game-specific. See <a href={sitePath('/docs/games/')}>Supported games</a> for the current matrix. Modrex uses this
 setting to determine how to start the active game when you click Launch.
 
 ### New Mod Installs (Crime Boss)
@@ -44,10 +42,12 @@ which works around an empty crash report window. Off by default.
 
 ## Application
 
-### Check for updates
+### Updates
 
-Manually check whether a new version of Modrex is available. Modrex also checks automatically on
-every launch.
+Choose which releases Modrex updates to: **Stable** or **Nightly**. Picking Nightly on a Stable
+version asks you to confirm, then installs the newest nightly. **Check for updates** looks for a new version now,
+and Modrex also checks every time it opens. Read
+about <a href={sitePath('/docs/nightly')}>Nightly builds</a> before switching.
 
 ### Usage analytics
 

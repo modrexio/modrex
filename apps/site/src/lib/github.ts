@@ -18,6 +18,18 @@ export interface ReleaseAsset {
     download_count: number
 }
 
+export function getDownloadUrls(release: Release | null) {
+    const fallback = 'https://github.com/modrexio/modrex/releases/latest'
+    return {
+        windows:
+            release?.assets.find((asset) => asset.name.endsWith('.exe'))?.browser_download_url ??
+            fallback,
+        linux:
+            release?.assets.find((asset) => asset.name.endsWith('.AppImage'))
+                ?.browser_download_url ?? fallback,
+    }
+}
+
 // Build-time only. The unauthenticated GitHub API allows 60 requests/hour per IP, which shared
 // CI build IPs can hit; setting a GITHUB_TOKEN env var raises it to 5000/hour. The token is
 // optional so local builds and forks still work without one.
@@ -41,6 +53,17 @@ export async function getLatestRelease(): Promise<Release> {
     const res = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, {
         headers: githubHeaders(),
     })
+    if (!res.ok) throw await apiError(res)
+    return (await res.json()) as Release
+}
+
+// The rolling nightly pre-release, or null before the first nightly is published. The download
+// section offers Nightly only once this exists.
+export async function getNightlyRelease(): Promise<Release | null> {
+    const res = await fetch(`https://api.github.com/repos/${REPO}/releases/tags/nightly`, {
+        headers: githubHeaders(),
+    })
+    if (res.status === 404) return null
     if (!res.ok) throw await apiError(res)
     return (await res.json()) as Release
 }

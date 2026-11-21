@@ -44,7 +44,7 @@ export function Sidebar({ navigation, onShowWelcome }: Props) {
 
     return (
         <aside
-            className={`${collapsed ? 'w-12' : 'w-48'} shrink-0 flex flex-col bg-surface-raised border-r border-border transition-[width] duration-200 overflow-hidden`}
+            className={`${collapsed ? 'w-12' : 'w-48'} shrink-0 flex flex-col bg-surface-raised border-r border-border transition-[width] duration-surface overflow-hidden`}
         >
             {navigation.kind === 'game' ? (
                 <div className="p-2 border-b border-border shrink-0">
@@ -58,7 +58,7 @@ export function Sidebar({ navigation, onShowWelcome }: Props) {
                         >
                             <ArrowLeft className="w-3.5 h-3.5 shrink-0 text-text-subtle" />
                             <span
-                                className={`truncate transition-opacity duration-200 font-medium flex-1 text-left ${collapsed ? 'opacity-0' : 'opacity-100'}`}
+                                className={`truncate transition-opacity duration-surface font-medium flex-1 text-left ${collapsed ? 'opacity-0' : 'opacity-100'}`}
                             >
                                 {GAMES[navigation.activeGame].name}
                             </span>
@@ -74,7 +74,7 @@ export function Sidebar({ navigation, onShowWelcome }: Props) {
                         >
                             <ArrowLeft className="w-3.5 h-3.5 shrink-0" />
                             <span
-                                className={`truncate transition-opacity duration-200 font-medium flex-1 text-left ${collapsed ? 'opacity-0' : 'opacity-100'}`}
+                                className={`truncate transition-opacity duration-surface font-medium flex-1 text-left ${collapsed ? 'opacity-0' : 'opacity-100'}`}
                             >
                                 {t('sidebar.back')}
                             </span>
@@ -111,7 +111,7 @@ export function Sidebar({ navigation, onShowWelcome }: Props) {
                                     >
                                         <Icon className="w-4 h-4 shrink-0" />
                                         <span
-                                            className={`truncate transition-opacity duration-200 ${collapsed ? 'opacity-0' : 'opacity-100'}`}
+                                            className={`truncate transition-opacity duration-surface ${collapsed ? 'opacity-0' : 'opacity-100'}`}
                                         >
                                             {t(item.labelKey)}
                                         </span>
@@ -133,7 +133,7 @@ export function Sidebar({ navigation, onShowWelcome }: Props) {
                     >
                         <Settings className="w-4 h-4 shrink-0" />
                         <span
-                            className={`truncate transition-opacity duration-200 ${collapsed ? 'opacity-0' : 'opacity-100'}`}
+                            className={`truncate transition-opacity duration-surface ${collapsed ? 'opacity-0' : 'opacity-100'}`}
                         >
                             {t('sidebar.settings')}
                         </span>
@@ -152,7 +152,7 @@ export function Sidebar({ navigation, onShowWelcome }: Props) {
                             <path d={siDiscord.path} />
                         </svg>
                         <span
-                            className={`truncate transition-opacity duration-200 ${collapsed ? 'opacity-0' : 'opacity-100'}`}
+                            className={`truncate transition-opacity duration-surface ${collapsed ? 'opacity-0' : 'opacity-100'}`}
                         >
                             {t('sidebar.discord')}
                         </span>
@@ -165,7 +165,7 @@ export function Sidebar({ navigation, onShowWelcome }: Props) {
                     >
                         <CircleHelp className="w-4 h-4 shrink-0" />
                         <span
-                            className={`truncate transition-opacity duration-200 ${collapsed ? 'opacity-0' : 'opacity-100'}`}
+                            className={`truncate transition-opacity duration-surface ${collapsed ? 'opacity-0' : 'opacity-100'}`}
                         >
                             {t('sidebar.docs')}
                         </span>
@@ -188,10 +188,10 @@ export function Sidebar({ navigation, onShowWelcome }: Props) {
                         className="w-full px-2 py-1.5 gap-2.5 flex items-center rounded text-xs text-text-subtle hover:bg-surface-hover hover:text-text transition-colors"
                     >
                         <ChevronLeft
-                            className={`w-4 h-4 shrink-0 transition-transform duration-200 ${collapsed ? 'rotate-180' : ''}`}
+                            className={`w-4 h-4 shrink-0 transition-transform duration-surface ${collapsed ? 'rotate-180' : ''}`}
                         />
                         <span
-                            className={`truncate transition-opacity duration-200 ${collapsed ? 'opacity-0' : 'opacity-100'}`}
+                            className={`truncate transition-opacity duration-surface ${collapsed ? 'opacity-0' : 'opacity-100'}`}
                         >
                             {t('sidebar.collapse')}
                         </span>

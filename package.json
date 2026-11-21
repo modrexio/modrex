@@ -16,7 +16,7 @@
         "typecheck": "bun run typecheck:bun && bun run site:typecheck && bun run site:typecheck:functions",
         "typecheck:functions": "bun check -p functions/tsconfig.json",
         "typecheck:tools": "bun check -p tsconfig.tools.json",
-        "typecheck:bun": "bun check -b tsconfig.bun.json",
+        "typecheck:bun": "bun apps/desktop/scripts/preview-fixtures.mts && bun check -b tsconfig.bun.json",
         "check-version": "bun run --cwd apps/desktop check-version",
         "check-overrides": "bun run --cwd apps/desktop check-overrides",
         "check-commands": "bun run --cwd apps/desktop check-commands",

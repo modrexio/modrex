@@ -1,3 +1,4 @@
+import { stringWidth } from 'bun'
 import type { CliOutput } from './i18n-io.mts'
 import type { StatusSummaries } from './i18n-presentation.mts'
 import { placeholderContract } from '../src/shared/i18n-values.mts'
@@ -192,7 +193,7 @@ function renderRichRow(
     styles: SemanticStyles & BarStyles,
     width: number
 ) {
-    const boldLabel = styles.heading(label.padEnd(status.labelWidth))
+    const boldLabel = styles.heading(label + ' '.repeat(status.labelWidth - stringWidth(label)))
     const bar = width > 0 ? `${renderStatusBar(status, styles, width)} ` : ''
     const counts = rowCounts(status)
     return `${boldLabel} ${bar}${status.label.padEnd(STATUS_COLUMN_WIDTH)} ${counts}`.trimEnd()
@@ -228,7 +229,7 @@ function statusRows(summaries: StatusSummaries, nativeName: (id: string) => stri
     const labels = [source, ...targets].map(
         (status) => `${nativeName(status.locale)} (${status.locale})`
     )
-    const labelWidth = Math.max(...labels.map((label) => label.length))
+    const labelWidth = Math.max(...labels.map((label) => stringWidth(label)))
     return [source, ...targets].map((status, index) => ({
         ...status,
         labelWidth,

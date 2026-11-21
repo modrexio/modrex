@@ -9,6 +9,13 @@ const tailwindColor =
     '(zinc|slate|gray|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-' +
     '(50|100|200|300|400|500|600|700|800|900|950)'
 
+function motionClassSelector(pattern: string) {
+    return (
+        ":matches(JSXAttribute[name.name='className'], CallExpression[callee.name='cva']) " +
+        `:matches(Literal[value=/${pattern}/], TemplateElement[value.cooked=/${pattern}/])`
+    )
+}
+
 // The rules below match eslint:recommended, typescript-eslint's recommended set and the
 // renderer's react-hooks recommended set. Oxlint's
 // correctness category stays on as well. Its parser already rejects legacy octal literals, which
@@ -98,6 +105,27 @@ export default defineConfig({
                         selector: `JSXAttribute[name.name='className'] TemplateElement[value.cooked=/${tailwindColor}/]`,
                         message:
                             'Use a semantic color token from index.css (@theme), not a hardcoded Tailwind color class.',
+                    },
+                    {
+                        selector: motionClassSelector('(^|[\\s:!])transition-all(?=[\\s!]|$)'),
+                        message:
+                            'Name transition properties and use duration-feedback from index.css.',
+                    },
+                    {
+                        selector: motionClassSelector('(^|[\\s:!])(duration|delay)-[0-9\\[(]'),
+                        message:
+                            'Use duration-feedback, duration-overlay, duration-overlay-exit, or duration-surface from index.css.',
+                    },
+                    {
+                        selector: motionClassSelector(
+                            '(^|[\\s:!])ease-(?!(motion|standard)(?=[\\s!]|$))'
+                        ),
+                        message: 'Use ease-motion or ease-standard from index.css.',
+                    },
+                    {
+                        selector: motionClassSelector('(^|[\\s:!])animate-[\\[(]'),
+                        message:
+                            'Use a named animation token from index.css, such as animate-overlay-in or animate-drop-status-out.',
                     },
                     {
                         selector:

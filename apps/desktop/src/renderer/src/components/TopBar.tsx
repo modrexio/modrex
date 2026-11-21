@@ -4,16 +4,22 @@ import { Button } from './ui/Button'
 import { WindowControls } from './WindowControls'
 import { Tooltip } from './Tooltip'
 import { t } from '../i18n'
-import { api } from '../api'
+
+function versionLabel() {
+    if (import.meta.env.DEV) return 'v-dev'
+    return `v${import.meta.env.VITE_APP_VERSION}`
+}
 
 export interface TopBarProps {
     update?: { phase: 'downloading' | 'ready'; percent: number | null } | null
     onDismissUpdate?: () => void
+    onInstallUpdate?: () => void
 }
 
 export function TopBar({
     update,
     onDismissUpdate,
+    onInstallUpdate,
     children,
 }: TopBarProps & { children?: ReactNode }) {
     return (
@@ -40,14 +46,14 @@ export function TopBar({
                             className="text-xs text-text-subtle"
                             style={{ marginBottom: '0.3rem' }}
                         >
-                            {import.meta.env.DEV ? 'v-dev' : `v${import.meta.env.VITE_APP_VERSION}`}
+                            {versionLabel()}
                         </span>
                     </div>
                     <div className="flex items-center gap-2 h-full">
                         {update?.phase === 'ready' && (
                             <>
                                 <button
-                                    onClick={() => api.installUpdate()}
+                                    onClick={onInstallUpdate}
                                     className="text-xs px-3 py-1 rounded bg-accent/20 hover:bg-accent/30 text-accent transition-colors flex items-center gap-1.5"
                                 >
                                     <RefreshCw className="w-3.5 h-3.5" />
@@ -69,8 +75,8 @@ export function TopBar({
                 {update?.phase === 'downloading' && (
                     <div className="h-0.5 bg-surface-hover">
                         <div
-                            className="h-full bg-accent transition-all duration-300"
-                            style={{ width: `${update.percent ?? 0}%` }}
+                            className="h-full w-full origin-left bg-accent transition-[scale] duration-surface"
+                            style={{ scale: `${(update.percent ?? 0) / 100} 1` }}
                         />
                     </div>
                 )}

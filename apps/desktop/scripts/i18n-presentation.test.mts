@@ -1,3 +1,4 @@
+import { stringWidth } from 'bun'
 import assert from 'node:assert/strict'
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -296,6 +297,120 @@ test('plain and rich status renderers preserve the same semantic facts', () => {
     const richText = stripAnsi(rich.value())
     assert.doesNotMatch(richText, /[[\]?!]/u)
     assert.match(richText, /Deutsch \(de\).*━{40}.*100%.*420 accepted, 2 review, fallback=1/u)
+})
+
+for (const { name, names, paddedLabels } of [
+    {
+        name: 'wide Chinese labels',
+        names: { en: 'English', 'zh-CN': '中文（中国）' },
+        paddedLabels: ['English (en)        ', '中文（中国） (zh-CN)'],
+    },
+    {
+        name: 'combining mark labels',
+        names: { en: 'English', fr: 'E\u0301' },
+        paddedLabels: ['English (en)', 'E\u0301 (fr)      '],
+    },
+    {
+        name: 'mixed narrow, wide, and combining labels',
+        names: {
+            en: 'English',
+            'zh-CN': '中文（中国）',
+            ja: '日本語',
+            fr: 'E\u0301',
+            uk: 'Українська',
+        },
+        paddedLabels: [
+            'English (en)        ',
+            '中文（中国） (zh-CN)',
+            '日本語 (ja)         ',
+            'E\u0301 (fr)              ',
+            'Українська (uk)     ',
+        ],
+    },
+    {
+        name: 'one-cell labels preserve exact rich output',
+        names: { en: 'English', uk: 'Українська' },
+        paddedLabels: ['English (en)   ', 'Українська (uk)'],
+    },
+]) {
+    test(`rich status aligns ${name}`, () => {
+        const stream = outputStream({ isTTY: true, columns: 120 })
+        const nativeNames: Record<string, string> = names
+        const summaries = buildStatusSummaries(
+            inspection(
+                10,
+                Object.keys(names)
+                    .filter((id) => id !== 'en')
+                    .map((id) => locale(id, { accepted: 10 }))
+            )
+        )
+        renderStatus({
+            summaries,
+            capabilities: detectCliCapabilities({ stdout: stream.stream, env: {} }),
+            nativeName: (id) => nativeNames[id]!,
+            stdout: stream.stream,
+        })
+        assert.equal(
+            stream.value(),
+            paddedLabels
+                .map(
+                    (label, index) =>
+                        `\u001b[1m${label}\u001b[0m \u001b[32m${'━'.repeat(40)}\u001b[0m Complete ${index === 0 ? '10 source' : '10 accepted'}\n`
+                )
+                .join('')
+        )
+    })
+}
+
+test('rich Chinese rows budget bar width in terminal cells', () => {
+    const summaries = buildStatusSummaries(inspection(10, [locale('zh-CN', { accepted: 10 })]))
+    for (const [columns, width] of [
+        [82, 40],
+        [79, 37],
+        [74, 32],
+        [73, 0],
+    ] as const) {
+        const stream = outputStream({ isTTY: true, columns })
+        renderStatus({
+            summaries,
+            capabilities: detectCliCapabilities({ stdout: stream.stream, env: {} }),
+            nativeName: (id) => (id === 'en' ? 'English' : '中文（中国）'),
+            stdout: stream.stream,
+        })
+        const bar = width > 0 ? `${'━'.repeat(width)} ` : ''
+        assert.equal(
+            stripAnsi(stream.value()),
+            `English (en)         ${bar}Complete 10 source\n` +
+                `中文（中国） (zh-CN) ${bar}Complete 10 accepted\n`
+        )
+    }
+})
+
+test('Unicode labels preserve exact plain output in every plain capability state', () => {
+    const summaries = buildStatusSummaries(
+        inspection(10, [locale('zh-CN', { accepted: 10 }), locale('hi', { accepted: 10 })])
+    )
+    const names: Record<string, string> = { en: 'English', 'zh-CN': '中文（中国）', hi: 'हिन्दी' }
+    for (const [isTTY, env] of [
+        [false, {}],
+        [true, { CI: 'true' }],
+        [true, { NO_COLOR: '' }],
+        [true, { TERM: 'dumb' }],
+    ] as const) {
+        const stream = outputStream({ isTTY, columns: 120 })
+        renderStatus({
+            summaries,
+            capabilities: detectCliCapabilities({ stdout: stream.stream, env }),
+            nativeName: (id) => names[id]!,
+            stdout: stream.stream,
+        })
+        assert.equal(
+            stream.value(),
+            'English (en): Complete; source=10\n' +
+                '中文（中国） (zh-CN): Complete; 10 accepted\n' +
+                'हिन्दी (hi): Complete; 10 accepted\n'
+        )
+    }
 })
 
 test('a wide TTY with NO_COLOR falls back to compact bar-free rows, not an uncolored bar', () => {
@@ -758,8 +873,8 @@ test(
             assert.equal(lines.length, inspectLocales(i18nDir).locales.length + 1)
             for (const line of lines) {
                 assert.ok(
-                    line.length <= columns,
-                    `line "${line}" (${line.length} cols) exceeds declared columns=${columns}`
+                    stringWidth(line) <= columns,
+                    `line "${line}" (${stringWidth(line)} cols) exceeds declared columns=${columns}`
                 )
             }
         }

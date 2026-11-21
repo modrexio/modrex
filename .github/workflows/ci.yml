@@ -31,7 +31,7 @@ jobs:
             licenses: ${{ steps.full.outputs.full == 'true' || steps.filter.outputs.licenses == 'true' || steps.filter.outputs.js == 'true' }}
         steps:
             - uses: actions/checkout@v7
-              if: github.event_name == 'push'
+              if: github.event_name == 'push' || github.event_name == 'pull_request'
 
             - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d
               if: github.event_name == 'push' || github.event_name == 'pull_request'
@@ -40,79 +40,7 @@ jobs:
                   base: ${{ github.event_name == 'push' && github.event.before || '' }}
                   ref: ${{ github.event_name == 'push' && github.sha || '' }}
                   predicate-quantifier: some-with-excludes
-                  filters: |
-                      workflow:
-                          - '.github/workflows/ci.yml'
-                      js:
-                          - 'package.json'
-                          - '.gitattributes'
-                          - 'bun.lock'
-                          - 'bunfig.toml'
-                      rust:
-                          - 'rust-toolchain.toml'
-                          - '.gitattributes'
-                          - 'apps/desktop/src-tauri/**'
-                          - 'apps/desktop/src/shared/bindings.ts'
-                          - 'apps/desktop/THIRD_PARTY_LICENSES.md'
-                          - 'apps/index/marker-contract.json'
-                          - 'packages/games/**'
-                          - 'docs/reference/**'
-                          - 'LICENSE'
-                      renderer:
-                          - 'tsconfig.base.json'
-                          - 'types/**'
-                          - 'apps/desktop/**'
-                          - '!apps/desktop/src-tauri/**'
-                          - '!apps/desktop/scripts/**'
-                          - '!apps/desktop/THIRD_PARTY_LICENSES.md'
-                          - '!apps/desktop/AGENTS.md'
-                          - '!apps/desktop/CLAUDE.md'
-                          - '!apps/desktop/translation-contributors.generated.json'
-                          - 'packages/games/**'
-                          - 'packages/scrollbars/**'
-                          - 'functions/**'
-                      tooling:
-                          - 'tsconfig.base.json'
-                          - 'types/**'
-                          - 'apps/desktop/scripts/**'
-                          - 'apps/desktop/src/shared/**'
-                          - 'apps/desktop/src/renderer/src/i18n/**'
-                          - 'apps/desktop/translation-contributors.generated.json'
-                          - 'apps/desktop/package.json'
-                          - 'apps/desktop/tsconfig*.json'
-                          - 'assets/i18n/**'
-                          - '.husky/**'
-                          - '.github/workflows/translation-status.yml'
-                          - 'README.md'
-                      site:
-                          - 'tsconfig.base.json'
-                          - 'types/**'
-                          - 'apps/site/**'
-                          - 'packages/games/**'
-                          - 'packages/scrollbars/**'
-                          - 'install.config.json'
-                      index:
-                          - 'tsconfig.base.json'
-                          - 'types/**'
-                          - 'apps/index/**'
-                          - 'packages/games/**'
-                          - '.github/workflows/*postgres*.yml'
-                      licenses:
-                          - 'rust-toolchain.toml'
-                          - '**/Cargo.toml'
-                          - '**/Cargo.lock'
-                          - 'apps/desktop/package.json'
-                          - 'packages/games/package.json'
-                          - 'packages/scrollbars/package.json'
-                          - 'packages/games/[Ll][Ii][Cc][Ee][Nn][SsCc][Ee]*'
-                          - 'packages/scrollbars/[Ll][Ii][Cc][Ee][Nn][SsCc][Ee]*'
-                          - 'apps/desktop/[Ll][Ii][Cc][Ee][Nn][SsCc][Ee]*'
-                          - 'apps/desktop/scripts/generate-licenses.mts'
-                          - 'apps/desktop/THIRD_PARTY_LICENSES.md'
-                          - 'apps/desktop/src-tauri/about.toml'
-                          - 'apps/desktop/src-tauri/about.hbs'
-                          - 'apps/desktop/src-tauri/.cargo/**'
-                          - 'LICENSE'
+                  filters: .github/path-filters.yml
 
             - id: full
               env:

@@ -8,14 +8,16 @@ import Compare from '../components/Compare.astro'
 import DownloadSection from '../components/DownloadSection.astro'
 import Changelog from '../components/Changelog.astro'
 import SiteFooter from '../components/SiteFooter.astro'
-import { getLatestRelease, getRecentReleases } from '../lib/github'
+import { getLatestRelease, getNightlyRelease, getRecentReleases } from '../lib/github'
 import type { Release } from '../lib/github'
 import { getModIndexStats } from '../lib/mod-index'
 import type { ModIndexStats } from '../lib/mod-index'
 import { getNexusModCounts } from '../lib/nexus-mod-count'
 import type { NexusModCounts } from '../lib/nexus-mod-count'
+import { docsGames } from '../data/docsGames'
+import { GAMES } from '@modrex/games'
 
-// Both fetches degrade gracefully (generic download links, no changelog section),
+// The release fetches degrade gracefully (generic download links, no changelog section),
 // but log loudly: without GITHUB_TOKEN set, shared CI build IPs hit GitHub's
 // unauthenticated rate limit and the failure is otherwise invisible in the deploy.
 let release: Release | null = null
@@ -23,6 +25,13 @@ try {
     release = await getLatestRelease()
 } catch (error) {
     console.error('Failed to load latest release', error)
+}
+
+let nightly: Release | null = null
+try {
+    nightly = await getNightlyRelease()
+} catch (error) {
+    console.error('Failed to load the nightly release', error)
 }
 
 let recentReleases: Release[] = []
@@ -47,13 +56,16 @@ try {
 }
 
 const ogImage = await getOgImage()
+const gameNames = new Intl.ListFormat('en', { style: 'long', type: 'conjunction' }).format(
+    docsGames.map((game) => GAMES[game.id].name)
+)
+const description = `Free, open-source mod manager for ${gameNames}.`
 
 const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'SoftwareApplication',
     name: 'Modrex',
-    description:
-        'Free, open-source mod manager for PAYDAY 3, PAYDAY 2, PAYDAY: The Heist, Crime Boss: Rockay City, RAID: World War II, and Ready or Not. Browse ModWorkshop and Nexus Mods, install supported mods, and launch games from the app.',
+    description: `${description} Browse ModWorkshop and Nexus Mods, install supported mods, and launch games from the app.`,
     operatingSystem: ['Windows', 'Linux'],
     applicationCategory: 'GameApplication',
     offers: {
@@ -69,7 +81,7 @@ const jsonLd = {
 
 <BaseLayout
     title="Modrex"
-    description="Free, open-source mod manager for PAYDAY 3, PAYDAY 2, PAYDAY: The Heist, Crime Boss, RAID, and Ready or Not. Mods from ModWorkshop and Nexus Mods."
+    description={description}
     ogImage={new URL(ogImage.src, Astro.site).href}
     ogImageAlt="Browsing ModWorkshop mods in the Modrex desktop app"
     ogImageWidth={1200}
@@ -80,7 +92,7 @@ const jsonLd = {
     <Hero release={release} />
     <Features indexStats={indexStats} nexusModCounts={nexusModCounts} />
     <Compare />
-    <DownloadSection release={release} />
+    <DownloadSection release={release} nightly={nightly} />
     <Changelog releases={recentReleases} />
     <SiteFooter />
 </BaseLayout>

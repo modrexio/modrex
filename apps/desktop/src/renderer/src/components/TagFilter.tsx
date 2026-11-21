@@ -73,7 +73,7 @@ export function TagFilter({ tags, include, exclude, onChange }: Props) {
                 <Popover.Content
                     align="start"
                     sideOffset={4}
-                    className="z-50 w-fit min-w-[var(--radix-popover-trigger-width)] max-w-[24rem] flex flex-col max-h-[360px] bg-surface-raised border border-border rounded shadow-lg text-text"
+                    className="z-50 w-fit min-w-[var(--radix-popover-trigger-width)] max-w-[24rem] flex flex-col max-h-[360px] bg-surface-raised border border-border rounded shadow-lg text-text origin-(--radix-popover-content-transform-origin) data-[state=open]:animate-overlay-in data-[state=closed]:animate-overlay-out"
                 >
                     <div className="p-2 border-b border-border flex items-center gap-2">
                         <div className="relative flex-1 min-w-0">

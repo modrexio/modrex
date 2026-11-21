@@ -6036,6 +6036,52 @@ fn read_state_rejects_a_wrong_top_level_shape() {
 }
 
 #[test]
+fn read_state_refuses_a_newer_file_and_leaves_it_alone() {
+    let (_dir, path) = state_file_with(br#"{"schemaVersion":999,"folders":[],"mods":[]}"#);
+    let before = fs::read(&path).unwrap();
+    assert!(matches!(read_state(&path), Err(StateLoadError::Newer)));
+    assert_eq!(fs::read(&path).unwrap(), before);
+}
+
+#[test]
+fn read_state_accepts_a_file_from_before_versioning() {
+    let (_dir, path) = state_file_with(br#"{"folders":[],"mods":[]}"#);
+    assert!(read_state(&path).is_ok());
+}
+
+#[test]
+fn read_state_rejects_a_schema_version_that_is_not_a_number() {
+    let (_dir, path) = state_file_with(br#"{"schemaVersion":"1","folders":[],"mods":[]}"#);
+    assert!(matches!(read_state(&path), Err(StateLoadError::Invalid(_))));
+}
+
+#[test]
+fn save_state_writes_the_schema_version() {
+    let (_dir, path) = state_file_with(b"{}");
+    save_state(&path, &ModsState::default()).unwrap();
+    let saved: serde_json::Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+    assert_eq!(saved["schemaVersion"], 1);
+    assert!(read_state(&path).is_ok());
+}
+
+#[test]
+fn hidden_state_path_follows_the_folder_a_file_unit_game_renamed() {
+    let cfg = engine_for_game("pd3").unwrap();
+    let state_path = get_state_path("/game", cfg);
+    assert_eq!(
+        hidden_state_path("/game", &state_path, cfg),
+        backup_dir("/game", cfg.primary()).join(STATE_FILENAME)
+    );
+}
+
+#[test]
+fn hidden_state_path_stays_put_for_a_directory_unit_game() {
+    let cfg = engine_for_game("pd2").unwrap();
+    let state_path = get_state_path("/game", cfg);
+    assert_eq!(hidden_state_path("/game", &state_path, cfg), state_path);
+}
+
+#[test]
 fn read_state_rejects_an_empty_file() {
     let (_dir, path) = state_file_with(b"");
     assert!(matches!(read_state(&path), Err(StateLoadError::Invalid(_))));
@@ -6245,6 +6291,19 @@ fn a_scan_over_an_invalid_state_file_may_not_write_it_back() {
 
     assert!(writeback.blocked());
     writeback.save(&sp, &rebuilt_state(), "refreshed identities");
+    assert_untouched(&sp, &before);
+}
+
+#[test]
+fn a_scan_over_a_newer_state_file_may_not_write_it_back() {
+    let (tmp, sp, cfg) = scan_fixture(br#"{"schemaVersion":999,"folders":[],"mods":[]}"#);
+    let before = fs::read(&sp).unwrap();
+
+    let (_state, writeback) = load_for_scan(tmp.path().to_str().unwrap(), &sp, cfg);
+
+    assert!(writeback.blocked());
+    assert!(writeback.newer());
+    writeback.save(&sp, &rebuilt_state(), "the scanned state");
     assert_untouched(&sp, &before);
 }
 

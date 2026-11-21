@@ -254,6 +254,8 @@ pub struct InstalledResponse {
     /// order and per-mod metadata is not in it, and no operation may replace that record until
     /// the file is readable again.
     pub state_unreadable: bool,
+    /// The mod list was saved by a newer version of Modrex. state_unreadable is also set.
+    pub state_newer: bool,
     /// Failures inspecting movie or Engine.ini records, including pending recovery.
     /// Ordinary mod rows remain available.
     pub resource_error: Option<String>,

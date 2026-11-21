@@ -1,7 +1,7 @@
 ---
 import { sitePath } from '../lib/site-path'
 import { Picture } from 'astro:assets'
-import type { Release } from '../lib/github'
+import { getDownloadUrls, type Release } from '../lib/github'
 import gamePicker from '../assets/screenshots/game-picker-window.webp'
 import browseMods from '../assets/screenshots/browse-mods-window.webp'
 import installedMods from '../assets/screenshots/installed-mods-window.webp'
@@ -13,6 +13,7 @@ interface Props {
 }
 
 const { release = null } = Astro.props
+const downloadUrls = getDownloadUrls(release)
 
 // Imported rather than served from public/ so astro:assets emits AVIF and WebP at
 // several widths. The sources are 2560px WebP screenshots, a few hundred kilobytes each; the
@@ -21,7 +22,7 @@ const shots = [
     {
         src: gamePicker,
         name: 'Game picker',
-        alt: 'Choosing a game in Modrex: PAYDAY 3, PAYDAY 2, PAYDAY: The Heist, Crime Boss and RAID',
+        alt: 'Choosing a supported game in Modrex',
     },
     {
         src: browseMods,
@@ -82,7 +83,7 @@ const releasedOn = release
             </p>
             <div class="cta-row">
                 <a
-                    href={sitePath('/#download')}
+                    href={downloadUrls.windows}
                     class="btn-lg primary hero-dl"
                     data-platform="windows"
                     hidden
@@ -91,7 +92,7 @@ const releasedOn = release
                     Download for Windows
                 </a>
                 <a
-                    href={sitePath('/#download')}
+                    href={downloadUrls.linux}
                     class="btn-lg primary hero-dl"
                     data-platform="linux"
                     hidden

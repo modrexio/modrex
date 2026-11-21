@@ -268,6 +268,56 @@ const PRE_UPGRADE_SETTINGS_JSON: &str = r#"{
 }"#;
 
 #[test]
+fn update_channel_follows_the_build_until_the_user_picks_one() {
+    let s = Settings::default();
+    assert_eq!(update_channel(&s, "0.17.0"), UpdateChannel::Stable);
+    assert_eq!(
+        update_channel(&s, "0.17.0-nightly.20261107.1"),
+        UpdateChannel::Nightly
+    );
+}
+
+#[test]
+fn a_saved_update_channel_overrides_the_build() {
+    let s = Settings {
+        update_channel: Some(UpdateChannel::Stable),
+        ..Settings::default()
+    };
+    assert_eq!(
+        update_channel(&s, "0.17.0-nightly.20261107.1"),
+        UpdateChannel::Stable
+    );
+}
+
+#[test]
+fn update_channel_is_saved_in_lowercase_and_reads_back() {
+    let s = Settings {
+        update_channel: Some(UpdateChannel::Nightly),
+        ..Settings::default()
+    };
+    let json = serde_json::to_value(&s).unwrap();
+    assert_eq!(json["updateChannel"], "nightly");
+    let read: Settings = serde_json::from_value(json).unwrap();
+    assert_eq!(read.update_channel, Some(UpdateChannel::Nightly));
+}
+
+#[test]
+fn an_unknown_update_channel_keeps_every_other_setting() {
+    let json = serde_json::json!({
+        "updateChannel": "beta",
+        "analyticsEnabled": true,
+        "games": { "pd3": { "gamePath": "C:/Games/PAYDAY3" } }
+    });
+    let s: Settings =
+        serde_json::from_value(json).expect("an unknown channel must not fail the file");
+    assert_eq!(s.update_channel, None);
+    assert!(s.analytics_enabled);
+    let pd3 = s.games.as_ref().unwrap().get("pd3").unwrap();
+    assert_eq!(pd3.game_path.as_deref(), Some("C:/Games/PAYDAY3"));
+    assert_eq!(update_channel(&s, "0.17.0"), UpdateChannel::Stable);
+}
+
+#[test]
 fn pre_upgrade_settings_with_explicit_nulls_still_parses() {
     let s: Settings =
         serde_json::from_str(PRE_UPGRADE_SETTINGS_JSON).expect("must parse despite explicit nulls");

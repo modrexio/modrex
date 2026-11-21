@@ -67,6 +67,7 @@ const installed = {
     folders: [],
     modsHidden: false,
     stateUnreadable: false,
+    stateNewer: false,
     resourceError: null,
     resourceRecoveryPending: false,
 }
@@ -93,6 +94,8 @@ async function mountGame(activeGame: GameId = 'pd3') {
                 onAnalyticsConsent: vi.fn(),
                 discordPresenceEnabled: false,
                 onDiscordPresenceEnabled: vi.fn(),
+                updateChannel: 'stable',
+                onUpdateChannel: vi.fn(),
             }}
             topBar={{}}
             banners={null}

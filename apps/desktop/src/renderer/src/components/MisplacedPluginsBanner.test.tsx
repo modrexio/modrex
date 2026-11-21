@@ -119,7 +119,7 @@ describe('MisplacedPluginsBanner', () => {
         })
         act(() => updateInstall(operation.id, { phase: 'downloading', downloaded: 25, total: 100 }))
         expect(await screen.findByText('25%')).toBeDefined()
-        expect(document.querySelector<HTMLElement>('.bg-accent')?.style.width).toBe('25%')
+        expect(document.querySelector<HTMLElement>('.bg-accent')?.style.scale).toBe('0.25 1')
         act(() => finishInstall(operation.id))
         act(() => finish[0]?.())
         await screen.findByText('1/2')

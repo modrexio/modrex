@@ -23,6 +23,16 @@
     --modrex-success-text: #00df72;
     --modrex-warning: #d4a017;
     --modrex-radius-scale: 1;
+    --modrex-motion-scale: 1;
+    --modrex-motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
+    --modrex-motion-ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+    --modrex-motion-feedback: calc(100ms * var(--modrex-motion-scale));
+    --modrex-motion-overlay: calc(150ms * var(--modrex-motion-scale));
+    --modrex-motion-overlay-exit: calc(100ms * var(--modrex-motion-scale));
+    --modrex-motion-surface: calc(220ms * var(--modrex-motion-scale));
+    --modrex-motion-enter-scale: 0.98;
+    --modrex-motion-press-scale: 0.98;
+    --modrex-motion-distance: 8px;
 
     --color-surface: var(--modrex-surface);
     --color-surface-raised: var(--modrex-surface-raised);
@@ -99,6 +109,33 @@
 }
 
 @theme inline {
+    /* Components hold no literal motion value, so one variable retunes the whole app.
+       The motion rules in oxlint.config.ts enforce it. */
+    --default-transition-duration: var(--modrex-motion-feedback);
+    --default-transition-timing-function: var(--modrex-motion-ease);
+    --transition-duration-feedback: var(--modrex-motion-feedback);
+    --transition-duration-overlay: var(--modrex-motion-overlay);
+    --transition-duration-overlay-exit: var(--modrex-motion-overlay-exit);
+    --transition-duration-surface: var(--modrex-motion-surface);
+    --ease-motion: var(--modrex-motion-ease);
+    --ease-standard: var(--modrex-motion-ease-standard);
+    --animate-overlay-in: overlay-in var(--modrex-motion-overlay) var(--modrex-motion-ease) both;
+    --animate-overlay-out: overlay-out var(--modrex-motion-overlay-exit) var(--modrex-motion-ease)
+        both;
+    --animate-dialog-backdrop-in: fade-in var(--modrex-motion-overlay) var(--modrex-motion-ease)
+        both;
+    --animate-installed-in: fade-in var(--modrex-motion-overlay) var(--modrex-motion-ease) both;
+    --animate-drop-overlay-in: fade-in var(--modrex-motion-surface) var(--modrex-motion-ease) both;
+    --animate-drop-overlay-out: fade-out var(--modrex-motion-surface) var(--modrex-motion-ease) both;
+    --animate-drop-panel-in: drop-panel-in var(--modrex-motion-surface) var(--modrex-motion-ease)
+        both;
+    --animate-drop-panel-out: drop-panel-out var(--modrex-motion-surface) var(--modrex-motion-ease)
+        both;
+    --animate-drop-status-in: drop-status-in var(--modrex-motion-surface) var(--modrex-motion-ease)
+        both;
+    --animate-drop-status-out: drop-status-out var(--modrex-motion-surface)
+        var(--modrex-motion-ease) both;
+
     --color-surface: var(--modrex-surface);
     --color-surface-raised: var(--modrex-surface-raised);
     --color-surface-hover: var(--modrex-surface-hover);
@@ -118,6 +155,98 @@
     --color-success: var(--modrex-success);
     --color-success-text: var(--modrex-success-text);
     --color-warning: var(--modrex-warning);
+}
+
+@keyframes overlay-in {
+    from {
+        opacity: 0;
+        scale: var(--modrex-motion-enter-scale);
+    }
+    to {
+        opacity: 1;
+        scale: 1;
+    }
+}
+
+@keyframes overlay-out {
+    from {
+        opacity: 1;
+        scale: 1;
+    }
+    to {
+        opacity: 0;
+        scale: var(--modrex-motion-enter-scale);
+    }
+}
+
+@keyframes fade-in {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes fade-out {
+    from {
+        opacity: 1;
+    }
+    to {
+        opacity: 0;
+    }
+}
+
+@utility scale-press {
+    scale: var(--modrex-motion-press-scale);
+}
+
+@keyframes drop-panel-in {
+    from {
+        scale: var(--modrex-motion-enter-scale);
+    }
+    to {
+        scale: 1;
+    }
+}
+
+@keyframes drop-panel-out {
+    from {
+        scale: 1;
+    }
+    to {
+        scale: var(--modrex-motion-enter-scale);
+    }
+}
+
+@keyframes drop-status-in {
+    from {
+        opacity: 0;
+        translate: 0 var(--modrex-motion-distance);
+    }
+    to {
+        opacity: 1;
+        translate: 0 0;
+    }
+}
+
+@keyframes drop-status-out {
+    from {
+        opacity: 1;
+        translate: 0 0;
+    }
+    to {
+        opacity: 0;
+        translate: 0 var(--modrex-motion-distance);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    :root {
+        --modrex-motion-enter-scale: 1;
+        --modrex-motion-press-scale: 1;
+        --modrex-motion-distance: 0px;
+    }
 }
 
 html,

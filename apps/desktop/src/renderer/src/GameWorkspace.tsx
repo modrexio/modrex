@@ -271,7 +271,7 @@ export function GameWorkspace({
             )}
             {data.installed?.stateUnreadable && (
                 <div className="shrink-0 px-4 py-2 bg-warning/10 border-b border-warning/30 text-xs text-warning">
-                    {t('app.stateUnreadable')}
+                    {data.installed.stateNewer ? t('app.stateNewer') : t('app.stateUnreadable')}
                 </div>
             )}
             {data.installed?.resourceError && (

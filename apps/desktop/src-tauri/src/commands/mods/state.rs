@@ -17,6 +17,17 @@ use std::path::{Path, PathBuf};
 /// Modrex's own record of what it installed, kept inside the primary target's mods dir.
 pub const STATE_FILENAME: &str = ".modrex.json";
 
+/// Bump when a save holds data an older build would drop or misread.
+const STATE_SCHEMA_VERSION: u32 = 1;
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct VersionedState<'a> {
+    schema_version: u32,
+    #[serde(flatten)]
+    state: &'a ModsState,
+}
+
 pub fn get_folder_path(folders: &[ModFolder], folder_id: Option<&str>) -> Option<String> {
     let mut folder_id = folder_id?;
     let mut visited = HashSet::new();
@@ -106,6 +117,7 @@ fn drop_unservable_catalog_link(cfg: &ModEngineConfig, m: &mut InstalledMod) {
 pub enum StateLoadError {
     Unreadable(std::io::Error),
     Invalid(String),
+    Newer,
 }
 
 impl std::fmt::Display for StateLoadError {
@@ -113,6 +125,10 @@ impl std::fmt::Display for StateLoadError {
         match self {
             Self::Unreadable(e) => write!(f, "the installed-mod list could not be read: {e}"),
             Self::Invalid(reason) => write!(f, "the installed-mod list is not valid: {reason}"),
+            Self::Newer => write!(
+                f,
+                "the installed-mod list was saved by a newer version of Modrex; update Modrex to change it"
+            ),
         }
     }
 }
@@ -144,6 +160,24 @@ fn read_collection<T: serde::de::DeserializeOwned>(
         .collect()
 }
 
+// A file without the key predates versioning and reads as version 0.
+fn check_schema_version(
+    object: &serde_json::Map<String, serde_json::Value>,
+) -> Result<(), StateLoadError> {
+    let Some(value) = object.get("schemaVersion") else {
+        return Ok(());
+    };
+    let Some(version) = value.as_u64() else {
+        return Err(StateLoadError::Invalid(
+            "'schemaVersion' is not a number".to_string(),
+        ));
+    };
+    if version > u64::from(STATE_SCHEMA_VERSION) {
+        return Err(StateLoadError::Newer);
+    }
+    Ok(())
+}
+
 pub fn read_state(state_path: &Path) -> Result<ModsState, StateLoadError> {
     // Taken from the read itself rather than a separate exists() check, so a file appearing or
     // vanishing between the two cannot be mistaken for the other case.
@@ -159,6 +193,7 @@ pub fn read_state(state_path: &Path) -> Result<ModsState, StateLoadError> {
             "the top level is not a JSON object".to_string(),
         ));
     };
+    check_schema_version(object)?;
 
     let folders = read_collection(object, "folders")?;
     let mut mods: Vec<InstalledMod> = read_collection(object, "mods")?;
@@ -308,8 +343,11 @@ pub fn save_state(state_path: &Path, state: &ModsState) -> std::io::Result<()> {
         )
     })?;
     fs::create_dir_all(parent)?;
-    let body = serde_json::to_string_pretty(state)
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+    let body = serde_json::to_string_pretty(&VersionedState {
+        schema_version: STATE_SCHEMA_VERSION,
+        state,
+    })
+    .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
     let tmp = temporary_state_path(state_path);
     // Exclusive creation keeps a pre-existing link from redirecting the state write.
     let mut file = fs::OpenOptions::new()
@@ -476,12 +514,21 @@ fn compacting_metadata_preserves_author_folder_names_without_filename_ordering()
 /// Every writeback in get_installed goes through this rather than through a flag each exit has
 /// to remember to check, so a new exit cannot persist a rebuild by omission.
 #[derive(Clone, Copy, Debug)]
-pub struct Writeback(bool);
+pub enum Writeback {
+    Allowed,
+    Unreadable,
+    Newer,
+}
 
 impl Writeback {
-    /// True when the state was unreadable, which is what get_installed reports to the interface.
+    /// True when the state could not be used, which is what get_installed reports to the interface.
     pub fn blocked(self) -> bool {
-        !self.0
+        !matches!(self, Self::Allowed)
+    }
+
+    /// True when the block is a file saved by a newer version of Modrex.
+    pub fn newer(self) -> bool {
+        matches!(self, Self::Newer)
     }
 
     /// Saves unless the state this was derived from could not be read.
@@ -489,7 +536,7 @@ impl Writeback {
     /// A failed save is logged and swallowed: the scan result is still correct to show, and the
     /// next call reaches the same point again.
     pub fn save(self, state_path: &Path, state: &ModsState, what: &str) {
-        if !self.0 {
+        if self.blocked() {
             return;
         }
         if let Err(e) = save_state(state_path, state) {
@@ -505,10 +552,14 @@ pub fn load_for_scan(
     cfg: &ModEngineConfig,
 ) -> (ModsState, Writeback) {
     match reconcile_state(game_path, state_path, cfg) {
-        Ok(state) => (state, Writeback(true)),
+        Ok(state) => (state, Writeback::Allowed),
         Err(e) => {
             log::warn!("get_installed: {e}");
-            (ModsState::default(), Writeback(false))
+            let writeback = match e {
+                StateLoadError::Newer => Writeback::Newer,
+                _ => Writeback::Unreadable,
+            };
+            (ModsState::default(), writeback)
         }
     }
 }
@@ -765,6 +816,16 @@ pub(crate) fn superseded_records(mods: &[InstalledMod]) -> HashSet<String> {
         .collect()
 }
 
+/// Where the state file sits while mods are hidden for a launch.
+pub fn hidden_state_path(game_path: &str, state_path: &Path, cfg: &ModEngineConfig) -> PathBuf {
+    if cfg.primary().is_directory_unit() || cfg.primary().is_bundle() {
+        // BLT: state file stays in mods/ because only user mod dirs were moved to backup.
+        return state_path.to_path_buf();
+    }
+    // PD3: the entire mods folder was renamed, so the state file is inside the backup.
+    backup_dir(game_path, cfg.primary()).join(STATE_FILENAME)
+}
+
 pub fn reconcile_state(
     game_path: &str,
     state_path: &Path,
@@ -772,12 +833,11 @@ pub fn reconcile_state(
 ) -> Result<ModsState, StateLoadError> {
     let bak = backup_dir(game_path, cfg.primary());
     if cfg.primary().shared_paks.is_none() && bak.exists() {
-        if cfg.primary().is_directory_unit() || cfg.primary().is_bundle() {
-            // BLT: state file stays in mods/ because only user mod dirs were moved to backup.
-            return read_state_for_game(game_path, state_path, cfg);
-        }
-        // PD3: the entire mods folder was renamed, so the state file is inside the backup.
-        return read_state_for_game(game_path, &bak.join(STATE_FILENAME), cfg);
+        return read_state_for_game(
+            game_path,
+            &hidden_state_path(game_path, state_path, cfg),
+            cfg,
+        );
     }
 
     let legacy = state_path.with_file_name(".pd3mm.json");

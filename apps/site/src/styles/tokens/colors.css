@@ -18,7 +18,7 @@
     /* --- Text: high-contrast off-white down to muted greys --- */
     --color-text: #f4f4f3; /* primary text, headings */
     --color-text-muted: #928c87; /* secondary text, author names */
-    --color-text-subtle: #756f6b; /* tertiary, meta, placeholders, icons */
+    --color-text-subtle: #847e7a; /* tertiary, meta, placeholders, icons */
 
     /* --- Accent: the Modrex orange. The one loud color. --- */
     --color-accent: #e36300; /* brand, focus, active nav, links */
