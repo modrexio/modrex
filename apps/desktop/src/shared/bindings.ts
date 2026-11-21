@@ -155,6 +155,7 @@ export const commands = {
 	exportProfileShare: (gameId: string, gamePath: string, profileId: string) => __TAURI_INVOKE<ExportedProfileShare>("export_profile_share", { gameId, gamePath, profileId }),
 	parseProfileShare: (input: string) => __TAURI_INVOKE<ProfileShare_Serialize>("parse_profile_share", { input }),
 	previewProfileShare: (input: string, gameId: string, gamePath: string) => __TAURI_INVOKE<ProfileSharePreview>("preview_profile_share", { input, gameId, gamePath }),
+	importProfileShare: (input: string, gameId: string, gamePath: string, name: string, choices: { [key in string]: number }) => __TAURI_INVOKE<ProfileImportResult>("import_profile_share", { input, gameId, gamePath, name, choices }),
 	createProfile: (gameId: string, gamePath: string, name: string, source: ProfileSource) => __TAURI_INVOKE<ProfileSummary>("create_profile", { gameId, gamePath, name, source }),
 	renameProfile: (gameId: string, gamePath: string, profileId: string, name: string) => __TAURI_INVOKE<null>("rename_profile", { gameId, gamePath, profileId, name }),
 	deleteProfile: (gameId: string, gamePath: string, profileId: string) => __TAURI_INVOKE<null>("delete_profile", { gameId, gamePath, profileId }),
@@ -536,6 +537,11 @@ export type IdentityEvidence =
 /**  Declared name and author only. */
 "nameAuthor";
 
+export type ImportMemberResult = {
+	memberKey: number,
+	outcome: MemberOutcome,
+};
+
 export type IndexModFile = {
 	fileRemoteId: number,
 	entryName: string,
@@ -835,6 +841,8 @@ export type LoaderInstall_Serialize = {
 	installedAt: string,
 };
 
+export type LoaderOutcome = { status: "alreadyPresent" } | { status: "viaModFlow" } | { status: "installed" } | { status: "failed"; error: string };
+
 /**
  *  The mod page a loader package came from. Absent for a dropped file, which has no page
  *  behind it, and the loader is then recorded as having none rather than as coming from
@@ -860,6 +868,8 @@ export type LoaderPresence = {
 	 */
 	unrecognized: string[],
 };
+
+export type MemberOutcome = { status: "installed"; installId: string } | { status: "pending"; reason: string } | { status: "failed"; error: string };
 
 export type MisplacedPlugin = {
 	/**  ModWorkshop ids. file_id is the plugin release to install. */
@@ -1184,6 +1194,13 @@ export type PreviewFile = {
 	label: string | null,
 	version: string | null,
 	size: number | null,
+};
+
+export type ProfileImportResult = {
+	profileId: string,
+	members: ImportMemberResult[],
+	loaders: { [key in string]: LoaderOutcome },
+	newerVersions: number,
 };
 
 export type ProfileList = {

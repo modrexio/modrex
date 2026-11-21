@@ -445,6 +445,16 @@ pub async fn install_loader_package(
     app: &AppHandle,
     game_path: &str,
 ) -> Result<(), String> {
+    let (zip, entries) = download_loader(spec, app).await?;
+    let result = place_loader(spec, game_path, &zip, entries).await;
+    crate::commands::mods::remove_download(zip).await;
+    result
+}
+
+pub(crate) async fn download_loader(
+    spec: &'static LoaderSpec,
+    app: &AppHandle,
+) -> Result<(PathBuf, Option<&'static [&'static str]>), String> {
     let (url, entries) = match spec.install {
         InstallStrategy::ExtractEntries { url, entries } => (url, Some(entries)),
         InstallStrategy::ExtractAllFlat { url } => (url, None),
@@ -464,17 +474,20 @@ pub async fn install_loader_package(
 
     let download_id = format!("loader:{}", spec.id);
     let zip_path = download_file(app, url, "zip", &download_id, None).await?;
-    let dest_dir = std::path::Path::new(game_path).to_path_buf();
+    Ok((zip_path, entries))
+}
 
+pub(crate) async fn place_loader(
+    spec: &'static LoaderSpec,
+    game_path: &str,
+    zip: &std::path::Path,
+    entries: Option<&'static [&'static str]>,
+) -> Result<(), String> {
+    let zip_path = zip.to_path_buf();
+    let dest_dir = std::path::Path::new(game_path).to_path_buf();
     let destinations: Vec<PathBuf> = match entries {
         Some(entries) => entries.iter().map(|name| dest_dir.join(name)).collect(),
-        None => match flat_files(&zip_path, &dest_dir) {
-            Ok(files) => files,
-            Err(e) => {
-                let _ = tokio::fs::remove_file(&zip_path).await;
-                return Err(e);
-            }
-        },
+        None => flat_files(&zip_path, &dest_dir)?,
     };
     let created: Vec<PathBuf> = destinations.into_iter().filter(|p| !p.exists()).collect();
 
@@ -502,7 +515,6 @@ pub async fn install_loader_package(
         }
     };
 
-    let _ = tokio::fs::remove_file(&zip_path).await;
     result?;
     record_created(game_path, spec.id, &created)
 }

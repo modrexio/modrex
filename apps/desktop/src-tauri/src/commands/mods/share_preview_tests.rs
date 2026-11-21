@@ -29,6 +29,7 @@ fn workshop(files: Value) -> Catalog {
         .unwrap();
     Catalog {
         workshop: HashMap::from([(32443, Ok(files))]),
+        workshop_versions: HashMap::from([(32443, "1.4".into())]),
         ..Catalog::default()
     }
 }
@@ -332,7 +333,7 @@ async fn preview_command_revalidates_file_and_paste_before_lookup() {
     input["members"][0]["archiveMember"] = json!("../bad");
     let file = input.to_string();
     for text in [super::super::encode(file.as_bytes()).unwrap(), file] {
-        let error = from_text(text, "pd3".into(), async |_| {
+        let error = from_text::<()>(text, "pd3".into(), async |_| {
             panic!("invalid input reached lookup")
         })
         .await
@@ -344,10 +345,25 @@ async fn preview_command_revalidates_file_and_paste_before_lookup() {
 #[tokio::test]
 async fn preview_command_refuses_another_game_before_lookup() {
     let input = share(vec![]).to_string();
-    let error = from_text(input, "pd2".into(), async |_| {
+    let error = from_text::<()>(input, "pd2".into(), async |_| {
         panic!("wrong game reached lookup")
     })
     .await
     .unwrap_err();
     assert!(error.contains("for pd3") && error.contains("target game is pd2"));
+}
+
+#[test]
+fn import_accepts_only_choices_offered_by_the_current_resolution() {
+    let member = workshop_member(json!({}), "Unknown.pak");
+    let share = super::super::parse(&share(vec![member]).to_string()).unwrap();
+    let cfg = super::super::engine_for_game("pd3").unwrap();
+    let rows = |files, key: &str, id| {
+        let preview = resolve(&share, cfg, &workshop(files), vec![]);
+        super::super::import::resolve_rows(&share, preview, [(key.to_owned(), id)].into())
+    };
+    assert!(rows(variants(), "1", 89916).is_ok());
+    assert!(rows(variants(), "1", 1).is_err());
+    assert!(rows(variants(), "2", 89916).is_err());
+    assert!(rows(json!([{"id":89916,"name":"Only"}]), "1", 89916).is_err());
 }

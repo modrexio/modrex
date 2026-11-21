@@ -16,11 +16,11 @@ mod fetch;
 
 #[derive(Debug, Clone, Serialize, Type)]
 #[serde(rename_all = "camelCase")]
-struct PreviewFile {
-    id: u32,
-    name: String,
-    label: Option<String>,
-    version: Option<String>,
+pub(super) struct PreviewFile {
+    pub(super) id: u32,
+    pub(super) name: String,
+    pub(super) label: Option<String>,
+    pub(super) version: Option<String>,
     size: Option<u64>,
 }
 
@@ -54,6 +54,8 @@ type Files = Result<Vec<PreviewFile>, LookupIssue>;
 #[derive(Default)]
 struct Catalog {
     workshop: HashMap<u32, Files>,
+    // Mod page versions. A Workshop record stores this one, never the version of a file.
+    workshop_versions: HashMap<u32, String>,
     nexus_pins: HashMap<(u32, u32), Result<Option<PreviewFile>, LookupIssue>>,
     nexus_choices: HashMap<u32, Files>,
 }
@@ -64,7 +66,7 @@ struct Catalog {
     rename_all = "camelCase",
     rename_all_fields = "camelCase"
 )]
-enum ShareResolution {
+pub(super) enum ShareResolution {
     Ready {
         file: PreviewFile,
         found_by_name: bool,
@@ -107,14 +109,14 @@ enum ShareSource {
 
 #[derive(Debug, Serialize, Type)]
 #[serde(rename_all = "camelCase")]
-struct SharePreviewRow {
-    member_key: usize,
+pub(super) struct SharePreviewRow {
+    pub(super) member_key: usize,
     source: ShareSource,
     mod_id: u32,
     installed_name: String,
-    shared_version: Option<String>,
-    install_version: Option<String>,
-    resolution: ShareResolution,
+    pub(super) shared_version: Option<String>,
+    pub(super) install_version: Option<String>,
+    pub(super) resolution: ShareResolution,
 }
 
 #[derive(Debug, Default, Serialize, Type)]
@@ -132,7 +134,7 @@ struct SharePreviewTotals {
 
 #[derive(Debug, Serialize, Type)]
 #[serde(rename_all = "camelCase")]
-struct SharePreviewLoader {
+pub(super) struct SharePreviewLoader {
     id: String,
     already_present: bool,
 }
@@ -141,7 +143,7 @@ struct SharePreviewLoader {
 #[serde(rename_all = "camelCase")]
 pub struct ProfileSharePreview {
     profile_name: String,
-    rows: Vec<SharePreviewRow>,
+    pub(super) rows: Vec<SharePreviewRow>,
     loaders: Vec<SharePreviewLoader>,
     totals: SharePreviewTotals,
     failed_sources: Vec<ShareSource>,
@@ -245,7 +247,7 @@ fn resolve_member(
     catalog: &Catalog,
     member_key: usize,
 ) -> SharePreviewRow {
-    let (source, mod_id, shared_version, resolution) = match &member.file {
+    let (source, mod_id, shared_version, install_version, resolution) = match &member.file {
         ShareFile::ModWorkshop {
             mod_id,
             file_id,
@@ -264,12 +266,21 @@ fn resolve_member(
                 ),
                 Err(issue) => issue.into(),
             };
-            (ShareSource::ModWorkshop, *mod_id, version.clone(), status)
+            let installs = status
+                .file()
+                .and_then(|_| catalog.workshop_versions.get(mod_id).cloned());
+            (
+                ShareSource::ModWorkshop,
+                *mod_id,
+                version.clone(),
+                installs,
+                status,
+            )
         }
         ShareFile::Nexus { mod_id, file_id } => {
             let status = nexus_resolution(catalog, *mod_id, *file_id);
             let shared = status.file().and_then(|f| f.version.clone());
-            (ShareSource::Nexus, *mod_id, shared, status)
+            (ShareSource::Nexus, *mod_id, shared.clone(), shared, status)
         }
     };
     SharePreviewRow {
@@ -278,7 +289,7 @@ fn resolve_member(
         mod_id,
         installed_name: member.installed_name.clone(),
         shared_version,
-        install_version: resolution.file().and_then(|f| f.version.clone()),
+        install_version,
         resolution,
     }
 }
@@ -354,11 +365,11 @@ fn preview_loaders(
         .collect()
 }
 
-pub(in crate::commands::mods) async fn from_text(
+pub(in crate::commands::mods) async fn from_text<T>(
     input: String,
     game_id: String,
-    preview: impl AsyncFnOnce(ProfileShare) -> Result<ProfileSharePreview, String>,
-) -> Result<ProfileSharePreview, String> {
+    preview: impl AsyncFnOnce(ProfileShare) -> Result<T, String>,
+) -> Result<T, String> {
     let share = crate::commands::mods::parse_profile_share(input).await?;
     if share.game_id != game_id {
         return Err(format!(

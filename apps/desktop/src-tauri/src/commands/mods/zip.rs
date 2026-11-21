@@ -1636,6 +1636,7 @@ fn try_classify_as_directory_target(
     downloaded: &Path,
     cfg: &ModEngineConfig,
     registry: &StagingRegistry,
+    select_single: bool,
 ) -> Option<ResolvedArchive> {
     let names: Vec<String> = list_entries(downloaded)
         .ok()?
@@ -1652,7 +1653,7 @@ fn try_classify_as_directory_target(
     if dirs.is_empty() {
         return None;
     }
-    if dirs.len() == 1 {
+    if dirs.len() == 1 && !select_single {
         let (dir, location_tag) = &dirs[0];
         let dir_name = Path::new(dir)
             .file_name()
@@ -1885,6 +1886,16 @@ pub fn resolve_archive_download(
     cfg: &ModEngineConfig,
     registry: &StagingRegistry,
 ) -> ResolvedArchive {
+    resolve_with_selection(downloaded, cfg, registry, false)
+}
+
+// A shared archive must match an entry even when its current upload contains only one.
+pub(super) fn resolve_with_selection(
+    downloaded: PathBuf,
+    cfg: &ModEngineConfig,
+    registry: &StagingRegistry,
+    select_single: bool,
+) -> ResolvedArchive {
     if cfg.primary().shared_paks.is_some() {
         if let Err(error) = validate_shared_pak_download(&downloaded, cfg) {
             cleanup::run_sync(&CleanupPlan::RemoveOwnedFile(downloaded));
@@ -1915,14 +1926,14 @@ pub fn resolve_archive_download(
         };
     }
     // Before resources, because a plugin's own movies belong inside its folder.
-    if let Some(resolved) = resolve_plugin_archive(&downloaded, cfg, registry) {
+    if let Some(resolved) = resolve_plugin_archive(&downloaded, cfg, registry, select_single) {
         return resolved;
     }
     if let Some(resources) = detect_resources(&downloaded, cfg, registry)? {
         return Err(ResolveError::Resources(Box::new(resources)));
     }
     if cfg.game_id == "cb" {
-        return resolve_crimeboss_archive(downloaded, cfg, registry);
+        return resolve_crimeboss_archive(downloaded, cfg, registry, select_single);
     }
     if cfg.primary().is_bundle() {
         return resolve_bundle_archive(downloaded, cfg, registry);
@@ -1955,7 +1966,7 @@ pub fn resolve_archive_download(
                         return Err(ResolveError::Ue4ssLoader(downloaded));
                     }
                     if let Some(result) =
-                        try_classify_as_directory_target(&downloaded, cfg, registry)
+                        try_classify_as_directory_target(&downloaded, cfg, registry, select_single)
                     {
                         return result;
                     }
@@ -1964,7 +1975,7 @@ pub fn resolve_archive_download(
                         "This mod is packaged as an archive with no .{extension} files inside."
                     )))
                 }
-                1 => {
+                1 if !select_single => {
                     let (index, name) = entries[0].clone();
                     let entry = StagedEntry {
                         source: StagedEntrySource::File { index },
@@ -2106,7 +2117,7 @@ pub fn resolve_archive_download(
                     },
                 ));
             }
-            if dirs.len() == 1 {
+            if dirs.len() == 1 && !select_single {
                 let (dir, location_tag) = &dirs[0];
                 let dir_name = Path::new(dir)
                     .file_name()
@@ -2265,6 +2276,7 @@ fn resolve_plugin_archive(
     downloaded: &Path,
     cfg: &ModEngineConfig,
     registry: &StagingRegistry,
+    select_single: bool,
 ) -> Option<ResolvedArchive> {
     let (index, target) = cfg
         .targets
@@ -2295,7 +2307,7 @@ fn resolve_plugin_archive(
         .into_iter()
         .filter(|(_, name)| !super::unreal_plugin::inside_any(&plugins, name))
         .collect();
-    if let ([plugin], true) = (plugins.as_slice(), loose.is_empty()) {
+    if let ([plugin], true, false) = (plugins.as_slice(), loose.is_empty(), select_single) {
         let tmp_parent = std::env::temp_dir().join(format!("modrex-mod-{}", Uuid::new_v4()));
         let tmp = tmp_parent.join(&plugin.name);
         let cleanup = CleanupPlan::RemoveOwnedDirectory(tmp_parent);
@@ -2368,6 +2380,7 @@ fn resolve_crimeboss_archive(
     downloaded: PathBuf,
     cfg: &ModEngineConfig,
     registry: &StagingRegistry,
+    select_single: bool,
 ) -> ResolvedArchive {
     if detect_archive(&downloaded).is_none() {
         // No known real mod ships a bare .pak with no archive (sidecars require a zip to carry
@@ -2398,7 +2411,9 @@ fn resolve_crimeboss_archive(
             if has_ue4ss_loader_signature(&downloaded) {
                 return Err(ResolveError::Ue4ssLoader(downloaded));
             }
-            if let Some(result) = try_classify_as_directory_target(&downloaded, cfg, registry) {
+            if let Some(result) =
+                try_classify_as_directory_target(&downloaded, cfg, registry, select_single)
+            {
                 return result;
             }
             // Nothing classified: classify_archive_dirs found no enclosing folder at all (a
@@ -2422,7 +2437,7 @@ fn resolve_crimeboss_archive(
                 mod_version: None,
             })))
         }
-        1 => {
+        1 if !select_single => {
             let (index, name) = entries[0].clone();
             let entry = StagedEntry {
                 source: StagedEntrySource::File { index },
@@ -2525,6 +2540,9 @@ pub(crate) fn extract_staged_dir(
     dest: &Path,
 ) -> Result<(), String> {
     match &entry.source {
+        StagedEntrySource::Directory { prefix } if prefix.is_empty() => {
+            extract_archive_flat(archive_path, dest)
+        }
         StagedEntrySource::Directory { prefix } => extract_dir_entry(archive_path, prefix, dest),
         StagedEntrySource::File { .. } => Err("that archive entry is not a directory".to_string()),
     }

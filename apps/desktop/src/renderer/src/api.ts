@@ -105,6 +105,7 @@ export type {
     ProfileList,
     ProfileShare,
     ProfileSharePreview,
+    ProfileImportResult,
     ProfileSource,
     ProfileSummary,
 } from '../../shared/bindings'
@@ -113,6 +114,7 @@ import type {
     ProfileList,
     ProfileShare,
     ProfileSharePreview,
+    ProfileImportResult,
     ProfileSource,
     ProfileSummary,
 } from '../../shared/bindings'
@@ -903,6 +905,22 @@ export const api = {
         gamePath: string
     ): Promise<ProfileSharePreview> {
         return commands.previewProfileShare(input, gameId, gamePath)
+    },
+    importProfileShare(
+        input: string,
+        gameId: string,
+        gamePath: string,
+        name: string,
+        choices: Record<number, number>
+    ): Promise<ProfileImportResult> {
+        return commands.importProfileShare(input, gameId, gamePath, name, choices)
+    },
+    onProfileImportProgress(
+        callback: (
+            progress: ProfileImportResult['members'][number] & { done: number; total: number }
+        ) => void
+    ): () => void {
+        return onEvent('profile-share:import-progress', callback)
     },
     onProfileShareProgress(
         callback: (progress: { done: number; total: number }) => void

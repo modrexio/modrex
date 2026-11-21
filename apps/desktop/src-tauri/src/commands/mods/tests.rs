@@ -7,7 +7,7 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use tempfile::{NamedTempFile, TempDir};
 
-fn make_zip(entries: &[(&str, &[u8])]) -> NamedTempFile {
+pub(super) fn make_zip(entries: &[(&str, &[u8])]) -> NamedTempFile {
     let f = NamedTempFile::new().unwrap();
     let mut zip = ::zip::ZipWriter::new(File::create(f.path()).unwrap());
     let opts = ::zip::write::SimpleFileOptions::default();
@@ -9624,7 +9624,7 @@ fn a_catalog_update_continues_the_installation_it_replaces() {
     // install_mod's own sequence for a newer file of a mod with one record.
     let saved = read_state(&sp).unwrap();
     let predecessor = catalog_predecessor(&saved.mods, "12", 7).cloned().unwrap();
-    uninstall_mod_op(game, &sp, &predecessor.uid, cfg).unwrap();
+    remove_replaced_workshop_file(game, &sp, cfg, &saved.mods, "12", 7).unwrap();
     let mut update = catalog_pak("12", "Foo_P.pak", 12);
     update.inherit_install_id(&predecessor);
     install_pd3_pak(game, &sp, update, predecessor.folder_id.clone());

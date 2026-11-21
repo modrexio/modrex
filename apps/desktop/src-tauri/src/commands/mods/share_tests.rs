@@ -347,6 +347,7 @@ fn exports_only_portable_fields_of_a_workshop_install() {
         ..workshop("002_HUD.pak.disabled", 73)
     };
     let profile = Profile {
+        pending: Vec::new(),
         id: Uuid::new_v4().to_string(),
         name: "Stealth".into(),
         members: vec![ProfileMember {
@@ -408,6 +409,7 @@ fn exports_inactive_live_and_parked_members_in_saved_mixed_order() {
         ..InstalledMod::default()
     };
     let profile = Profile {
+        pending: Vec::new(),
         id: Uuid::new_v4().to_string(),
         name: "Parked setup".into(),
         members: vec![
@@ -487,6 +489,7 @@ fn exports_active_members_folders_and_loaders_from_live_state() {
     };
     let store = ProfileStore::new(path);
     let profile = Profile {
+        pending: Vec::new(),
         id: Uuid::new_v4().to_string(),
         name: "Live".into(),
         members: vec![],
@@ -547,6 +550,7 @@ fn shares_mods_matched_only_to_their_page_without_a_file_id() {
         ..InstalledMod::default()
     };
     let profile = Profile {
+        pending: Vec::new(),
         id: Uuid::new_v4().to_string(),
         name: "Pages".into(),
         members: [&page_only, &link_only, &nexus]

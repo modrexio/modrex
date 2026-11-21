@@ -15,6 +15,9 @@ use super::types::InstalledMod;
 use crate::commands::loaders::{scoped_bindings, DetectStrategy};
 use crate::commands::sources;
 
+#[path = "share_import.rs"]
+pub(super) mod import;
+
 #[path = "share_preview.rs"]
 pub(super) mod preview;
 

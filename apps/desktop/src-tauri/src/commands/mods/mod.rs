@@ -177,6 +177,10 @@ pub(crate) async fn lock_game_state(
     app.state::<StateLocks>().acquire(game_id).await
 }
 
+pub(crate) async fn remove_download(path: PathBuf) {
+    cleanup::run(&cleanup::CleanupPlan::RemoveOwnedFile(path)).await;
+}
+
 async fn stage_download(
     app: &AppHandle,
     downloaded: PathBuf,
@@ -708,6 +712,92 @@ fn catalog_predecessor<'a>(
     }
 }
 
+struct WorkshopDownload {
+    mod_name: String,
+    mod_version: String,
+    remote_id: i64,
+    file_id: i64,
+    file_type: String,
+    downloaded: PathBuf,
+    source_name: String,
+    workshop_file_name: Option<String>,
+    workshop_file_label: Option<String>,
+}
+
+async fn download_workshop_file(
+    app: &AppHandle,
+    mod_id: u32,
+    file_id: Option<u32>,
+    download_id: &str,
+    game_id: &str,
+) -> Result<WorkshopDownload, String> {
+    let mod_val = api_get(app, &format!("/mods/{}", mod_id), vec![]).await?;
+
+    let mod_name = mod_val["name"].as_str().unwrap_or("").to_string();
+    let mod_version = mod_val["version"].as_str().unwrap_or("").to_string();
+    let remote_id = mod_val["id"].as_i64().unwrap_or(0);
+
+    let file = match file_id {
+        Some(file_id) => {
+            let f = api_get(app, &format!("/files/{file_id}"), vec![]).await?;
+            if f["mod_id"].as_i64() != Some(remote_id) {
+                return Err(format!("file {file_id} does not belong to mod {mod_id}"));
+            }
+            f
+        }
+        None if !mod_val["download"].is_null() => mod_val["download"].clone(),
+        None if mod_val["has_download"].as_bool().unwrap_or(false) => {
+            api_get(app, &format!("/mods/{}/files/latest", mod_id), vec![]).await?
+        }
+        None => return Err("Mod has no download".to_string()),
+    };
+    let (file_id, download_url, file_type) = (
+        file["id"].as_i64().unwrap_or(0),
+        file["download_url"]
+            .as_str()
+            .ok_or("no download_url")?
+            .to_string(),
+        file["type"].as_str().unwrap_or("pak").to_string(),
+    );
+
+    let source_name = hosted_resource_name(&download_url)
+        .or_else(|| file["name"].as_str().map(str::to_owned))
+        .unwrap_or_else(|| format!("{mod_name}.{file_type}"));
+    let downloaded =
+        download_file(app, &download_url, &file_type, download_id, Some(game_id)).await?;
+    Ok(WorkshopDownload {
+        mod_name,
+        mod_version,
+        remote_id,
+        file_id,
+        file_type,
+        downloaded,
+        source_name,
+        workshop_file_name: file["name"]
+            .as_str()
+            .filter(|s| !s.is_empty())
+            .map(str::to_owned),
+        workshop_file_label: file["label"]
+            .as_str()
+            .filter(|s| !s.is_empty())
+            .map(str::to_owned),
+    })
+}
+
+fn remove_replaced_workshop_file(
+    game_path: &str,
+    state_path: &Path,
+    cfg: &ModEngineConfig,
+    mods: &[InstalledMod],
+    uid: &str,
+    remote_id: i64,
+) -> Result<(), String> {
+    if let Some(previous) = catalog_predecessor(mods, uid, remote_id).filter(|m| m.uid != uid) {
+        uninstall_mod_op(game_path, state_path, &previous.uid, cfg)?;
+    }
+    Ok(())
+}
+
 #[tauri::command]
 #[specta::specta]
 pub async fn install_mod(
@@ -722,70 +812,12 @@ pub async fn install_mod(
         Some(file_id) => format!("file:{mod_id}:{file_id}"),
         None => format!("mod:{mod_id}"),
     };
-    let prep = async {
-        let mod_val = api_get(&app, &format!("/mods/{}", mod_id), vec![]).await?;
-
-        let mod_name = mod_val["name"].as_str().unwrap_or("").to_string();
-        let mod_version = mod_val["version"].as_str().unwrap_or("").to_string();
-        let remote_id = mod_val["id"].as_i64().unwrap_or(0);
-
-        let file = match file_id {
-            Some(file_id) => {
-                let f = api_get(&app, &format!("/files/{file_id}"), vec![]).await?;
-                if f["mod_id"].as_i64() != Some(remote_id) {
-                    return Err(format!("file {file_id} does not belong to mod {mod_id}"));
-                }
-                f
-            }
-            None if !mod_val["download"].is_null() => mod_val["download"].clone(),
-            None if mod_val["has_download"].as_bool().unwrap_or(false) => {
-                api_get(&app, &format!("/mods/{}/files/latest", mod_id), vec![]).await?
-            }
-            None => return Err("Mod has no download".to_string()),
-        };
-        let (file_id, download_url, file_type) = (
-            file["id"].as_i64().unwrap_or(0),
-            file["download_url"]
-                .as_str()
-                .ok_or("no download_url")?
-                .to_string(),
-            file["type"].as_str().unwrap_or("pak").to_string(),
-        );
-
-        let source_name = hosted_resource_name(&download_url)
-            .or_else(|| file["name"].as_str().map(str::to_owned))
-            .unwrap_or_else(|| format!("{mod_name}.{file_type}"));
-        let downloaded = download_file(
-            &app,
-            &download_url,
-            &file_type,
-            &download_id,
-            Some(&game_id),
-        )
-        .await?;
-        Ok::<_, String>((
-            mod_name,
-            mod_version,
-            remote_id,
-            file_id,
-            file_type,
-            downloaded,
-            source_name,
-            file["name"]
-                .as_str()
-                .filter(|s| !s.is_empty())
-                .map(str::to_owned),
-            file["label"]
-                .as_str()
-                .filter(|s| !s.is_empty())
-                .map(str::to_owned),
-        ))
-    };
+    let prep = download_workshop_file(&app, mod_id, file_id, &download_id, &game_id);
     let Some(prep) = cancellable(&download_id, prep).await else {
         return Ok(InstallOutcome::Cancelled);
     };
 
-    let (
+    let WorkshopDownload {
         mod_name,
         mod_version,
         remote_id,
@@ -795,7 +827,7 @@ pub async fn install_mod(
         source_name,
         workshop_file_name,
         workshop_file_label,
-    ) = match prep {
+    } = match prep {
         Ok(v) => v,
         Err(e) => {
             log::warn!("install_mod {mod_id}: {e}");
@@ -939,19 +971,7 @@ pub async fn install_mod(
                 ),
             };
 
-            // If the mod had a single previously-installed entry under a different uid
-            // (i.e. an older version with a different file_id), remove it first so
-            // install_mod_from_path doesn't produce two entries for the same mod.
-            if saved.mods.iter().all(|m| m.uid != uid) && remote_id > 0 {
-                let same: Vec<_> = saved
-                    .mods
-                    .iter()
-                    .filter(|m| is_modworkshop_record(m, &remote_id_str))
-                    .collect();
-                if same.len() == 1 {
-                    uninstall_mod_op(&game_path, &sp, &same[0].uid.clone(), cfg)?;
-                }
-            }
+            remove_replaced_workshop_file(&game_path, &sp, cfg, &saved.mods, &uid, remote_id)?;
 
             let mut record = InstalledMod {
                 uid: uid.clone(),
@@ -1309,20 +1329,10 @@ pub(crate) async fn install_nexus_download(
     downloaded: PathBuf,
     meta: NexusInstallMeta,
 ) -> Result<NexusInstallOutcome, String> {
-    let NexusInstallMeta {
-        mod_id: nexus_mod_id,
-        file_id: nexus_file_id,
-        name: mod_name,
-        version: mod_version,
-        author: mod_author,
-        thumbnail_url,
-        file_type,
-        source_name,
-    } = meta;
     let cfg = engine_for_game(game_id)?;
     let dl_path = downloaded.clone();
     if cfg.primary().shared_paks.is_some()
-        && (file_type.eq_ignore_ascii_case("pak")
+        && (meta.file_type.eq_ignore_ascii_case("pak")
             || downloaded.extension().is_some_and(|extension| {
                 cfg.primary()
                     .content_extension()
@@ -1334,6 +1344,23 @@ pub(crate) async fn install_nexus_download(
             return Err(error);
         }
     }
+    match share::import::complete_nexus(app, cfg, game_path, &downloaded, &meta).await {
+        Ok(false) => {}
+        matched => {
+            cleanup::run(&cleanup::CleanupPlan::RemoveOwnedFile(dl_path)).await;
+            return matched.map(|_| NexusInstallOutcome::Installed);
+        }
+    }
+    let NexusInstallMeta {
+        mod_id: nexus_mod_id,
+        file_id: nexus_file_id,
+        name: mod_name,
+        version: mod_version,
+        author: mod_author,
+        thumbnail_url,
+        file_type,
+        source_name,
+    } = meta;
     let needs_update_choice =
         if cfg.primary().shared_paks.is_some() && zip::detect_archive(&downloaded).is_some() {
             let _guard = lock_game_state(app, game_id).await;
@@ -3159,6 +3186,22 @@ pub async fn preview_profile_share(
 
 #[tauri::command]
 #[specta::specta]
+pub async fn import_profile_share(
+    app: AppHandle,
+    input: String,
+    game_id: String,
+    game_path: String,
+    name: String,
+    choices: std::collections::BTreeMap<String, u32>,
+) -> Result<share::import::ProfileImportResult, String> {
+    share::preview::from_text(input, game_id, async move |share| {
+        share::import::run(&app, share, game_path, name, choices).await
+    })
+    .await
+}
+
+#[tauri::command]
+#[specta::specta]
 pub async fn create_profile(
     app: AppHandle,
     game_id: String,
@@ -3211,6 +3254,23 @@ pub async fn delete_profile(
     profiles::delete(&profiles::ProfileStore::new(&game_path), &profile_id)
 }
 
+async fn switch_launcher(
+    app: &AppHandle,
+    cfg: &ModEngineConfig,
+    game_path: &str,
+) -> Result<Option<String>, String> {
+    // The launcher decides where Crime Boss keeps its mod settings, so it has to be the one of
+    // the copy being switched, and a page left open on the other copy must not switch this one.
+    let context = resources::current_context(app, cfg.game_id)?;
+    if context.game_path != game_path {
+        return Err("The game folder changed since this page loaded. Nothing was switched.".into());
+    }
+    // A running game holds its mod files open, and a switch that stops on a locked file
+    // halfway leaves a mix of both profiles. A launch cannot start while the state lock is held.
+    resources::ensure_not_running(app, cfg.game_id).await?;
+    Ok(context.launcher)
+}
+
 /// Switches a game's installed mods to a profile, or finishes a switch that stopped part way.
 #[tauri::command]
 #[specta::specta]
@@ -3223,15 +3283,7 @@ pub async fn switch_profile(
     let cfg = engine_for_game(&game_id)?;
     let state_guard = lock_game_state(&app, cfg.game_id).await;
     let store = profiles::ProfileStore::new(&game_path);
-    // The launcher decides where Crime Boss keeps its mod settings, so it has to be the one of
-    // the copy being switched, and a page left open on the other copy must not switch this one.
-    let context = resources::current_context(&app, cfg.game_id)?;
-    if context.game_path != game_path {
-        return Err("The game folder changed since this page loaded. Nothing was switched.".into());
-    }
-    // A running game holds its mod files open, and a switch that stops on a locked file
-    // halfway leaves a mix of both profiles. A launch cannot start while the state lock is held.
-    resources::ensure_not_running(&app, cfg.game_id).await?;
+    let launcher = switch_launcher(&app, cfg, &game_path).await?;
     tauri::async_runtime::spawn_blocking(move || {
         let _state_guard = state_guard;
         let state_path = get_state_path(&game_path, cfg);
@@ -3239,7 +3291,7 @@ pub async fn switch_profile(
             game_path: &game_path,
             state_path: &state_path,
             cfg,
-            launcher: context.launcher.as_deref(),
+            launcher: launcher.as_deref(),
         };
         profiles::switch(&store, &install, &profile_id)
             .inspect_err(|e| log::warn!("switch_profile {}: {e}", cfg.game_id))

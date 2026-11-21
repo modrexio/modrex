@@ -79,6 +79,8 @@ impl ProfileMember {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Profile {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub(super) pending: Vec<super::share::import::PendingReference>,
     pub id: String,
     pub name: String,
     pub members: Vec<ProfileMember>,
@@ -261,7 +263,7 @@ impl ProfileStore {
             .ok_or_else(|| "that profile no longer exists".to_string())
     }
 
-    fn find(&self, id: &str) -> Result<Option<Profile>, String> {
+    pub(super) fn find(&self, id: &str) -> Result<Option<Profile>, String> {
         let path = self.profile_path(id)?;
         if !exists(&path)? {
             return Ok(None);
@@ -399,7 +401,7 @@ pub(crate) struct Install<'a> {
 }
 
 impl Install<'_> {
-    fn read(&self) -> Result<ModsState, String> {
+    pub(super) fn read(&self) -> Result<ModsState, String> {
         read_state_for_game(self.game_path, self.state_path, self.cfg).map_err(|e| e.to_string())
     }
 
@@ -1000,6 +1002,49 @@ fn refuse_while_unfinished(store: &ProfileStore, action: &str) -> Result<(), Str
     Ok(())
 }
 
+const SAVE_CURRENT_SETUP: &str =
+    "No profile is active. Save the current setup as a profile first, so its mods are not lost.";
+
+fn require_saved_setup(install: &Install, live: &ModsState) -> Result<(), String> {
+    if decided(&live.mods).iter().any(|m| parkable(install.cfg, m))
+        || !live_loaders(install)?.is_empty()
+    {
+        return Err(SAVE_CURRENT_SETUP.into());
+    }
+    Ok(())
+}
+
+pub(super) fn require_importable(store: &ProfileStore, install: &Install) -> Result<(), String> {
+    refuse_while_set_aside(install)?;
+    refuse_while_unfinished(store, "create the profile")?;
+    let active = store
+        .active()?
+        .map(|id| store.find(&id))
+        .transpose()?
+        .flatten();
+    if active.is_none() {
+        let live = install.scan()?;
+        if !decided(&live.mods).is_empty() {
+            return Err(SAVE_CURRENT_SETUP.into());
+        }
+        require_saved_setup(install, &live)?;
+    }
+    Ok(())
+}
+
+pub(super) fn require_import_target(
+    store: &ProfileStore,
+    install: &Install,
+    id: &str,
+) -> Result<(), String> {
+    refuse_while_set_aside(install)?;
+    refuse_while_unfinished(store, "finish importing")?;
+    if store.active()?.as_deref() != Some(id) {
+        return Err("The imported profile is no longer active".into());
+    }
+    Ok(())
+}
+
 /// Switches this copy of the game to a profile. The caller holds the game state lock and has
 /// checked that the game is not running.
 ///
@@ -1015,15 +1060,8 @@ pub(crate) fn switch(
     let unfinished = store.pending()?.is_some();
     if !unfinished {
         let live = install.scan()?;
-        if save_active(store, install, &live)?.is_none()
-            && (decided(&live.mods).iter().any(|m| parkable(install.cfg, m))
-                || !live_loaders(install)?.is_empty())
-        {
-            // Parked mods and loaders are only ever brought back by a profile that lists them.
-            return Err(
-                "No profile is active. Save the current setup as a profile first, so its mods are not lost."
-                    .to_string(),
-            );
+        if save_active(store, install, &live)?.is_none() {
+            require_saved_setup(install, &live)?;
         }
     }
     let target = store.get(profile_id)?;
@@ -1086,21 +1124,27 @@ pub(crate) fn create(
     refuse_while_unfinished(store, "create the profile")?;
     let live = install.scan()?;
     let active = save_active(store, install, &live)?;
-    let (members, folders, loaders) = match &source {
+    let (members, folders, loaders, pending) = match &source {
         ProfileSource::Current => match &active {
             Some(id) => {
                 let active = store.get(id)?;
-                (active.members, active.folders, active.loaders)
+                (
+                    active.members,
+                    active.folders,
+                    active.loaders,
+                    active.pending,
+                )
             }
             None => (
                 snapshot(install.cfg, &[], &decided(&live.mods)),
                 live.folders,
                 Some(live_loader_ids(install)?),
+                Vec::new(),
             ),
         },
         ProfileSource::Empty {
             keep_loaders: false,
-        } => (Vec::new(), Vec::new(), Some(Vec::new())),
+        } => (Vec::new(), Vec::new(), Some(Vec::new()), Vec::new()),
         // Kept loaders join as they are installed now, loose files and loader mods alike.
         ProfileSource::Empty { keep_loaders: true } => (
             decided(&live.mods)
@@ -1113,13 +1157,20 @@ pub(crate) fn create(
                 .collect(),
             Vec::new(),
             Some(live_loader_ids(install)?),
+            Vec::new(),
         ),
         ProfileSource::Copy { profile_id } => {
             let copied = store.get(profile_id)?;
-            (copied.members, copied.folders, copied.loaders)
+            (
+                copied.members,
+                copied.folders,
+                copied.loaders,
+                copied.pending,
+            )
         }
     };
     let profile = Profile {
+        pending,
         id: Uuid::new_v4().to_string(),
         name,
         members,

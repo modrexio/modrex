@@ -144,6 +144,15 @@ pub(super) async fn catalog(app: &AppHandle, share: &ProfileShare) -> Catalog {
         let game = sources::native_id("modworkshop", &share.game_id)
             .expect("the share parser checked the Workshop binding");
         let ids: Vec<_> = workshop.into_iter().collect();
+        match api::get_mod_versions(app.clone(), ids.clone()).await {
+            Ok(versions) => catalog
+                .workshop_versions
+                .extend(versions.into_iter().filter_map(|v| match v {
+                    api::ModVersionResult::Known { id, version } => Some((id, version)),
+                    _ => None,
+                })),
+            Err(error) => log::warn!("Profile preview could not read mod versions: {error}"),
+        }
         for batch in ids.chunks(50) {
             let summaries = workshop_batch(app, &game, batch).await;
             for &id in batch {
