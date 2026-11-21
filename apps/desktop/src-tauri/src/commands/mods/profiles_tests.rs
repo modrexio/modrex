@@ -1,6 +1,7 @@
 use super::super::engine::{engine_for_game, vanilla_dir, ModUnit, ScanTarget};
 use super::super::folders::create_folder_op;
 use super::super::install::{install_mod_from_path, uninstall_mod_op};
+use super::super::native_files::NativeGuard;
 use super::super::paths::get_state_path;
 use super::super::paths::mods_base;
 use super::*;
@@ -236,24 +237,12 @@ fn a_snapshot_lists_every_live_mod_and_keeps_members_it_cannot_see() {
             .collect()
     };
 
-    let pd3 = engine_for_game("pd3").unwrap();
     assert_eq!(
-        ids(snapshot(pd3, &previous, &mods)),
+        ids(snapshot(&previous, &mods)),
         [
             ("on".to_string(), true),
             ("off-member".to_string(), false),
             ("off-outsider".to_string(), false),
-            ("elsewhere".to_string(), true),
-        ]
-    );
-    // Ready or Not keeps a mod outside the profile in Paks, disabled, so an unlisted one there
-    // is an outsider rather than a member that is off.
-    let ron = engine_for_game("ron").unwrap();
-    assert_eq!(
-        ids(snapshot(ron, &previous, &mods)),
-        [
-            ("on".to_string(), true),
-            ("off-member".to_string(), false),
             ("elsewhere".to_string(), true),
         ]
     );
@@ -1477,4 +1466,78 @@ fn a_loader_installed_again_while_parked_keeps_the_new_copy() {
 
     assert_eq!(fs::read(&hook).unwrap(), b"new");
     assert!(!game.parked_loader("superblt", "").exists());
+}
+
+/// A Microsoft Store copy of Ready or Not, whose guard trusts only the files Modrex recorded.
+fn ready_or_not() -> Game {
+    let game = Game::new("ron");
+    game.put("MicrosoftGame.config", b"<Game/>");
+    game
+}
+
+#[test]
+fn ready_or_not_mods_leave_paks_for_their_profile_and_come_back() {
+    let game = ready_or_not();
+    let paks = game.cfg.primary();
+    game.install(paks, record("a"), None);
+    game.install(paks, record("b"), None);
+    game.set("b", false);
+    let main = game.create("Main", ProfileSource::Current);
+    let fresh = game.create("Fresh", EMPTY);
+    let records = game.state().mods;
+
+    game.switch(&fresh);
+
+    assert!(game.live().is_empty());
+    for m in &records {
+        assert!(game.stored_path(m).is_file(), "{}", m.uid);
+        assert!(!active_mod_path(game.path(), &m.filename, None, paks).exists());
+        assert!(!disabled_mod_path(game.path(), &m.filename, None, paks).exists());
+    }
+
+    game.switch(&main);
+    assert_eq!(game.live(), ["a", "b"]);
+    assert_eq!(game.enabled(), ["a"]);
+    assert!(game.on_disk_enabled("a"));
+    assert!(!game.on_disk_enabled("b"));
+}
+
+#[test]
+fn ready_or_not_duplicates_get_their_own_files() {
+    let game = ready_or_not();
+    let paks = game.cfg.primary();
+    game.install(paks, record("a"), None);
+    let main = game.create("Main", ProfileSource::Current);
+    let original = game.record("a").install_id;
+    let twin = game.create(
+        "Twin",
+        ProfileSource::Copy {
+            profile_id: main.clone(),
+        },
+    );
+
+    game.switch(&twin);
+
+    assert_eq!(game.enabled(), ["a"]);
+    assert_ne!(game.record("a").install_id, original);
+    game.switch(&main);
+    assert_eq!(game.record("a").install_id, original);
+}
+
+#[test]
+fn the_guard_lets_a_shared_paks_mod_leave_only_for_the_profile_store() {
+    let game = ready_or_not();
+    game.install(game.cfg.primary(), record("a"), None);
+    let guard = NativeGuard::load(game.path(), game.cfg).unwrap();
+    let modrex = game.dir.path().join(".modrex");
+    assert!(guard
+        .check_file(&modrex.join("profiles/Main/a.pak"))
+        .is_ok());
+    assert!(guard
+        .check_file(&modrex.join("profiles/Main/notes.txt"))
+        .is_err());
+    for outside in ["elsewhere/a.pak", "loaders/a.pak"] {
+        let err = guard.check_file(&modrex.join(outside)).unwrap_err();
+        assert!(err.contains("leaves its shared Paks"), "{outside}: {err}");
+    }
 }

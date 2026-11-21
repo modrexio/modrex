@@ -17,9 +17,9 @@
 //! (UE4SS, SuperBLT, DAHM, RAID-SuperBLT) is listed by id and shared, and leaving it out moves
 //! only the files that hook it into the game, which loaders.rs names, to .modrex/loaders. A new
 //! profile starts without loaders unless the user keeps the installed ones.
-//! Ready or Not's mods share Paks with the game's own files and Modrex moves nothing out of
-//! Paks, so a mod outside the active profile stays there, disabled and listed, and is the one
-//! mod a copied profile keeps as a single copy.
+//! Ready or Not's mods share Paks with the game's own files, so its mods leave Paks for a
+//! profile's folder only through the native-file guard, which accepts that folder and nothing
+//! else outside Paks.
 //!
 //! A switch turns mods off and on through the operations the Installed page uses, so each
 //! loader keeps its own way of doing it (file moves, mods.txt, Crime Boss's settings file),
@@ -259,6 +259,13 @@ fn exists(path: &Path) -> Result<bool, String> {
 }
 
 const PROFILE_FILE: &str = "profile.json";
+const PROFILES_DIR: &str = "profiles";
+
+/// The folder holding every profile's folder, which the native-file guard lets a stored mod
+/// move into and out of.
+pub(super) fn store_dir(game_path: &str) -> PathBuf {
+    modrex_dir(game_path).join(PROFILES_DIR)
+}
 
 /// The profiles, their stored mods, the left-out loaders and the switch journal of one copy of
 /// a game, in its .modrex folder.
@@ -274,7 +281,7 @@ impl ProfileStore {
     }
 
     fn profiles_dir(&self) -> PathBuf {
-        self.root.join("profiles")
+        self.root.join(PROFILES_DIR)
     }
 
     /// Every profile, each with its folder. A folder without a profile file is not a profile.
@@ -554,25 +561,12 @@ fn decided(mods: &[InstalledMod]) -> Vec<InstalledMod> {
         .collect()
 }
 
-/// Whether a mod outside the active profile can leave the game's folders. See the module
-/// comment for Ready or Not.
-fn parkable(cfg: &ModEngineConfig, m: &InstalledMod) -> bool {
-    cfg.mod_target(m).shared_paks.is_none()
-}
-
-/// The members a profile has once the decided live records are written back into it. Every
-/// one of them is a member, except a mod that cannot be parked and is off, which is one only
-/// when the profile listed it. Members with no live record stay as they were, since the record
-/// may be missing or parked.
-fn snapshot(
-    cfg: &ModEngineConfig,
-    previous: &[ProfileMember],
-    live: &[InstalledMod],
-) -> Vec<ProfileMember> {
-    let listed: HashSet<&str> = previous.iter().map(|p| p.install_id.as_str()).collect();
+/// The members a profile has once the decided live records are written back into it: every
+/// one of them. Members with no live record stay as they were, since the record may be missing
+/// or parked.
+fn snapshot(previous: &[ProfileMember], live: &[InstalledMod]) -> Vec<ProfileMember> {
     let present: HashSet<&str> = live.iter().map(|m| m.install_id.as_str()).collect();
     live.iter()
-        .filter(|m| parkable(cfg, m) || m.enabled || listed.contains(m.install_id.as_str()))
         .map(ProfileMember::of)
         .chain(
             previous
@@ -636,7 +630,7 @@ fn save_active(
 }
 
 fn capture_live(profile: &mut Profile, install: &Install, live: &ModsState) -> Result<(), String> {
-    profile.members = snapshot(install.cfg, &profile.members, &decided(&live.mods));
+    profile.members = snapshot(&profile.members, &decided(&live.mods));
     profile.folders = live.folders.clone();
     profile.loaders = Some(live_loader_ids(install)?);
     Ok(())
@@ -871,8 +865,7 @@ enum Origin<'a> {
     Stored(&'a Profile),
 }
 
-/// Gives a new profile its own copy of each of these members, under new install ids. Ready or
-/// Not's shared Paks mods never leave Paks, so they stay one copy.
+/// Gives a new profile its own copy of each of these members, under new install ids.
 fn copy_members(
     install: &Install,
     origin: Origin,
@@ -886,10 +879,6 @@ fn copy_members(
             .mods
             .iter()
             .find(|m| m.install_id == member.install_id && m.missing != Some(true));
-        if live_record.is_some_and(|m| !parkable(install.cfg, m)) {
-            copy.members.push(member.clone());
-            continue;
-        }
         let found = match origin {
             Origin::Live => live_record.map(|record| {
                 let from = if record.enabled {
@@ -1177,7 +1166,7 @@ fn apply(store: &ProfileStore, install: &Install, target: &Profile) -> Result<()
     let halfway: HashSet<String> = store.parked()?.into_iter().map(|m| m.install_id).collect();
     let halfway = scanned.iter().filter(|m| halfway.contains(&m.install_id));
     for m in leaving.iter().chain(halfway) {
-        if !wanted.contains_key(m.install_id.as_str()) && parkable(install.cfg, m) {
+        if !wanted.contains_key(m.install_id.as_str()) {
             park(store, install, &m.uid)?;
         }
     }
@@ -1307,9 +1296,7 @@ const SAVE_CURRENT_SETUP: &str =
     "No profile is active. Save the current setup as a profile first, so its mods are not lost.";
 
 fn require_saved_setup(install: &Install, live: &ModsState) -> Result<(), String> {
-    if decided(&live.mods).iter().any(|m| parkable(install.cfg, m))
-        || !live_loaders(install)?.is_empty()
-    {
+    if !decided(&live.mods).is_empty() || !live_loaders(install)?.is_empty() {
         return Err(SAVE_CURRENT_SETUP.into());
     }
     Ok(())
@@ -1504,7 +1491,7 @@ fn fill(
             keep_loaders: false,
         } => profile.loaders = Some(Vec::new()),
         ProfileSource::Current | ProfileSource::Copy { .. } => {
-            profile.members = snapshot(install.cfg, &[], &decided(&live.mods));
+            profile.members = snapshot(&[], &decided(&live.mods));
             profile.folders = live.folders.clone();
             profile.loaders = Some(live_loader_ids(install)?);
         }

@@ -9,6 +9,9 @@ use std::path::{Component, Path, PathBuf};
 /// Protects native paths when an Unreal target shares its directory with mod files.
 pub(super) struct NativeGuard {
     game_root: PathBuf,
+    // Where a profile that is not active keeps its mods: the one place outside its shared
+    // Paks directory a mod file may be moved to and back from.
+    profile_store: PathBuf,
     targets: Vec<NativeTarget>,
 }
 
@@ -94,6 +97,7 @@ impl NativeGuard {
         {
             return Ok(Self {
                 game_root: PathBuf::from(game_path),
+                profile_store: super::profiles::store_dir(game_path),
                 targets: Vec::new(),
             });
         }
@@ -165,7 +169,11 @@ impl NativeGuard {
                 snapshot,
             });
         }
-        Ok(Self { game_root, targets })
+        Ok(Self {
+            game_root,
+            profile_store: super::profiles::store_dir(game_path),
+            targets,
+        })
     }
 
     fn refusal(&self, path: &Path) -> String {
@@ -270,15 +278,17 @@ impl NativeGuard {
     }
 
     pub fn check_file(&self, path: &Path) -> Result<(), String> {
-        let Some(target) = self
+        if self.targets.is_empty() {
+            return Ok(());
+        }
+        let target = match self
             .targets
             .iter()
             .find(|target| path.starts_with(&target.root))
-        else {
-            if !self.targets.is_empty() {
-                return Err("The mod path leaves its shared Paks directory".into());
-            }
-            return Ok(());
+        {
+            Some(target) => target,
+            None if self.in_profile_store(path)? => &self.targets[0],
+            None => return Err("The mod path leaves its shared Paks directory".into()),
         };
         self.check_path(path)?;
         let name = path
@@ -312,6 +322,16 @@ impl NativeGuard {
             return Err(self.refusal(path));
         }
         Ok(())
+    }
+
+    /// Whether a path is inside the profile store, checked again once links are resolved, so
+    /// a link there cannot lead a move anywhere else.
+    fn in_profile_store(&self, path: &Path) -> Result<bool, String> {
+        if !path.starts_with(&self.profile_store) {
+            return Ok(false);
+        }
+        let store = resolve_existing_ancestor(&self.profile_store)?;
+        Ok(resolve_existing_ancestor(path)?.starts_with(store))
     }
 
     pub fn check_tree(&self, path: &Path) -> Result<(), String> {
