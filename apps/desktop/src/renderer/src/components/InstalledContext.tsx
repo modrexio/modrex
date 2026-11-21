@@ -30,8 +30,6 @@ export interface InstalledContextValue {
     reinstallError: string | null
     clearReinstallError: () => void
     handleUninstall: (mods: ModGroup) => Promise<void>
-    // Uninstalling also takes a mod out of every profile, and the button says so once there are any.
-    removeLabel: string
     handleEnable: (mods: ModGroup) => Promise<void>
     handleDisable: (mods: ModGroup) => Promise<void>
     handleReinstall: (mods: ModGroup) => Promise<string | null>

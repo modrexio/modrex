@@ -95,8 +95,6 @@ interface Props {
     isActive: boolean
     onRefreshInstalled: () => Promise<void>
     onOpenDetail: (modId: number, source?: 'nexus') => void
-    // Uninstall takes a mod out of every profile, which its label says once there are any.
-    hasProfiles: boolean
     // Shared mods the active profile is still waiting for, listed by the profile menu.
     pendingShared: number
     onShowPendingShared: () => void
@@ -111,7 +109,6 @@ export function InstalledPage({
     isActive,
     onRefreshInstalled,
     onOpenDetail,
-    hasProfiles,
     pendingShared,
     onShowPendingShared,
 }: Props) {
@@ -488,7 +485,6 @@ export function InstalledPage({
         reinstallError,
         clearReinstallError,
         handleUninstall,
-        removeLabel: hasProfiles ? t('installed.profiles.removeFromAll') : t('common.remove'),
         handleEnable,
         handleDisable,
         handleReinstall,

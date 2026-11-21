@@ -394,10 +394,10 @@ fn import_refuses_unsaved_mods_set_aside_mods_and_an_unfinished_switch() {
 fn old_profile_without_pending_references_reads_as_empty() {
     let game = Game::new("pd3");
     let id = uuid::Uuid::new_v4().to_string();
-    let dir = game.root.path().join(".modrex/profiles");
+    let dir = game.root.path().join(".modrex/profiles/Old");
     fs::create_dir_all(&dir).unwrap();
     fs::write(
-        dir.join(format!("{id}.json")),
+        dir.join("profile.json"),
         json!({"schemaVersion":1,"id":id,"name":"Old","members":[]}).to_string(),
     )
     .unwrap();

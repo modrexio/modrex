@@ -108,7 +108,6 @@ function renderPage(
             isActive
             onRefreshInstalled={vi.fn(async () => {})}
             onOpenDetail={vi.fn()}
-            hasProfiles={false}
             pendingShared={pendingShared}
             onShowPendingShared={onShowPendingShared}
         />

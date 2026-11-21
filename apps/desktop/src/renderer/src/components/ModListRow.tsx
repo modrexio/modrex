@@ -25,7 +25,6 @@ interface Props {
     isDragging?: boolean
     onOpen: () => void
     onUninstall: () => void
-    removeLabel?: string
     onEnable: () => void
     onDisable: () => void
     onReinstall?: () => void
@@ -45,7 +44,6 @@ export function ModListRow({
     isDragging,
     onOpen,
     onUninstall,
-    removeLabel = t('common.remove'),
     onEnable,
     onDisable,
     onReinstall,
@@ -185,7 +183,7 @@ export function ModListRow({
                         />
                     )}
                     {!needsResourceReview && (
-                        <Tooltip content={removeLabel}>
+                        <Tooltip content={t('common.remove')}>
                             <Button
                                 variant="danger"
                                 size="icon-md"

@@ -22,7 +22,6 @@ interface Props {
     onOpen: () => void
     onInstall: () => void
     onUninstall: () => void
-    removeLabel?: string
     onEnable: () => void
     onDisable: () => void
     onReinstall?: () => void
@@ -44,7 +43,6 @@ export function ModCard({
     onOpen,
     onInstall,
     onUninstall,
-    removeLabel = t('common.remove'),
     onEnable,
     onDisable,
     onReinstall,
@@ -245,7 +243,7 @@ export function ModCard({
                             />
                         )}
                         {!needsResourceReview && (
-                            <Tooltip content={removeLabel}>
+                            <Tooltip content={t('common.remove')}>
                                 <Button
                                     variant="danger"
                                     size="icon-md"

@@ -1,11 +1,12 @@
 //! Per-game mod profiles, kept in the game's .modrex folder.
 //!
-//! Each profile has its own mods and its own app folders. The mods of the active profile are
-//! installed as usual. The mods of every other profile are parked: their files in
-//! .modrex/parked/<install_id>, outside every folder the game loads, and their records in
-//! .modrex/parked.json, so the Installed page and every scan see only the active profile. A mod
-//! two profiles share is one installation, live or parked as one. A profile's folders live in
-//! its own file and are put in place, empty directories and all, when it becomes active.
+//! Each profile has its own mods and its own app folders, and no two profiles share a mod, so
+//! Duplicate copies the files. Every profile has a folder, .modrex/profiles/<name>, holding its
+//! profile.json. The mods of the active profile are installed as usual. The mods of every other
+//! profile are parked in that profile's folder under plain names, outside every folder the game
+//! loads, with their records in its profile.json, so the Installed page and every scan see only
+//! the active profile. A profile's app folders live in its file and are put in place, empty
+//! directories and all, when it becomes active.
 //!
 //! A profile lists installations by install_id, with the enabled flag, folder and order each
 //! had. The live profile is never read back from its file. The file is a snapshot taken when
@@ -13,11 +14,12 @@
 //! profile without any install path knowing about profiles. A live record whose files are
 //! missing belongs to no profile and keeps what each profile already said about it. A loader
 //! tracked as a mod (PDML) is a member like any other. A loader Modrex installs as loose files
-//! (UE4SS, SuperBLT, DAHM, RAID-SuperBLT) is listed by id, and leaving it out parks only the
-//! files that hook it into the game, which loaders.rs names. A new profile starts without
-//! loaders unless the user keeps the installed ones.
+//! (UE4SS, SuperBLT, DAHM, RAID-SuperBLT) is listed by id and shared, and leaving it out moves
+//! only the files that hook it into the game, which loaders.rs names, to .modrex/loaders. A new
+//! profile starts without loaders unless the user keeps the installed ones.
 //! Ready or Not's mods share Paks with the game's own files and Modrex moves nothing out of
-//! Paks, so a mod outside the active profile stays there, disabled and listed.
+//! Paks, so a mod outside the active profile stays there, disabled and listed, and is the one
+//! mod a copied profile keeps as a single copy.
 //!
 //! A switch turns mods off and on through the operations the Installed page uses, so each
 //! loader keeps its own way of doing it (file moves, mods.txt, Crime Boss's settings file),
@@ -35,11 +37,13 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use super::bundle::disabled_store;
-use super::engine::{modrex_dir, set_aside_dir, Activation, ModEngineConfig};
-use super::install::{disable_mod_op, enable_mod_op, is_host_pack};
+use super::engine::{modrex_dir, set_aside_dir, Activation, ModEngineConfig, ModUnit};
+use super::install::{copy_dir_all, disable_mod_op, enable_mod_op, is_host_pack};
 use super::moves::Moves;
+use super::naming::{sidecar_path, strip_priority_prefix};
 use super::paths::{
-    active_mod_path, disabled_base, disabled_mod_path, host_pack_disabled_dir, mods_base,
+    active_mod_path, disabled_base, disabled_mod_path, host_pack_dir, host_pack_disabled_dir,
+    mods_base,
 };
 use super::reorder::{move_mod_to_folder_op, reorder_mods_in_folder_op};
 use super::resource_state::write_atomic;
@@ -76,9 +80,12 @@ impl ProfileMember {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Profile {
+    // The profile's folder, set when it is read or placed, never written into its own file.
+    #[serde(skip)]
+    pub(super) dir: PathBuf,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub(super) pending: Vec<super::share::import::PendingReference>,
     pub id: String,
@@ -90,6 +97,19 @@ pub struct Profile {
     /// profiles held loaders, and switching to it then leaves loaders as they are.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub loaders: Option<Vec<String>>,
+    /// The mods this profile keeps in its folder while another profile is active.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub(super) parked: Vec<ParkedMod>,
+}
+
+/// A mod of a profile that is not active: its record, and the name its files are kept under in
+/// the profile's folder. The name is recorded rather than derived, since a clash with another
+/// mod of the same name adds a number to it.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(super) struct ParkedMod {
+    pub(super) stored: String,
+    pub(super) record: InstalledMod,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -116,9 +136,7 @@ struct InstallMarker {
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct Parked {
-    mods: Vec<InstalledMod>,
-    #[serde(default)]
+struct LeftOut {
     loaders: Vec<ParkedLoader>,
 }
 
@@ -159,7 +177,7 @@ pub enum ProfileSource {
     /// No mods, so switching to it parks every mod, and the installed loaders too unless kept.
     #[serde(rename_all = "camelCase")]
     Empty { keep_loaders: bool },
-    /// Another profile's members.
+    /// A copy of another profile's mods, files and all.
     #[serde(rename_all = "camelCase")]
     Copy { profile_id: String },
 }
@@ -190,7 +208,7 @@ fn write_versioned<T: Serialize>(path: &Path, body: &T) -> Result<(), String> {
     write_atomic(path, &bytes)
 }
 
-/// A profile id names a file, so it is checked before it is joined to a path.
+/// A profile id is only ever compared, but one read from a file is checked like any input.
 fn checked_id(id: &str) -> Result<&str, String> {
     Uuid::parse_str(id)
         .map(|_| id)
@@ -210,12 +228,40 @@ fn checked_name(name: &str) -> Result<String, String> {
     Ok(name.to_string())
 }
 
+/// A name the file system accepts as one folder or file, for a profile or a stored mod. Windows
+/// refuses these characters, a trailing dot or space, and the old device names.
+fn plain_name(name: &str, fallback: &str) -> String {
+    let cleaned: String = name
+        .chars()
+        .map(|c| {
+            if c.is_control() || r#"<>:"/\|?*"#.contains(c) {
+                '_'
+            } else {
+                c
+            }
+        })
+        .collect();
+    let cleaned = cleaned.trim().trim_end_matches(['.', ' ']).to_string();
+    let stem = cleaned.split('.').next().unwrap_or("").to_ascii_uppercase();
+    let reserved = matches!(stem.as_str(), "CON" | "PRN" | "AUX" | "NUL")
+        || (stem.len() == 4
+            && (stem.starts_with("COM") || stem.starts_with("LPT"))
+            && stem.ends_with(|c: char| c.is_ascii_digit()));
+    if cleaned.is_empty() || reserved {
+        return format!("{fallback} {cleaned}").trim().to_string();
+    }
+    cleaned
+}
+
 fn exists(path: &Path) -> Result<bool, String> {
     path.try_exists()
         .map_err(|e| format!("could not check {}: {e}", path.display()))
 }
 
-/// The profiles, parked mods and switch journal of one copy of a game, in its .modrex folder.
+const PROFILE_FILE: &str = "profile.json";
+
+/// The profiles, their stored mods, the left-out loaders and the switch journal of one copy of
+/// a game, in its .modrex folder.
 pub(crate) struct ProfileStore {
     root: PathBuf,
 }
@@ -227,32 +273,42 @@ impl ProfileStore {
         }
     }
 
-    fn profile_path(&self, id: &str) -> Result<PathBuf, String> {
-        Ok(self
-            .root
-            .join("profiles")
-            .join(format!("{}.json", checked_id(id)?)))
+    fn profiles_dir(&self) -> PathBuf {
+        self.root.join("profiles")
     }
 
+    /// Every profile, each with its folder. A folder without a profile file is not a profile.
     pub(crate) fn list(&self) -> Result<Vec<Profile>, String> {
-        let dir = self.root.join("profiles");
-        let entries = match fs::read_dir(&dir) {
+        let entries = match fs::read_dir(self.profiles_dir()) {
             Ok(entries) => entries,
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
             Err(e) => return Err(format!("could not read the profiles: {e}")),
         };
         let mut profiles = Vec::new();
         for entry in entries {
-            let path = entry
+            let dir = entry
                 .map_err(|e| format!("could not read the profiles: {e}"))?
                 .path();
-            let Some(id) = path
-                .file_stem()
-                .filter(|_| path.extension().is_some_and(|ext| ext == "json"))
-            else {
+            let file = dir.join(PROFILE_FILE);
+            if !dir.is_dir() || !exists(&file)? {
                 continue;
-            };
-            profiles.push(read_profile(&path, &id.to_string_lossy())?);
+            }
+            let mut profile: Profile = read_versioned(&file)?;
+            checked_id(&profile.id)?;
+            profile.dir = dir;
+            profiles.push(profile);
+        }
+        // A profile folder copied by hand holds the same profile twice. Saving through either
+        // would change what the other means, so neither is used until one is removed.
+        let mut seen: HashMap<&str, &Path> = HashMap::new();
+        for p in &profiles {
+            if let Some(other) = seen.insert(&p.id, &p.dir) {
+                return Err(format!(
+                    "{} and {} hold the same profile. Remove one of them.",
+                    other.display(),
+                    p.dir.display()
+                ));
+            }
         }
         // The id breaks ties, since the directory listing has no stable order.
         profiles
@@ -266,20 +322,70 @@ impl ProfileStore {
     }
 
     pub(super) fn find(&self, id: &str) -> Result<Option<Profile>, String> {
-        let path = self.profile_path(id)?;
-        if !exists(&path)? {
-            return Ok(None);
-        }
-        read_profile(&path, id).map(Some)
+        checked_id(id)?;
+        Ok(self.list()?.into_iter().find(|p| p.id == id))
     }
 
     pub(crate) fn save(&self, profile: &Profile) -> Result<(), String> {
-        write_versioned(&self.profile_path(&profile.id)?, profile)
+        assert!(
+            profile.dir.starts_with(self.profiles_dir()),
+            "a profile is placed before it is saved"
+        );
+        fs::create_dir_all(&profile.dir)
+            .map_err(|e| format!("could not create {}: {e}", profile.dir.display()))?;
+        write_versioned(&profile.dir.join(PROFILE_FILE), profile)
     }
 
-    fn delete(&self, id: &str) -> Result<(), String> {
-        let path = self.profile_path(id)?;
-        match fs::remove_file(&path) {
+    /// A free folder for a profile named this. Two profiles may share a name, so the second
+    /// folder gets a number.
+    fn free_dir(&self, name: &str) -> Result<PathBuf, String> {
+        let base = plain_name(name, "Profile");
+        for n in 1.. {
+            let candidate = match n {
+                1 => base.clone(),
+                n => format!("{base} ({n})"),
+            };
+            let dir = self.profiles_dir().join(candidate);
+            if !exists(&dir)? {
+                return Ok(dir);
+            }
+        }
+        unreachable!("some numbered folder name is free")
+    }
+
+    pub(super) fn place(&self, profile: &mut Profile) -> Result<(), String> {
+        profile.dir = self.free_dir(&profile.name)?;
+        self.save(profile)
+    }
+
+    /// Renames a profile and its folder. The folder moves first, so a stop leaves the old name
+    /// on a folder Modrex still finds by the file inside it.
+    fn rename(&self, profile: &mut Profile, name: String) -> Result<(), String> {
+        let base = plain_name(&name, "Profile").to_lowercase();
+        let current = profile
+            .dir
+            .file_name()
+            .map(|n| n.to_string_lossy().to_lowercase());
+        // A folder already carrying the name, numbered or in another case, keeps it. Windows
+        // compares names without case, so moving it would only number it again.
+        let keeps = current.is_some_and(|c| {
+            c == base
+                || c.strip_prefix(&format!("{base} ("))
+                    .and_then(|n| n.strip_suffix(')'))
+                    .is_some_and(|n| n.parse::<u32>().is_ok())
+        });
+        if !keeps {
+            let dir = self.free_dir(&name)?;
+            fs::rename(&profile.dir, &dir)
+                .map_err(|e| format!("could not rename the profile folder: {e}"))?;
+            profile.dir = dir;
+        }
+        profile.name = name;
+        self.save(profile)
+    }
+
+    fn delete(&self, profile: &Profile) -> Result<(), String> {
+        match fs::remove_dir_all(&profile.dir) {
             Ok(()) => Ok(()),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
             Err(e) => Err(format!("could not delete the profile: {e}")),
@@ -330,25 +436,25 @@ impl ProfileStore {
         )
     }
 
-    fn parked_all(&self) -> Result<Parked, String> {
-        let path = self.root.join("parked.json");
-        if !exists(&path)? {
-            return Ok(Parked::default());
-        }
-        read_versioned(&path)
+    /// The records of every parked mod, of every profile.
+    pub(super) fn parked(&self) -> Result<Vec<InstalledMod>, String> {
+        Ok(self
+            .list()?
+            .into_iter()
+            .flat_map(|p| p.parked.into_iter().map(|parked| parked.record))
+            .collect())
     }
 
-    fn parked(&self) -> Result<Vec<InstalledMod>, String> {
-        Ok(self.parked_all()?.mods)
-    }
-
-    fn save_parked(&self, mods: Vec<InstalledMod>) -> Result<(), String> {
-        let loaders = self.parked_all()?.loaders;
-        write_versioned(&self.root.join("parked.json"), &Parked { mods, loaders })
+    fn loaders_dir(&self) -> PathBuf {
+        self.root.join("loaders")
     }
 
     fn parked_loaders(&self) -> Result<Vec<ParkedLoader>, String> {
-        Ok(self.parked_all()?.loaders)
+        let path = self.loaders_dir().join("left-out.json");
+        if !exists(&path)? {
+            return Ok(Vec::new());
+        }
+        Ok(read_versioned::<LeftOut>(&path)?.loaders)
     }
 
     pub(super) fn has_parked_loader(&self, id: &str) -> Result<bool, String> {
@@ -367,31 +473,18 @@ impl ProfileStore {
     }
 
     fn save_parked_loaders(&self, loaders: Vec<ParkedLoader>) -> Result<(), String> {
-        let mods = self.parked_all()?.mods;
-        write_versioned(&self.root.join("parked.json"), &Parked { mods, loaders })
+        write_versioned(
+            &self.loaders_dir().join("left-out.json"),
+            &LeftOut { loaders },
+        )
     }
 
-    /// Where a parked loader's files sit. The id names a folder, so it has to be a known loader.
+    /// Where a left-out loader's files sit, beside the record of what its install created.
+    /// The id names a folder, so it has to be a known loader.
     fn parked_loader_dir(&self, id: &str) -> Result<PathBuf, String> {
         loader_spec(id).ok_or_else(|| format!("'{id}' is not a loader Modrex knows"))?;
-        Ok(self.root.join("parked").join("loaders").join(id))
+        Ok(self.loaders_dir().join(id))
     }
-
-    /// Where a parked mod's files sit. The install id names a folder, so it is checked first.
-    fn parked_dir(&self, m: &InstalledMod) -> Result<PathBuf, String> {
-        Uuid::parse_str(&m.install_id)
-            .map_err(|_| format!("'{}' has no install id Modrex can park it under", m.name))?;
-        Ok(self.root.join("parked").join(&m.install_id))
-    }
-}
-
-/// A file that names a profile must hold that profile, or saving it would overwrite another.
-fn read_profile(path: &Path, id: &str) -> Result<Profile, String> {
-    let profile: Profile = read_versioned(path)?;
-    if profile.id != id {
-        return Err(format!("{} holds another profile", path.display()));
-    }
-    Ok(profile)
 }
 
 /// What a switch needs from the caller beyond the target: which copy and how to toggle there.
@@ -571,7 +664,8 @@ pub(super) fn share_snapshot(
         capture_live(&mut profile, install, &live)?;
         live.mods
     } else {
-        let mut records = store.parked()?;
+        let mut records: Vec<InstalledMod> =
+            profile.parked.iter().map(|p| p.record.clone()).collect();
         // A stopped switch can leave both records. The live record wins the join.
         records.extend(live.mods);
         records
@@ -582,23 +676,94 @@ pub(super) fn share_snapshot(
     Ok((profile, records))
 }
 
-/// Takes a mod that is off out of the game: the record goes to parked.json first, then the
-/// files move, and the state drops the record last, so a stop at any point leaves the mod in
-/// both lists, which the next switch settles.
+/// The profile a live mod belongs to. No two profiles share a mod, so it is the one that lists
+/// it. A mod installed while a stopped switch had saved nothing belongs to the profile that
+/// was active.
+fn owner_of(store: &ProfileStore, install_id: &str) -> Result<Profile, String> {
+    let profiles = store.list()?;
+    let listed = |p: &Profile| {
+        p.members.iter().any(|m| m.install_id == install_id)
+            || p.parked.iter().any(|m| m.record.install_id == install_id)
+    };
+    if let Some(owner) = profiles.iter().find(|p| listed(p)) {
+        return Ok(owner.clone());
+    }
+    let active = store.active()?;
+    profiles
+        .into_iter()
+        .find(|p| Some(&p.id) == active.as_ref())
+        .ok_or_else(|| "this mod belongs to no profile".to_string())
+}
+
+/// The plain name a mod's files are kept under in its profile's folder: the file or folder
+/// name without the load-order prefix or the disabled suffix, or the mod's name for a bundle,
+/// whose files are a tree of their own. A clash with another stored mod, or with the profile
+/// file, numbers it, before the extension for a file so its companions follow.
+fn stored_name(install: &Install, m: &InstalledMod, from: &Path, profile: &Profile) -> String {
+    let target = install.cfg.mod_target(m);
+    let base = if target.is_bundle() {
+        plain_name(&m.name, "Mod")
+    } else {
+        let name = from
+            .file_name()
+            .expect("a mod path names a file")
+            .to_string_lossy()
+            .into_owned();
+        let name = name.strip_suffix(target.disabled_suffix()).unwrap_or(&name);
+        if target.priority_prefix_enabled() {
+            strip_priority_prefix(name).to_string()
+        } else {
+            name.to_string()
+        }
+    };
+    let taken = |candidate: &str| {
+        candidate.eq_ignore_ascii_case(PROFILE_FILE)
+            || profile
+                .parked
+                .iter()
+                .any(|p| p.stored.eq_ignore_ascii_case(candidate))
+            || profile.dir.join(candidate).exists()
+    };
+    let (stem, ext) = match (&target.unit, base.rsplit_once('.')) {
+        (ModUnit::File { .. }, Some((stem, ext))) => (stem.to_string(), format!(".{ext}")),
+        _ => (base.clone(), String::new()),
+    };
+    (1..)
+        .map(|n| match n {
+            1 => base.clone(),
+            n => format!("{stem} ({n}){ext}"),
+        })
+        .find(|candidate| !taken(candidate))
+        .expect("some numbered name is free")
+}
+
+/// Takes a mod that is off out of the game into its profile's folder: the record goes to the
+/// profile first, then the files move, and the state drops the record last, so a stop at any
+/// point leaves the mod in both lists, which the next switch settles.
 fn park(store: &ProfileStore, install: &Install, uid: &str) -> Result<(), String> {
     let state = install.read()?;
     let Some(m) = state.mods.iter().find(|m| m.uid == uid).cloned() else {
         return Ok(());
     };
-    let mut parked = store.parked()?;
-    if !parked.iter().any(|p| p.install_id == m.install_id) {
-        parked.push(m.clone());
-        store.save_parked(parked)?;
-    }
+    let mut owner = owner_of(store, &m.install_id)?;
     let slot = install.off_slot(&state.folders, &m)?;
-    let dest = store
-        .parked_dir(&m)?
-        .join(slot.file_name().expect("a mod path names a file"));
+    let stored = match owner
+        .parked
+        .iter()
+        .find(|p| p.record.install_id == m.install_id)
+    {
+        Some(parked) => parked.stored.clone(),
+        None => {
+            let stored = stored_name(install, &m, &slot, &owner);
+            owner.parked.push(ParkedMod {
+                stored: stored.clone(),
+                record: m.clone(),
+            });
+            store.save(&owner)?;
+            stored
+        }
+    };
+    let dest = owner.dir.join(stored);
     if exists(&slot)? && !exists(&dest)? {
         install.move_files(&m, slot, dest)?;
     }
@@ -609,9 +774,15 @@ fn park(store: &ProfileStore, install: &Install, uid: &str) -> Result<(), String
     save_state(install.state_path, &rest).map_err(|e| e.to_string())
 }
 
-/// Brings a parked mod back, off: the state gains the record first, then the files move, and
-/// parked.json drops it last. A record found in both lists is finished the same way.
-fn unpark(store: &ProfileStore, install: &Install, record: &InstalledMod) -> Result<(), String> {
+/// Brings a parked mod of a profile back, off: the state gains the record first, then the files
+/// move, and the profile drops it last. A record found in both lists is finished the same way.
+fn unpark(
+    store: &ProfileStore,
+    install: &Install,
+    profile_id: &str,
+    parked: &ParkedMod,
+) -> Result<(), String> {
+    let record = &parked.record;
     let mut state = install.read()?;
     let m = match state
         .mods
@@ -641,25 +812,153 @@ fn unpark(store: &ProfileStore, install: &Install, record: &InstalledMod) -> Res
             m
         }
     };
+    let mut profile = store.get(profile_id)?;
     let slot = install.off_slot(&state.folders, &m)?;
-    let parked_dir = store.parked_dir(&m)?;
-    let source = parked_dir.join(slot.file_name().expect("a mod path names a file"));
+    let source = profile.dir.join(&parked.stored);
     if exists(&source)? && !exists(&slot)? {
         install.move_files(&m, source, slot)?;
     }
-    // remove_dir leaves a folder that still holds something, which is then kept for review.
-    fs::remove_dir(&parked_dir).ok();
-    let parked = store.parked()?;
-    store.save_parked(
-        parked
-            .into_iter()
-            .filter(|p| p.install_id != m.install_id)
-            .collect(),
-    )
+    profile
+        .parked
+        .retain(|p| p.record.install_id != m.install_id);
+    store.save(&profile)
 }
 
-/// Moves a loader's hook files out of the game: the record goes to parked.json first, then each
-/// file moves, so a stop leaves the loader recorded with some files still in place, which the
+/// Copies one mod's files, as they are now, to a stored name in another profile's folder: a
+/// file with its companions, a folder, or a bundle's tree. A bundle that is on has its files
+/// spread over the game folder, which its record lists.
+fn copy_files(install: &Install, m: &InstalledMod, from: &Path, to: &Path) -> Result<(), String> {
+    let target = install.cfg.mod_target(m);
+    let failed = |e: String| format!("could not copy the files of '{}': {e}", m.name);
+    if target.is_bundle() && m.enabled && !from.starts_with(modrex_dir(install.game_path)) {
+        let root = Path::new(install.game_path);
+        for file in m.bundle.as_deref().unwrap_or_default() {
+            let outside = || failed(format!("{} is outside the game", file.path));
+            let src = safe_dest(root, &file.path).ok_or_else(outside)?;
+            let dst = safe_dest(to, &file.path).ok_or_else(outside)?;
+            let parent = dst.parent().expect("a bundle file has a folder");
+            fs::create_dir_all(parent).map_err(|e| failed(e.to_string()))?;
+            fs::copy(&src, &dst).map_err(|e| failed(e.to_string()))?;
+        }
+        return Ok(());
+    }
+    if from.is_dir() {
+        return copy_dir_all(from, to).map_err(failed);
+    }
+    let mut pairs = vec![(from.to_path_buf(), to.to_path_buf())];
+    if let ModUnit::File { extension, .. } = &target.unit {
+        for ext in target.companions {
+            if let (Some(a), Some(b)) = (
+                sidecar_path(from, extension, ext),
+                sidecar_path(to, extension, ext),
+            ) {
+                pairs.push((a, b));
+            }
+        }
+    }
+    for (src, dst) in pairs {
+        if src == from || exists(&src)? {
+            fs::copy(&src, &dst).map_err(|e| failed(e.to_string()))?;
+        }
+    }
+    Ok(())
+}
+
+/// Where the mods a new profile copies are now: installed, for the active profile and for
+/// kept loaders, or stored in an inactive profile's folder.
+enum Origin<'a> {
+    Live,
+    Stored(&'a Profile),
+}
+
+/// Gives a new profile its own copy of each of these members, under new install ids. Ready or
+/// Not's shared Paks mods never leave Paks, so they stay one copy.
+fn copy_members(
+    install: &Install,
+    origin: Origin,
+    members: &[ProfileMember],
+    live: &ModsState,
+    copy: &mut Profile,
+) -> Result<(), String> {
+    for member in members {
+        // A mod whose files are missing has nothing to copy, so the copy leaves it out.
+        let live_record = live
+            .mods
+            .iter()
+            .find(|m| m.install_id == member.install_id && m.missing != Some(true));
+        if live_record.is_some_and(|m| !parkable(install.cfg, m)) {
+            copy.members.push(member.clone());
+            continue;
+        }
+        let found = match origin {
+            Origin::Live => live_record.map(|record| {
+                let from = if record.enabled {
+                    live_path(install, live, record)
+                } else {
+                    install.off_slot(&live.folders, record)
+                };
+                (record, from)
+            }),
+            Origin::Stored(source) => source
+                .parked
+                .iter()
+                .find(|p| p.record.install_id == member.install_id)
+                .map(|p| (&p.record, Ok(source.dir.join(&p.stored)))),
+        };
+        // A member with no record has no files to copy, which is how a missing mod reads.
+        let Some((record, from)) = found else {
+            continue;
+        };
+        let from = from?;
+        if !exists(&from)? {
+            return Err(format!(
+                "'{}' is missing its files, so the profile cannot be copied",
+                record.name
+            ));
+        }
+        let stored = stored_name(install, record, &from, copy);
+        fs::create_dir_all(&copy.dir)
+            .map_err(|e| format!("could not create {}: {e}", copy.dir.display()))?;
+        copy_files(install, record, &from, &copy.dir.join(&stored))?;
+        let install_id = Uuid::new_v4().to_string();
+        copy.parked.push(ParkedMod {
+            stored,
+            record: InstalledMod {
+                install_id: install_id.clone(),
+                enabled: false,
+                ..record.clone()
+            },
+        });
+        copy.members.push(ProfileMember {
+            install_id,
+            ..member.clone()
+        });
+    }
+    Ok(())
+}
+
+/// Where a mod that is on keeps its files: a bundle's are spread over the game folder, which
+/// copy_files reads from its record.
+fn live_path(install: &Install, live: &ModsState, m: &InstalledMod) -> Result<PathBuf, String> {
+    let target = install.cfg.mod_target(m);
+    if target.is_bundle() {
+        return Ok(PathBuf::from(install.game_path));
+    }
+    if is_host_pack(m) {
+        return host_pack_dir(install.game_path, install.cfg, &live.mods, &live.folders, m)
+            .ok_or_else(|| format!("'{}' names no host mod", m.name));
+    }
+    let rel = get_folder_path(&live.folders, m.folder_id.as_deref());
+    Ok(active_mod_path(
+        install.game_path,
+        &m.filename,
+        rel.as_deref(),
+        target,
+    ))
+}
+
+/// Moves a loader's hook files out of the game: the record goes to left-out.json first, then
+/// each file moves, so a stop leaves the loader recorded with some files still in place, which the
 /// next switch moves on.
 fn park_loader(
     store: &ProfileStore,
@@ -884,9 +1183,9 @@ fn apply(store: &ProfileStore, install: &Install, target: &Profile) -> Result<()
     }
     settle_loaders(store, install, target.loaders.as_deref())?;
     settle_folders(install, &target.folders)?;
-    for record in store.parked()? {
-        if wanted.contains_key(record.install_id.as_str()) {
-            unpark(store, install, &record)?;
+    for parked in store.get(&target.id)?.parked {
+        if wanted.contains_key(parked.record.install_id.as_str()) {
+            unpark(store, install, &target.id, &parked)?;
         }
     }
 
@@ -1118,7 +1417,8 @@ pub(crate) fn list(store: &ProfileStore, install: &Install) -> Result<ProfileLis
 }
 
 /// Creates a profile. One made from the current setup while no profile is active becomes the
-/// active one, since it describes exactly what is installed.
+/// active one, since it describes exactly what is installed. With a profile active, the current
+/// setup is that profile, which the new one copies like Duplicate does.
 pub(crate) fn create(
     store: &ProfileStore,
     install: &Install,
@@ -1132,59 +1432,29 @@ pub(crate) fn create(
     refuse_while_unfinished(store, "create the profile")?;
     let live = install.scan()?;
     let active = save_active(store, install, &live)?;
-    let (members, folders, loaders, pending) = match &source {
-        ProfileSource::Current => match &active {
-            Some(id) => {
-                let active = store.get(id)?;
-                (
-                    active.members,
-                    active.folders,
-                    active.loaders,
-                    active.pending,
-                )
-            }
-            None => (
-                snapshot(install.cfg, &[], &decided(&live.mods)),
-                live.folders,
-                Some(live_loader_ids(install)?),
-                Vec::new(),
-            ),
-        },
-        ProfileSource::Empty {
-            keep_loaders: false,
-        } => (Vec::new(), Vec::new(), Some(Vec::new()), Vec::new()),
-        // Kept loaders join as they are installed now, loose files and loader mods alike.
-        ProfileSource::Empty { keep_loaders: true } => (
-            decided(&live.mods)
-                .iter()
-                .filter(|m| loader_record_name(install.cfg, m).is_some())
-                .map(|m| ProfileMember {
-                    folder_id: None,
-                    ..ProfileMember::of(m)
-                })
-                .collect(),
-            Vec::new(),
-            Some(live_loader_ids(install)?),
-            Vec::new(),
-        ),
-        ProfileSource::Copy { profile_id } => {
-            let copied = store.get(profile_id)?;
-            (
-                copied.members,
-                copied.folders,
-                copied.loaders,
-                copied.pending,
-            )
-        }
+    let copy_of = match &source {
+        ProfileSource::Copy { profile_id } => Some(store.get(profile_id)?),
+        ProfileSource::Current => active.as_deref().map(|id| store.get(id)).transpose()?,
+        ProfileSource::Empty { .. } => None,
     };
-    let profile = Profile {
-        pending,
+    let mut profile = Profile {
         id: Uuid::new_v4().to_string(),
         name,
-        members,
-        folders,
-        loaders,
+        ..Profile::default()
     };
+    store.place(&mut profile)?;
+    // A copy that stops part way leaves a folder no profile file describes, so it goes.
+    if let Err(e) = fill(
+        install,
+        &source,
+        copy_of,
+        active.as_deref(),
+        &live,
+        &mut profile,
+    ) {
+        store.delete(&profile)?;
+        return Err(e);
+    }
     store.save(&profile)?;
     if matches!(source, ProfileSource::Current) && active.is_none() {
         store.set_active(Some(&profile.id))?;
@@ -1195,15 +1465,61 @@ pub(crate) fn create(
     })
 }
 
-pub(crate) fn rename(store: &ProfileStore, profile_id: &str, name: &str) -> Result<(), String> {
-    let mut profile = store.get(profile_id)?;
-    profile.name = checked_name(name)?;
-    store.save(&profile)
+fn fill(
+    install: &Install,
+    source: &ProfileSource,
+    copy_of: Option<Profile>,
+    active: Option<&str>,
+    live: &ModsState,
+    profile: &mut Profile,
+) -> Result<(), String> {
+    if let Some(source) = copy_of {
+        let origin = if active == Some(source.id.as_str()) {
+            Origin::Live
+        } else {
+            Origin::Stored(&source)
+        };
+        copy_members(install, origin, &source.members, live, profile)?;
+        profile.folders = source.folders.clone();
+        profile.loaders = source.loaders.clone();
+        profile.pending = source.pending.iter().map(|p| p.reissued()).collect();
+        return Ok(());
+    }
+    match source {
+        ProfileSource::Empty { keep_loaders: true } => {
+            // Kept loaders join as they are installed now: loose files by id, loader mods as
+            // copies of their own.
+            let kept: Vec<ProfileMember> = decided(&live.mods)
+                .iter()
+                .filter(|m| loader_record_name(install.cfg, m).is_some())
+                .map(|m| ProfileMember {
+                    folder_id: None,
+                    ..ProfileMember::of(m)
+                })
+                .collect();
+            copy_members(install, Origin::Live, &kept, live, profile)?;
+            profile.loaders = Some(live_loader_ids(install)?);
+        }
+        ProfileSource::Empty {
+            keep_loaders: false,
+        } => profile.loaders = Some(Vec::new()),
+        ProfileSource::Current | ProfileSource::Copy { .. } => {
+            profile.members = snapshot(install.cfg, &[], &decided(&live.mods));
+            profile.folders = live.folders.clone();
+            profile.loaders = Some(live_loader_ids(install)?);
+        }
+    }
+    Ok(())
 }
 
-/// Deletes a profile and the parked mods no other profile has. Deleting the active one leaves
-/// its mods installed, with no profile active. The target of a stopped switch stays, since the
-/// banner that finishes the switch names it.
+pub(crate) fn rename(store: &ProfileStore, profile_id: &str, name: &str) -> Result<(), String> {
+    let mut profile = store.get(profile_id)?;
+    store.rename(&mut profile, checked_name(name)?)
+}
+
+/// Deletes a profile with its folder, which holds the mods only it has. Deleting the active one
+/// leaves its mods installed, with no profile active. The target of a stopped switch stays,
+/// since the banner that finishes the switch names it.
 pub(crate) fn delete(store: &ProfileStore, profile_id: &str) -> Result<(), String> {
     if store
         .pending()?
@@ -1214,31 +1530,11 @@ pub(crate) fn delete(store: &ProfileStore, profile_id: &str) -> Result<(), Strin
                 .to_string(),
         );
     }
+    let profile = store.get(profile_id)?;
     if store.active()?.as_deref() == Some(profile_id) {
         store.set_active(None)?;
     }
-    store.delete(profile_id)?;
-    let kept: HashSet<String> = store
-        .list()?
-        .into_iter()
-        .flat_map(|p| p.members)
-        .map(|m| m.install_id)
-        .collect();
-    let (stays, orphans): (Vec<InstalledMod>, Vec<InstalledMod>) = store
-        .parked()?
-        .into_iter()
-        .partition(|m| kept.contains(&m.install_id));
-    for m in &orphans {
-        let dir = store.parked_dir(m)?;
-        match fs::remove_dir_all(&dir) {
-            Ok(()) => {}
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
-            Err(e) => return Err(format!("could not remove the files of '{}': {e}", m.name)),
-        }
-    }
-    if !orphans.is_empty() {
-        store.save_parked(stays)?;
-    }
+    store.delete(&profile)?;
 
     let wanted_loaders: HashSet<String> = store
         .list()?
@@ -1262,7 +1558,7 @@ pub(crate) fn delete(store: &ProfileStore, profile_id: &str) -> Result<(), Strin
     Ok(())
 }
 
-/// Takes an uninstalled mod out of every profile.
+/// Takes an uninstalled mod out of the profile that has it.
 pub(crate) fn forget(store: &ProfileStore, install_id: &str) -> Result<(), String> {
     for mut profile in store.list()? {
         let before = profile.members.len();

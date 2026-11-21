@@ -303,7 +303,7 @@
             "firstName": "Main",
             "copyName": "{name} copy",
             "deleteTitle": "Delete {name}?",
-            "deleteConfirm": "The profile is removed, along with the mods no other profile has.",
+            "deleteConfirm": "The profile is removed, along with its mods.",
             "deleteActiveConfirm": "The profile is removed and no profile is active afterwards. Its mods stay installed.",
             "switching": "Switching to {name}",
             "switchFailed": "Could not switch to {name}: {error}",
@@ -311,7 +311,6 @@
             "loadFailed": "Profiles could not be loaded: {error}",
             "unfinished": "The switch to {name} did not finish, so some mods may still be set up for the previous profile.",
             "finish": "Finish switch",
-            "removeFromAll": "Remove from every profile",
             "share": {
                 "action": "Share",
                 "title": "Share {name}",

@@ -313,12 +313,12 @@ fn loose_loader_preview_recognizes_live_and_parked_hooks_on_the_target_copy() {
     assert!(!present());
     fs::write(root.join("WSOCK32.dll"), []).unwrap();
     assert!(present());
-    let parked = root.join(".modrex/parked/loaders/superblt");
+    let parked = root.join(".modrex/loaders/superblt");
     fs::create_dir_all(&parked).unwrap();
     fs::rename(root.join("WSOCK32.dll"), parked.join("WSOCK32.dll")).unwrap();
     fs::write(
-        root.join(".modrex/parked.json"),
-        json!({"schemaVersion":1,"mods":[],"loaders":[{"id":"superblt","files":["WSOCK32.dll"]}]})
+        root.join(".modrex/loaders/left-out.json"),
+        json!({"schemaVersion":1,"loaders":[{"id":"superblt","files":["WSOCK32.dll"]}]})
             .to_string(),
     )
     .unwrap();

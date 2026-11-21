@@ -1210,7 +1210,7 @@ pub(super) fn remove_file_with_sidecars(
     Err(problems.join("; "))
 }
 
-fn copy_dir_all(src: &Path, dst: &Path) -> Result<(), String> {
+pub(super) fn copy_dir_all(src: &Path, dst: &Path) -> Result<(), String> {
     fs::create_dir_all(dst).map_err(|e| e.to_string())?;
     for entry in fs::read_dir(src).map_err(|e| e.to_string())? {
         let entry = entry.map_err(|e| e.to_string())?;

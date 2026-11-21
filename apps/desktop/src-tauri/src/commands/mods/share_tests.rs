@@ -1,7 +1,7 @@
 use super::*;
 use crate::commands::mods::{
     paths::get_state_path,
-    profiles::{share_snapshot, Install, ProfileMember, ProfileStore},
+    profiles::{share_snapshot, Install, ParkedMod, ProfileMember, ProfileStore},
     state::save_state,
     types::{ModFolder, ModsState},
 };
@@ -359,6 +359,7 @@ fn exports_only_portable_fields_of_a_workshop_install() {
             ..folder("local-folder", None, 1)
         }],
         loaders: Some(vec![]),
+        ..Profile::default()
     };
     let result = export(engine_for_game("pd3").unwrap(), &profile, &[record]).unwrap();
     let expected = parse(&example().to_string()).unwrap();
@@ -408,8 +409,11 @@ fn exports_inactive_live_and_parked_members_in_saved_mixed_order() {
         filename: "Page.pak".into(),
         ..InstalledMod::default()
     };
-    let profile = Profile {
-        pending: Vec::new(),
+    let stored = |stored: &str, record: &InstalledMod| ParkedMod {
+        stored: stored.into(),
+        record: record.clone(),
+    };
+    let mut profile = Profile {
         id: Uuid::new_v4().to_string(),
         name: "Parked setup".into(),
         members: vec![
@@ -424,16 +428,21 @@ fn exports_inactive_live_and_parked_members_in_saved_mixed_order() {
         ],
         folders: vec![folder("outer", None, 2), folder("inner", Some("outer"), 1)],
         loaders: Some(vec!["ue4ss".into()]),
+        parked: vec![
+            stored("HUD.pak", &parked),
+            stored("HUD (2).pak", &other),
+            stored("local", &local),
+            stored("Page.pak", &page_only),
+        ],
+        ..Profile::default()
     };
-    store.save(&profile).unwrap();
+    store.place(&mut profile).unwrap();
     let metadata = tmp.path().join(".modrex");
     let marker = json!({"schemaVersion":1, "activeProfile":Uuid::new_v4().to_string()}).to_string();
     fs::write(metadata.join("install.json"), &marker).unwrap();
-    let parked_json = json!({"schemaVersion":1,"mods":[parked,other,local,page_only]}).to_string();
-    fs::write(metadata.join("parked.json"), &parked_json).unwrap();
-    let parked_dir = metadata.join("parked").join(&parked.install_id);
-    fs::create_dir_all(&parked_dir).unwrap();
-    let parked_file = parked_dir.join("005_HUD.pak.disabled");
+    let profile_file = profile.dir.join("profile.json");
+    let profile_json = fs::read_to_string(&profile_file).unwrap();
+    let parked_file = profile.dir.join("HUD.pak");
     fs::write(&parked_file, b"parked bytes").unwrap();
     save_state(
         &state,
@@ -465,10 +474,7 @@ fn exports_inactive_live_and_parked_members_in_saved_mixed_order() {
     );
     assert_eq!(fs::read(&parked_file).unwrap(), b"parked bytes");
     assert_eq!(fs::read(&state).unwrap(), before);
-    assert_eq!(
-        fs::read_to_string(metadata.join("parked.json")).unwrap(),
-        parked_json
-    );
+    assert_eq!(fs::read_to_string(&profile_file).unwrap(), profile_json);
     assert_eq!(
         fs::read_to_string(metadata.join("install.json")).unwrap(),
         marker
@@ -488,15 +494,13 @@ fn exports_active_members_folders_and_loaders_from_live_state() {
         launcher: None,
     };
     let store = ProfileStore::new(path);
-    let profile = Profile {
-        pending: Vec::new(),
+    let mut profile = Profile {
         id: Uuid::new_v4().to_string(),
         name: "Live".into(),
-        members: vec![],
-        folders: vec![],
         loaders: Some(vec![]),
+        ..Profile::default()
     };
-    store.save(&profile).unwrap();
+    store.place(&mut profile).unwrap();
     fs::write(
         tmp.path().join(".modrex/install.json"),
         json!({"schemaVersion":1, "activeProfile":profile.id}).to_string(),
@@ -559,6 +563,7 @@ fn shares_mods_matched_only_to_their_page_without_a_file_id() {
             .collect(),
         folders: vec![],
         loaders: None,
+        ..Profile::default()
     };
     let records = [page_only, link_only, nexus];
     let result = export(engine_for_game("pd3").unwrap(), &profile, &records).unwrap();

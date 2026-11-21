@@ -49,11 +49,7 @@ impl Game {
     }
 
     fn parked_loader(&self, id: &str, rel: &str) -> PathBuf {
-        self.dir
-            .path()
-            .join(".modrex/parked/loaders")
-            .join(id)
-            .join(rel)
+        self.dir.path().join(".modrex/loaders").join(id).join(rel)
     }
 
     fn path(&self) -> &str {
@@ -159,8 +155,19 @@ impl Game {
         sorted(self.store().parked().unwrap().into_iter().map(|m| m.uid))
     }
 
-    fn parked_dir(&self, m: &InstalledMod) -> PathBuf {
-        self.dir.path().join(".modrex/parked").join(&m.install_id)
+    /// Where a parked mod's files are, in the folder of the profile that keeps it.
+    fn stored_path(&self, m: &InstalledMod) -> PathBuf {
+        self.store()
+            .list()
+            .unwrap()
+            .into_iter()
+            .find_map(|p| {
+                p.parked
+                    .iter()
+                    .find(|x| x.record.install_id == m.install_id)
+                    .map(|x| p.dir.join(&x.stored))
+            })
+            .unwrap()
     }
 
     /// Where a live file or folder mod sits on disk: true for its active path, false for
@@ -268,10 +275,15 @@ fn a_new_profile_starts_with_no_mods_and_the_old_ones_wait_in_the_modrex_folder(
 
     assert!(game.live().is_empty());
     assert_eq!(game.parked(), ["a", "b", "c"]);
+    let main_dir = game.store().get(&main).unwrap().dir;
+    let mut stored = Vec::new();
     for m in &records {
-        assert!(game.parked_dir(m).is_dir(), "{}", m.uid);
+        let path = game.stored_path(m);
+        assert!(path.is_file(), "{}", m.uid);
+        assert_eq!(path.parent(), Some(main_dir.as_path()));
         assert!(!active_mod_path(game.path(), &m.filename, None, paks).exists());
         assert!(!disabled_mod_path(game.path(), &m.filename, None, paks).exists());
+        stored.push(path);
     }
 
     game.switch(&main);
@@ -280,8 +292,8 @@ fn a_new_profile_starts_with_no_mods_and_the_old_ones_wait_in_the_modrex_folder(
     assert!(game.on_disk_enabled("a"));
     assert!(!game.on_disk_enabled("c"));
     assert!(game.parked().is_empty());
-    for m in &records {
-        assert!(!game.parked_dir(m).exists(), "{}", m.uid);
+    for path in &stored {
+        assert!(!path.exists(), "{}", path.display());
     }
     assert_eq!(
         game.store().active().unwrap().as_deref(),
@@ -419,11 +431,7 @@ fn switching_folder_mods_moves_them_both_ways() {
 
     game.switch(&fresh);
     assert!(game.live().is_empty());
-    assert!(game
-        .parked_dir(&beta)
-        .join("Beta")
-        .join("mod.txt")
-        .is_file());
+    assert!(game.stored_path(&beta).join("mod.txt").is_file());
 
     game.switch(&both);
     assert_eq!(game.enabled(), ["Alpha", "Beta"]);
@@ -522,7 +530,7 @@ fn a_profile_survives_an_update_of_its_mod() {
 }
 
 #[test]
-fn an_uninstalled_mod_leaves_every_profile() {
+fn an_uninstalled_mod_leaves_only_its_own_profile() {
     let game = Game::new("pd3");
     game.install(game.cfg.primary(), record("a"), None);
     let one = game.create("One", ProfileSource::Current);
@@ -536,9 +544,8 @@ fn an_uninstalled_mod_leaves_every_profile() {
 
     forget(&game.store(), &gone).unwrap();
 
-    for id in [one, two] {
-        assert!(game.store().get(&id).unwrap().members.is_empty());
-    }
+    assert!(game.store().get(&one).unwrap().members.is_empty());
+    assert_eq!(game.store().get(&two).unwrap().members.len(), 1);
 }
 
 /// The points a switch can be killed at, each leaving what it would on disk.
@@ -574,9 +581,19 @@ fn a_switch_killed_at_any_step_finishes_when_switched_again() {
             },
         );
         let store = game.store();
+        // The copy has a b of its own, which this profile leaves out.
         let mut profile = store.get(&a_only).unwrap();
-        let b_id = game.record("b").install_id;
-        profile.members.retain(|m| m.install_id != b_id);
+        let b_copy = profile
+            .parked
+            .iter()
+            .find(|p| p.record.uid == "b")
+            .unwrap()
+            .clone();
+        profile
+            .members
+            .retain(|m| m.install_id != b_copy.record.install_id);
+        profile.parked.retain(|p| p.record.uid != "b");
+        fs::remove_file(profile.dir.join(&b_copy.stored)).unwrap();
         store.save(&profile).unwrap();
 
         store
@@ -587,15 +604,21 @@ fn a_switch_killed_at_any_step_finishes_when_switched_again() {
         let park_b = |move_files: bool| {
             game.set("b", false);
             let b = game.record("b");
-            store.save_parked(vec![b.clone()]).unwrap();
-            if move_files {
-                game.with_install(|install| {
-                    let slot = install.off_slot(&game.state().folders, &b).unwrap();
-                    let dest = game.parked_dir(&b).join(slot.file_name().unwrap());
-                    install.move_files(&b, slot, dest)
-                })
-                .unwrap();
-            }
+            game.with_install(|install| {
+                let slot = install.off_slot(&game.state().folders, &b).unwrap();
+                let mut owner = owner_of(&store, &b.install_id).unwrap();
+                let stored = stored_name(install, &b, &slot, &owner);
+                owner.parked.push(ParkedMod {
+                    stored: stored.clone(),
+                    record: b.clone(),
+                });
+                store.save(&owner).unwrap();
+                if move_files {
+                    install
+                        .move_files(&b, slot, owner.dir.join(stored))
+                        .unwrap();
+                }
+            });
         };
         match killed {
             Killed::AfterJournal => {}
@@ -622,7 +645,7 @@ fn a_switch_killed_at_any_step_finishes_when_switched_again() {
         game.switch(&a_only);
         assert_eq!(game.live(), ["a"], "{killed:?}");
         assert!(game.on_disk_enabled("a"), "{killed:?}");
-        assert_eq!(game.parked(), ["b"], "{killed:?}");
+        assert_eq!(game.parked(), ["a", "b"], "{killed:?}");
         assert!(!store.journal_path().exists(), "{killed:?}");
         let listed = game.list();
         assert_eq!(
@@ -663,14 +686,14 @@ fn a_parked_mod_brought_back_halfway_is_finished_when_switched_again() {
             })
             .unwrap();
         let a = store.parked().unwrap().remove(0);
+        let stored = game.stored_path(&a);
         let mut state = game.state();
         state.mods.push(a.clone());
         save_state(&game.state_path(), &state).unwrap();
         if matches!(stop, Unparking::FilesMovedBack) {
             game.with_install(|install| {
                 let slot = install.off_slot(&state.folders, &a).unwrap();
-                let source = game.parked_dir(&a).join(slot.file_name().unwrap());
-                install.move_files(&a, source, slot)
+                install.move_files(&a, stored.clone(), slot)
             })
             .unwrap();
         }
@@ -680,7 +703,7 @@ fn a_parked_mod_brought_back_halfway_is_finished_when_switched_again() {
         assert_eq!(game.enabled(), ["a"], "{stop:?}");
         assert!(game.on_disk_enabled("a"), "{stop:?}");
         assert!(game.parked().is_empty(), "{stop:?}");
-        assert!(!game.parked_dir(&a).exists(), "{stop:?}");
+        assert!(!stored.exists(), "{stop:?}");
     }
 }
 
@@ -698,11 +721,9 @@ fn the_first_profile_from_the_current_setup_becomes_active_and_keeps_disabled_mo
         Some(main.as_str())
     );
     assert_eq!(game.store().get(&main).unwrap().members.len(), 2);
-    assert!(game
-        .dir
-        .path()
-        .join(format!(".modrex/profiles/{main}.json"))
-        .is_file());
+    let dir = game.store().get(&main).unwrap().dir;
+    assert_eq!(dir, game.dir.path().join(".modrex/profiles/Main"));
+    assert!(dir.join("profile.json").is_file());
     let second = game.create("Second", ProfileSource::Current);
     assert_eq!(
         game.store().active().unwrap().as_deref(),
@@ -737,10 +758,10 @@ fn deleting_the_active_profile_leaves_the_mods_and_no_profile_active() {
 }
 
 #[test]
-fn deleting_a_profile_removes_the_parked_mods_only_it_had() {
+fn deleting_a_profile_removes_its_folder_with_its_own_copy_of_the_mods() {
     let game = Game::new("pd3");
     let paks = game.cfg.primary();
-    game.install(paks, record("shared"), None);
+    game.install(paks, record("a"), None);
     let main = game.create("Main", ProfileSource::Current);
     let twin = game.create(
         "Twin",
@@ -750,20 +771,132 @@ fn deleting_a_profile_removes_the_parked_mods_only_it_had() {
     );
     let fresh = game.create("Fresh", EMPTY);
     game.switch(&fresh);
-    game.install(paks, record("own"), None);
-    let own = game.record("own");
-    game.switch(&main);
-    let empty = game.create("Nothing", EMPTY);
-    game.switch(&empty);
-    assert_eq!(game.parked(), ["own", "shared"]);
+    assert_eq!(game.parked(), ["a", "a"]);
+    let twin_dir = game.store().get(&twin).unwrap().dir;
 
-    delete(&game.store(), &fresh).unwrap();
     delete(&game.store(), &twin).unwrap();
 
-    assert_eq!(game.parked(), ["shared"]);
-    assert!(!game.parked_dir(&own).exists());
+    assert!(!twin_dir.exists());
+    assert_eq!(game.parked(), ["a"]);
     game.switch(&main);
-    assert_eq!(game.enabled(), ["shared"]);
+    assert_eq!(game.enabled(), ["a"]);
+}
+
+#[test]
+fn duplicating_gives_each_profile_its_own_files() {
+    let game = Game::new("pd3");
+    let paks = game.cfg.primary();
+    game.install(paks, record("a"), None);
+    game.install(paks, record("b"), None);
+    game.set("b", false);
+    let main = game.create("Main", ProfileSource::Current);
+    let original = game.record("a");
+    let twin = game.create(
+        "Twin",
+        ProfileSource::Copy {
+            profile_id: main.clone(),
+        },
+    );
+
+    game.switch(&twin);
+    assert_eq!(game.enabled(), ["a"]);
+    assert_eq!(game.live(), ["a", "b"]);
+    let copy = game.record("a");
+    assert_ne!(copy.install_id, original.install_id);
+    // A change to the copy stays in its profile.
+    let live = active_mod_path(game.path(), &copy.filename, None, paks);
+    fs::write(&live, b"changed in the twin").unwrap();
+
+    game.switch(&main);
+    let back = active_mod_path(game.path(), &game.record("a").filename, None, paks);
+    assert_eq!(fs::read(back).unwrap(), b"a");
+    assert_eq!(game.record("a").install_id, original.install_id);
+}
+
+#[test]
+fn duplicating_a_profile_that_is_not_active_copies_its_stored_files() {
+    let game = Game::new("pd3");
+    let paks = game.cfg.primary();
+    game.install(paks, record("a"), None);
+    let main = game.create("Main", ProfileSource::Current);
+    let fresh = game.create("Fresh", EMPTY);
+    game.switch(&fresh);
+
+    let twin = game.create(
+        "Twin",
+        ProfileSource::Copy {
+            profile_id: main.clone(),
+        },
+    );
+
+    let stored: Vec<PathBuf> = game
+        .store()
+        .get(&twin)
+        .unwrap()
+        .parked
+        .iter()
+        .map(|p| game.store().get(&twin).unwrap().dir.join(&p.stored))
+        .collect();
+    assert_eq!(stored.len(), 1);
+    assert_eq!(fs::read(&stored[0]).unwrap(), b"a");
+    game.switch(&twin);
+    assert_eq!(game.enabled(), ["a"]);
+}
+
+#[test]
+fn profile_folders_follow_profile_names() {
+    let game = Game::new("pd3");
+    let store = game.store();
+    let first = game.create("Main", EMPTY);
+    let second = game.create("Main", EMPTY);
+    let odd = game.create("CON", EMPTY);
+    let dir = |id: &str| store.get(id).unwrap().dir;
+    let root = game.dir.path().join(".modrex/profiles");
+    assert_eq!(dir(&first), root.join("Main"));
+    assert_eq!(dir(&second), root.join("Main (2)"));
+    assert_eq!(dir(&odd), root.join("Profile CON"));
+
+    rename(&store, &second, "Stealth: night").unwrap();
+
+    assert_eq!(dir(&second), root.join("Stealth_ night"));
+    assert!(!root.join("Main (2)").exists());
+    assert_eq!(store.get(&second).unwrap().name, "Stealth: night");
+
+    // A folder that already carries the name stays where it is.
+    rename(&store, &first, "main").unwrap();
+    assert_eq!(dir(&first), root.join("Main"));
+    let third = game.create("Main", EMPTY);
+    assert_eq!(dir(&third), root.join("Main (2)"));
+    rename(&store, &third, "MAIN").unwrap();
+    assert_eq!(dir(&third), root.join("Main (2)"));
+}
+
+#[test]
+fn duplicating_leaves_out_a_mod_whose_files_are_missing() {
+    let game = Game::new("pd3");
+    let paks = game.cfg.primary();
+    game.install(paks, record("a"), None);
+    game.install(paks, record("gone"), None);
+    let main = game.create("Main", ProfileSource::Current);
+    let gone = game.record("gone");
+    fs::remove_file(active_mod_path(game.path(), &gone.filename, None, paks)).unwrap();
+
+    let twin = game.create(
+        "Twin",
+        ProfileSource::Copy {
+            profile_id: main.clone(),
+        },
+    );
+
+    let copied: Vec<String> = game
+        .store()
+        .get(&twin)
+        .unwrap()
+        .parked
+        .into_iter()
+        .map(|p| p.record.uid)
+        .collect();
+    assert_eq!(copied, ["a"]);
 }
 
 #[test]
@@ -800,26 +933,40 @@ fn profile_ids_and_names_are_checked_before_use() {
 }
 
 #[test]
-fn a_mod_with_an_install_id_that_is_not_a_uuid_is_never_parked() {
+fn stored_mods_get_plain_names_and_a_clash_is_numbered() {
     let game = Game::new("pd3");
-    let store = game.store();
-    let m = InstalledMod {
-        install_id: "../../escape".to_string(),
-        ..record("a")
+    let id = game.create("Main", EMPTY);
+    let mut profile = game.store().get(&id).unwrap();
+    let hud = InstalledMod {
+        filename: "005_HUD.pak.disabled".into(),
+        ..record("hud")
     };
-
-    assert!(store.parked_dir(&m).is_err());
+    let name = |profile: &Profile| {
+        game.with_install(|install| {
+            stored_name(install, &hud, Path::new("005_HUD.pak.disabled"), profile)
+        })
+    };
+    assert_eq!(name(&profile), "HUD.pak");
+    profile.parked.push(ParkedMod {
+        stored: "HUD.pak".into(),
+        record: hud.clone(),
+    });
+    assert_eq!(name(&profile), "HUD (2).pak");
+    let settings = InstalledMod {
+        filename: "profile.json".into(),
+        ..record("settings")
+    };
+    let clash = game.with_install(|install| {
+        stored_name(install, &settings, Path::new("profile.json"), &profile)
+    });
+    assert_eq!(clash, "profile (2).json");
 }
 
 #[test]
 fn a_profile_from_a_newer_modrex_is_refused_rather_than_rewritten() {
     let game = Game::new("pd3");
     let id = Uuid::new_v4().to_string();
-    let path = game
-        .dir
-        .path()
-        .join(".modrex/profiles")
-        .join(format!("{id}.json"));
+    let path = game.dir.path().join(".modrex/profiles/Future/profile.json");
     fs::create_dir_all(path.parent().unwrap()).unwrap();
     fs::write(
         &path,
@@ -1116,20 +1263,20 @@ fn a_loader_tracked_as_a_mod_is_left_out_of_a_new_profile() {
 }
 
 #[test]
-fn a_profile_file_holding_another_profile_is_refused_rather_than_saved_over_it() {
+fn a_profile_folder_copied_by_hand_is_refused_rather_than_saved_over() {
     let game = Game::new("pd3");
     let store = game.store();
     let a = game.create("A", EMPTY);
-    let b = game.create("B", EMPTY);
-    let dir = game.dir.path().join(".modrex/profiles");
-    let b_bytes = fs::read(dir.join(format!("{b}.json"))).unwrap();
-    fs::write(dir.join(format!("{a}.json")), &b_bytes).unwrap();
+    let a_dir = store.get(&a).unwrap().dir;
+    let copy = a_dir.with_file_name("A - Copy");
+    fs::create_dir_all(&copy).unwrap();
+    let bytes = fs::read(a_dir.join("profile.json")).unwrap();
+    fs::write(copy.join("profile.json"), &bytes).unwrap();
 
     assert!(rename(&store, &a, "Renamed")
         .unwrap_err()
-        .contains("holds another profile"));
-    assert!(store.list().is_err());
-    assert_eq!(fs::read(dir.join(format!("{b}.json"))).unwrap(), b_bytes);
+        .contains("hold the same profile"));
+    assert_eq!(fs::read(a_dir.join("profile.json")).unwrap(), bytes);
 }
 
 #[test]
@@ -1262,12 +1409,15 @@ fn keeping_the_loaders_keeps_a_loader_tracked_as_a_mod() {
     game.install(paks, record("a"), None);
     game.create("Main", ProfileSource::Current);
     assert_eq!(game.list().loaders, ["PDML"]);
+    let main_pdml = game.record("pdml").install_id;
     let kept = game.create("With loaders", KEEP_LOADERS);
 
     game.switch(&kept);
 
+    // The new profile has its own copy, and Main keeps its own.
     assert_eq!(game.enabled(), ["pdml"]);
-    assert_eq!(game.parked(), ["a"]);
+    assert_ne!(game.record("pdml").install_id, main_pdml);
+    assert_eq!(game.parked(), ["a", "pdml"]);
 }
 
 #[test]

@@ -3350,21 +3350,27 @@ pub async fn create_profile(
     source: profiles::ProfileSource,
 ) -> Result<profiles::ProfileSummary, String> {
     let cfg = engine_for_game(&game_id)?;
-    let _state_guard = lock_game_state(&app, cfg.game_id).await;
-    let state_path = get_state_path(&game_path, cfg);
+    let state_guard = lock_game_state(&app, cfg.game_id).await;
     let launcher = configured_launcher(&app, cfg);
-    let install = profiles::Install {
-        game_path: &game_path,
-        state_path: &state_path,
-        cfg,
-        launcher: launcher.as_deref(),
-    };
-    profiles::create(
-        &profiles::ProfileStore::new(&game_path),
-        &install,
-        &name,
-        source,
-    )
+    // Duplicate copies every mod's files, which can take a while.
+    tauri::async_runtime::spawn_blocking(move || {
+        let _state_guard = state_guard;
+        let state_path = get_state_path(&game_path, cfg);
+        let install = profiles::Install {
+            game_path: &game_path,
+            state_path: &state_path,
+            cfg,
+            launcher: launcher.as_deref(),
+        };
+        profiles::create(
+            &profiles::ProfileStore::new(&game_path),
+            &install,
+            &name,
+            source,
+        )
+    })
+    .await
+    .map_err(|e| format!("Profile worker failed: {e}"))?
 }
 
 #[tauri::command]

@@ -1278,7 +1278,7 @@ export type ProfileSource =
 { kind: "current" } | 
 /**  No mods, so switching to it parks every mod, and the installed loaders too unless kept. */
 { kind: "empty"; keepLoaders: boolean } | 
-/**  Another profile's members. */
+/**  A copy of another profile's mods, files and all. */
 { kind: "copy"; profileId: string };
 
 export type ProfileSummary = {

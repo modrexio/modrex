@@ -412,7 +412,6 @@ export function GameWorkspace({
                                 isActive={view === 'installed'}
                                 onRefreshInstalled={refreshInstalled}
                                 onOpenDetail={openDetailFromInstalled}
-                                hasProfiles={(profiles.list?.profiles.length ?? 0) > 0}
                                 pendingShared={profiles.list?.pending.length ?? 0}
                                 onShowPendingShared={() => profiles.showPending(true)}
                             />

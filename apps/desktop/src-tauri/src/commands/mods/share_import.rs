@@ -33,6 +33,17 @@ pub(in crate::commands::mods) struct PendingReference {
     needs_install_flow: bool,
 }
 
+impl PendingReference {
+    /// The same waiting mod for a copied profile, under an install id of its own, since no two
+    /// profiles share an installation.
+    pub(in crate::commands::mods) fn reissued(&self) -> Self {
+        Self {
+            install_id: uuid::Uuid::new_v4().to_string(),
+            ..self.clone()
+        }
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Type)]
 #[serde(
     tag = "status",
