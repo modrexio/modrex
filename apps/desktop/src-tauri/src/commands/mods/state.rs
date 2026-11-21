@@ -907,6 +907,35 @@ pub fn hidden_state_path(set_aside: &Path, state_path: &Path, cfg: &ModEngineCon
     set_aside.join(STATE_FILENAME)
 }
 
+// Nexus install UIDs carry both catalog IDs. A local shared package's uid has the same
+// shape with a placeholder in it, so only Nexus uids are read. A positive Workshop record
+// ID is the mod page ID. Other local keys cannot identify a download.
+pub(super) fn restore_legacy_catalog_ids(m: &mut InstalledMod) -> bool {
+    if m.remote_id.is_some() {
+        return false;
+    }
+    if m.source == "modworkshop" && m.id > 0 {
+        m.remote_id = Some(m.id.to_string());
+        return true;
+    }
+    if m.source != "nexus" {
+        return false;
+    }
+    let Some((mod_id, file_id)) = m
+        .uid
+        .strip_prefix("nexus:")
+        .and_then(|ids| ids.split_once(':'))
+    else {
+        return false;
+    };
+    if mod_id.is_empty() || file_id.is_empty() {
+        return false;
+    }
+    m.remote_id = Some(mod_id.to_string());
+    m.file_remote_id = Some(file_id.to_string());
+    true
+}
+
 pub fn reconcile_state(
     game_path: &str,
     state_path: &Path,
@@ -965,40 +994,10 @@ pub fn reconcile_state(
     }
     state.mods.retain(|entry| !protected.contains(&entry.uid));
 
-    // Recover source-native identity for entries written before remote_id existed:
-    // their uid already encodes it as {source}:{mod_id}:{file_id} (the nexus install
-    // convention), so migration is a pure parse. A local shared package's uid has the same
-    // shape with a placeholder in it, so only Nexus uids are read.
+    // Identification by name can mark a mod outdated, so recover recorded IDs first.
     let mut identity_migrated = false;
     for m in state.mods.iter_mut() {
-        if m.source != "nexus" || m.remote_id.is_some() {
-            continue;
-        }
-        let mut parts = m.uid.splitn(3, ':');
-        if parts.next() != Some(m.source.as_str()) {
-            continue;
-        }
-        let (Some(mod_id), Some(file_id)) = (parts.next(), parts.next()) else {
-            continue;
-        };
-        if mod_id.is_empty() || file_id.is_empty() {
-            continue;
-        }
-        m.remote_id = Some(mod_id.to_string());
-        m.file_remote_id = Some(file_id.to_string());
-        identity_migrated = true;
-    }
-
-    // A positive id on a modworkshop entry already IS the real modworkshop id, so this is a
-    // plain fill-in, never a re-derivation. Must run before upgrade_negative_ids: it cannot
-    // tell "never identified" from "identified before remote_id existed", and its name
-    // fallback would mass-mark pre-existing installs Outdated during a plain data migration.
-    for m in state.mods.iter_mut() {
-        if m.remote_id.is_some() || m.id <= 0 || m.source != "modworkshop" {
-            continue;
-        }
-        m.remote_id = Some(m.id.to_string());
-        identity_migrated = true;
+        identity_migrated |= restore_legacy_catalog_ids(m);
     }
 
     // A source-native entry's id must always be source_native_local_id(source, remote_id),

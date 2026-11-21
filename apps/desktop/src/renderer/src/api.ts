@@ -100,8 +100,20 @@ import type {
 } from '../../shared/types'
 
 export type { StartupPhase } from '../../shared/bindings'
-export type { ProfileList, ProfileSource, ProfileSummary } from '../../shared/bindings'
-import type { ProfileList, ProfileSource, ProfileSummary } from '../../shared/bindings'
+export type {
+    ExportedProfileShare,
+    ProfileList,
+    ProfileShare,
+    ProfileSource,
+    ProfileSummary,
+} from '../../shared/bindings'
+import type {
+    ExportedProfileShare,
+    ProfileList,
+    ProfileShare,
+    ProfileSource,
+    ProfileSummary,
+} from '../../shared/bindings'
 import type { StartupPhase } from '../../shared/bindings'
 export type { AnalyticsConsent, UpdateChannel, UpdatedNotice } from '../../shared/bindings'
 import type { AnalyticsConsent, UpdateChannel, UpdatedNotice } from '../../shared/bindings'
@@ -872,6 +884,16 @@ export const api = {
 
     listProfiles(gameId: string, gamePath: string): Promise<ProfileList> {
         return commands.listProfiles(gameId, gamePath)
+    },
+    exportProfileShare(
+        gameId: string,
+        gamePath: string,
+        profileId: string
+    ): Promise<ExportedProfileShare> {
+        return commands.exportProfileShare(gameId, gamePath, profileId)
+    },
+    parseProfileShare(input: string): Promise<ProfileShare> {
+        return commands.parseProfileShare(input)
     },
     createProfile(
         gameId: string,

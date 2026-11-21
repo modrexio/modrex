@@ -109,6 +109,11 @@ pub struct InstalledMod {
     pub file_id: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub file_type: Option<String>,
+    // The provider names its download independently of the mod page and its archive entries.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub workshop_file_name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub workshop_file_label: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sha256: Option<String>,
     // SHA-256 of the bytes Modrex itself placed for a shared Paks file, written only by that
@@ -245,6 +250,8 @@ impl Default for InstalledMod {
             thumbnail_url: None,
             file_id: None,
             file_type: None,
+            workshop_file_name: None,
+            workshop_file_label: None,
             sha256: None,
             placed_sha256: None,
             priority: None,

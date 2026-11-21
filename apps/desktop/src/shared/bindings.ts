@@ -152,6 +152,8 @@ export const commands = {
 	openGraphicsConfig: (gameId: string) => __TAURI_INVOKE<null>("open_graphics_config", { gameId }),
 	uninstallMod: (gamePath: string, uid: string, gameId: string) => __TAURI_INVOKE<null>("uninstall_mod", { gamePath, uid, gameId }),
 	listProfiles: (gameId: string, gamePath: string) => __TAURI_INVOKE<ProfileList>("list_profiles", { gameId, gamePath }),
+	exportProfileShare: (gameId: string, gamePath: string, profileId: string) => __TAURI_INVOKE<ExportedProfileShare>("export_profile_share", { gameId, gamePath, profileId }),
+	parseProfileShare: (input: string) => __TAURI_INVOKE<ProfileShare_Serialize>("parse_profile_share", { input }),
 	createProfile: (gameId: string, gamePath: string, name: string, source: ProfileSource) => __TAURI_INVOKE<ProfileSummary>("create_profile", { gameId, gamePath, name, source }),
 	renameProfile: (gameId: string, gamePath: string, profileId: string, name: string) => __TAURI_INVOKE<null>("rename_profile", { gameId, gamePath, profileId, name }),
 	deleteProfile: (gameId: string, gamePath: string, profileId: string) => __TAURI_INVOKE<null>("delete_profile", { gameId, gamePath, profileId }),
@@ -397,6 +399,12 @@ export type DetectedInstall = {
 	gamePath: string,
 };
 
+export type ExportedProfileShare = {
+	fileText: string,
+	pasteCode: string,
+	leftOut: number,
+};
+
 export type FilePage = {
 	data: ModFile[],
 	meta: PageMeta,
@@ -621,6 +629,8 @@ export type InstalledMod_Deserialize = {
 	thumbnailUrl?: string | null,
 	fileId: number | null,
 	fileType: string | null,
+	workshopFileName?: string | null,
+	workshopFileLabel?: string | null,
 	sha256: string | null,
 	placedSha256?: string | null,
 	priority: number | null,
@@ -655,6 +665,8 @@ export type InstalledMod_Serialize = {
 	thumbnailUrl?: string | null,
 	fileId?: number | null,
 	fileType?: string | null,
+	workshopFileName?: string | null,
+	workshopFileLabel?: string | null,
 	sha256?: string | null,
 	placedSha256?: string | null,
 	priority?: number | null,
@@ -1174,6 +1186,30 @@ export type ProfileList = {
 	loaders: string[],
 };
 
+export type ProfileShare = ProfileShare_Serialize | ProfileShare_Deserialize;
+
+export type ProfileShare_Deserialize = {
+	format: string,
+	schemaVersion: number,
+	gameId: string,
+	profileName: string,
+	root: ShareChild[],
+	folders: ShareFolder[],
+	members: ShareMember_Deserialize[],
+	loaders: string[] | null,
+};
+
+export type ProfileShare_Serialize = {
+	format: string,
+	schemaVersion: number,
+	gameId: string,
+	profileName: string,
+	root: ShareChild[],
+	folders: ShareFolder[],
+	members: ShareMember_Serialize[],
+	loaders: string[] | null,
+};
+
 /**  What a new profile starts as. */
 export type ProfileSource = 
 /**  The mods as they are installed right now. */
@@ -1314,6 +1350,44 @@ export type ResourceSelection = {
 };
 
 export type ResourceStatus = "applied" | "disabled" | "diverged" | "blocked";
+
+/**  Each key is the one-based position in the share's folders or members array. */
+export type ShareChild = ({ folder: number }) & { mod?: never } | ({ mod: number }) & { folder?: never };
+
+export type ShareFile = ShareFile_Serialize | ShareFile_Deserialize;
+
+export type ShareFile_Deserialize = { source: "modworkshop"; modId: number; fileId?: number | null; fileName?: string | null; label?: string | null; version?: string | null } | ({ source: "nexus"; modId: number; fileId?: number | null }) & { fileName?: never; label?: never; version?: never };
+
+export type ShareFile_Serialize = { source: "modworkshop"; modId: number; fileId?: number | null; fileName?: string | null; label?: string | null; version?: string | null } | ({ source: "nexus"; modId: number; fileId?: number | null }) & { fileName?: never; label?: never; version?: never };
+
+export type ShareFolder = {
+	name: string,
+	children: ShareChild[],
+};
+
+export type ShareMember = ShareMember_Serialize | ShareMember_Deserialize;
+
+export type ShareMember_Deserialize = {
+	file: ShareFile_Deserialize,
+	enabled: boolean,
+	folder: number | null,
+	priority: number | null,
+	archiveMember?: string | null,
+	hostPackSet?: string | null,
+	target?: string | null,
+	installedName: string,
+};
+
+export type ShareMember_Serialize = {
+	file: ShareFile_Serialize,
+	enabled: boolean,
+	folder: number | null,
+	priority: number | null,
+	archiveMember?: string | null,
+	hostPackSet?: string | null,
+	target?: string | null,
+	installedName: string,
+};
 
 export type SisrLaunchIssue = "unsupported" | "notInstalled" | "setupRequired" | "startFailed" | "startUnconfirmed";
 

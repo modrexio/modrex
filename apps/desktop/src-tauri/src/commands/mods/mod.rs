@@ -29,6 +29,7 @@ mod profiles;
 mod reorder;
 mod resource_state;
 mod resources;
+mod share;
 mod staged;
 mod staging_tokens;
 pub use self::graphics_config::GraphicsConfigLocations;
@@ -770,14 +771,31 @@ pub async fn install_mod(
             file_type,
             downloaded,
             source_name,
+            file["name"]
+                .as_str()
+                .filter(|s| !s.is_empty())
+                .map(str::to_owned),
+            file["label"]
+                .as_str()
+                .filter(|s| !s.is_empty())
+                .map(str::to_owned),
         ))
     };
     let Some(prep) = cancellable(&download_id, prep).await else {
         return Ok(InstallOutcome::Cancelled);
     };
 
-    let (mod_name, mod_version, remote_id, file_id, file_type, downloaded, source_name) = match prep
-    {
+    let (
+        mod_name,
+        mod_version,
+        remote_id,
+        file_id,
+        file_type,
+        downloaded,
+        source_name,
+        workshop_file_name,
+        workshop_file_label,
+    ) = match prep {
         Ok(v) => v,
         Err(e) => {
             log::warn!("install_mod {mod_id}: {e}");
@@ -944,6 +962,8 @@ pub async fn install_mod(
                 installed_at: Utc::now().to_rfc3339(),
                 file_id: Some(file_id),
                 file_type: Some(file_type),
+                workshop_file_name,
+                workshop_file_label,
                 sha256: Some(sha256),
                 ..InstalledMod::from_catalog(
                     "modworkshop",
@@ -3087,6 +3107,40 @@ pub async fn list_profiles(
 /// The store copy the game is configured as, which decides where UE4SS sits.
 fn configured_launcher(app: &AppHandle, cfg: &ModEngineConfig) -> Option<String> {
     game_settings(&read_settings(app), cfg.game_id).and_then(|gs| gs.launcher.clone())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn export_profile_share(
+    app: AppHandle,
+    game_id: String,
+    game_path: String,
+    profile_id: String,
+) -> Result<share::ExportedProfileShare, String> {
+    let cfg = engine_for_game(&game_id)?;
+    let guard = lock_game_state(&app, cfg.game_id).await;
+    let launcher = configured_launcher(&app, cfg);
+    tauri::async_runtime::spawn_blocking(move || {
+        let install = profiles::Install {
+            game_path: &game_path,
+            state_path: &get_state_path(&game_path, cfg),
+            cfg,
+            launcher: launcher.as_deref(),
+        };
+        let (profile, records) = profiles::share_snapshot(&install, &profile_id)?;
+        drop(guard);
+        share::export(cfg, &profile, &records)
+    })
+    .await
+    .map_err(|e| format!("Profile export worker failed: {e}"))?
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn parse_profile_share(input: String) -> Result<share::ProfileShare, String> {
+    tauri::async_runtime::spawn_blocking(move || share::parse(&input))
+        .await
+        .map_err(|e| format!("Profile parser worker failed: {e}"))?
 }
 
 #[tauri::command]

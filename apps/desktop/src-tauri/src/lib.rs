@@ -99,6 +99,8 @@ fn ipc_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::mods::open_graphics_config,
             commands::mods::uninstall_mod,
             commands::mods::list_profiles,
+            commands::mods::export_profile_share,
+            commands::mods::parse_profile_share,
             commands::mods::create_profile,
             commands::mods::rename_profile,
             commands::mods::delete_profile,

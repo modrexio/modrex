@@ -518,11 +518,49 @@ fn save_active(
     let Some(mut profile) = store.find(&id)? else {
         return Ok(None);
     };
+    capture_live(&mut profile, install, live)?;
+    store.save(&profile)?;
+    Ok(Some(id))
+}
+
+fn capture_live(profile: &mut Profile, install: &Install, live: &ModsState) -> Result<(), String> {
     profile.members = snapshot(install.cfg, &profile.members, &decided(&live.mods));
     profile.folders = live.folders.clone();
     profile.loaders = Some(live_loader_ids(install)?);
-    store.save(&profile)?;
-    Ok(Some(id))
+    Ok(())
+}
+
+pub(super) fn share_snapshot(
+    install: &Install,
+    profile_id: &str,
+) -> Result<(Profile, Vec<InstalledMod>), String> {
+    let store = ProfileStore::new(install.game_path);
+    let mut profile = store.get(profile_id)?;
+    let primary = install.cfg.primary();
+    let hidden = set_aside_dir(install.game_path, primary)
+        .filter(|_| primary.shared_paks.is_none())
+        .map(|dir| super::state::hidden_state_path(&dir, install.state_path, install.cfg));
+    // Reconciliation can rename files. Export only needs the current installation records.
+    let live = read_state_for_game(
+        install.game_path,
+        hidden.as_deref().unwrap_or(install.state_path),
+        install.cfg,
+    )
+    .map_err(|e| e.to_string())?;
+    let mut records = if store.active()?.as_deref() == Some(profile_id) {
+        refuse_while_unfinished(&store, "share the active profile")?;
+        capture_live(&mut profile, install, &live)?;
+        live.mods
+    } else {
+        let mut records = store.parked()?;
+        // A stopped switch can leave both records. The live record wins the join.
+        records.extend(live.mods);
+        records
+    };
+    for record in &mut records {
+        super::state::restore_legacy_catalog_ids(record);
+    }
+    Ok((profile, records))
 }
 
 /// Takes a mod that is off out of the game: the record goes to parked.json first, then the
