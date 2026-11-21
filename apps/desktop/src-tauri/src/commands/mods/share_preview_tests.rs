@@ -367,3 +367,29 @@ fn import_accepts_only_choices_offered_by_the_current_resolution() {
     assert!(rows(variants(), "2", 89916).is_err());
     assert!(rows(json!([{"id":89916,"name":"Only"}]), "1", 89916).is_err());
 }
+
+#[test]
+fn import_accepts_only_choices_among_a_rows_candidates() {
+    let rows = |choices: &[(&str, u32)]| {
+        let members = vec![
+            workshop_member(json!({}), "Other.pak"),
+            workshop_member(json!({"fileId":89900}), "Steam.pak"),
+        ];
+        let share = super::super::parse(&share(members).to_string()).unwrap();
+        let cfg = super::super::engine_for_game(&share.game_id).unwrap();
+        let preview = resolve(&share, cfg, &workshop(variants()), vec![]);
+        let choices = choices.iter().map(|(k, v)| (k.to_string(), *v)).collect();
+        super::super::import::resolve_rows(&share, preview, choices).map(|rows| rows.len())
+    };
+    assert_eq!(rows(&[]), Ok(2));
+    assert_eq!(rows(&[("1", 89898)]), Ok(2));
+    assert!(rows(&[("1", 12345)])
+        .unwrap_err()
+        .contains("not a candidate"));
+    assert!(rows(&[("2", 89898)])
+        .unwrap_err()
+        .contains("does not need a file choice"));
+    assert!(rows(&[("3", 89898)])
+        .unwrap_err()
+        .contains("unknown profile member"));
+}
