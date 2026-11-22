@@ -5,8 +5,8 @@ import type { HistorySnapshot } from './i18n-history-events.mts'
 import { normalize } from './i18n-history-events.mts'
 import type { Inspection } from './i18n-inspection.mts'
 import { existsSync } from 'node:fs'
-import { dirname, relative, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { relative, resolve } from 'node:path'
+import { I18N_HISTORY_BASELINE, I18N_LOCALE_DIR, REPOSITORY_ROOT } from './i18n-config.mts'
 import {
     formatTargetValue,
     parseTargetValue,
@@ -28,8 +28,6 @@ import {
     analyzeRepairableProspective,
     EFFECTIVE_STATE,
     I18nHistoryUnavailableError,
-    I18N_HISTORY_BASELINE,
-    I18N_LOCALE_DIR,
     summarizeHistory,
     canDeferPlaceholderMismatch,
     workingTreeSnapshot,
@@ -50,9 +48,6 @@ type ReviewSession = Pick<Review, 'localePath' | 'candidates'> & {
 type ReviewWriter = (path: string, bundle: LocaleBundle) => unknown
 type ReviewOptions = HistoryOptions &
     CliIO & { i18nDir?: string; ask?: Ask; stdin?: NodeJS.ReadableStream; write?: ReviewWriter }
-
-const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
-const REPOSITORY_ROOT = resolve(SCRIPT_DIR, '../../..')
 
 export const REVIEW_ACTION = Object.freeze({
     EDIT: 'edit',

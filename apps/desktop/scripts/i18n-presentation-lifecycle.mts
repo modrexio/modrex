@@ -1,11 +1,12 @@
 import { errorMessage, type CliIO } from './i18n-io.mts'
 import { mkdirSync, readFileSync, readdirSync, unlinkSync } from 'node:fs'
-import { dirname, resolve } from 'node:path'
-import { fileURLToPath, pathToFileURL } from 'node:url'
+import { resolve } from 'node:path'
+import { pathToFileURL } from 'node:url'
+import { I18N_DIR, README_PATH, REPOSITORY_ROOT, STATUS_ASSET_DIR } from './i18n-config.mts'
 import { writeSerializedFileAtomically } from './i18n-files.mts'
-import { I18N_DIR, inspectLocales } from './i18n-inspection.mts'
+import { inspectLocales } from './i18n-inspection.mts'
 import { buildStatusSummaries } from './i18n-presentation.mts'
-import { renderStatusSvg, STATUS_ASSET_DIR } from './i18n-presentation-svg.mts'
+import { renderStatusSvg } from './i18n-presentation-svg.mts'
 import {
     buildTranslationTable,
     readTranslationContributors,
@@ -22,8 +23,8 @@ type Operation =
     | { type: 'write-readme' | 'delete-asset'; path: string }
     | { type: 'write-asset'; path: string; locale: string }
 
-const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
-const DEFAULT_README_PATH = resolve(SCRIPT_DIR, '../../..', 'README.md')
+const DEFAULT_README_PATH = resolve(REPOSITORY_ROOT, README_PATH)
+const DEFAULT_STATUS_ASSET_DIR = resolve(REPOSITORY_ROOT, STATUS_ASSET_DIR)
 
 function readIfExists(path: string) {
     try {
@@ -63,7 +64,7 @@ function comparePaths(a: string, b: string) {
 export function buildI18nPresentationPlan({
     i18nDir = I18N_DIR,
     readmePath = DEFAULT_README_PATH,
-    statusAssetDir = STATUS_ASSET_DIR,
+    statusAssetDir = DEFAULT_STATUS_ASSET_DIR,
     contributorsPath,
 }: PresentationOptions = {}) {
     const inspection = inspectLocales(i18nDir)

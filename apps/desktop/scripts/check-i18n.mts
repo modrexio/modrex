@@ -4,8 +4,8 @@ import type { LocaleIssue, LocaleInspection } from './i18n-current.mts'
 import type { Inspection } from './i18n-inspection.mts'
 import type { HistoryOptions, HistorySummary } from './i18n-history.mts'
 import { existsSync } from 'node:fs'
-import { dirname, relative, resolve } from 'node:path'
-import { fileURLToPath, pathToFileURL } from 'node:url'
+import { relative, resolve } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import {
     parseTargetValue,
     placeholderContract,
@@ -28,8 +28,8 @@ import {
     renderPlaceholderText,
     renderStatus,
 } from './i18n-presentation-cli.mts'
+import { I18N_DIR, I18N_LOCALE_DIR, REPOSITORY_ROOT } from './i18n-config.mts'
 import {
-    I18N_DIR,
     inspectLocales,
     localeEnglishName,
     localeNativeName,
@@ -64,9 +64,7 @@ type HistoryCandidate = {
     issue: Extract<LocaleIssue, { type: 'placeholder' | 'pending-placeholder' }>
 }
 
-export { I18N_DIR, inspectLocales, localeNativeName } from './i18n-inspection.mts'
-
-const REPOSITORY_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../..')
+export { inspectLocales, localeNativeName } from './i18n-inspection.mts'
 
 export function isUntranslatedValue(value: string) {
     return parseTargetValue(value).kind === TARGET_VALUE_KIND.UNTRANSLATED_SCAFFOLD
@@ -946,7 +944,7 @@ function deferrableIssues(inspection: Inspection) {
 async function resolveWithHistory(candidates: HistoryCandidate[], options: CliOptions) {
     const history = await import('./i18n-history.mts')
     const cwd = options.cwd ?? REPOSITORY_ROOT
-    const localeDir = options.localeDir ?? history.I18N_LOCALE_DIR
+    const localeDir = options.localeDir ?? I18N_LOCALE_DIR
     if (options.i18nDir && resolve(options.i18nDir) !== resolve(cwd, localeDir)) {
         return {
             summary: undefined,

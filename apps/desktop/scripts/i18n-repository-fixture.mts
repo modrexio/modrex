@@ -1,12 +1,12 @@
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { join } from 'node:path'
 import type { TestContext } from 'node:test'
+import { REPOSITORY_ROOT } from './i18n-config.mts'
 import { serializeLocale } from './i18n-files.mts'
 import { describeHistoryAvailability } from './i18n-history.mts'
 import { synchronizeI18n } from './i18n-sync.mts'
 
-const REPOSITORY_ROOT = resolve(import.meta.dirname, '../../..')
 export const repositoryHistorySkipReason = describeHistoryAvailability({ cwd: REPOSITORY_ROOT })
     .available
     ? false

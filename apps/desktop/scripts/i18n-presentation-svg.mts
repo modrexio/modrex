@@ -1,9 +1,10 @@
 import type { SourceStatusSummary, TargetStatusSummary } from './i18n-presentation.mts'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { dirname, resolve } from 'node:path'
+import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { I18N_DIR, REPOSITORY_ROOT, STATUS_ASSET_DIR } from './i18n-config.mts'
 import { buildStatusSummaries } from './i18n-presentation.mts'
-import { inspectLocales, I18N_DIR } from './i18n-inspection.mts'
+import { inspectLocales } from './i18n-inspection.mts'
 import { errorMessage } from './i18n-io.mts'
 
 type Summary = SourceStatusSummary | TargetStatusSummary
@@ -130,12 +131,11 @@ export function renderStatusSvg(
     ].join('\n')
 }
 
-const SCRIPT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../..')
-export const STATUS_ASSET_DIR = resolve(SCRIPT_ROOT, 'assets/i18n/status')
+const DEFAULT_OUTPUT_DIR = resolve(REPOSITORY_ROOT, STATUS_ASSET_DIR)
 
 export function generateStatusAssets({
     i18nDir = I18N_DIR,
-    outputDir = STATUS_ASSET_DIR,
+    outputDir = DEFAULT_OUTPUT_DIR,
 }: { i18nDir?: string; outputDir?: string } = {}) {
     const inspection = inspectLocales(i18nDir)
     const summaries = buildStatusSummaries(inspection)
@@ -157,7 +157,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     try {
         const result = generateStatusAssets()
         process.stdout.write(
-            `i18n: rendered ${result.summaries.targets.length + 1} SVG status asset(s) in ${STATUS_ASSET_DIR}\n`
+            `i18n: rendered ${result.summaries.targets.length + 1} SVG status asset(s) in ${result.outputDir}\n`
         )
     } catch (error) {
         process.stderr.write(`i18n: SVG rendering failed: ${errorMessage(error)}\n`)

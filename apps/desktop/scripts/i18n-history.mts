@@ -5,6 +5,7 @@ import {
     TARGET_VALUE_KIND,
     type TargetValue,
 } from '../src/shared/i18n-values.mts'
+import { I18N_HISTORY_BASELINE, I18N_LOCALE_DIR } from './i18n-config.mts'
 import { createGitAdapter, GitBlobDecodeError } from './i18n-git.mts'
 import { errorMessage } from './i18n-io.mts'
 import {
@@ -110,12 +111,6 @@ export type HistorySummary = {
     locales: Map<string, LocaleHistorySummary>
     gaps: EvidenceGap[]
 }
-
-// Acceptance reconstruction starts at the audited baseline. Pre-baseline events create no
-// review debt. Rewriting repository history requires a new audit, never a guessed baseline.
-export const I18N_HISTORY_BASELINE = 'da1040c9f04d7e004d5cd1fee3af15fabaa80b7e'
-
-export const I18N_LOCALE_DIR = 'apps/desktop/src/renderer/src/i18n'
 
 const SOURCE_LOCALE = 'en'
 const UTF8_DECODER = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true })

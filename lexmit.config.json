@@ -1,0 +1,8 @@
+{
+    "historyBaseline": "da1040c9f04d7e004d5cd1fee3af15fabaa80b7e",
+    "localeDir": "apps/desktop/src/renderer/src/i18n",
+    "readme": "README.md",
+    "statusAssetDir": "assets/i18n/status",
+    "contributorsFile": "apps/desktop/translation-contributors.generated.json",
+    "translationGuide": "docs/contributing/translating.md"
+}

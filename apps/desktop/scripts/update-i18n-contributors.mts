@@ -1,10 +1,11 @@
 import type { TranslationContributors } from './update-i18n-readme.mts'
 import { writeFileSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
-import { dirname, resolve } from 'node:path'
-import { fileURLToPath, pathToFileURL } from 'node:url'
+import { resolve } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { isDeepStrictEqual } from 'node:util'
 import { parseTargetValue, TARGET_VALUE_KIND } from '../src/shared/i18n-values.mts'
+import { CONTRIBUTORS_PATH, I18N_LOCALE_DIR, REPOSITORY_ROOT } from './i18n-config.mts'
 import { inspectLocales } from './i18n-inspection.mts'
 import { flattenBundle } from './i18n-current.mts'
 import { errorMessage } from './i18n-io.mts'
@@ -17,22 +18,23 @@ type GitHubCommit = {
 type FetchCommits = (localeId: string, page: number) => Promise<unknown>
 
 const PER_PAGE = 100
-const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
-const CONTRIBUTORS_PATH = resolve(SCRIPT_DIR, '..', 'translation-contributors.generated.json')
-const LOCALE_PATH = 'apps/desktop/src/renderer/src/i18n'
 
 function readLocaleAtRevision(revision: string, localeId: string) {
-    const path = `${LOCALE_PATH}/${localeId}.json`
+    const path = `${I18N_LOCALE_DIR}/${localeId}.json`
     let listed
     try {
         listed = execFileSync('git', ['ls-tree', '-r', '--name-only', revision, '--', path], {
+            cwd: REPOSITORY_ROOT,
             encoding: 'utf8',
         })
     } catch (error) {
         throw new Error(`Could not inspect Git revision '${revision}'`, { cause: error })
     }
     if (listed.trim().length === 0) return undefined
-    return execFileSync('git', ['show', `${revision}:${path}`], { encoding: 'utf8' })
+    return execFileSync('git', ['show', `${revision}:${path}`], {
+        cwd: REPOSITORY_ROOT,
+        encoding: 'utf8',
+    })
 }
 
 function canonicalTargetContent(value: unknown, localeId: string) {
@@ -156,7 +158,7 @@ export async function fetchGitHubCommits(
 ): Promise<unknown> {
     const url = new URL(`https://api.github.com/repos/${repository}/commits`)
     url.searchParams.set('sha', revision)
-    url.searchParams.set('path', `${LOCALE_PATH}/${localeId}.json`)
+    url.searchParams.set('path', `${I18N_LOCALE_DIR}/${localeId}.json`)
     url.searchParams.set('per_page', String(PER_PAGE))
     url.searchParams.set('page', String(page))
 
@@ -251,7 +253,10 @@ async function updateTranslationContributors() {
     )
     const maintainers = await fetchMaintainers(repository, token)
     const credited = applyMaintainerAttribution(contributors, maintainers, creators)
-    writeFileSync(CONTRIBUTORS_PATH, `${JSON.stringify(credited, null, 4)}\n`)
+    writeFileSync(
+        resolve(REPOSITORY_ROOT, CONTRIBUTORS_PATH),
+        `${JSON.stringify(credited, null, 4)}\n`
+    )
     process.stdout.write('update-i18n-contributors: updated contributor metadata\n')
 }
 

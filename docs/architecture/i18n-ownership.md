@@ -1,8 +1,12 @@
 # Translation ownership
 
-The tooling runs its TypeScript modules directly on Bun, without installing dependencies
-or compiling JavaScript. Development type checking
+The tooling runs its TypeScript modules directly on Bun or Node, without installing
+dependencies or compiling JavaScript. Development type checking
 runs separately with bun i18n:typecheck.
+
+Every repository path it reads or writes, and the audited history baseline, comes from
+`lexmit.config.json` at the repository root. `apps/desktop/scripts/i18n-config.mts` finds that
+file from the working directory upward and rejects any value Git could not match.
 
 Modrex reconstructs translation state from Git history. This page says who is allowed to
 change what, and which check enforces which half of that.

@@ -6,6 +6,7 @@ import { join } from 'node:path'
 import test from 'node:test'
 import { createGitAdapter, GitBlobDecodeError, GitCommandError } from './i18n-git.mts'
 import { entryId, HISTORY_EVENT, PENDING_PROVENANCE } from './i18n-history-events.mts'
+import { I18N_HISTORY_BASELINE } from './i18n-config.mts'
 import {
     analyzeCommittedHistory,
     analyzeStaged,
@@ -16,7 +17,6 @@ import {
     I18nHistoryDataError,
     I18nHistoryStateError,
     I18nHistoryUnavailableError,
-    I18N_HISTORY_BASELINE,
     summarizeHistory,
     type HistoryAnalysis,
 } from './i18n-history.mts'

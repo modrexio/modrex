@@ -1,4 +1,3 @@
-import { stringWidth } from 'bun'
 import type { CliOutput } from './i18n-io.mts'
 import type { StatusSummaries } from './i18n-presentation.mts'
 import { placeholderContract } from '../src/shared/i18n-values.mts'
@@ -35,6 +34,21 @@ const STATUS_COLUMN_WIDTH = 8
 const LABEL_SEPARATOR_WIDTH = 1
 const STATUS_SEPARATOR_WIDTH = 1
 const BAR_TRAILING_SPACE_WIDTH = 1
+
+// Terminal cells per grapheme: two for East Asian wide or fullwidth text and emoji, one
+// otherwise. Labels are locale names measured before color is added. Terminals disagree on
+// Indic and Southeast Asian vowel signs, so labels in those scripts may pad a column off.
+const WIDE_CHARACTER =
+    /[\u1100-\u115F\u2E80-\u303E\u3041-\u33FF\u3400-\u4DBF\u4E00-\u9FFF\uA960-\uA97F\uAC00-\uD7A3\uF900-\uFAFF\uFE30-\uFE4F\uFF00-\uFF60\uFFE0-\uFFE6\u{20000}-\u{3FFFD}\p{Emoji_Presentation}]/u
+const GRAPHEMES = new Intl.Segmenter('en', { granularity: 'grapheme' })
+
+export function terminalWidth(text: string) {
+    let width = 0
+    for (const { segment } of GRAPHEMES.segment(text)) {
+        width += WIDE_CHARACTER.test(segment) ? 2 : 1
+    }
+    return width
+}
 
 export function detectCliCapabilities({
     stdout = process.stdout,
@@ -193,7 +207,7 @@ function renderRichRow(
     styles: SemanticStyles & BarStyles,
     width: number
 ) {
-    const boldLabel = styles.heading(label + ' '.repeat(status.labelWidth - stringWidth(label)))
+    const boldLabel = styles.heading(label + ' '.repeat(status.labelWidth - terminalWidth(label)))
     const bar = width > 0 ? `${renderStatusBar(status, styles, width)} ` : ''
     const counts = rowCounts(status)
     return `${boldLabel} ${bar}${status.label.padEnd(STATUS_COLUMN_WIDTH)} ${counts}`.trimEnd()
@@ -229,7 +243,7 @@ function statusRows(summaries: StatusSummaries, nativeName: (id: string) => stri
     const labels = [source, ...targets].map(
         (status) => `${nativeName(status.locale)} (${status.locale})`
     )
-    const labelWidth = Math.max(...labels.map((label) => stringWidth(label)))
+    const labelWidth = Math.max(...labels.map((label) => terminalWidth(label)))
     return [source, ...targets].map((status, index) => ({
         ...status,
         labelWidth,
