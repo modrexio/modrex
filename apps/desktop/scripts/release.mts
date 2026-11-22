@@ -1,6 +1,14 @@
 import { execFileSync } from 'node:child_process'
-import { readFileSync, writeFileSync } from 'node:fs'
+import { readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import {
+    CHANGES_DIR,
+    collectNotes,
+    createGitHub,
+    readCoAuthors,
+    renderRelease,
+} from './changes.mts'
 import { errorMessage } from './i18n-io.mts'
 
 function fail(message: string): never {
@@ -61,13 +69,30 @@ if (git('tag', '--list', tag)) fail(`Release tag ${tag} already exists`)
 const status = git('status', '--porcelain=v1', '--untracked-files=no')
 if (status) fail(`Tracked files must be clean before creating a desktop release:\n${status}`)
 
-if (!changelog.includes('## Unreleased\n')) fail('CHANGELOG.md has no Unreleased section')
-const unreleasedBody = changelog.match(/## Unreleased\n([\s\S]*?)\n## /)?.[1]!.trim()
-if (!unreleasedBody) {
-    console.warn(
-        `Warning: CHANGELOG.md Unreleased section is empty — ${tag} will ship with no release notes.`
-    )
+if (/^## Unreleased$/m.test(changelog)) {
+    fail(`CHANGELOG.md has an Unreleased section, move its entries into ${CHANGES_DIR}/ files`)
 }
+// The notes are built before anything is written, so a failed GitHub lookup or an
+// unclassified co-author stops the release with nothing to undo.
+const notes = (() => {
+    try {
+        return collectNotes({
+            repoRoot,
+            github: createGitHub(),
+            coAuthors: readCoAuthors(repoRoot),
+            unknownCoAuthors: 'fail',
+            warn: (warning) => console.warn(`Warning: ${warning}`),
+        })
+    } catch (error) {
+        fail(`Release notes could not be built:\n${errorMessage(error)}`)
+    }
+})()
+if (!notes.entries.length) {
+    console.warn(`Warning: ${CHANGES_DIR}/ has no change files, so ${tag} ships with no entries.`)
+}
+const firstSection = changelog.indexOf('\n## ')
+if (firstSection === -1) fail('CHANGELOG.md has no version section to add the new one above')
+const releasedChangelog = `${changelog.slice(0, firstSection + 1)}## ${version}\n\n${renderRelease(notes)}\n\n${changelog.slice(firstSection + 1)}`
 
 const releasePaths = [
     'package.json',
@@ -76,6 +101,7 @@ const releasePaths = [
     'apps/desktop/src-tauri/Cargo.toml',
     'apps/desktop/src-tauri/Cargo.lock',
     'CHANGELOG.md',
+    CHANGES_DIR,
 ]
 // release.yml rejects lightweight tags, so the tag is annotated and carries the release commit's
 // message.
@@ -90,10 +116,8 @@ try {
         cargoManifestPath,
         cargo.replace(`version = "${oldVersion}"`, `version = "${version}"`)
     )
-    writeFileSync(
-        changelogPath,
-        changelog.replace(/## Unreleased\n+/, `## Unreleased\n\n## ${version}\n\n`)
-    )
+    writeFileSync(changelogPath, releasedChangelog)
+    for (const entry of notes.entries) rmSync(join(repoRoot, entry.change.file))
     execFileSync('cargo', ['update', '--manifest-path', cargoManifestPath, '-p', 'modrex'], {
         stdio: 'inherit',
     })
