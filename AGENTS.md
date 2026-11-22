@@ -154,6 +154,8 @@ Before reporting completion of a code change, run mentally or explicitly:
 - `control-flow` when a change touches validation, branching, installation logic,
   filesystem routing, renderer event handlers, or any function with nested conditionals
 - `comment-audit` after AI-assisted edits, large refactors, or any change that adds comments
+- `changelog` when a change is one people using Modrex would notice: write or update a
+  `.changes/` file, never edit `CHANGELOG.md`
 - `ai-review` before proposing a PR, commit, or final summary for a non-trivial change
 
 ## AI-facing documentation
