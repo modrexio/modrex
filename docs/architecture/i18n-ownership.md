@@ -1,7 +1,7 @@
 # Translation ownership
 
-The tooling runs its TypeScript modules directly on Bun, without installing dependencies
-or compiling JavaScript. Development type checking
+The tooling runs its TypeScript modules directly on Bun or Node, without installing
+dependencies or compiling JavaScript. Development type checking
 runs separately with bun i18n:typecheck.
 
 Every repository path it reads or writes, and the audited history baseline, comes from

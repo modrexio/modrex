@@ -1,4 +1,3 @@
-import { stringWidth } from 'bun'
 import assert from 'node:assert/strict'
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -18,6 +17,7 @@ import {
     renderStatus,
     renderStatusBar,
     resolveSharedBarWidth,
+    terminalWidth,
     type StatusRow,
 } from './i18n-presentation-cli.mts'
 import type { CliOutput } from './i18n-io.mts'
@@ -133,6 +133,15 @@ test('percentage formatting rounds to one decimal and suppresses zero decimals',
     assert.equal(formatPresentationPercentage(39, 40), '97.5%')
     assert.equal(formatPresentationPercentage(1, 3), '33.3%')
     assert.equal(formatPresentationPercentage(10, 10), '100%')
+})
+
+test('terminal width counts wide and fullwidth graphemes as two cells', () => {
+    assert.equal(terminalWidth('Deutsch (de)'), 12)
+    assert.equal(terminalWidth('Українська (uk)'), 15)
+    assert.equal(terminalWidth('中文（中国） (zh-CN)'), 20)
+    assert.equal(terminalWidth('日本語 (ja)'), 11)
+    assert.equal(terminalWidth('한국어 (ko)'), 11)
+    assert.equal(terminalWidth('ไทย (th)'), 8)
 })
 
 test('capabilities report context-free TTY, color, and column facts only', () => {
@@ -873,8 +882,8 @@ test(
             assert.equal(lines.length, inspectLocales(i18nDir).locales.length + 1)
             for (const line of lines) {
                 assert.ok(
-                    stringWidth(line) <= columns,
-                    `line "${line}" (${stringWidth(line)} cols) exceeds declared columns=${columns}`
+                    terminalWidth(line) <= columns,
+                    `line "${line}" (${terminalWidth(line)} cols) exceeds declared columns=${columns}`
                 )
             }
         }
