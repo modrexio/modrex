@@ -17,6 +17,8 @@ cache-mode: none
 permissions:
     actions: read
     contents: write
+    # nightly-notes.mts looks up the pull request behind each change file.
+    pull-requests: read
 
 concurrency:
     group: nightly
