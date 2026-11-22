@@ -2,6 +2,8 @@
 
 All notable changes to Modrex are documented in this file. Each version's section becomes the GitHub release body and the in-app update notes. Unreleased changes live as files in [.changes/](.changes/), which `bun release` collects into the next version's section, see [docs/contributing/changelog.md](docs/contributing/changelog.md).
 
+Upcoming changes: see the [nightly release notes](https://github.com/modrexio/modrex/releases/tag/nightly).
+
 ## 0.16.1
 
 ### Added
