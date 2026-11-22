@@ -188,8 +188,11 @@ README block or to a status SVG are overwritten on the next run.
 With a clean tracked tree, run `bun release patch|minor|major` from the repository root
 (`scripts/release.mts`). `bun pm version` is blocked in both packages because it bumps one
 `package.json` only. The command bumps the root and desktop packages, Tauri and Cargo, commits
-as `chore(release): X.Y.Z`, and creates an annotated `vX.Y.Z` tag. It also stamps the root
-`CHANGELOG.md` file's `## Unreleased` section into `## X.Y.Z` in the release commit.
+as `chore(release): X.Y.Z`, and creates an annotated `vX.Y.Z` tag. In the same commit it
+renders the root `.changes/` files into a new `## X.Y.Z` section of `CHANGELOG.md` and deletes
+them (`scripts/changes.mts`, format in `docs/contributing/changelog.md`). Rendering looks every
+PR and co-author up through `gh`, so it needs a `gh` login, and it stops before writing anything
+on a co-author email that `.changes/co-authors.json` does not classify yet.
 
 `git push --follow-tags` pushes the release commit and annotated tag. The release
 workflow waits for CI to pass on that exact commit, builds the signed updater artifacts,
@@ -199,4 +202,5 @@ and creates a draft GitHub Release named `vX.Y.Z`. Publishing that draft makes i
 timer and then rebuilds modrex.net, posts to Discord and submits to WinGet.
 
 `.github/workflows/nightly.yml` publishes the rolling `nightly` pre-release through the same
-`desktop-build.yml`. Its stamped version is never committed. To pause a broken nightly, replace the release's `latest.json` (`gh release upload nightly latest.json --clobber`) with a copy that keeps its `version` and has an empty `platforms` (see the check in `on_open_update.rs`). Keeping the version matters because `scripts/nightly-version.mts` numbers the next dispatch from it.
+`desktop-build.yml`. Its stamped version is never committed, and its notes come from
+`scripts/nightly-notes.mts`, which reads the `.changes/` files without consuming them. To pause a broken nightly, replace the release's `latest.json` (`gh release upload nightly latest.json --clobber`) with a copy that keeps its `version` and has an empty `platforms` (see the check in `on_open_update.rs`). Keeping the version matters because `scripts/nightly-version.mts` numbers the next dispatch from it.

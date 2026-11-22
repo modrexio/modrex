@@ -39,7 +39,7 @@ Then check for:
 - direct API calls that bypass project caches (`modCache.ts`, `thumbnailCache.ts`)
 - bare JSX strings (use `t('key')`)
 - missing Tauri command wiring (all three places)
-- user-facing behavior missing from CHANGELOG when appropriate
+- user-facing behavior missing a `.changes/` file when appropriate
 - code that contradicts the nearest `AGENTS.md` above it
 
 ## Severity

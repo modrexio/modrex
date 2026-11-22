@@ -1,22 +1,22 @@
 ---
 name: changelog
-description: Add user-facing entries to CHANGELOG.md's Unreleased section for recent changes
+description: Write or update .changes/ files for user-facing changes
 ---
 
 # changelog
 
-Add entries to [`CHANGELOG.md`](../../../CHANGELOG.md)'s `## Unreleased` section for
-changes that haven't been recorded yet. Never touch a released (`## X.Y.Z`) section.
-Version headings have no brackets and no date — just the bare number (e.g. `## 0.10.0`).
+Record changes that haven't been recorded yet as files in [`.changes/`](../../../.changes/).
+The file format, the optional `prs` and `thanks` lines, and how PR links and author credit are
+derived are in [docs/contributing/changelog.md](../../../docs/contributing/changelog.md); read it
+first. Never edit `CHANGELOG.md`: `bun release` builds each version's section from the files.
 
 ## Scope
 
 Determine which changes to record based on the argument passed:
 
 - **No argument** — find the last tag (`git describe --tags --abbrev=0`) and read
-  `git log <tag>..HEAD` (full messages, not just subjects). Compare against what's
-  already under `Unreleased` and add only what's missing — safe to re-run after every
-  change.
+  `git log <tag>..HEAD` (full messages, not just subjects). Compare against the files
+  already in `.changes/` and add only what's missing — safe to re-run after every change.
 - **A ref or range** (e.g. `HEAD~3..HEAD`, a single SHA) — read exactly that range
   (`git log <range>`, `git show <sha>`).
 - **Uncommitted changes** — if there's nothing new in the commit log but `git status`
@@ -27,9 +27,9 @@ often hides the user-facing detail worth recording (or reveals it's purely inter
 
 ## Categorization
 
-Use [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) sections, in this order:
-**Added**, **Changed**, **Fixed**, **Security** (add **Deprecated** / **Removed** only
-if genuinely applicable).
+The `category` line takes a [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) section:
+`added`, `changed`, `fixed`, `security` (use `deprecated` / `removed` only if genuinely
+applicable).
 
 Commit type is a starting hint, not the final answer:
 
@@ -46,16 +46,19 @@ Commit type is a starting hint, not the final answer:
 
 ## Writing entries
 
-- One bullet per user-facing change, in product voice, past tense: "Added X.", "Fixed Y
-  appearing when Z.", not commit subjects, hashes, scopes, or issue numbers.
-- If several commits implement one feature or fix, merge them into a single bullet —
-  the changelog reflects shipped behavior, not commit-by-commit history.
-- If a commit fixes something introduced earlier in the same `Unreleased` block (the
-  buggy behavior was never released), fold the fix into the existing Added bullet
-  instead of adding a separate Fixed line for code users never saw broken.
+- One file per user-facing change, in product voice, past tense: "Added X.", "Fixed Y
+  appearing when Z.", not commit subjects, hashes, scopes, or issue numbers. No list
+  marker, PR number or name in the text; the notes add the links and credit.
+- If several commits implement one feature or fix, write a single file — the changelog
+  reflects shipped behavior, not commit-by-commit history.
+- If a commit fixes something an unreleased file already describes (the buggy behavior
+  was never released), edit that file instead of adding a separate `fixed` file for code
+  users never saw broken. The edit also links the fixing PR to that entry.
 - If a commit adds a sub-detail to an unreleased feature (e.g. a progress counter
-  added to a modal that itself hasn't shipped), fold it into the existing bullet for
-  that feature — never add a separate entry for behavior users haven't seen without it.
+  added to a modal that itself hasn't shipped), fold it into that feature's file —
+  never add a separate entry for behavior users haven't seen without it.
+- Set `prs` only when the PR that creates or edits the file is not the one the change
+  came from, such as an entry written after its PR merged.
 - Keep entries short. Don't describe a feature's internal contents unless the detail
   is itself the user-facing point — "Added a per-mod options menu." is enough; listing
   what's inside the menu is not.
@@ -67,16 +70,15 @@ Commit type is a starting hint, not the final answer:
 
 1. Resolve scope (see above) and read the actual diffs, not just messages.
 2. If nothing in scope is user-facing, say so and stop — do not invent an entry.
-3. Check existing `Unreleased` bullets first; merge/refine rather than duplicate.
-4. Insert into the right subsection under `## Unreleased`, creating a subsection
-   heading only if needed, keeping section order (Added, Changed, Fixed, Security).
-5. Report a 1–3 sentence summary of what was added.
+3. Check the existing `.changes/` files first; merge/refine rather than duplicate.
+4. Write `.changes/<short-slug>.md` named after the change, or edit the existing file.
+5. Run `bun check-changes`.
+6. Report a 1–3 sentence summary of what was added.
 
 ## Rules
 
-- Only ever edit the `## Unreleased` section. Released sections (`## X.Y.Z`) are
-  historical — never rewrite them.
-- Never write a version number — `bun release` stamps `Unreleased` into a versioned
-  section at release time.
-- Edit the file and stop. Do not run `git commit` — suggest `/commit` afterward if the
+- Only ever write or edit `.changes/` files. Released sections of `CHANGELOG.md`
+  (`## X.Y.Z`) are historical — never rewrite them, and never add an Unreleased section.
+- Never write a version number — `bun release` turns the files into a versioned section.
+- Edit the files and stop. Do not run `git commit` — suggest `/commit` afterward if the
   user wants the changelog update committed.

@@ -1,39 +1,8 @@
 # Changelog
 
-All notable changes to Modrex are documented in this file. Each version's section here becomes the GitHub release body and the in-app update notes — entries should read as user-facing release notes, not commit messages.
+All notable changes to Modrex are documented in this file. Each version's section becomes the GitHub release body and the in-app update notes. Unreleased changes live as files in [.changes/](.changes/), which `bun release` collects into the next version's section, see [docs/contributing/changelog.md](docs/contributing/changelog.md).
 
-## Unreleased
-
-### Added
-
-- Added Cyberpunk 2077 support for Steam and the Epic Games Store.
-- Added a setting to make the interface's corners sharper or rounder.
-- Added pink as an accent color.
-- Added a Nightly update channel for testing new features early.
-- Added short animations to dialogs, menus, tooltips and buttons.
-- Added mod profiles for each game.
-- Added sharing and importing profiles.
-
-### Changed
-
-- Usage analytics now include your language.
-- The purple accent color is now deeper.
-- Launching without mods now uses the game's .modrex folder.
-- Folder names being edited no longer show a focus outline.
-
-### Fixed
-
-- Fixed PAYDAY 3 and Crime Boss mods set aside for a launch without mods being deleted when their folder was recreated while the game ran.
-- Fixed update checks wrongly saying you're up to date.
-- Fixed the mods folder being recreated during a launch without mods.
-- Fixed update checks and downloads hanging on a stalled connection.
-- Fixed a failed update install leaving Modrex with no window.
-- Fixed interface errors missing from the log.
-- Fixed the page selector flickering on Nexus Mods.
-- Fixed reinstalls moving a mod's files into one folder.
-- Fixed ModWorkshop installs removing Nexus mods with the same id.
-- Fixed disabled hand-installed Diesel mods reappearing as new mods.
-- Fixed bursts of requests running into ModWorkshop's rate limit.
+Upcoming changes: see the [nightly release notes](https://github.com/modrexio/modrex/releases/tag/nightly).
 
 ## 0.16.1
 
