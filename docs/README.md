@@ -15,6 +15,7 @@ This directory is for people working on Modrex. User instructions live on
 | Know who may change a translation file, and which check enforces it        | [architecture/i18n-ownership.md](architecture/i18n-ownership.md)             |
 | Set up the repository and run the checks                                   | [../CONTRIBUTING.md](../CONTRIBUTING.md)                                     |
 | Review the desktop interface in a browser                                  | [contributing/preview.md](contributing/preview.md)                           |
+| Write a changelog entry for a change                                       | [contributing/changelog.md](contributing/changelog.md)                       |
 | Translate Modrex                                                           | [contributing/translating.md](contributing/translating.md)                   |
 | Report a vulnerability                                                     | [../SECURITY.md](../SECURITY.md)                                             |
 
