@@ -6,9 +6,18 @@ import type {
     TargetStatusSummary,
 } from './i18n-presentation.mts'
 import { readFileSync, writeFileSync } from 'node:fs'
-import { dirname, resolve } from 'node:path'
-import { fileURLToPath, pathToFileURL } from 'node:url'
-import { I18N_DIR, inspectLocales, localeNativeName } from './i18n-inspection.mts'
+import { posix, resolve } from 'node:path'
+import { pathToFileURL } from 'node:url'
+import {
+    CONTRIBUTORS_PATH,
+    I18N_DIR,
+    I18N_LOCALE_DIR,
+    README_PATH,
+    REPOSITORY_ROOT,
+    STATUS_ASSET_DIR,
+    TRANSLATION_GUIDE_PATH,
+} from './i18n-config.mts'
+import { inspectLocales, localeNativeName } from './i18n-inspection.mts'
 import {
     buildStatusSummaries,
     deriveTargetStatus,
@@ -19,13 +28,17 @@ export type TranslationContributors = Record<string, string[]>
 type Metadata = { names: Record<string, string>; contributors: TranslationContributors }
 type ReadmeInputs = { i18nDir?: string; contributorsPath?: string }
 
-const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
-const README_PATH = resolve(SCRIPT_DIR, '../../..', 'README.md')
-const CONTRIBUTORS_PATH = resolve(SCRIPT_DIR, '..', 'translation-contributors.generated.json')
+const README_FILE = resolve(REPOSITORY_ROOT, README_PATH)
+const CONTRIBUTORS_FILE = resolve(REPOSITORY_ROOT, CONTRIBUTORS_PATH)
 const START_MARKER = '<!-- TRANSLATION_STATUS_START -->'
 const END_MARKER = '<!-- TRANSLATION_STATUS_END -->'
-const TRANSLATION_GUIDE =
-    'To improve an existing language or add a new one, follow the\n[translation guide](docs/contributing/translating.md).'
+
+// The config holds repository paths, but links in the README resolve against its own directory.
+function readmeLink(path: string) {
+    return posix.relative(posix.dirname(README_PATH), path)
+}
+
+const TRANSLATION_GUIDE = `To improve an existing language or add a new one, follow the\n[translation guide](${readmeLink(TRANSLATION_GUIDE_PATH)}).`
 const GITHUB_USERNAME = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$/
 const PRETTIER_IGNORE = '<!-- prettier-ignore -->'
 
@@ -50,7 +63,7 @@ function escapeHtmlAttribute(value: unknown) {
         .replaceAll('"', '&quot;')
 }
 
-export function readTranslationContributors(path = CONTRIBUTORS_PATH): TranslationContributors {
+export function readTranslationContributors(path = CONTRIBUTORS_FILE): TranslationContributors {
     let contributors: unknown
     try {
         contributors = JSON.parse(readFileSync(path, 'utf8'))
@@ -109,14 +122,14 @@ function buildLocaleRows(inspection: Inspection, contributors: TranslationContri
 }
 
 function renderImage(locale: string, alt: string) {
-    return `<img src="assets/i18n/status/${locale}.svg" alt="${escapeHtmlAttribute(alt)}">`
+    return `<img src="${readmeLink(`${STATUS_ASSET_DIR}/${locale}.svg`)}" alt="${escapeHtmlAttribute(alt)}">`
 }
 
 function renderSourceRow(summary: SourceStatusSummary, metadata: Metadata) {
     const rawName = metadata.names[summary.locale]
     const name = escapeMarkdownLinkText(rawName)
     const alt = `English source: ${summary.total} valid strings.`
-    return `| [${name} (${summary.locale})](apps/desktop/src/renderer/src/i18n/${summary.locale}.json) | ${renderImage(summary.locale, alt)} Complete | ${contributorLinks(metadata.contributors[summary.locale])} |`
+    return `| [${name} (${summary.locale})](${readmeLink(`${I18N_LOCALE_DIR}/${summary.locale}.json`)}) | ${renderImage(summary.locale, alt)} Complete | ${contributorLinks(metadata.contributors[summary.locale])} |`
 }
 
 function renderTargetRow(summary: TargetStatusSummary, metadata: Metadata) {
@@ -130,11 +143,12 @@ function renderTargetRow(summary: TargetStatusSummary, metadata: Metadata) {
     const fallbackLine = status.usesEnglishFallback
         ? `<br><sub>${targetFallbackLabel(status.usesEnglishFallback)}</sub>`
         : ''
-    return `| [${name} (${summary.locale})](apps/desktop/src/renderer/src/i18n/${summary.locale}.json) | ${renderImage(summary.locale, alt)} ${status.label}${fallbackLine} | ${contributorLinks(metadata.contributors[summary.locale])} |`
+    return `| [${name} (${summary.locale})](${readmeLink(`${I18N_LOCALE_DIR}/${summary.locale}.json`)}) | ${renderImage(summary.locale, alt)} ${status.label}${fallbackLine} | ${contributorLinks(metadata.contributors[summary.locale])} |`
 }
 
 function renderLegend() {
-    return '<div class="i18n-status-legend"><img src="assets/i18n/status/legend/accepted.svg" alt=""> Accepted <img src="assets/i18n/status/legend/review.svg" alt=""> Review <img src="assets/i18n/status/legend/missing.svg" alt=""> Missing</div>'
+    const legend = readmeLink(`${STATUS_ASSET_DIR}/legend`)
+    return `<div class="i18n-status-legend"><img src="${legend}/accepted.svg" alt=""> Accepted <img src="${legend}/review.svg" alt=""> Review <img src="${legend}/missing.svg" alt=""> Missing</div>`
 }
 
 export function renderTranslationStatusReadme({
@@ -195,7 +209,7 @@ export function replaceTranslationTable(readme: string, table: string) {
 
 export function expectedReadme(
     readme: string,
-    { i18nDir = I18N_DIR, contributorsPath = CONTRIBUTORS_PATH }: ReadmeInputs = {}
+    { i18nDir = I18N_DIR, contributorsPath = CONTRIBUTORS_FILE }: ReadmeInputs = {}
 ) {
     const inspection = inspectLocales(i18nDir)
     if (inspection.errors.length > 0) {
@@ -207,7 +221,7 @@ export function expectedReadme(
     return replaceTranslationTable(readme, buildTranslationTable(inspection, contributors))
 }
 
-export function materializeReadme(readmePath = README_PATH, inputs: ReadmeInputs = {}) {
+export function materializeReadme(readmePath = README_FILE, inputs: ReadmeInputs = {}) {
     const current = readFileSync(readmePath, 'utf8')
     const expected = expectedReadme(current, inputs)
     if (expected !== current) writeFileSync(readmePath, expected)
@@ -217,9 +231,9 @@ export function materializeReadme(readmePath = README_PATH, inputs: ReadmeInputs
 export function runReadmeCommand(
     args: string[],
     {
-        readmePath = README_PATH,
+        readmePath = README_FILE,
         i18nDir = I18N_DIR,
-        contributorsPath = CONTRIBUTORS_PATH,
+        contributorsPath = CONTRIBUTORS_FILE,
         stdout = process.stdout,
         stderr = process.stderr,
     }: CliIO & ReadmeInputs & { readmePath?: string } = {}

@@ -1,7 +1,7 @@
 import { errorMessage, type CliIO } from './i18n-io.mts'
 import { readFileSync } from 'node:fs'
-import { dirname, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { resolve } from 'node:path'
+import { I18N_HISTORY_BASELINE, I18N_LOCALE_DIR, REPOSITORY_ROOT } from './i18n-config.mts'
 import {
     PENDING_PREFIX,
     TARGET_VALUE_KIND,
@@ -19,8 +19,6 @@ import {
     analyzeProspective,
     analyzeRepairableProspective,
     EFFECTIVE_STATE,
-    I18N_HISTORY_BASELINE,
-    I18N_LOCALE_DIR,
     snapshotFromBundles,
     summarizeHistory,
     canDeferPlaceholderMismatch,
@@ -52,9 +50,6 @@ export type SyncResult = {
 }
 type Write = (path: string, serialized: string) => boolean | void
 export type SyncOptions = HistoryOptions & CliIO & { i18nDir?: string; write?: Write }
-
-const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
-const REPOSITORY_ROOT = resolve(SCRIPT_DIR, '../../..')
 
 export const SYNC_OPERATION = Object.freeze({
     SCAFFOLD_ADDED: 'scaffold-added',

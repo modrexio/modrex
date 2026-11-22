@@ -1,14 +1,13 @@
 import type { CliIO } from './i18n-io.mts'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
+import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { REPOSITORY_ROOT } from './i18n-config.mts'
 import { createGitRunner, type GitRunner } from './i18n-git.mts'
 
 // Fixed-point verification must compare content, including untracked files. Git status lists
 // them by name alone and would miss a generator rewriting its own newly created output.
-
-const REPOSITORY_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../..')
 
 const RENAME_CODES = new Set(['R', 'C'])
 

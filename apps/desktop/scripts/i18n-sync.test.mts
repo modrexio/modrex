@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
+import { I18N_LOCALE_DIR } from './i18n-config.mts'
 import {
     existsSync,
     mkdirSync,
@@ -18,7 +19,6 @@ import { writeSerializedFileAtomically, type LocaleBundle } from './i18n-files.m
 import {
     analyzeRepairableProspective,
     describeHistoryAvailability,
-    I18N_LOCALE_DIR,
     snapshotFromBundles,
     summarizeHistory,
     type HistoryAnalysis,

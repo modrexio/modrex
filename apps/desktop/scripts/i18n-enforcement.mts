@@ -3,16 +3,15 @@ import type { LocaleBundle } from './i18n-files.mts'
 import type { HistoryGit } from './i18n-history.mts'
 import type { HistoryEvent, HistorySnapshot } from './i18n-history-events.mts'
 import type { SyncPlan, SyncOperation } from './i18n-sync.mts'
-import { dirname, resolve } from 'node:path'
+import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { serializeLocale } from './i18n-files.mts'
 import { formatTargetValue, TARGET_VALUE_KIND } from '../src/shared/i18n-values.mts'
 import { HISTORY_EVENT } from './i18n-history-events.mts'
+import { I18N_HISTORY_BASELINE, I18N_LOCALE_DIR, REPOSITORY_ROOT } from './i18n-config.mts'
 import {
     analyzeCommittedHistory,
     analyzeRepairableProspective,
-    I18N_HISTORY_BASELINE,
-    I18N_LOCALE_DIR,
     stagedSnapshot,
     assertHistoryDecisionEvidence,
     workingTreeSnapshot,
@@ -36,8 +35,6 @@ type EnforcementResult = {
     unsynchronized?: { locale: string; key: string; kind: string }[]
 }
 type WorkflowItem = { locale?: string; key: string }
-
-const REPOSITORY_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../..')
 
 function setPath(root: LocaleBundle, dottedKey: string, value: string) {
     const parts = dottedKey.split('.')

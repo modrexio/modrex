@@ -1,11 +1,18 @@
 import { errorMessage, type CliIO } from './i18n-io.mts'
 import type { TargetValue } from '../src/shared/i18n-values.mts'
 import { readFileSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
+import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { TARGET_VALUE_KIND } from '../src/shared/i18n-values.mts'
+import {
+    CONTRIBUTORS_PATH,
+    I18N_LOCALE_DIR,
+    README_PATH,
+    REPOSITORY_ROOT,
+    STATUS_ASSET_DIR,
+} from './i18n-config.mts'
 import { createGitAdapter } from './i18n-git.mts'
-import { I18N_LOCALE_DIR, snapshotFromBundles } from './i18n-history.mts'
+import { snapshotFromBundles } from './i18n-history.mts'
 
 type WriterOptions = {
     base?: string
@@ -17,12 +24,7 @@ type WriterOptions = {
 // The writer has access to main, so its output must be checked against the starting commit.
 // Machine identity cannot prove that only derived markers and presentation files changed.
 
-const REPOSITORY_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../..')
-
 const SOURCE_LOCALE = 'en'
-const README_PATH = 'README.md'
-const CONTRIBUTORS_PATH = 'apps/desktop/translation-contributors.generated.json'
-const STATUS_ASSET_DIR = 'assets/i18n/status'
 
 const README_START = '<!-- TRANSLATION_STATUS_START -->'
 const README_END = '<!-- TRANSLATION_STATUS_END -->'

@@ -1,6 +1,6 @@
 import { readFileSync, readdirSync } from 'node:fs'
-import { dirname, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { resolve } from 'node:path'
+import { I18N_DIR } from './i18n-config.mts'
 import {
     inspectSourceBundle,
     inspectTranslationBundle,
@@ -12,8 +12,6 @@ import { errorMessage } from './i18n-io.mts'
 
 export const SOURCE_LOCALE = 'en'
 const UTF8_DECODER = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true })
-const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
-export const I18N_DIR = resolve(SCRIPT_DIR, '../src/renderer/src/i18n')
 
 function parseBundle(path: string, localeId: string): unknown {
     try {
