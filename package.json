@@ -33,7 +33,6 @@
         "i18n:review": "bun run --cwd apps/desktop i18n:review",
         "i18n:create": "bun run --cwd apps/desktop i18n:create",
         "i18n:sync": "bun run --cwd apps/desktop i18n:sync",
-        "i18n:status-svg": "bun run --cwd apps/desktop i18n:status-svg",
         "i18n:check-readonly": "bun run --cwd apps/desktop i18n:check-readonly",
         "i18n:check-staged": "bun run --cwd apps/desktop i18n:check-staged",
         "i18n:check-sync": "bun run --cwd apps/desktop i18n:check-sync",
@@ -62,8 +61,7 @@
         "index:build": "bun run --cwd apps/index build-index",
         "index:test": "bun run --cwd apps/index test:export-determinism && bun run --cwd apps/index test:snapshot-delta && bun run --cwd apps/index test:game-schedule && bun run --cwd apps/index test:marker-contract && bun run --cwd apps/index test:marker-archive && bun run --cwd apps/index test:process-failure && bun run --cwd apps/index test:postgres-architecture && bun run --cwd apps/index test:postgres-queries && bun run --cwd apps/index test:staged-rebuild && bun run --cwd apps/index test:unreal-resources",
         "index:typecheck": "bun check -p apps/index/tsconfig.json",
-        "prepare": "husky",
-        "i18n:typecheck": "bun run --cwd apps/desktop typecheck:i18n"
+        "prepare": "husky"
     },
     "devDependencies": {
         "@commitlint/cli": "21.2.4",

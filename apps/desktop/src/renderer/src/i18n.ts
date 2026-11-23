@@ -1,9 +1,5 @@
 import { useSyncExternalStore } from 'react'
-import {
-    parseSourceValue,
-    parseTargetValue,
-    resolveTargetValue,
-} from '../../shared/i18n-values.mts'
+import { parseSourceValue, parseTargetValue, resolveTargetValue } from '@shulha/lexmit/runtime'
 import en from './i18n/en.json'
 import { LOCALE_IDS, RAW_BUNDLES, isLocaleId, matchLocale, type LocaleId } from './locales'
 

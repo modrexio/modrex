@@ -8,9 +8,6 @@
             "path": "apps/desktop/tsconfig.config.json"
         },
         {
-            "path": "apps/desktop/tsconfig.i18n.json"
-        },
-        {
             "path": "apps/index/tsconfig.json"
         },
         {

@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { CHANGES_DIR, readChanges, readCoAuthors } from './changes.mts'
-import { errorMessage } from './i18n-io.mts'
+import { errorMessage } from './error-message.mts'
 
 // Checks the change files offline. The GitHub lookups only run when notes are rendered.
 const repoRoot = fileURLToPath(new URL('../../../', import.meta.url))
