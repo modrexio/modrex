@@ -4,7 +4,7 @@ import {
     parseSourceValue,
     parseTargetValue,
     resolveTargetValue,
-} from '../../shared/i18n-values.mts'
+} from '@shulha/lexmit/runtime'
 
 function freshStorage() {
     const store = new Map<string, string>()

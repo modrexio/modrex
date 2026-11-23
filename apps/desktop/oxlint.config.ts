@@ -51,13 +51,8 @@ export default defineConfig({
     },
     overrides: [
         {
-            files: ['scripts/**/*.mts', 'src/shared/i18n-values.mts'],
+            files: ['scripts/**/*.mts'],
             env: { node: true },
-        },
-        {
-            // The CLI tests assert the exact ANSI escapes the terminal output carries.
-            files: ['scripts/**/*.test.mts'],
-            rules: { 'eslint/no-control-regex': 'off' },
         },
         {
             files: ['src/renderer/{src,preview}/**/*.{ts,tsx}'],

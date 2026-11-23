@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { collectNotes, createGitHub, readCoAuthors, renderNightly } from './changes.mts'
-import { errorMessage } from './i18n-io.mts'
+import { errorMessage } from './error-message.mts'
 
 // The argument is the commit the previous nightly was built from. nightly.yml passes an empty
 // string before the first nightly exists, and then every entry counts as new.

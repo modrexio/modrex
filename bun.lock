@@ -25,6 +25,7 @@
         "@radix-ui/react-slider": "^1.6.1",
         "@radix-ui/react-tabs": "^1.2.1",
         "@radix-ui/react-tooltip": "^1.4.1",
+        "@shulha/lexmit": "0.1.0",
         "@tauri-apps/api": "^2",
         "@tauri-apps/plugin-log": "^2.10.1",
         "bbcode-to-react": "^0.2.9",
@@ -615,6 +616,8 @@
     "@shikijs/types": ["@shikijs/types@4.5.0", "", { "dependencies": { "@shikijs/vscode-textmate": "^10.0.2", "@types/hast": "^3.0.5" } }, "sha512-drtPrtD8N0DENyD2cyt6Ajy+IWsiCLgMxODwLTpvH1UsN6a9jf90tNTPjqwHvA+0Lzu9e0txk8DjfqH1p9UJRw=="],
 
     "@shikijs/vscode-textmate": ["@shikijs/vscode-textmate@10.0.2", "", {}, "sha512-83yeghZ2xxin3Nj8z1NMd/NCuca+gsYXswywDy5bHvwlWL8tpTQmzGeUuHd9FC3E/SBEMvzJRwWEOz5gGes9Qg=="],
+
+    "@shulha/lexmit": ["@shulha/lexmit@0.1.0", "", { "bin": { "lexmit": "dist/cli.mjs" } }, "sha512-BHEfh3eXZEuBcb4dnd5Q9Sl2sV2x07afjf6L7DeHfZcQRAzlXfk8FkNO7rY6ym4G1eES8bRDiBiJSKbW7WyALA=="],
 
     "@simple-libs/child-process-utils": ["@simple-libs/child-process-utils@2.0.0", "", { "dependencies": { "@simple-libs/stream-utils": "2.0.0" } }, "sha512-dvNoRKLijXnD0XoJAz94pbNuB5GQgDr55UhpSPhffDkTT0Cmcqh9jSCOtwfT2d4H6MI9E7c4SgtMuJXZ6F3c6A=="],
 

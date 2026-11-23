@@ -1,4 +1,4 @@
-import { parseSourceValue, parseTargetValue, usableTargetText } from '../../shared/i18n-values.mts'
+import { parseSourceValue, parseTargetValue, usableTargetText } from '@shulha/lexmit/runtime'
 import en from './i18n/en.json'
 import { LOCALE_IDS, RAW_BUNDLES } from './locales'
 

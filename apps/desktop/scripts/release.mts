@@ -9,7 +9,7 @@ import {
     readCoAuthors,
     renderRelease,
 } from './changes.mts'
-import { errorMessage } from './i18n-io.mts'
+import { errorMessage } from './error-message.mts'
 
 function fail(message: string): never {
     console.error(message)

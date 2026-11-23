@@ -2,7 +2,7 @@ import { readFileSync, writeFileSync, readdirSync, statSync, unlinkSync } from '
 import { execSync } from 'child_process'
 import { join, resolve } from 'path'
 import { fileURLToPath } from 'url'
-import { errorMessage } from './i18n-io.mts'
+import { errorMessage } from './error-message.mts'
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
 const rootDir = resolve(__dirname, '..')

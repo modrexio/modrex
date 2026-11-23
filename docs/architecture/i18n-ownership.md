@@ -1,149 +1,26 @@
 # Translation ownership
 
-The tooling runs its TypeScript modules directly on Bun or Node, without installing
-dependencies or compiling JavaScript. Development type checking
-runs separately with bun i18n:typecheck.
+Modrex's translation tooling is [lexmit](https://github.com/ShulhaOleh/lexmit). Its
+[ownership guide](https://github.com/ShulhaOleh/lexmit/blob/v0.1.0/docs/ownership.md) defines the
+three states, who may change what, and which check answers which question. This page covers how
+Modrex wires it in.
 
-Every repository path it reads or writes, and the audited history baseline, comes from
-`lexmit.config.json` at the repository root. `apps/desktop/scripts/i18n-config.mts` finds that
-file from the working directory upward and rejects any value Git could not match.
+## Wiring
 
-Modrex reconstructs translation state from Git history. This page says who is allowed to
-change what, and which check enforces which half of that.
+- `lexmit.config.json` at the repository root names the locale folder, the README, the status
+  images, the contributors file and the audited history baseline.
+- Every `bun i18n:*` script in `apps/desktop/package.json` goes through its `lexmit` script, which
+  runs one pinned version with `bunx`. Translators need only Bun, with no `bun install`.
+- The renderer imports `@shulha/lexmit/runtime`, at the same version, to turn stored values into
+  displayed text.
+- `.github/workflows/translation-status.yml` calls lexmit's reusable workflow. It pushes with the
+  `MAIN_PUSH_KEY` deploy key, because the main ruleset can exempt that key but not the workflow
+  token.
+- CI runs `bun run i18n:check-readonly` with full history, and the pre-commit hook runs
+  `bun run i18n:check-staged`.
 
-## The three states
+## Upgrading lexmit
 
-Every key, in every non-English locale, is in exactly one state. The state is derived from
-history, not read off whichever marker the file currently holds.
-
-| State    | Meaning                                                           | Stored form                                              |
-| -------- | ----------------------------------------------------------------- | -------------------------------------------------------- |
-| Accepted | Acceptance is proven for this target and current English          | the translation, unmarked                                |
-| Review   | A target exists, but acceptance for current English is not proven | `? <translation>`, or still unmarked before the bot runs |
-| Missing  | There is no usable target                                         | absent, or `! <English>`                                 |
-
-The last column is where the subtlety lives. A translation whose English changed is in Review
-the moment the English commit lands, whether or not its `? ` has been written yet. `en.json` is
-the only file a product change has to touch, so a marker is always written later, by the bot, in
-a separate commit. Code that reads state from the stored marker would call that entry Accepted
-and would be wrong. `summarizeHistory` in `apps/desktop/scripts/i18n-history.mts` exposes this as
-`effectiveState`, and it is the one interpretation the validators, the synchronizer, the review
-command and the CLI summaries all read.
-
-Missing is not Review. An English scaffold is not an accepted translation. A translation that
-happens to match some historical value is not evidence that anyone reviewed the current meaning.
-
-## Who owns what
-
-| Actor                | Owns                                                                            | Must not do                                                   |
-| -------------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------- |
-| Product contributor  | English source strings                                                          | Translate or backfill other locales as incidental work        |
-| Language contributor | Translated text, and explicit Keep/Edit review decisions                        | Be required to regenerate badges to pass CI                   |
-| CI                   | Whether the tree is valid translation data                                      | Reject a tree only because derived output is stale            |
-| Bot                  | `!` and `?` markers, contributor attribution, the README block, the status SVGs | Invent translations, change payloads, or accept a new meaning |
-
-## Which check asks which question
-
-Two different questions, deliberately separated. Conflating them is what previously forced a
-contributor to commit the bot's future output.
-
-| Question                                      | Command                       | Who runs it         |
-| --------------------------------------------- | ----------------------------- | ------------------- |
-| Is this valid translation data?               | `bun i18n:check-readonly`     | CI, on every push   |
-| Same, restricted to the staged files          | `bun i18n:check-staged`       | the pre-commit hook |
-| Structural validation plus effective coverage | `bun check-i18n`              | CI and contributors |
-| Have the locale markers caught up?            | `bun i18n:check-sync`         | the bot only        |
-| Have the README and SVGs caught up?           | `bun i18n:presentation-check` | the bot only        |
-
-The validity checks pass for a new English key with no translation, for changed English over an
-unchanged translation, and for a scaffold quoting superseded English. They fail for a translation
-whose `{placeholders}` disagree with English that has not changed, an unknown key holding real
-translated text, invalid marker syntax, empty values, and unsafe Unicode.
-
-When Git history is unavailable, a check that needs it reports what it could not determine and
-exits non-zero. It never assumes the tree is fine. `bun i18n:fill` deliberately needs no history
-and stays usable in a shallow clone; it writes English scaffolds and never decides acceptance.
-
-## Acceptance has to exist in Git
-
-`bun i18n:review` lists every entry that is effectively Review, including those whose `?` the
-bot has not written yet, and it refuses any decision that would leave no trace. Keeping a
-translation writes back the text that is already there, so it is only a real acceptance when the
-committed file holds the `?` marker that the write removes. An Edit that retypes the committed
-text is refused for the same reason.
-
-Both checks compare against the committed tree, never the working tree: a marker that sync wrote
-but nobody committed produces an empty diff, so removing it would record nothing while the
-command reported a successful Keep. When Keep is unavailable, run `bun i18n:sync`, commit the
-marker, and review again — or Edit, which writes new text and needs no marker first.
-
-A Review whose placeholders no longer match English can still be reviewed. Only Keep is
-unavailable there, because keeping text the runtime already replaces with English would accept a
-translation nobody can see.
-
-## Why history replay tolerates stale scaffolds
-
-Between an English commit and the bot's next run, every intermediate revision holds scaffolds
-quoting superseded English. History replay walks every revision from the audited baseline, so
-rejecting that drift would let a single ordinary commit break every later analysis permanently.
-`analyzeCommittedHistory` therefore does not check scaffold freshness. Malformed markers,
-Pending without accepted lineage, and a missing or non-ancestor baseline still fail closed.
-
-## Unreadable historical evidence
-
-Intermediate JSON or UTF-8 corruption is recorded as a scoped evidence gap. Readable English
-and other locales still replay. A corrupt source affects every dependent target, while a
-corrupt target affects only that locale. Baseline, latest and candidate revisions must be
-readable within the command's scope.
-
-A gap never creates acceptance or an automatic review-marker request. Previously proven
-checkpoints remain historical facts. A present target with unproven acceptance is Review,
-with incomplete evidence reported separately. History-dependent validation and marker planning
-fail before writing when a usable target still depends on that evidence. Absence and scaffolds
-remain Missing.
-
-Malformed historical files are never repaired in code. Once a fix lands, the baseline may move
-to the fixing commit if replay from there yields the same effective state for every entry.
-Otherwise the affected targets stay Review until they are accepted again.
-
-An observable Edit against readable English or removal of a committed explicit review marker
-can prove fresh acceptance. Byte-identical endpoints and source returns alone cannot resolve an
-unreadable gap. Review can offer an Edit, but keeping already committed plain text records no
-decision. An explicit review marker must be committed before Keep can remove it.
-
-bun i18n:check <locale> applies the same semantic rules as the default check to English and
-the selected locale. Unrelated corrupt locales do not block it. bun i18n:status remains
-structural and Git-independent. Its counts describe stored markers, not proven acceptance.
-
-## What the writer checks before it commits
-
-The bot pushes with `GITHUB_TOKEN`, which does not start another workflow run, so its commit gets
-no CI. Everything that commit is checked against therefore has to happen inside
-`.github/workflows/translation-status.yml` before the push:
-
-1. the source commit is valid on its own, before anything is written
-2. synchronize markers, regenerate contributors, README and SVGs
-3. strict marker and presentation freshness against the regenerated tree
-4. a second generation pass produces no further change
-5. `scripts/i18n-writer-guard.mts` proves only allowed paths changed and no translated text was
-   created, rewritten or deleted
-6. stage the owned paths by name, commit, and push without force
-
-This is the bot verifying its own output. It is not a CI run attached to the bot's commit, and
-nothing in the repository should describe it as one.
-
-If `main` advanced while the run was working, the push is rejected, the generated work is thrown
-away in the disposable runner, and the run recomputes from fresh `main`, bounded to three
-attempts. A translator's commit is never overwritten and history is never force-pushed.
-
-## Runtime is unaffected
-
-`resolveTargetValue` in `apps/desktop/src/shared/i18n-values.mts` is the whole runtime rule:
-
-- absent or `! ` target: render current English
-- Accepted or `? ` target whose placeholders match English: render the target, without the marker
-- either, with placeholders that do not match: render current English
-
-Review does not mean "display English". The desktop bundles locales at build time and has no Git
-on the user's machine, so nothing in this document reaches the running app: a build made before
-the bot synchronizes renders exactly what a build made after it renders.
+Change the version in four places together: the `lexmit` script and the `@shulha/lexmit`
+dependency in `apps/desktop/package.json`, and the tag and `lexmit-version` in the translation
+status workflow. Then run `bun run i18n:check-readonly` and `bun run i18n:presentation-check`.

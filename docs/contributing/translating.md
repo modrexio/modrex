@@ -24,6 +24,9 @@ an IDE, while the interactive command prompts for translations in the terminal.
 | `bun i18n:create uk`    | Create an IDE-ready Ukrainian locale with marked English.   |
 | `bun i18n:sync`         | Reconcile locale files with the expected workflow state.    |
 
+When a command suggests a next step such as `lexmit translate de`, run it here as
+`bun i18n:translate de`.
+
 Replace `de` or `uk` with the locale code you are working on. During an interactive session,
 press Enter to skip a string. Partial translations are saved and can be resumed later. The CLI
 validates placeholders immediately and asks for singular/plural translations together.

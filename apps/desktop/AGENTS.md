@@ -156,25 +156,16 @@ through `modrex.net`. Full design + local proxy-testing steps live in
 The string mechanism (typed `t()`, build-time locale discovery, English fallback, the
 remount on language switch) is documented in `src/renderer/src/AGENTS.md`. The root
 `AGENTS.md` owns the AI translation policy. Missing keys are valid and use the English
-fallback, and so is a translation awaiting review after an English change. `bun check-i18n`
-rejects unknown keys, empty or non-string values, incomplete singular/plural pairs, and
-mismatched `{var}` interpolation, then reports each locale's Accepted/Review/Missing counts
-from Git history rather than from whichever marker is currently stored. It never fails because
-the bot has not written a marker yet; when history is unavailable it says which strings it
-could not judge instead of assuming they are fine. `bun i18n:missing <locale>` lists untranslated keys with their English source text.
-`bun i18n:fill <locale>` writes missing keys as `! `-prefixed English fallbacks into the locale
-file for IDE editing; marked values remain untranslated and fall back to English at runtime.
-`bun i18n:translate <locale>` continues an existing locale interactively.
-`bun i18n:create <locale>` creates a new IDE-ready locale containing marked English text, while
-`bun i18n:fill <locale>` adds or refreshes marked text only in an existing locale. `bun
-i18n:presentation-check` reports whether the README translation table and per-locale status SVGs
-(`assets/i18n/status/`) still match current locale state without writing anything; `bun
-i18n:presentation-write` materializes them. `bun i18n:check-sync` is the equivalent for locale
-markers. All three are the bot's checks: they answer "has the writer caught up", which is never
-a contributor's problem. The `translation-status` workflow runs the writer after locale or
-English changes reach `main`, verifies its own output with those commands plus
-`scripts/i18n-writer-guard.mts`, and only then commits, so manual edits inside the generated
-README block or to a status SVG are overwritten on the next run.
+fallback, and so is a translation awaiting review after an English change.
+
+The tooling is the `@shulha/lexmit` package. Every `bun i18n:*` script runs it through the
+pinned `lexmit` script, `bun i18n:help` lists the commands, and
+`docs/architecture/i18n-ownership.md` describes the wiring and the versions to bump together.
+Its hints name translator commands as `lexmit translate de`, which run here as
+`bun i18n:translate de`. The `translation-status` workflow rewrites the README translation block
+and the status SVGs in `assets/i18n/status/` after locale changes reach `main`, so manual edits to
+either are overwritten on the next run. The `presentation-check` and `check-sync` scripts answer
+whether that writer has caught up, which is never a contributor's problem.
 
 ## Rules
 
