@@ -7,9 +7,8 @@ TAG="${1:?usage: post-discord-release.sh <tag>}"
 # room for the trailing link and absorbs the byte-vs-character difference.
 DESCRIPTION_LIMIT=3900
 
-RELEASE=$(gh api "repos/$REPOSITORY/releases/tags/$TAG")
-BODY=$(jq -r '.body // ""' <<<"$RELEASE")
-URL=$(jq -r '.html_url' <<<"$RELEASE")
+BODY=$(cd apps/desktop && bun scripts/changelog-section.mts "${TAG#v}")
+URL=$(gh api "repos/$REPOSITORY/releases/tags/$TAG" --jq '.html_url')
 
 if [ -z "${BODY//[[:space:]]/}" ]; then
     echo "Release $TAG has no notes to post." >&2
