@@ -12,6 +12,15 @@ jobs:
         if: ${{ !github.event.release.prerelease }}
         runs-on: ubuntu-latest
         steps:
+            - uses: actions/checkout@v7
+              with:
+                  ref: refs/tags/${{ github.event.release.tag_name }}
+                  persist-credentials: false
+
+            - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+              with:
+                  bun-version-file: package.json
+
             - name: Download latest.json from release
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -20,16 +29,20 @@ jobs:
                     --repo "${{ github.repository }}" \
                     --pattern "latest.json"
 
-            # The body reaches the script as an environment variable, never as inline
-            # ${{ }} text: the runner substitutes expressions before bash parses the
-            # script, so a body line reading exactly BODY would close the heredoc early
-            # and run everything after it as shell.
-            - name: Inject release body into notes field
+            - name: Inject changelog section into notes field
+              working-directory: apps/desktop
               env:
-                  NOTES: ${{ github.event.release.body }}
+                  TAG: ${{ github.event.release.tag_name }}
               run: |
-                  jq --arg notes "$NOTES" '.notes = $notes' latest.json > latest.patched.json
-                  mv latest.patched.json latest.json
+                  set -euo pipefail
+                  NOTES="$RUNNER_TEMP/release-notes.md"
+                  bun scripts/changelog-section.mts "${TAG#v}" > "$NOTES"
+                  if ! grep -q '[^[:space:]]' "$NOTES"; then
+                    echo "::error::CHANGELOG.md has no release notes for $TAG"
+                    exit 1
+                  fi
+                  jq --rawfile notes "$NOTES" '.notes = $notes' ../../latest.json > ../../latest.patched.json
+                  mv ../../latest.patched.json ../../latest.json
 
             - name: Re-upload latest.json
               env:

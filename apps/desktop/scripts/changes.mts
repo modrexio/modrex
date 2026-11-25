@@ -429,9 +429,26 @@ function renderContributors(contributors: Person[]) {
     return [`### Contributors\n\nThank you to everyone who contributed to this release: ${names}`]
 }
 
-/** The body of a ## X.Y.Z section, which is also the GitHub release body. */
+/** The linked body of a CHANGELOG.md section. */
 export function renderRelease(notes: Notes) {
     return [...renderEntries(notes.entries), ...renderContributors(notes.contributors)].join('\n\n')
+}
+
+/**
+ * GitHub links plain #N and @login and draws release Contributors avatars only from plain
+ * mentions. All other readers need the Markdown links.
+ */
+export function githubReleaseBody(markdown: string): string {
+    return markdown.replace(
+        /(?<![!\\])\[(#\d+|@[A-Za-z0-9][A-Za-z0-9-]{0,38})\]\(([^()\s]+)\)/g,
+        (link, label: string, url: string) => {
+            const target = label.slice(1)
+            const expectedUrl = label.startsWith('#')
+                ? `${REPOSITORY_URL}/pull/${target}`
+                : `https://github.com/${target}`
+            return url === expectedUrl ? label : link
+        }
+    )
 }
 
 /**

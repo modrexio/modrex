@@ -192,6 +192,9 @@ and creates a draft GitHub Release named `vX.Y.Z`. Publishing that draft makes i
 `.github/workflows/distribute-release.yml`, which waits out the `release` environment's
 timer and then rebuilds modrex.net, posts to Discord and submits to WinGet.
 
+Stable and nightly GitHub release bodies use the plain form from `scripts/github-release-body.mts`.
+`CHANGELOG.md`, `latest.json` notes, the site changelog and Discord keep linked PRs and contributors.
+
 `.github/workflows/nightly.yml` publishes the rolling `nightly` pre-release through the same
 `desktop-build.yml`. Its stamped version is never committed, and its notes come from
 `scripts/nightly-notes.mts`, which reads the `.changes/` files without consuming them. To pause a broken nightly, replace the release's `latest.json` (`gh release upload nightly latest.json --clobber`) with a copy that keeps its `version` and has an empty `platforms` (see the check in `on_open_update.rs`). Keeping the version matters because `scripts/nightly-version.mts` numbers the next dispatch from it.

@@ -3,7 +3,7 @@ const REPO = 'modrexio/modrex'
 export interface Release {
     tag_name: string
     name: string
-    body: string
+    body_html?: string
     published_at: string
     html_url: string
     draft: boolean
@@ -33,8 +33,8 @@ export function getDownloadUrls(release: Release | null) {
 // Build-time only. The unauthenticated GitHub API allows 60 requests/hour per IP, which shared
 // CI build IPs can hit; setting a GITHUB_TOKEN env var raises it to 5000/hour. The token is
 // optional so local builds and forks still work without one.
-function githubHeaders(): Record<string, string> {
-    const headers: Record<string, string> = { Accept: 'application/vnd.github+json' }
+function githubHeaders(accept = 'application/vnd.github+json'): Record<string, string> {
+    const headers: Record<string, string> = { Accept: accept }
     const token = process.env.GITHUB_TOKEN
     if (token) headers.Authorization = `Bearer ${token}`
     return headers
@@ -73,7 +73,7 @@ export async function getRecentReleases(count: number): Promise<Release[]> {
     // so over-fetch and filter down to the requested count.
     const perPage = count + 10
     const res = await fetch(`https://api.github.com/repos/${REPO}/releases?per_page=${perPage}`, {
-        headers: githubHeaders(),
+        headers: githubHeaders('application/vnd.github.html+json'),
     })
     if (!res.ok) throw await apiError(res)
     const releases = (await res.json()) as Release[]

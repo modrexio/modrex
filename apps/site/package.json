@@ -26,7 +26,6 @@
         "astro": "7.4.7",
         "eslint": "10.13.0",
         "eslint-plugin-astro": "3.2.1",
-        "marked": "18.1.2",
         "pagefind": "1.5.2",
         "prettier": "3.9.10",
         "prettier-plugin-astro": "1.1.2",
