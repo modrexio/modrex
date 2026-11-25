@@ -176,6 +176,7 @@ jobs:
                       echo "[Changes since the last nightly]($REPOSITORY_URL/compare/$PREVIOUS...$COMMIT)"
                     fi
                   } > ../../NOTES.md
+                  bun scripts/github-release-body.mts < ../../NOTES.md > ../../NOTES.github.md
 
             - name: Generate latest.json (tauri-plugin-updater)
               run: |
@@ -254,7 +255,7 @@ jobs:
               run: |
                   if ! gh release view nightly > /dev/null 2>&1; then
                     gh release create nightly --prerelease --latest=false --title "v$VERSION" \
-                      --notes-file NOTES.md --target "$COMMIT"
+                      --notes-file NOTES.github.md --target "$COMMIT"
                   fi
 
             # latest.json goes last and old files after it, so each manifest's files stay available.
@@ -277,7 +278,7 @@ jobs:
                     -f tag_name=nightly \
                     -f target_commitish="$COMMIT" \
                     -f name="v$VERSION" \
-                    -F body=@NOTES.md \
+                    -F body=@NOTES.github.md \
                     -F draft=false \
                     -F prerelease=true \
                     -f make_latest=false > /dev/null

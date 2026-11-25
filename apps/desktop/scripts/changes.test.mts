@@ -6,6 +6,7 @@ import { join } from 'node:path'
 import test, { type TestContext } from 'node:test'
 import {
     collectNotes,
+    githubReleaseBody,
     parseChange,
     parseCoAuthors,
     renderNightly,
@@ -109,8 +110,9 @@ test('entries link their PRs and credit non-maintainer authors and co-authors', 
         warn: (message) => warnings.push(message),
     })
     assert.deepEqual(warnings, [])
+    const markdown = renderRelease(notes)
     assert.equal(
-        renderRelease(notes),
+        markdown,
         [
             '### Added',
             '',
@@ -125,6 +127,37 @@ test('entries link their PRs and credit non-maintainer authors and co-authors', 
             'Thank you to everyone who contributed to this release: [@alice](https://github.com/alice), [@dave](https://github.com/dave), Illia, Jane, [@ShulhaOleh](https://github.com/ShulhaOleh)',
         ].join('\n')
     )
+    assert.equal(
+        githubReleaseBody(markdown),
+        [
+            '### Added',
+            '',
+            '- Added mod profiles. (#10, #12 by @alice, @dave, Jane)',
+            '',
+            '### Fixed',
+            '',
+            '- Fixed update checks. (#7 by @bob, thanks to @carol, basic\\_futon (Discord))',
+            '',
+            '### Contributors',
+            '',
+            'Thank you to everyone who contributed to this release: @alice, @dave, Illia, Jane, @ShulhaOleh',
+        ].join('\n')
+    )
+})
+
+test('GitHub release bodies preserve other links and plain names', () => {
+    const markdown = [
+        '[#10](https://github.com/modrexio/mget/pull/10)',
+        `[#10](${PULL}/12)`,
+        '[@alice](https://github.com/Alice)',
+        '[@alice](https://example.com/alice)',
+        '[Alice](https://github.com/alice)',
+        `![#10](${PULL}/10)`,
+        `\\[#10](${PULL}/10)`,
+        'Jane, #7, @bob  ',
+        '',
+    ].join('\r\n')
+    assert.equal(githubReleaseBody(markdown), markdown)
 })
 
 test('a release stops on a co-author nobody has classified', (t) => {
