@@ -322,10 +322,8 @@ export function ModDetailPage({
           )
     const installedMod = installedFiles[0]
     const [installedAtMount] = useState(() => !!installedMod)
-    // Not tracked in the installed list, so DLL presence drives its button state.
-    // The loader this very mod page publishes, if any. Its button reflects DLL presence
-    // rather than the installed-mods list. Loader mod pages are modworkshop-only. A
-    // Nexus mod id lives in a different id space and must never be looked up here.
+    // The loader this very mod page publishes, if any. Loader mod pages are modworkshop-only.
+    // A Nexus mod id lives in a different id space and must never be looked up here.
     const thisLoader = isNexus ? undefined : loaderForModId(activeGame, modId)
     // A loader tracked as a mod (PDML) has records of its own and gets the controls every mod
     // gets. Its presence check ignores a disabled copy, so showing presence instead would leave
