@@ -62,6 +62,7 @@ import { isUnsupportedFormat } from '../formatCheck'
 import { collectDeps, isLoaderDep, missingRequiredDeps } from '../deps'
 import { loaderForModId, loadersForGame } from '../loaders'
 import { useLoaderState } from '../hooks/useLoaderState'
+import { isLoader } from '../hooks/installedUtils'
 import { resolveDepCheck } from '../installDepCheck'
 import { useThumbnail } from '../hooks/useThumbnail'
 import { api } from '../api'
@@ -321,12 +322,13 @@ export function ModDetailPage({
           )
     const installedMod = installedFiles[0]
     const [installedAtMount] = useState(() => !!installedMod)
-    // Not tracked in the installed list, so DLL presence drives its button state.
-    // The loader this very mod page publishes, if any. Its button reflects DLL presence
-    // rather than the installed-mods list. Loader mod pages are modworkshop-only. A
-    // Nexus mod id lives in a different id space and must never be looked up here.
+    // The loader this very mod page publishes, if any. Loader mod pages are modworkshop-only.
+    // A Nexus mod id lives in a different id space and must never be looked up here.
     const thisLoader = isNexus ? undefined : loaderForModId(activeGame, modId)
-    const isLoaderMod = thisLoader !== undefined
+    // A loader tracked as a mod (PDML) has records of its own and gets the controls every mod
+    // gets. Its presence check ignores a disabled copy, so showing presence instead would leave
+    // a disabled one with no way to turn it back on.
+    const asLoader = thisLoader !== undefined && installedFiles.every(isLoader)
     // The page's own question, not "is a loader present": several pages distribute UE4SS, and
     // the general answer leaves every one of them claiming to be installed.
     const loaderModInstalled = thisLoader ? loaderPageInstalled(modId) : null
@@ -782,7 +784,7 @@ export function ModDetailPage({
                             />
                         </span>
                     )}
-                    {mod && installedMod && !isLoaderMod && (
+                    {mod && installedMod && !asLoader && (
                         <div
                             className={`flex items-center gap-2 ${installedAtMount ? '' : 'animate-installed-in'}`}
                         >
@@ -803,7 +805,7 @@ export function ModDetailPage({
                             </Tooltip>
                         </div>
                     )}
-                    {mod && isLoaderMod && loaderModInstalled && (
+                    {mod && asLoader && loaderModInstalled && (
                         <>
                             <span className="text-xs text-success-text">
                                 {t('detail.deps.statusInstalled')}
@@ -824,7 +826,7 @@ export function ModDetailPage({
                             )}
                         </>
                     )}
-                    {mod && installedFiles.length === 0 && !(isLoaderMod && loaderModInstalled) && (
+                    {mod && installedFiles.length === 0 && !(asLoader && loaderModInstalled) && (
                         <div className="flex flex-col items-end gap-1">
                             {mod.disable_mod_managers ? (
                                 <span className="text-xs text-text-muted">

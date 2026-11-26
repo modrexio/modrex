@@ -83,7 +83,9 @@ const BUNDLED_SUBMODS: &[&str] = &[
 ];
 
 /// Files a release owns at the root of whichever directory its layout uses. Everything else
-/// there belongs to the game or the user.
+/// there belongs to the game or the user. Checked against every file of PAYDAY 3's 44048 and
+/// 47771 packages and Crime Boss's 47749 package, documents included: a file a package ships
+/// that is missing here blocks reinstalling it and survives removing it.
 const LOADER_ROOT_FILES: &[&str] = &[
     "UE4SS.dll",
     "UE4SS.log",
@@ -92,6 +94,9 @@ const LOADER_ROOT_FILES: &[&str] = &[
     "MemberVariableLayout.ini",
     "VTableLayout.ini",
     "imgui.ini",
+    "AssetReplacementMods-Guide.md",
+    "README.md",
+    "Changelog.md",
 ];
 
 /// Directories a release owns beside those files.
