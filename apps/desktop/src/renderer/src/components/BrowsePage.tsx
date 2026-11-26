@@ -41,6 +41,8 @@ import { isUnsupportedFormat } from '../formatCheck'
 import { missingRequiredDeps } from '../deps'
 import { loaderForModId, loadersForGame } from '../loaders'
 import { useLoaderState } from '../hooks/useLoaderState'
+import { isLoader } from '../hooks/installedUtils'
+import { Ue4ssRemoveModal } from './Ue4ssRemoveModal'
 import { resolveDepCheck } from '../installDepCheck'
 import { t } from '../i18n'
 import { api } from '../api'
@@ -248,6 +250,7 @@ export function BrowsePage({
         ue4ssPageId,
         refreshUe4ssPage,
     } = useLoaderState(activeGame, gamePath)
+    const [removingLoader, setRemovingLoader] = useState(false)
 
     // Re-runs on browse re-activation, not just gamePath, so a loader installed from a mod's
     // detail page (which updates only that page's own presence state) is reflected on the
@@ -533,13 +536,19 @@ export function BrowsePage({
             // modId here is always a real modworkshop id (Browse is modworkshop-only);
             // InstalledMod.id is an opaque local key, so match against remoteId instead.
             const modIdStr = String(modId)
-            const uids = installed
-                .filter((m) => (!m.source || m.source === 'modworkshop') && m.remoteId === modIdStr)
-                .map((m) => m.uid)
-            if (uids.length === 0) return
+            const records = installed.filter(
+                (m) => (!m.source || m.source === 'modworkshop') && m.remoteId === modIdStr
+            )
+            if (records.length === 0) return
+            // A detected loader has no record uninstall_mod can act on, so removing it is its
+            // own operation, which shows what it would delete first.
+            if (records.every(isLoader)) {
+                setRemovingLoader(true)
+                return
+            }
             addInstalling(modId)
             try {
-                for (const uid of uids) await api.uninstallMod(uid, gamePath, activeGame)
+                for (const m of records) await api.uninstallMod(m.uid, gamePath, activeGame)
                 await onRefreshInstalled()
             } finally {
                 removeInstalling(modId)
@@ -705,6 +714,18 @@ export function BrowsePage({
                         setDepsWarning(null)
                         onOpenDetail(modId)
                     }}
+                />
+            )}
+            {removingLoader && gamePath && (
+                <Ue4ssRemoveModal
+                    gameId={activeGame}
+                    gamePath={gamePath}
+                    onRefreshInstalled={async () => {
+                        await refreshLoader('ue4ss')
+                        await refreshUe4ssPage()
+                        await onRefreshInstalled()
+                    }}
+                    onClose={() => setRemovingLoader(false)}
                 />
             )}
             <div className="px-6 py-4 border-b border-border shrink-0 flex flex-col gap-3">
