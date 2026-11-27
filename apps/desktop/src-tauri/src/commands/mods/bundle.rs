@@ -15,7 +15,10 @@
 //! moves back whatever is not in the way. Uninstalling deletes the files whose bytes still
 //! match what was placed, and keeps and reports any that changed since.
 
-use super::engine::{backup_dir, disabled_dir, ModEngineConfig, ModUnit, Placement, ScanTarget};
+use super::engine::{
+    disabled_dir, set_aside_dir, set_aside_locations, vanilla_dir, ModEngineConfig, ModUnit,
+    Placement, ScanTarget,
+};
 use super::naming::log_name;
 use super::types::{BundleFile, InstalledMod};
 use sha2::{Digest, Sha256};
@@ -613,6 +616,9 @@ pub(crate) fn install(
         installed_at: chrono::Utc::now().to_rfc3339(),
         ..mod_data
     };
+    if let Some(old) = &placed.replaced {
+        record.inherit_install_id(old);
+    }
     let stays_disabled = placed.replaced.as_ref().is_some_and(|old| !old.enabled);
     if stays_disabled {
         if let Err(error) = set_enabled(game_path, target, &record, false) {
@@ -1001,7 +1007,7 @@ pub(crate) fn refuse_while_hidden(
     target: &ScanTarget,
     retry: &str,
 ) -> Result<(), String> {
-    if backup_dir(game_path, target).exists() {
+    if set_aside_dir(game_path, target).is_some() {
         return Err(format!(
             "Mods are set aside for a launch without mods. Start the game normally once to restore them, then {retry}."
         ));
@@ -1111,7 +1117,7 @@ pub(crate) fn hide(
     target: &ScanTarget,
     mods: &[InstalledMod],
 ) -> Result<(), String> {
-    let backup = backup_dir(game_path, target);
+    let backup = vanilla_dir(game_path, target);
     let layout = Layout::of(target).expect("hide is only called for bundle targets");
     let game = Path::new(game_path);
     let mut moves = Vec::new();
@@ -1144,14 +1150,19 @@ pub(crate) fn hide(
 /// Moves hidden files back into the game folder. A file whose place is taken stays in the
 /// backup, which then remains for manual recovery.
 pub(crate) fn restore(game_path: &str, target: &ScanTarget) -> Result<(), String> {
-    let backup = backup_dir(game_path, target);
-    if !backup.exists() {
-        return Ok(());
+    for backup in set_aside_locations(game_path, target) {
+        if backup.exists() {
+            restore_from(game_path, &backup)?;
+        }
     }
+    Ok(())
+}
+
+fn restore_from(game_path: &str, backup: &Path) -> Result<(), String> {
     let game_root = game_canonical(game_path)?;
     let mut blocked = Vec::new();
-    for rel in staged_files(&backup)? {
-        let from = rel_path(&backup, &rel);
+    for rel in staged_files(backup)? {
+        let from = rel_path(backup, &rel);
         let to = rel_path(Path::new(game_path), &rel);
         if fs::symlink_metadata(&to).is_ok() || require_inside_game(&game_root, &to).is_err() {
             blocked.push(rel);
@@ -1162,10 +1173,10 @@ pub(crate) fn restore(game_path: &str, target: &ScanTarget) -> Result<(), String
             blocked.push(rel);
             continue;
         }
-        prune_empty(from.parent(), &backup);
+        prune_empty(from.parent(), backup);
     }
     if blocked.is_empty() {
-        remove_if_empty(&backup);
+        remove_if_empty(backup);
         return Ok(());
     }
     Err(format!(
@@ -1233,7 +1244,7 @@ fn insert_both_cases(keys: &mut HashSet<String>, tag: &str, unit: &str) {
 /// targets hide, so a folder they move away holds only what was installed by hand.
 pub(crate) fn hide_for_launch(game_path: &str, cfg: &ModEngineConfig) -> Result<(), String> {
     let target = cfg.primary();
-    if !target.is_bundle() || backup_dir(game_path, target).exists() {
+    if !target.is_bundle() || set_aside_dir(game_path, target).is_some() {
         return Ok(());
     }
     let state_path = super::paths::get_state_path(game_path, cfg);

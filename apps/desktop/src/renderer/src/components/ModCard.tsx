@@ -155,7 +155,9 @@ export function ModCard({
                         </div>
                     )}
                 </div>
-                {loaderInstalled && (
+                {/* A loader tracked as a mod (PDML) has a record, and its controls below
+                    already say it is installed. */}
+                {loaderInstalled && (!installed || isLoader(installed)) && (
                     <span className="text-xs text-success-text">
                         {t('detail.deps.statusInstalled')}
                     </span>

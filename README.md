@@ -29,6 +29,8 @@ Free and open source, for Windows and Linux.
   SuperBLT or UE4SS.
 - **Control your load order.** Sort mods into folders, drag them into order, and switch one off
   without deleting it.
+- **Keep separate setups.** Each profile has its own mods, folders and load order. Switch between
+  them from the top bar, or share one with a code or a file.
 - **Keep your library healthy.** Mods you added by hand are recognized, and Health Check finds
   and fixes missing files, outdated mods and missing dependencies.
 
@@ -129,13 +131,13 @@ back to English in the app.
 <!-- prettier-ignore -->
 | Language | Translation | Contributors |
 | --- | --- | --- |
-| [English (en)](apps/desktop/src/renderer/src/i18n/en.json) | <img src="assets/i18n/status/en.svg" alt="English source: 671 valid strings."> Complete | - |
-| [Deutsch (de)](apps/desktop/src/renderer/src/i18n/de.json) | <img src="assets/i18n/status/de.svg" alt="Deutsch (de): 628 accepted, 1 review, 42 missing; 93.7%."> 93.7% | [TarekLP](https://github.com/TarekLP) |
-| [Italiano (it)](apps/desktop/src/renderer/src/i18n/it.json) | <img src="assets/i18n/status/it.svg" alt="Italiano (it): 416 accepted, 0 review, 255 missing; 62%."> 62% | [Enderbox89](https://github.com/Enderbox89) |
-| [Polski (pl)](apps/desktop/src/renderer/src/i18n/pl.json) | <img src="assets/i18n/status/pl.svg" alt="Polski (pl): 484 accepted, 0 review, 187 missing; 72.1%."> 72.1% | [djpersik](https://github.com/djpersik) |
-| [Русский (ru)](apps/desktop/src/renderer/src/i18n/ru.json) | <img src="assets/i18n/status/ru.svg" alt="Русский (ru): 633 accepted, 0 review, 38 missing; 94.3%."> 94.3% | [ShulhaOleh](https://github.com/ShulhaOleh) |
-| [Українська (uk)](apps/desktop/src/renderer/src/i18n/uk.json) | <img src="assets/i18n/status/uk.svg" alt="Українська (uk): 627 accepted, 2 review, 42 missing; 93.7%."> 93.7% | [ShevRuslan1](https://github.com/ShevRuslan1), [illianezheviasov](https://github.com/illianezheviasov) |
-| [中文（中国） (zh-CN)](apps/desktop/src/renderer/src/i18n/zh-CN.json) | <img src="assets/i18n/status/zh-CN.svg" alt="中文（中国） (zh-CN): 627 accepted, 2 review, 42 missing; 93.7%."> 93.7% | [illianezheviasov](https://github.com/illianezheviasov) |
+| [English (en)](apps/desktop/src/renderer/src/i18n/en.json) | <img src="assets/i18n/status/en.svg" alt="English source: 756 valid strings."> Complete | - |
+| [Deutsch (de)](apps/desktop/src/renderer/src/i18n/de.json) | <img src="assets/i18n/status/de.svg" alt="Deutsch (de): 628 accepted, 1 review, 127 missing; 83.2%."> 83.2% | [ShulhaOleh](https://github.com/ShulhaOleh), [TarekLP](https://github.com/TarekLP) |
+| [Italiano (it)](apps/desktop/src/renderer/src/i18n/it.json) | <img src="assets/i18n/status/it.svg" alt="Italiano (it): 416 accepted, 0 review, 340 missing; 55%."> 55% | [Enderbox89](https://github.com/Enderbox89), [ShulhaOleh](https://github.com/ShulhaOleh) |
+| [Polski (pl)](apps/desktop/src/renderer/src/i18n/pl.json) | <img src="assets/i18n/status/pl.svg" alt="Polski (pl): 484 accepted, 0 review, 272 missing; 64%."> 64% | [djpersik](https://github.com/djpersik) |
+| [Русский (ru)](apps/desktop/src/renderer/src/i18n/ru.json) | <img src="assets/i18n/status/ru.svg" alt="Русский (ru): 756 accepted, 0 review, 0 missing; Complete."> Complete | [ShulhaOleh](https://github.com/ShulhaOleh) |
+| [Українська (uk)](apps/desktop/src/renderer/src/i18n/uk.json) | <img src="assets/i18n/status/uk.svg" alt="Українська (uk): 755 accepted, 1 review, 0 missing; 100%."> 100% | [ShevRuslan1](https://github.com/ShevRuslan1), [ShulhaOleh](https://github.com/ShulhaOleh), [illianezheviasov](https://github.com/illianezheviasov) |
+| [中文（中国） (zh-CN)](apps/desktop/src/renderer/src/i18n/zh-CN.json) | <img src="assets/i18n/status/zh-CN.svg" alt="中文（中国） (zh-CN): 756 accepted, 0 review, 0 missing; Complete."> Complete | [illianezheviasov](https://github.com/illianezheviasov) |
 
 <div class="i18n-status-legend"><img src="assets/i18n/status/legend/accepted.svg" alt=""> Accepted <img src="assets/i18n/status/legend/review.svg" alt=""> Review <img src="assets/i18n/status/legend/missing.svg" alt=""> Missing</div>
 

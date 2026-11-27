@@ -47,7 +47,7 @@ targets = [
         loader = "raid_superblt",
         primary = true,
         path = ["mods"],
-        backup = ["mods.bak"],
+        legacy_backup = ["mods.bak"],
         activation = "filesystem",
         load_order = "none",
 

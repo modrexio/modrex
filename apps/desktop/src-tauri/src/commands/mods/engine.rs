@@ -43,7 +43,7 @@ pub struct StoreLayout {
     pub executable: &'static str,
     pub mods_subpath: &'static [&'static str],
     pub disabled_subpath: &'static [&'static str],
-    pub backup_subpath: &'static [&'static str],
+    pub legacy_backup_subpath: Option<&'static [&'static str]>,
 }
 
 /// Where each store's copy records which files in a shared Paks directory belong to the game.
@@ -76,7 +76,7 @@ pub(crate) const fn synthetic_shared_paks_target(shared: SharedPaks) -> ScanTarg
         enabled_state: Activation::Filesystem,
         mods_subpath: &["Synthetic", "Content", "Paks"],
         disabled_subpath: &["Synthetic", "Content", "Paks", "disabled"],
-        backup_subpath: &["Synthetic", "Content", "Paks.mods.bak"],
+        legacy_backup_subpath: None,
         store_layouts: &[],
     }
 }
@@ -99,7 +99,9 @@ pub struct ScanTarget {
     pub enabled_state: Activation,
     pub mods_subpath: &'static [&'static str],
     pub disabled_subpath: &'static [&'static str],
-    pub backup_subpath: &'static [&'static str],
+    /// Where releases before the .modrex layout set this target aside for a launch without
+    /// mods. None for a target those releases never set aside.
+    pub legacy_backup_subpath: Option<&'static [&'static str]>,
     pub store_layouts: &'static [StoreLayout],
 }
 
@@ -222,18 +224,24 @@ pub(crate) fn join_subpath(game_path: &str, subpath: &[&str]) -> PathBuf {
         .fold(PathBuf::from(game_path), |p, s| p.join(s))
 }
 
-fn declared(game_path: &str, target: &ScanTarget) -> [&'static [&'static str]; 3] {
+struct Declared {
+    mods: &'static [&'static str],
+    disabled: &'static [&'static str],
+    legacy_backup: Option<&'static [&'static str]>,
+}
+
+fn declared(game_path: &str, target: &ScanTarget) -> Declared {
     match target.store_layout(game_path) {
-        Some(layout) => [
-            layout.mods_subpath,
-            layout.disabled_subpath,
-            layout.backup_subpath,
-        ],
-        None => [
-            target.mods_subpath,
-            target.disabled_subpath,
-            target.backup_subpath,
-        ],
+        Some(layout) => Declared {
+            mods: layout.mods_subpath,
+            disabled: layout.disabled_subpath,
+            legacy_backup: layout.legacy_backup_subpath,
+        },
+        None => Declared {
+            mods: target.mods_subpath,
+            disabled: target.disabled_subpath,
+            legacy_backup: target.legacy_backup_subpath,
+        },
     }
 }
 
@@ -249,7 +257,7 @@ fn live_ue4ss_mods(game_path: &str, target: &ScanTarget) -> Option<PathBuf> {
     if target.enabled_state != Activation::Ue4ssModsTxt {
         return None;
     }
-    let [mods, _, _] = declared(game_path, target);
+    let mods = declared(game_path, target).mods;
     crate::commands::ue4ss::live_mods_dir(&join_subpath(game_path, ue4ss_binaries(mods)))
 }
 
@@ -257,21 +265,47 @@ pub fn mods_dir(game_path: &str, target: &ScanTarget) -> PathBuf {
     if let Some(live) = live_ue4ss_mods(game_path, target) {
         return live;
     }
-    join_subpath(game_path, declared(game_path, target)[0])
+    join_subpath(game_path, declared(game_path, target).mods)
 }
 
 pub fn disabled_dir(game_path: &str, target: &ScanTarget) -> PathBuf {
     if let Some(live) = live_ue4ss_mods(game_path, target) {
         return live.join("disabled");
     }
-    join_subpath(game_path, declared(game_path, target)[1])
+    join_subpath(game_path, declared(game_path, target).disabled)
 }
 
-pub fn backup_dir(game_path: &str, target: &ScanTarget) -> PathBuf {
+/// The folder owned by Modrex inside a game's install folder. It sits on the game's drive, so
+/// moving mods into it is a rename, and it is outside every folder a game loads.
+pub fn modrex_dir(game_path: &str) -> PathBuf {
+    Path::new(game_path).join(".modrex")
+}
+
+/// Where launching without mods sets a target's mods aside. It must not be .modrex/hidden: a
+/// bundle restore moves every file below that folder back into the game, so another target's
+/// backup there would land in the wrong place.
+pub fn vanilla_dir(game_path: &str, target: &ScanTarget) -> PathBuf {
+    modrex_dir(game_path).join("vanilla").join(target.tag)
+}
+
+/// Where releases before the .modrex layout set a target's mods aside, for targets they
+/// supported. A backup left there by such a release is still restored.
+pub fn legacy_backup_dir(game_path: &str, target: &ScanTarget) -> Option<PathBuf> {
+    let legacy = declared(game_path, target).legacy_backup?;
     if let Some(live) = live_ue4ss_mods(game_path, target) {
-        return live.with_file_name("Mods.bak");
+        return Some(live.with_file_name("Mods.bak"));
     }
-    join_subpath(game_path, declared(game_path, target)[2])
+    Some(join_subpath(game_path, legacy))
+}
+
+/// Every folder a target's mods can be set aside in for a launch without mods.
+pub fn set_aside_locations(game_path: &str, target: &ScanTarget) -> impl Iterator<Item = PathBuf> {
+    std::iter::once(vanilla_dir(game_path, target)).chain(legacy_backup_dir(game_path, target))
+}
+
+/// The folder holding a target's mods while they are set aside, if any.
+pub fn set_aside_dir(game_path: &str, target: &ScanTarget) -> Option<PathBuf> {
+    set_aside_locations(game_path, target).find(|dir| dir.exists())
 }
 
 pub fn state_path(game_path: &str, cfg: &ModEngineConfig) -> PathBuf {

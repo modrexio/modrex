@@ -196,9 +196,9 @@ elsewhere.
 | `scope` | no | `mods` by default. `unreal_paks` shares native game files and requires the installed store record of every native path before mod changes: the Steam depot manifests or the Epic BuildPatch manifests. A Microsoft Store copy has no such record, so there only files Modrex installed and whose bytes are unchanged may change, and the target cannot declare companions. It supports archive-named Pak file units without filename ordering and never moves the whole target |
 | `path` | yes | components below the game path |
 | `disabled` | no | where disabled mods move; `path` plus `disabled` when omitted |
-| `recursive_load` | no | defaults to `false`; set when the game reads `path` recursively, so disabling and `backup` must sit outside it |
-| `backup` | yes | where launching without mods moves the contents |
-| `store_paths` | no | `path` and `backup` for a store build laid out differently |
+| `recursive_load` | no | defaults to `false`; set when the game reads `path` recursively, so disabling and `legacy_backup` must sit outside it |
+| `legacy_backup` | no | where releases before the `.modrex` layout set the contents aside for a launch without mods |
+| `store_paths` | no | `path` and `legacy_backup` for a store build laid out differently |
 | `activation` | yes | how a mod is enabled and disabled |
 | `load_order` | yes | whether the game orders mods here |
 | `unit` | yes | what one mod looks like |
@@ -207,11 +207,14 @@ The disabled folder defaults to `path` plus `disabled`. A target declares `disab
 when whatever reads `path` would still find a mod in a subfolder of it: Unreal searches
 a plugin folder recursively, so a plugin target disables outside `path`. A target whose
 game reads the folder by its own recursion sets `recursive_load`, which enforces the
-same outside placement for both `disabled` and `backup`. `backup`
-is declared because it does not follow a pattern: pak targets must place it outside
-`Paks/`, which Unreal mounts recursively.
+same outside placement for both `disabled` and `legacy_backup`.
 
-`store_paths` lists a `store`, a `path` and a `backup` for each store whose build keeps
+Launching without mods sets each target's contents aside in `.modrex/vanilla/<tag>`
+below the game path, outside every folder a game loads. Releases before that layout
+used a folder each package declared, and a backup left there is still restored, so a
+game those releases supported keeps it as `legacy_backup`. A new game declares none.
+
+`store_paths` lists a `store`, a `path` and any `legacy_backup` for each store whose build keeps
 the target somewhere else, such as a UE4SS target on a Microsoft Store build, which
 lives under `Binaries/WinGDK` instead of `Binaries/Win64`. The store is recognised by
 its own executable being present, so only a store whose binding names one can be
@@ -281,7 +284,7 @@ folder as-is.
 `kind = "bundle"` means one mod is a set of files laid over the game folder, for a game
 whose downloads write into several of its folders at once. The installed record lists
 every file it placed. A bundle target is the primary target, its `path` is empty, it
-declares `disabled` and `backup` outside every root, and it uses filesystem activation
+declares `disabled`, and any `legacy_backup`, outside every root, and it uses filesystem activation
 with no load order. Its other targets are still scanned for mods installed by hand, and
 a file a bundle placed is never listed there. App folders are unavailable, since nothing
 about a bundle's location on disk follows a folder.
@@ -431,7 +434,7 @@ targets = [
         loader = "raid_superblt",
         primary = true,
         path = ["mods"],
-        backup = ["mods.bak"],
+        legacy_backup = ["mods.bak"],
         activation = "filesystem",
         load_order = "none",
 
@@ -522,7 +525,7 @@ targets = [
         loader = "dahm",
         primary = true,
         path = ["mods"],
-        backup = ["mods.bak"],
+        legacy_backup = ["mods.bak"],
         activation = "filesystem",
         load_order = "none",
 
@@ -549,7 +552,7 @@ targets = [
         tag = "mod_overrides",
         label = "overrides",
         path = ["assets", "mod_overrides"],
-        backup = ["assets", "mod_overrides.bak"],
+        legacy_backup = ["assets", "mod_overrides.bak"],
         activation = "filesystem",
         load_order = "none",
 

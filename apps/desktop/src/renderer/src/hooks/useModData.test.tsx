@@ -52,6 +52,7 @@ import { useModData } from './useModData'
 function makeNexusInstall(id: number, remoteId: string, version: string): InstalledMod {
     return {
         uid: `nexus:${remoteId}`,
+        installId: `nexus:${remoteId}`,
         id,
         name: 'Unmask Mod',
         version,
@@ -66,6 +67,7 @@ function makeNexusInstall(id: number, remoteId: string, version: string): Instal
 function makeWorkshopInstall(id: number, version: string): InstalledMod {
     return {
         uid: `${id}`,
+        installId: `${id}`,
         id,
         // InstalledMod.id is an opaque local key even for modworkshop mods now;
         // useModData reads remoteId to know the real id to fetch/refresh against.

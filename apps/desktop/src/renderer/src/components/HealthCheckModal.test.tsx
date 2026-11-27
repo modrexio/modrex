@@ -16,6 +16,7 @@ import { HealthCheckModal } from './HealthCheckModal'
 function missing(name: string, remoteId: string): InstalledMod {
     return {
         uid: remoteId,
+        installId: remoteId,
         id: Number(remoteId),
         name,
         version: '1',

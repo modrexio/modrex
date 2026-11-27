@@ -80,6 +80,14 @@ async fn send_with_retry(
     label: &str,
     build: impl Fn(&[(&'static str, String)]) -> reqwest::RequestBuilder,
 ) -> Result<Value, String> {
+    response_json(request_with_retry(app, label, build).await?, label).await
+}
+
+async fn request_with_retry(
+    app: &AppHandle,
+    label: &str,
+    build: impl Fn(&[(&'static str, String)]) -> reqwest::RequestBuilder,
+) -> Result<reqwest::Response, String> {
     let mut token = nexus_oauth::access_token(app).await?;
     let mut refreshed = false;
     // Counted rather than looped over, because only a rate-limit retry spends the budget:
@@ -128,20 +136,22 @@ async fn send_with_retry(
             continue;
         }
 
-        if res.status() == 403 {
-            return Err(
-                "nexus: 403 — this endpoint may require Premium, or the credentials are invalid"
-                    .to_string(),
-            );
-        }
-
-        if !res.status().is_success() {
-            return Err(format!("nexus API {}: {label}", res.status()));
-        }
-        return res.json().await.map_err(|e| e.to_string());
+        return Ok(res);
     }
 
     Err(format!("nexus API 429: {label}"))
+}
+
+async fn response_json(res: reqwest::Response, label: &str) -> Result<Value, String> {
+    if res.status() == 403 {
+        return Err(
+            "nexus: 403 — this endpoint may require Premium, or the credentials are invalid".into(),
+        );
+    }
+    if !res.status().is_success() {
+        return Err(format!("nexus API {}: {label}", res.status()));
+    }
+    res.json().await.map_err(|e| e.to_string())
 }
 
 async fn nexus_get(
@@ -149,6 +159,14 @@ async fn nexus_get(
     path: &str,
     query: Vec<(&str, String)>,
 ) -> Result<Value, String> {
+    response_json(get_response(app, path, query).await?, path).await
+}
+
+async fn get_response(
+    app: &AppHandle,
+    path: &str,
+    query: Vec<(&str, String)>,
+) -> Result<reqwest::Response, String> {
     let mut url = reqwest::Url::parse(&format!("{BASE}{path}")).map_err(|e| e.to_string())?;
     {
         let mut pairs = url.query_pairs_mut();
@@ -156,7 +174,7 @@ async fn nexus_get(
             pairs.append_pair(k, v);
         }
     }
-    send_with_retry(app, path, |headers| {
+    request_with_retry(app, path, |headers| {
         let mut req = http_client()
             .get(url.clone())
             .header("Accept", "application/json");
@@ -166,6 +184,33 @@ async fn nexus_get(
         req
     })
     .await
+}
+
+pub(crate) enum NexusFileMetadata {
+    Found(Value),
+    Missing,
+    Forbidden,
+}
+
+/// A missing pin needs a file choice. A failed lookup leaves the pin unresolved.
+pub(crate) async fn share_file_lookup(
+    app: &AppHandle,
+    domain: &str,
+    mod_id: u32,
+    file_id: Option<u32>,
+) -> Result<NexusFileMetadata, String> {
+    let path = match file_id {
+        Some(id) => format!("/games/{domain}/mods/{mod_id}/files/{id}.json"),
+        None => format!("/games/{domain}/mods/{mod_id}/files.json"),
+    };
+    let response = get_response(app, &path, vec![]).await?;
+    match response.status().as_u16() {
+        404 | 410 => Ok(NexusFileMetadata::Missing),
+        403 => Ok(NexusFileMetadata::Forbidden),
+        _ => response_json(response, &path)
+            .await
+            .map(NexusFileMetadata::Found),
+    }
 }
 
 pub(crate) async fn nexus_get_mod(

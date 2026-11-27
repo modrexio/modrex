@@ -223,6 +223,10 @@ fn ue5_package(extra: &[(&str, &[u8])]) -> tempfile::NamedTempFile {
     let mut entries: Vec<(String, Vec<u8>)> = vec![
         ("PD3-UE5-UE4SS-exp/dwmapi.dll".into(), proxy_bytes(47771)),
         (
+            "PD3-UE5-UE4SS-exp/AssetReplacementMods-Guide.md".into(),
+            b"# Asset replacement mods".to_vec(),
+        ),
+        (
             "PD3-UE5-UE4SS-exp/UE4SS/UE4SS.dll".into(),
             b"new engine".to_vec(),
         ),
@@ -242,10 +246,26 @@ fn ue5_package(extra: &[(&str, &[u8])]) -> tempfile::NamedTempFile {
     for (name, body) in extra {
         entries.push(((*name).into(), body.to_vec()));
     }
+    write_package(&entries)
+}
+
+/// A stand-in for Crime Boss's published package: flat, its documents beside the proxy.
+fn cb_package() -> tempfile::NamedTempFile {
+    write_package(&[
+        ("dwmapi.dll".into(), b"crime boss proxy".to_vec()),
+        ("UE4SS.dll".into(), b"crime boss engine".to_vec()),
+        ("UE4SS-settings.ini".into(), b"[General]".to_vec()),
+        ("Mods/mods.txt".into(), b"BPModLoaderMod : 1\n".to_vec()),
+        ("README.md".into(), b"# UE4SS".to_vec()),
+        ("Changelog.md".into(), b"# Changelog".to_vec()),
+    ])
+}
+
+fn write_package(entries: &[(String, Vec<u8>)]) -> tempfile::NamedTempFile {
     let f = tempfile::NamedTempFile::new().unwrap();
     let mut zip = ::zip::ZipWriter::new(fs::File::create(f.path()).unwrap());
     let opts = ::zip::write::SimpleFileOptions::default();
-    for (name, body) in &entries {
+    for (name, body) in entries {
         zip.start_file(name.as_str(), opts).unwrap();
         zip.write_all(body).unwrap();
     }
@@ -376,6 +396,35 @@ fn a_replacement_identifies_itself_afterwards() {
     assert_eq!(found.modworkshop_id, Some(47771));
     assert_eq!(found.version.as_deref(), Some("0.2.0"));
     assert!(found.unrecognized.is_empty());
+}
+
+#[test]
+fn a_release_installs_again_over_its_own_documents() {
+    // The state a profile that leaves UE4SS out puts it in: only the proxy moved away, so the
+    // engine and the guide the package ships are still there for the install to write over.
+    let tmp = TempDir::new().unwrap();
+    let dir = ue4ss_dir(&tmp);
+    let package = ue5_package(&[]);
+    install_loader("pd3", &path_str(&tmp), Some("steam"), package.path()).unwrap();
+    fs::remove_file(dir.join("dwmapi.dll")).unwrap();
+
+    install_loader("pd3", &path_str(&tmp), Some("steam"), package.path()).unwrap();
+
+    assert!(dir.join("dwmapi.dll").is_file());
+    assert!(dir.join("AssetReplacementMods-Guide.md").is_file());
+}
+
+#[test]
+fn crime_boss_installs_again_over_its_own_documents() {
+    let tmp = TempDir::new().unwrap();
+    let package = cb_package();
+    install_loader("cb", &path_str(&tmp), Some("steam"), package.path()).unwrap();
+
+    install_loader("cb", &path_str(&tmp), Some("steam"), package.path()).unwrap();
+
+    let dir = tmp.path().join("CrimeBoss/Binaries/Win64");
+    assert!(dir.join("README.md").is_file());
+    assert!(dir.join("Changelog.md").is_file());
 }
 
 #[test]
@@ -792,6 +841,21 @@ fn removing_the_loader_keeps_the_mods_the_user_added() {
         b"-- the user's own",
         "a mod the user added is not the loader's to delete"
     );
+}
+
+#[test]
+fn removing_the_loader_takes_the_documents_its_package_shipped() {
+    // Left behind, they are files nothing claims, and the next install refuses to write over
+    // them.
+    let tmp = TempDir::new().unwrap();
+    let dir = ue4ss_dir(&tmp);
+    let package = ue5_package(&[]);
+    install_loader("pd3", &path_str(&tmp), Some("steam"), package.path()).unwrap();
+
+    uninstall("pd3", &path_str(&tmp), Some("steam")).unwrap();
+
+    assert!(!dir.join("AssetReplacementMods-Guide.md").exists());
+    install_loader("pd3", &path_str(&tmp), Some("steam"), package.path()).unwrap();
 }
 
 #[test]

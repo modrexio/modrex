@@ -83,7 +83,9 @@ const BUNDLED_SUBMODS: &[&str] = &[
 ];
 
 /// Files a release owns at the root of whichever directory its layout uses. Everything else
-/// there belongs to the game or the user.
+/// there belongs to the game or the user. Checked against every file of PAYDAY 3's 44048 and
+/// 47771 packages and Crime Boss's 47749 package, documents included: a file a package ships
+/// that is missing here blocks reinstalling it and survives removing it.
 const LOADER_ROOT_FILES: &[&str] = &[
     "UE4SS.dll",
     "UE4SS.log",
@@ -92,6 +94,9 @@ const LOADER_ROOT_FILES: &[&str] = &[
     "MemberVariableLayout.ini",
     "VTableLayout.ini",
     "imgui.ini",
+    "AssetReplacementMods-Guide.md",
+    "README.md",
+    "Changelog.md",
 ];
 
 /// Directories a release owns beside those files.
@@ -209,6 +214,18 @@ pub(crate) fn presence(game_id: &str, game_path: &str, launcher: Option<&str>) -
 
 pub(crate) fn is_installed(game_id: &str, game_path: &str, launcher: Option<&str>) -> bool {
     presence(game_id, game_path, launcher).installed
+}
+
+/// The proxy DLLs that hook UE4SS into the game, which is all a profile moves to leave it out.
+/// The engine and its Mods folder stay where they are, inert without the proxy, and the mods
+/// in that folder are profile members of their own.
+pub(crate) fn hook_files(game_id: &str, game_path: &str, launcher: Option<&str>) -> Vec<PathBuf> {
+    let Some(descriptor) = descriptor_for(game_id, launcher) else {
+        return Vec::new();
+    };
+    let dir = binaries_dir(game_path, &descriptor);
+    let roots = [dir.clone(), dir.join("UE4SS")];
+    claimed_proxies(&dir, descriptor.proxy_dlls, &roots)
 }
 
 /// Everything the installed release owns, as paths under the Binaries directory.

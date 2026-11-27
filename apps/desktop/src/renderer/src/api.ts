@@ -100,6 +100,29 @@ import type {
 } from '../../shared/types'
 
 export type { StartupPhase } from '../../shared/bindings'
+export type {
+    ExportedProfileShare,
+    PendingShareMember,
+    PreviewFile,
+    ProfileList,
+    ProfileShare,
+    ProfileSharePreview,
+    ProfileImportResult,
+    ProfileSource,
+    ProfileSummary,
+} from '../../shared/bindings'
+import type {
+    ExportedProfileShare,
+    MemberOutcome,
+    PendingShareMember,
+    PreviewFile,
+    ProfileList,
+    ProfileShare,
+    ProfileSharePreview,
+    ProfileImportResult,
+    ProfileSource,
+    ProfileSummary,
+} from '../../shared/bindings'
 import type { StartupPhase } from '../../shared/bindings'
 export type { AnalyticsConsent, UpdateChannel, UpdatedNotice } from '../../shared/bindings'
 import type { AnalyticsConsent, UpdateChannel, UpdatedNotice } from '../../shared/bindings'
@@ -866,6 +889,115 @@ export const api = {
     },
     async deleteFolder(folderId: string, gamePath: string, gameId: string): Promise<void> {
         await commands.deleteFolder(gamePath, folderId, gameId)
+    },
+
+    listProfiles(gameId: string, gamePath: string): Promise<ProfileList> {
+        return commands.listProfiles(gameId, gamePath)
+    },
+    exportProfileShare(
+        gameId: string,
+        gamePath: string,
+        profileId: string
+    ): Promise<ExportedProfileShare> {
+        return commands.exportProfileShare(gameId, gamePath, profileId)
+    },
+    parseProfileShare(input: string): Promise<ProfileShare> {
+        return commands.parseProfileShare(input)
+    },
+    previewProfileShare(
+        input: string,
+        gameId: string,
+        gamePath: string
+    ): Promise<ProfileSharePreview> {
+        return commands.previewProfileShare(input, gameId, gamePath)
+    },
+    importProfileShare(
+        input: string,
+        gameId: string,
+        gamePath: string,
+        name: string,
+        choices: Record<number, number>
+    ): Promise<ProfileImportResult> {
+        return commands.importProfileShare(input, gameId, gamePath, name, choices)
+    },
+    onProfileImportProgress(
+        callback: (
+            progress: ProfileImportResult['members'][number] & { done: number; total: number }
+        ) => void
+    ): () => void {
+        return onEvent('profile-share:import-progress', callback)
+    },
+    onProfileShareProgress(
+        callback: (progress: { done: number; total: number }) => void
+    ): () => void {
+        return onEvent('profile-share:progress', callback)
+    },
+    onNexusInstallComplete(
+        callback: (installed: { gameId: string; modId: number; fileId: number }) => void
+    ): () => void {
+        return onEvent('nxm:install-complete', callback)
+    },
+    saveProfileShareFile(
+        gameId: string,
+        gamePath: string,
+        profileId: string,
+        title: string
+    ): Promise<number | null> {
+        return commands.saveProfileShareFile(gameId, gamePath, profileId, title)
+    },
+    openProfileShareFile(title: string): Promise<string | null> {
+        return commands.openProfileShareFile(title)
+    },
+    pendingShareMemberFiles(
+        gameId: string,
+        gamePath: string,
+        memberKey: number
+    ): Promise<PreviewFile[]> {
+        return commands.pendingShareMemberFiles(gameId, gamePath, memberKey)
+    },
+    choosePendingShareFile(
+        gameId: string,
+        gamePath: string,
+        memberKey: number,
+        fileId: number
+    ): Promise<PendingShareMember> {
+        return commands.choosePendingShareFile(gameId, gamePath, memberKey, fileId)
+    },
+    installPendingShareMember(
+        gameId: string,
+        gamePath: string,
+        memberKey: number
+    ): Promise<MemberOutcome> {
+        return commands.installPendingShareMember(gameId, gamePath, memberKey)
+    },
+    async dismissPendingShareMember(
+        gameId: string,
+        gamePath: string,
+        memberKey: number
+    ): Promise<void> {
+        await commands.dismissPendingShareMember(gameId, gamePath, memberKey)
+    },
+    createProfile(
+        gameId: string,
+        gamePath: string,
+        name: string,
+        source: ProfileSource
+    ): Promise<ProfileSummary> {
+        return commands.createProfile(gameId, gamePath, name, source)
+    },
+    async renameProfile(
+        gameId: string,
+        gamePath: string,
+        profileId: string,
+        name: string
+    ): Promise<void> {
+        await commands.renameProfile(gameId, gamePath, profileId, name)
+    },
+    async deleteProfile(gameId: string, gamePath: string, profileId: string): Promise<void> {
+        await commands.deleteProfile(gameId, gamePath, profileId)
+    },
+    async switchProfile(gameId: string, gamePath: string, profileId: string): Promise<void> {
+        await commands.switchProfile(gameId, gamePath, profileId)
     },
 
     listLeftoverFiles(gameId: string): Promise<LeftoverFiles[]> {

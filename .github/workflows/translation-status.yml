@@ -6,11 +6,7 @@ on:
         paths:
             - 'apps/desktop/src/renderer/src/i18n/*.json'
             - 'apps/desktop/translation-contributors.generated.json'
-            # The derived output depends on this logic, so changing it has to regenerate too.
-            - 'apps/desktop/scripts/i18n-*.mts'
-            - 'apps/desktop/scripts/check-i18n.mts'
-            - 'apps/desktop/scripts/update-i18n-*.mts'
-            - 'apps/desktop/src/shared/i18n-values.mts'
+            - 'lexmit.config.json'
             - '.github/workflows/translation-status.yml'
     schedule:
         - cron: '17 4 * * 1'
@@ -19,101 +15,15 @@ on:
 permissions:
     contents: write
 
-# A cancelled run has published nothing: the push is the last step, and the run that survives
-# checks out main again and recomputes from the newest source change.
-concurrency:
-    group: translation-status
-    cancel-in-progress: true
-
 jobs:
     update-readme:
-        runs-on: ubuntu-latest
-        steps:
+        # Keep both versions equal to the lexmit script and the @shulha/lexmit dependency in
+        # apps/desktop/package.json, so the bot writes exactly what the local commands check.
+        uses: ShulhaOleh/lexmit/.github/workflows/translation-status.yml@v0.1.0
+        permissions:
+            contents: write
+        with:
+            lexmit-version: 0.1.0
+        secrets:
             # The main ruleset exempts this deploy key, because it cannot exempt the workflow token.
-            - uses: actions/checkout@v7
-              with:
-                  ref: main
-                  fetch-depth: 0
-                  ssh-key: ${{ secrets.MAIN_PUSH_KEY }}
-
-            - uses: oven-sh/setup-bun@v2
-              with:
-                  bun-version-file: package.json
-
-            # Every command below is a dependency-free Bun entry point, so this job needs no
-            # bun install. Keep it that way when adding a step here.
-            - name: Synchronize, regenerate, verify and publish
-              env:
-                  GITHUB_TOKEN: ${{ github.token }}
-              run: |
-                  set -euo pipefail
-
-                  git config user.name "github-actions[bot]"
-                  git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-                  # A rejected push is the one recoverable outcome and is the only thing that
-                  # returns non-zero below. Everything else exits the job, because errexit does
-                  # not apply inside a function called as an "if" condition and a validation
-                  # failure must never be mistaken for a race worth retrying.
-                  must() {
-                    "$@" || { echo "::error::i18n writer step failed: $*"; exit 1; }
-                  }
-
-
-                  attempt_publish() {
-                    must git fetch origin main
-                    must git reset --hard origin/main
-                    BASE="$(git rev-parse HEAD)"
-                    echo "Base revision: $BASE"
-
-                    # The source commit has to be valid on its own before anything is written.
-                    must bun apps/desktop/scripts/i18n-enforcement.mts
-
-                    must bun apps/desktop/scripts/check-i18n.mts --sync
-                    must bun apps/desktop/scripts/update-i18n-contributors.mts
-                    must bun apps/desktop/scripts/i18n-presentation-lifecycle.mts --write
-
-                    # Strict now: after the writer has run, stale derived state is a real failure.
-                    must bun apps/desktop/scripts/i18n-enforcement.mts --synchronized
-                    must bun apps/desktop/scripts/i18n-presentation-lifecycle.mts --check
-
-                    # A second pass must find nothing left to do, or the generators disagree
-                    # with each other and the result is not a fixed point.
-                    must bun apps/desktop/scripts/i18n-tree-state.mts > /tmp/i18n-pass-one.txt
-                    must bun apps/desktop/scripts/check-i18n.mts --sync
-                    must bun apps/desktop/scripts/i18n-presentation-lifecycle.mts --write
-                    must bun apps/desktop/scripts/i18n-tree-state.mts > /tmp/i18n-pass-two.txt
-                    must diff /tmp/i18n-pass-one.txt /tmp/i18n-pass-two.txt
-
-                    # Exactly which paths changed, and that no translation was touched.
-                    must bun apps/desktop/scripts/i18n-writer-guard.mts "$BASE"
-
-                    # Stage the owned paths by name as well: anything else the runner somehow
-                    # produced stays out of the commit even though the guard above passed.
-                    must git add README.md apps/desktop/translation-contributors.generated.json assets/i18n/status apps/desktop/src/renderer/src/i18n
-                    if git diff --cached --quiet; then
-                      echo "Derived translation state is already current."
-                      return 0
-                    fi
-                    must git commit -m "docs: update translation status"
-
-                    # Never force: a translator who pushed while this ran keeps their commit,
-                    # and the next attempt recomputes on top of it.
-                    if git push origin HEAD:main; then
-                      return 0
-                    fi
-                    echo "main advanced during this run; recomputing from fresh main."
-                    return 1
-                  }
-
-                  for attempt in 1 2 3; do
-                    echo "::group::Attempt $attempt"
-                    if attempt_publish; then
-                      echo "::endgroup::"
-                      exit 0
-                    fi
-                    echo "::endgroup::"
-                  done
-
-                  echo "main kept advancing; leaving the next scheduled or push-triggered run to publish."
-                  exit 1
+            push-key: ${{ secrets.MAIN_PUSH_KEY }}

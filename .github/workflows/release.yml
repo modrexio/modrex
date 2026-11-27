@@ -103,7 +103,10 @@ jobs:
 
             - name: Extract changelog section
               working-directory: apps/desktop
-              run: bun scripts/changelog-section.mts "${{ needs.validate-version.outputs.version }}" > ../../RELEASE_BODY.md
+              run: |
+                  set -euo pipefail
+                  bun scripts/changelog-section.mts "${{ needs.validate-version.outputs.version }}" \
+                    | bun scripts/github-release-body.mts > ../../RELEASE_BODY.md
 
             - name: Rename updater artifacts to stable arch-suffixed names
               run: |

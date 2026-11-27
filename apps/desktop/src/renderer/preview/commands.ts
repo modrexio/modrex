@@ -368,6 +368,21 @@ const handlers = {
         library('cb').toggleCrimeBossTarget(uid)
         return null
     },
+    listProfiles: async (gameId) => library(game(gameId)).profileList(),
+    createProfile: async (gameId, _gamePath, name, source) =>
+        library(game(gameId)).createProfile(name, source),
+    renameProfile: async (gameId, _gamePath, profileId, name) => {
+        library(game(gameId)).renameProfile(profileId, name)
+        return null
+    },
+    deleteProfile: async (gameId, _gamePath, profileId) => {
+        library(game(gameId)).deleteProfile(profileId)
+        return null
+    },
+    switchProfile: async (gameId, _gamePath, profileId) => {
+        library(game(gameId)).switchProfile(profileId)
+        return null
+    },
     createFolder: async (_gamePath, displayName, parentId, gameId) =>
         library(game(gameId)).createFolder(displayName, parentId),
     renameFolder: async (_gamePath, folderId, displayName, gameId) => {

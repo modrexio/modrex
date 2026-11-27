@@ -64,6 +64,7 @@ jobs:
             - run: bun run check-csp
             - run: bun run check-updater
             - run: bun run check-i18n
+            - run: bun run check-changes
             - name: i18n read-only check
               run: bun run i18n:check-readonly
             - run: bun run format:check

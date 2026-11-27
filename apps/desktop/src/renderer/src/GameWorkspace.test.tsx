@@ -11,7 +11,11 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('./api', () => ({
-    api: { findGamePath: mocks.findGamePath, getInstalled: mocks.getInstalled },
+    api: {
+        findGamePath: mocks.findGamePath,
+        getInstalled: mocks.getInstalled,
+        onNexusInstallComplete: () => () => {},
+    },
 }))
 vi.mock('@tauri-apps/plugin-log', () => ({ error: mocks.log }))
 vi.mock('./sources', () => ({ sourcesForGame: () => [], hasSource: () => false }))

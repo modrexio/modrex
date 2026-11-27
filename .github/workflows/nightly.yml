@@ -17,6 +17,8 @@ cache-mode: none
 permissions:
     actions: read
     contents: write
+    # nightly-notes.mts looks up the pull request behind each change file.
+    pull-requests: read
 
 concurrency:
     group: nightly
@@ -119,6 +121,8 @@ jobs:
             - uses: actions/checkout@v7
               with:
                   ref: ${{ needs.plan.outputs.commit }}
+                  # The notes read every change file's history back to the last v tag.
+                  fetch-depth: 0
                   persist-credentials: false
 
             - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
@@ -166,12 +170,13 @@ jobs:
                   {
                     echo "Version $VERSION, built from [${COMMIT:0:8}]($REPOSITORY_URL/commit/$COMMIT)."
                     echo
-                    bun scripts/changelog-section.mts Unreleased
+                    bun scripts/nightly-notes.mts "$PREVIOUS"
                     echo
                     if [ -n "$PREVIOUS" ]; then
                       echo "[Changes since the last nightly]($REPOSITORY_URL/compare/$PREVIOUS...$COMMIT)"
                     fi
                   } > ../../NOTES.md
+                  bun scripts/github-release-body.mts < ../../NOTES.md > ../../NOTES.github.md
 
             - name: Generate latest.json (tauri-plugin-updater)
               run: |
@@ -250,7 +255,7 @@ jobs:
               run: |
                   if ! gh release view nightly > /dev/null 2>&1; then
                     gh release create nightly --prerelease --latest=false --title "v$VERSION" \
-                      --notes-file NOTES.md --target "$COMMIT"
+                      --notes-file NOTES.github.md --target "$COMMIT"
                   fi
 
             # latest.json goes last and old files after it, so each manifest's files stay available.
@@ -273,7 +278,7 @@ jobs:
                     -f tag_name=nightly \
                     -f target_commitish="$COMMIT" \
                     -f name="v$VERSION" \
-                    -F body=@NOTES.md \
+                    -F body=@NOTES.github.md \
                     -F draft=false \
                     -F prerelease=true \
                     -f make_latest=false > /dev/null

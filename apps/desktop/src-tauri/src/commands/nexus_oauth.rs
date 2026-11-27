@@ -292,8 +292,8 @@ struct LoadedTokens {
     expires_at: i64,
 }
 
-const SIGN_IN_REQUIRED: &str = "nexus oauth: sign in required";
-const SESSION_EXPIRED: &str = "nexus oauth: session expired, sign in again";
+pub(crate) const SIGN_IN_REQUIRED: &str = "nexus oauth: sign in required";
+pub(crate) const SESSION_EXPIRED: &str = "nexus oauth: session expired, sign in again";
 
 // Emitted whenever a stored sign-in is discarded without the user asking for it, so the
 // UI can stop reporting a session that no longer works and offer re-authorization.

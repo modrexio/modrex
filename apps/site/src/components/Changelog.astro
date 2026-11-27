@@ -1,5 +1,4 @@
 ---
-import { marked } from 'marked'
 import type { Release } from '../lib/github'
 
 interface Props {
@@ -15,14 +14,13 @@ const dateFormat = new Intl.DateTimeFormat('en-US', {
     timeZone: 'UTC',
 })
 
-// Release bodies are Modrex's own CHANGELOG.md sections (stamped into the release
-// by the CI workflow), so rendering them with set:html is trusted build-time content.
+// GitHub renders and sanitizes this HTML from Modrex's own release bodies.
 const entries = releases.map((release) => ({
     version: release.tag_name,
     publishedAt: release.published_at,
     date: dateFormat.format(new Date(release.published_at)),
     url: release.html_url,
-    html: marked.parse(release.body, { async: false }),
+    html: release.body_html,
 }))
 ---
 

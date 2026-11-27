@@ -70,7 +70,7 @@ targets = [
         loader = "dahm",
         primary = true,
         path = ["mods"],
-        backup = ["mods.bak"],
+        legacy_backup = ["mods.bak"],
         activation = "filesystem",
         load_order = "none",
 
@@ -97,7 +97,7 @@ targets = [
         tag = "mod_overrides",
         label = "overrides",
         path = ["assets", "mod_overrides"],
-        backup = ["assets", "mod_overrides.bak"],
+        legacy_backup = ["assets", "mod_overrides.bak"],
         activation = "filesystem",
         load_order = "none",
 

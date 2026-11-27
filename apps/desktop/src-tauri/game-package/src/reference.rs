@@ -356,9 +356,9 @@ pub fn markdown(examples: &[(&str, &str)]) -> String {
          | `scope` | no | `mods` by default. `unreal_paks` shares native game files and requires the installed store record of every native path before mod changes: the Steam depot manifests or the Epic BuildPatch manifests. A Microsoft Store copy has no such record, so there only files Modrex installed and whose bytes are unchanged may change, and the target cannot declare companions. It supports archive-named Pak file units without filename ordering and never moves the whole target |\n\
          | `path` | yes | components below the game path |\n\
          | `disabled` | no | where disabled mods move; `path` plus `disabled` when omitted |\n\
-         | `recursive_load` | no | defaults to `false`; set when the game reads `path` recursively, so disabling and `backup` must sit outside it |\n\
-         | `backup` | yes | where launching without mods moves the contents |\n\
-         | `store_paths` | no | `path` and `backup` for a store build laid out differently |\n\
+         | `recursive_load` | no | defaults to `false`; set when the game reads `path` recursively, so disabling and `legacy_backup` must sit outside it |\n\
+         | `legacy_backup` | no | where releases before the `.modrex` layout set the contents aside for a launch without mods |\n\
+         | `store_paths` | no | `path` and `legacy_backup` for a store build laid out differently |\n\
          | `activation` | yes | how a mod is enabled and disabled |\n\
          | `load_order` | yes | whether the game orders mods here |\n\
          | `unit` | yes | what one mod looks like |\n\n\
@@ -366,10 +366,12 @@ pub fn markdown(examples: &[(&str, &str)]) -> String {
          when whatever reads `path` would still find a mod in a subfolder of it: Unreal searches\n\
          a plugin folder recursively, so a plugin target disables outside `path`. A target whose\n\
          game reads the folder by its own recursion sets `recursive_load`, which enforces the\n\
-         same outside placement for both `disabled` and `backup`. `backup`\n\
-         is declared because it does not follow a pattern: pak targets must place it outside\n\
-         `Paks/`, which Unreal mounts recursively.\n\n\
-         `store_paths` lists a `store`, a `path` and a `backup` for each store whose build keeps\n\
+         same outside placement for both `disabled` and `legacy_backup`.\n\n\
+         Launching without mods sets each target's contents aside in `.modrex/vanilla/<tag>`\n\
+         below the game path, outside every folder a game loads. Releases before that layout\n\
+         used a folder each package declared, and a backup left there is still restored, so a\n\
+         game those releases supported keeps it as `legacy_backup`. A new game declares none.\n\n\
+         `store_paths` lists a `store`, a `path` and any `legacy_backup` for each store whose build keeps\n\
          the target somewhere else, such as a UE4SS target on a Microsoft Store build, which\n\
          lives under `Binaries/WinGDK` instead of `Binaries/Win64`. The store is recognised by\n\
          its own executable being present, so only a store whose binding names one can be\n\
@@ -416,7 +418,7 @@ pub fn markdown(examples: &[(&str, &str)]) -> String {
          `kind = \"bundle\"` means one mod is a set of files laid over the game folder, for a game\n\
          whose downloads write into several of its folders at once. The installed record lists\n\
          every file it placed. A bundle target is the primary target, its `path` is empty, it\n\
-         declares `disabled` and `backup` outside every root, and it uses filesystem activation\n\
+         declares `disabled`, and any `legacy_backup`, outside every root, and it uses filesystem activation\n\
          with no load order. Its other targets are still scanned for mods installed by hand, and\n\
          a file a bundle placed is never listed there. App folders are unavailable, since nothing\n\
          about a bundle's location on disk follows a folder.\n\n\

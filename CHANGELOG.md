@@ -1,31 +1,45 @@
 # Changelog
 
-All notable changes to Modrex are documented in this file. Each version's section here becomes the GitHub release body and the in-app update notes — entries should read as user-facing release notes, not commit messages.
+All notable changes to Modrex are documented in this file. Each version's section becomes the GitHub release body and the in-app update notes. Unreleased changes live as files in [.changes/](.changes/), which `bun release` collects into the next version's section, see [docs/contributing/changelog.md](docs/contributing/changelog.md).
 
-## Unreleased
+Upcoming changes: see the [nightly release notes](https://github.com/modrexio/modrex/releases/tag/nightly).
+
+## 0.17.0
 
 ### Added
 
-- Added Cyberpunk 2077 support for Steam and the Epic Games Store.
-- Added a setting to make the interface's corners sharper or rounder.
-- Added pink as an accent color.
-- Added a Nightly update channel for testing new features early.
-- Added short animations to dialogs, menus, tooltips and buttons.
+- Added Cyberpunk 2077 support for Steam and the Epic Games Store. ([#199](https://github.com/modrexio/modrex/pull/199) by [@TarekLP](https://github.com/TarekLP))
+- Added a setting to make the interface's corners sharper or rounder. ([#199](https://github.com/modrexio/modrex/pull/199) by [@TarekLP](https://github.com/TarekLP))
+- Added pink as an accent color. ([#199](https://github.com/modrexio/modrex/pull/199) by [@TarekLP](https://github.com/TarekLP))
+- Added a Nightly update channel for testing new features early. ([#214](https://github.com/modrexio/modrex/pull/214))
+- Added short animations to dialogs, menus, tooltips and buttons. ([#224](https://github.com/modrexio/modrex/pull/224))
+- Added mod profiles for each game. ([#226](https://github.com/modrexio/modrex/pull/226))
+- Added sharing and importing profiles. ([#226](https://github.com/modrexio/modrex/pull/226))
 
 ### Changed
 
-- Usage analytics now include your language.
-- The purple accent color is now deeper.
+- The purple accent color is now deeper. ([#199](https://github.com/modrexio/modrex/pull/199) by [@TarekLP](https://github.com/TarekLP))
+- Usage analytics now include your language. ([#212](https://github.com/modrexio/modrex/pull/212))
+- Folder names being edited no longer show a focus outline. ([#226](https://github.com/modrexio/modrex/pull/226))
+- Launching without mods now uses the game's .modrex folder. ([#226](https://github.com/modrexio/modrex/pull/226))
 
 ### Fixed
 
-- Fixed PAYDAY 3 and Crime Boss mods set aside for a launch without mods being deleted when their folder was recreated while the game ran.
-- Fixed update checks wrongly saying you're up to date.
-- Fixed the mods folder being recreated during a launch without mods.
-- Fixed update checks and downloads hanging on a stalled connection.
-- Fixed a failed update install leaving Modrex with no window.
-- Fixed interface errors missing from the log.
-- Fixed the page selector flickering on Nexus Mods.
+- Fixed PAYDAY 3 and Crime Boss mods set aside for a launch without mods being deleted when their folder was recreated while the game ran. ([#199](https://github.com/modrexio/modrex/pull/199) by [@TarekLP](https://github.com/TarekLP))
+- Fixed a failed update install leaving Modrex with no window. ([#214](https://github.com/modrexio/modrex/pull/214))
+- Fixed interface errors missing from the log. ([#214](https://github.com/modrexio/modrex/pull/214))
+- Fixed the mods folder being recreated during a launch without mods. ([#214](https://github.com/modrexio/modrex/pull/214))
+- Fixed update checks and downloads hanging on a stalled connection. ([#214](https://github.com/modrexio/modrex/pull/214))
+- Fixed update checks wrongly saying you're up to date. ([#214](https://github.com/modrexio/modrex/pull/214))
+- Fixed the page selector flickering on Nexus Mods. ([#222](https://github.com/modrexio/modrex/pull/222))
+- Fixed disabled hand-installed Diesel mods reappearing as new mods. ([#226](https://github.com/modrexio/modrex/pull/226))
+- Fixed ModWorkshop installs removing Nexus mods with the same id. ([#226](https://github.com/modrexio/modrex/pull/226))
+- Fixed bursts of requests running into ModWorkshop's rate limit. ([#226](https://github.com/modrexio/modrex/pull/226))
+- Fixed reinstalls moving a mod's files into one folder. ([#226](https://github.com/modrexio/modrex/pull/226))
+
+### Contributors
+
+Thank you to everyone who contributed to this release: [@illianezheviasov](https://github.com/illianezheviasov), [@ShulhaOleh](https://github.com/ShulhaOleh), [@TarekLP](https://github.com/TarekLP)
 
 ## 0.16.1
 

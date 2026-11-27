@@ -83,7 +83,6 @@ targets = [
         primary = true,
         scope = "unreal_paks",
         path = ["ReadyOrNot", "Content", "Paks"],
-        backup = ["ReadyOrNot", "Content", "Paks.mods.bak"],
         activation = "filesystem",
         load_order = "none",
         unit = {

@@ -98,7 +98,7 @@ targets = [
         label = "pak_mods",
         primary = true,
         path = ["PAYDAY3", "Content", "Paks", "~mods"],
-        backup = ["PAYDAY3", "Content", "~mods.bak"],
+        legacy_backup = ["PAYDAY3", "Content", "~mods.bak"],
         activation = "filesystem",
         load_order = "filename_prefix",
 
@@ -119,7 +119,7 @@ targets = [
         loader = "pdml",
         path = ["PAYDAY3", "Mods"],
         disabled = ["PAYDAY3", "Mods.disabled"],
-        backup = ["PAYDAY3", "Mods.bak"],
+        legacy_backup = ["PAYDAY3", "Mods.bak"],
         activation = "filesystem",
         load_order = "none",
 
@@ -136,12 +136,12 @@ targets = [
         label = "loader_mods",
         loader = "ue4ss",
         path = ["PAYDAY3", "Binaries", "Win64", "UE4SS", "Mods"],
-        backup = ["PAYDAY3", "Binaries", "Win64", "UE4SS", "Mods.bak"],
+        legacy_backup = ["PAYDAY3", "Binaries", "Win64", "UE4SS", "Mods.bak"],
         store_paths = [
             {
                 store = "xbox",
                 path = ["PAYDAY3", "Binaries", "WinGDK", "UE4SS", "Mods"],
-                backup = ["PAYDAY3", "Binaries", "WinGDK", "UE4SS", "Mods.bak"],
+                legacy_backup = ["PAYDAY3", "Binaries", "WinGDK", "UE4SS", "Mods.bak"],
             },
         ],
         activation = "ue4ss_mods_txt",
